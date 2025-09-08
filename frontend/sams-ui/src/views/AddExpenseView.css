@@ -1,0 +1,17 @@
+.add-expense-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .add-expense-container {
+    padding: 12px;
+  }
+}
+
+/* Force mobile mode overrides */
+body.force-mobile-mode .add-expense-container {
+  padding: 12px !important;
+}

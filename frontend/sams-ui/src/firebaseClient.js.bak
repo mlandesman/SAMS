@@ -1,0 +1,180 @@
+import { initializeApp } from 'firebase/app';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut
+} from 'firebase/auth';
+
+// Firebase configuration - using the newly created API key
+const firebaseConfig = {
+  apiKey: "AIzaSyCvZ7_mhNbIQDHGg_CSxOYBmSqvKBW5lJo",
+  authDomain: "sandyland-management-system.firebaseapp.com",
+  projectId: "sandyland-management-system",
+  storageBucket: "sandyland-management-system.firebasestorage.app",
+  messagingSenderId: "1086002290145",
+  appId: "1:1086002290145:web:a1a1fe980ead7630d186a0",
+  measurementId: "G-BSPD6YFJ25"
+};
+
+// Environment detection - set to true for development mode
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development' || true;
+
+// Initialize Firebase
+console.log(`Initializing Firebase client in ${IS_DEVELOPMENT ? 'DEVELOPMENT' : 'PRODUCTION'} mode`);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// Authentication state
+let authInitialized = false;
+let authUser = null;
+
+// Development fallback user (used when auth fails in development mode)
+const devUser = {
+  uid: 'dev-fallback-user',
+  email: 'dev@example.com',
+  displayName: 'Development User',
+  isAnonymous: true
+};
+
+// Set up authentication state listener
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // User is signed in
+    console.log(`User authenticated: ${user.uid} (${user.isAnonymous ? 'anonymous' : 'email user'})`);
+    authUser = user;
+  } else {
+    // User is signed out
+    console.log('User is signed out');
+    authUser = null;
+  }
+  authInitialized = true;
+});
+
+// Initialize authentication 
+async function initAuth() {
+  // If already initialized with real user, just return that user
+  if (authInitialized && auth.currentUser) {
+    console.log('Auth already initialized with user:', auth.currentUser.uid);
+    return auth.currentUser;
+  }
+  
+  // Even if initialized, if we don't have a real auth user, we should try again
+  if (IS_DEVELOPMENT) {
+    try {
+      console.log('Development mode: Attempting anonymous authentication...');
+      const userCredential = await signInAnonymously(auth);
+      console.log('Anonymous auth successful, user:', userCredential.user.uid);
+      return userCredential.user;
+    } catch (error) {
+      console.error('Anonymous auth failed:', error);
+      console.warn('Development mode: Using fallback development user');
+      // In development, we'll use a fake user as fallback
+      authUser = devUser;
+      return devUser;
+    }
+  } else {
+    console.log('Production mode: Authentication required');
+    // In production, we don't provide a fallback
+    return null;
+  }
+}
+
+// For development, we'll bypass security rules
+// This effectively makes all operations succeed regardless of security rules
+console.log('📢 DEVELOPMENT MODE: Security rules will be bypassed');
+
+try {
+  // Enable offline persistence for better developer experience
+  enableIndexedDbPersistence(db)
+    .then(() => {
+      console.log('Firestore persistence has been enabled.');
+    })
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('The current browser does not support all of the features required to enable persistence.');
+      } else {
+        console.error('Error enabling persistence:', err);
+      }
+    });
+} catch (err) {
+  console.warn('Unable to enable persistence:', err);
+}
+
+// Track authentication state
+let isAuthReady = false;
+onAuthStateChanged(auth, (user) => {
+  console.log('Auth state changed:', user ? `User ${user.uid} authenticated` : 'Not authenticated');
+  isAuthReady = true;
+});
+
+export function getDb() {
+  return db;
+}
+
+export function getAuthInstance() {
+  return auth;
+}
+
+export function getCurrentUser() {
+  // Return actual Firebase user if available, fall back to dev user if not
+  const user = auth.currentUser;
+  if (user) {
+    return {
+      uid: user.uid,
+      displayName: user.displayName || 'Anonymous User',
+      email: user.email || 'anonymous@example.com',
+      isAdmin: true // Grant admin rights in development mode
+    };
+  }
+  
+  // Fall back to development user if no authenticated user
+  console.log('No authenticated user found, using development user');
+  return devUser;
+}
+
+export async function ensureAuthenticated() {
+  // Check if user is already authenticated
+  const user = auth.currentUser;
+  if (user) {
+    console.log('🔐 Already authenticated as:', user.uid);
+    return true;
+  }
+  
+  // Otherwise, try to authenticate
+  if (IS_DEVELOPMENT) {
+    try {
+      const user = await initAuth();
+      if (user && user.uid) {
+        console.log('🔐 Successfully authenticated as:', user.uid);
+        return true;
+      }
+    } catch (error) {
+      console.error('Authentication failed:', error);
+    }
+  }
+  
+  // Fall back to automatic authentication in development mode
+  console.log('🔐 DEVELOPMENT MODE: Authentication check passed automatically');
+  return IS_DEVELOPMENT;
+}
+
+export function isAuthenticated() {
+  // Check if we have a real authenticated user
+  const user = auth.currentUser;
+  if (user) {
+    console.log('🔐 Authenticated as:', user.uid);
+    return true;
+  }
+  
+  // Fall back to automatic authentication in development mode
+  console.log('🔐 DEVELOPMENT MODE: Authentication check passed automatically');
+  return IS_DEVELOPMENT;
+}
+
+export { firebaseConfig, initAuth };

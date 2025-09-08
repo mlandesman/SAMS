@@ -1,0 +1,108 @@
+{
+  "createdAt": {
+    "_seconds": 1751035526,
+    "_nanoseconds": 736000000
+  },
+  "accountsLastUpdated": {
+    "_seconds": 1751046113,
+    "_nanoseconds": 599000000
+  },
+  "branding": {
+    "iconUrl": "https://storage.googleapis.com/sandyland-management-system.firebasestorage.app/icons/MTC/icon_1751054138610_MTC Logo Transparent.png",
+    "logoUrl": "https://storage.googleapis.com/sandyland-management-system.firebasestorage.app/logos/MTC/1751054136883_MTC Logo Transparent.png",
+    "brandColors": {
+      "primary": "#2563eb",
+      "secondary": "#64748b",
+      "accent": "#10b981"
+    }
+  },
+  "status": "active",
+  "basicInfo": {
+    "fullName": "Marina Turquesa Condominiums",
+    "displayName": "MTC",
+    "clientType": "HOA_Management",
+    "status": "active",
+    "description": "Mza 20 Lote 12-13 Privada Xel-ha\nPuerto Aventuras, QR 77733"
+  },
+  "configuration": {
+    "timezone": "America/Cancun",
+    "currency": "MXN",
+    "language": "en-US",
+    "dateFormat": "DD/MM/YYYY"
+  },
+  "contactInfo": {
+    "primaryEmail": "pm@sandyland.com.mx",
+    "phone": "+52 984-178-0331",
+    "address": {
+      "street": "20 Privada Xelha PH4D",
+      "city": "Solidaridad",
+      "state": "QR",
+      "postalCode": "77733",
+      "country": "MX"
+    },
+    "website": ""
+  },
+  "metadata": {
+    "version": 9,
+    "lastBalanceSnapshotId": "2025-06-27",
+    "lastModifiedBy": "system-snapshot-creation",
+    "lastBalanceSnapshot": {
+      "_seconds": 1751055216,
+      "_nanoseconds": 562000000
+    },
+    "lastModified": {
+      "_seconds": 1751055216,
+      "_nanoseconds": 562000000
+    }
+  },
+  "accounts": [
+    {
+      "transactionCount": 240,
+      "name": "CiBanco",
+      "balance": 163830,
+      "type": "bank",
+      "createdAt": {
+        "_seconds": 1751045204,
+        "_nanoseconds": 553000000
+      },
+      "manualAdjustment": 55777.67000000007,
+      "isActive": true,
+      "balanceNote": "Manually set from spreadsheet totals",
+      "updated": {
+        "_seconds": 1751575160,
+        "_nanoseconds": 861000000
+      },
+      "id": "bank-001",
+      "calculatedBalance": 97652.32999999993,
+      "currency": "USD",
+      "lastUpdated": {
+        "_seconds": 1751046113,
+        "_nanoseconds": 599000000
+      }
+    },
+    {
+      "lastUpdated": {
+        "_seconds": 1751046113,
+        "_nanoseconds": 599000000
+      },
+      "id": "cash-001",
+      "updated": {
+        "_seconds": 1751054059,
+        "_nanoseconds": 812000000
+      },
+      "manualAdjustment": -59685.94,
+      "name": "Cash",
+      "type": "cash",
+      "balanceNote": "Manually set from spreadsheet totals",
+      "transactionCount": 183,
+      "balance": 11780,
+      "isActive": true,
+      "calculatedBalance": 73265.94,
+      "currency": "USD",
+      "createdAt": {
+        "_seconds": 1751045204,
+        "_nanoseconds": 553000000
+      }
+    }
+  ]
+}

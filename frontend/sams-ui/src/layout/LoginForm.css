@@ -1,0 +1,138 @@
+.login-form-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.login-form {
+  background-color: white;
+  padding: 2.5rem;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-logo-container {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.login-logo {
+  max-width: 220px;
+  height: auto;
+}
+
+.login-form h2 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.login-form button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.login-form button:hover {
+  background-color: #0052a3;
+}
+
+.login-form button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #d32f2f;
+  background-color: #ffebee;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.success-message {
+  color: #2e7d32;
+  background-color: #e8f5e8;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+/* Forgot Password Section */
+.forgot-password-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.forgot-password-text {
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.forgot-password-button {
+  width: 100%;
+  padding: 0.6rem;
+  background-color: #ff6b35;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 0 !important;
+}
+
+.forgot-password-button:hover {
+  background-color: #e55a2b;
+}
+
+.forgot-password-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.forgot-password-help {
+  margin: 0.8rem 0 0 0;
+  color: #888;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}

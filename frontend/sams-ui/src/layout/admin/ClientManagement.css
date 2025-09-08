@@ -1,0 +1,261 @@
+/**
+ * Client Management Component Styles
+ * Phase 12: Client Management CRUD Prerequisites
+ * Implementation Date: June 26, 2025
+ */
+
+.client-management-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.client-management-header {
+  margin-bottom: 32px;
+}
+
+.client-management-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #1976d2;
+  margin-bottom: 8px;
+}
+
+.client-management-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.create-client-btn {
+  background-color: #1976d2;
+  color: white;
+  font-weight: 600;
+  min-width: 140px;
+}
+
+.create-client-btn:hover {
+  background-color: #1565c0;
+}
+
+.client-management-table {
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.client-management-table .MuiTableHead-root {
+  background-color: #f5f5f5;
+}
+
+.client-management-table .MuiTableHead-root .MuiTableCell-root {
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.client-management-table .MuiTableRow-root:hover {
+  background-color: #f9f9f9;
+}
+
+.client-management-table .MuiTableRow-root.selected {
+  background-color: #dbeafe;
+  border-left: 4px solid #3b82f6;
+}
+
+.client-management-table .MuiTableRow-root.selected:hover {
+  background-color: #bfdbfe;
+}
+
+.client-management-table .MuiTableCell-root {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.client-management-stats {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+}
+
+.client-management-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.client-management-access-denied {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 24px;
+}
+
+/* Client Logo Styling */
+.client-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.client-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #e0e0e0;
+}
+
+.client-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.client-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.client-display-name {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* Status Chips */
+.status-chip-active {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.status-chip-inactive {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.status-chip-suspended {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Action Buttons */
+.client-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.client-actions .MuiIconButton-root {
+  padding: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.client-actions .MuiIconButton-root:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Search Field */
+.client-search-field {
+  flex-grow: 1;
+  max-width: 400px;
+}
+
+.client-search-field .MuiOutlinedInput-root {
+  background-color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .client-management-container {
+    padding: 16px;
+  }
+  
+  .client-management-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .client-search-field {
+    max-width: none;
+  }
+  
+  .client-management-table {
+    overflow-x: auto;
+  }
+  
+  .client-management-table .MuiTableCell-root {
+    padding: 8px;
+    font-size: 0.875rem;
+  }
+  
+  .client-logo {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .client-management-header {
+    margin-bottom: 24px;
+  }
+  
+  .client-management-title {
+    font-size: 1.5rem;
+  }
+  
+  .client-management-table .MuiTableCell-root {
+    padding: 6px;
+  }
+  
+  .client-actions {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Alert Styling */
+.client-management-container .MuiAlert-root {
+  margin-bottom: 16px;
+}
+
+/* Loading State */
+.client-management-loading .MuiCircularProgress-root {
+  color: #1976d2;
+}
+
+/* Empty State */
+.client-management-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.client-management-empty .MuiSvgIcon-root {
+  font-size: 64px;
+  color: #ccc;
+  margin-bottom: 16px;
+}
+
+/* Animation */
+.client-management-container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

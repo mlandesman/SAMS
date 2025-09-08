@@ -1,0 +1,45 @@
+/* Payment Method Form Modal Styles */
+.payment-method-form-modal {
+  width: 500px;
+}
+
+.payment-method-form-modal .modal-content {
+  text-align: left;
+}
+
+.payment-method-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-section {
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  margin-top: 0;
+}
+
+.form-row {
+  margin-bottom: 10px;
+}
+
+.form-row-split {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row-split .half-width {
+  flex: 1;
+}

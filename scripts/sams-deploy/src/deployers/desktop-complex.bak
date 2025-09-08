@@ -1,0 +1,400 @@
+import { BaseDeployer, DeployerOptions } from './base';
+import { DeploymentResult } from '../types';
+import { execute } from '../utils/process';
+import { DeploymentError } from '../utils/error-handler';
+import { logger } from '../utils/logger';
+import { executeCacheBusting } from '../utils/cache-buster';
+import { autoIncrementDeploymentVersion } from '../utils/version-manager';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+
+export class DesktopDeployer extends BaseDeployer {
+  private sharedComponentsPath: string;
+  private readonly VERCEL_PROJECT_ID = 'prj_7fOoszBOVxj0e3FaCrCVvctRP3CT';
+  private readonly PRODUCTION_DOMAIN = 'sams.sandyland.com.mx';
+
+  constructor(options: DeployerOptions) {
+    super(options);
+    
+    // Set shared-components path
+    // When running with tsx from scripts/sams-deploy:
+    // __dirname = scripts/sams-deploy/src/deployers
+    // We need to go up to SAMS root: ../../../..
+    const baseDir = path.resolve(__dirname, '../../../..');
+    this.sharedComponentsPath = path.join(baseDir, 'frontend', 'shared-components');
+    
+    // Log for debugging
+    logger.debug(`Base directory: ${baseDir}`);
+    logger.debug(`Shared components path: ${this.sharedComponentsPath}`);
+  }
+
+  /**
+   * Check if shared-components needs rebuilding
+   */
+  private async needsSharedComponentsRebuild(): Promise<boolean> {
+    try {
+      const distPath = path.join(this.sharedComponentsPath, 'dist');
+      const srcPath = path.join(this.sharedComponentsPath, 'src');
+      
+      // Check if dist directory exists
+      try {
+        await fs.access(distPath);
+      } catch {
+        this.logProgress('Shared components dist directory not found, rebuild needed');
+        return true;
+      }
+      
+      // Get modification times
+      const distStats = await fs.stat(distPath);
+      await fs.stat(srcPath);
+      
+      // Check specific source files
+      const sourceFiles = [
+        'LoadingSpinner/LoadingSpinner.tsx',
+        'LoadingSpinner/LoadingSpinner.css',
+        'hooks/useLoadingSpinner.ts',
+        'index.ts'
+      ];
+      
+      for (const file of sourceFiles) {
+        const filePath = path.join(srcPath, file);
+        try {
+          const fileStats = await fs.stat(filePath);
+          if (fileStats.mtime > distStats.mtime) {
+            this.logProgress(`Shared component source file ${file} is newer than dist, rebuild needed`);
+            return true;
+          }
+        } catch {
+          // File might not exist, continue checking others
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      this.logProgress('Error checking shared components modification times, will rebuild to be safe');
+      return true;
+    }
+  }
+
+  /**
+   * Build shared-components if needed
+   */
+  private async buildSharedComponents(): Promise<void> {
+    const needsRebuild = await this.needsSharedComponentsRebuild();
+    
+    if (!needsRebuild) {
+      this.logProgress('Shared components are up to date, skipping rebuild');
+      return;
+    }
+    
+    this.logProgress('Building shared-components...');
+    
+    try {
+      await execute('npm', ['run', 'build'], {
+        cwd: this.sharedComponentsPath,
+        timeout: this.config.deploymentSettings.buildTimeout,
+        onStdout: (data) => logger.debug(`[SHARED-COMPONENTS] ${data}`),
+        onStderr: (data) => logger.debug(`[SHARED-COMPONENTS] ${data}`)
+      });
+      
+      this.logProgress('Shared components build completed');
+    } catch (error) {
+      throw new DeploymentError(
+        'Failed to build shared-components',
+        'SHARED_COMPONENTS_BUILD_FAILED',
+        { error: error instanceof Error ? error.message : error }
+      );
+    }
+  }
+
+  /**
+   * Clear service worker cache by updating timestamp
+   */
+  private async clearServiceWorkerCache(): Promise<void> {
+    const swPath = path.join(this.projectPath, 'public', 'sw.js');
+    
+    try {
+      // Read current service worker content
+      let swContent = await fs.readFile(swPath, 'utf-8');
+      
+      // Update cache version with current timestamp
+      const timestamp = new Date().getTime();
+      swContent = swContent.replace(
+        /const CACHE_NAME = `sams-v[\d.]+-\d+`;/,
+        `const CACHE_NAME = \`sams-v${this.config.deploymentSettings.cacheVersion || '4.0.0'}-${timestamp}\`;`
+      );
+      
+      // Write updated content back
+      await fs.writeFile(swPath, swContent, 'utf-8');
+      
+      this.logProgress('Service worker cache cleared with new timestamp');
+    } catch (error) {
+      logger.warn(`Failed to update service worker timestamp: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't fail deployment if service worker update fails
+    }
+  }
+
+  /**
+   * Build the desktop UI
+   */
+  async build(): Promise<void> {
+    this.updateStatus('building', 40, 'Building desktop UI');
+    
+    // Increment version for deployment
+    const versionMetadata = await autoIncrementDeploymentVersion(
+      this.projectPath,
+      this.environment,
+      'patch',
+      ['Desktop UI deployment', 'Cache-busting enabled', 'Version management active']
+    );
+    
+    logger.info(`🔢 Building desktop UI v${versionMetadata.version}`);
+    
+    // Build shared-components first if needed
+    await this.buildSharedComponents();
+    
+    // Build desktop UI
+    this.logProgress('Building desktop UI...');
+    
+    const buildCommand = this.environment === 'production' 
+      ? 'build:production' 
+      : this.environment === 'staging' 
+        ? 'build:staging' 
+        : 'build';
+    
+    try {
+      await execute('npm', ['run', buildCommand], {
+        cwd: this.projectPath,
+        timeout: this.config.deploymentSettings.buildTimeout,
+        onStdout: (data) => logger.debug(`[DESKTOP] ${data}`),
+        onStderr: (data) => logger.debug(`[DESKTOP] ${data}`)
+      });
+      
+      this.updateStatus('building', 50, 'Executing cache-busting...');
+      
+      // Execute comprehensive cache-busting
+      const cacheBustResult = await executeCacheBusting({
+        environment: this.environment as any,
+        projectPath: this.projectPath,
+        buildOutputPath: path.join(this.projectPath, 'dist'),
+        skipVercelPurge: false,
+        skipFileRename: false
+      });
+      
+      if (!cacheBustResult.success) {
+        logger.warn(`⚠️ Cache-busting had issues: ${cacheBustResult.errors}`);
+      } else {
+        logger.success(`✅ Cache-busting completed: ${cacheBustResult.filesUpdated.length} items updated`);
+      }
+      
+      this.updateStatus('building', 60, 'Desktop UI build completed');
+    } catch (error) {
+      throw new DeploymentError(
+        'Failed to build desktop UI',
+        'DESKTOP_BUILD_FAILED',
+        { error: error instanceof Error ? error.message : error }
+      );
+    }
+  }
+
+  /**
+   * Deploy the desktop UI to Vercel
+   */
+  async deploy(): Promise<DeploymentResult> {
+    try {
+      // Deploy to Vercel
+      const deploymentUrl = await this.executeVercelDeploy(
+        this.VERCEL_PROJECT_ID,
+        {
+          prod: this.environment === 'production',
+          prebuilt: true,
+          outputDirectory: 'dist',
+          env: {
+            VITE_ENVIRONMENT: this.environment,
+            VITE_BUILD_TIME: new Date().toISOString(),
+            VITE_CACHE_BUST: new Date().getTime().toString()
+          }
+        }
+      );
+      
+      // Handle production alias
+      if (this.environment === 'production') {
+        await this.setProductionAlias(deploymentUrl);
+      }
+      
+      // Post-deployment cache purging
+      await this.postDeploymentCachePurge(deploymentUrl);
+      
+      return this.createResult(true, deploymentUrl);
+    } catch (error) {
+      if (error instanceof DeploymentError) {
+        throw error;
+      }
+      
+      throw new DeploymentError(
+        'Desktop deployment failed',
+        'DESKTOP_DEPLOY_FAILED',
+        { error: error instanceof Error ? error.message : error }
+      );
+    }
+  }
+
+  /**
+   * Set production alias for the deployment
+   */
+  private async setProductionAlias(deploymentUrl: string): Promise<void> {
+    this.logProgress(`Setting production alias ${this.PRODUCTION_DOMAIN}...`);
+    
+    try {
+      await execute('vercel', ['alias', 'set', deploymentUrl, this.PRODUCTION_DOMAIN], {
+        cwd: this.projectPath,
+        timeout: 30000,
+        captureOutput: true
+      });
+      
+      this.logProgress(`Production alias set successfully: ${this.PRODUCTION_DOMAIN}`);
+    } catch (error) {
+      logger.warn(`Failed to set production alias: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't fail deployment if alias setting fails
+    }
+  }
+
+  /**
+   * Execute post-deployment cache purging
+   */
+  private async postDeploymentCachePurge(deploymentUrl: string): Promise<void> {
+    this.logProgress('🔥 Executing post-deployment cache purge...');
+    
+    try {
+      // Execute final cache-busting after deployment
+      const cacheBustResult = await executeCacheBusting({
+        environment: this.environment as any,
+        projectPath: this.projectPath,
+        buildOutputPath: path.join(this.projectPath, 'dist'),
+        skipVercelPurge: false,
+        skipFileRename: true // Skip file renaming post-deployment
+      });
+      
+      if (cacheBustResult.success) {
+        logger.success('✅ Post-deployment cache purge completed');
+      } else {
+        logger.warn(`⚠️ Post-deployment cache purge had issues: ${cacheBustResult.errors}`);
+      }
+      
+      // Warm up the deployment
+      await this.warmupDeployment(deploymentUrl);
+      
+    } catch (error) {
+      logger.warn(`Post-deployment cache purge failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't fail deployment if cache purge fails
+    }
+  }
+
+  /**
+   * Warm up the deployment by making initial requests
+   */
+  private async warmupDeployment(deploymentUrl: string): Promise<void> {
+    this.logProgress('🔥 Warming up deployment...');
+    
+    const warmupUrls = [
+      deploymentUrl,
+      `${deploymentUrl}/manifest.json`,
+      `${deploymentUrl}/cache-bust-manifest.json`
+    ];
+    
+    for (const url of warmupUrls) {
+      try {
+        await execute('curl', ['-s', '-o', '/dev/null', url], {
+          timeout: 10000,
+          captureOutput: true
+        });
+        logger.debug(`Warmed up: ${url}`);
+      } catch (error) {
+        logger.debug(`Failed to warm up ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    logger.success('✅ Deployment warmup completed');
+  }
+
+  /**
+   * Check desktop-specific prerequisites
+   */
+  protected async checkComponentPrerequisites(): Promise<void> {
+    // Check if npm is installed
+    try {
+      await execute('npm', ['--version'], {
+        cwd: this.projectPath,
+        timeout: 5000,
+        captureOutput: true
+      });
+    } catch {
+      throw new DeploymentError(
+        'npm is not installed or not accessible',
+        'NPM_NOT_FOUND'
+      );
+    }
+    
+    // Check if project has node_modules
+    const nodeModulesPath = path.join(this.projectPath, 'node_modules');
+    try {
+      await fs.access(nodeModulesPath);
+    } catch {
+      this.logProgress('node_modules not found, running npm install...');
+      
+      try {
+        await execute('npm', ['install'], {
+          cwd: this.projectPath,
+          timeout: 300000, // 5 minutes for npm install
+          onStdout: (data) => logger.debug(`[NPM] ${data}`),
+          onStderr: (data) => logger.debug(`[NPM] ${data}`)
+        });
+      } catch (error) {
+        throw new DeploymentError(
+          'Failed to install dependencies',
+          'NPM_INSTALL_FAILED',
+          { error: error instanceof Error ? error.message : error }
+        );
+      }
+    }
+    
+    // Check shared-components
+    const sharedNodeModulesPath = path.join(this.sharedComponentsPath, 'node_modules');
+    try {
+      await fs.access(sharedNodeModulesPath);
+    } catch {
+      this.logProgress('Shared components node_modules not found, running npm install...');
+      
+      try {
+        await execute('npm', ['install'], {
+          cwd: this.sharedComponentsPath,
+          timeout: 300000, // 5 minutes for npm install
+          onStdout: (data) => logger.debug(`[NPM-SHARED] ${data}`),
+          onStderr: (data) => logger.debug(`[NPM-SHARED] ${data}`)
+        });
+      } catch (error) {
+        throw new DeploymentError(
+          'Failed to install shared-components dependencies',
+          'SHARED_NPM_INSTALL_FAILED',
+          { error: error instanceof Error ? error.message : error }
+        );
+      }
+    }
+  }
+
+  /**
+   * Post-deployment tasks for desktop
+   */
+  protected async postDeployHook(result: DeploymentResult): Promise<void> {
+    if (result.success && result.url) {
+      this.logProgress(`Desktop UI deployed successfully to ${result.url}`);
+      
+      if (this.environment === 'production') {
+        this.logProgress(`Production URL: https://${this.PRODUCTION_DOMAIN}`);
+      }
+      
+      // Log deployment details
+      logger.info(`Deployment details: component=desktop, environment=${this.environment}, url=${result.url}, productionDomain=${this.environment === 'production' ? this.PRODUCTION_DOMAIN : 'N/A'}, duration=${result.duration}ms, deploymentId=${result.deploymentId}`);
+    }
+  }
+}

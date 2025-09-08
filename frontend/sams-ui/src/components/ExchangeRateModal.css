@@ -1,0 +1,83 @@
+.exchange-rate-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* Higher than other modals */
+}
+
+.exchange-rate-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 90%;
+  margin: 20px;
+}
+
+.exchange-rate-modal-content {
+  padding: 30px;
+  text-align: center;
+}
+
+.exchange-rate-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.exchange-rate-icon.spinning {
+  color: #447b7b;
+  animation: spin 1s linear infinite;
+}
+
+.exchange-rate-icon.success {
+  color: #4caf50;
+}
+
+.exchange-rate-icon.error {
+  color: #f44336;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.exchange-rate-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 15px 0;
+}
+
+.exchange-rate-message {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 25px 0;
+}
+
+.exchange-rate-close-btn {
+  background-color: #447b7b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.exchange-rate-close-btn:hover {
+  background-color: #356363;
+}
+
+.exchange-rate-close-btn:active {
+  background-color: #2c5c5c;
+}

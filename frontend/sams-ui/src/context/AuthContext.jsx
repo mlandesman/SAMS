@@ -1,0 +1,243 @@
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { getAuthInstance, loginWithEmailPassword, logout as firebaseLogout } from '../firebaseClient';
+import { onAuthStateChanged } from 'firebase/auth';
+import LoginForm from '../components/LoginForm';
+import PasswordChangeModal from '../components/PasswordChangeModal';
+import { userAPI } from '../api/user';
+
+// Create authentication context
+const AuthContext = createContext();
+
+/**
+ * Authentication provider component to wrap the application
+ * @param {Object} props Component properties
+ * @param {React.ReactNode} props.children Child components
+ */
+export const AuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [samsUser, setSamsUser] = useState(null); // Add SAMS user profile with roles
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [passwordChangeUser, setPasswordChangeUser] = useState(null);
+  const auth = getAuthInstance();
+
+  useEffect(() => {
+    // Subscribe to auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? `Logged in as ${user.email}` : 'Not logged in');
+      setCurrentUser(user);
+      
+      if (user) {
+        // Load SAMS user profile with comprehensive role and client access data
+        try {
+          console.log('🔄 Loading SAMS user profile with role data...');
+          const profileResponse = await userAPI.getProfile();
+          console.log('📋 Raw profile response:', profileResponse);
+          
+          // Extract user data from response (handle different response formats)
+          const samsUserProfile = profileResponse.user || profileResponse.data || profileResponse;
+          
+          
+          // Validate required user structure
+          if (!samsUserProfile.email) {
+            console.warn('⚠️ User profile missing email, using Firebase user email');
+            samsUserProfile.email = user.email;
+          }
+          
+          // Ensure propertyAccess object exists
+          if (!samsUserProfile.propertyAccess) {
+            console.warn('⚠️ User profile missing propertyAccess, initializing empty object');
+            samsUserProfile.propertyAccess = {};
+          }
+          
+          // Ensure globalRole exists
+          if (!samsUserProfile.globalRole) {
+            console.warn('⚠️ User profile missing globalRole, defaulting to "user"');
+            samsUserProfile.globalRole = 'user';
+          }
+          
+          // Check if user must change password
+          if (samsUserProfile.mustChangePassword) {
+            console.log('🔑 User must change password before proceeding');
+            setRequiresPasswordChange(true);
+            setPasswordChangeUser({
+              email: samsUserProfile.email,
+              name: samsUserProfile.name,
+              uid: user.uid
+            });
+          } else {
+            setRequiresPasswordChange(false);
+            setPasswordChangeUser(null);
+          }
+          
+          console.log('✅ SAMS user profile loaded with structure:', {
+            email: samsUserProfile.email,
+            globalRole: samsUserProfile.globalRole,
+            propertyAccess: Object.keys(samsUserProfile.propertyAccess || {}),
+            preferredClient: samsUserProfile.preferredClient,
+            mustChangePassword: samsUserProfile.mustChangePassword,
+            accountState: samsUserProfile.accountState
+          });
+          
+          setSamsUser(samsUserProfile);
+        } catch (error) {
+          console.error('❌ Failed to load SAMS user profile:', error);
+          
+          // Create a basic user profile structure if API fails
+          console.log('🔄 Creating fallback user profile...');
+          const fallbackProfile = {
+            email: user.email,
+            name: user.displayName || user.email,
+            globalRole: 'user', // Default to user role for security
+            propertyAccess: {},
+            preferredClient: null,
+            isActive: true
+          };
+          
+          setSamsUser(fallbackProfile);
+          setError('Failed to load full user profile. Some features may not be available.');
+        }
+      } else {
+        // Clear SAMS user data on logout
+        setSamsUser(null);
+      }
+      
+      setLoading(false);
+    });
+    
+    // Handle browser/tab close events
+    const handleBeforeUnload = () => {
+      console.log('Browser closing - clearing auth state and local storage');
+      // Clear any localStorage items that should not persist
+      localStorage.removeItem('selectedClient');
+      // We don't need to explicitly clear auth since we're using browserSessionPersistence
+    };
+    
+    // Add event listener for tab/browser close
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Cleanup subscriptions
+    return () => {
+      unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [auth]);
+
+  // Login function
+  async function login(email, password) {
+    try {
+      setError('');
+      console.log(`Attempting to login with email: ${email}`);
+      const userCredential = await loginWithEmailPassword(email, password);
+      console.log('Login successful:', userCredential.user);
+      
+      return userCredential;
+    } catch (error) {
+      console.error('Login error:', error.code, error.message);
+      setError(error.userMessage || 'Failed to login. Please check your credentials.');
+      throw error;
+    }
+  }
+
+  // Logout function
+  const logout = async () => {
+    try {
+      // Clear all localStorage data before logout
+      localStorage.removeItem('selectedClient');
+      localStorage.removeItem('samsUserProfile');
+      localStorage.removeItem('transactionFilter');
+      
+      // Clear all sessionStorage data (including HOA cache)
+      sessionStorage.clear();
+      
+      // Clear all auth-related state
+      setCurrentUser(null);
+      setSamsUser(null);
+      setRequiresPasswordChange(false);
+      setPasswordChangeUser(null);
+      setError('');
+      
+      // Perform Firebase logout
+      await firebaseLogout();
+      
+      // Navigate to root URL instead of reloading
+      window.location.href = '/';
+      
+      return true;
+    } catch (error) {
+      console.error('Logout failed:', error);
+      setError('Failed to logout. Please try again.');
+      return false;
+    }
+  };
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setShowLoginForm(false);
+  };
+
+  const handlePasswordChanged = async () => {
+    // Clear password change requirement
+    setRequiresPasswordChange(false);
+    setPasswordChangeUser(null);
+    
+    // Reload user profile to get updated data
+    if (currentUser) {
+      try {
+        const profileResponse = await userAPI.getProfile();
+        const samsUserProfile = profileResponse.user || profileResponse.data || profileResponse;
+        setSamsUser(samsUserProfile);
+      } catch (error) {
+        console.error('Failed to reload user profile after password change:', error);
+      }
+    }
+  };
+
+  const value = {
+    currentUser,
+    samsUser, // Add SAMS user profile with roles
+    loading,
+    login,
+    logout,
+    error,
+    setError,
+    showLogin: () => setShowLoginForm(true),
+    hideLogin: () => setShowLoginForm(false),
+    isAuthenticated: !!currentUser,
+    requiresPasswordChange,
+    passwordChangeUser,
+    clearPasswordChangeRequirement: () => {
+      setRequiresPasswordChange(false);
+      setPasswordChangeUser(null);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {(showLoginForm || (!loading && !currentUser)) && <LoginForm onLoginSuccess={handleLoginSuccess} />}
+      {requiresPasswordChange && passwordChangeUser && (
+        <PasswordChangeModal
+          open={requiresPasswordChange}
+          user={passwordChangeUser}
+          onPasswordChanged={handlePasswordChanged}
+          onClose={() => {}} // Prevent closing - user must change password
+        />
+      )}
+      {!loading && !requiresPasswordChange && children}
+    </AuthContext.Provider>
+  );
+};
+
+/**
+ * Hook to use the authentication context
+ * @returns {Object} Authentication context
+ */
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

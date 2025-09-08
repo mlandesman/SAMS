@@ -1,0 +1,43 @@
+.reading-entry-grid {
+  padding: 16px;
+}
+
+.summary-bar {
+  background: #f5f5f5;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.entry-table-container {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.entry-table-container .MuiTableRow-root.error-row {
+  background-color: #ffebee;
+}
+
+.entry-table-container .MuiTableRow-root.warning-row {
+  background-color: #fff3e0;
+}
+
+.entry-table-container .MuiTableRow-root:hover {
+  background-color: #f5f5f5;
+}
+
+.entry-table-container .MuiTableCell-root {
+  padding: 8px 16px;
+}
+
+.entry-table-container .MuiTextField-root {
+  margin: 0;
+}
+
+.entry-table-container .MuiTableHead-root {
+  background-color: #e0e0e0;
+}
+
+.entry-table-container .MuiTableHead-root .MuiTableCell-root {
+  font-weight: 600;
+  background-color: #e0e0e0;
+}

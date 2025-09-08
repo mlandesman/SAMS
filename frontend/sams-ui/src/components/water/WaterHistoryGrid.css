@@ -1,0 +1,312 @@
+/* Water History Grid Component Styles */
+
+.water-history-grid-container {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.history-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+}
+
+.year-navigation {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.year-nav-btn {
+  padding: 6px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.year-nav-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.current-year {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  padding: 0 10px;
+}
+
+/* Grid Table */
+.history-grid-wrapper {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.water-history-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.water-history-grid thead {
+  background-color: #f8f9fa;
+}
+
+.unit-header,
+.month-header {
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+  border-right: 1px solid #e9ecef;
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 10;
+}
+
+.unit-header {
+  text-align: left;
+  padding-left: 15px;
+  min-width: 80px;
+  position: sticky;
+  left: 0;
+  z-index: 11;
+}
+
+.month-header {
+  min-width: 100px;
+}
+
+.month-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.month-year {
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: normal;
+}
+
+/* Table Body */
+.unit-row:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.unit-row:hover {
+  background-color: #e9ecef;
+}
+
+.unit-cell {
+  padding: 10px 15px;
+  font-weight: 600;
+  color: #495057;
+  border-right: 1px solid #e9ecef;
+  border-bottom: 1px solid #e9ecef;
+  position: sticky;
+  left: 0;
+  background-color: inherit;
+  z-index: 5;
+}
+
+.reading-cell {
+  text-align: center;
+  padding: 8px 4px;
+  border-right: 1px solid #e9ecef;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  min-height: 50px;
+}
+
+.reading-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.reading-cost {
+  font-size: 12px;
+  color: #28a745;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.no-reading {
+  color: #ccc;
+  font-size: 14px;
+}
+
+/* Totals Row */
+.totals-row {
+  background-color: #e7f3ff !important;
+  font-weight: bold;
+  border-top: 2px solid #4a90e2;
+}
+
+.total-label {
+  color: #2c5282;
+  font-weight: 700;
+}
+
+.total-cell {
+  background-color: #e7f3ff;
+}
+
+.total-value {
+  color: #2c5282;
+  font-size: 13px;
+}
+
+.total-cost {
+  color: #2c5282;
+  font-weight: 600;
+}
+
+/* Annual Summary */
+.annual-summary {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.summary-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.summary-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.summary-value.paid {
+  color: #28a745;
+}
+
+.summary-value.unpaid {
+  color: #dc3545;
+}
+
+/* Loading and Error States */
+.loading-container,
+.error-message,
+.no-data-message {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .history-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .year-navigation {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .water-history-grid {
+    font-size: 12px;
+  }
+
+  .month-header {
+    min-width: 80px;
+    padding: 8px 4px;
+  }
+
+  .reading-value {
+    font-size: 12px;
+  }
+
+  .reading-cost {
+    font-size: 11px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .year-navigation {
+    display: none;
+  }
+
+  .water-history-grid-container {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .water-history-grid {
+    border: 1px solid #000;
+  }
+
+  .reading-cell,
+  .unit-cell {
+    border: 1px solid #000;
+  }
+}

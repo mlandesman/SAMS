@@ -1,0 +1,203 @@
+.water-payment-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.credit-balance-info h3 {
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.credit-negative {
+  color: #e74c3c;
+  font-weight: bold;
+  margin: 4px 0;
+}
+
+.unpaid-bills-summary {
+  margin: 20px 0;
+}
+
+.bills-table, .distribution-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.bills-table th, .bills-table td,
+.distribution-table th, .distribution-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.bills-table th, .distribution-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+.funds-calculation {
+  background-color: #e8f4fd;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+}
+
+.funds-calculation .total-funds {
+  color: #2c3e50;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.payment-distribution {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 15px;
+  margin: 20px 0;
+  background-color: #fafafa;
+}
+
+.distribution-summary {
+  background-color: #f0f8ff;
+  border: 1px solid #cce7ff;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 12px;
+}
+
+.credit-changes {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.new-balance.positive {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.new-balance.negative {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.credit-used {
+  color: #f39c12;
+  font-style: italic;
+}
+
+.credit-added {
+  color: #27ae60;
+  font-style: italic;
+}
+
+.status-paid {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.status-partial {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.no-bills {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.no-bills-payment {
+  color: #27ae60;
+  font-weight: bold;
+  text-align: center;
+  padding: 20px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #7f8c8d;
+}
+
+/* Form styling matches HOA Dues modal */
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-group {
+  flex: 1;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.input-group {
+  position: relative;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7f8c8d;
+  font-weight: bold;
+}
+
+.input-group input {
+  padding-left: 35px; /* Increased to 35px for better dollar sign spacing */
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.btn-cancel {
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-primary:disabled, .btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 15px 0;
+}

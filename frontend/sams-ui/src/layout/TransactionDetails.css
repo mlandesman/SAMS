@@ -1,0 +1,102 @@
+.transaction-details {
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.transaction-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.transaction-details-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transaction-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.transaction-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.edit-button {
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+.edit-button:hover {
+  background-color: #e0e0e0;
+}
+
+.delete-button {
+  background-color: #ffeeee;
+  color: #d32f2f;
+}
+
+.delete-button:hover {
+  background-color: #ffdddd;
+}
+
+.transaction-details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.transaction-field {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+
+.field-label {
+  flex: 0 0 120px;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-value {
+  flex: 1;
+  font-size: 16px;
+  word-break: break-word;
+}
+
+.notes-field {
+  white-space: pre-wrap;
+}
+
+.positive-amount {
+  color: green;
+  font-weight: 600;
+}
+
+.negative-amount {
+  color: #d32f2f;
+  font-weight: 600;
+}

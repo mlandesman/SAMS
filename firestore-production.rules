@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================================
+    // SAMS Multi-Tenant Security Rules - Production Version
+    // Phase 8: User Access Control System Implementation
+    // 
+    // Security Model:
+    // - SuperAdmin: michael@landesman.com - Full access to all clients
+    // - Admin: Full access to assigned clients
+    // - unitOwner: Read-only access to their unit data
+    // - unitManager: Limited write access to assigned units
+    // ============================================================================
+    
+    // Helper function to check if user is SuperAdmin
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.email == 'michael@landesman.com';
+    }
+    
+    // Helper function to get user document
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    // Helper function to check if user has access to a client
+    function hasClientAccess(clientId) {
+      return isSuperAdmin() || 
+             (getUserDoc().data.clientAccess != null && 
+              clientId in getUserDoc().data.clientAccess);
+    }
+    
+    // Helper function to get user's role for a specific client
+    function getClientRole(clientId) {
+      return getUserDoc().data.clientAccess[clientId].role;
+    }
+    
+    // Helper function to check if user has specific permission
+    function hasPermission(clientId, permission) {
+      return isSuperAdmin() || 
+             (hasClientAccess(clientId) && 
+              ((getClientRole(clientId) == 'admin') ||
+               (getClientRole(clientId) == 'unitOwner' && permission in ['read']) ||
+               (getClientRole(clientId) == 'unitManager' && permission in ['read', 'write'])));
+    }
+    
+    // ============================================================================
+    // USER MANAGEMENT
+    // ============================================================================
+    
+    // Users collection - stores user profiles and client access
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || isSuperAdmin());
+      
+      // Only SuperAdmin can create/update/delete user documents
+      allow write: if isSuperAdmin();
+    }
+    
+    // ============================================================================
+    // CLIENT DATA ACCESS CONTROL
+    // ============================================================================
+    
+    // Client documents - basic client information
+    match /clients/{clientId} {
+      // Read access: Users with client access or SuperAdmin
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      
+      // Write access: Only SuperAdmin or admins of this client
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // ============================================================================
+    // TRANSACTION DATA - STRICT CLIENT ISOLATION
+    // ============================================================================
+    
+    // Transactions within a client
+    match /clients/{clientId}/transactions/{transactionId} {
+      // Read access: Users with client access
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      
+      // Create/Update: Admin or users with write permissions
+      allow create, update: if request.auth != null && 
+                               hasPermission(clientId, 'write');
+      
+      // Delete: Only admin or SuperAdmin
+      allow delete: if request.auth != null && 
+                       (isSuperAdmin() || 
+                        (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // ============================================================================
+    // DOCUMENT STORAGE METADATA
+    // ============================================================================
+    
+    // Document metadata within a client
+    match /clients/{clientId}/documents/{documentId} {
+      // Read access: Users with client access
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      
+      // Write access: Admin or users with write permissions
+      allow write: if request.auth != null && 
+                      hasPermission(clientId, 'write');
+    }
+    
+    // ============================================================================
+    // UNITS AND UNIT-SPECIFIC DATA
+    // ============================================================================
+    
+    // Units within a client
+    match /clients/{clientId}/units/{unitId} {
+      // Read access: Users with client access
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      
+      // Write access: Only admin
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // Unit owners data
+    match /clients/{clientId}/unitOwners/{ownerId} {
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // ============================================================================
+    // FINANCIAL DATA - ENHANCED SECURITY
+    // ============================================================================
+    
+    // Account balances
+    match /clients/{clientId}/accounts/{accountId} {
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // HOA Dues
+    match /clients/{clientId}/hoaDues/{duesId} {
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      allow write: if request.auth != null && 
+                      hasPermission(clientId, 'write');
+    }
+    
+    // ============================================================================
+    // CONFIGURATION DATA
+    // ============================================================================
+    
+    // Categories, vendors, payment methods (client-specific)
+    match /clients/{clientId}/{collection}/{documentId} {
+      allow read: if request.auth != null && 
+                     hasClientAccess(clientId) &&
+                     collection in ['categories', 'vendors', 'paymentMethods', 'units'];
+      
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // ============================================================================
+    // SYSTEM-WIDE DATA
+    // ============================================================================
+    
+    // Exchange rates - read-only for all authenticated users
+    match /exchangeRates/{rateId} {
+      allow read: if request.auth != null;
+      allow write: if isSuperAdmin();
+    }
+    
+    // ============================================================================
+    // AUDIT LOGGING
+    // ============================================================================
+    
+    // Security audit logs - SuperAdmin only
+    match /auditLogs/{logId} {
+      allow read, write: if isSuperAdmin();
+    }
+    
+    // Client-specific audit logs
+    match /clients/{clientId}/auditLogs/{logId} {
+      allow read: if request.auth != null && 
+                     (isSuperAdmin() || 
+                      (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+      allow create: if request.auth != null && hasClientAccess(clientId);
+    }
+    
+    // ============================================================================
+    // DENY ALL OTHER ACCESS
+    // ============================================================================
+    
+    // Block access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

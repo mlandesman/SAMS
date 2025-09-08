@@ -1,0 +1,290 @@
+.transaction-detail-container {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.loading,
+.error {
+  padding: 20px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.loading {
+  color: #666;
+}
+
+.error {
+  color: #d32f2f;
+  border: 1px solid #ffcdd2;
+  background-color: #ffebee;
+  border-radius: 4px;
+}
+
+.transaction-notification-bar {
+  background-color: #fff3cd;
+  color: #856404;
+  border-left: 4px solid #ffc107;
+  padding: 12px 20px;
+  margin: 10px 0;
+  border-radius: 0 4px 4px 0;
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 80%;
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.9rem;
+  animation: fadeIn 0.3s ease-in, fadeOut 0.5s ease-out 4.5s forwards;
+}
+
+.loading-indicator {
+  background-color: #e8f4fd;
+  color: #0277bd;
+  border-left: 4px solid #29b6f6;
+  padding: 12px 20px;
+  margin: 10px auto;
+  border-radius: 0 4px 4px 0;
+  max-width: 300px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.9rem;
+  animation: pulse 1.5s infinite;
+}
+
+/* Highlighted transaction rows with improved animation */
+@keyframes highlight {
+  0%, 25% {
+    background-color: rgba(255, 193, 7, 0.5);
+  }
+  75% {
+    background-color: rgba(255, 193, 7, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-row {
+  animation: highlight 2s ease-out forwards;
+  position: relative;
+}
+
+/* Make sure selected row styling takes precedence over highlight */
+tr.selected-row {
+  background-color: #e3f2fd !important;
+  border-left: 3px solid #1976d2;
+  font-weight: 500;
+  z-index: 10;
+  position: relative;
+}
+
+/* Selected rows shouldn't show the highlight animation */
+tr.selected-row.highlight-row {
+  animation: none;
+  background-color: #e3f2fd !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+/* Clickable balance bar styling */
+.balance-bar.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  position: fixed;
+  left: 200px;
+  right: 0;
+  width: calc(100% - 220px); /* Make sure width matches sidebar offset */
+  bottom: 30px; /* Position from bottom of screen */
+  text-align: right;
+  z-index: 1000; /* Ensure it appears above other elements */
+}
+
+.balance-bar.clickable:hover {
+  background-color: #e3f2fd;
+}
+
+.balance-bar.clickable:active {
+  background-color: #bbdefb;
+}
+
+.refresh-hint {
+  position: absolute;
+  right: 0px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, transform 0.3s ease;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.balance-bar.clickable:hover .refresh-hint {
+  opacity: 1;
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Filter Controls Bar */
+.filter-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 2px;
+}
+
+.filter-status-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-status-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.active-filters-summary {
+  font-size: 12px;
+  color: #447b7b;
+  font-weight: 500;
+  padding: 4px 8px;
+  background-color: rgba(68, 123, 123, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(68, 123, 123, 0.2);
+}
+
+/* Digital Receipt Modal Styles */
+.digital-receipt-modal {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.digital-receipt-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #2c5aa0 0%, #1a365d 50%, #0f2a3d 100%);
+  color: white;
+  border-radius: 8px 8px 0 0;
+}
+
+.digital-receipt-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white !important; /* Force white text - override any other styles */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Add text shadow for better readability */
+}
+
+.digital-receipt-modal .close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.digital-receipt-modal .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Digital Receipt Responsive Styles */
+.digital-receipt-modal .digital-receipt-container {
+  max-width: min(650px, 90vw);
+  margin: 0 auto;
+}
+
+.digital-receipt-modal .receipt-image {
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 600/900;
+}
+
+/* Responsive scaling for small screens */
+@media (max-width: 768px) {
+  .digital-receipt-modal .receipt-image {
+    transform: scale(0.85);
+    transform-origin: top center;
+  }
+  
+  .digital-receipt-modal {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .digital-receipt-modal .receipt-image {
+    transform: scale(0.7);
+    transform-origin: top center;
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.modal-content {
+  position: relative;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}

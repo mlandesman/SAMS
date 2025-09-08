@@ -1,0 +1,497 @@
+/* SandylandModalTheme.css - Professional Modal Styling with Sandyland Branding */
+
+/* Modal Overlay - Softer background */
+.sandyland-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(8, 99, 191, 0.15); /* Soft blue tint instead of black */
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Main Modal Container */
+.sandyland-modal {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.98) 50%,
+    rgba(247, 228, 194, 0.1) 100%
+  );
+  border: 1px solid rgba(8, 99, 191, 0.1);
+  border-radius: 16px;
+  box-shadow: 
+    0 20px 40px rgba(8, 99, 191, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Modal Header */
+.sandyland-modal-header {
+  background: linear-gradient(
+    135deg,
+    #0863bf 0%,
+    #3a7bd5 50%,
+    #83c4f2 100%
+  );
+  color: white;
+  padding: 24px 32px;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.sandyland-modal-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  pointer-events: none;
+}
+
+.sandyland-modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+/* Modal Content */
+.sandyland-modal-content {
+  padding: 32px;
+  overflow-y: auto;
+  max-height: calc(90vh - 160px);
+}
+
+/* Form Sections */
+.sandyland-form-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(8, 99, 191, 0.08);
+  position: relative;
+}
+
+.sandyland-form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.sandyland-section-title {
+  color: #2c5282;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.sandyland-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(135deg, #0863bf, #3a7bd5);
+  margin-right: 12px;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(8, 99, 191, 0.2);
+}
+
+/* Form Rows and Inputs */
+.sandyland-form-row {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 16px;
+}
+
+.sandyland-form-row.full-width {
+  flex-direction: column;
+}
+
+.sandyland-form-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sandyland-form-field label {
+  color: #4a5568;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.sandyland-form-field label.required::after {
+  content: '*';
+  color: #e53e3e;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+/* Input Styling */
+.sandyland-form-field input,
+.sandyland-form-field textarea,
+.sandyland-form-field select {
+  background: white;
+  border: 2px solid rgba(8, 99, 191, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #2d3748;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sandyland-form-field input:focus,
+.sandyland-form-field textarea:focus,
+.sandyland-form-field select:focus {
+  outline: none;
+  border-color: #0863bf;
+  box-shadow: 
+    0 0 0 3px rgba(8, 99, 191, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.sandyland-form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* Helper Text */
+.sandyland-helper-text {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Auto-calculated Fields */
+.sandyland-auto-calculated {
+  background: rgba(8, 99, 191, 0.02) !important;
+  border-color: rgba(8, 99, 191, 0.1) !important;
+  color: #4a5568 !important;
+  font-style: italic;
+}
+
+.sandyland-auto-calculated::placeholder {
+  color: #a0aec0;
+}
+
+/* Buttons */
+.sandyland-modal-buttons {
+  padding: 24px 32px;
+  background: rgba(248, 250, 252, 0.8);
+  border-top: 1px solid rgba(8, 99, 191, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.sandyland-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.sandyland-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.sandyland-btn:hover::before {
+  left: 100%;
+}
+
+.sandyland-btn-primary {
+  background: linear-gradient(135deg, #0863bf, #3a7bd5);
+  color: white;
+  box-shadow: 0 4px 12px rgba(8, 99, 191, 0.3);
+}
+
+.sandyland-btn-primary:hover {
+  background: linear-gradient(135deg, #065a9f, #2d6bc7);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 99, 191, 0.4);
+}
+
+.sandyland-btn-secondary {
+  background: white;
+  color: #4a5568;
+  border-color: rgba(74, 85, 104, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.sandyland-btn-secondary:hover {
+  background: #f7fafc;
+  border-color: rgba(74, 85, 104, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.sandyland-btn-danger {
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+  color: white;
+  box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+}
+
+.sandyland-btn-danger:hover {
+  background: linear-gradient(135deg, #c53030, #a0262a);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(229, 62, 62, 0.4);
+}
+
+.sandyland-btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Dropdown/Select Styling */
+.sandyland-form-field select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  appearance: none;
+}
+
+/* Error States */
+.sandyland-form-field.error input,
+.sandyland-form-field.error textarea,
+.sandyland-form-field.error select {
+  border-color: #e53e3e;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
+}
+
+.sandyland-error-text {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sandyland-modal {
+    width: 95vw;
+    margin: 20px;
+  }
+  
+  .sandyland-modal-header,
+  .sandyland-modal-content,
+  .sandyland-modal-buttons {
+    padding: 20px;
+  }
+  
+  .sandyland-form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .sandyland-modal-buttons {
+    flex-direction: column;
+  }
+}
+
+/* Loading States */
+.sandyland-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.sandyland-btn:disabled::before {
+  display: none;
+}
+
+/* Logo Upload Section */
+.sandyland-logo-upload-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px;
+  background: rgba(8, 99, 191, 0.02);
+  border: 2px dashed rgba(8, 99, 191, 0.15);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.sandyland-logo-upload-section:hover {
+  border-color: rgba(8, 99, 191, 0.25);
+  background: rgba(8, 99, 191, 0.04);
+}
+
+.sandyland-logo-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  border: 2px solid rgba(8, 99, 191, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sandyland-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sandyland-logo-placeholder {
+  font-size: 32px;
+  color: rgba(8, 99, 191, 0.3);
+}
+
+.sandyland-logo-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sandyland-logo-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Icon-specific styling */
+.sandyland-icon-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+}
+
+.sandyland-icon-image {
+  border-radius: 50%;
+}
+
+/* Error Alert */
+.sandyland-error-alert {
+  background: linear-gradient(135deg, #fed7d7, #feb2b2);
+  border: 1px solid #fc8181;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #c53030;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sandyland-error-alert::before {
+  content: '⚠️';
+  font-size: 16px;
+}
+
+/* Upload Progress */
+.sandyland-upload-progress {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(8, 99, 191, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(8, 99, 191, 0.1);
+}
+
+.sandyland-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(8, 99, 191, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.sandyland-progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #0863bf, #3a7bd5);
+  width: 100%;
+  animation: progressFill 2s ease-in-out infinite;
+}
+
+@keyframes progressFill {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+}
+
+/* Professional Animations */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.sandyland-loading {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}

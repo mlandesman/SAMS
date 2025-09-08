@@ -1,0 +1,213 @@
+// backend/routes/clientRoutes.js
+import express from 'express';
+const router = express.Router();
+import { getClient, listAuthorizedClients } from '../controllers/clientsController.js';
+import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
+import hoaDuesRoutes from './hoaDues.js';
+import transactionsRoutes from './transactions.js';
+import accountsRoutes from './accounts.js';
+import vendorsRoutes from './vendors.js';
+import categoriesRoutes from './categories.js';
+import paymentMethodsRoutes from './paymentMethods.js';
+import unitsRoutes from './units.js';
+import emailRoutes from './email.js';
+import reportsRoutes from './reports.js';
+import balancesRoutes from './balances.js';
+import waterMetersRoutes from './waterMeters.js';
+import projectsRoutes from './projects.js';
+import waterRoutes from './water.js';
+import waterReadingsRoutes from './waterReadings.js';
+
+// Test route
+router.get('/test', (req, res) => {
+  res.send('Test route works!');
+});
+
+// List authorized clients for the authenticated user (SECURE)
+router.get('/', authenticateUserWithProfile, listAuthorizedClients);
+
+// Get a specific client by ID (SECURE)
+router.get('/:id', authenticateUserWithProfile, getClient);
+
+// Mount HOA Dues routes
+router.use('/:clientId/hoadues', authenticateUserWithProfile, (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, hoaDuesRoutes);
+
+// Mount Transactions routes
+router.use('/:clientId/transactions', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('🚀 [CLIENT ROUTER] Transactions route - passing clientId:', clientId);
+  console.log('🚀 [CLIENT ROUTER] Full URL:', req.originalUrl);
+  console.log('🚀 [CLIENT ROUTER] All params:', req.params);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  console.log('🚀 [CLIENT ROUTER] originalParams after setting:', req.originalParams);
+  
+  next();
+}, transactionsRoutes);
+
+// Mount Accounts routes
+router.use('/:clientId/accounts', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for accounts:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, accountsRoutes);
+
+// Mount Balances routes
+router.use('/:clientId/balances', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for balances:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, balancesRoutes);
+
+// Mount Vendors routes
+router.use('/:clientId/vendors', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for vendors:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, vendorsRoutes);
+
+// Mount Categories routes
+router.use('/:clientId/categories', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for categories:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, categoriesRoutes);
+
+// Mount Payment Methods routes
+router.use('/:clientId/paymentMethods', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for payment methods:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, paymentMethodsRoutes);
+
+// Mount Units routes
+router.use('/:clientId/units', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for units:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, unitsRoutes);
+
+// Mount Email routes
+router.use('/:clientId/email', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for email:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, emailRoutes);
+
+// Mount Reports routes
+router.use('/:clientId/reports', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for reports:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, reportsRoutes);
+
+// Mount Water Meters routes
+router.use('/:clientId/watermeters', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for watermeters:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, waterMetersRoutes);
+
+// Mount Projects routes (generic projects pattern for water bills, propane, etc.)
+router.use('/:clientId/projects', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for projects:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, projectsRoutes);
+
+// Mount Water Bills routes (new structure)
+router.use('/:clientId/projects/waterBills', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for water bills:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, waterRoutes);
+
+// Mount SIMPLE Water Readings routes - PHASE 1
+router.use('/:clientId/water', (req, res, next) => {
+  const clientId = req.params.clientId;
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  next();
+}, waterReadingsRoutes);
+
+export default router;

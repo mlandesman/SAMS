@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SAMS Exchange Rate Manual Update</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-functions-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .login-form {
+            margin: 20px 0;
+        }
+        input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .options {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SAMS Exchange Rate Manual Update</h1>
+        
+        <div id="loginSection" style="display: none;">
+            <h2>Please Login</h2>
+            <div class="login-form">
+                <input type="email" id="email" placeholder="Email" />
+                <input type="password" id="password" placeholder="Password" />
+                <button onclick="login()">Login</button>
+            </div>
+        </div>
+        
+        <div id="mainSection" style="display: none;">
+            <div class="status">
+                Logged in as: <strong id="userEmail"></strong>
+                <button onclick="logout()" style="float: right; background: #f44336;">Logout</button>
+            </div>
+            
+            <div class="options">
+                <h3>Update Options</h3>
+                <label>
+                    <input type="radio" name="mode" value="quick" checked> 
+                    Quick Update (from last update to today)
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="last30"> 
+                    Last 30 Days
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="last60"> 
+                    Last 60 Days
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="fillGaps"> 
+                    Fill Gaps Only
+                </label>
+            </div>
+            
+            <button id="updateBtn" onclick="triggerUpdate()">
+                Trigger Exchange Rate Update
+            </button>
+            
+            <button onclick="checkHealth()">
+                Check Current Status
+            </button>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBp0Jz6iLaGP1pElMJU2jUV1lGcHCHiBe0",
+            authDomain: "sams-sandyland-prod.firebaseapp.com",
+            projectId: "sams-sandyland-prod",
+            storageBucket: "sams-sandyland-prod.firebasestorage.app",
+            messagingSenderId: "939117788746",
+            appId: "1:939117788746:web:6e4a63c8b8c62e8c8c9e20"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const functions = firebase.functions('us-central1');
+        
+        // Check authentication state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('mainSection').style.display = 'block';
+                document.getElementById('userEmail').textContent = user.email;
+            } else {
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('mainSection').style.display = 'none';
+            }
+        });
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status ' + type;
+            statusDiv.innerHTML = message;
+        }
+        
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                showStatus('Logging in...');
+                await auth.signInWithEmailAndPassword(email, password);
+                showStatus('Login successful!', 'success');
+            } catch (error) {
+                showStatus('Login failed: ' + error.message, 'error');
+            }
+        }
+        
+        async function logout() {
+            try {
+                await auth.signOut();
+                showStatus('Logged out successfully', 'success');
+            } catch (error) {
+                showStatus('Logout failed: ' + error.message, 'error');
+            }
+        }
+        
+        async function triggerUpdate() {
+            const btn = document.getElementById('updateBtn');
+            btn.disabled = true;
+            
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            let options = {};
+            
+            if (mode === 'quick') {
+                options = { mode: 'quick' };
+            } else if (mode === 'last30') {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                options = {
+                    mode: 'range',
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0]
+                };
+            } else if (mode === 'last60') {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 60);
+                options = {
+                    mode: 'range',
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0]
+                };
+            } else if (mode === 'fillGaps') {
+                options = { mode: 'fillGaps' };
+            }
+            
+            try {
+                showStatus('Triggering exchange rate update... <div class="loading"></div>');
+                
+                const manualUpdate = functions.httpsCallable('manualExchangeRatesUpdate');
+                const result = await manualUpdate(options);
+                
+                if (result.data && result.data.processed !== undefined) {
+                    showStatus(`
+                        <strong>Update Complete!</strong><br>
+                        Processed: ${result.data.processed} dates<br>
+                        Errors: ${result.data.errors}<br>
+                        ${result.data.dates ? 'Dates: ' + result.data.dates.join(', ') : ''}
+                    `, 'success');
+                } else {
+                    showStatus('Update triggered successfully!', 'success');
+                }
+            } catch (error) {
+                showStatus('Update failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        async function checkHealth() {
+            try {
+                showStatus('Checking exchange rates status...');
+                
+                const response = await fetch('https://us-central1-sams-sandyland-prod.cloudfunctions.net/checkExchangeRatesHealth');
+                const health = await response.json();
+                
+                const statusClass = health.status === 'healthy' ? 'success' : 'error';
+                let message = `<strong>Status: ${health.status}</strong><br>`;
+                
+                if (health.lastUpdate) {
+                    message += `Last Update: ${new Date(health.lastUpdate).toLocaleString()}<br>`;
+                }
+                
+                message += `Today's Rates: ${health.todayRatesExist ? '✓' : '✗'}<br>`;
+                message += `Yesterday's Rates: ${health.yesterdayRatesExist ? '✓' : '✗'}<br>`;
+                
+                if (health.recentDates && health.recentDates.length > 0) {
+                    message += '<br><strong>Recent Updates:</strong><br>';
+                    health.recentDates.forEach(item => {
+                        message += `${item.date}: ${item.lastUpdated ? new Date(item.lastUpdated).toLocaleString() : 'N/A'}<br>`;
+                    });
+                }
+                
+                if (health.message) {
+                    message += '<br>' + health.message;
+                }
+                
+                showStatus(message, statusClass);
+            } catch (error) {
+                showStatus('Failed to check status: ' + error.message, 'error');
+            }
+        }
+        
+        // Allow Enter key to login
+        document.getElementById('password')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>

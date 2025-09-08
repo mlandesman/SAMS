@@ -1,0 +1,178 @@
+/**
+ * vendors.js
+ * CRUD operations for vendors collection inside lists
+ * Refactored to include propertyAccess validation
+ */
+
+import { getDb } from '../firebase.js';
+import { writeAuditLog } from '../utils/auditLogger.js';
+
+/**
+ * CRUD operations for vendors under a client
+ * All functions now require user object for propertyAccess validation
+ */
+
+// Create a vendor
+async function createVendor(clientId, data, user) {
+  try {
+    // Validate propertyAccess
+    if (!user) {
+      console.error('❌ No user provided for createVendor');
+      return null;
+    }
+
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      return null;
+    }
+
+    const db = await getDb();
+    const vendorRef = await db.collection(`clients/${clientId}/vendors`).add({
+      ...data,
+      createdAt: new Date(),
+      createdBy: user.uid,
+    });
+
+    const auditSuccess = await writeAuditLog({
+      module: 'vendors',
+      action: 'create',
+      parentPath: `clients/${clientId}/vendors/${vendorRef.id}`,
+      docId: vendorRef.id,
+      friendlyName: data.name || 'Unnamed Vendor',
+      notes: `Created vendor record by ${user.email}`,
+      userId: user.uid,
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for createVendor.');
+    }
+
+    return vendorRef.id;
+  } catch (error) {
+    console.error('❌ Error creating vendor:', error);
+    return null;
+  }
+}
+
+// Update a vendor
+async function updateVendor(clientId, vendorId, newData, user) {
+  try {
+    // Validate propertyAccess
+    if (!user) {
+      console.error('❌ No user provided for updateVendor');
+      return false;
+    }
+
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      return false;
+    }
+
+    const db = await getDb();
+    const vendorRef = db.doc(`clients/${clientId}/vendors/${vendorId}`);
+    await vendorRef.update({
+      ...newData,
+      updatedAt: new Date(),
+      updatedBy: user.uid,
+    });
+
+    const auditSuccess = await writeAuditLog({
+      module: 'vendors',
+      action: 'update',
+      parentPath: `clients/${clientId}/vendors/${vendorId}`,
+      docId: vendorId,
+      friendlyName: newData.name || 'Unnamed Vendor',
+      notes: `Updated vendor record by ${user.email}`,
+      userId: user.uid,
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for updateVendor.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error updating vendor:', error);
+    return false;
+  }
+}
+
+// Delete a vendor
+async function deleteVendor(clientId, vendorId, user) {
+  try {
+    // Validate propertyAccess
+    if (!user) {
+      console.error('❌ No user provided for deleteVendor');
+      return false;
+    }
+
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      return false;
+    }
+
+    const db = await getDb();
+    const vendorRef = db.doc(`clients/${clientId}/vendors/${vendorId}`);
+    await vendorRef.delete();
+
+    const auditSuccess = await writeAuditLog({
+      module: 'vendors',
+      action: 'delete',
+      parentPath: `clients/${clientId}/vendors/${vendorId}`,
+      docId: vendorId,
+      friendlyName: '',
+      notes: `Deleted vendor record by ${user.email}`,
+      userId: user.uid,
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for deleteVendor.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting vendor:', error);
+    return false;
+  }
+}
+
+// List all vendors
+async function listVendors(clientId, user) {
+  try {
+    // Validate propertyAccess
+    if (!user) {
+      console.error('❌ No user provided for listVendors');
+      return [];
+    }
+
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      return [];
+    }
+
+    const db = await getDb();
+    const snapshot = await db.collection(`clients/${clientId}/vendors`).get();
+    const vendors = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      vendors.push({
+        ...data,
+        id: doc.id, // Always use the document ID, overriding any 'id' field in data
+      });
+    });
+
+    console.log(`✅ User ${user.email} listed ${vendors.length} vendors for client ${clientId}`);
+    return vendors;
+  } catch (error) {
+    console.error('❌ Error listing vendors:', error);
+    return [];
+  }
+}
+
+export {
+  createVendor,
+  updateVendor,
+  deleteVendor,
+  listVendors,
+};

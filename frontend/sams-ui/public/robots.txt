@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /
+
+# Maintenance page
+User-agent: *
+Disallow: /maintenance
+
+# API routes
+User-agent: *
+Disallow: /api/

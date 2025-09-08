@@ -1,0 +1,95 @@
+.sidebar {
+  position: fixed; /* Keep this */
+  top: 0;          /* Keep this */
+  left: 0;         /* Keep this */
+  width: 220px; 
+  height: calc(100vh - 25px); 
+  background-color: #ffffff; 
+  color: #f0f0f0; 
+  display: flex;
+  flex-direction: column;
+  /* box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); */
+  z-index: 100; 
+}
+
+/* Styles for the 70px high header section */
+.sidebar-header-section {
+  height: 70px; 
+  display: flex;
+  align-items: center; 
+  justify-content: center; 
+  padding: 0;    
+  overflow: hidden; 
+  background-color: #ffffff; /* ADDED: Make this section's background white */
+}
+
+.sidebar-header-logo {
+  width: 100%;   
+  height: 100%;  
+  object-fit: contain; 
+}
+
+/* Styling for the "Activities" heading */
+.sidebar-menu-heading {
+  font-size: 1.5rem; 
+  font-weight: bold;
+  color: #000000;
+  padding: 15px 20px 8px 20px; 
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1; 
+  overflow-y: auto; 
+}
+
+.sidebar-menu li {
+  padding: 12px 20px; /* Adjusted padding */
+  cursor: pointer;
+  /* border-bottom: 1px solid #00382d;  */
+  font-size: 1rem;
+  color: #0527ae;
+}
+
+.sidebar-menu li a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.sidebar-menu li:hover, .sidebar-menu li.active {
+  background-color: #0527ae;
+  color: #ffffff;
+}
+
+/* Styles for loading and error states */
+.sidebar-menu .menu-loading {
+  color: #666;
+  cursor: default;
+  font-style: italic;
+}
+
+.sidebar-menu .menu-error {
+  color: #d32f2f;
+  cursor: default;
+}
+
+/* Specific styling for the Change Client button */
+.change-client-button {
+  /* Inherits li styles, including new font-size and color */
+  margin-top: auto; 
+  background-color: #ffffff; 
+  /* border-top: 1px solid #2a6656; 
+  border-bottom: none; */
+}
+
+/* Mobile responsive design - hide sidebar on small screens */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}

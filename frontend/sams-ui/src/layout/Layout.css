@@ -1,0 +1,111 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+.layout-container {
+  height: 100%; 
+  width: 100%;
+  position: relative; /* Can be useful for positioning child elements if needed */
+}
+
+/* Styles for .sidebar are primarily in Sidebar.css as it's position:fixed */
+
+.user-info {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: white;
+  border-bottom: 1px solid #ddd;
+}
+
+.user-info span {
+  margin-right: 12px;
+  font-size: 14px;
+  color: #555;
+}
+
+.logout-button {
+  padding: 6px 12px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
+}
+
+.main-content {
+  margin-left: 220px; /* CRUCIAL: Creates space for the 220px fixed sidebar */
+  height: 100vh;      /* Make main-content full viewport height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevents its own content from breaking layout */
+  /* If your StatusBar is 25px high and also fixed at the bottom,
+     and you want to ensure scrollable content in .content doesn't go under it,
+     you might consider adding padding-bottom: 25px; to .main-content
+     or to the .content div if the StatusBar is outside .main-content's direct flow.
+     For now, this assumes StatusBar is handled. */
+}
+
+/* PWA Navigation - hide on desktop, show on mobile */
+.pwa-navigation {
+  display: none;
+}
+
+/* Mobile responsive design - remove sidebar margin on small screens */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding-bottom: 70px; /* Space for bottom navigation */
+  }
+  
+  .pwa-navigation {
+    display: block;
+  }
+  
+  .user-info {
+    display: none; /* Hide desktop user info on mobile */
+  }
+}
+
+/* Emergency force mobile mode - activated by JavaScript when CSS media queries fail */
+body.force-mobile-mode .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+  padding-bottom: 70px !important;
+}
+
+body.force-mobile-mode .pwa-navigation {
+  display: block !important;
+}
+
+body.force-mobile-mode .user-info {
+  display: none !important;
+}
+
+body.force-mobile-mode .sidebar {
+  display: none !important;
+}
+
+.content { /* This is where SplashScreen, TransactionsView, etc., will render */
+  flex-grow: 1; /* Allows this div to take up available vertical space within .main-content */
+  overflow-y: auto; /* Add scroll for content that overflows vertically */
+  display: flex;
+  flex-direction: column; /* Helps children like SplashScreen fill this area if they use flex:1 */
+  padding-bottom: 0; /* Remove fixed padding - will be handled by child components */
+  margin-bottom: 0; /* No margin */
+}

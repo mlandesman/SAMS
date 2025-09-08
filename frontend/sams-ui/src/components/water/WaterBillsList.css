@@ -1,0 +1,361 @@
+/* Water Bills List Component Styles */
+
+/* Text alignment utilities */
+.text-left {
+  text-align: left !important;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.water-bills-container {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.month-selector,
+.due-date-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-selector label,
+.due-date-selector label {
+  font-weight: 600;
+  color: #333;
+}
+
+.month-dropdown,
+.due-date-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.month-dropdown:hover,
+.due-date-input:hover {
+  border-color: #4CAF50;
+}
+
+.due-date-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.generate-bills-btn {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.generate-bills-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.generate-bills-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.controls-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.refresh-btn {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.3s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.refresh-btn:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+
+/* Messages */
+.success-message,
+.error-message {
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Table Styles */
+.bills-table-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.bills-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.bills-table thead {
+  background-color: #f8f9fa;
+}
+
+.bills-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+  font-size: 16px;
+}
+
+.bills-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.bills-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.unit-id {
+  font-weight: 600;
+  color: #495057;
+  font-size: 16px;
+}
+
+.reading,
+.consumption {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  color: #000;
+  font-size: 18px;
+}
+
+.amount {
+  text-align: right;
+  font-weight: 600;
+  color: #000;
+  font-size: 18px;
+}
+
+.past-due {
+  text-align: right;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.past-due-amount {
+  color: #dc3545;
+}
+
+.owner-name {
+  color: #333;
+  font-size: 16px;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.status-paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-unpaid {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-overdue {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-nobill {
+  background: #e7e7e7;
+  color: #6c757d;
+}
+
+/* Footer */
+.bills-table tfoot {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.totals-row td {
+  padding: 12px;
+  border-top: 2px solid #dee2e6;
+  border-bottom: none;
+}
+
+/* Summary Section */
+.bills-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.summary-value.paid {
+  color: #28a745;
+}
+
+.summary-value.unpaid {
+  color: #ffc107;
+}
+
+.summary-value.overdue {
+  color: #dc3545;
+}
+
+/* Loading and Error States */
+.loading-container,
+.no-data-message {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.loading-container {
+  font-size: 16px;
+}
+
+.no-data-message {
+  font-size: 14px;
+  color: #999;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .controls-bar {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .month-selector,
+  .due-date-selector {
+    width: 100%;
+  }
+
+  .month-dropdown,
+  .due-date-input {
+    flex: 1;
+  }
+
+  .generate-bills-btn {
+    width: 100%;
+  }
+
+  .bills-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .bills-table {
+    font-size: 14px;
+  }
+
+  .bills-table th,
+  .bills-table td {
+    padding: 8px;
+  }
+}
+
+/* Clickable Cell Styles */
+.clickable-cell {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable-cell:hover {
+  background-color: #e3f2fd !important;
+}
+
+.total-due {
+  font-weight: 600;
+  color: #000;
+  font-size: 18px;
+}

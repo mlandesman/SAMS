@@ -1,0 +1,250 @@
+.advanced-filter-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.advanced-filter-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.filter-modal-header {
+  background: linear-gradient(135deg, #447b7b, #5a9b9b);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-modal-content {
+  padding: 24px;
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.filter-group.amount-range,
+.filter-group.date-range {
+  grid-column: 1 / -1;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-icon {
+  color: #447b7b;
+  font-size: 12px;
+  width: 14px;
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: #447b7b;
+  box-shadow: 0 0 0 3px rgba(68, 123, 123, 0.1);
+}
+
+.amount-inputs,
+.date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amount-inputs input,
+.date-inputs input {
+  flex: 1;
+}
+
+.amount-separator,
+.date-separator {
+  color: #666;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 4px;
+}
+
+.filter-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f8f9fa;
+}
+
+.filter-actions-left,
+.filter-actions-right {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-modal-footer button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clear-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.clear-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.clear-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.reset-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.reset-btn:hover {
+  background-color: #545b62;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #545b62;
+}
+
+.apply-btn {
+  background-color: #447b7b;
+  color: white;
+}
+
+.apply-btn:hover {
+  background-color: #2d5a5a;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .advanced-filter-modal {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .filter-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .filter-group.amount-range,
+  .filter-group.date-range {
+    grid-column: 1;
+  }
+  
+  .filter-modal-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filter-actions-left,
+  .filter-actions-right {
+    width: 100%;
+    justify-content: center;
+  }
+}

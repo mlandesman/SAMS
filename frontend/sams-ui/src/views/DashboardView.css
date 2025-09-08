@@ -1,0 +1,57 @@
+/* Dashboard View - Preserving Sandyland Ocean-to-Sand Gradient */
+.dashboard {
+  padding: 2rem;
+  min-height: 100%;
+  /* Proper Sandyland ocean-to-sand gradient */
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    padding: 0.5rem;
+  }
+}
+
+/* Custom scrollbar to match theme */
+.dashboard::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard::-webkit-scrollbar-track {
+  background: rgba(233, 246, 248, 0.3);
+  border-radius: 10px;
+}
+
+.dashboard::-webkit-scrollbar-thumb {
+  background: rgba(8, 99, 191, 0.3);
+  border-radius: 10px;
+}
+
+.dashboard::-webkit-scrollbar-thumb:hover {
+  background: rgba(8, 99, 191, 0.5);
+}
+
+/* HOA Progress Bar Animation */
+@keyframes fillProgress {
+  from {
+    width: 0%;
+    opacity: 0.6;
+  }
+  to {
+    width: var(--progress-width, 0%);
+    opacity: 1;
+  }
+}
+
+.hoa-progress-fill {
+  animation: fillProgress 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  background-color: #059669;
+  height: 100%;
+}

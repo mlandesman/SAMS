@@ -1,0 +1,20 @@
+/* ListManagementStatusContent.css */
+
+.list-management-status-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.entry-count {
+  color: #495057;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Ensure consistent styling with GlobalSearch component */
+.list-management-status-content .global-search {
+  margin: 0;
+}

@@ -1,0 +1,106 @@
+.global-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.search-toggle-btn {
+  background: none;
+  border: none;
+  color: #447b7b;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 16px; /* Increased from 14px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+}
+
+.search-toggle-btn:hover {
+  background-color: rgba(68, 123, 123, 0.1);
+  color: #2d5a5a;
+}
+
+.global-search.active .search-toggle-btn {
+  background-color: rgba(68, 123, 123, 0.2);
+  color: #2d5a5a;
+}
+
+.search-input-container {
+  position: fixed;
+  bottom: 35px; /* Position above the status bar */
+  left: 50vw; /* Center horizontally relative to viewport */
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 2px solid #447b7b;
+  border-radius: 20px;
+  padding: 8px 12px;
+  min-width: 300px; /* Increased from 200px */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: expandSearch 0.2s ease-out;
+  z-index: 1100; /* Higher than status bar */
+}
+
+@keyframes expandSearch {
+  from {
+    opacity: 0;
+    transform: scaleX(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.search-icon {
+  color: #447b7b;
+  font-size: 14px; /* Increased from 12px */
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  font-size: 15px; /* Increased from 13px */
+  background: transparent;
+  flex: 1;
+  padding: 4px 6px;
+  color: #333;
+}
+
+.search-input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.search-close-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 2px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.search-close-btn:hover {
+  color: #666;
+}
+
+/* Ensure the search doesn't break the status bar layout */
+.global-search.expanded {
+  position: absolute;
+  right: 15px;
+  z-index: 10;
+}

@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-07-09T17:55:52.550Z",
+  "operation": "exchange-rate-copy",
+  "source": "production",
+  "destination": "development",
+  "documentsCount": 65,
+  "dateRange": {
+    "start": "2025-04-10",
+    "end": "2025-07-09"
+  },
+  "errors": 0,
+  "elapsed": "1.2",
+  "config": {
+    "dryRun": false,
+    "verbose": false,
+    "limit": null,
+    "dateRange": {
+      "days": 90
+    }
+  }
+}

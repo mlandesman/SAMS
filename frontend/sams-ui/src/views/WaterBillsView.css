@@ -1,0 +1,374 @@
+.water-bills-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.water-bills-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.water-bills-header {
+  margin-bottom: 30px;
+}
+
+.water-bills-header h1 {
+  color: #2c3e50;
+  margin-bottom: 8px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.water-bills-header p {
+  color: #6c757d;
+  margin: 0;
+  font-size: 16px;
+}
+
+.no-client-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+}
+
+.no-client-message p {
+  font-size: 16px;
+  color: #6c757d;
+}
+
+.error-container {
+  padding: 20px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+/* Tabs Styling */
+.water-bills-tabs {
+  display: flex;
+  border-bottom: 2px solid #dee2e6;
+  margin-bottom: 30px;
+  gap: 8px;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #6c757d;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: #495057;
+  background-color: #f8f9fa;
+}
+
+.tab-button.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background-color: #f8f9fa;
+}
+
+/* Overview Section */
+.overview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.overview-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.overview-card {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card-icon {
+  color: #007bff;
+  font-size: 20px;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.card-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.card-subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.coming-soon-notice {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+}
+
+.coming-soon-notice h3 {
+  color: #2c3e50;
+  margin-bottom: 16px;
+  font-size: 24px;
+}
+
+.coming-soon-notice p {
+  color: #6c757d;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.coming-soon-notice ul {
+  text-align: left;
+  max-width: 400px;
+  margin: 0 auto;
+  color: #495057;
+}
+
+.coming-soon-notice li {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  color: #2c3e50;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.primary-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.primary-button:hover {
+  background-color: #0056b3;
+}
+
+/* Empty States */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  color: #2c3e50;
+  margin-bottom: 12px;
+  font-size: 20px;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+/* Tables */
+.readings-table-container,
+.bills-table-container {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.readings-table,
+.bills-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.readings-table th,
+.bills-table th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.readings-table td,
+.bills-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f3f4;
+  color: #495057;
+}
+
+.readings-table tbody tr:hover,
+.bills-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-badge.paid {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.overdue {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.action-button {
+  background-color: transparent;
+  color: #007bff;
+  border: 1px solid #007bff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .water-bills-content {
+    padding: 16px;
+  }
+
+  .water-bills-header h1 {
+    font-size: 24px;
+  }
+
+  .overview-cards {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .water-bills-tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+
+  .tab-button {
+    border-bottom: none;
+    border-left: 3px solid transparent;
+    justify-content: flex-start;
+  }
+
+  .tab-button.active {
+    border-bottom: none;
+    border-left-color: #007bff;
+  }
+
+  .readings-table-container,
+  .bills-table-container {
+    overflow-x: auto;
+  }
+
+  .readings-table,
+  .bills-table {
+    min-width: 600px;
+  }
+}

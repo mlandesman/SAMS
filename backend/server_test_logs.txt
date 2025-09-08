@@ -1,0 +1,1588 @@
+
+> sams-backend@0.0.1 prestart
+> npm run version:stamp
+
+
+> sams-backend@0.0.1 version:stamp
+> node ../scripts/updateVersion.js update
+
+
+============================================================
+🚀 BUILD INFORMATION
+============================================================
+📦 Version: 0.0.1
+🌍 Environment: development
+📅 Build Date: 7/21/2025, 10:14:32 PM
+🔢 Build Number: 250721.2214
+🌿 Git Branch: main
+📝 Git Hash: 95be8f7
+💻 Node Version: v22.15.0
+🖥️  Platform: darwin
+============================================================
+
+> sams-backend@0.0.1 start
+> node index.js
+
+🔑 Using Firebase project: sandyland-management-system
+🔥 Initializing Firebase Admin SDK...
+✅ Firebase Admin SDK initialized successfully
+✅ Firestore connection verified
+✅ Firestore connection verified
+ℹ️ Firebase Admin SDK already initialized
+Mounting /api/clients
+Mounting email routes
+Mounting document routes
+Mounting client onboarding routes
+Mounting client management routes
+Mounting admin routes
+Mounting auth routes
+Mounting version routes
+Server is running on port 5001
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at FirebaseTokenVerifier.verifyContent (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:245:19)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:160:18
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async authenticateUserWithProfile (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/middleware/clientAuth.js:45:22) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at FirebaseTokenVerifier.verifyContent (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:245:19)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:160:18
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async authenticateUserWithProfile (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/middleware/clientAuth.js:45:22) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+✅ Firestore connection verified
+🔐 User authenticated: michael@landesman.com - SuperAdmin: true
+GET /api/user/profile - Request received
+Fetching profile for user: michael@landesman.com (UID: fjXv8gX1CYWBvOZ1CS27j96oRCT2)
+✅ Firestore connection verified
+User data retrieved: {
+  email: 'michael@landesman.com',
+  name: 'Michael Landesman',
+  isActive: true,
+  accountState: 'active',
+  creationMethod: 'admin',
+  createdAt: Timestamp { _seconds: 1750276493, _nanoseconds: 735000000 },
+  globalRole: 'superAdmin',
+  uid: 'fjXv8gX1CYWBvOZ1CS27j96oRCT2',
+  id: 'fjXv8gX1CYWBvOZ1CS27j96oRCT2',
+  isSuperAdmin: true,
+  lastAccessed: Timestamp { _seconds: 1751771150, _nanoseconds: 572000000 },
+  restoredBy: 'production-import-purge',
+  restoredAt: Timestamp { _seconds: 1752081343, _nanoseconds: 318000000 },
+  lastModifiedDate: '2025-07-21T16:14:56.542Z',
+  lastModifiedBy: 'michael@landesman.com',
+  propertyAccess: [ 'MTC', 'test-client' ],
+  preferredClient: 'test-client',
+  lastClientSelection: Timestamp { _seconds: 1753115639, _nanoseconds: 142000000 },
+  lastLogin: Timestamp { _seconds: 1753153896, _nanoseconds: 221000000 }
+}
+Returning user profile with client access: {
+  email: 'michael@landesman.com',
+  globalRole: 'superAdmin',
+  propertyAccessKeys: [ 'MTC', 'test-client' ]
+}
+✅ Firestore connection verified
+🔐 User authenticated: michael@landesman.com - SuperAdmin: true
+🔐 Permission check for michael@landesman.com: system.admin {
+  isSuperAdmin: true,
+  email: 'michael@landesman.com',
+  globalRole: 'superAdmin',
+  clientRole: undefined,
+  permission: 'system.admin'
+}
+✅ SuperAdmin michael@landesman.com bypassing permission check for system.admin
+🔍 Security Event: ADMIN_ENABLE_UNIT_MANAGEMENT {
+  user: 'michael@landesman.com',
+  clientId: undefined,
+  timestamp: '2025-07-22T03:21:15.151Z',
+  userAgent: 'axios/1.10.0',
+  ip: '::1'
+}
+🔧 Starting Unit Management enablement for all clients via web endpoint...
+✅ Firestore connection verified
+🔍 Processing client: AVII
+✅ Unit Management already enabled for AVII
+🔍 Processing client: MTC
+✅ Unit Management already enabled for MTC
+📊 Unit Management enablement completed: { processed: 2, updated: 0, created: 0, alreadyEnabled: 2, errors: [] }
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Error: Not allowed by CORS
+    at origin (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/index.js:41:16)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:204:7)
+    at Layer.handle [as handle_request] (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:328:13)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:346:12)
+    at next (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/middleware/init.js:40:5)
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at FirebaseTokenVerifier.verifyContent (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:245:19)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:160:18
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async authenticateUserWithProfile (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/middleware/clientAuth.js:45:22) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at FirebaseTokenVerifier.verifyContent (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:245:19)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:160:18
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async authenticateUserWithProfile (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/middleware/clientAuth.js:45:22) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Firebase ID token has no "kid" claim. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+✅ Firestore connection verified
+🔐 User authenticated: michael@landesman.com - SuperAdmin: true
+GET /api/user/profile - Request received
+Fetching profile for user: michael@landesman.com (UID: fjXv8gX1CYWBvOZ1CS27j96oRCT2)
+✅ Firestore connection verified
+User data retrieved: {
+  email: 'michael@landesman.com',
+  name: 'Michael Landesman',
+  isActive: true,
+  accountState: 'active',
+  creationMethod: 'admin',
+  createdAt: Timestamp { _seconds: 1750276493, _nanoseconds: 735000000 },
+  globalRole: 'superAdmin',
+  uid: 'fjXv8gX1CYWBvOZ1CS27j96oRCT2',
+  id: 'fjXv8gX1CYWBvOZ1CS27j96oRCT2',
+  isSuperAdmin: true,
+  lastAccessed: Timestamp { _seconds: 1751771150, _nanoseconds: 572000000 },
+  restoredBy: 'production-import-purge',
+  restoredAt: Timestamp { _seconds: 1752081343, _nanoseconds: 318000000 },
+  lastModifiedDate: '2025-07-21T16:14:56.542Z',
+  lastModifiedBy: 'michael@landesman.com',
+  propertyAccess: [ 'MTC', 'test-client' ],
+  preferredClient: 'test-client',
+  lastClientSelection: Timestamp { _seconds: 1753115639, _nanoseconds: 142000000 },
+  lastLogin: Timestamp { _seconds: 1753154474, _nanoseconds: 349000000 }
+}
+Returning user profile with client access: {
+  email: 'michael@landesman.com',
+  globalRole: 'superAdmin',
+  propertyAccessKeys: [ 'MTC', 'test-client' ]
+}
+✅ Firestore connection verified
+🔐 User authenticated: michael@landesman.com - SuperAdmin: true
+🔐 Permission check for michael@landesman.com: system.admin {
+  isSuperAdmin: true,
+  email: 'michael@landesman.com',
+  globalRole: 'superAdmin',
+  clientRole: undefined,
+  permission: 'system.admin'
+}
+✅ SuperAdmin michael@landesman.com bypassing permission check for system.admin
+🔍 Security Event: ADMIN_ENABLE_UNIT_MANAGEMENT {
+  user: 'michael@landesman.com',
+  clientId: undefined,
+  timestamp: '2025-07-22T03:37:39.741Z',
+  userAgent: 'axios/1.10.0',
+  ip: '::1'
+}
+🔧 Starting Unit Management enablement for all clients via web endpoint...
+✅ Firestore connection verified
+🔍 Processing client: AVII
+✅ Unit Management already enabled for AVII
+🔍 Processing client: MTC
+✅ Unit Management already enabled for MTC
+📊 Unit Management enablement completed: { processed: 2, updated: 0, created: 0, alreadyEnabled: 2, errors: [] }
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Authentication error: FirebaseAuthError: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/firebase-admin/lib/auth/token-verifier.js:174:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  errorInfo: {
+    code: 'auth/argument-error',
+    message: 'Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.'
+  },
+  codePrefix: 'auth'
+}
+Error code: auth/argument-error
+Error message: Decoding Firebase ID token failed. Make sure you passed the entire string JWT which represents an ID token. See https://firebase.google.com/docs/auth/admin/verify-id-tokens for details on how to retrieve an ID token.
+Error: Not allowed by CORS
+    at origin (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/index.js:41:16)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/cors/lib/index.js:204:7)
+    at Layer.handle [as handle_request] (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:328:13)
+    at /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:346:12)
+    at next (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/node_modules/express/lib/middleware/init.js:40:5)

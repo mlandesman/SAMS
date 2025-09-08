@@ -1,0 +1,82 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center; /* Or 'left' if more common for input modals, can be overridden */
+  width: 400px; /* Default width, can be overridden */
+  max-width: 90%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* Subtle shadow - reduced size and opacity */
+}
+
+/* Styles for a generic modal title, if you plan to have one */
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Styles for a generic modal content area */
+.modal-content {
+  margin-bottom: 20px;
+  /* text-align: left; */ /* If inputs are typically left-aligned */
+}
+
+.modal-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-around; /* Or 'flex-end' with gaps for common patterns */
+}
+
+.modal-buttons button {
+  padding: 10px 20px; /* Slightly larger padding for better click targets */
+  font-weight: bold;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+.modal-buttons button.primary { /* Example for a primary action button */
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+.modal-buttons button.primary:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.modal-buttons button.secondary { /* Example for a cancel/secondary button */
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+.modal-buttons button.secondary:hover {
+  background-color: #545b62;
+  border-color: #545b62;
+}
+
+.modal-buttons button.danger { /* Example for a destructive action button */
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+.modal-buttons button.danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+

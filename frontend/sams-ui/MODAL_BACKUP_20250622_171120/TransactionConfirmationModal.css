@@ -1,0 +1,622 @@
+/* TransactionConfirmationModal.css */
+
+.confirmation-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 700px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Professional version styling */
+.confirmation-modal.professional {
+  max-width: 600px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.success-header {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  padding: 32px 24px 24px;
+  text-align: center;
+  position: relative;
+  border-radius: 16px 16px 0 0;
+}
+
+.success-icon {
+  margin-bottom: 16px;
+}
+
+.checkmark-circle {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0 auto;
+  animation: checkmarkPop 0.6s ease-out;
+}
+
+@keyframes checkmarkPop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.success-message {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.success-header .close-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.success-header .close-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Transaction Details Card */
+.transaction-details-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.transaction-details-card h3 {
+  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: box-shadow 0.2s ease;
+}
+
+.detail-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detail-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #4CAF50;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.detail-value.amount.negative {
+  color: #d63384;
+  font-size: 1.1rem;
+}
+
+.category-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+}
+
+.transaction-id-item {
+  grid-column: 1 / -1;
+  background: #fff3cd !important;
+  border-color: #ffeaa7 !important;
+}
+
+.transaction-id-item .detail-icon {
+  background: #f39c12;
+}
+
+.transaction-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem !important;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+/* Documents Section */
+.documents-section {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+}
+
+.documents-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.documents-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-all-documents-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.view-all-documents-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.view-all-documents-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.documents-list {
+  padding: 0;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.document-item:last-child {
+  border-bottom: none;
+}
+
+.document-item.clickable {
+  cursor: pointer;
+}
+
+.document-item.clickable:hover {
+  background: #f8f9fa;
+}
+
+.document-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 6px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.document-icon.image-file {
+  background: #e8f5e8;
+  color: #4CAF50;
+}
+
+.document-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.document-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.2;
+}
+
+.document-size {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.document-action {
+  color: #6c757d;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.document-item:hover .document-action {
+  opacity: 1;
+}
+
+/* Professional Modal Footer */
+.confirmation-modal.professional .modal-footer {
+  padding: 20px 24px;
+  background: white;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #45a049;
+}
+
+/* Mobile Responsiveness for Professional Modal */
+@media (max-width: 768px) {
+  .confirmation-modal.professional {
+    width: 95%;
+    max-height: 95vh;
+    margin: 2.5vh auto;
+  }
+  
+  .success-header {
+    padding: 24px 16px 20px;
+  }
+  
+  .checkmark-circle {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+  
+  .success-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .transaction-details-card {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .detail-item {
+    padding: 10px;
+  }
+  
+  .detail-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .documents-header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .view-all-documents-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .document-item {
+    padding: 10px 16px;
+  }
+  
+  .confirmation-modal.professional .modal-footer {
+    padding: 16px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.confirmation-modal .modal-header {
+  background: #447b7b;
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
+}
+
+.confirmation-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: white;
+}
+
+.confirmation-modal .modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.confirmation-section {
+  margin-bottom: 24px;
+}
+
+.confirmation-section:last-child {
+  margin-bottom: 0;
+}
+
+.confirmation-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  color: #333;
+  border-bottom: 2px solid #447b7b;
+  padding-bottom: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: start;
+  gap: 12px;
+}
+
+.detail-row label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.detail-row span {
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.detail-row .amount {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.detail-row .amount.negative {
+  color: #d63384;
+}
+
+.detail-row .amount.positive {
+  color: #198754;
+}
+
+.notes-row {
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+}
+
+.notes-content {
+  background: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #447b7b;
+  font-style: italic;
+  color: #666;
+}
+
+.documents-preview {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.document-preview-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.document-preview-item:last-child {
+  margin-bottom: 0;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.file-size {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.file-type {
+  font-size: 1.2rem;
+  margin-left: 12px;
+}
+
+.confirmation-modal .modal-footer {
+  padding: 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.confirmation-modal .modal-footer button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirmation-modal .modal-footer button.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.confirmation-modal .modal-footer button.secondary:hover {
+  background: #5a6268;
+}
+
+.confirmation-modal .modal-footer button.primary {
+  background: #447b7b;
+  color: white;
+}
+
+.confirmation-modal .modal-footer button.primary:hover {
+  background: #356565;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .confirmation-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .detail-row label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .notes-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

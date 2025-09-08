@@ -1,0 +1,23 @@
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+}
+
+.upload-area:hover {
+  border-color: #1976d2;
+  background-color: #f0f7ff;
+}
+
+.upload-area svg {
+  color: #757575;
+  transition: color 0.3s ease;
+}
+
+.upload-area:hover svg {
+  color: #1976d2;
+}

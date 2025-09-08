@@ -1,0 +1,62 @@
+{
+  "environment": "dev",
+  "fetchedAt": "2025-07-04T03:20:10.764Z",
+  "uid": "YHk0uE4Qha5XQrBss1Yw",
+  "email": "ms@landesman.com",
+  "name": "Michael Landesman",
+  "role": "unitOwner",
+  "clientId": "MTC",
+  "globalRole": "user",
+  "creationMethod": "migration",
+  "unitId": "PH4D",
+  "preferredClient": "MTC",
+  "isActive": true,
+  "passwordResetBy": "forgot-password-request",
+  "lastPasswordResetDate": "2025-06-29T16:58:20.873Z",
+  "lastModifiedBy": "michael@landesman.com",
+  "accountState": "active",
+  "mustChangePassword": false,
+  "lastProfileUpdate": {
+    "_seconds": 1751237160,
+    "_nanoseconds": 896000000
+  },
+  "notifications": {
+    "email": true,
+    "sms": true,
+    "duesReminders": true
+  },
+  "id": "YHk0uE4Qha5XQrBss1Yw",
+  "clientAccess": {
+    "MTC": {
+      "role": "unitOwner",
+      "permissions": [],
+      "addedDate": "2025-06-27T18:18:55.099Z",
+      "addedBy": "system-migration",
+      "unitAssignments": [
+        {
+          "unitId": "1C",
+          "role": "unitManager",
+          "addedDate": "2025-06-27T20:04:53.914Z",
+          "addedBy": "michael@landesman.com"
+        },
+        {
+          "unitId": "2C",
+          "role": "unitManager",
+          "addedDate": "2025-06-27T20:04:54.697Z",
+          "addedBy": "michael@landesman.com"
+        },
+        {
+          "unitId": "PH4D",
+          "role": "unitOwner",
+          "addedDate": "2025-07-02T23:46:55.386Z",
+          "addedBy": "michael@landesman.com"
+        }
+      ]
+    }
+  },
+  "lastModifiedDate": "2025-07-03T00:00:00.076Z",
+  "lastLogin": {
+    "_seconds": 1751582312,
+    "_nanoseconds": 316000000
+  }
+}

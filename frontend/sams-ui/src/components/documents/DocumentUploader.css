@@ -1,0 +1,147 @@
+/* DocumentUploader.css */
+
+.document-uploader {
+  margin: 1rem 0;
+}
+
+.upload-section {
+  margin-bottom: 1rem;
+}
+
+.drop-zone {
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+}
+
+.drop-zone:hover:not(.disabled) {
+  border-color: #4299e1;
+  background-color: #ebf8ff;
+}
+
+.drop-zone.drag-over {
+  border-color: #3182ce;
+  background-color: #bee3f8;
+}
+
+.drop-zone.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+}
+
+.upload-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #4299e1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.upload-prompt {
+  color: #64748b;
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-prompt p {
+  margin: 0.25rem 0;
+}
+
+.file-types {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.uploaded-documents {
+  background-color: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.uploaded-documents h4 {
+  margin: 0 0 0.75rem 0;
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.document-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.document-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.document-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.remove-document {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.remove-document:hover {
+  background-color: #fef2f2;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .drop-zone {
+    padding: 1.5rem;
+  }
+  
+  .upload-icon {
+    font-size: 1.5rem;
+  }
+}

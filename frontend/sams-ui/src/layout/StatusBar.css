@@ -1,0 +1,150 @@
+.status-bar {
+  position: fixed;
+  bottom: 0; /* Align with bottom of viewport */
+  left: 0 !important; /* For diagnostics: ensure it's at the viewport edge */
+  width: 100% !important; /* For diagnostics: ensure it spans full width */
+  height: 28px; /* Increased from 25px */
+  background-color: #f0f0f0; 
+  color: #333333; 
+  z-index: 1000;    
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  
+  /* Explicit padding, use !important for diagnostics */
+  padding-left: 15px !important; 
+  padding-right: 15px !important;
+  padding-top: 0;
+  padding-bottom: 0;
+
+  box-sizing: border-box; 
+  border-top: 1px solid #dddddd; 
+  flex-shrink: 0; /* Should not be necessary for a fixed element but doesn't hurt */
+}
+
+/* Ensure the DateTimeDisplay itself doesn't have unexpected left margin */
+.status-bar .datetime-display { /* If DateTimeDisplay component's root has this class */
+  margin-left: 0 !important; 
+}
+/* Or target the first child more generically if DateTimeDisplay doesn't have a specific class */
+.status-bar > :first-child {
+  margin-left: 0 !important;
+}
+
+/* Center area for search and filter */
+.status-bar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.filter-icon {
+  margin-right: 5px;
+  font-style: normal;
+}
+
+.status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connection-status {
+  font-size: 14px; /* Increased from 0.9em */
+  color: #666;
+}
+
+/* Enhanced connection status with version display */
+.connection-status-enhanced {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  font-size: 14px;
+}
+
+.connection-status-enhanced:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.connection-status-enhanced:active {
+  transform: translateY(0);
+}
+
+.connection-indicator {
+  color: #4caf50;
+  font-size: 10px;
+}
+
+.connection-text {
+  color: #666;
+  font-weight: 500;
+}
+
+.version-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+.environment-icon {
+  font-size: 14px;
+}
+
+.environment-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.info-hint {
+  font-size: 12px;
+  color: #999;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* Responsive design for smaller desktop screens */
+@media (max-width: 1200px) {
+  .connection-status-enhanced {
+    font-size: 12px;
+    gap: 6px;
+    padding: 2px 8px;
+  }
+  
+  .connection-text {
+    display: none; /* Hide full text on smaller screens */
+  }
+  
+  .version-badge {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+  
+  .environment-label {
+    font-size: 10px;
+  }
+  
+  .environment-icon {
+    font-size: 12px;
+  }
+}
+
+/* Hide on mobile devices - PWA handles mobile */
+@media (max-width: 768px) {
+  .status-bar {
+    display: none;
+  }
+}

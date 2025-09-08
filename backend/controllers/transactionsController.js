@@ -1,0 +1,1350 @@
+/*
+ * Transaction Deletion with HOA Dues Cleanup - Phase 3 Implementation
+ * 
+ * Enhanced deletion logic that:
+ * - Detects HOA Dues transactions (category === 'HOA Dues' || metadata.type === 'hoa_dues')
+ * - Conditionally executes cascading cleanup for HOA transactions only
+ * - Preserves original behavior for all non-HOA transactions
+ * - Provides comprehensive debugging and audit logging
+ * 
+ * Implementation Date: June 17, 2025
+ * APM Priority: #1 - Transaction Deletion with HOA Dues Cleanup
+ */
+
+/**
+ * transactions.js
+ * CRUD operations for transactions collection
+ */
+
+import { getDb, getApp } from '../firebase.js';
+import { randomUUID } from 'crypto';
+import admin from 'firebase-admin';
+import { writeAuditLog } from '../utils/auditLogger.js';
+import { normalizeDates } from '../utils/timestampUtils.js';
+import { updateAccountBalance, rebuildBalances } from './accountsController.js';
+import { applyAccountMapping, validateAccountFields } from '../utils/accountMapping.js';
+import databaseFieldMappings from '../utils/databaseFieldMappings.js';
+import { validateDocument } from '../utils/validateDocument.js';
+import { DateService } from '../services/DateService.js';
+import { getUserPreferences } from '../utils/userPreferences.js';
+
+const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
+
+// Create date service for formatting API responses
+const dateService = new DateService({ timezone: 'America/Cancun' });
+
+// Helper to format date fields consistently for API responses
+function formatDateField(dateValue) {
+  if (!dateValue) return null;
+  return dateService.formatForFrontend(dateValue);
+}
+
+// Helper function to resolve vendor name to ID
+async function resolveVendorId(clientId, vendorName) {
+  if (!vendorName) return null;
+  
+  try {
+    const db = await getDb();
+    const vendorsSnapshot = await db.collection(`clients/${clientId}/vendors`)
+      .where('name', '==', vendorName)
+      .limit(1)
+      .get();
+    
+    if (!vendorsSnapshot.empty) {
+      return vendorsSnapshot.docs[0].id;
+    }
+    
+    console.log(`ℹ️ Vendor "${vendorName}" not found, storing name only`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving vendor ID:', error);
+    return null;
+  }
+}
+
+// Helper function to resolve category name to ID
+async function resolveCategoryId(clientId, categoryName) {
+  if (!categoryName) return null;
+  
+  try {
+    const db = await getDb();
+    const categoriesSnapshot = await db.collection(`clients/${clientId}/categories`)
+      .where('name', '==', categoryName)
+      .limit(1)
+      .get();
+    
+    if (!categoriesSnapshot.empty) {
+      return categoriesSnapshot.docs[0].id;
+    }
+    
+    console.log(`ℹ️ Category "${categoryName}" not found, storing name only`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving category ID:', error);
+    return null;
+  }
+}
+
+// Helper function to get category type (expense or income)
+async function getCategoryType(clientId, categoryId, categoryName) {
+  if (!categoryId && !categoryName) return null;
+  
+  try {
+    const db = await getDb();
+    let categoryDoc = null;
+    
+    if (categoryId) {
+      // Try to get by ID first
+      categoryDoc = await db.collection(`clients/${clientId}/categories`).doc(categoryId).get();
+    } else if (categoryName) {
+      // Fall back to name lookup
+      const snapshot = await db.collection(`clients/${clientId}/categories`)
+        .where('name', '==', categoryName)
+        .limit(1)
+        .get();
+      if (!snapshot.empty) {
+        categoryDoc = snapshot.docs[0];
+      }
+    }
+    
+    if (categoryDoc && categoryDoc.exists) {
+      const categoryData = categoryDoc.data();
+      return categoryData.type || 'expense'; // Default to expense if no type
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Error getting category type:', error);
+    return null;
+  }
+}
+
+/**
+ * CRUD operations for transactions under a client
+ */
+
+// Create a transaction
+async function createTransaction(clientId, data) {
+  try {
+    // Step 0: Prepare data for validation
+    const preparedData = {
+      ...data,
+      clientId, // Add required context fields
+      propertyId: data.propertyId || clientId, // Default to clientId if not multi-property
+      enteredBy: data.enteredBy || 'system' // Ensure enteredBy is present
+    };
+    
+    // VALIDATION: Check data against schema - REJECT any legacy fields
+    const validation = validateDocument('transactions', preparedData, 'create');
+    if (!validation.isValid) {
+      console.error('❌ Transaction validation failed:', validation.errors);
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
+    
+    const db = await getDb();
+    
+    // Step 1: Convert date to timestamp and amount to cents (using validated data)
+    // Use Luxon DateService for proper timezone handling
+    const dateService = new DateService({ timezone: 'America/Cancun' });
+    const normalizedData = {
+      ...validation.data, // Start with validated data
+      date: dateService.parseFromFrontend(validation.data.date || new Date().toISOString().split('T')[0]),
+      amount: dollarsToCents(validation.data.amount), // Convert to cents for storage
+      // Only add updated timestamp - created should be handled by audit log
+      updated: admin.firestore.Timestamp.now(),
+      // Ensure payment method is included
+      paymentMethod: validation.data.paymentMethod || null,
+      // Include unit if provided (for multi-unit properties)
+      unitId: validation.data.unit || validation.data.unitId || null
+    };
+    
+    // Remove old createdAt field if present
+    delete normalizedData.createdAt;
+    
+    // Debug: Log date normalization for HOA Dues
+    if (normalizedData.categoryName === 'HOA Dues') {
+      console.log(`🗓️ [TRANSACTION CREATE DEBUG] HOA Dues transaction dates:`, {
+        originalDate: validation.data.date,
+        normalizedDate: normalizedData.date,
+        normalizedYear: normalizedData.date ? new Date(normalizedData.date._seconds * 1000).getFullYear() : 'no date',
+        normalizedISO: normalizedData.date ? new Date(normalizedData.date._seconds * 1000).toISOString() : 'no date'
+      });
+      
+      // Add duesDistribution if not present for HOA Dues
+      if (!normalizedData.duesDistribution) {
+        normalizedData.duesDistribution = [];
+      }
+    }
+    
+    // Step 2: Resolve vendor and category IDs if names are provided
+    const [vendorId, categoryId] = await Promise.all([
+      normalizedData.vendorName ? resolveVendorId(clientId, normalizedData.vendorName) : Promise.resolve(null),
+      normalizedData.categoryName ? resolveCategoryId(clientId, normalizedData.categoryName) : Promise.resolve(null)
+    ]);
+    
+    // Add resolved IDs if found
+    if (vendorId) {
+      normalizedData.vendorId = vendorId;
+    }
+    
+    if (categoryId) {
+      normalizedData.categoryId = categoryId;
+    }
+    
+    // Step 2.5: Apply proper accounting sign conventions based on category type
+    // BYPASSED ON 2025-07-10: Using sign convention from source data (Google Sheets)
+    // The import data already has correct signs: negative for expenses, positive for income
+    // Keeping this code commented for reference but not applying any sign changes
+    /*
+    const categoryType = await getCategoryType(clientId, categoryId, normalizedData.categoryName);
+    
+    if (categoryType === 'expense') {
+      // Expenses should be negative
+      normalizedData.amount = -Math.abs(normalizedData.amount);
+      normalizedData.transactionType = 'expense';
+      console.log(`💸 Applied expense sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+    } else if (categoryType === 'income') {
+      // Income should be positive
+      normalizedData.amount = Math.abs(normalizedData.amount);
+      normalizedData.transactionType = 'income';
+      console.log(`💰 Applied income sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+    } else {
+      // Default to expense if category type unknown
+      normalizedData.amount = -Math.abs(normalizedData.amount);
+      normalizedData.transactionType = 'expense';
+      console.log(`⚠️ Unknown category type, defaulting to expense: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+    }
+    */
+    
+    // Using the sign from the source data as-is
+    console.log(`📊 Using amount as provided: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+    
+    // Note: transactionType is deprecated - using 'type' field only
+    // normalizedData.transactionType = normalizedData.amount >= 0 ? 'income' : 'expense';
+    
+    // Step 3: Apply account mapping (accountType → accountId + account)
+    const mappedData = applyAccountMapping(normalizedData);
+    
+    // Step 4: Validate account fields
+    const accountValidation = validateAccountFields(mappedData);
+    if (!accountValidation.isValid) {
+      console.error('❌ Account validation failed:', accountValidation.errors);
+      throw new Error(`Account validation failed: ${accountValidation.errors.join(', ')}`);
+    }
+    
+    console.log('✅ Account mapping applied:', {
+      accountType: mappedData.accountType,
+      accountId: mappedData.accountId,
+      accountName: mappedData.accountName
+    });
+    
+    // Generate document ID using transaction date + current time for uniqueness
+    // ALWAYS use the transaction's date (not today) for the ID prefix
+    // but add current time to ensure uniqueness
+    let transactionDate = mappedData.date || new Date();
+    
+    // Convert Firestore Timestamp to Date if needed
+    if (transactionDate && transactionDate.toDate) {
+      transactionDate = transactionDate.toDate();
+    }
+    
+    // For ID generation: combine transaction date with current time for uniqueness
+    // This ensures the ID reflects when the transaction occurred, not when it was entered
+    const now = new Date();
+    const dateForId = new Date(
+      transactionDate.getFullYear(),
+      transactionDate.getMonth(),
+      transactionDate.getDate(),
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds(),
+      now.getMilliseconds()
+    );
+    
+    console.log('🕐 [DEBUG] Generating transaction ID:', {
+      transactionDate: transactionDate.toISOString(),
+      dateForId: dateForId.toISOString(),
+      explanation: 'Using transaction date + current time for unique ID'
+    });
+    
+    const txnId = await generateTransactionId(dateForId.toISOString());
+    console.log('🕐 [DEBUG] Generated transaction ID:', txnId);
+    
+    // Use a transaction to ensure consistency between transaction and account balance
+    await db.runTransaction(async (transaction) => {
+      // Add the transaction with new ID format
+      const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const transactionData = {
+        ...mappedData,
+        documents: mappedData.documents || [] // Use actual documents array from data
+      };
+      
+      console.log('💾 About to save transaction data:', transactionData);
+      transaction.set(txnRef, transactionData);
+      
+      // Update account balance if accountId is specified (now always available due to mapping)
+      if (mappedData.accountId && typeof mappedData.amount === 'number') {
+        try {
+          await updateAccountBalance(clientId, mappedData.accountId, mappedData.amount);
+          console.log(`✅ Updated account balance for ${mappedData.accountId}: ${mappedData.amount}`);
+        } catch (balanceError) {
+          console.error('❌ Error updating account balance:', balanceError);
+          // Log the error but don't fail the transaction
+          // Account might not exist yet if this is an old transaction being imported
+        }
+      }
+      // For backward compatibility: use account field if accountId is not available
+      else if (mappedData.account && typeof mappedData.amount === 'number' && !mappedData.accountId) {
+        try {
+          await updateAccountBalance(clientId, mappedData.account, mappedData.amount);
+        } catch (balanceError) {
+          console.error('❌ Error updating account balance using legacy account name:', balanceError);
+        }
+      }
+      
+    });
+
+    const auditSuccess = await writeAuditLog({
+      module: 'transactions',
+      action: 'create',
+      parentPath: `clients/${clientId}/transactions/${txnId}`,
+      docId: txnId,
+      friendlyName: validation.data.categoryName || 'Unnamed Transaction',
+      notes: `Created transaction record${mappedData.accountName ? ` and updated ${mappedData.accountName} balance` : ''}`,
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for createTransaction.');
+    }
+
+    return txnId;
+  } catch (error) {
+    console.error('❌ Error creating transaction:', error);
+    return null;
+  }
+}
+
+// Update a transaction
+async function updateTransaction(clientId, txnId, newData) {
+  try {
+    // VALIDATION: Check update data against schema - REJECT any legacy fields
+    const validation = validateDocument('transactions', newData, 'update');
+    if (!validation.isValid) {
+      console.error('❌ Transaction update validation failed:', validation.errors);
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
+    
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+    
+    // Get the original transaction
+    const originalDoc = await txnRef.get();
+    if (!originalDoc.exists) {
+      throw new Error(`Transaction ${txnId} not found`);
+    }
+    const originalData = originalDoc.data();
+    
+    // Prepare update data with conversions (using validated data)
+    const normalizedData = {
+      ...validation.data
+    };
+    
+    // Convert amount to cents if provided
+    if (validation.data.amount !== undefined) {
+      normalizedData.amount = dollarsToCents(validation.data.amount);
+    }
+    
+    // Convert dates to timestamps
+    if (validation.data.date) {
+      normalizedData.date = convertToTimestamp(validation.data.date);
+    }
+    
+    // Resolve vendor and category IDs if names are provided
+    if (validation.data.vendorName || validation.data.categoryName) {
+      const [vendorId, categoryId] = await Promise.all([
+        validation.data.vendorName ? resolveVendorId(clientId, validation.data.vendorName) : Promise.resolve(null),
+        validation.data.categoryName ? resolveCategoryId(clientId, validation.data.categoryName) : Promise.resolve(null)
+      ]);
+      
+      // Add resolved IDs
+      if (validation.data.vendorName) {
+        if (vendorId) {
+          normalizedData.vendorId = vendorId;
+        } else {
+          // Clear vendorId if vendor name changed but ID not found
+          normalizedData.vendorId = null;
+        }
+      }
+      
+      if (validation.data.categoryName) {
+        if (categoryId) {
+          normalizedData.categoryId = categoryId;
+        } else {
+          // Clear categoryId if category name changed but ID not found
+          normalizedData.categoryId = null;
+        }
+      }
+    }
+    
+    // Always update the updated timestamp
+    normalizedData.updated = convertToTimestamp(new Date());
+    
+    // Use a transaction to ensure consistency
+    await db.runTransaction(async (transaction) => {
+      // Update the transaction document
+      transaction.update(txnRef, normalizedData);
+      
+      // Handle account balance updates
+      // Get account identifiers - prefer accountId, fall back to account name
+      const originalAccountId = originalData.accountId || originalData.account;
+      const newAccountId = normalizedData.accountId || normalizedData.account || originalData.accountId || originalData.account;
+      
+      // Case 1: Amount changed, same account
+      if (newAccountId === originalAccountId && 
+          normalizedData.amount !== undefined &&
+          normalizedData.amount !== originalData.amount && 
+          newAccountId) {
+        
+        const amountDifference = normalizedData.amount - originalData.amount;
+        if (amountDifference !== 0) {
+          try {
+            // Note: updateAccountBalance expects cents now
+            await updateAccountBalance(clientId, newAccountId, amountDifference);
+            console.log(`Updated ${newAccountId} balance by ${amountDifference} cents`);
+          } catch (balanceError) {
+            console.error('❌ Error updating account balance:', balanceError);
+          }
+        }
+      } 
+      // Case 2: Account changed
+      else if (newAccountId !== originalAccountId) {
+        // Remove amount from old account if it exists
+        if (originalAccountId) {
+          try {
+            await updateAccountBalance(clientId, originalAccountId, -originalData.amount);
+            console.log(`Removed ${originalData.amount} from ${originalAccountId}`);
+          } catch (balanceError) {
+            console.error(`❌ Error updating old account (${originalAccountId}) balance:`, balanceError);
+          }
+        }
+        
+        // Add amount to new account if it exists
+        if (newAccountId) {
+          try {
+            const amountToAdd = normalizedData.amount !== undefined ? normalizedData.amount : originalData.amount;
+            await updateAccountBalance(clientId, newAccountId, amountToAdd);
+            console.log(`Added ${amountToAdd} cents to ${newAccountId}`);
+          } catch (balanceError) {
+            console.error(`❌ Error updating new account (${newAccountId}) balance:`, balanceError);
+          }
+        }
+      }
+    });
+
+    const auditSuccess = await writeAuditLog({
+      module: 'transactions',
+      action: 'update',
+      parentPath: `clients/${clientId}/transactions/${txnId}`,
+      docId: txnId,
+      friendlyName: validation.data.categoryName || originalData.categoryName || 'Unnamed Transaction',
+      notes: 'Updated transaction record',
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for updateTransaction.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error updating transaction:', error);
+    return false;
+  }
+}
+
+// Delete a transaction with conditional HOA Dues cleanup
+async function deleteTransaction(clientId, txnId) {
+  console.log(`🚀 [BACKEND] deleteTransaction called: clientId=${clientId}, txnId=${txnId}`);
+  
+  try {
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+    
+    // Get the original transaction before deleting
+    const originalDoc = await txnRef.get();
+    if (!originalDoc.exists) {
+      console.log(`❌ [BACKEND] Transaction ${txnId} not found`);
+      throw new Error(`Transaction ${txnId} not found`);
+    }
+    const originalData = originalDoc.data();
+    
+    console.log(`📄 [BACKEND] Transaction data:`, {
+      id: txnId,
+      category: originalData.category,
+      metadata: originalData.metadata,
+      creditBalanceAdded: originalData.creditBalanceAdded
+    });
+    
+    // Check if this is an HOA Dues transaction requiring special cleanup
+    const isHOATransaction = originalData.category === 'HOA Dues' || 
+                            originalData.metadata?.type === 'hoa_dues';
+                            
+    // Check if this is a Water Bills transaction requiring special cleanup
+    const isWaterTransaction = originalData.categoryId === 'water_payments' || 
+                              originalData.categoryName === 'Water Payments';
+                            
+    console.log(`🏠 [BACKEND] HOA Transaction check: ${isHOATransaction}`);
+    console.log(`💧 [BACKEND] Water Transaction check: ${isWaterTransaction}`);
+    if (isHOATransaction) {
+      console.log(`🏠 [BACKEND] HOA metadata:`, originalData.metadata);
+    }
+    if (isWaterTransaction) {
+      console.log(`💧 [BACKEND] Water transaction data:`, {
+        unitId: originalData.unitId,
+        amount: originalData.amount,
+        description: originalData.description
+      });
+    }
+    
+    let hoaCleanupExecuted = false;
+    let hoaCleanupDetails = null;
+    let waterCleanupExecuted = false;
+    let waterCleanupDetails = null;
+    
+    // Use a transaction to ensure consistency
+    await db.runTransaction(async (transaction) => {
+      // PHASE 1: ALL READS FIRST (as required by Firestore)
+      
+      // Read transaction document (already done above, but we have the data)
+      
+      // Read dues document if this is an HOA transaction requiring cleanup
+      let duesDoc = null;
+      let duesData = null;
+      if (isHOATransaction && (originalData.metadata?.unitId || originalData.metadata?.id) && originalData.metadata?.year) {
+        const unitId = originalData.metadata.unitId || originalData.metadata.id;
+        const year = originalData.metadata.year;
+        const duesPath = `clients/${clientId}/units/${unitId}/dues/${year}`;
+        const duesRef = db.doc(duesPath);
+        
+        console.log(`🔍 [BACKEND] Reading dues document: ${duesPath}`);
+        duesDoc = await transaction.get(duesRef);
+        
+        if (duesDoc.exists) {
+          duesData = duesDoc.data();
+          console.log(`📊 [BACKEND] Current dues data:`, {
+            creditBalance: duesData.creditBalance,
+            paymentsCount: duesData.payments?.length || 0
+          });
+        } else {
+          console.warn(`⚠️ [BACKEND] Dues document not found at ${duesPath} - HOA cleanup will be skipped`);
+        }
+      }
+      
+      // Read water bill documents if this is a Water Bills transaction requiring cleanup
+      let waterBillDocs = [];
+      if (isWaterTransaction && originalData.unitId) {
+        console.log(`🔍 [BACKEND] Searching for water bills paid by transaction ${txnId} for unit ${originalData.unitId}`);
+        
+        // Query all water bill documents to find those with payments from this transaction
+        const billsSnapshot = await db.collection('clients').doc(clientId)
+          .collection('projects').doc('waterBills')
+          .collection('bills')
+          .get();
+        
+        for (const billDoc of billsSnapshot.docs) {
+          const billDocData = await transaction.get(billDoc.ref);
+          if (billDocData.exists) {
+            const billData = billDocData.data();
+            const unitBill = billData.bills?.units?.[originalData.unitId];
+            
+            // Check if this bill has a payment from our transaction
+            if (unitBill?.lastPayment?.transactionId === txnId) {
+              console.log(`💧 [BACKEND] Found water bill ${billDoc.id} paid by transaction ${txnId}`);
+              waterBillDocs.push({
+                ref: billDoc.ref,
+                id: billDoc.id,
+                data: billData,
+                unitBill: unitBill
+              });
+            }
+          }
+        }
+        
+        console.log(`💧 [BACKEND] Found ${waterBillDocs.length} water bills to reverse for transaction ${txnId}`);
+      }
+      
+      // PHASE 2: ALL WRITES SECOND
+      
+      // Delete the transaction
+      transaction.delete(txnRef);
+      
+      // Reverse the effect on account balance
+      const accountId = originalData.accountId || originalData.account;
+      if (accountId && typeof originalData.amount === 'number') {
+        try {
+          await updateAccountBalance(clientId, accountId, -originalData.amount);
+          console.log(`💰 [BACKEND] Reversed balance effect on ${accountId} by ${-originalData.amount}`);
+        } catch (balanceError) {
+          console.error('❌ [BACKEND] Error updating account balance on delete:', balanceError);
+        }
+      }
+      
+      // Execute HOA Dues cleanup if applicable
+      if (isHOATransaction && duesDoc && duesData && (originalData.metadata?.unitId || originalData.metadata?.id) && originalData.metadata?.year) {
+        const unitId = originalData.metadata.unitId || originalData.metadata.id;
+        console.log(`🧹 [BACKEND] Starting HOA cleanup for Unit: ${unitId}, Year: ${originalData.metadata.year}`);
+        
+        hoaCleanupDetails = executeHOADuesCleanupWrite(
+          transaction, 
+          duesDoc.ref, 
+          duesData, 
+          originalData, 
+          txnId
+        );
+        hoaCleanupExecuted = true;
+        console.log(`✅ [BACKEND] HOA Dues cleanup prepared for transaction ${txnId}`, hoaCleanupDetails);
+      } else if (isHOATransaction) {
+        console.log(`⚠️ [BACKEND] HOA transaction detected but cleanup skipped:`, {
+          hasUnitId: !!(originalData.metadata?.unitId || originalData.metadata?.id),
+          hasYear: !!originalData.metadata?.year,
+          duesDocExists: !!duesDoc?.exists,
+          metadata: originalData.metadata
+        });
+      }
+      
+      // Execute Water Bills cleanup if applicable
+      if (isWaterTransaction && waterBillDocs.length > 0 && originalData.unitId) {
+        console.log(`🧹 [BACKEND] Starting Water Bills cleanup for Unit: ${originalData.unitId}`);
+        
+        waterCleanupDetails = await executeWaterBillsCleanupWrite(
+          transaction, 
+          waterBillDocs, 
+          originalData, 
+          txnId,
+          clientId
+        );
+        waterCleanupExecuted = true;
+        console.log(`✅ [BACKEND] Water Bills cleanup prepared for transaction ${txnId}`, waterCleanupDetails);
+      } else if (isWaterTransaction) {
+        console.log(`⚠️ [BACKEND] Water transaction detected but cleanup skipped:`, {
+          hasUnitId: !!originalData.unitId,
+          billDocsFound: waterBillDocs.length,
+          transactionId: txnId
+        });
+      }
+    });
+
+    // Enhanced audit logging with cleanup details
+    let auditNotes = `Deleted transaction record${originalData.account ? ` and adjusted ${originalData.account} balance` : ''}`;
+    
+    if (hoaCleanupExecuted && hoaCleanupDetails) {
+      auditNotes += `. HOA cleanup: reversed ${Math.abs(hoaCleanupDetails.creditBalanceReversed || 0)} credit balance, cleared ${hoaCleanupDetails.monthsCleared || 0} month(s) of payment data`;
+    }
+    
+    if (waterCleanupExecuted && waterCleanupDetails) {
+      auditNotes += `. Water Bills cleanup: reversed credit balance changes, reset ${waterCleanupDetails.billsReversed || 0} bill(s) payment data`;
+    }
+
+    let auditAction = 'delete';
+    if (hoaCleanupExecuted) auditAction = 'delete_with_hoa_cleanup';
+    if (waterCleanupExecuted) auditAction = 'delete_with_water_cleanup';
+    if (hoaCleanupExecuted && waterCleanupExecuted) auditAction = 'delete_with_multi_cleanup';
+
+    const auditSuccess = await writeAuditLog({
+      module: 'transactions',
+      action: auditAction,
+      parentPath: `clients/${clientId}/transactions/${txnId}`,
+      docId: txnId,
+      friendlyName: originalData.category || 'Unnamed Transaction',
+      notes: auditNotes,
+      metadata: {
+        ...(hoaCleanupExecuted ? {
+          hoaCleanupExecuted: true,
+          unitAffected: originalData.metadata?.unitId || originalData.metadata?.id,
+          yearAffected: originalData.metadata?.year,
+          creditBalanceReversed: hoaCleanupDetails?.creditBalanceReversed,
+          monthsCleared: hoaCleanupDetails?.monthsCleared
+        } : {}),
+        ...(waterCleanupExecuted ? {
+          waterCleanupExecuted: true,
+          waterUnitAffected: originalData.unitId,
+          billsReversed: waterCleanupDetails?.billsReversed,
+          creditChangesReversed: waterCleanupDetails?.creditChangesReversed
+        } : {})
+      }
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for deleteTransaction.');
+    }
+
+    // Trigger balance rebuild for HOA transactions to ensure account balances are accurate
+    if (hoaCleanupExecuted) {
+      console.log(`🔄 [BACKEND] Triggering balance rebuild after HOA transaction deletion`);
+      try {
+        await rebuildBalances(clientId);
+        console.log(`✅ [BACKEND] Balance rebuild completed after HOA transaction deletion`);
+      } catch (rebuildError) {
+        console.error(`❌ [BACKEND] Error during balance rebuild after HOA transaction deletion:`, rebuildError);
+        // Don't fail the deletion if balance rebuild fails, just log the error
+      }
+    }
+    
+    // Invalidate water data cache for water transactions to reflect payment reversals
+    if (waterCleanupExecuted) {
+      console.log(`🔄 [BACKEND] Invalidating water data cache after water transaction deletion`);
+      try {
+        const { waterDataService } = await import('../services/waterDataService.js');
+        waterDataService.invalidate(clientId);
+        console.log(`✅ [BACKEND] Water data cache invalidated after water transaction deletion`);
+      } catch (cacheError) {
+        console.error(`❌ [BACKEND] Error invalidating water cache after water transaction deletion:`, cacheError);
+        // Don't fail the deletion if cache invalidation fails, just log the error
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting transaction:', error);
+    return false;
+  }
+}
+
+// HOA Dues cleanup logic for transaction deletion (write-only operations)
+function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId) {
+  const currentCreditBalance = duesData.creditBalance || 0;
+  // Handle payments as either array or object with numeric keys
+  let currentPayments = duesData.payments || [];
+  
+  // If payments is an object with numeric keys (0-11), convert to array
+  if (!Array.isArray(currentPayments) && typeof currentPayments === 'object') {
+    console.log(`🔄 [BACKEND] Converting payments object to array`);
+    const paymentsArray = [];
+    for (let i = 0; i < 12; i++) {
+      paymentsArray[i] = currentPayments[i] || null;
+    }
+    currentPayments = paymentsArray;
+  }
+  
+  console.log(`🧹 [BACKEND] Processing HOA cleanup write operations for transaction ${txnId}`);
+  console.log(`📊 [BACKEND] Clean architecture: Credit data NOT stored in transactions`);
+  console.log(`📊 [BACKEND] Will reverse credit changes by analyzing credit history in dues document`);
+  
+  // 1. CLEAN ARCHITECTURE: Analyze credit history to determine what to reverse
+  let creditBalanceReversal = 0;
+  let newCreditBalance = currentCreditBalance;
+  
+  // Find credit history entries for this transaction
+  const creditHistory = duesData.creditBalanceHistory || [];
+  const transactionEntries = creditHistory.filter(entry => entry.transactionId === txnId);
+  
+  console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
+  
+  // Reverse all credit changes for this transaction
+  for (const entry of transactionEntries) {
+    if (entry.type === 'credit_added') {
+      creditBalanceReversal -= entry.amount; // Subtract added credit
+      console.log(`💳 [BACKEND] Reversing credit addition: -${entry.amount}`);
+    } else if (entry.type === 'credit_used') {
+      creditBalanceReversal += entry.amount; // Restore used credit
+      console.log(`💳 [BACKEND] Restoring used credit: +${entry.amount}`);
+    } else if (entry.type === 'credit_repair') {
+      creditBalanceReversal -= entry.amount; // Reverse repair
+      console.log(`💳 [BACKEND] Reversing credit repair: -${entry.amount}`);
+    }
+  }
+  
+  newCreditBalance = Math.max(0, currentCreditBalance + creditBalanceReversal);
+  console.log(`💳 [BACKEND] Total reversal: ${creditBalanceReversal}, new balance: ${currentCreditBalance} → ${newCreditBalance}`);
+  
+  // 2. Clear payment entries for this transaction
+  let monthsCleared = 0;
+  const updatedPayments = [...currentPayments]; // Make a copy
+  
+  // Get the months this transaction paid for from duesDistribution
+  const duesDistribution = originalData.duesDistribution || [];
+  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${duesDistribution.length} months`);
+  
+  // Clear each month that was paid by this transaction
+  duesDistribution.forEach(dues => {
+    const monthIndex = dues.month - 1; // Convert month (1-12) to index (0-11)
+    const payment = updatedPayments[monthIndex];
+    
+    if (payment && payment.reference === txnId) {
+      console.log(`🗑️ [BACKEND] Clearing payment for month ${dues.month} (index ${monthIndex})`);
+      monthsCleared++;
+      
+      // Clear the payment entry
+      updatedPayments[monthIndex] = {
+        amount: 0,
+        date: null,
+        notes: null,
+        paid: false,
+        reference: null
+      };
+    } else {
+      console.log(`⚠️ [BACKEND] Month ${dues.month} payment reference doesn't match: expected ${txnId}, found ${payment?.reference}`);
+    }
+  });
+  
+  // 3. Handle credit balance history updates
+  let creditBalanceHistory = Array.isArray(duesData.creditBalanceHistory) ? [...duesData.creditBalanceHistory] : [];
+  
+  // Remove entries that match the deleted transaction
+  creditBalanceHistory = creditBalanceHistory.filter(entry => entry.transactionId !== txnId);
+  
+  // Add reversal entry if there was a credit balance change
+  if (creditBalanceReversal !== 0) {
+    const reversalType = creditBalanceReversal > 0 ? 'credit_restored' : 'credit_removed';
+    const description = creditBalanceReversal > 0 ? 'from Transaction Deletion' : 'from Transaction Deletion';
+    
+    creditBalanceHistory.push({
+      id: randomUUID(),
+      timestamp: new Date().toISOString(),
+      transactionId: txnId + '_reversal',
+      type: reversalType,
+      amount: Math.abs(creditBalanceReversal),
+      description: description,
+      balanceBefore: currentCreditBalance,
+      balanceAfter: newCreditBalance,
+      notes: `Transaction ${txnId} deleted`
+    });
+  }
+  
+  // 4. Update dues document with cleaned data and history
+  const updateData = {
+    creditBalance: newCreditBalance,
+    payments: updatedPayments,
+    creditBalanceHistory: creditBalanceHistory
+  };
+  
+  console.log(`💾 [BACKEND] Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments, updated notes`);
+  firestoreTransaction.update(duesRef, updateData);
+  
+  return {
+    creditBalanceReversed: creditBalanceReversal,
+    monthsCleared: monthsCleared,
+    newCreditBalance: newCreditBalance
+  };
+}
+
+// Water Bills cleanup logic for transaction deletion
+async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId) {
+  console.log(`🧹 [BACKEND] Processing Water Bills cleanup write operations for transaction ${txnId}`);
+  
+  let billsReversed = 0;
+  let totalCreditReversed = 0;
+  
+  // Process each water bill document that was paid by this transaction
+  for (const billDoc of waterBillDocs) {
+    const { ref: billRef, id: billId, data: billData, unitBill } = billDoc;
+    const unitId = originalData.unitId;
+    
+    console.log(`💧 [BACKEND] Reversing payment for water bill ${billId} Unit ${unitId}`);
+    
+    // Get payment info from lastPayment
+    const lastPayment = unitBill.lastPayment;
+    if (!lastPayment || lastPayment.transactionId !== txnId) {
+      console.warn(`⚠️ [BACKEND] Skipping bill ${billId} - payment transaction ID mismatch`);
+      continue;
+    }
+    
+    // Calculate reversed amounts
+    const paidAmountToReverse = lastPayment.amount || 0;
+    const basePaidToReverse = lastPayment.baseChargePaid || 0;
+    const penaltyPaidToReverse = lastPayment.penaltyPaid || 0;
+    
+    // Calculate new totals after reversal
+    const newPaidAmount = Math.max(0, (unitBill.paidAmount || 0) - paidAmountToReverse);
+    const newBasePaid = Math.max(0, (unitBill.basePaid || 0) - basePaidToReverse);
+    const newPenaltyPaid = Math.max(0, (unitBill.penaltyPaid || 0) - penaltyPaidToReverse);
+    
+    // Determine new status
+    const totalAmount = unitBill.totalAmount || 0;
+    let newStatus = 'unpaid';
+    if (newPaidAmount >= totalAmount) {
+      newStatus = 'paid';
+    } else if (newPaidAmount > 0) {
+      newStatus = 'partial';
+    }
+    
+    console.log(`💧 [BACKEND] Bill ${billId} reversal: paid ${unitBill.paidAmount} → ${newPaidAmount}, status ${unitBill.status} → ${newStatus}`);
+    
+    // Update the water bill document
+    firestoreTransaction.update(billRef, {
+      [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
+      [`bills.units.${unitId}.basePaid`]: newBasePaid,
+      [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
+      [`bills.units.${unitId}.status`]: newStatus,
+      [`bills.units.${unitId}.lastPayment`]: null // Clear the payment record
+    });
+    
+    billsReversed++;
+  }
+  
+  // Reverse credit balance changes through HOA system
+  // Get current credit balance to calculate reversal
+  try {
+    const { getUnitDuesData } = await import('./hoaDuesController.js');
+    const currentYear = new Date().getFullYear();
+    const duesData = await getUnitDuesData(clientId, originalData.unitId, currentYear);
+    
+    if (duesData && duesData.creditBalanceHistory) {
+      // Find credit history entries for this transaction
+      const creditHistory = duesData.creditBalanceHistory;
+      const transactionEntries = creditHistory.filter(entry => 
+        entry.transactionId === txnId && 
+        (entry.type === 'water_overpayment' || entry.type === 'water_credit_used')
+      );
+      
+      if (transactionEntries.length > 0) {
+        // Calculate credit reversal amount
+        let creditReversal = 0;
+        for (const entry of transactionEntries) {
+          if (entry.type === 'water_overpayment') {
+            creditReversal -= entry.amount; // Remove added credit
+          } else if (entry.type === 'water_credit_used') {
+            creditReversal += entry.amount; // Restore used credit
+          }
+        }
+        
+        totalCreditReversed = Math.abs(creditReversal);
+        
+        // Update credit balance via HOA controller
+        const { updateCreditBalance } = await import('./hoaDuesController.js');
+        const newCreditBalance = Math.max(0, duesData.creditBalance + creditReversal);
+        
+        await updateCreditBalance(clientId, originalData.unitId, currentYear, newCreditBalance);
+        console.log(`💰 [BACKEND] Reversed water payment credit changes: ${creditReversal}, new balance: ${newCreditBalance}`);
+      }
+    }
+  } catch (creditError) {
+    console.error('❌ [BACKEND] Error reversing credit balance changes:', creditError);
+  }
+  
+  return {
+    billsReversed: billsReversed,
+    creditChangesReversed: totalCreditReversed
+  };
+}
+
+// HOA Dues cleanup logic for transaction deletion (DEPRECATED - kept for reference)
+async function executeHOADuesCleanup(firestoreTransaction, db, clientId, originalData, txnId) {
+  const unitId = originalData.metadata.unitId;
+  const year = originalData.metadata.year;
+  const duesPath = `clients/${clientId}/units/${unitId}/dues/${year}`;
+  const duesRef = db.doc(duesPath);
+  
+  console.log(`Executing HOA cleanup for transaction ${txnId} - Unit: ${unitId}, Year: ${year}`);
+  
+  // Get current dues document
+  const duesDoc = await firestoreTransaction.get(duesRef);
+  if (!duesDoc.exists) {
+    console.warn(`Dues document not found at ${duesPath} - skipping HOA cleanup`);
+    return { creditBalanceReversed: 0, monthsCleared: 0 };
+  }
+  
+  const duesData = duesDoc.data();
+  const currentCreditBalance = duesData.creditBalance || 0;
+  const currentPayments = duesData.payments || [];
+  
+  // 1. Calculate credit balance reversal
+  const creditBalanceReversal = -(originalData.creditBalanceAdded || 0);
+  const newCreditBalance = Math.max(0, currentCreditBalance + creditBalanceReversal);
+  
+  // 2. Clear payment entries for this transaction
+  let monthsCleared = 0;
+  const updatedPayments = currentPayments.map(payment => {
+    if (payment && payment.transactionId === txnId) {
+      monthsCleared++;
+      console.log(`Clearing payment for month ${payment.month}`);
+      // Clear the payment entry but preserve the array structure
+      return {
+        month: payment.month,
+        paid: 0,
+        date: null,
+        transactionId: null,
+        notes: null
+      };
+    }
+    return payment;
+  });
+  
+  // 3. Update dues document with cleaned data
+  const updateData = {
+    creditBalance: newCreditBalance,
+    payments: updatedPayments
+  };
+  
+  console.log(`Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments`);
+  firestoreTransaction.update(duesRef, updateData);
+  
+  return {
+    creditBalanceReversed: creditBalanceReversal,
+    monthsCleared: monthsCleared,
+    newCreditBalance: newCreditBalance
+  };
+}
+
+// List all transactions
+async function listTransactions(clientId) {
+  try {
+    const db = await getDb();
+    const snapshot = await db.collection(`clients/${clientId}/transactions`).get();
+    const transactions = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      
+      // Build transaction with ONLY valid fields
+      const transaction = {
+        id: doc.id,
+        ...data,
+        // Keep amount in cents - frontend expects cents for formatCurrency
+        amount: data.amount,
+        // NO LEGACY FIELDS - only proper field names
+        vendorId: data.vendorId || null,
+        vendorName: data.vendorName || '',
+        categoryId: data.categoryId || null,
+        categoryName: data.categoryName || '',
+        accountId: data.accountId || null,
+        accountName: data.accountName || '',
+        accountType: data.accountType || '',
+        // Other fields
+        type: data.type || 'expense',
+        paymentMethod: data.paymentMethod || '',
+        unitId: data.unitId || null,
+        notes: data.notes || '',
+        // Format dates using DateService for frontend
+        date: formatDateField(data.date),
+        created: formatDateField(data.created),
+        updated: formatDateField(data.updated),
+        // Metadata
+        enteredBy: data.enteredBy || '',
+        documents: data.documents || []
+      };
+      
+      transactions.push(transaction);
+    });
+
+    return transactions;
+  } catch (error) {
+    console.error('❌ Error listing transactions:', error);
+    return [];
+  }
+}
+
+// Get a transaction by ID
+async function getTransaction(clientId, txnId) {
+  try {
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+    const txnDoc = await txnRef.get();
+
+    if (!txnDoc.exists) {
+      return null;
+    }
+
+    const data = txnDoc.data();
+    return {
+      id: txnDoc.id,
+      ...data,
+      // Keep amount in cents - frontend expects cents for formatCurrency
+      amount: data.amount,
+      // NO LEGACY FIELDS - only proper field names
+      vendorId: data.vendorId || null,
+      vendorName: data.vendorName || '',
+      categoryId: data.categoryId || null,
+      categoryName: data.categoryName || '',
+      accountId: data.accountId || null,
+      accountName: data.accountName || '',
+      accountType: data.accountType || '',
+      // Other fields
+      type: data.type || 'expense',
+      paymentMethod: data.paymentMethod || '',
+      unitId: data.unitId || null,
+      notes: data.notes || '',
+      // Format dates using DateService for frontend
+      date: formatDateField(data.date),
+      created: formatDateField(data.created),
+      updated: formatDateField(data.updated),
+      // Metadata
+      enteredBy: data.enteredBy || '',
+      documents: data.documents || []
+    };
+  } catch (error) {
+    console.error('❌ Error getting transaction:', error);
+    return null;
+  }
+}
+
+/**
+ * Add document reference to transaction
+ */
+async function addDocumentToTransaction(clientId, transactionId, documentId, documentInfo) {
+  try {
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
+    
+    // Add document reference to transaction's documents array
+    await txnRef.update({
+      documents: admin.firestore.FieldValue.arrayUnion({
+        id: documentId,
+        filename: documentInfo.filename || documentInfo.originalName,
+        uploadedAt: documentInfo.uploadedAt || new Date(),
+        type: documentInfo.documentType || 'receipt'
+      })
+    });
+    
+    console.log(`✅ Added document ${documentId} to transaction ${transactionId}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error adding document to transaction:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove document reference from transaction
+ */
+async function removeDocumentFromTransaction(clientId, transactionId, documentId) {
+  try {
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
+    
+    // Get current transaction to find the document reference
+    const txnDoc = await txnRef.get();
+    if (!txnDoc.exists) {
+      console.warn(`Transaction ${transactionId} not found`);
+      return false;
+    }
+    
+    const txnData = txnDoc.data();
+    const documents = txnData.documents || [];
+    
+    // Filter out the document to remove
+    const updatedDocuments = documents.filter(doc => doc.id !== documentId);
+    
+    await txnRef.update({
+      documents: updatedDocuments
+    });
+    
+    console.log(`✅ Removed document ${documentId} from transaction ${transactionId}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error removing document from transaction:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all documents for a transaction
+ */
+async function getTransactionDocuments(clientId, transactionId) {
+  try {
+    const db = await getDb();
+    const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
+    const txnDoc = await txnRef.get();
+    
+    if (!txnDoc.exists) {
+      return [];
+    }
+    
+    const txnData = txnDoc.data();
+    return txnData.documents || [];
+  } catch (error) {
+    console.error('❌ Error getting transaction documents:', error);
+    return [];
+  }
+}
+
+/**
+ * Delete transaction with cascading document cleanup
+ */
+async function deleteTransactionWithDocuments(clientId, transactionId) {
+  try {
+    const db = await getDb();
+    
+    // Get transaction with its document references
+    const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
+    const txnDoc = await txnRef.get();
+
+    if (!txnDoc.exists) {
+      console.warn(`Transaction ${transactionId} not found`);
+      return false;
+    }
+    
+    const txnData = txnDoc.data();
+    // Handle documents field - it could be an array or object, ensure it's always an array
+    let documentsFromTxn = txnData.documents || [];
+    if (!Array.isArray(documentsFromTxn)) {
+      // If documents is an object, extract the values or keys
+      documentsFromTxn = Object.values(documentsFromTxn).filter(Boolean);
+    }
+    
+    console.log(`🔍 [DELETE] Transaction documents array:`, documentsFromTxn);
+    
+    // Also find documents that link to this transaction (in case bidirectional linking is broken)
+    console.log(`🔍 [DELETE] Finding documents linked to transaction ${transactionId}...`);
+    const linkedDocsSnapshot = await db.collection(`clients/${clientId}/documents`)
+      .where('linkedTo.type', '==', 'transaction')
+      .where('linkedTo.id', '==', transactionId)
+      .get();
+    
+    const documentsFromQuery = linkedDocsSnapshot.docs.map(doc => doc.id);
+    console.log(`🔍 [DELETE] Documents found via linkedTo query:`, documentsFromQuery);
+    
+    // Combine both sources and remove duplicates
+    const allDocuments = [...new Set([...documentsFromTxn, ...documentsFromQuery])];
+    console.log(`🔍 [DELETE] All documents to delete:`, allDocuments);
+    
+    // Delete all associated documents
+    if (allDocuments.length > 0) {
+      console.log(`🗑️ [DELETE] Deleting ${allDocuments.length} documents associated with transaction ${transactionId}`);
+      
+      const documentDeletionPromises = allDocuments.map(async (documentId) => {
+        try {
+          console.log(`🗑️ Processing document deletion: ${documentId}`);
+          
+          // First, get the document to retrieve storage reference
+          const docRef = db.doc(`clients/${clientId}/documents/${documentId}`);
+          const docSnapshot = await docRef.get();
+          
+          let storageRef = null;
+          if (docSnapshot.exists) {
+            const docData = docSnapshot.data();
+            storageRef = docData.storageRef;
+            console.log(`📄 Document ${documentId} found with storage ref: ${storageRef}`);
+          }
+          
+          // Delete from Firestore
+          await docRef.delete();
+          console.log(`✅ Deleted document from Firestore: ${documentId}`);
+          
+          // Delete from Storage (if storageRef exists)
+          if (storageRef) {
+            try {
+              // Use the properly initialized Firebase app
+              const app = await getApp();
+              const bucket = app.storage().bucket();
+              await bucket.file(storageRef).delete();
+              console.log(`🗑️ Deleted file from storage: ${storageRef}`);
+            } catch (storageError) {
+              console.warn(`⚠️ Could not delete storage file ${storageRef}:`, storageError.message);
+            }
+          }
+          
+          console.log(`✅ Deleted document ${documentId} completely`);
+        } catch (docError) {
+          console.error(`❌ Failed to delete document ${documentId}:`, docError);
+        }
+      });
+      
+      await Promise.all(documentDeletionPromises);
+    }
+    
+    // Now delete the transaction using the existing deleteTransaction function
+    return await deleteTransaction(clientId, transactionId);
+    
+  } catch (error) {
+    console.error('❌ Error deleting transaction with documents:', error);
+    return false;
+  }
+}
+
+// Query transactions with filters
+async function queryTransactions(clientId, filters = {}) {
+  try {
+    const db = await getDb();
+    let query = db.collection(`clients/${clientId}/transactions`);
+    
+    // Apply date range filter if provided
+    if (filters.startDate) {
+      const startTimestamp = convertToTimestamp(filters.startDate);
+      query = query.where('date', '>=', startTimestamp);
+    }
+    
+    if (filters.endDate) {
+      const endTimestamp = convertToTimestamp(filters.endDate);
+      query = query.where('date', '<=', endTimestamp);
+    }
+    
+    // Apply category filter if provided
+    if (filters.category) {
+      query = query.where('category', '==', filters.category);
+    }
+    
+    // Apply vendor filter if provided
+    if (filters.vendor) {
+      query = query.where('vendor', '==', filters.vendor);
+    }
+    
+    // Apply amount range filter if provided (remember to convert to cents)
+    if (filters.minAmount !== undefined) {
+      const minCents = dollarsToCents(filters.minAmount);
+      query = query.where('amount', '>=', minCents);
+    }
+    
+    if (filters.maxAmount !== undefined) {
+      const maxCents = dollarsToCents(filters.maxAmount);
+      query = query.where('amount', '<=', maxCents);
+    }
+    
+    // Order by date descending by default
+    query = query.orderBy('date', 'desc');
+    
+    const snapshot = await query.get();
+    const transactions = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      
+      // Build transaction with proper field mapping (same as listTransactions)
+      const transaction = {
+        id: doc.id,
+        ...data,
+        // Keep amount in cents - frontend expects cents for formatCurrency
+        amount: data.amount,
+        // NO LEGACY FIELDS - only proper field names
+        vendorId: data.vendorId || null,
+        vendorName: data.vendorName || '',
+        categoryId: data.categoryId || null,
+        categoryName: data.categoryName || '',
+        accountId: data.accountId || null,
+        accountName: data.accountName || '',
+        accountType: data.accountType || '',
+        // Other fields
+        type: data.type || 'expense',
+        paymentMethod: data.paymentMethod || '',
+        unitId: data.unitId || null,
+        notes: data.notes || '',
+        // Format dates using DateService for frontend
+        date: formatDateField(data.date),
+        created: formatDateField(data.created),
+        updated: formatDateField(data.updated),
+        // Metadata
+        enteredBy: data.enteredBy || '',
+        documents: data.documents || []
+      };
+      
+      transactions.push(transaction);
+    });
+    
+    return transactions;
+  } catch (error) {
+    console.error('❌ Error querying transactions:', error);
+    return [];
+  }
+}
+
+export { 
+  createTransaction, 
+  updateTransaction, 
+  deleteTransaction, 
+  listTransactions,
+  getTransaction,
+  queryTransactions,
+  addDocumentToTransaction,
+  removeDocumentFromTransaction,
+  getTransactionDocuments,
+  deleteTransactionWithDocuments
+};

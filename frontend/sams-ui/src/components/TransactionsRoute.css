@@ -1,0 +1,49 @@
+/* src/components/TransactionsRoute.css */
+.transactions-container {
+  padding: 20px;
+  width: 100%;
+}
+
+.transactions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.transactions-header h2 {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.actions button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background-color: #2980b9;
+}
+
+.actions button:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+}
+
+.error {
+  color: #e74c3c;
+}

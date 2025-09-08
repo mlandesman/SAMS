@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandyland Logo Spinner Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #19c2dc;
+            margin-bottom: 30px;
+        }
+        
+        .spinner-demo {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 40px 0;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        
+        .spinner-item {
+            text-align: center;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 15px;
+            background: #fafafa;
+            min-width: 120px;
+        }
+        
+        .spinner-item h3 {
+            margin: 15px 0 5px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        /* Sandyland Logo Spinner Styles */
+        .loading-spinner {
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin: 0 auto;
+        }
+        
+        .loading-spinner--logo {
+            background: url('src/assets/sandyland-logo-spinner.svg') center/contain no-repeat;
+            border: none;
+            animation: sandylandSpin 3s ease-in-out infinite;
+        }
+        
+        @keyframes sandylandSpin {
+            0% { 
+                transform: rotate(0deg) scale(1);
+                opacity: 0.8;
+                filter: brightness(1);
+            }
+            25% { 
+                transform: rotate(90deg) scale(1.05);
+                opacity: 0.9;
+                filter: brightness(1.1);
+            }
+            50% { 
+                transform: rotate(180deg) scale(1.1);
+                opacity: 1;
+                filter: brightness(1.2);
+            }
+            75% { 
+                transform: rotate(270deg) scale(1.05);
+                opacity: 0.9;
+                filter: brightness(1.1);
+            }
+            100% { 
+                transform: rotate(360deg) scale(1);
+                opacity: 0.8;
+                filter: brightness(1);
+            }
+        }
+        
+        .loading-spinner--small { width: 24px; height: 24px; }
+        .loading-spinner--medium { width: 48px; height: 48px; }
+        .loading-spinner--large { width: 72px; height: 72px; }
+        
+        .code-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            margin: 30px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            color: #19c2dc;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🌴 Sandyland Logo Spinner Test 🏖️</h1>
+        
+        <p>Your beautiful Sandyland Circle Arrow Logo is now integrated into the LoadingSpinner component!</p>
+        
+        <div class="spinner-demo">
+            <div class="spinner-item">
+                <div class="loading-spinner loading-spinner--logo loading-spinner--small"></div>
+                <h3>Small (24px)</h3>
+            </div>
+            
+            <div class="spinner-item">
+                <div class="loading-spinner loading-spinner--logo loading-spinner--medium"></div>
+                <h3>Medium (48px)</h3>
+            </div>
+            
+            <div class="spinner-item">
+                <div class="loading-spinner loading-spinner--logo loading-spinner--large"></div>
+                <h3>Large (72px)</h3>
+            </div>
+        </div>
+        
+        <h2>✨ Features</h2>
+        <ul style="text-align: left; max-width: 600px; margin: 0 auto;">
+            <li><strong>Gentle 3-second rotation</strong> - Perfect timing for the circular arrows</li>
+            <li><strong>Subtle scaling & brightness</strong> - Adds visual interest without being distracting</li>
+            <li><strong>Beautiful #19c2dc cyan color</strong> - Matches your brand perfectly</li>
+            <li><strong>Accessibility compliant</strong> - Respects reduced motion preferences</li>
+            <li><strong>Multiple sizes</strong> - Works perfectly for buttons, forms, and full-screen loading</li>
+        </ul>
+        
+        <h2>🚀 Usage in SAMS</h2>
+        <div class="code-example">
+<span class="highlight">// Your Sandyland logo spinner</span>
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> /&gt;
+
+<span class="highlight">// With message</span>
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> message="Loading Sandyland..." /&gt;
+
+<span class="highlight">// Different sizes</span>
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> size="small" /&gt;
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> size="medium" /&gt;  
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> size="large" /&gt;
+
+<span class="highlight">// Full-screen loading</span>
+&lt;LoadingSpinner <span class="highlight">variant="logo"</span> fullScreen message="Initializing SAMS..." /&gt;
+        </div>
+        
+        <p>🎯 <strong>Ready to use!</strong> Your Sandyland logo will now spin beautifully across all SAMS applications.</p>
+        
+        <div style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin-top: 30px;">
+            <strong>💡 Pro Tip:</strong> The circular arrows in your logo design are perfect for loading animations - they create a natural spinning motion that feels intuitive to users!
+        </div>
+    </div>
+</body>
+</html>

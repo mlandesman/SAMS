@@ -1,0 +1,108 @@
+/* ListManagementView.css */
+
+.list-management-view {
+  padding: 20px;
+  height: calc(100vh - 140px); /* Adjust based on header/footer height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.list-management-tabs {
+  background-color: #f8f9fa;
+  border-radius: 4px 4px 0 0;
+}
+
+.list-tabpanel {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Search bar styling */
+.list-search-container {
+  display: flex;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.list-search-container .MuiTextField-root {
+  margin-right: 16px;
+  flex-grow: 1;
+}
+
+/* Table styling */
+.list-table-container {
+  height: 100%;
+  overflow: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.list-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.list-table th {
+  background-color: #f0f0f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+}
+
+.list-table td {
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.list-table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.list-table tr:hover {
+  background-color: #e9ecef;
+}
+
+/* Action buttons column */
+.list-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Status indicator */
+.status-active {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.status-inactive {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.status-warning {
+  color: #ffc107;
+  font-weight: 500;
+}
+
+.list-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}

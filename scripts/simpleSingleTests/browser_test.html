@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Auth & Firestore Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    .container {
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    h1 {
+      color: #333;
+    }
+    button {
+      padding: 8px 16px;
+      margin: 5px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #cccccc;
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 200px;
+    }
+    .log {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firebase Authentication & Firestore Test</h1>
+  
+  <div class="container">
+    <h2>Authentication</h2>
+    <div>
+      <input type="email" id="email" placeholder="Email" value="michael@landesman.com">
+      <input type="password" id="password" placeholder="Password" value="SamsTest123!">
+      <button id="loginBtn">Log In</button>
+      <button id="logoutBtn" disabled>Log Out</button>
+    </div>
+    <div id="authStatus">Not authenticated</div>
+  </div>
+  
+  <div class="container">
+    <h2>Firestore Tests</h2>
+    <button id="readBtn">Read Test Document</button>
+    <button id="writeBtn" disabled>Write Test Document</button>
+    <button id="writeToClientBtn" disabled>Write to Client Collection</button>
+  </div>
+  
+  <div class="container">
+    <h2>Log Output</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword, 
+      onAuthStateChanged,
+      signOut 
+    } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      getDocs,
+      query,
+      limit 
+    } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCvZ7_mhNbIQDHGg_CSxOYBmSqvKBW5lJo",
+      authDomain: "sandyland-management-system.firebaseapp.com",
+      projectId: "sandyland-management-system",
+      storageBucket: "sandyland-management-system.firebasestorage.app",
+      messagingSenderId: "1086002290145",
+      appId: "1:1086002290145:web:a1a1fe980ead7630d186a0"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // DOM elements
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const readBtn = document.getElementById('readBtn');
+    const writeBtn = document.getElementById('writeBtn');
+    const writeToClientBtn = document.getElementById('writeToClientBtn');
+    const authStatus = document.getElementById('authStatus');
+    const logElement = document.getElementById('log');
+
+    // Log function
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+      entry.classList.add(type);
+      logElement.appendChild(entry);
+      logElement.scrollTop = logElement.scrollHeight;
+      console.log(message);
+    }
+
+    // Authentication state observer
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in
+        authStatus.textContent = `Authenticated as: ${user.email} (${user.uid})`;
+        loginBtn.disabled = true;
+        logoutBtn.disabled = false;
+        writeBtn.disabled = false;
+        writeToClientBtn.disabled = false;
+        log('User signed in: ' + user.email, 'success');
+      } else {
+        // User is signed out
+        authStatus.textContent = 'Not authenticated';
+        loginBtn.disabled = false;
+        logoutBtn.disabled = true;
+        writeBtn.disabled = true;
+        writeToClientBtn.disabled = true;
+        log('User signed out');
+      }
+    });
+
+    // Login
+    loginBtn.addEventListener('click', async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      
+      if (!email || !password) {
+        log('Please enter email and password', 'error');
+        return;
+      }
+
+      try {
+        log('Attempting to sign in...');
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        log(`Sign in successful: ${userCredential.user.email}`, 'success');
+      } catch (error) {
+        log(`Sign in error: ${error.code} - ${error.message}`, 'error');
+      }
+    });
+
+    // Logout
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        log('User signed out', 'success');
+      } catch (error) {
+        log(`Sign out error: ${error.message}`, 'error');
+      }
+    });
+
+    // Read test
+    readBtn.addEventListener('click', async () => {
+      try {
+        log('Reading from test_documents collection...');
+        const q = query(collection(db, 'test_documents'), limit(5));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+          log('No documents found in test_documents collection');
+        } else {
+          log(`Found ${querySnapshot.size} documents:`, 'success');
+          querySnapshot.forEach(doc => {
+            log(`Document ID: ${doc.id} - ${JSON.stringify(doc.data())}`);
+          });
+        }
+      } catch (error) {
+        log(`Read error: ${error.message}`, 'error');
+      }
+    });
+
+    // Write test
+    writeBtn.addEventListener('click', async () => {
+      try {
+        log('Attempting to write to test_documents collection...');
+        
+        const data = {
+          message: 'Test document from browser',
+          timestamp: new Date(),
+          createdBy: auth.currentUser ? auth.currentUser.uid : 'unknown'
+        };
+        
+        const docRef = await addDoc(collection(db, 'test_documents'), data);
+        log(`Document written successfully with ID: ${docRef.id}`, 'success');
+      } catch (error) {
+        log(`Write error: ${error.message}`, 'error');
+      }
+    });
+
+    // Write to client collection test
+    writeToClientBtn.addEventListener('click', async () => {
+      try {
+        log('Attempting to write to clients/MTC/transactions collection...');
+        
+        const data = {
+          amount: -50.00,
+          category: 'Test',
+          vendor: 'Browser Test',
+          date: new Date(),
+          notes: 'Test transaction from browser',
+          createdAt: new Date(),
+          createdBy: auth.currentUser ? auth.currentUser.uid : 'unknown'
+        };
+        
+        const docRef = await addDoc(collection(db, 'clients/MTC/transactions'), data);
+        log(`Transaction written successfully with ID: ${docRef.id}`, 'success');
+      } catch (error) {
+        log(`Write to client error: ${error.message}`, 'error');
+      }
+    });
+
+    // Initial log
+    log('Firebase initialized. Ready for testing.');
+  </script>
+</body>
+</html>

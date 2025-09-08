@@ -1,0 +1,455 @@
+/**
+ * Comprehensive User Role System for SAMS
+ * Defines role hierarchy, permissions, and access control
+ */
+
+/**
+ * User Role Definitions
+ */
+export const USER_ROLES = {
+  SUPER_ADMIN: 'superAdmin',
+  ADMIN: 'admin', 
+  UNIT_OWNER: 'unitOwner',
+  UNIT_MANAGER: 'unitManager'
+};
+
+/**
+ * Permission Definitions - Aligned with Backend Security Model
+ * Phase 8: User Access Control System Enhancement
+ */
+export const PERMISSIONS = {
+  // Financial Management - Backend aligned
+  TRANSACTIONS_VIEW: 'transactions.view',
+  TRANSACTIONS_CREATE: 'transactions.create', 
+  TRANSACTIONS_EDIT: 'transactions.edit',
+  TRANSACTIONS_DELETE: 'transactions.delete',
+  
+  // Client Management
+  CLIENT_VIEW: 'client.view',
+  CLIENT_MANAGE: 'client.manage',
+  CLIENT_CREATE: 'client.create',
+  CLIENT_DELETE: 'client.delete',
+  
+  // Unit Management
+  UNITS_VIEW: 'units.view',
+  UNITS_EDIT: 'units.edit',
+  UNITS_MANAGE: 'units.manage',
+  
+  // User Management
+  USERS_VIEW: 'users.view',
+  USERS_MANAGE: 'users.manage',
+  USERS_CREATE: 'users.create',
+  USERS_DELETE: 'users.delete',
+  
+  // Document Management - Backend aligned
+  DOCUMENTS_VIEW: 'documents.view',
+  DOCUMENTS_UPLOAD: 'documents.upload',
+  DOCUMENTS_DELETE: 'documents.delete',
+  
+  // Reports
+  REPORTS_VIEW: 'reports.view',
+  REPORTS_GENERATE: 'reports.generate',
+  
+  // Expenses (Legacy compatibility)
+  EXPENSES_VIEW: 'expenses.view',
+  EXPENSES_CREATE: 'expenses.create',
+  EXPENSES_EDIT: 'expenses.edit',
+  
+  // System Management
+  SYSTEM_ADMIN: 'system.admin',
+  EXCHANGE_RATES: 'exchange.rates',
+  
+  // Dashboard Access
+  DASHBOARD_VIEW: 'dashboard.view',
+  DASHBOARD_ADMIN: 'dashboard.admin',
+  
+  // Unit-specific permissions (for unit owners/managers)
+  OWN_TRANSACTIONS_VIEW: 'own.transactions.view',
+  OWN_RECEIPTS_VIEW: 'own.receipts.view',
+  OWN_DOCUMENTS_VIEW: 'own.documents.view',
+  OWN_REPORTS_VIEW: 'own.reports.view',
+  
+  // Assigned unit permissions (for unit managers)
+  ASSIGNED_TRANSACTIONS_VIEW: 'assigned.transactions.view',
+  ASSIGNED_RECEIPTS_GENERATE: 'assigned.receipts.generate',
+  ASSIGNED_DOCUMENTS_VIEW: 'assigned.documents.view',
+  ASSIGNED_REPORTS_VIEW: 'assigned.reports.view'
+};
+
+/**
+ * Role Permission Matrix
+ * Defines what permissions each role has
+ */
+export const ROLE_PERMISSIONS = {
+  [USER_ROLES.SUPER_ADMIN]: [
+    // SuperAdmin has ALL permissions across ALL clients
+    ...Object.values(PERMISSIONS)
+  ],
+  
+  [USER_ROLES.ADMIN]: [
+    // Admin has full access to their assigned clients
+    PERMISSIONS.TRANSACTIONS_VIEW,
+    PERMISSIONS.TRANSACTIONS_CREATE,
+    PERMISSIONS.TRANSACTIONS_EDIT,
+    PERMISSIONS.TRANSACTIONS_DELETE,
+    PERMISSIONS.CLIENT_VIEW,
+    PERMISSIONS.CLIENT_MANAGE,
+    PERMISSIONS.UNITS_VIEW,
+    PERMISSIONS.UNITS_EDIT,
+    PERMISSIONS.UNITS_MANAGE,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.USERS_MANAGE,
+    PERMISSIONS.DOCUMENTS_VIEW,
+    PERMISSIONS.DOCUMENTS_UPLOAD,
+    PERMISSIONS.DOCUMENTS_DELETE,
+    PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.REPORTS_GENERATE,
+    PERMISSIONS.EXPENSES_VIEW,
+    PERMISSIONS.EXPENSES_CREATE,
+    PERMISSIONS.EXPENSES_EDIT,
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.DASHBOARD_ADMIN,
+    PERMISSIONS.EXCHANGE_RATES
+  ],
+  
+  [USER_ROLES.UNIT_OWNER]: [
+    // Unit Owner has read-only access to their unit data only
+    PERMISSIONS.OWN_TRANSACTIONS_VIEW,
+    PERMISSIONS.OWN_RECEIPTS_VIEW,
+    PERMISSIONS.OWN_DOCUMENTS_VIEW,
+    PERMISSIONS.OWN_REPORTS_VIEW,
+    PERMISSIONS.DASHBOARD_VIEW
+  ],
+  
+  [USER_ROLES.UNIT_MANAGER]: [
+    // Unit Manager has limited write access to assigned units
+    PERMISSIONS.ASSIGNED_TRANSACTIONS_VIEW,
+    PERMISSIONS.ASSIGNED_RECEIPTS_GENERATE,
+    PERMISSIONS.ASSIGNED_DOCUMENTS_VIEW,
+    PERMISSIONS.ASSIGNED_REPORTS_VIEW,
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.TRANSACTIONS_CREATE, // Limited to their assigned units
+    PERMISSIONS.DOCUMENTS_UPLOAD // Limited to their assigned units
+  ]
+};
+
+/**
+ * Enhanced Permission Checking Functions
+ * Phase 8: User Access Control System - Frontend Integration
+ */
+
+/**
+ * Check if user has specific permission for a client
+ * @param {Object} user - SAMS user object
+ * @param {string} permission - Permission to check
+ * @param {string} clientId - Client ID to check permission for
+ * @param {string} unitId - Optional unit ID for unit-specific permissions
+ * @returns {boolean} - True if user has permission
+ */
+export function hasPermission(user, permission, clientId, unitId = null) {
+  if (!user || !permission || !clientId) {
+    return false;
+  }
+
+  // SuperAdmin has all permissions
+  if (user.globalRole === 'superAdmin') {
+    return true;
+  }
+
+  // Check if user has access to this client
+  const propertyAccess = user.propertyAccess?.[clientId];
+  if (!propertyAccess) {
+    return false;
+  }
+
+  const userRole = propertyAccess.role;
+  const allowedPermissions = ROLE_PERMISSIONS[userRole] || [];
+
+  // Check direct permission match
+  if (allowedPermissions.includes(permission)) {
+    return true;
+  }
+
+  // Handle unit-specific permissions
+  if (permission.startsWith('own.') && (userRole === 'unitOwner' || userRole === 'unitManager')) {
+    // Unit owners can access their own unit data
+    return propertyAccess.unitId === unitId || unitId === null;
+  }
+
+  if (permission.startsWith('assigned.') && userRole === 'unitManager') {
+    // Unit managers can access their assigned unit data
+    return propertyAccess.unitId === unitId || unitId === null;
+  }
+
+  return false;
+}
+
+/**
+ * Check if user can perform a specific operation on a resource
+ * @param {Object} user - SAMS user object
+ * @param {string} operation - Operation (view, create, edit, delete)
+ * @param {string} resourceType - Resource type (transactions, documents, etc.)
+ * @param {string} clientId - Client ID
+ * @param {Object} resourceData - Additional resource data
+ * @returns {boolean} - True if operation is allowed
+ */
+export function canUserPerformOperation(user, operation, resourceType, clientId, resourceData = {}) {
+  if (!user || !operation || !resourceType || !clientId) {
+    return false;
+  }
+
+  // SuperAdmin can do everything
+  if (user.globalRole === 'superAdmin') {
+    return true;
+  }
+
+  // Check property access
+  const propertyAccess = user.propertyAccess?.[clientId];
+  if (!propertyAccess) {
+    return false;
+  }
+
+  const userRole = propertyAccess.role;
+
+  // Define operation permissions by role and resource
+  const operationPermissions = {
+    admin: {
+      transactions: ['view', 'create', 'edit', 'delete'],
+      documents: ['view', 'upload', 'delete'],
+      units: ['view', 'edit', 'manage'],
+      users: ['view', 'manage'],
+      reports: ['view', 'generate'],
+      expenses: ['view', 'create', 'edit']
+    },
+    unitOwner: {
+      transactions: ['view'],
+      documents: ['view'],
+      units: ['view'],
+      reports: ['view']
+    },
+    unitManager: {
+      transactions: ['view', 'create'],
+      documents: ['view', 'upload'],
+      units: ['view'],
+      reports: ['view', 'generate']
+    }
+  };
+
+  const allowedOps = operationPermissions[userRole]?.[resourceType] || [];
+  
+  if (!allowedOps.includes(operation)) {
+    return false;
+  }
+
+  // Additional checks for unit-specific roles
+  if ((userRole === 'unitOwner' || userRole === 'unitManager') && propertyAccess.unitId) {
+    // For unit-specific roles, verify resource belongs to their unit
+    if (resourceData.unitId && resourceData.unitId !== propertyAccess.unitId) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Get user's accessible clients
+ * @param {Object} user - SAMS user object
+ * @returns {string[]} - Array of client IDs user can access
+ */
+export function getAccessibleClients(user) {
+  if (!user) {
+    return [];
+  }
+
+  // SuperAdmin can access all clients
+  if (user.globalRole === 'superAdmin') {
+    return ['*']; // Special marker for all clients
+  }
+
+  // Return assigned clients
+  return Object.keys(user.propertyAccess || {});
+}
+
+/**
+ * Get user's role for a specific client
+ * @param {Object} user - SAMS user object
+ * @param {string} clientId - Client ID
+ * @returns {string|null} - User's role for the client
+ */
+export function getUserClientRole(user, clientId) {
+  if (!user || !clientId) {
+    return null;
+  }
+
+  // SuperAdmin
+  if (user.globalRole === 'superAdmin') {
+    return 'superAdmin';
+  }
+
+  return user.propertyAccess?.[clientId]?.role || null;
+}
+
+/**
+ * Check if user can access expense entry for a client
+ * @param {Object} user - SAMS user object  
+ * @param {string} clientId - Client ID
+ * @returns {boolean} - True if user can create expenses
+ */
+export function canAccessExpenseEntry(user, clientId) {
+  return hasPermission(user, PERMISSIONS.EXPENSES_CREATE, clientId) ||
+         hasPermission(user, PERMISSIONS.TRANSACTIONS_CREATE, clientId);
+}
+
+/**
+ * SuperAdmin Configuration
+ * SuperAdmin role is now managed through database globalRole field
+ * @deprecated Use user.globalRole === 'superAdmin' instead
+ */
+export const SUPER_ADMIN_EMAILS = [];
+
+/**
+ * User Data Structure Interface
+ * Defines the expected structure for user documents
+ */
+export const USER_DATA_STRUCTURE = {
+  // Basic user information
+  email: 'user@example.com',
+  name: 'User Full Name',
+  
+  // Global role (for system-level permissions)
+  globalRole: 'user', // 'superAdmin' | 'user' 
+  
+  // Client-specific access and roles
+  propertyAccess: {
+    'CLIENT_ID': {
+      role: 'admin', // 'admin' | 'unitOwner' | 'unitManager'
+      unitId: null, // null for admin, 'UNIT_ID' for unit-specific roles
+      permissions: [], // Optional: custom permissions for this client
+      addedDate: '2025-06-20T10:30:00Z',
+      addedBy: 'admin@example.com'
+    }
+    // Multiple clients can be defined
+  },
+  
+  // User preferences
+  preferredClient: 'DEFAULT_CLIENT_ID',
+  
+  // System metadata
+  createdDate: '2025-06-20T10:30:00Z',
+  createdBy: 'admin@example.com',
+  lastLoginDate: '2025-06-20T10:30:00Z',
+  isActive: true
+};
+
+/**
+ * Check if user is SuperAdmin
+ * @param {Object|string} userOrEmail - User object or email string
+ * @returns {boolean} - True if user is SuperAdmin
+ */
+export const isSuperAdmin = (userOrEmail) => {
+  // Handle both user object and email string
+  const user = typeof userOrEmail === 'object' ? userOrEmail : null;
+  
+  // Check by globalRole if user object provided
+  if (user && user.globalRole === 'superAdmin') {
+    return true;
+  }
+  
+  // For backward compatibility, return false for email-only checks
+  // SuperAdmin status should only be determined by globalRole in the database
+  return false;
+};
+
+/**
+ * Check if user is Admin (but not SuperAdmin)
+ * @param {Object} user - User object
+ * @param {string} clientId - Optional client ID to check client-specific admin role
+ * @returns {boolean} - True if user is Admin
+ */
+export const isAdmin = (user, clientId = null) => {
+  if (!user) return false;
+  if (isSuperAdmin(user)) return true; // SuperAdmin has admin rights
+  
+  // Check global admin role
+  if (user.globalRole === 'admin') return true;
+  
+  // Check client-specific admin role if clientId provided
+  if (clientId && (user.propertyAccess?.[clientId]?.role === 'admin' || user.propertyAccess?.[clientId]?.role === 'administrator')) {
+    return true;
+  }
+  
+  // If no specific client provided, check if user is admin in ANY client
+  if (!clientId && user.propertyAccess) {
+    return Object.values(user.propertyAccess).some(access => access.role === 'admin' || access.role === 'administrator');
+  }
+  
+  return false;
+};
+
+/**
+ * Check if user is Unit Owner or Unit Manager
+ * @param {Object} user - User object
+ * @returns {boolean} - True if user is unitOwner or unitManager
+ */
+export const isUnitOwnerOrManager = (user) => {
+  if (!user) return false;
+  const role = user.globalRole;
+  return role === 'unitOwner' || role === 'unitManager';
+};
+
+
+
+
+/**
+ * Create a new user data structure
+ * @param {string} email - User email
+ * @param {string} name - User full name
+ * @param {string} createdBy - Email of user creating this account
+ * @returns {Object} - New user data structure
+ */
+export const createUserData = (email, name, createdBy) => {
+  const now = new Date().toISOString();
+  
+  return {
+    email: email.toLowerCase(),
+    name,
+    globalRole: isSuperAdmin(email) ? USER_ROLES.SUPER_ADMIN : 'user',
+    propertyAccess: {},
+    preferredClient: null,
+    createdDate: now,
+    createdBy,
+    lastLoginDate: null,
+    isActive: true
+  };
+};
+
+/**
+ * Add client access to user
+ * @param {Object} user - User object
+ * @param {string} clientId - Client ID
+ * @param {string} role - Role for this client
+ * @param {string} unitId - Unit ID (for unit-specific roles)
+ * @param {string} addedBy - Email of user adding this access
+ * @returns {Object} - Updated user object
+ */
+export const addPropertyAccess = (user, clientId, role, unitId = null, addedBy) => {
+  if (!user.propertyAccess) {
+    user.propertyAccess = {};
+  }
+  
+  user.propertyAccess[clientId] = {
+    role,
+    unitId,
+    permissions: [],
+    addedDate: new Date().toISOString(),
+    addedBy
+  };
+  
+  // Set as preferred client if user has none
+  if (!user.preferredClient) {
+    user.preferredClient = clientId;
+  }
+  
+  return user;
+};

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fiscal Year Test</title>
+</head>
+<body>
+    <h1>Fiscal Year Calculation Test</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        // Inline the fiscal year calculation
+        function getFiscalYear(date, fiscalYearStartMonth) {
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1; // Convert to 1-based
+            
+            console.log('Testing fiscal year calculation:');
+            console.log('  Date:', date.toISOString());
+            console.log('  Year:', year);
+            console.log('  Month:', month);
+            console.log('  Fiscal Year Start Month:', fiscalYearStartMonth);
+            
+            // Special case: Calendar year (starts in January)
+            if (fiscalYearStartMonth === 1) {
+                console.log('  Result: Calendar year (January start):', year);
+                return year;
+            }
+            
+            // For fiscal years named by their ending year:
+            // If we're in or after the fiscal year start month, we're in the NEXT fiscal year
+            if (month >= fiscalYearStartMonth) {
+                console.log('  Result: Next fiscal year:', year + 1);
+                return year + 1;
+            }
+            
+            console.log('  Result: Current fiscal year:', year);
+            return year;
+        }
+        
+        // Test with today's date and AVII configuration
+        const today = new Date();
+        const aviiStartMonth = 7; // July
+        const fiscalYear = getFiscalYear(today, aviiStartMonth);
+        
+        const results = document.getElementById('results');
+        results.innerHTML = `
+            <p>Today's Date: ${today.toDateString()}</p>
+            <p>AVII Fiscal Year Start Month: ${aviiStartMonth} (July)</p>
+            <p>Calculated Fiscal Year: ${fiscalYear}</p>
+            <p>Expected: 2026 (since we're in July 2025)</p>
+            <p style="color: ${fiscalYear === 2026 ? 'green' : 'red'}">
+                ${fiscalYear === 2026 ? '✅ CORRECT' : '❌ INCORRECT'}
+            </p>
+        `;
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+{
+  "healthChecks": {
+    "desktop": {
+      "endpoint": "https://sams.sandyland.com.mx",
+      "method": "GET",
+      "expectedStatus": 200,
+      "timeout": 30000,
+      "retries": 3,
+      "checkContent": "SAMS"
+    },
+    "mobile": {
+      "endpoint": "https://mobile.sams.sandyland.com.mx",
+      "method": "GET",
+      "expectedStatus": 200,
+      "timeout": 30000,
+      "retries": 3,
+      "checkContent": "SAMS Mobile"
+    },
+    "backend": {
+      "endpoint": "https://api.sams.sandyland.com.mx/api/health",
+      "method": "GET",
+      "expectedStatus": 200,
+      "timeout": 15000,
+      "retries": 3,
+      "headers": {
+        "Accept": "application/json"
+      }
+    }
+  },
+  "uiChecks": {
+    "desktop": {
+      "url": "https://sams.sandyland.com.mx",
+      "checkElement": "body",
+      "checkText": "SAMS",
+      "checkConsoleErrors": true,
+      "screenshot": true,
+      "timeout": 30000
+    },
+    "mobile": {
+      "url": "https://mobile.sams.sandyland.com.mx",
+      "checkElement": ".app-container",
+      "checkText": "SAMS",
+      "checkConsoleErrors": true,
+      "screenshot": true,
+      "timeout": 30000
+    }
+  },
+  "performanceChecks": {
+    "desktop": {
+      "url": "https://sams.sandyland.com.mx",
+      "metrics": ["load", "fcp"],
+      "thresholds": {
+        "load": 5000,
+        "fcp": 2000
+      }
+    },
+    "mobile": {
+      "url": "https://mobile.sams.sandyland.com.mx",
+      "metrics": ["load", "fcp"],
+      "thresholds": {
+        "load": 6000,
+        "fcp": 3000
+      }
+    },
+    "backend": {
+      "url": "https://api.sams.sandyland.com.mx/api/health",
+      "metrics": ["load"],
+      "thresholds": {
+        "load": 2000
+      }
+    }
+  },
+  "securityChecks": {
+    "desktop": {
+      "url": "https://sams.sandyland.com.mx",
+      "checks": ["https", "headers", "csp"]
+    },
+    "mobile": {
+      "url": "https://mobile.sams.sandyland.com.mx",
+      "checks": ["https", "headers", "csp"]
+    },
+    "backend": {
+      "url": "https://api.sams.sandyland.com.mx",
+      "checks": ["https", "headers"]
+    }
+  },
+  "cacheChecks": {
+    "desktop": {
+      "url": "https://sams.sandyland.com.mx/version.json",
+      "cacheKey": "version",
+      "expectedVersion": "1.0.0"
+    },
+    "mobile": {
+      "url": "https://mobile.sams.sandyland.com.mx/version.json",
+      "cacheKey": "version",
+      "expectedVersion": "1.0.0"
+    }
+  },
+  "integrationChecks": {
+    "crossComponentUrls": [
+      "https://sams.sandyland.com.mx/api/health",
+      "https://mobile.sams.sandyland.com.mx/manifest.json"
+    ],
+    "apiEndpoints": [
+      "https://api.sams.sandyland.com.mx/api/health",
+      "https://api.sams.sandyland.com.mx/api/version"
+    ]
+  }
+}

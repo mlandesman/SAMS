@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS Mobile Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-result {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .fail { color: red; }
+        .info { color: blue; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>SAMS Mobile Detection Test</h1>
+    
+    <div class="test-result">
+        <h2>Device Information</h2>
+        <div id="device-info"></div>
+    </div>
+    
+    <div class="test-result">
+        <h2>CSS Media Query Test</h2>
+        <div id="css-test"></div>
+    </div>
+    
+    <div class="test-result">
+        <h2>JavaScript Detection Test</h2>
+        <div id="js-test"></div>
+    </div>
+    
+    <div class="test-result">
+        <h2>Recommendations</h2>
+        <div id="recommendations"></div>
+    </div>
+
+    <script>
+        // Device info
+        const deviceInfo = {
+            userAgent: navigator.userAgent,
+            screenWidth: window.innerWidth,
+            screenHeight: window.innerHeight,
+            devicePixelRatio: window.devicePixelRatio,
+            touchCapable: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+            maxTouchPoints: navigator.maxTouchPoints || 0,
+            platform: navigator.platform,
+            vendor: navigator.vendor
+        };
+        
+        document.getElementById('device-info').innerHTML = `<pre>${JSON.stringify(deviceInfo, null, 2)}</pre>`;
+        
+        // CSS Media Query Test
+        const cssTest = window.matchMedia('(max-width: 768px)').matches;
+        document.getElementById('css-test').innerHTML = cssTest 
+            ? '<p class="success">✓ CSS media query (max-width: 768px) is ACTIVE</p>' 
+            : '<p class="fail">✗ CSS media query (max-width: 768px) is NOT active</p>';
+        
+        // JavaScript Detection Test
+        const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        const isMobileUserAgent = mobileRegex.test(navigator.userAgent);
+        const isMobileScreen = window.innerWidth <= 768;
+        const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isMobile = isMobileUserAgent || (isMobileScreen && hasTouchScreen);
+        
+        const jsTestHtml = `
+            <p>User Agent Detection: ${isMobileUserAgent ? '<span class="success">✓ Mobile</span>' : '<span class="fail">✗ Not Mobile</span>'}</p>
+            <p>Screen Size Detection: ${isMobileScreen ? '<span class="success">✓ Mobile Size</span>' : '<span class="fail">✗ Desktop Size</span>'}</p>
+            <p>Touch Detection: ${hasTouchScreen ? '<span class="success">✓ Touch Capable</span>' : '<span class="fail">✗ No Touch</span>'}</p>
+            <p><strong>Final Result: ${isMobile ? '<span class="success">✓ MOBILE DEVICE DETECTED</span>' : '<span class="fail">✗ DESKTOP DEVICE DETECTED</span>'}</strong></p>
+        `;
+        
+        document.getElementById('js-test').innerHTML = jsTestHtml;
+        
+        // Recommendations
+        let recommendations = [];
+        if (!cssTest && isMobile) {
+            recommendations.push('<p class="info">⚠️ CSS media queries not working but JavaScript detects mobile. The emergency fix should resolve this.</p>');
+        }
+        if (cssTest && !isMobile) {
+            recommendations.push('<p class="info">⚠️ CSS detects mobile size but JavaScript doesn\'t. Check user agent.</p>');
+        }
+        if (!cssTest && !isMobile && window.innerWidth <= 768) {
+            recommendations.push('<p class="info">⚠️ Small screen detected but no mobile indicators. Might be a small desktop window.</p>');
+        }
+        
+        if (recommendations.length === 0) {
+            recommendations.push('<p class="success">✓ Detection is working correctly!</p>');
+        }
+        
+        document.getElementById('recommendations').innerHTML = recommendations.join('');
+        
+        // Test force mobile class
+        setTimeout(() => {
+            if (document.body.classList.contains('force-mobile-mode')) {
+                document.getElementById('recommendations').innerHTML += '<p class="success">✓ Force mobile mode class detected on body!</p>';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

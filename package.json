@@ -1,0 +1,37 @@
+{
+  "name": "sams-firebase",
+  "version": "1.0.0",
+  "description": "Sandyland Management System Backend",
+  "type": "module",
+  "main": "scripts/import.js",
+  "scripts": {
+    "start": "./start_sams.sh",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend/sams-ui && npm run dev",
+    "test:client": "cd scripts && node testClientData.js",
+    "build:prod": "cd frontend/sams-ui && npm run build",
+    "deploy": "npm run build:prod && firebase deploy",
+    "deploy:hosting": "npm run build:prod && firebase deploy --only hosting",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:storage": "firebase deploy --only storage:rules",
+    "maintenance:on": "node scripts/toggle-maintenance.js on",
+    "maintenance:off": "node scripts/toggle-maintenance.js off",
+    "version:stamp": "node scripts/updateVersion.js update",
+    "version:bump": "node scripts/updateVersion.js bump patch",
+    "version:bump:minor": "node scripts/updateVersion.js bump minor",
+    "version:bump:major": "node scripts/updateVersion.js bump major",
+    "version:validate": "node scripts/updateVersion.js validate",
+    "version:check": "node scripts/checkVersion.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "firebase": "^11.9.1",
+    "firebase-admin": "^11.11.1",
+    "react-router-dom": "^7.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

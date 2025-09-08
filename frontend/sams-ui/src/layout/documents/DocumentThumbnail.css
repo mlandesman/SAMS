@@ -1,0 +1,204 @@
+/* DocumentThumbnail.css */
+
+.document-thumbnail {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.document-thumbnail:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Size variants */
+.document-thumbnail.small {
+  width: 80px;
+}
+
+.document-thumbnail.medium {
+  width: 120px;
+}
+
+.document-thumbnail.large {
+  width: 160px;
+}
+
+.thumbnail-content {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-icon {
+  color: #64748b;
+  font-size: 2rem;
+}
+
+.document-thumbnail.small .thumbnail-icon {
+  font-size: 1.5rem;
+}
+
+.document-thumbnail.large .thumbnail-icon {
+  font-size: 2.5rem;
+}
+
+.thumbnail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.document-thumbnail:hover .thumbnail-overlay {
+  opacity: 1;
+}
+
+.thumbnail-action {
+  background-color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #4b5563;
+}
+
+.thumbnail-action:hover {
+  background-color: #f3f4f6;
+  transform: scale(1.1);
+}
+
+.view-action:hover {
+  color: #3b82f6;
+}
+
+.download-action:hover {
+  color: #10b981;
+}
+
+.thumbnail-info {
+  padding: 0.5rem;
+  background-color: white;
+}
+
+.document-filename {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.25rem;
+}
+
+.document-thumbnail.large .document-filename {
+  font-size: 0.875rem;
+}
+
+.document-size {
+  font-size: 0.625rem;
+  color: #64748b;
+}
+
+.document-thumbnail.large .document-size {
+  font-size: 0.75rem;
+}
+
+/* Grid layouts for multiple thumbnails */
+.document-thumbnails-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.document-thumbnails-grid.small {
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+}
+
+.document-thumbnails-grid.medium {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.document-thumbnails-grid.large {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .document-thumbnails-grid.medium {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+  
+  .document-thumbnails-grid.large {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+/* Preview mode styles */
+.document-thumbnail.preview {
+  cursor: default;
+  border-color: #d1d5db;
+}
+
+.document-thumbnail.preview:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.document-thumbnail.preview .thumbnail-content {
+  background-color: #f3f4f6;
+}
+
+.document-thumbnail.preview .thumbnail-info {
+  padding: 0.375rem;
+}
+
+.document-thumbnail.preview .document-filename {
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.document-thumbnail.preview .document-size {
+  font-size: 0.65rem;
+}
+
+/* Inline mode styles */
+.document-thumbnail.inline {
+  border-color: #e5e7eb;
+}
+
+.document-thumbnail.inline .thumbnail-info {
+  padding: 0.375rem;
+}
+
+.document-thumbnail.inline .document-filename {
+  font-size: 0.8rem;
+}

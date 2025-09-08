@@ -1,0 +1,15 @@
+{
+  "name": "firebase-auth-tests",
+  "version": "1.0.0",
+  "description": "Simple tests for Firebase authentication and Firestore permissions",
+  "type": "module",
+  "scripts": {
+    "test1": "node test1_unauthenticated_write.js",
+    "test2": "node test2_authenticated_write.js",
+    "test-all": "node test1_unauthenticated_write.js && node test2_authenticated_write.js",
+    "serve": "node serve.js"
+  },
+  "dependencies": {
+    "firebase": "^10.8.0"
+  }
+}

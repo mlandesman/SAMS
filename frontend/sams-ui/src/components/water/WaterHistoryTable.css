@@ -1,0 +1,315 @@
+/* Water History Table - Following HOA Dues Pattern */
+.water-history-table {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 20px; /* Match HOA table font size */
+  min-width: 800px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.history-table thead {
+  background-color: #f2f2f2;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.history-table th {
+  padding: 6px 8px; /* Match HOA padding */
+  text-align: center;
+  border: 1px solid #ddd;
+  font-weight: bold; /* Match HOA font weight */
+}
+
+.month-header {
+  text-align: left !important;
+  min-width: 60px;
+  background-color: #f2f2f2;
+  font-weight: bold;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  padding: 10px 15px; /* Match HOA month header padding */
+}
+
+.unit-header {
+  min-width: 90px; /* Match HOA min-width */
+  vertical-align: top;
+  background-color: #e1e7f5; /* Match HOA unit header background */
+  padding: 10px 8px; /* Match HOA unit header padding */
+  border-bottom: 2px solid #0527ae; /* Match HOA unit header border */
+}
+
+.unit-number {
+  font-size: 20px; /* Match HOA unit-id-cell font size */
+  color: #666; /* Match HOA unit-id-cell color */
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+.unit-name {
+  font-size: 16px; /* Match HOA owner-lastname-cell font size */
+  color: #444; /* Match HOA owner-lastname-cell color */
+  margin-top: 2px;
+  font-weight: normal;
+  font-style: italic;
+}
+
+.common-header {
+  background-color: #7c3aed;
+  color: white;
+  min-width: 100px; /* Increased width */
+}
+
+.common-header .unit-number,
+.common-header .unit-name {
+  color: white;
+  font-size: 18px; /* Increased font size */
+}
+
+.building-header {
+  background-color: #059669;
+  color: white;
+  min-width: 100px; /* Increased width */
+}
+
+.building-header .unit-number,
+.building-header .unit-name {
+  color: white;
+  font-size: 18px; /* Increased font size */
+}
+
+.total-header {
+  background-color: #60a5fa;
+  color: white;
+  min-width: 120px; /* Increased width */
+}
+
+.total-header .unit-number,
+.total-header .unit-name {
+  color: white;
+  font-size: 18px; /* Increased font size */
+}
+
+/* Table body */
+.history-table tbody tr {
+  border-bottom: 1px solid #ddd;
+}
+
+/* Alternating row colors - SAMS pattern */
+.even-row {
+  background-color: #f8f8f8;
+}
+
+.odd-row {
+  background-color: #ffffff;
+}
+
+.month-cell {
+  padding: 6px 8px; /* Match HOA table cell padding */
+  font-weight: bold;
+  text-align: left; /* Match HOA month header alignment */
+  border-right: 1px solid #ddd;
+  background-color: #f2f2f2; /* Match HOA row label background */
+  white-space: nowrap;
+  min-width: 60px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+.month-label {
+  font-size: 20px; /* Match main table font size */
+  color: #000;
+  text-transform: uppercase;
+}
+
+.data-cell {
+  padding: 6px 8px; /* Match HOA table cell padding */
+  text-align: center; /* Match HOA table cell alignment */
+  border: 1px solid #ddd; /* Match HOA table cell border */
+  vertical-align: middle;
+  min-width: 90px; /* Match unit header min-width */
+}
+
+/* Reading and Bill values in cells */
+.reading-value {
+  font-size: 16px; /* Increased to be more visible */
+  color: #666;
+  font-weight: normal;
+  min-height: 18px;
+  line-height: 18px;
+}
+
+.bill-value {
+  font-size: 18px; /* Increased to match the larger table scale */
+  color: #000;
+  font-weight: bold; /* Made bold to match HOA dues style */
+  min-height: 20px;
+  line-height: 20px;
+  margin-top: 2px;
+}
+
+/* Total cells */
+.total-cell {
+  background-color: #dbeafe;
+  border-left: 1px solid #60a5fa;
+  font-weight: bold;
+  text-align: center; /* Changed to center for consistency */
+  min-width: 120px;
+}
+
+.total-cell .reading-value.total {
+  color: #555;
+  font-weight: normal;
+  font-size: 18px; /* Increased font size */
+}
+
+.total-cell .bill-value.total {
+  color: #000;
+  font-weight: 600;
+  font-size: 20px; /* Increased font size */
+}
+
+/* Total row at bottom */
+.total-row {
+  background-color: #93c5fd !important;
+  border-top: 2px solid #3b82f6;
+  font-weight: bold;
+}
+
+.total-row .month-cell {
+  background-color: #93c5fd;
+  color: #000;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 4px;
+}
+
+.total-label-cell {
+  text-align: center !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.total-row .data-cell {
+  background-color: #93c5fd;
+  padding: 6px 4px;
+}
+
+.total-row .bill-value {
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.grand-total {
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+}
+
+/* Legend */
+.table-legend {
+  display: flex;
+  gap: 30px;
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-label {
+  font-weight: 600;
+  color: #555;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .water-history-table {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .history-table {
+    font-size: 10px;
+  }
+  
+  .unit-header {
+    min-width: 60px;
+  }
+}
+
+/* Hover effects */
+.history-table tbody tr:not(.total-row):hover {
+  background-color: #fef3c7 !important;
+}
+
+.data-cell:hover {
+  background-color: rgba(96, 165, 250, 0.1);
+  cursor: default;
+}
+
+/* Common and Building cells */
+.common-cell {
+  background-color: #ede9fe;
+  border-left: 1px solid #7c3aed;
+  min-width: 100px;
+}
+
+.common-cell .reading-value,
+.common-cell .bill-value {
+  font-size: 18px; /* Increased font size for better visibility */
+}
+
+.building-cell {
+  background-color: #d1fae5;
+  border-left: 1px solid #059669;
+  min-width: 100px;
+}
+
+.building-cell .reading-value,
+.building-cell .bill-value {
+  font-size: 18px; /* Increased font size for better visibility */
+}
+
+/* Leak warning */
+.leak-warning {
+  color: #dc2626;
+  font-weight: bold;
+  font-size: 10px;
+}
+
+/* Empty state */
+.data-cell .reading-value:empty::before,
+.data-cell .bill-value:empty::before {
+  content: '';
+}
+
+/* Print styles */
+@media print {
+  .water-history-table {
+    overflow: visible;
+  }
+  
+  .history-table {
+    font-size: 9px;
+  }
+  
+  .history-table thead {
+    position: static;
+  }
+}

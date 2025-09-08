@@ -1,0 +1,208 @@
+{
+  "timestamp": "2025-07-05T02:03:52.963Z",
+  "environment": "sandyland-management-system",
+  "preservedCollections": [
+    "exchangeRates",
+    "users"
+  ],
+  "totalCollectionsFound": 30,
+  "totalDocumentsDeleted": 975,
+  "purgedCollections": [
+    {
+      "path": "auditLogs",
+      "id": "auditLogs",
+      "depth": 0,
+      "docCount": 459,
+      "fullPath": "auditLogs"
+    },
+    {
+      "path": "clients",
+      "id": "clients",
+      "depth": 0,
+      "docCount": 1,
+      "fullPath": "clients"
+    },
+    {
+      "path": "clients/MTC/balanceSnapshots",
+      "id": "balanceSnapshots",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/balanceSnapshots"
+    },
+    {
+      "path": "clients/MTC/budgets",
+      "id": "budgets",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/budgets"
+    },
+    {
+      "path": "clients/MTC/categories",
+      "id": "categories",
+      "depth": 1,
+      "docCount": 26,
+      "fullPath": "clients/MTC/categories"
+    },
+    {
+      "path": "clients/MTC/config",
+      "id": "config",
+      "depth": 1,
+      "docCount": 2,
+      "fullPath": "clients/MTC/config"
+    },
+    {
+      "path": "clients/MTC/costCenters",
+      "id": "costCenters",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/costCenters"
+    },
+    {
+      "path": "clients/MTC/documentTemplates",
+      "id": "documentTemplates",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/documentTemplates"
+    },
+    {
+      "path": "clients/MTC/paymentMethods",
+      "id": "paymentMethods",
+      "depth": 1,
+      "docCount": 8,
+      "fullPath": "clients/MTC/paymentMethods"
+    },
+    {
+      "path": "clients/MTC/paymentTypes",
+      "id": "paymentTypes",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/paymentTypes"
+    },
+    {
+      "path": "clients/MTC/projects",
+      "id": "projects",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/projects"
+    },
+    {
+      "path": "clients/MTC/transactions",
+      "id": "transactions",
+      "depth": 1,
+      "docCount": 425,
+      "fullPath": "clients/MTC/transactions"
+    },
+    {
+      "path": "clients/MTC/units",
+      "id": "units",
+      "depth": 1,
+      "docCount": 10,
+      "fullPath": "clients/MTC/units"
+    },
+    {
+      "path": "clients/MTC/units/1A/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/1A/dues"
+    },
+    {
+      "path": "clients/MTC/units/1B/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/1B/dues"
+    },
+    {
+      "path": "clients/MTC/units/1C/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/1C/dues"
+    },
+    {
+      "path": "clients/MTC/units/2A/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/2A/dues"
+    },
+    {
+      "path": "clients/MTC/units/2B/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/2B/dues"
+    },
+    {
+      "path": "clients/MTC/units/2C/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/2C/dues"
+    },
+    {
+      "path": "clients/MTC/units/PH1A/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/PH1A/dues"
+    },
+    {
+      "path": "clients/MTC/units/PH2B/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/PH2B/dues"
+    },
+    {
+      "path": "clients/MTC/units/PH3C/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/PH3C/dues"
+    },
+    {
+      "path": "clients/MTC/units/PH4D/dues",
+      "id": "dues",
+      "depth": 2,
+      "docCount": 1,
+      "fullPath": "clients/MTC/units/PH4D/dues"
+    },
+    {
+      "path": "clients/MTC/vendors",
+      "id": "vendors",
+      "depth": 1,
+      "docCount": 24,
+      "fullPath": "clients/MTC/vendors"
+    },
+    {
+      "path": "clients/MTC/yearEndBalances",
+      "id": "yearEndBalances",
+      "depth": 1,
+      "docCount": 1,
+      "fullPath": "clients/MTC/yearEndBalances"
+    },
+    {
+      "path": "connection_test",
+      "id": "connection_test",
+      "depth": 0,
+      "docCount": 1,
+      "fullPath": "connection_test"
+    },
+    {
+      "path": "contacts",
+      "id": "contacts",
+      "depth": 0,
+      "docCount": 1,
+      "fullPath": "contacts"
+    },
+    {
+      "path": "system",
+      "id": "system",
+      "depth": 0,
+      "docCount": 1,
+      "fullPath": "system"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ============================================================================
+    // SAMS Document Storage Security Rules - Multi-Tenant
+    // Phase 8: User Access Control System Implementation
+    // ============================================================================
+    
+    // Helper function to check if user is SuperAdmin
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.email == 'michael@landesman.com';
+    }
+    
+    // Helper function to get user document
+    function getUserDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+    
+    // Helper function to check if user has access to a client
+    function hasClientAccess(clientId) {
+      return isSuperAdmin() || 
+             (getUserDoc().data.clientAccess != null && 
+              clientId in getUserDoc().data.clientAccess);
+    }
+    
+    // Helper function to get user's role for a specific client
+    function getClientRole(clientId) {
+      return getUserDoc().data.clientAccess[clientId].role;
+    }
+    
+    // ============================================================================
+    // CLIENT DOCUMENT STORAGE - STRICT ISOLATION
+    // ============================================================================
+    
+    // Documents within client directories
+    match /clients/{clientId}/documents/{allPaths=**} {
+      // Read access: Users with client access
+      allow read: if request.auth != null && hasClientAccess(clientId);
+      
+      // Write access: Admin or users with write permissions
+      allow write: if request.auth != null && 
+                      (isSuperAdmin() || 
+                       (hasClientAccess(clientId) && 
+                        getClientRole(clientId) in ['admin', 'unitManager']));
+      
+      // Delete access: Only admin
+      allow delete: if request.auth != null && 
+                       (isSuperAdmin() || 
+                        (hasClientAccess(clientId) && getClientRole(clientId) == 'admin'));
+    }
+    
+    // ============================================================================
+    // PUBLIC ASSETS
+    // ============================================================================
+    
+    // Public assets (logos, icons, etc.)
+    match /public/{allPaths=**} {
+      allow read: if true; // Public read access
+      allow write: if isSuperAdmin(); // Only SuperAdmin can modify public assets
+    }
+    
+    // ============================================================================
+    // SYSTEM ASSETS
+    // ============================================================================
+    
+    // System-wide assets and backups
+    match /system/{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
+    
+    // ============================================================================
+    // TEMPORARY UPLOADS
+    // ============================================================================
+    
+    // Temporary upload directory for authenticated users
+    match /temp/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // ============================================================================
+    // MAINTENANCE MODE OVERRIDE
+    // ============================================================================
+    
+    // During maintenance mode, restrict all access except SuperAdmin
+    // This can be toggled by updating the Firestore maintenance flag
+    match /{allPaths=**} {
+      allow read, write: if isSuperAdmin() ||
+                            firestore.get(/databases/(default)/documents/system/config).data.maintenanceMode != true;
+    }
+    
+    // ============================================================================
+    // DENY ALL OTHER ACCESS
+    // ============================================================================
+    
+    // Block access to any other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

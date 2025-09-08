@@ -1,0 +1,374 @@
+/* Force Mobile Mode Overrides - Emergency Production Fix */
+/* This file ensures all components display correctly when JavaScript mobile detection activates */
+
+/* Modal Overrides */
+body.mobile-app .sandyland-modal-overlay,
+body.mobile-app .sandyland-modal-overlay {
+  padding: 0 !important;
+}
+
+body.mobile-app .sandyland-modal-paper {
+  width: 95% !important;
+  max-width: 95% !important;
+  margin: 10px !important;
+  max-height: 95vh !important;
+}
+
+body.mobile-app .MuiModal-root .MuiPaper-root {
+  width: 95% !important;
+  max-width: 95% !important;
+  margin: 10px !important;
+}
+
+/* Form Grid Overrides */
+body.mobile-app .form-grid,
+body.mobile-app .expense-grid {
+  grid-template-columns: 1fr !important;
+  gap: 16px !important;
+}
+
+body.mobile-app .form-row {
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+/* Button Group Overrides */
+body.mobile-app .button-group,
+body.mobile-app .action-buttons {
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+body.mobile-app .button-group button,
+body.mobile-app .action-buttons button {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Table and List Overrides */
+body.mobile-app .transaction-table-container,
+body.mobile-app .list-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.mobile-app table {
+  min-width: 600px !important;
+}
+
+/* Dashboard Overrides */
+body.mobile-app .dashboard-summary-grid {
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+}
+
+body.mobile-app .balance-card {
+  padding: 12px !important;
+}
+
+/* Exchange Rate Calculator Overrides */
+body.mobile-app .exchange-rate-input-group {
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+body.mobile-app .exchange-rate-input-group > * {
+  width: 100% !important;
+}
+
+/* Document Viewer Overrides */
+body.mobile-app .document-viewer-content {
+  padding: 8px !important;
+}
+
+body.mobile-app .document-iframe {
+  width: 100% !important;
+  height: calc(100vh - 150px) !important;
+}
+
+/* Transaction Detail Modal Overrides */
+body.mobile-app .transaction-detail-grid {
+  grid-template-columns: 1fr !important;
+}
+
+body.mobile-app .detail-group {
+  margin-bottom: 12px !important;
+}
+
+/* Filter Modal Overrides */
+body.mobile-app .filter-row {
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+body.mobile-app .filter-field {
+  width: 100% !important;
+}
+
+/* Success Modal Overrides */
+body.mobile-app .success-modal-content {
+  padding: 20px !important;
+}
+
+body.mobile-app .success-actions {
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* Input Field Overrides */
+body.mobile-app input[type="text"],
+body.mobile-app input[type="number"],
+body.mobile-app input[type="email"],
+body.mobile-app input[type="password"],
+body.mobile-app select,
+body.mobile-app textarea {
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  width: 100% !important;
+}
+
+/* Ensure touch targets are large enough */
+body.mobile-app button,
+body.mobile-app a.button,
+body.mobile-app .clickable {
+  min-height: 44px !important;
+  padding: 12px 16px !important;
+}
+
+/* Prevent horizontal scroll */
+body.mobile-app {
+  overflow-x: hidden !important;
+}
+
+body.mobile-app .layout-container {
+  overflow-x: hidden !important;
+}
+
+/* Fix Material-UI components */
+body.mobile-app .MuiFormControl-root {
+  width: 100% !important;
+}
+
+body.mobile-app .MuiTextField-root {
+  width: 100% !important;
+}
+
+body.mobile-app .MuiSelect-root {
+  width: 100% !important;
+}
+
+/* Ensure PWA navigation is visible */
+body.mobile-app .pwa-navigation {
+  display: block !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
+}
+
+/* Hide redundant header title in mobile mode */
+body.mobile-app .action-bar-title,
+body.mobile-app .action-bar h2 {
+  display: none !important;
+}
+
+/* Hide the entire action bar content except action items */
+body.mobile-app .action-bar {
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+body.mobile-app .action-bar .action-items {
+  margin: 0 !important;
+  padding: 10px !important;
+}
+
+/* Dashboard Mobile Enhancements */
+/* Create a fixed background container */
+body.mobile-app {
+  position: relative !important;
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Ensure html element also has the background */
+html:has(body.mobile-app) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  min-height: 100vh !important;
+}
+
+/* Fixed gradient background that doesn't scroll */
+body.mobile-app .dashboard {
+  background: transparent !important; /* Remove background from scrollable content */
+  position: relative !important;
+  z-index: 1 !important;
+  min-height: calc(100vh - 56px) !important; /* Account for bottom navigation */
+  padding-bottom: 70px !important; /* Extra padding for bottom navigation */
+}
+
+/* Ensure the main app container doesn't have conflicting backgrounds */
+body.mobile-app #root,
+body.mobile-app .App,
+body.mobile-app .app-container,
+body.mobile-app .main-content,
+body.mobile-app .layout-container {
+  background: transparent !important;
+}
+
+/* Override app-container specifically */
+body.mobile-app .app-container {
+  background: transparent !important;
+  display: block !important; /* Change from flex to block for mobile */
+}
+
+/* Center all dashboard cards */
+body.mobile-app .dashboard .MuiGrid-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 16px !important;
+  flex-wrap: wrap !important;
+}
+
+body.mobile-app .dashboard .MuiGrid-item {
+  width: 100% !important;
+  max-width: 350px !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* Ensure cards fill their containers properly */
+body.mobile-app .dashboard .MuiCard-root {
+  width: 100% !important;
+  margin: 0 auto !important;
+}
+
+/* Projects and Budget cards container - create side by side layout */
+body.mobile-app .dashboard .MuiGrid-container {
+  position: relative !important;
+}
+
+/* Container for last two cards */
+body.mobile-app .dashboard .MuiGrid-container > .MuiGrid-item:nth-last-child(2),
+body.mobile-app .dashboard .MuiGrid-container > .MuiGrid-item:nth-last-child(1) {
+  max-width: 170px !important;
+  width: calc(50% - 8px) !important;
+  display: inline-block !important;
+  vertical-align: top !important;
+}
+
+/* Projects card (second to last) */
+body.mobile-app .dashboard .MuiGrid-container > .MuiGrid-item:nth-last-child(2) {
+  margin-right: 16px !important;
+}
+
+/* Force side-by-side layout for last two cards */
+body.mobile-app .dashboard .MuiGrid-container {
+  text-align: center !important;
+}
+
+/* Adjust card content for smaller width */
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(2) .MuiCardContent-root,
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(1) .MuiCardContent-root {
+  padding: 12px !important;
+}
+
+/* Smaller font sizes for Projects and Budget cards */
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(2) .MuiTypography-h4,
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(1) .MuiTypography-h4 {
+  font-size: 1.5rem !important;
+}
+
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(2) .MuiTypography-h6,
+body.mobile-app .dashboard .MuiGrid-item:nth-last-child(1) .MuiTypography-h6 {
+  font-size: 1rem !important;
+}
+
+/* Client Switcher Mobile Styling */
+body.mobile-app .client-switcher-chip {
+  max-width: 200px !important;
+  font-size: 0.875rem !important;
+}
+
+body.mobile-app .client-switcher-chip .MuiChip-label {
+  padding-left: 8px !important;
+  padding-right: 12px !important;
+}
+
+/* Center client info in mobile header */
+body.mobile-app .dashboard > div:first-child {
+  text-align: center !important;
+}
+
+body.mobile-app .dashboard > div:first-child > div {
+  justify-content: center !important;
+}
+
+/* Unit Report Mobile Styling */
+body.mobile-app .view-container > div:first-child {
+  padding: 12px !important;
+  background-color: #f5f5f5 !important;
+}
+
+body.mobile-app .view-container .MuiFormControl-root {
+  margin-bottom: 0 !important;
+}
+
+body.mobile-app .view-container .MuiOutlinedInput-root {
+  background-color: white !important;
+  font-size: 16px !important;
+}
+
+/* Ensure Unit Report component fills mobile screen */
+body.mobile-app .unit-report {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  min-height: calc(100vh - 56px) !important; /* Account for bottom navigation */
+}
+
+body.mobile-app .unit-report-header {
+  border-radius: 0 !important;
+}
+
+/* Enhanced Status Card Mobile Optimizations */
+body.mobile-app .status-card.enhanced {
+  margin: 10px !important;
+  border-radius: 12px !important;
+  background: #d4f1d4 !important;
+}
+
+body.mobile-app .unit-selector {
+  background: #a5d6a7 !important;
+  border-radius: 12px 12px 0 0 !important;
+  font-size: 18px !important;
+  padding: 16px !important;
+}
+
+body.mobile-app .financial-summary {
+  background: #e8f5e9 !important;
+  padding: 20px !important;
+}
+
+body.mobile-app .summary-row {
+  font-size: 18px !important;
+  margin-bottom: 12px !important;
+}
+
+body.mobile-app .payment-calendar {
+  background: #f1f8e9 !important;
+  padding: 20px 16px !important;
+  border-radius: 0 0 12px 12px !important;
+}
+
+body.mobile-app .calendar-cell {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  min-height: 40px !important;
+  border-radius: 6px !important;
+}

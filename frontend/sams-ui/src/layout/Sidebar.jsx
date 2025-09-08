@@ -1,0 +1,150 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useClient } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { isSuperAdmin, isAdmin } from '../utils/userRoles';
+import './Sidebar.css';
+
+// Using the same logo URL you provided
+const logoUrl = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
+
+// Default menu items to use if client configuration fails or is empty
+const DEFAULT_MENU_ITEMS = [
+  { name: 'Dashboard', path: '/dashboard', activity: 'dashboard' },
+  { name: 'Transactions', path: '/transactions', activity: 'transactions' }
+];
+
+function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityChange prop
+  const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
+  const { samsUser } = useAuth(); // Get user for role checking
+
+  // Filter menu items based on user role
+  const getVisibleMenuItems = (user, items) => {
+    if (!items || !user) return items || [];
+    
+    console.log('🔍 SIDEBAR: Filtering menu items for user:', {
+      email: user.email,
+      globalRole: user.globalRole,
+      clientId: selectedClient?.id,
+      propertyAccess: user.propertyAccess,
+      isAdmin: isAdmin(user, selectedClient?.id),
+      isSuperAdmin: isSuperAdmin(user)
+    });
+    
+    return items.filter(item => {
+      const activity = item.activity?.toLowerCase();
+      const itemName = item.name?.toLowerCase();
+      
+                  console.log('🔍 MENU DEBUG - Is SuperAdmin:', isSuperAdmin(user));
+            
+      // List Management - only Admin and SuperAdmin
+      // Check for various possible activity names
+      if (activity === 'lists' || 
+          activity === 'list-management' || 
+          activity === 'listmanagement' ||
+          itemName?.toLowerCase().includes('list management') ||
+          (itemName?.toLowerCase().includes('list') && itemName?.toLowerCase().includes('management'))) {
+        
+        const hasAccess = isAdmin(user, selectedClient?.id) || isSuperAdmin(user);
+        console.log('🚨 LIST MANAGEMENT ACCESS CHECK:', {
+          activity,
+          itemName,
+          userRole: user.globalRole,
+          clientId: selectedClient?.id,
+          clientRole: user.propertyAccess?.[selectedClient?.id]?.role,
+          hasAccess,
+          isAdmin: isAdmin(user, selectedClient?.id),
+          isSuperAdmin: isSuperAdmin(user)
+        });
+        return hasAccess;
+      }
+      
+      // Settings - only SuperAdmin
+      if (activity === 'settings') {
+        const hasAccess = isSuperAdmin(user);
+        console.log('⚙️ SETTINGS ACCESS CHECK:', { activity, hasAccess });
+                return hasAccess;
+      }
+      
+      // User Management - all users can access (but will see different views)
+      if (activity === 'users' || activity === 'user-management') {
+                return true;
+      }
+      
+      // Everything else is visible to all authenticated users
+            return true;
+    });
+  };
+
+  // Use menuConfig if available, otherwise fall back to defaults
+  const allMenuItems = selectedClient
+    ? (menuConfig && menuConfig.length > 0 
+        ? menuConfig.map(item => {
+            const activityName = (item.activity || '').toLowerCase();
+            // Handle specific route mappings
+            let path = `/${activityName}`;
+            if (activityName === 'listmanagement') {
+              path = '/lists';
+            }
+            return {
+              name: item.label || item.name || item.activity,
+              path: path,
+              activity: activityName
+            };
+        })
+        : DEFAULT_MENU_ITEMS)
+    : [];
+
+  // Filter menu items based on user role
+  const menuItems = getVisibleMenuItems(samsUser, allMenuItems);
+
+  return (
+    <div className="sidebar">
+      <div className="sidebar-header-section">
+        <img
+          src={logoUrl}
+          alt="Sandyland Properties Logo"
+          className="sidebar-header-logo"
+        />
+      </div>
+
+      {/* Always render "Activities" heading */}
+      <h3 className="sidebar-menu-heading">Activities</h3>
+
+      <ul className="sidebar-menu">
+        {isLoadingMenu && selectedClient ? (
+          <li className="menu-loading">Loading menu...</li>
+        ) : menuError ? (
+          <li className="menu-error">Error loading menu</li>
+        ) : (
+          menuItems.map((item, index) => {
+            // Get the current path from window location
+            const currentPath = window.location.pathname;
+            // Check if this is the active item - either direct match or path starts with item path
+            const isActive = currentPath === item.path || 
+                            (item.path !== '/' && currentPath.startsWith(item.path));
+            
+            return (
+              <li key={index} className={isActive ? 'active' : ''}>
+                <Link
+                  to={item.path}
+                  onClick={() => {
+                    console.log(`Navigating to ${item.path}`);
+                    onActivityChange(item.activity); // Call onActivityChange
+                  }}
+                >
+                  {item.name}
+                </Link>
+              </li>
+            );
+          })
+        )}
+        <li className="change-client-button" onClick={onChangeClientClick}>
+          Change Client
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+export default Sidebar;

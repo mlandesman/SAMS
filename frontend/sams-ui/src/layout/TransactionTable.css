@@ -1,0 +1,255 @@
+/* src/components/TransactionTable.css */
+
+.transaction-section { /* Outer one */
+  height: auto; /* Use actual content height */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden; /* Prevent any overflow from child elements */
+}
+
+.balance-bar {
+  text-align: right;
+  font-weight: bold;
+  font-size: 1.0rem; /* Decreased back from 1.2rem */
+  padding-top: 15px;  /* Increased from 8px for more height */
+  padding-bottom: 15px; /* Increased from 8px for more height */
+  padding-left: 15px; /* Keep side padding */
+  padding-right: 15px; /* Keep side padding */
+  color: #2c5c5c;
+  line-height: 1.4; /* Better line spacing for multi-line content */
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: separate; /* CHANGE from collapse to separate for border radius */
+  border-spacing: 0;          /* no gaps between cells */
+  border-radius: 12px;         /* rounded corners */
+  margin: 0 auto;
+  table-layout: fixed; /* More predictable layout */
+  z-index: 1; /* makes sure table stays on top when scrolling */
+}
+
+.transaction-table th {
+  position: sticky;
+  top: 0;
+  background-color: #447b7b;
+  color: white;
+  padding: 6px 10px; /* MODIFIED: Reduced vertical padding */
+  text-align: left;
+  font-weight: bold;
+  z-index: 5; /* Further increased z-index to ensure headers stay on top */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Stronger shadow for better visibility */
+}
+
+.transaction-table td {
+  font-size: 0.9rem;
+  color: #000;
+  padding: 1px 10px; /* MODIFIED: Reduced vertical padding */
+  text-align: left;
+}
+
+.transaction-table-container {
+  flex: 1; /* Takes space in its flex parent */
+  overflow-y: auto; /* Should ideally only be on the one that actually scrolls the table */
+  background-color: white;
+  max-height: calc(100vh - 183px); /* Adjusted for 28px status bar (was 180px for 25px status bar) */
+  position: relative; /* Create a new stacking context for sticky elements */
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+  padding-bottom: 0px !important; /* Added important to ensure this padding isn't overridden */
+}
+
+.transaction-table .amount-cell {
+  text-align: right;
+}
+
+.transaction-table tr.even {
+  background-color: #dee2e6; 
+}
+
+.transaction-table tr.odd {
+  background-color: #ffffff;
+}
+
+.transaction-table tr:hover {
+  background-color: #2c5c5c; /* Sandyland blue background */
+  color: white; /* White text for better contrast on dark background */
+  /* Optional: Add a subtle shadow to make it "pop" */
+  /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); */ 
+  /* cursor: pointer; */ /* Optional: if rows are clickable */
+}
+
+.transaction-table tbody tr {
+  cursor: pointer; /* Indicate rows are clickable */
+  transition: background-color 0.2s ease;
+}
+
+.transaction-table tbody tr:hover {
+  background-color: #2c5c5c; /* Sandyland blue - making sure it's applied consistently */
+}
+
+.transaction-table tbody tr:hover td {
+  color: white; /* White text for better contrast when hovering */
+}
+
+.transaction-table tbody tr.selected-row {
+  background-color: #ffeb3b !important; /* Highlighter yellow background */
+  border-left: 3px solid #f57f17; /* Darker yellow border */
+  font-weight: 500;
+}
+
+.transaction-table tbody tr.selected-row td {
+  color: #000000 !important; /* Black text for maximum contrast */
+}
+
+/* Keyframes for highlight animation */
+@keyframes highlight-animation {
+  0% {
+    background-color: rgba(255, 230, 0, 0.2);
+    box-shadow: 0 0 0px #ffc107;
+  }
+  50% {
+    background-color: rgba(255, 230, 0, 0.8);
+    box-shadow: 0 0 15px #ffc107;
+  }
+  100% {
+    background-color: rgba(255, 230, 0, 0.2);
+    box-shadow: 0 0 0px #ffc107;
+  }
+}
+
+.transaction-table tbody tr.highlight-row {
+  animation: highlight-animation 1s ease-in-out;
+  animation-iteration-count: 5;
+  background-color: rgba(255, 230, 0, 0.6);
+  outline: 2px solid #ffc107;
+  outline-offset: -2px;
+  position: relative;
+}
+
+/* Document indicator styling */
+.notes-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-style: normal; /* Ensure no italic styling */
+  font-weight: normal; /* Ensure normal weight */
+  /* Remove all background styling to let row colors show through */
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.notes-text {
+  flex: 1;
+  font-style: normal; /* Remove any italic styling */
+  font-weight: normal; /* Ensure normal weight */
+  /* Ensure no background overrides */
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.document-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #447b7b;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 0.9em;
+  /* Transparent background by default */
+  background-color: transparent;
+}
+
+.document-indicator:hover {
+  background-color: rgba(68, 123, 123, 0.1);
+  color: #2c5c5c;
+  transform: scale(1.05);
+}
+
+.document-count {
+  font-size: 0.8em;
+  font-weight: 600;
+  background-color: #447b7b;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+
+.sticky-footer {
+  flex-shrink: 0; /* Prevent the footer from shrinking */
+  position: fixed;
+  bottom: 30px; /* Position exactly at the top of the status bar - match with balance-bar */
+  left: 220px; /* Match the margin-left of main content to align with sidebar */
+  right: 0;
+  background-color: #f8f9fa;
+  padding: 10px 20px; /* Reduced vertical padding */
+  margin: 0;
+  text-align: right;
+  font-weight: bold;
+  z-index: 100; /* High z-index to ensure it's above table content */
+  border-top: 1px solid #ccc;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow to separate from content */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 30px; /* Minimal height needed for the content */
+  width: calc(100% - 220px); /* Ensure it doesn't overflow */
+}
+
+/* Column width settings to control column expansion behavior */
+.date-column {
+  width: 8%;
+  min-width: 80px;
+  max-width: 100px;
+  white-space: nowrap; /* Prevent date from wrapping */
+  text-align: left;    /* Ensure consistent alignment */
+  /* Removed monospace font to match other columns */
+}
+
+.vendor-column {
+  width: 15%;
+  min-width: 125px;
+  max-width: 190px; /* 25% bigger than before */
+}
+
+.category-column {
+  width: 18%;
+  min-width: 150px;
+  max-width: 225px; /* 50% wider than before */
+}
+
+.unit-column {
+  width: 4%;
+  min-width: 40px;
+  max-width: 50px; /* Tighter unit column - never more than 5 characters */
+}
+
+.amount-column {
+  width: 8%;
+  min-width: 80px;
+  max-width: 100px;
+  text-align: right; /* Right align the numbers */
+}
+
+.account-column {
+  width: 5%;
+  min-width: 60px;
+  max-width: 60px; /* 50% smaller than before */
+}
+
+.notes-column {
+  width: auto; /* This will make it expand to fill available space */
+  min-width: 180px; /* Slightly increased minimum width */
+}

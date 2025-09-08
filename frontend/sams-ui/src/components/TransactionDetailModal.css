@@ -1,0 +1,280 @@
+/* TransactionDetailModal.css */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999 !important;
+  backdrop-filter: blur(2px);
+  padding: 20px;
+  box-sizing: border-box;
+  /* Additional fallbacks for cross-browser compatibility */
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+  -ms-flex-pack: center;
+  -ms-flex-align: center;
+  /* Ensure background is visible */
+  background: rgba(0, 0, 0, 0.75) !important;
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.transaction-detail-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90%;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  margin: auto;
+  transform: translateZ(0); /* Force hardware acceleration for smoother centering */
+  z-index: 10000;
+  /* Ensure dialog is fully opaque and visible */
+  background-color: white !important;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  background: #447b7b;
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: white; /* Explicitly set white text for the title */
+}
+
+/* Close button removed - using footer Close button only */
+
+.modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.detail-row span {
+  color: #333;
+  word-break: break-word;
+}
+
+.transaction-id {
+  font-family: monospace;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.amount {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.amount.positive {
+  color: #28a745;
+}
+
+.amount.negative {
+  color: #dc3545;
+}
+
+.notes-row {
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+}
+
+/* Make this specific to the modal to avoid conflicts with transaction table */
+.transaction-detail-modal .notes-content {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid #447b7b;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-style: italic;
+  color: #555;
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close-modal-button {
+  background: #447b7b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.view-documents-button {
+  background: #447b7b;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.view-documents-button:hover:not(:disabled) {
+  background: #2c5c5c;
+}
+
+.view-documents-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.close-modal-button:hover {
+  background: #2c5c5c;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  
+  .transaction-detail-modal {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100vh - 40px);
+    margin: 0;
+  }
+  
+  .modal-header {
+    padding: 16px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .modal-content {
+    padding: 16px;
+  }
+  
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .detail-row label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 5px;
+    align-items: flex-start;
+    padding-top: 10px;
+  }
+  
+  .transaction-detail-modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 8px;
+  }
+}
+
+/* Large screens - ensure proper centering */
+@media (min-width: 1200px) {
+  .transaction-detail-modal {
+    max-width: 700px;
+  }
+}
+
+/* Fallback centering for older browsers */
+@supports not (display: flex) {
+  .modal-overlay {
+    display: table;
+    text-align: center;
+  }
+  
+  .modal-overlay:before {
+    content: '';
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+  }
+  
+  .transaction-detail-modal {
+    display: inline-block;
+    vertical-align: middle;
+    text-align: left;
+  }
+}
+
+/* Documents section styles */
+.documents-row {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.documents-content {
+  margin-top: 8px;
+}
+
+.documents-row .documents-content .document-list {
+  max-height: 200px;
+  overflow-y: auto;
+}

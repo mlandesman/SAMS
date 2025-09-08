@@ -1,0 +1,87 @@
+{
+  "basicInfo": {
+    "fullName": "Marina Turquesa Condominiums A.C.",
+    "displayName": "MTC",
+    "clientType": "HOA",
+    "legalType": "AC",
+    "taxId": "",
+    "description": "Property management client",
+    "established": {
+      "_seconds": 1751697661,
+      "_nanoseconds": 214000000
+    }
+  },
+  "contactInfo": {
+    "primaryEmail": "admin@example.com",
+    "secondaryEmail": "",
+    "phone": "+52 984-000-0000",
+    "alternatePhone": null,
+    "address": {
+      "street": "",
+      "city": "Playa del Carmen",
+      "state": "QR",
+      "postalCode": "77710",
+      "country": "MX"
+    },
+    "mailingAddress": null,
+    "website": null
+  },
+  "propertyInfo": {
+    "totalUnits": 24,
+    "buildings": 1,
+    "yearBuilt": 2005,
+    "propertyType": "Highrise",
+    "amenities": [],
+    "commonAreas": [],
+    "parkingSpaces": {
+      "total": 48,
+      "guest": 6,
+      "assigned": 42
+    }
+  },
+  "branding": {
+    "logoUrl": null,
+    "iconUrl": null,
+    "brandColors": {
+      "primary": "#2563eb",
+      "secondary": "#64748b",
+      "accent": "#10b981",
+      "danger": "#ef4444",
+      "success": "#22c55e"
+    },
+    "customCSS": null
+  },
+  "configuration": {
+    "timezone": "America/Cancun",
+    "currency": "MXN",
+    "language": "en",
+    "locale": "en-US",
+    "dateFormat": "DD/MM/YYYY",
+    "fiscalYearStart": "january",
+    "accountingMethod": "cash"
+  },
+  "governance": null,
+  "feeStructure": null,
+  "documents": {},
+  "emergencyContacts": [],
+  "metadata": {
+    "version": 1,
+    "createdBy": "interactive-setup",
+    "createdAt": {
+      "_seconds": 1751697692,
+      "_nanoseconds": 516000000
+    },
+    "lastModifiedBy": "interactive-setup",
+    "lastModified": {
+      "_seconds": 1751697692,
+      "_nanoseconds": 516000000
+    },
+    "dataSource": "interactive",
+    "importBatch": null
+  },
+  "status": "active",
+  "updated": {
+    "_seconds": 1751697652,
+    "_nanoseconds": 450000000
+  }
+}

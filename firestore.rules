@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == 'michael@landesman.com' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.globalRole == 'superAdmin');
+    }
+    
+    function hasClientAccess(clientId) {
+      return isAuthenticated() && 
+        (isSuperAdmin() ||
+         clientId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clientAccess);
+    }
+    
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isSuperAdmin();
+    }
+    
+    // Client documents
+    match /clients/{clientId}/{document=**} {
+      allow read: if hasClientAccess(clientId);
+      allow write: if hasClientAccess(clientId);
+    }
+    
+    // Menu configuration (global)
+    match /menuConfigurations/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+    
+    // Exchange rates (global)
+    match /exchangeRates/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // System settings
+    match /systemSettings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+    
+    // Default deny for anything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

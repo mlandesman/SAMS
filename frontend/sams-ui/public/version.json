@@ -1,0 +1,35 @@
+{
+  "appName": "SAMS",
+  "shortName": "SAMS",
+  "companyName": "Sandyland Properties",
+  "copyright": "2025",
+  "version": "0.0.1",
+  "buildDate": "2025-08-08T03:04:34.417Z",
+  "buildTimestamp": 1754622274417,
+  "environment": "production",
+  "gitBranch": "main",
+  "gitCommit": "89c1b22",
+  "developers": [
+    "Michael Landesman",
+    "Claude AI"
+  ],
+  "features": [
+    "PWA Support",
+    "Multi-Client Management",
+    "Financial Reporting",
+    "Document Storage",
+    "Unit Management"
+  ],
+  "build": {
+    "timestamp": "2025-08-08T03:04:34.417Z",
+    "environment": "production",
+    "nodeVersion": "v22.15.0",
+    "platform": "darwin",
+    "buildNumber": "20250807.2204"
+  },
+  "deployment": {
+    "target": "production",
+    "date": "2025-08-08T03:04:34.417Z",
+    "automated": true
+  }
+}

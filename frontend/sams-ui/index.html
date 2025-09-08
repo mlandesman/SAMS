@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/icon-192x192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e40af" />
+    <meta name="description" content="Property management system for Sandyland condominiums" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SAMS" />
+    <title>SAMS - Sandyland Asset Management</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register service worker for PWA functionality with update detection
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // Check for updates every hour
+              setInterval(() => {
+                registration.update();
+              }, 3600000);
+              
+              // Listen for update found
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('New service worker available');
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'activated' && !document.hidden) {
+                    // Only show update prompt once per session
+                    const updatePromptShown = sessionStorage.getItem('updatePromptShown');
+                    if (!updatePromptShown) {
+                      sessionStorage.setItem('updatePromptShown', 'true');
+                      if (confirm('New version available! Reload to update?')) {
+                        window.location.reload();
+                      }
+                    }
+                  }
+                });
+              });
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

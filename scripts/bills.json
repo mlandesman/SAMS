@@ -1,0 +1,148 @@
+{
+  "2026-00": {
+    "_id": "2026-00",
+    "billDate": "2025-09-01T22:30:33.035Z",
+    "dueDate": "2025-09-11T22:30:33.035Z",
+    "billingPeriod": "July 2025",
+    "fiscalYear": 2026,
+    "fiscalMonth": 0,
+    "configSnapshot": {
+      "ratePerM3": 5000,
+      "penaltyRate": 0.05,
+      "currency": "MXN",
+      "currencySymbol": "$",
+      "minimumCharge": 0,
+      "compoundPenalty": true
+    },
+    "bills": {
+      "units": {
+        "101": {
+          "priorReading": 1749,
+          "currentReading": 1767,
+          "consumption": 18,
+          "currentCharge": 900,
+          "penaltyAmount": 0,
+          "totalAmount": 900,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "102": {
+          "priorReading": 7,
+          "currentReading": 26,
+          "consumption": 19,
+          "currentCharge": 950,
+          "penaltyAmount": 0,
+          "totalAmount": 950,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "103": {
+          "priorReading": 835,
+          "currentReading": 842,
+          "consumption": 7,
+          "currentCharge": 350,
+          "penaltyAmount": 0,
+          "totalAmount": 350,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "104": {
+          "priorReading": 1481,
+          "currentReading": 1489,
+          "consumption": 8,
+          "currentCharge": 400,
+          "penaltyAmount": 0,
+          "totalAmount": 400,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "105": {
+          "priorReading": 830,
+          "currentReading": 846,
+          "consumption": 16,
+          "currentCharge": 800,
+          "penaltyAmount": 0,
+          "totalAmount": 800,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "106": {
+          "priorReading": 1340,
+          "currentReading": 1351,
+          "consumption": 11,
+          "currentCharge": 550,
+          "penaltyAmount": 0,
+          "totalAmount": 550,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "201": {
+          "priorReading": 1083,
+          "currentReading": 1084,
+          "consumption": 1,
+          "currentCharge": 50,
+          "penaltyAmount": 0,
+          "totalAmount": 50,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "203": {
+          "priorReading": 1576,
+          "currentReading": 1619,
+          "consumption": 43,
+          "currentCharge": 2150,
+          "penaltyAmount": 0,
+          "totalAmount": 2150,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        },
+        "204": {
+          "priorReading": 1819,
+          "currentReading": 1820,
+          "consumption": 1,
+          "currentCharge": 50,
+          "penaltyAmount": 0,
+          "totalAmount": 50,
+          "status": "unpaid",
+          "paidAmount": 0,
+          "penaltyPaid": 0,
+          "lastPenaltyUpdate": "2025-09-01T22:30:33.340Z"
+        }
+      }
+    },
+    "summary": {
+      "totalUnits": 9,
+      "totalNewCharges": 6200,
+      "totalBilled": 6200,
+      "totalUnpaid": 6200,
+      "totalPaid": 0,
+      "currency": "MXN",
+      "currencySymbol": "$"
+    },
+    "metadata": {
+      "generatedBy": "system",
+      "readingsDocId": "2026-00",
+      "penaltiesApplied": false,
+      "generatedAt": {
+        "_seconds": 1756765833,
+        "_nanoseconds": 530000000
+      }
+    }
+  }
+}

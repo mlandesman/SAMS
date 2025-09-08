@@ -1,0 +1,97 @@
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto; /* Ensure clicks pass through the overlay */
+  z-index: 1000; /* Ensure it's on top of other elements */
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%; /* Adjust as needed */
+  max-width: 600px; /* Adjust as needed */
+  pointer-events: auto; /* Ensure clicks are captured within the modal */
+}
+
+.modal-header {
+  font-size: 22px;
+  font-weight: bold;
+  color: #2d5552;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-form label {
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #444;
+}
+
+.modal-form input,
+.modal-form select,
+.modal-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.modal-form textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-form input[type="number"] {
+  margin-bottom: 35px;
+}
+
+.modal-actions {
+  text-align: center;
+}
+
+.modal-actions button {
+  padding: 12px 22px;
+  background-color: #347d77;
+  color: white;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.modal-actions button:hover {
+  background-color: #265e59;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+}
+
+.modal-close:hover {
+  color: #333;
+}

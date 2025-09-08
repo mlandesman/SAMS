@@ -1,0 +1,36 @@
+============================================================
+MIGRATION VERIFICATION REPORT
+============================================================
+
+Client: MTC
+Timestamp: 2025-08-07T00:56:33.131Z
+Source: dev
+Target: prod
+Status: ✅ SUCCESS
+
+DOCUMENT COMPARISON
+----------------------------------------
+✓ categories: 26 → 26
+✓ config: 2 → 2
+✓ importMetadata: 526 → 526
+✓ paymentMethods: 7 → 7
+✓ transactions: 449 → 449
+✓ units: 10 → 10
+✓ units/dues: 10 → 10
+✓ vendors: 24 → 24
+✓ yearEndBalances: 1 → 1
+✓ accounts: 2 → 2
+✓ users: 0 → 0
+✓ auditLogs: 0 → 0
+
+FINANCIAL COMPARISON
+----------------------------------------
+✓ Accounts: 2 → 2
+✓ Balance: $414234.12 → $414234.12
+✓ Transactions: 449 → 449
+
+USER ACCESS
+----------------------------------------
+Users with access: 0 → 0
+
+============================================================

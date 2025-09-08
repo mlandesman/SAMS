@@ -1,0 +1,38 @@
+/* src/Layout.css */
+.layout-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden; /* Prevent scrolling */
+}
+
+.sidebar {
+  width: 200px;
+  background-color: white;
+  height: 100vh;
+  flex-shrink: 0; /* Prevent the sidebar from shrinking */
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Take up remaining horizontal space */
+}
+
+.top-bar {
+  height: 50px;
+  background-color: white;
+  flex-shrink: 0; /* Prevent the top bar from shrinking */
+}
+
+.content {
+  flex: 1; /* Take up remaining vertical space */
+  background-color: whitesmoke;
+  overflow: auto; /* Enable scrolling if content overflows */
+}
+
+.status-bar {
+  height: 25px;
+  background-color: white;
+  flex-shrink: 0; /* Prevent the status bar from shrinking */
+}

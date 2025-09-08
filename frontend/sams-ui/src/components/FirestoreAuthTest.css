@@ -1,0 +1,71 @@
+.firestore-test-container {
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.firestore-test-container h2 {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.auth-status {
+  background-color: #e6f7ff;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.test-actions button {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.test-actions button:hover {
+  background-color: #40a9ff;
+}
+
+.test-actions button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+.test-results {
+  margin-top: 20px;
+}
+
+.test-results h3 {
+  margin-bottom: 10px;
+}
+
+.test-results ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.test-results li {
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+}
+
+.test-results li.info {
+  background-color: #f0f0f0;
+}
+
+.test-results li.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.test-results li.error {
+  background-color: #fff2f0;
+  color: #f5222d;
+}

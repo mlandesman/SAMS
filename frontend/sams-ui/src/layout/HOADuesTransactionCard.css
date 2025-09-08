@@ -1,0 +1,38 @@
+.hoa-dues-transaction-card {
+  background-color: #f7fbff;
+  border: 1px solid #cde0f7;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.hoa-dues-transaction-card h3 {
+  color: #0527ae;
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+.hoa-dues-metadata {
+  margin-bottom: 16px;
+}
+
+.hoa-dues-metadata p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.view-dues-button {
+  background-color: #0527ae;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.view-dues-button:hover {
+  background-color: #041b74;
+}

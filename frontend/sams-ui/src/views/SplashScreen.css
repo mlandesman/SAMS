@@ -1,0 +1,73 @@
+.splash-screen {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color: #213547;
+  box-sizing: border-box; 
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Take up remaining vertical space */
+  width: 100%; /* Take up the full width */
+  height: 100%;
+  align-items: center; /* Center items horizontally */
+  justify-content: center; /* Center items vertically */
+  background: #0863bf;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+}
+
+.splash-screen-container { 
+  width: 100%;  /* Fill width of parent (.content) */
+  height: 100%; /* Fill height of parent (.content) */
+  display: flex; 
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px; 
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+}
+
+.splash-content { 
+  max-width: 600px;
+  /* text-align: center; */ /* Ensure content within this is centered if needed */
+}
+
+.splash-logo { 
+  width: 60%; 
+  max-width: 450px; /* Adjusted */
+  margin-bottom: 25px; 
+}
+
+.splash-screen-container h2 { /* Targets h1 directly inside .splash-screen-container */
+  font-size: 2.0rem; /* Adjusted */
+  margin-bottom: 15px;
+  color: #000000; /* Ensure text is visible on gradient */
+}
+
+.splash-screen-container p {
+  font-size: 1.1rem; /* Adjusted */
+  margin-bottom: 30px;
+  line-height: 1.6;
+  color: #000000; /* Ensure text is visible on gradient */
+}
+
+.splash-actions .splash-button {
+  background-color: #ffca28; 
+  color: #004d40; 
+  border: none;
+  padding: 12px 25px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.splash-actions .splash-button:hover {
+  background-color: #ffb300; 
+}
