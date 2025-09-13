@@ -427,6 +427,26 @@ class WaterAPI {
   }
 
   /**
+   * Get readings for a specific month (new backend endpoint)
+   */
+  async getReadings(clientId, year, month) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.domainBaseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    return handleApiResponse(response);
+  }
+
+  /**
    * Clear water data cache for a client
    */
   async clearCache(clientId) {

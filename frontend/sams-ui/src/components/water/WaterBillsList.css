@@ -13,6 +13,85 @@
   text-align: center !important;
 }
 
+/* Transaction linking styles */
+.bill-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.bill-row:hover {
+  background-color: #f8f9fa;
+}
+
+.bill-row.selected {
+  background-color: #e3f2fd;
+  border-left: 3px solid #1976d2;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #1976d2;
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: underline;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.link-button:hover {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.link-button.paid-status {
+  color: #2e7d32;
+}
+
+.link-button.paid-status:hover {
+  background-color: #e8f5e8;
+  color: #1b5e20;
+}
+
+.status-button {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-button.status-unpaid {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.status-button.status-unpaid:hover {
+  background-color: #ffcdd2;
+  color: #b71c1c;
+}
+
+.status-button.status-partial {
+  background-color: #fff3e0;
+  color: #ef6c00;
+  border: 1px solid #ffcc02;
+}
+
+.status-button.status-partial:hover {
+  background-color: #ffcc02;
+  color: #e65100;
+}
+
+.status-button.status-paid {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
 .water-bills-container {
   padding: 20px;
   background-color: #fff;

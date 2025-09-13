@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
-const WaterHistoryGrid = ({ clientId }) => {
+const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const [yearData, setYearData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (clientId) {
@@ -206,17 +208,73 @@ const WaterHistoryGrid = ({ clientId }) => {
                       const consumption = unitData?.consumption;
                       const amount = unitData?.billAmount;
                       
+                      // Handle amount cell click for transaction navigation
+                      const handleAmountClick = () => {
+                        if (unitData?.transactionId) {
+                          console.log(`💳 Navigating to transaction ID: ${unitData.transactionId}`);
+                          navigate(`/transactions?id=${unitData.transactionId}`);
+                          
+                          // Update sidebar activity
+                          try {
+                            const event = new CustomEvent('activityChange', { 
+                              detail: { activity: 'transactions' } 
+                            });
+                            window.dispatchEvent(event);
+                          } catch (error) {
+                            console.error('Error dispatching activity change event:', error);
+                          }
+                        }
+                        
+                        // Also trigger bill selection for Action Bar
+                        if (onBillSelection && unitData) {
+                          const billData = {
+                            unitId,
+                            period: month.monthName + ' ' + month.calendarYear,
+                            consumption: consumption || 0,
+                            amount: amount || 0,
+                            transactionId: unitData.transactionId || null,
+                            billNotes: unitData.billNotes
+                          };
+                          onBillSelection(billData);
+                        }
+                      };
+                      
+                      // Enhanced tooltip with full bill notes and transaction info
+                      const tooltipText = unitData?.transactionId ? 
+                        `${unitData?.billNotes || `Unit ${unitId} - ${consumption} m³ consumption`} (Click to view transaction)` :
+                        unitData?.billNotes || (consumption > 0 ? `Unit ${unitId} - ${consumption} m³ consumption` : '');
+                      
                       return (
-                        <td key={unitId} className="payment-cell">
+                        <td 
+                          key={unitId} 
+                          className="payment-cell"
+                          title={tooltipText}
+                        >
                           {consumption > 0 ? (
-                            <>
-                              <div style={{ fontSize: '20px', color: '#333' }}>
-                                {formatNumber(consumption)}
-                              </div>
-                              <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
-                                ${formatCurrency(amount)}
-                              </div>
-                            </>
+                            unitData?.transactionId ? (
+                              <button 
+                                className="link-button amount-link"
+                                onClick={handleAmountClick}
+                                title={tooltipText}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right', width: '100%' }}
+                              >
+                                <div style={{ fontSize: '20px', color: '#333' }}>
+                                  {formatNumber(consumption)}
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
+                                  ${formatCurrency(amount)}
+                                </div>
+                              </button>
+                            ) : (
+                              <>
+                                <div style={{ fontSize: '20px', color: '#333' }}>
+                                  {formatNumber(consumption)}
+                                </div>
+                                <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
+                                  ${formatCurrency(amount)}
+                                </div>
+                              </>
+                            )
                           ) : (
                             '-'
                           )}

@@ -106,6 +106,12 @@
   text-align: right;
 }
 
+/* Center-align wash count column headers */
+.reading-entry-table th:nth-child(6),
+.reading-entry-table th:nth-child(7) {
+  text-align: center;
+}
+
 .reading-entry-table td {
   padding: 10px 12px;
   border-bottom: 1px solid #e9ecef;
@@ -184,6 +190,33 @@
   margin-left: 5px;
   color: #ffc107;
   cursor: help;
+}
+
+/* Wash Count Columns */
+.wash-count {
+  text-align: center;
+  padding: 5px;
+}
+
+.wash-input {
+  width: 50px;
+  padding: 6px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  text-align: center;
+}
+
+.wash-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+}
+
+.wash-input:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
 
 /* Action Buttons */
@@ -289,6 +322,12 @@
   .reading-input {
     font-size: 13px;
     padding: 6px;
+  }
+
+  .wash-input {
+    width: 40px;
+    font-size: 12px;
+    padding: 4px;
   }
 
   .entry-actions {

@@ -24,10 +24,11 @@ class WaterReadingsService {
       .collection('projects').doc('waterBills')
       .collection('readings').doc(docId);
     
+    // Store readings exactly as received from frontend
     const data = {
       year,
       month,
-      readings,
+      readings, // Now contains nested objects: {"101": {reading: 1780, carWashCount: 2, boatWashCount: 1}}
       timestamp: admin.firestore.FieldValue.serverTimestamp()
     };
     

@@ -41,3 +41,19 @@
   font-weight: 600;
   background-color: #e0e0e0;
 }
+
+/* Mobile responsiveness for wash columns */
+@media (max-width: 768px) {
+  .entry-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .entry-table-container .MuiTable-root {
+    min-width: 800px;
+  }
+  
+  .entry-table-container .MuiTableCell-root {
+    padding: 4px 8px;
+  }
+}

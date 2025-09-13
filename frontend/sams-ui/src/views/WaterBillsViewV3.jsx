@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
 import WaterBillsList from '../components/water/WaterBillsList';
@@ -13,16 +14,17 @@ import {
   faHistory,
   faChevronLeft,
   faChevronRight,
-  faSync
+  faSync,
+  faExchangeAlt
 } from '@fortawesome/free-solid-svg-icons';
 import './WaterBillsIntegratedView.css';
 
 function WaterBillsViewV3() {
   console.log('🔍 WaterBillsViewV3 RENDERING - VERSION 3.0 WITH TABS - ' + new Date().toISOString());
-  console.log('🚀 This is the NEW integrated view with 3 tabs: Readings, Bills, History');
   
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
+  const navigate = useNavigate();
   
   // State
   const [activeTab, setActiveTab] = useState('readings');
@@ -30,8 +32,8 @@ function WaterBillsViewV3() {
   const [selectedMonth, setSelectedMonth] = useState(0); // Default to July (month 0)
   const [refreshKey, setRefreshKey] = useState(0);
   
-  console.log('🔍 WaterBillsViewV3 - activeTab:', activeTab);
-  console.log('🔍 WaterBillsViewV3 - selectedClient:', selectedClient?.id);
+  // Transaction linking state (following HOA Dues pattern)
+  const [selectedBill, setSelectedBill] = useState(null); // Currently selected bill for transaction viewing
   
   // For now, extract unit IDs from the first successful API call
   // and create placeholder units until backend adds owner info
@@ -66,14 +68,46 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // Handle refresh
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
+  // Enhanced refresh function that integrates with WaterBillsList cache clearing
+  const handleRefresh = async () => {
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered');
+    
+    // If we're on the Bills tab and the WaterBillsList refresh function is available, use it
+    if (activeTab === 'bills' && window.waterBillsRefresh) {
+      await window.waterBillsRefresh();
+    } else {
+      // Otherwise, just increment refresh key for other tabs
+      setRefreshKey(prev => prev + 1);
+    }
   };
   
   // Handle save success from reading entry
   const handleReadingSaveSuccess = () => {
     handleRefresh();
+  };
+  
+  // Handle View Transaction button click (following HOA Dues pattern exactly)
+  const handleViewTransaction = () => {
+    if (selectedBill?.transactionId) {
+      console.log(`💳 Navigating to transaction ID: ${selectedBill.transactionId}`);
+      navigate(`/transactions?id=${selectedBill.transactionId}`);
+      
+      // Update sidebar activity (following HOA Dues pattern)
+      try {
+        const event = new CustomEvent('activityChange', { 
+          detail: { activity: 'transactions' } 
+        });
+        window.dispatchEvent(event);
+      } catch (error) {
+        console.error('Error dispatching activity change event:', error);
+      }
+    }
+  };
+  
+  // Bill selection handler for Action Bar integration
+  const handleBillSelection = (bill) => {
+    setSelectedBill(bill);
+    console.log('📝 Selected bill for transaction linking:', bill);
   };
   
   // Year navigation component
@@ -129,7 +163,6 @@ function WaterBillsViewV3() {
     );
   }
   
-  console.log('🔍 WaterBillsViewV3 - Rendering main UI with tabs');
   
   return (
     <div className="water-bills-integrated-view">
@@ -138,6 +171,16 @@ function WaterBillsViewV3() {
         <button className="action-item" onClick={handleRefresh}>
           <FontAwesomeIcon icon={faSync} />
           <span>Refresh</span>
+        </button>
+        {/* View Transaction button - follows task assignment pattern */}
+        <button 
+          className="action-item" 
+          onClick={handleViewTransaction}
+          disabled={!selectedBill?.transactionId}
+          title={selectedBill?.transactionId ? 'View linked transaction details' : 'Select a paid bill to view transaction'}
+        >
+          <FontAwesomeIcon icon={faExchangeAlt} />
+          <span>View Trnx</span>
         </button>
       </ActivityActionBar>
       
@@ -197,6 +240,9 @@ function WaterBillsViewV3() {
               <WaterBillsList 
                 key={`bills-${refreshKey}`}
                 clientId={selectedClient.id}
+                onBillSelection={handleBillSelection}
+                selectedBill={selectedBill}
+                onRefresh={() => setRefreshKey(prev => prev + 1)}
               />
             </div>
           )}
@@ -206,6 +252,8 @@ function WaterBillsViewV3() {
               <WaterHistoryGrid 
                 key={`history-${refreshKey}`}
                 clientId={selectedClient.id}
+                onBillSelection={handleBillSelection}
+                selectedBill={selectedBill}
               />
             </div>
           )}

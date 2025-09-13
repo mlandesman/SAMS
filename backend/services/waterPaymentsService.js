@@ -208,22 +208,37 @@ class WaterPaymentsService {
       transactionId: null // Will be updated after transaction creation
     });
     
-    // STEP 7: Create accounting transaction (like HOA)
-    // Note: Create transaction first to get the transaction ID for bill updates
+    // STEP 7: Create accounting transaction with rich water bill context
+    // Import generateWaterBillNotes function for enhanced transaction descriptions
+    const { default: waterBillsService } = await import('./waterBillsService.js');
+    
+    // Enhanced transaction data with water bill details using existing generateWaterBillNotes function
     const transactionData = {
       amount: amount,
       type: 'income',
       categoryId: 'water-consumption',
       categoryName: 'Water Consumption',
       vendorId: 'deposit',
-      description: this._generateTransactionDescription(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId),
+      description: await this._generateEnhancedTransactionDescription(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, clientId, waterBillsService),
       unitId: unitId,
       accountId: accountId,
       accountType: accountType,
       paymentMethod: paymentMethod,
       reference: reference,
-      notes: this._generateTransactionNotes(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, notes, amount),
-      date: paymentDate
+      notes: await this._generateEnhancedTransactionNotes(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, notes, amount, clientId, waterBillsService),
+      date: paymentDate,
+      // Add metadata for water bills context to support future receipt generation
+      metadata: {
+        billPayments: billPayments.map(bp => ({
+          period: bp.billPeriod,
+          amountPaid: bp.amountPaid,
+          baseChargePaid: bp.baseChargePaid,
+          penaltyPaid: bp.penaltyPaid
+        })),
+        totalBaseCharges: totalBaseChargesPaid,
+        totalPenalties: totalPenaltiesPaid,
+        paymentType: billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
+      }
     };
     
     const transactionResult = await createTransaction(clientId, transactionData);
@@ -477,6 +492,127 @@ class WaterPaymentsService {
     }
     
     return `Water bill payment - Unit ${unitId}`;
+  }
+  
+  /**
+   * Generate enhanced transaction description using water bill details
+   */
+  async _generateEnhancedTransactionDescription(billPayments, totalBaseCharges, totalPenalties, unitId, clientId, waterBillsService) {
+    if (billPayments.length === 0) {
+      return `Water bill credit - Unit ${unitId}`;
+    }
+    
+    // Get the first bill period for the primary description
+    const firstBillPeriod = billPayments[0].billPeriod;
+    const readableDate = this._convertPeriodToReadableDate(firstBillPeriod);
+    
+    // Try to get consumption and wash details from the bill
+    try {
+      const billData = await this._getBillDataForTransaction(clientId, firstBillPeriod, unitId);
+      if (billData) {
+        // Use existing generateWaterBillNotes function for consistent formatting
+        const billNotes = waterBillsService.generateWaterBillNotes(
+          billData.consumption || 0,
+          billData.carWashCount || 0,
+          billData.boatWashCount || 0,
+          readableDate
+        );
+        return `Water Bill Payment - ${billNotes}`;
+      }
+    } catch (error) {
+      console.warn('Could not get enhanced bill details for transaction description:', error);
+    }
+    
+    // Fallback to simple description
+    return `Water bill payment - Unit ${unitId} - ${readableDate}`;
+  }
+  
+  /**
+   * Generate enhanced transaction notes using water bill details
+   */
+  async _generateEnhancedTransactionNotes(billPayments, totalBaseCharges, totalPenalties, unitId, userNotes = '', totalAmount, clientId, waterBillsService) {
+    if (billPayments.length === 0) {
+      const notesText = userNotes ? ` - ${userNotes}` : '';
+      return `Water bill payment for Unit ${unitId} - No bills due${notesText} - $${totalAmount.toFixed(2)} credit`;
+    }
+    
+    // Convert periods to readable dates and try to get enhanced details
+    const enhancedPeriods = [];
+    
+    for (const payment of billPayments) {
+      const readableDate = this._convertPeriodToReadableDate(payment.billPeriod);
+      
+      try {
+        const billData = await this._getBillDataForTransaction(clientId, payment.billPeriod, unitId);
+        if (billData) {
+          // Use existing generateWaterBillNotes function for consistent formatting
+          const billNotes = waterBillsService.generateWaterBillNotes(
+            billData.consumption || 0,
+            billData.carWashCount || 0,
+            billData.boatWashCount || 0,
+            readableDate
+          );
+          enhancedPeriods.push(billNotes);
+        } else {
+          enhancedPeriods.push(readableDate);
+        }
+      } catch (error) {
+        console.warn(`Could not get enhanced details for ${payment.billPeriod}:`, error);
+        enhancedPeriods.push(readableDate);
+      }
+    }
+    
+    const periodsText = enhancedPeriods.join(', ');
+    
+    // Build breakdown text
+    let breakdown = '';
+    if (totalBaseCharges > 0 && totalPenalties > 0) {
+      breakdown = `$${totalBaseCharges.toFixed(2)} charges + $${totalPenalties.toFixed(2)} penalties`;
+    } else if (totalBaseCharges > 0) {
+      breakdown = `$${totalBaseCharges.toFixed(2)} charges`;
+    } else if (totalPenalties > 0) {
+      breakdown = `$${totalPenalties.toFixed(2)} penalties`;
+    }
+    
+    // Format: "Water bill payment for Unit 203 - Water Consumption for Jul 2025 - 0018 m³, 1 Car wash - Test payment - $900 charges"
+    const userNotesText = userNotes ? ` - ${userNotes}` : '';
+    return `Water bill payment for Unit ${unitId} - ${periodsText}${userNotesText} - ${breakdown}`;
+  }
+  
+  /**
+   * Get bill data for transaction description enhancement
+   */
+  async _getBillDataForTransaction(clientId, billPeriod, unitId) {
+    try {
+      const billRef = this.db.collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills')
+        .collection('bills').doc(billPeriod);
+      
+      const billDoc = await billRef.get();
+      if (!billDoc.exists) {
+        return null;
+      }
+      
+      const billData = billDoc.data();
+      const unitBill = billData.bills?.units?.[unitId];
+      
+      if (!unitBill) {
+        return null;
+      }
+      
+      return {
+        consumption: unitBill.consumption || 0,
+        carWashCount: unitBill.carWashCount || 0,
+        boatWashCount: unitBill.boatWashCount || 0,
+        currentCharge: unitBill.currentCharge || 0,
+        waterCharge: unitBill.waterCharge || 0,
+        carWashCharge: unitBill.carWashCharge || 0,
+        boatWashCharge: unitBill.boatWashCharge || 0
+      };
+    } catch (error) {
+      console.error('Error getting bill data for transaction:', error);
+      return null;
+    }
   }
 
   /**

@@ -61,24 +61,54 @@ class WaterBillsService {
     
     for (const [unitId, data] of Object.entries(monthData.units || {})) {
       
-      // Calculate new charges for this month
-      let newCharge = 0;
+      // Extract car wash and boat wash counts from nested currentReading
+      const carWashCount = data.currentReading?.carWashCount || 0;
+      const boatWashCount = data.currentReading?.boatWashCount || 0;
+      
+      // Calculate water consumption charges
+      let waterCharge = 0;
       if (data.consumption > 0 || config.minimumCharge > 0) {
-        newCharge = Math.max(
+        waterCharge = Math.max(
           data.consumption * rateInPesos,
           (config.minimumCharge || 0) / 100
         );
       }
       
+      // Calculate car wash charges
+      const carWashCharge = carWashCount * ((config.rateCarWash || 0) / 100);
+      
+      // Calculate boat wash charges  
+      const boatWashCharge = boatWashCount * ((config.rateBoatWash || 0) / 100);
+      
+      // Total charge for this month
+      const newCharge = waterCharge + carWashCharge + boatWashCharge;
+      
       // Removed Unit 203 debug logging to prevent confusion
       
       // Only create a bill if there are new charges for this month
       if (newCharge > 0) {
+        // Generate bill notes for this unit
+        const billNotes = this.generateWaterBillNotes(
+          data.consumption, 
+          carWashCount, 
+          boatWashCount, 
+          monthData.monthName + ' ' + monthData.calendarYear
+        );
+        
         bills[unitId] = {
           // Meter readings (match existing order)
           priorReading: data.priorReading,
-          currentReading: data.currentReading,
+          currentReading: data.currentReading?.reading || data.currentReading,
           consumption: data.consumption,
+          
+          // Service counts for billing transparency
+          carWashCount: carWashCount,
+          boatWashCount: boatWashCount,
+          
+          // Detailed charges breakdown
+          waterCharge: waterCharge,
+          carWashCharge: carWashCharge,
+          boatWashCharge: boatWashCharge,
           
           // Core financial fields (clean - no previousBalance/previousPenalty)
           currentCharge: newCharge,
@@ -86,6 +116,9 @@ class WaterBillsService {
           totalAmount: newCharge,              // currentCharge + penaltyAmount (0 for new)
           status: 'unpaid',
           paidAmount: 0,
+          
+          // Bill notes for detailed breakdown
+          billNotes: billNotes,
           
           // Timestamp
           lastPenaltyUpdate: new Date().toISOString(),
@@ -102,9 +135,11 @@ class WaterBillsService {
     // Add validation to prevent field recreation
     const ALLOWED_BILL_FIELDS = [
       'priorReading', 'currentReading', 'consumption',
+      'carWashCount', 'boatWashCount',
+      'waterCharge', 'carWashCharge', 'boatWashCharge',
       'currentCharge', 'penaltyAmount', 'totalAmount',
       'status', 'paidAmount', 'penaltyPaid',
-      'lastPenaltyUpdate', 'lastPayment', 'basePaid'
+      'billNotes', 'lastPenaltyUpdate', 'lastPayment', 'basePaid'
     ];
 
     // Clean any extra fields that might have been added
@@ -486,6 +521,29 @@ class WaterBillsService {
     }
     
     await batch.commit();
+  }
+
+  /**
+   * Generate descriptive bill notes for water consumption and wash services
+   */
+  generateWaterBillNotes(consumption, carWashCount, boatWashCount, period) {
+    const consumptionFormatted = consumption.toString().padStart(4, '0');
+    
+    let notes = `Water Consumption for ${period} - ${consumptionFormatted} m³`;
+    
+    const washServices = [];
+    if (carWashCount > 0) {
+      washServices.push(`${carWashCount} Car wash${carWashCount > 1 ? 'es' : ''}`);
+    }
+    if (boatWashCount > 0) {
+      washServices.push(`${boatWashCount} Boat wash${boatWashCount > 1 ? 'es' : ''}`);
+    }
+    
+    if (washServices.length > 0) {
+      notes += `, ${washServices.join(', ')}`;
+    }
+    
+    return notes;
   }
 
   // Helper methods

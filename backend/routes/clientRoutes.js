@@ -13,10 +13,8 @@ import unitsRoutes from './units.js';
 import emailRoutes from './email.js';
 import reportsRoutes from './reports.js';
 import balancesRoutes from './balances.js';
-import waterMetersRoutes from './waterMeters.js';
 import projectsRoutes from './projects.js';
-import waterRoutes from './water.js';
-import waterReadingsRoutes from './waterReadings.js';
+import waterRoutes from './waterRoutes.js';
 
 // Test route
 router.get('/test', (req, res) => {
@@ -163,18 +161,6 @@ router.use('/:clientId/reports', (req, res, next) => {
   next();
 }, reportsRoutes);
 
-// Mount Water Meters routes
-router.use('/:clientId/watermeters', (req, res, next) => {
-  // Make sure clientId from the parent router is available to the child router
-  const clientId = req.params.clientId;
-  console.log('Client router passing clientId for watermeters:', clientId);
-  
-  // Store original URL parameters before they get overwritten
-  req.originalParams = req.originalParams || {};
-  req.originalParams.clientId = clientId;
-  
-  next();
-}, waterMetersRoutes);
 
 // Mount Projects routes (generic projects pattern for water bills, propane, etc.)
 router.use('/:clientId/projects', (req, res, next) => {
@@ -202,12 +188,5 @@ router.use('/:clientId/projects/waterBills', (req, res, next) => {
   next();
 }, waterRoutes);
 
-// Mount SIMPLE Water Readings routes - PHASE 1
-router.use('/:clientId/water', (req, res, next) => {
-  const clientId = req.params.clientId;
-  req.originalParams = req.originalParams || {};
-  req.originalParams.clientId = clientId;
-  next();
-}, waterReadingsRoutes);
 
 export default router;

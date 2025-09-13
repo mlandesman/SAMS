@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
+import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import WaterPaymentModal from './WaterPaymentModal';
 import './WaterBillsList.css';
 
-const WaterBillsList = ({ clientId }) => {
+const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) => {
   // TEMPORARY: Phase 1 - Single month display only
   // TODO: Phase 2 will add cross-month aggregation
   const ENABLE_AGGREGATION = false;  // Will be enabled in Phase 2
   
   const { selectedClient } = useClient();
+  const navigate = useNavigate();
   const [yearData, setYearData] = useState(null);
   const [billingConfig, setBillingConfig] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(0); // Start with July (month 0)
@@ -103,10 +105,23 @@ const WaterBillsList = ({ clientId }) => {
     
     setRefreshKey(prev => prev + 1);
     
+    // Notify parent component about refresh
+    if (onRefresh) {
+      onRefresh();
+    }
+    
     // The useEffect will trigger fetchYearData due to refreshKey change
     // Clear the message after a short delay
     setTimeout(() => setMessage(''), 2000);
   };
+  
+  // Expose refresh function to parent via onRefresh callback
+  React.useEffect(() => {
+    if (onRefresh) {
+      // Store the refresh function reference so parent can call it
+      window.waterBillsRefresh = handleRefresh;
+    }
+  }, [onRefresh, clientId]);
 
   const hasBillsForMonth = (monthData) => {
     if (!monthData) return false;
@@ -240,15 +255,6 @@ const WaterBillsList = ({ clientId }) => {
         
         <div className="controls-buttons">
           <button 
-            onClick={handleRefresh}
-            disabled={loading}
-            className="btn btn-secondary refresh-btn"
-            title="Refresh water bills data"
-          >
-            <i className="fas fa-sync-alt"></i> {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          
-          <button 
             onClick={() => generateBills(selectedMonth)}
             disabled={hasBills || generating || !selectedDueDate}
             className="btn btn-primary generate-bills-btn"
@@ -297,18 +303,77 @@ const WaterBillsList = ({ clientId }) => {
               const overdue = unit.previousBalance || 0;   // Overdue amounts from previous months
               const due = monthlyCharge + overdue + penalties;  // Total amount to clear account
               
+              
+              // Create bill object for selection/transaction linking
+              const billData = {
+                unitId,
+                period: monthData.monthName + ' ' + monthData.calendarYear,
+                monthlyCharge,
+                penalties,
+                due,
+                status: unit.status || 'unpaid',
+                transactionId: unit.transactionId || null, // Transaction ID for linking
+                billNotes: unit.billNotes,
+                consumption: unit.consumption || 0
+              };
+              
+              // Handle row click for bill selection
+              const handleRowClick = () => {
+                if (onBillSelection) {
+                  onBillSelection(billData);
+                }
+              };
+              
+              // Handle status cell click (transaction navigation OR payment modal)
+              const handleStatusClick = (e) => {
+                e.stopPropagation(); // Prevent row selection
+                
+                
+                if (unit.status === 'paid' && unit.transactionId) {
+                  // Navigate to transaction (following HOA Dues pattern exactly)
+                  console.log(`💳 Navigating to transaction ID: ${unit.transactionId}`);
+                  navigate(`/transactions?id=${unit.transactionId}`);
+                  
+                  // Update sidebar activity
+                  try {
+                    const event = new CustomEvent('activityChange', { 
+                      detail: { activity: 'transactions' } 
+                    });
+                    window.dispatchEvent(event);
+                  } catch (error) {
+                    console.error('Error dispatching activity change event:', error);
+                  }
+                } else if (unit.status === 'paid' && !unit.transactionId) {
+                  alert('No Matching Transaction Record');
+                } else if (unit.status === 'unpaid' || unit.status === 'partial') {
+                  // Open payment modal for unpaid/partial bills (more intuitive UX)
+                  setSelectedUnitForPayment(unitId);
+                  setShowPaymentModal(true);
+                }
+              };
+              
+              // Handle monthly charge click (payment modal)
+              const handleMonthlyChargeClick = (e) => {
+                e.stopPropagation(); // Prevent row selection
+                setSelectedUnitForPayment(unitId);
+                setShowPaymentModal(true);
+              };
+              
+              const isSelected = selectedBill && selectedBill.unitId === unitId;
+              
               return (
-                <tr key={unitId}>
+                <tr 
+                  key={unitId} 
+                  className={`bill-row ${isSelected ? 'selected' : ''}`}
+                  onClick={handleRowClick}
+                >
                   <td className="unit-id text-left">{unitId}</td>
                   <td className="owner-name text-left">{ownerName}</td>
                   <td className="consumption text-right">{formatNumber(unit.consumption || 0)}</td>
                   <td 
                     className="monthly-charge text-right clickable-cell"
-                    onClick={() => {
-                      setSelectedUnitForPayment(unitId);
-                      setShowPaymentModal(true);
-                    }}
-                    title={`Click to record payment for Unit ${unitId}`}
+                    onClick={handleMonthlyChargeClick}
+                    title={unit.billNotes || `Click to record payment for Unit ${unitId}`}
                   >
                     ${formatCurrency(monthlyCharge)}
                   </td>
@@ -330,9 +395,26 @@ const WaterBillsList = ({ clientId }) => {
                     )}
                   </td>
                   <td className="status text-center">
-                    <span className={`status-chip ${getStatusClass(unit.status || 'unpaid')}`}>
-                      {(unit.status || 'unpaid').toUpperCase()}
-                    </span>
+                    {unit.status === 'paid' && unit.transactionId ? (
+                      <button 
+                        className="link-button paid-status"
+                        onClick={handleStatusClick}
+                        title="Click to view transaction details"
+                      >
+                        PAID
+                      </button>
+                    ) : (
+                      <button 
+                        className={`link-button status-button ${getStatusClass(unit.status || 'unpaid')}`}
+                        onClick={handleStatusClick}
+                        title={unit.status === 'unpaid' || unit.status === 'partial' ? 
+                          `Click to record payment for Unit ${unitId}` : 
+                          'No action available'
+                        }
+                      >
+                        {(unit.status || 'unpaid').toUpperCase()}
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

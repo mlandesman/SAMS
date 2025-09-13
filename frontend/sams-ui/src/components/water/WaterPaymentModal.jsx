@@ -222,14 +222,32 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         accountType: selectedAccount.type
       });
       
+      console.log('💳 Full payment API response:', response.data);
+      
       if (response.data.success) {
-        console.log('✅ Water payment recorded successfully:', response.data.data);
+        const result = response.data.data;
+        console.log('✅ Water payment recorded successfully:', response.data);
+        
+        // CRITICAL: Capture transaction ID from payment response (following HOA Dues pattern)
+        // Check multiple possible locations for transaction ID in the API response
+        const transactionId = response.data.transactionId || result?.transactionId;
+        
+        if (transactionId) {
+          console.log(`💳 Transaction ID captured: ${transactionId}`);
+          // The backend waterPaymentsService already stores transactionId in bill records
+          // This creates the bidirectional linking between payments and transactions
+        } else {
+          console.warn('⚠️ No transaction ID returned from payment - linking may be incomplete');
+          console.log('Full response for debugging:', response.data);
+        }
+        
         onSuccess();
         onClose();
       }
       
     } catch (error) {
       console.error('Error recording payment:', error);
+      console.error('Full error object:', error);
       setError(error.response?.data?.error || 'Failed to record payment');
     } finally {
       setLoading(false);

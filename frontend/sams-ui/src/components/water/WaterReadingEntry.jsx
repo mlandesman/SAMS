@@ -3,8 +3,11 @@ import waterAPI from '../../api/waterAPI';
 import './WaterReadingEntry.css';
 
 const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
+  
   const [readings, setReadings] = useState({});
   const [priorReadings, setPriorReadings] = useState({});
+  const [carWashCounts, setCarWashCounts] = useState({});
+  const [boatWashCounts, setBoatWashCounts] = useState({});
   const [commonAreaReading, setCommonAreaReading] = useState('');
   const [priorCommonAreaReading, setPriorCommonAreaReading] = useState(0);
   const [buildingMeterReading, setBuildingMeterReading] = useState('');
@@ -55,54 +58,151 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       setLoading(true);
       setError('');
       
-      // Get the aggregated data to see prior readings
+      // Get the aggregated data to see prior readings and month status
       const response = await waterAPI.getAggregatedData(clientId, year);
+      console.log('🔍 Raw aggregated data response:', JSON.stringify(response.data, null, 2));
       
-      if (response.data && response.data.months[month]) {
-        const monthData = response.data.months[month];
-        const priors = {};
-        const currentReadings = {};
-        
-        // Check if next month has data (meaning this month is locked)
-        const nextMonth = month + 1;
-        if (nextMonth < response.data.months.length && response.data.months[nextMonth]) {
-          const nextMonthHasData = Object.values(response.data.months[nextMonth].units || {}).some(
-            unit => unit.currentReading > 0
-          );
-          setMonthLocked(nextMonthHasData);
-        }
-        
-        // Set up prior readings and current readings for each unit
-        Object.entries(monthData.units).forEach(([unitId, unitData]) => {
-          priors[unitId] = unitData.priorReading || 0;
-          // If there's already a current reading, show it
-          if (unitData.currentReading > 0) {
-            currentReadings[unitId] = unitData.currentReading;
+      const monthData = response.data.months?.find(m => m.month === month);
+      console.log(`🔍 Looking for month ${month} data:`, monthData ? 'found' : 'not found');
+      
+      let priors = {};
+      
+      // Check if next month has data (meaning this month is locked)
+      const nextMonth = month + 1;
+      const nextMonthData = response.data.months?.find(m => m.month === nextMonth);
+      if (nextMonthData) {
+        const nextMonthHasData = Object.values(nextMonthData.units || {}).some(
+          unit => unit.currentReading > 0
+        );
+        setMonthLocked(nextMonthHasData);
+      }
+      
+      // Extract prior readings from the previous month's currentReading data in aggregated response
+      const priorMonth = month - 1;
+      
+      // Handle fiscal year boundary (month -1 should be month 11 of previous fiscal year)
+      if (priorMonth < 0) {
+        // For now, use the fallback method since we'd need prior fiscal year data
+        if (monthData) {
+          Object.entries(monthData.units).forEach(([unitId, unitData]) => {
+            priors[unitId] = unitData.priorReading || 0;
+          });
+          
+          if (monthData.commonArea) {
+            setPriorCommonAreaReading(monthData.commonArea.priorReading || 0);
           }
-        });
-        
-        // Load Common Area and Building Meter from backend structure
-        if (monthData.commonArea) {
-          // Common Area current reading
-          if (monthData.commonArea.currentReading !== undefined) {
-            setCommonAreaReading(monthData.commonArea.currentReading.toString());
+          if (monthData.buildingMeter) {
+            setPriorBuildingMeterReading(monthData.buildingMeter.priorReading || 0);
           }
-          // Common Area prior reading
-          setPriorCommonAreaReading(monthData.commonArea.priorReading || 0);
         }
+      } else {
+        // Look for the prior month's data in the aggregated response
+        console.log(`🔍 Looking for prior month ${priorMonth} data for current month ${month}`);
+        console.log('🔍 Available months in aggregated data:', response.data.months?.length, response.data.months?.map(m => m.month));
+        const priorMonthData = response.data.months?.find(m => m.month === priorMonth);
+        console.log('🔍 Prior month data from aggregated:', priorMonthData ? 'found' : 'not found', JSON.stringify(priorMonthData, null, 2));
         
-        // Building Meter
-        if (monthData.buildingMeter) {
-          // Building Meter current reading
-          if (monthData.buildingMeter.currentReading !== undefined) {
-            setBuildingMeterReading(monthData.buildingMeter.currentReading.toString());
+        if (priorMonthData && priorMonthData.units) {
+          // Extract current readings from prior month to use as this month's priors
+          Object.entries(priorMonthData.units).forEach(([unitId, unitData]) => {
+            if (unitData.currentReading) {
+              if (typeof unitData.currentReading === 'object' && unitData.currentReading.reading !== undefined) {
+                // New nested format: use the reading value
+                priors[unitId] = unitData.currentReading.reading;
+              } else if (typeof unitData.currentReading === 'number') {
+                // Legacy flat format
+                priors[unitId] = unitData.currentReading;
+              }
+            } else {
+              // Fallback to priorReading if no currentReading
+              priors[unitId] = unitData.priorReading || 0;
+            }
+          });
+          
+          // Handle Common Area
+          if (priorMonthData.commonArea && priorMonthData.commonArea.currentReading !== undefined) {
+            setPriorCommonAreaReading(priorMonthData.commonArea.currentReading);
+          } else if (monthData && monthData.commonArea) {
+            setPriorCommonAreaReading(monthData.commonArea.priorReading || 0);
           }
-          // Building Meter prior reading
-          setPriorBuildingMeterReading(monthData.buildingMeter.priorReading || 0);
+          
+          // Handle Building Meter
+          if (priorMonthData.buildingMeter && priorMonthData.buildingMeter.currentReading !== undefined) {
+            setPriorBuildingMeterReading(priorMonthData.buildingMeter.currentReading);
+          } else if (monthData && monthData.buildingMeter) {
+            setPriorBuildingMeterReading(monthData.buildingMeter.priorReading || 0);
+          }
+          
+          console.log('🔍 Updated priors from prior month currentReadings:', priors);
+        } else if (monthData) {
+          // Fallback to current month's priorReading values if available
+          Object.entries(monthData.units).forEach(([unitId, unitData]) => {
+            priors[unitId] = unitData.priorReading || 0;
+          });
+          
+          if (monthData.commonArea) {
+            setPriorCommonAreaReading(monthData.commonArea.priorReading || 0);
+          }
+          if (monthData.buildingMeter) {
+            setPriorBuildingMeterReading(monthData.buildingMeter.priorReading || 0);
+          }
         }
+      }
+      
+      setPriorReadings(priors);
+      
+      // Now try to load saved readings for this specific month in the new nested format
+      try {
+        const savedReadingsResponse = await waterAPI.getReadings ? 
+          await waterAPI.getReadings(clientId, year, month) :
+          await waterAPI.getMonthReadings(clientId, year, month);
         
-        setPriorReadings(priors);
-        setReadings(currentReadings);
+        if (savedReadingsResponse.data && savedReadingsResponse.data.readings) {
+          const savedReadings = savedReadingsResponse.data.readings;
+          console.log('🔍 Raw saved readings data:', JSON.stringify(savedReadings, null, 2));
+          const readings = {};
+          const carWashes = {};
+          const boatWashes = {};
+          
+          // Parse nested readings data
+          Object.entries(savedReadings).forEach(([unitId, data]) => {
+            if (unitId === 'commonArea') {
+              // Handle common area (flat number for now)
+              if (typeof data === 'number') {
+                setCommonAreaReading(data.toString());
+              }
+            } else if (unitId === 'buildingMeter') {
+              // Handle building meter (flat number for now)
+              if (typeof data === 'number') {
+                setBuildingMeterReading(data.toString());
+              }
+            } else {
+              // Handle unit readings with nested data
+              if (typeof data === 'object' && data !== null) {
+                // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
+                if (data.reading !== undefined && data.reading !== null) {
+                  readings[unitId] = data.reading.toString();
+                }
+                carWashes[unitId] = data.carWashCount || 0;
+                boatWashes[unitId] = data.boatWashCount || 0;
+              } else if (typeof data === 'number') {
+                // Legacy flat format fallback
+                readings[unitId] = data.toString();
+                carWashes[unitId] = 0;
+                boatWashes[unitId] = 0;
+              }
+            }
+          });
+          
+          // Update state with loaded data
+          setReadings(readings);
+          setCarWashCounts(carWashes);
+          setBoatWashCounts(boatWashes);
+          
+        }
+      } catch (readingsError) {
+        // If there's no saved readings for this month, that's normal
+        console.log('No saved readings found for this month (normal for new months)');
       }
       
       setLoading(false);
@@ -137,6 +237,24 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
     }));
   };
 
+  const updateCarWashCount = (unitId, value) => {
+    const numValue = value.replace(/[^0-9]/g, '');
+    const count = parseInt(numValue) || 0;
+    setCarWashCounts(prev => ({
+      ...prev,
+      [unitId]: count
+    }));
+  };
+
+  const updateBoatWashCount = (unitId, value) => {
+    const numValue = value.replace(/[^0-9]/g, '');
+    const count = parseInt(numValue) || 0;
+    setBoatWashCounts(prev => ({
+      ...prev,
+      [unitId]: count
+    }));
+  };
+
   const saveReadings = async () => {
     try {
       setSaving(true);
@@ -147,22 +265,31 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       const readingsToSave = {};
       let hasReadings = false;
       
-      // Add unit readings
+      // Add unit readings with wash counts
       units.forEach(unit => {
         const unitId = unit.unitId;
-        if (readings[unitId] && parseInt(readings[unitId]) > 0) {
-          readingsToSave[unitId] = parseInt(readings[unitId]);
+        const reading = readings[unitId] && parseInt(readings[unitId]) > 0 ? parseInt(readings[unitId]) : null;
+        const carWashes = carWashCounts[unitId] || 0;
+        const boatWashes = boatWashCounts[unitId] || 0;
+        
+        // Save if there's a reading OR wash counts
+        if (reading || carWashes > 0 || boatWashes > 0) {
+          readingsToSave[unitId] = {
+            reading: reading,
+            carWashCount: carWashes,
+            boatWashCount: boatWashes
+          };
           hasReadings = true;
         }
       });
       
-      // Add Common Area reading
+      // Add Common Area reading (no wash counts)
       if (commonAreaReading && parseInt(commonAreaReading) > 0) {
         readingsToSave.commonArea = parseInt(commonAreaReading);
         hasReadings = true;
       }
       
-      // Add Building Meter reading
+      // Add Building Meter reading (no wash counts)
       if (buildingMeterReading && parseInt(buildingMeterReading) > 0) {
         readingsToSave.buildingMeter = parseInt(buildingMeterReading);
         hasReadings = true;
@@ -174,6 +301,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
         setSaving(false);
         return;
       }
+      
       
       // Save using the new endpoint
       await waterAPI.saveReadings(clientId, year, month, readingsToSave);
@@ -236,11 +364,13 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       <div className="reading-table-container">
         <table className="hoa-table reading-entry-table">
           <colgroup>
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '25%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '25%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '11%' }} />
           </colgroup>
           <thead>
             <tr>
@@ -249,6 +379,8 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
               <th>Prior Reading</th>
               <th>Current Reading</th>
               <th>Consumption (m³)</th>
+              <th>Car Washes</th>
+              <th>Boat Washes</th>
             </tr>
           </thead>
           <tbody>
@@ -293,12 +425,50 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                         </span>
                       )}
                     </td>
+                    <td className="wash-count">
+                      {monthLocked ? (
+                        <div style={{ textAlign: 'center' }}>
+                          {carWashCounts[unitId] || 0}
+                        </div>
+                      ) : (
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={carWashCounts[unitId] || ''}
+                          onChange={(e) => updateCarWashCount(unitId, e.target.value)}
+                          className="wash-input"
+                          placeholder="0"
+                          disabled={saving}
+                          style={{ width: '50px', textAlign: 'center' }}
+                        />
+                      )}
+                    </td>
+                    <td className="wash-count">
+                      {monthLocked ? (
+                        <div style={{ textAlign: 'center' }}>
+                          {boatWashCounts[unitId] || 0}
+                        </div>
+                      ) : (
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={boatWashCounts[unitId] || ''}
+                          onChange={(e) => updateBoatWashCount(unitId, e.target.value)}
+                          className="wash-input"
+                          placeholder="0"
+                          disabled={saving}
+                          style={{ width: '50px', textAlign: 'center' }}
+                        />
+                      )}
+                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
                   No units configured. Please check client configuration.
                 </td>
               </tr>
@@ -306,7 +476,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
             
             {/* Separator row */}
             <tr style={{ height: '10px', backgroundColor: '#f8f9fa' }}>
-              <td colSpan="5" style={{ borderBottom: '2px solid #dee2e6' }}></td>
+              <td colSpan="7" style={{ borderBottom: '2px solid #dee2e6' }}></td>
             </tr>
             
             {/* Common Area row */}
@@ -337,6 +507,12 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
               <td className="consumption">
                 {(parseInt(commonAreaReading) || 0) > priorCommonAreaReading ? 
                   formatNumber((parseInt(commonAreaReading) || 0) - priorCommonAreaReading) : '-'}
+              </td>
+              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+                -
+              </td>
+              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+                -
               </td>
             </tr>
             
@@ -369,6 +545,12 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                 {(parseInt(buildingMeterReading) || 0) > priorBuildingMeterReading ? 
                   formatNumber((parseInt(buildingMeterReading) || 0) - priorBuildingMeterReading) : '-'}
               </td>
+              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+                -
+              </td>
+              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+                -
+              </td>
             </tr>
           </tbody>
         </table>
@@ -384,6 +566,8 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
             <button 
               onClick={() => {
                 setReadings({});
+                setCarWashCounts({});
+                setBoatWashCounts({});
                 setCommonAreaReading('');
                 setBuildingMeterReading('');
               }}

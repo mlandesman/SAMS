@@ -286,10 +286,29 @@ class WaterDataService {
     
     for (const unit of units) {
       const unitId = unit.unitId;
-      const currentReading = currentReadings[unitId] || 0;
+      
+      // Extract reading from nested structure if present
+      let currentReading = currentReadings[unitId] || 0;
+      let carWashCount = 0;
+      let boatWashCount = 0;
+      
+      if (typeof currentReading === 'object' && currentReading.reading !== undefined) {
+        // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
+        carWashCount = currentReading.carWashCount || 0;
+        boatWashCount = currentReading.boatWashCount || 0;
+        currentReading = currentReading.reading;
+      }
+      
       const priorReading = priorReadings[unitId] || 0;
       const consumption = currentReading - priorReading;
       const bill = bills?.bills?.units?.[unitId];
+      
+      // Store wash counts in the currentReading object for frontend compatibility
+      const currentReadingObj = {
+        reading: currentReading,
+        carWashCount: carWashCount,
+        boatWashCount: boatWashCount
+      };
       
       // Extract owner last name from owners array (following HOA pattern)
       let ownerLastName = 'Unknown';
@@ -341,7 +360,7 @@ class WaterDataService {
       unitData[unitId] = {
         ownerLastName,
         priorReading,
-        currentReading,
+        currentReading: currentReadingObj,
         consumption,
         previousBalance: bill?.previousBalance || carryover.previousBalance || 0,  // Unpaid from previous months
         penaltyAmount: penaltyAmount,                // Penalty amount from bill data
@@ -478,10 +497,29 @@ class WaterDataService {
     
     for (const unit of units) {
       const unitId = unit.unitId;
-      const currentReading = currentReadings[unitId] || 0;
+      
+      // Extract reading from nested structure if present
+      let currentReading = currentReadings[unitId] || 0;
+      let carWashCount = 0;
+      let boatWashCount = 0;
+      
+      if (typeof currentReading === 'object' && currentReading.reading !== undefined) {
+        // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
+        carWashCount = currentReading.carWashCount || 0;
+        boatWashCount = currentReading.boatWashCount || 0;
+        currentReading = currentReading.reading;
+      }
+      
       const priorReading = priorReadings[unitId] || 0;
       const consumption = currentReading - priorReading;
       const bill = bills?.bills?.units?.[unitId];
+      
+      // Store wash counts in the currentReading object for frontend compatibility
+      const currentReadingObj = {
+        reading: currentReading,
+        carWashCount: carWashCount,
+        boatWashCount: boatWashCount
+      };
       
       // Extract owner last name from owners array (following HOA pattern)
       let ownerLastName = 'Unknown';
@@ -523,7 +561,7 @@ class WaterDataService {
       unitData[unitId] = {
         ownerLastName,
         priorReading,
-        currentReading,
+        currentReading: currentReadingObj,
         consumption,
         previousBalance: bill?.previousBalance || carryover.previousBalance || 0,
         penaltyAmount: penaltyAmount,
@@ -532,7 +570,11 @@ class WaterDataService {
         paidAmount: bill?.paidAmount || 0,
         unpaidAmount: unpaidAmount,
         status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
-        daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0
+        daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
+        // CRITICAL: Include transaction ID for bidirectional linking
+        transactionId: bill?.lastPayment?.transactionId || null,
+        // Include bill notes for hover tooltips (shows car wash details)
+        billNotes: bill?.billNotes || null
       };
       
       // DEBUG: Log penalty assignment for specific units we're tracking
