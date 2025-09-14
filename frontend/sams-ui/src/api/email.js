@@ -1,10 +1,39 @@
 /**
  * Email API Service
  * Frontend service for email configuration and receipt sending
+ * FIXED: Now uses SecureApiClient for proper authentication
  */
 
+import { getCurrentUser } from '../firebaseClient';
 import { config } from '../config';
+
 const API_BASE_URL = config.api.baseUrl;
+
+/**
+ * Get authentication headers with Firebase ID token
+ * @returns {Promise<Object>} Headers object with Authorization bearer token
+ */
+async function getAuthHeaders() {
+  const currentUser = getCurrentUser();
+  
+  if (!currentUser) {
+    throw new Error('User not authenticated');
+  }
+
+  // Get Firebase ID token from auth instance
+  const { getAuthInstance } = await import('../firebaseClient');
+  const auth = getAuthInstance();
+  const token = await auth.currentUser?.getIdToken();
+  
+  if (!token) {
+    throw new Error('Failed to get authentication token');
+  }
+  
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
 
 /**
  * Get email configuration for a client
@@ -16,11 +45,12 @@ export async function getEmailConfig(clientId, configType = 'receiptEmail') {
   try {
     console.log(`📋 Fetching email config for client: ${clientId}, type: ${configType}`);
     
+    // Get authentication headers with Firebase token
+    const authHeaders = await getAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/config/${configType}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       credentials: 'include',
     });
     
@@ -35,6 +65,16 @@ export async function getEmailConfig(clientId, configType = 'receiptEmail') {
     }
   } catch (error) {
     console.error('❌ Error fetching email config:', error);
+    
+    // Handle authentication errors specifically
+    if (error.message.includes('not authenticated') || error.message.includes('authentication token')) {
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+        code: 'AUTH_ERROR'
+      };
+    }
+    
     return {
       success: false,
       error: error.message
@@ -49,19 +89,21 @@ export async function getEmailConfig(clientId, configType = 'receiptEmail') {
  * @param {string} receiptImageBase64 - Base64 encoded receipt image
  * @returns {Promise<Object>} Response with send result
  */
-export async function sendReceiptEmail(clientId, receiptData, receiptImageBase64) {
+export async function sendReceiptEmail(clientId, receiptData, receiptImageBase64, clientData = null) {
   try {
     console.log(`📧 Sending receipt email for client: ${clientId}, unit: ${receiptData.unitNumber}`);
     
+    // Get authentication headers with Firebase token
+    const authHeaders = await getAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-receipt`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       credentials: 'include',
       body: JSON.stringify({
         receiptData,
-        receiptImageBase64
+        receiptImageBase64,
+        clientData
       })
     });
     
@@ -76,6 +118,16 @@ export async function sendReceiptEmail(clientId, receiptData, receiptImageBase64
     }
   } catch (error) {
     console.error('❌ Error sending receipt email:', error);
+    
+    // Handle authentication errors specifically
+    if (error.message.includes('not authenticated') || error.message.includes('authentication token')) {
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+        code: 'AUTH_ERROR'
+      };
+    }
+    
     return {
       success: false,
       error: error.message
@@ -93,11 +145,12 @@ export async function testEmailConfig(clientId, testEmail) {
   try {
     console.log(`🧪 Testing email config for client: ${clientId}`);
     
+    // Get authentication headers with Firebase token
+    const authHeaders = await getAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/test`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       credentials: 'include',
       body: JSON.stringify({
         testEmail
@@ -115,6 +168,16 @@ export async function testEmailConfig(clientId, testEmail) {
     }
   } catch (error) {
     console.error('❌ Error testing email config:', error);
+    
+    // Handle authentication errors specifically
+    if (error.message.includes('not authenticated') || error.message.includes('authentication token')) {
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+        code: 'AUTH_ERROR'
+      };
+    }
+    
     return {
       success: false,
       error: error.message
@@ -131,11 +194,12 @@ export async function initializeEmailConfig(clientId) {
   try {
     console.log(`🔧 Initializing email config for client: ${clientId}`);
     
+    // Get authentication headers with Firebase token
+    const authHeaders = await getAuthHeaders();
+    
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/initialize`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       credentials: 'include'
     });
     
@@ -150,6 +214,16 @@ export async function initializeEmailConfig(clientId) {
     }
   } catch (error) {
     console.error('❌ Error initializing email config:', error);
+    
+    // Handle authentication errors specifically
+    if (error.message.includes('not authenticated') || error.message.includes('authentication token')) {
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+        code: 'AUTH_ERROR'
+      };
+    }
+    
     return {
       success: false,
       error: error.message

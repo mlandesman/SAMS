@@ -1,0 +1,519 @@
+/* Digital Receipt Styles - Google Sheets Format */
+.digital-receipt-container {
+  padding: 20px;
+  background: #f5f5f5;
+}
+
+.receipt-controls {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.receipt-controls h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.generate-button {
+  background: linear-gradient(135deg, #0863bf, #83c4f2);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(8, 99, 191, 0.3);
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 99, 191, 0.4);
+}
+
+.generate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Receipt Image Container - Google Sheets Style */
+.receipt-image {
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  border: 2px solid #333;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Sandyland Gradient Background - Ocean to Sand */
+.receipt-background {
+  width: 100%;
+  height: 100%;
+  /* Ocean to sand gradient - matches Sandyland branding */
+  background: linear-gradient(180deg, 
+    #0863bf 0%,      /* Deep ocean blue */
+    #3a7bd5 25%,     /* Ocean blue */
+    #83c4f2 50%,     /* Light blue */
+    #b8daf7 75%,     /* Very light blue */
+    #f7e4c2 100%     /* Sand color */
+  );
+  position: relative;
+  padding: 20px;
+  box-sizing: border-box;
+  color: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Receipt Header - Title Bar and Logo */
+.receipt-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #333;
+}
+
+.company-logo {
+  max-height: 120px;  /* Doubled from 60px */
+  max-width: 400px;   /* Doubled from 200px */
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+
+.css-logo {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.logo-main {
+  font-size: 28px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  margin-bottom: 5px;
+  font-family: Arial, sans-serif;
+}
+
+.logo-sub {
+  font-size: 16px;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  font-style: italic;
+  font-family: Arial, sans-serif;
+}
+
+.company-name {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 5px 0;
+  color: #fff;        /* White text */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);  /* Black shadow for visibility */
+  text-transform: uppercase;
+}
+
+.receipt-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 10px;
+  color: #000;
+  text-decoration: underline;
+}
+
+/* Receipt Body - Google Sheets Table Style */
+.receipt-body {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #333;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px dotted #666;
+  font-size: 14px;
+}
+
+.receipt-row:last-child {
+  border-bottom: none;
+}
+
+.receipt-row .label {
+  font-weight: bold;
+  width: 35%;
+  flex-shrink: 0;
+}
+
+.receipt-row .value {
+  width: 65%;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+/* Special styling for important fields */
+.receipt-number {
+  font-weight: bold;
+  color: #d32f2f;
+}
+
+.owner-name {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.amount-row {
+  background: rgba(255, 255, 200, 0.8);
+  padding: 12px 8px;
+  border: 2px solid #333;
+  margin: 10px 0;
+}
+
+.amount {
+  font-size: 18px;
+  font-weight: bold;
+  color: #2e7d32;
+}
+
+/* Amount in Words - Spanish */
+.amount-in-words {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #333;
+  padding: 10px;
+  margin: 12px 0;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.amount-in-words strong {
+  font-style: normal;
+  font-weight: bold;
+}
+
+/* Receipt Footer */
+.receipt-footer {
+  margin-top: 25px;
+  text-align: center;
+  flex-grow: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 20px;
+}
+
+.receipt-footer-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+/* Notes styling */
+.notes {
+  font-style: italic;
+  color: #555;
+}
+
+/* Error state styling */
+.digital-receipt-error {
+  padding: 30px;
+  text-align: center;
+  background: #ffebee;
+  border: 2px solid #f44336;
+  border-radius: 8px;
+  color: #c62828;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.digital-receipt-error h3 {
+  margin: 0 0 15px 0;
+  color: #c62828;
+  font-size: 1.4rem;
+}
+
+.digital-receipt-error p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Contact Information Styles */
+.contact-info-section {
+  background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  text-align: left;
+}
+
+.contact-info-section h4 {
+  margin: 0 0 10px 0;
+  color: #2e7d32;
+  font-size: 1.1rem;
+}
+
+.contact-emails, .contact-phone {
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.contact-emails ul {
+  margin: 5px 0 0 20px;
+  padding: 0;
+}
+
+.contact-emails li {
+  color: #1976d2;
+  font-family: monospace;
+}
+
+.email-ready-status {
+  color: #2e7d32;
+  font-weight: 600;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.contact-info-warning {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 15px 0;
+  color: #856404;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.future-email-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.email-actions {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.send-email-button {
+  background: linear-gradient(135deg, #1976d2, #42a5f5);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  min-width: 200px;
+}
+
+.send-email-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
+}
+
+.send-email-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.generate-button.secondary {
+  background: linear-gradient(135deg, #757575, #9e9e9e);
+  font-size: 14px;
+  padding: 10px 20px;
+}
+
+.future-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.email-button, .whatsapp-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.9rem;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.email-button {
+  background: linear-gradient(135deg, #1976d2, #42a5f5);
+  color: white;
+}
+
+.whatsapp-button {
+  background: linear-gradient(135deg, #25d366, #4caf50);
+  color: white;
+}
+
+.email-button.disabled, .whatsapp-button.disabled {
+  background: #e0e0e0;
+  color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .receipt-image {
+    width: 100% !important;
+    max-width: 600px;
+  }
+  
+  .receipt-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .receipt-row .label {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+  
+  .receipt-row .value {
+    width: 100%;
+  }
+}
+.receipt-number {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #0863bf;
+  background: rgba(8, 99, 191, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.owner-name {
+  font-weight: bold;
+  color: #003366;
+}
+
+.amount-row .amount {
+  font-size: 22px;
+  font-weight: bold;
+  color: #d32f2f;
+  background: linear-gradient(135deg, rgba(211, 47, 47, 0.15), rgba(211, 47, 47, 0.05));
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid rgba(211, 47, 47, 0.4);
+  box-shadow: 0 2px 8px rgba(211, 47, 47, 0.2);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.5px;
+}
+
+.notes {
+  font-style: italic;
+  color: #666;
+  font-size: 13px;
+}
+
+.amount-in-words {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(8, 99, 191, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(8, 99, 191, 0.3);
+  font-size: 14px;
+  color: #003366;
+  text-align: center;
+}
+
+.amount-in-words strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #0863bf;
+}
+
+.amount-in-words em {
+  font-size: 16px;
+  color: #003366;
+  font-weight: 500;
+}
+
+/* Receipt Footer */
+.receipt-footer {
+  text-align: center;
+  padding-bottom: 20px;
+}
+
+.signature-line {
+  margin-bottom: 20px;
+}
+
+.signature-box {
+  display: inline-block;
+  padding: 15px 30px;
+  border: 2px solid #003366;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  min-width: 200px;
+}
+
+.signature-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-footer-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #003366;
+  background: rgba(255, 255, 255, 0.8);
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 15px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .receipt-image {
+    transform: scale(0.8);
+    transform-origin: top center;
+  }
+  
+  .receipt-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .receipt-row .label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+  
+  .receipt-row .value {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+/* Print styles for generating image */
+@media print {
+  .receipt-controls {
+    display: none;
+  }
+  
+  .digital-receipt-container {
+    padding: 0;
+    background: none;
+  }
+}

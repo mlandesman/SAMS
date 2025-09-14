@@ -6,6 +6,7 @@
 import nodemailer from 'nodemailer';
 import { getEmailConfig } from './emailConfigController.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getDb } from '../firebase.js';
 
 /**
  * Create Gmail transporter for sending emails
@@ -39,24 +40,31 @@ function createGmailTransporter() {
  * @returns {string} Processed HTML template
  */
 function processEmailTemplate(template, receiptData) {
+  // PROPER ERROR HANDLING: Template should be required
+  if (!template) {
+    throw new Error('Email template body is missing from client configuration. Please configure email templates in Firebase console under clients/[clientId]/email/receiptEmail');
+  }
+
   let processedTemplate = template;
   
   // Replace template variables
   const replacements = {
     '__OwnerName__': receiptData.receivedFrom || 'Valued Customer',
-    '__UnitNumber__': receiptData.unitNumber || 'N/A',
+    '__UnitNumber__': receiptData.unitId || receiptData.unitNumber || 'N/A',
     '__Amount__': receiptData.formattedAmount || 'N/A',
     '__Date__': receiptData.date || 'N/A',
     '__TransactionId__': receiptData.receiptNumber || 'N/A',
     '__Category__': receiptData.category || 'Payment',
     '__PaymentMethod__': receiptData.paymentMethod || 'N/A',
-    '__Notes__': receiptData.notes || ''
+    '__Notes__': receiptData.notes || '',
+    '__ClientLogoUrl__': receiptData.clientLogoUrl || '',
+    '__ClientName__': receiptData.clientName || 'Client Name'
   };
   
   // Apply all replacements
   Object.entries(replacements).forEach(([placeholder, value]) => {
     const regex = new RegExp(placeholder, 'g');
-    processedTemplate = processedTemplate.replace(regex, value);
+    processedTemplate = processedTemplate.replace(regex, String(value || ''));
   });
   
   return processedTemplate;
@@ -69,12 +77,12 @@ function processEmailTemplate(template, receiptData) {
  * @param {Blob} receiptImageBlob - Receipt image as blob
  * @returns {object} Result of email sending operation
  */
-async function sendReceiptEmail(clientId, receiptData, receiptImageBlob) {
+async function sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientData = null) {
   try {
     console.log(`📧 Sending receipt email for client: ${clientId}`);
     
-    // Get client email configuration
-    const emailConfigResult = await getEmailConfig(clientId, 'receiptEmail');
+    // Get client email configuration using new template structure
+    const emailConfigResult = await getEmailConfig(clientId, 'receipt');
     
     if (!emailConfigResult.success) {
       throw new Error(`Email configuration not found for client ${clientId}`);
@@ -87,28 +95,79 @@ async function sendReceiptEmail(clientId, receiptData, receiptImageBlob) {
       hasSignature: !!emailConfig.signature
     });
     
+    // Use client data passed from frontend (same data that works for logo display)
+    let clientLogoUrl = '';
+    let clientName = 'Client Name';
+    
+    if (clientData) {
+      console.log('🎨 Using client data from frontend:', clientData);
+      clientLogoUrl = clientData.logoUrl || '';
+      clientName = clientData.name || 'Client Name';
+    } else {
+      console.log('⚠️ No client data provided, falling back to Firestore lookup');
+      // Fallback to Firestore if no client data provided
+      const db = await getDb();
+      const clientDoc = await db.collection('clients').doc(clientId).get();
+      const clientConfig = clientDoc.exists ? clientDoc.data() : {};
+      clientLogoUrl = clientConfig.logoUrl || '';
+      clientName = clientConfig.name || clientConfig.basicInfo?.fullName || 'Client Name';
+    }
+    
+    console.log('🎨 Final client branding:', {
+      clientName: clientName,
+      clientLogoUrl: clientLogoUrl,
+      hasLogo: !!clientLogoUrl
+    });
+    
     // Validate recipient emails
-    const recipientEmails = receiptData.ownerEmails || [];
+    let recipientEmails = receiptData.ownerEmails || [];
     if (recipientEmails.length === 0) {
       throw new Error('No recipient email addresses found');
     }
     
+    // TEST MODE: Override emails for testing (add TEST_EMAIL_OVERRIDE to .env)
+    const testEmailOverride = process.env.TEST_EMAIL_OVERRIDE;
+    if (testEmailOverride) {
+      console.log('🧪 TEST MODE: Overriding recipient emails to:', testEmailOverride);
+      recipientEmails = [testEmailOverride];
+    }
+    
     // Process email subject
     let subject = emailConfig.subject || 'Payment Receipt';
-    subject = subject.replace('__UnitNumber__', receiptData.unitNumber || 'N/A');
+    subject = subject.replace('__UnitNumber__', receiptData.unitId || receiptData.unitNumber || 'N/A');
     
     // Process email body with signature
+    console.log('📧 BEFORE template processing:');
+    console.log('📧 Template body length:', emailConfig.body?.length);
+    console.log('📧 Client logo URL:', clientLogoUrl);
+    console.log('📧 Client name:', clientName);
+    console.log('📧 Template contains __ClientLogoUrl__:', emailConfig.body?.includes('__ClientLogoUrl__'));
+    
     let htmlBody = processEmailTemplate(emailConfig.body, {
       ...receiptData,
-      formattedAmount: receiptData.amount ? `MX$ ${receiptData.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : 'N/A'
+      formattedAmount: receiptData.amount ? `MX$ ${receiptData.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : 'N/A',
+      clientLogoUrl: clientLogoUrl,
+      clientName: clientName
     });
     
-    // Add signature to body
+    console.log('📧 AFTER template processing:');
+    console.log('📧 Processed body length:', htmlBody?.length);
+    console.log('📧 Contains actual logo URL:', htmlBody?.includes(clientLogoUrl));
+    console.log('📧 Still contains __ClientLogoUrl__:', htmlBody?.includes('__ClientLogoUrl__'));
+    console.log('📧 Still contains __ClientName__:', htmlBody?.includes('__ClientName__'));
+    
+    // Add signature to body - check for new HTML field in signature object
+    let signatureHtml = '';
     if (emailConfig.signature) {
-      htmlBody = htmlBody.replace('__Signature__', emailConfig.signature);
-    } else {
-      htmlBody = htmlBody.replace('__Signature__', '');
+      if (typeof emailConfig.signature === 'object' && emailConfig.signature.HTML) {
+        // Use new structured signature with HTML field
+        signatureHtml = emailConfig.signature.HTML;
+      } else if (typeof emailConfig.signature === 'string') {
+        // Fallback to old string-based signature
+        signatureHtml = emailConfig.signature;
+      }
     }
+    htmlBody = htmlBody.replace('__Signature__', signatureHtml);
     
     // Create email transporter
     const transporter = createGmailTransporter();

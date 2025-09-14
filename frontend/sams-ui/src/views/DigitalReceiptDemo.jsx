@@ -20,7 +20,9 @@ const DigitalReceiptDemo = () => {
       category: 'Cuotas de Mantenimiento',
       notes: 'Pago de 3 meses: Enero, Febrero, Marzo 2025',
       paymentMethod: 'Transferencia Bancaria',
-      unitNumber: 'PH-B2'
+      unitId: 'PH-B2',
+      ownerEmails: ['michael@landesman.com'], // TEST MODE: Override emails
+      ownerPhone: '+52-555-123-4567'
     },
     {
       date: new Date(2025, 5, 15).toLocaleDateString('en-US', { 
@@ -35,7 +37,9 @@ const DigitalReceiptDemo = () => {
       category: 'Cuota Especial - Pintura Edificio',
       notes: 'Pago único para proyecto de renovación de fachada',
       paymentMethod: 'Efectivo',
-      unitNumber: 'A-301'
+      unitId: 'A-301',
+      ownerEmails: ['michael@landesman.com'], // TEST MODE: Override emails
+      ownerPhone: '+52-555-987-6543'
     },
     {
       date: new Date(2025, 5, 20).toLocaleDateString('en-US', { 
@@ -50,13 +54,16 @@ const DigitalReceiptDemo = () => {
       category: 'Reembolso de Gastos',
       notes: 'Reembolso por reparación de tubería autorizada por administración',
       paymentMethod: 'Cheque',
-      unitNumber: 'B-105'
+      unitId: 'B-105',
+      ownerEmails: ['michael@landesman.com'], // TEST MODE: Override emails
+      ownerPhone: '+52-555-456-7890'
     }
   ];
 
   const sampleClientData = {
+    id: 'MTC', // Required for email service
     name: 'Marina Turquesa Condominiums',
-    logoUrl: 'https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-high-resolution-logo-transparent.png?alt=media&token=a39645c7-aa81-41a0-9b20-35086de026d0'
+    logoUrl: 'https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2FMTC%2F1752549666390_MTC%20Logo%20Transparent.png?alt=media&token=e5438f60-db5b-4f8d-836b-31d3dcdfb53e'
   };
 
   const handleImageGenerated = (blob) => {

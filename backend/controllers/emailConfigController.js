@@ -7,29 +7,59 @@ import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 
 /**
- * Get email configuration for a client
+ * Get email configuration for a client using emailTemplates structure
  * @param {string} clientId - Client ID
- * @param {string} configType - Type of email config (e.g., 'receiptEmail')
- * @returns {object} Email configuration object
+ * @param {string} templateType - Template type (e.g., 'receipt', 'waterBill', 'hoaDues')
+ * @returns {object} Email configuration object with template-specific and shared data
  */
-async function getEmailConfig(clientId, configType = 'receiptEmail') {
+async function getEmailConfig(clientId, templateType = 'receipt') {
   try {
     const db = await getDb();
-    const configRef = db.doc(`clients/${clientId}/config/${configType}`);
-    const configDoc = await configRef.get();
     
-    if (configDoc.exists) {
-      return {
-        success: true,
-        data: configDoc.data()
-      };
-    } else {
-      console.log(`No email config found for client ${clientId}, type ${configType}`);
+    // Get emailTemplates document
+    const emailTemplatesRef = db.doc(`clients/${clientId}/config/emailTemplates`);
+    const emailTemplatesDoc = await emailTemplatesRef.get();
+    
+    if (!emailTemplatesDoc.exists) {
+      console.log(`No emailTemplates config found for client ${clientId}`);
       return {
         success: false,
-        error: 'Email configuration not found'
+        error: `Email configuration not found for client ${clientId}`
       };
     }
+    
+    const templatesConfig = emailTemplatesDoc.data();
+    
+    // Check if requested template type exists
+    if (!templatesConfig[templateType]) {
+      console.log(`Template type '${templateType}' not found for client ${clientId}`);
+      return {
+        success: false,
+        error: `Template type '${templateType}' not found for client ${clientId}`
+      };
+    }
+    
+    // Combine template-specific data with shared config
+    const emailConfig = {
+      // Template-specific data (body, subject)
+      body: templatesConfig[templateType].body,
+      subject: templatesConfig[templateType].subject,
+      
+      // Shared configuration
+      signature: templatesConfig.signature,
+      ccList: templatesConfig.ccList || [],
+      fromEmail: templatesConfig.fromEmail || '',
+      fromName: templatesConfig.fromName || '',
+      replyTo: templatesConfig.replyTo || '',
+      attachReceiptImage: templatesConfig.attachReceiptImage !== false
+    };
+    
+    return {
+      success: true,
+      data: emailConfig,
+      structure: 'emailTemplates'
+    };
+    
   } catch (error) {
     console.error('❌ Error fetching email config:', error);
     return {

@@ -7,15 +7,10 @@ import { useNotification } from '../hooks/useNotification';
 import './DigitalReceipt.css';
 
 /**
- * DigitalReceipt Component - Professional Design System
+ * DigitalReceipt Component
  * 
- * Professional, clean receipt design using Sandyland Email Branding
- * Features:
- * - Clean white background with subtle brand accent
- * - Professional table-based layout for email compatibility 
- * - Mobile-first responsive design
- * - Touch-friendly interface elements
- * - Maximum 3-color palette for professional appearance
+ * Recreates the Google Sheets receipt design with Sandyland gradient background
+ * Matches the exact layout from the documentation sample image
  * Can be exported as JPG/PNG for email or WhatsApp sharing
  */
 const DigitalReceipt = ({ 
@@ -224,7 +219,7 @@ const DigitalReceipt = ({
         console.error('No client ID provided - cannot send receipt email');
         throw new Error('No client selected. Cannot send receipt email.');
       }
-      const emailResult = await sendReceiptEmail(clientId, transactionData, receiptImageBase64, clientData);
+      const emailResult = await sendReceiptEmail(clientId, transactionData, receiptImageBase64);
       
       if (emailResult.success) {
         console.log('📧 Email sent successfully, showing success notification...');
@@ -287,7 +282,7 @@ const DigitalReceipt = ({
     <div className="digital-receipt-container">
       {showPreview && (
         <div className="receipt-controls">
-          <h3>Professional Digital Receipt</h3>
+          <h3>Digital Receipt Preview</h3>
           
           {/* Contact Information Display */}
           {hasContactInfo && (
@@ -363,80 +358,76 @@ const DigitalReceipt = ({
           top: showPreview ? 'auto' : '-9999px'
         }}
       >
-        {/* Professional Clean Background */}
+        {/* Sandyland Gradient Background */}
         <div className="receipt-background">
           
-          {/* Professional Header with Clean Branding */}
+          {/* Receipt Header - Title Bar */}
           <div className="receipt-header">
-            <div className="company-branding">
-              <img 
-                src={client.logoUrl} 
-                alt="Sandyland Properties Logo" 
-                className="company-logo"
-                onLoad={() => console.log('Sandyland logo loaded successfully')}
-                onError={() => console.log('Sandyland logo failed to load')}
-              />
-              <h1 className="company-name">{client.name}</h1>
-            </div>
-            <h2 className="receipt-title">Payment Receipt / Recibo de Pago</h2>
+            <img 
+              src={client.logoUrl} 
+              alt="Sandyland Properties Logo" 
+              className="company-logo"
+              onLoad={() => console.log('Real Sandyland logo loaded successfully')}
+              onError={() => console.log('Real Sandyland logo failed to load')}
+            />
+            <h1 className="company-name">{client.name}</h1>
+            <div className="receipt-title">RECIBO DE PAGO / PAYMENT RECEIPT</div>
           </div>
 
-          {/* Professional Table-Based Receipt Content - Email Compatible */}
+          {/* Receipt Body - Google Sheets Table Format */}
           <div className="receipt-body">
-            <table className="receipt-table" cellPadding="0" cellSpacing="0">
-              <tbody>
-                <tr>
-                  <td className="label">Fecha / Date:</td>
-                  <td className="value">{receipt.date}</td>
-                </tr>
-                <tr>
-                  <td className="label">No. de Transacción / Transaction No.:</td>
-                  <td className="value receipt-number">{receipt.receiptNumber}</td>
-                </tr>
-                <tr>
-                  <td className="label">Recibí de / Received From:</td>
-                  <td className="value owner-name">{receipt.receivedFrom}</td>
-                </tr>
-                <tr>
-                  <td className="label">Unidad / Unit:</td>
-                  <td className="value">{receipt.unitId}</td>
-                </tr>
-                <tr className="amount-row">
-                  <td className="label">Cantidad / Amount:</td>
-                  <td className="value amount">{formatCurrency(receipt.amount)}</td>
-                </tr>
-                <tr>
-                  <td className="label">Por concepto de / For:</td>
-                  <td className="value">{receipt.category}</td>
-                </tr>
-                <tr>
-                  <td className="label">Forma de Pago / Payment Method:</td>
-                  <td className="value">{receipt.paymentMethod}</td>
-                </tr>
-                {receipt.notes && (
-                  <tr>
-                    <td className="label">Notas / Notes:</td>
-                    <td className="value notes">{receipt.notes}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            
-            {/* Professional Amount in Words Section */}
+            <div className="receipt-row">
+              <span className="label">Fecha / Date:</span>
+              <span className="value">{receipt.date}</span>
+            </div>
+
+            <div className="receipt-row">
+              <span className="label">No. de Transacción / Transaction No.:</span>
+              <span className="value receipt-number">{receipt.receiptNumber}</span>
+            </div>
+
+            <div className="receipt-row">
+              <span className="label">Recibí de / Received From:</span>
+              <span className="value owner-name">{receipt.receivedFrom}</span>
+            </div>
+
+            <div className="receipt-row">
+              <span className="label">Unidad / Unit:</span>
+              <span className="value">{receipt.unitId}</span>
+            </div>
+
+            <div className="receipt-row amount-row">
+              <span className="label">Cantidad / Amount:</span>
+              <span className="value amount">{formatCurrency(receipt.amount)}</span>
+            </div>
+
             <div className="amount-in-words">
-              <strong>Cantidad en Letras / Amount in Words:</strong>
+              <strong>Cantidad en Letras / Amount in Words:</strong><br/>
               <em>{receipt.amountInWords}</em>
             </div>
+
+            <div className="receipt-row">
+              <span className="label">Por concepto de / For:</span>
+              <span className="value">{receipt.category}</span>
+            </div>
+
+            <div className="receipt-row">
+              <span className="label">Forma de Pago / Payment Method:</span>
+              <span className="value">{receipt.paymentMethod}</span>
+            </div>
+
+            {receipt.notes && (
+              <div className="receipt-row">
+                <span className="label">Notas / Notes:</span>
+                <span className="value notes">{receipt.notes}</span>
+              </div>
+            )}
           </div>
 
-          {/* Professional Footer with Portal Integration */}
+          {/* Receipt Footer */}
           <div className="receipt-footer">
             <div className="receipt-footer-text">
-              Thank you for your prompt payment. / Gracias por su pago puntual.
-            </div>
-            {/* Future portal link integration */}
-            <div style={{ margin: '16px 0', fontSize: '12px', color: '#666' }}>
-              📊 View your account history in SAMS portal
+              Gracias por su pago puntual / Thank you for your prompt payment
             </div>
           </div>
         </div>

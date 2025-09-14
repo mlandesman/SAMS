@@ -13,11 +13,11 @@ const router = express.Router({ mergeParams: true });
 // Apply authentication to ALL routes in this file
 router.use(authenticateUserWithProfile);
 
-// GET /api/clients/:clientId/email/config/:configType - Get email configuration
-router.get('/config/:configType?', async (req, res) => {
+// GET /api/clients/:clientId/email/config/:templateType - Get email configuration  
+router.get('/config/:templateType?', async (req, res) => {
   try {
     const clientId = req.params.clientId;
-    const configType = req.params.configType || 'receiptEmail';
+    const templateType = req.params.templateType || 'receipt';
     
     if (!clientId) {
       return res.status(400).json({ 
@@ -26,8 +26,8 @@ router.get('/config/:configType?', async (req, res) => {
       });
     }
 
-    console.log(`📋 Fetching email config for client: ${clientId}, type: ${configType}`);
-    const result = await getEmailConfig(clientId, configType);
+    console.log(`📋 Fetching email config for client: ${clientId}, template: ${templateType}`);
+    const result = await getEmailConfig(clientId, templateType);
     
     if (result.success) {
       res.json(result);
@@ -74,7 +74,7 @@ router.post('/config/:configType?', async (req, res) => {
 router.post('/send-receipt', async (req, res) => {
   try {
     const clientId = req.params.clientId;
-    const { receiptData, receiptImageBase64 } = req.body;
+    const { receiptData, receiptImageBase64, clientData } = req.body;
     
     if (!clientId) {
       return res.status(400).json({ 
@@ -100,7 +100,7 @@ router.post('/send-receipt', async (req, res) => {
       receiptImageBlob = Buffer.from(base64Data, 'base64');
     }
     
-    const result = await sendReceiptEmail(clientId, receiptData, receiptImageBlob);
+    const result = await sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientData);
     
     if (result.success) {
       res.json(result);
