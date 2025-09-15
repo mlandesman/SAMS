@@ -7,6 +7,7 @@ import nodemailer from 'nodemailer';
 import { getEmailConfig } from './emailConfigController.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
+import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
 
 /**
  * Create Gmail transporter for sending emails
@@ -65,6 +66,46 @@ function processEmailTemplate(template, receiptData) {
   Object.entries(replacements).forEach(([placeholder, value]) => {
     const regex = new RegExp(placeholder, 'g');
     processedTemplate = processedTemplate.replace(regex, String(value || ''));
+  });
+  
+  return processedTemplate;
+}
+
+/**
+ * Process water bill template with variables using Handlebars-style syntax
+ * @param {string} template - HTML template string with Handlebars syntax
+ * @param {object} variables - Template variables from buildWaterBillTemplateVariables
+ * @returns {string} Processed HTML template
+ */
+function processWaterBillTemplate(template, variables) {
+  if (!template) {
+    throw new Error('Water bill template is required');
+  }
+  
+  if (!variables) {
+    throw new Error('Template variables are required');
+  }
+
+  let processedTemplate = template;
+  
+  // Replace all template variables (using double underscore format)
+  Object.entries(variables).forEach(([key, value]) => {
+    const placeholder = key; // Variables already have __ format
+    const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    processedTemplate = processedTemplate.replace(regex, String(value || ''));
+  });
+  
+  // Handle Handlebars-style conditionals for basic cases
+  // {{#if condition}} ... {{/if}}
+  processedTemplate = processedTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+    const conditionValue = variables[`__${condition}__`] || variables[condition];
+    return conditionValue ? content : '';
+  });
+  
+  // {{#if condition}} ... {{else}} ... {{/if}}
+  processedTemplate = processedTemplate.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, ifContent, elseContent) => {
+    const conditionValue = variables[`__${condition}__`] || variables[condition];
+    return conditionValue ? ifContent : elseContent;
   });
   
   return processedTemplate;
@@ -267,9 +308,229 @@ async function testEmailConfig(clientId, testEmail) {
   return await sendReceiptEmail(clientId, testReceiptData, null);
 }
 
+/**
+ * Send water bill email with bilingual template support
+ * @param {string} clientId - Client ID (e.g., 'AVII')
+ * @param {string} unitNumber - Unit number (e.g., '101')
+ * @param {string} billingPeriod - Billing period (e.g., '2026-00')
+ * @param {string} userLanguage - User's preferred language ('en' or 'es')
+ * @param {string[]} recipientEmails - Email addresses to send to
+ * @param {object} options - Optional parameters for testing
+ * @returns {object} Result of email sending operation
+ */
+async function sendWaterBillEmail(clientId, unitNumber, billingPeriod, userLanguage = 'en', recipientEmails = [], options = {}) {
+  try {
+    console.log(`💧 Sending water bill email for ${clientId} Unit ${unitNumber} (${billingPeriod}) in ${userLanguage}`);
+    
+    if (!recipientEmails || recipientEmails.length === 0) {
+      throw new Error('Recipient email addresses are required');
+    }
+    
+    // Get Firestore database
+    const db = await getDb();
+    
+    // Fetch required Firebase documents
+    console.log('📋 Fetching Firebase documents...');
+    const [billDoc, readingsDoc, clientDoc, waterConfigDoc] = await Promise.all([
+      db.collection('clients').doc(clientId).collection('projects').doc('waterBills')
+        .collection('bills').doc(billingPeriod).get(),
+      db.collection('clients').doc(clientId).collection('projects').doc('waterBills')
+        .collection('readings').doc(billingPeriod).get(),
+      db.collection('clients').doc(clientId).get(),
+      db.collection('clients').doc(clientId).collection('config').doc('waterBills').get()
+    ]);
+    
+    // Validate documents exist
+    if (!billDoc.exists) {
+      throw new Error(`Bill document not found: clients/${clientId}/projects/waterBills/bills/${billingPeriod}`);
+    }
+    if (!readingsDoc.exists) {
+      throw new Error(`Readings document not found: clients/${clientId}/projects/waterBills/readings/${billingPeriod}`);
+    }
+    if (!clientDoc.exists) {
+      throw new Error(`Client document not found: clients/${clientId}`);
+    }
+    if (!waterConfigDoc.exists) {
+      throw new Error(`Water bill config not found: clients/${clientId}/config/waterBills`);
+    }
+    
+    const billDocument = billDoc.data();
+    const readingsDocument = readingsDoc.data();
+    const clientConfig = clientDoc.data();
+    const waterBillConfig = waterConfigDoc.data();
+    
+    console.log('✅ All Firebase documents loaded successfully');
+    
+    // Fetch email templates from Firebase
+    const emailTemplateDoc = await db.collection('clients').doc(clientId)
+      .collection('config').doc('emailTemplates').get();
+    
+    if (!emailTemplateDoc.exists) {
+      throw new Error(`Email templates not found: clients/${clientId}/config/emailTemplates`);
+    }
+    
+    const emailTemplates = emailTemplateDoc.data();
+    const waterBillTemplates = emailTemplates.waterBill;
+    
+    if (!waterBillTemplates) {
+      throw new Error('Water bill email templates not configured in Firebase');
+    }
+    
+    // Select language-specific templates
+    const templateLang = userLanguage === 'es' ? 'es' : 'en';
+    const bodyTemplate = waterBillTemplates[`body_${templateLang}`];
+    const subjectTemplate = waterBillTemplates[`subject_${templateLang}`];
+    
+    if (!bodyTemplate) {
+      throw new Error(`Water bill body template not found for language: ${templateLang}`);
+    }
+    if (!subjectTemplate) {
+      throw new Error(`Water bill subject template not found for language: ${templateLang}`);
+    }
+    
+    console.log(`📧 Using ${templateLang} templates (body: ${bodyTemplate.length} chars)`);
+    
+    // Build template variables using GAAP-compliant system
+    const templateVariables = buildWaterBillTemplateVariables(
+      billDocument,
+      readingsDocument, 
+      clientConfig,
+      waterBillConfig,
+      unitNumber,
+      userLanguage
+    );
+    
+    console.log('🔧 Template variables built successfully:', {
+      unitNumber: templateVariables.__UnitNumber__,
+      consumption: templateVariables.__WaterConsumption__,
+      totalDue: templateVariables.__TotalAmountDue__,
+      status: templateVariables.__PaymentStatus__
+    });
+    
+    // Process templates with variables
+    const processedSubject = processWaterBillTemplate(subjectTemplate, templateVariables);
+    const processedBody = processWaterBillTemplate(bodyTemplate, templateVariables);
+    
+    // TEST MODE: Override emails for testing
+    let finalRecipients = recipientEmails;
+    const testEmailOverride = process.env.TEST_EMAIL_OVERRIDE;
+    if (testEmailOverride) {
+      console.log('🧪 TEST MODE: Overriding recipient emails to:', testEmailOverride);
+      finalRecipients = [testEmailOverride];
+    }
+    
+    // Create email transporter
+    const transporter = createGmailTransporter();
+    
+    // Get client email configuration for sender info
+    const emailConfigResult = await getEmailConfig(clientId, 'waterBill');
+    let emailConfig = {};
+    
+    if (emailConfigResult.success) {
+      emailConfig = emailConfigResult.data;
+    } else {
+      // Fallback configuration
+      console.log('⚠️ No specific water bill email config found, using defaults');
+      emailConfig = {
+        fromName: clientConfig.basicInfo?.displayName || 'Property Management',
+        fromEmail: 'ms@landesman.com',
+        replyTo: 'ms@landesman.com'
+      };
+    }
+    
+    // Prepare email options
+    const mailOptions = {
+      from: {
+        name: emailConfig.fromName || clientConfig.basicInfo?.displayName || 'Property Management',
+        address: emailConfig.fromEmail || 'ms@landesman.com'
+      },
+      to: finalRecipients,
+      cc: emailConfig.ccList || [],
+      subject: processedSubject,
+      html: processedBody,
+      replyTo: emailConfig.replyTo || emailConfig.fromEmail
+    };
+    
+    console.log('📤 Sending water bill email:', {
+      to: finalRecipients,
+      cc: emailConfig.ccList,
+      subject: processedSubject,
+      language: templateLang
+    });
+    
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log('✅ Water bill email sent successfully:', info.messageId);
+    
+    // Log audit trail
+    await writeAuditLog({
+      module: 'water_bills',
+      action: 'send_bill_email',
+      parentPath: `clients/${clientId}/projects/waterBills`,
+      docId: `${billingPeriod}-${unitNumber}`,
+      friendlyName: `Water Bill Email: Unit ${unitNumber} - ${billingPeriod}`,
+      notes: `Sent water bill email in ${templateLang} to ${finalRecipients.join(', ')} for Unit ${unitNumber}`,
+    });
+    
+    return {
+      success: true,
+      messageId: info.messageId,
+      recipients: finalRecipients,
+      cc: emailConfig.ccList,
+      language: templateLang,
+      unitNumber: unitNumber,
+      billingPeriod: billingPeriod
+    };
+    
+  } catch (error) {
+    console.error('❌ Error sending water bill email:', error);
+    
+    // Log error to audit trail
+    await writeAuditLog({
+      module: 'water_bills',
+      action: 'send_bill_email_failed',
+      parentPath: `clients/${clientId}/projects/waterBills`,
+      docId: `${billingPeriod}-${unitNumber}`,
+      friendlyName: `Failed Water Bill Email: Unit ${unitNumber} - ${billingPeriod}`,
+      notes: `Failed to send water bill email: ${error.message}`,
+    });
+    
+    return {
+      success: false,
+      error: error.message,
+      unitNumber: unitNumber,
+      billingPeriod: billingPeriod
+    };
+  }
+}
+
+/**
+ * Test water bill email with real AVII data
+ * @param {string} unitNumber - Unit number to test (e.g., '101', '103', '106', '203', '204')
+ * @param {string} userLanguage - Language to test ('en' or 'es')
+ * @param {string} testEmail - Email address to send test to
+ * @returns {object} Result of test email operation
+ */
+async function testWaterBillEmail(unitNumber = '101', userLanguage = 'en', testEmail = 'michael@landesman.com') {
+  console.log(`🧪 Testing water bill email for AVII Unit ${unitNumber} in ${userLanguage}`);
+  
+  return await sendWaterBillEmail(
+    'AVII',           // Client ID
+    unitNumber,       // Unit number
+    '2026-00',        // July 2025 billing period
+    userLanguage,     // Language
+    [testEmail],      // Test recipient
+    { isTest: true }  // Test mode
+  );
+}
+
 export {
   sendReceiptEmail,
+  sendWaterBillEmail,
+  testWaterBillEmail,
   testEmailConfig,
   createGmailTransporter,
-  processEmailTemplate
+  processEmailTemplate,
+  processWaterBillTemplate
 };

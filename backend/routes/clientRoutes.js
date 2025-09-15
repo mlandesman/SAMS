@@ -15,6 +15,7 @@ import reportsRoutes from './reports.js';
 import balancesRoutes from './balances.js';
 import projectsRoutes from './projects.js';
 import waterRoutes from './waterRoutes.js';
+import configRoutes from './config.js';
 
 // Test route
 router.get('/test', (req, res) => {
@@ -188,5 +189,17 @@ router.use('/:clientId/projects/waterBills', (req, res, next) => {
   next();
 }, waterRoutes);
 
+// Mount Config routes
+router.use('/:clientId/config', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for config:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, configRoutes);
 
 export default router;

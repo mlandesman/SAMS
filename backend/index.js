@@ -15,6 +15,7 @@ import authRoutes from './routes/auth.js'; // Import auth routes
 import versionRoutes from './routes/version.js'; // Import version routes
 import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
+import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,10 @@ await initializeFirebase();
 console.log('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
 app.use('/system/version', versionRoutes); // Clean architecture (public)
+
+// COMMUNICATION ROUTES (domain-specific email functionality)
+console.log('Mounting communication email routes');
+app.use('/comm/email', emailRoutesComm); // Communication email routes
 
 // AUTHENTICATED ROUTES (require auth)
 console.log('Mounting water routes');

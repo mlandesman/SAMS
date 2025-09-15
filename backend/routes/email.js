@@ -6,7 +6,7 @@
 import express from 'express';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getEmailConfig, setEmailConfig, initializeMTCEmailConfig } from '../controllers/emailConfigController.js';
-import { sendReceiptEmail, testEmailConfig } from '../controllers/emailService.js';
+import { sendReceiptEmail, testEmailConfig, sendWaterBillEmail, testWaterBillEmail } from '../controllers/emailService.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -42,6 +42,7 @@ router.get('/config/:templateType?', async (req, res) => {
     });
   }
 });
+
 
 // POST /api/clients/:clientId/email/config/:configType - Set email configuration
 router.post('/config/:configType?', async (req, res) => {
@@ -170,6 +171,105 @@ router.post('/initialize', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to initialize email configuration' 
+    });
+  }
+});
+
+// POST /api/clients/:clientId/email/send-water-bill - Send water bill email
+router.post('/send-water-bill', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitNumber, billingPeriod, userLanguage, recipientEmails, options } = req.body;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+
+    if (!unitNumber) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Unit number is required' 
+      });
+    }
+
+    if (!billingPeriod) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Billing period is required' 
+      });
+    }
+
+    if (!recipientEmails || recipientEmails.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Recipient emails are required' 
+      });
+    }
+
+    console.log(`💧 Sending water bill email for ${clientId} Unit ${unitNumber} (${billingPeriod}) in ${userLanguage || 'en'}`);
+    
+    const result = await sendWaterBillEmail(
+      clientId, 
+      unitNumber, 
+      billingPeriod, 
+      userLanguage || 'en', 
+      recipientEmails, 
+      options || {}
+    );
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error('❌ Error sending water bill email:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send water bill email',
+      details: error.message 
+    });
+  }
+});
+
+// POST /api/clients/:clientId/email/test-water-bill - Test water bill email
+router.post('/test-water-bill', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitNumber, userLanguage, testEmail } = req.body;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+
+    if (!testEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Test email address is required' 
+      });
+    }
+
+    console.log(`🧪 Testing water bill email for ${clientId} Unit ${unitNumber || '101'} in ${userLanguage || 'en'}`);
+    
+    const result = await testWaterBillEmail(
+      unitNumber || '101', 
+      userLanguage || 'en', 
+      testEmail
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error testing water bill email:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to test water bill email',
+      details: error.message 
     });
   }
 });
