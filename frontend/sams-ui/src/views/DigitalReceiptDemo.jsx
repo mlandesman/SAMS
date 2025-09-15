@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import DigitalReceipt from '../components/DigitalReceipt';
+import html2canvas from 'html2canvas';
 
 const DigitalReceiptDemo = () => {
   const [generatedBlob, setGeneratedBlob] = useState(null);
   const [selectedSample, setSelectedSample] = useState(0);
   const [selectedDemo, setSelectedDemo] = useState('receipts'); // 'receipts' or 'waterBills'
+  const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
+  const waterBillPreviewRef = useRef(null);
 
   // Multiple sample transaction data for demo
   const sampleTransactions = [
@@ -302,6 +305,93 @@ const DigitalReceiptDemo = () => {
       fetchWaterBillTemplates();
     }
   }, [selectedDemo]);
+
+  // Save water bill template functionality
+  const saveWaterBillTemplate = async () => {
+    if (!waterBillPreviewRef.current) {
+      console.error('Water bill preview ref is null');
+      alert('Could not find template preview to save');
+      return;
+    }
+
+    if (!waterBillSamples[selectedSample]) {
+      console.error('No water bill sample selected');
+      alert('Please select a water bill sample first');
+      return;
+    }
+
+    console.log('Starting water bill template save...');
+    setIsGeneratingTemplate(true);
+    
+    try {
+      // Wait for fonts and rendering
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      console.log('Starting html2canvas capture for water bill template...');
+      
+      const canvas = await html2canvas(waterBillPreviewRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: true,
+        foreignObjectRendering: false,
+        width: waterBillPreviewRef.current.offsetWidth,
+        height: waterBillPreviewRef.current.offsetHeight
+      });
+
+      console.log('Canvas created successfully, size:', canvas.width, 'x', canvas.height);
+
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas has zero dimensions');
+      }
+
+      // Create download using canvas toBlob
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error('Failed to create blob');
+          alert('Failed to create template image');
+          return;
+        }
+
+        console.log('Blob created successfully, size:', blob.size);
+        
+        // Generate filename based on sample data
+        const sample = waterBillSamples[selectedSample];
+        const filename = `waterbill-template-${sample.variables.UnitNumber}-${sample.language}-${Date.now()}.png`;
+        
+        // Create download
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = url;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        
+        console.log('Triggering download...');
+        link.click();
+        
+        // Cleanup
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        console.log('Template download completed successfully');
+        alert(`✅ Template saved as ${filename}`);
+        
+      }, 'image/png', 1.0);
+
+    } catch (error) {
+      console.error('Error saving water bill template:', error);
+      alert(`Error saving template: ${error.message}`);
+    } finally {
+      setIsGeneratingTemplate(false);
+      console.log('Template save process finished');
+    }
+  };
 
   return (
     <div style={{ 
