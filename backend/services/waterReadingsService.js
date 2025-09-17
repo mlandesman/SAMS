@@ -15,8 +15,10 @@ class WaterReadingsService {
   }
 
   // Save readings for a month
-  async saveReadings(clientId, year, month, readings) {
+  async saveReadings(clientId, year, month, payload) {
     await this._initializeDb();
+    
+    console.log('🔍 Service received payload:', JSON.stringify(payload, null, 2));
     
     const docId = `${year}-${String(month).padStart(2, '0')}`;
     const docRef = this.db
@@ -24,13 +26,26 @@ class WaterReadingsService {
       .collection('projects').doc('waterBills')
       .collection('readings').doc(docId);
     
-    // Store readings exactly as received from frontend
+    // Ensure readings field exists and is not undefined
+    const readings = payload.readings || {};
+    
+    // Build proper document structure with buildingMeter/commonArea at root level
     const data = {
       year,
       month,
-      readings, // Now contains nested objects: {"101": {reading: 1780, carWashCount: 2, boatWashCount: 1}}
+      readings, // Only unit readings (101, 102, etc.)
       timestamp: admin.firestore.FieldValue.serverTimestamp()
     };
+    
+    // Add buildingMeter and commonArea at root level if provided
+    if (payload.buildingMeter !== undefined && payload.buildingMeter !== null) {
+      data.buildingMeter = payload.buildingMeter;
+    }
+    if (payload.commonArea !== undefined && payload.commonArea !== null) {
+      data.commonArea = payload.commonArea;
+    }
+    
+    console.log('💾 Final data to save:', JSON.stringify(data, null, 2));
     
     await docRef.set(data);
     
@@ -70,7 +85,10 @@ class WaterReadingsService {
     
     // Get prior year's last month (June/month 11) for baseline
     const priorYearDoc = await readingsRef.doc(`${year-1}-11`).get();
-    let priorMonthReadings = priorYearDoc.exists ? priorYearDoc.data().readings : {};
+    let priorMonthData = priorYearDoc.exists ? priorYearDoc.data() : {};
+    let priorMonthReadings = priorMonthData.readings || {};
+    let priorBuildingMeter = priorMonthData.buildingMeter || 0;
+    let priorCommonArea = priorMonthData.commonArea || 0;
     
     // Get all documents for the fiscal year
     // Note: Can't use orderBy with where without an index, so we'll sort in memory
@@ -91,7 +109,7 @@ class WaterReadingsService {
       const currentReadings = data.readings;
       const monthData = {};
       
-      // For each meter, calculate consumption
+      // For each unit meter, calculate consumption
       for (const unitId in currentReadings) {
         const current = currentReadings[unitId];
         const prior = priorMonthReadings[unitId] || 0;
@@ -102,6 +120,26 @@ class WaterReadingsService {
           consumption: current - prior,
           prior: prior
         };
+      }
+      
+      // Handle buildingMeter at root level if present
+      if (data.buildingMeter !== undefined) {
+        monthData.buildingMeter = {
+          reading: data.buildingMeter,
+          consumption: data.buildingMeter - priorBuildingMeter,
+          prior: priorBuildingMeter
+        };
+        priorBuildingMeter = data.buildingMeter;
+      }
+      
+      // Handle commonArea at root level if present
+      if (data.commonArea !== undefined) {
+        monthData.commonArea = {
+          reading: data.commonArea,
+          consumption: data.commonArea - priorCommonArea,
+          prior: priorCommonArea
+        };
+        priorCommonArea = data.commonArea;
       }
       
       readings[data.month] = monthData;

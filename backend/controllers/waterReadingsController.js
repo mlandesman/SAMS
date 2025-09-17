@@ -5,12 +5,13 @@ import waterReadingsService from '../services/waterReadingsService.js';
 export const saveReadings = async (req, res) => {
   try {
     const { clientId } = req.params;
-    const { year, month, readings } = req.body;
+    const { year, month } = req.body;
     
     console.log(`Saving water readings: clientId=${clientId}, year=${year}, month=${month}`);
+    console.log('Request payload:', JSON.stringify(req.body, null, 2));
     
     const result = await waterReadingsService.saveReadings(
-      clientId, year, month, readings
+      clientId, year, month, req.body
     );
     
     res.json({ success: true, data: result });

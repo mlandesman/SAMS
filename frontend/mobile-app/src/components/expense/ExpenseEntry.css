@@ -1,0 +1,292 @@
+/* Mobile Expense Entry Styles - Sandyland Branding */
+
+.expense-entry-screen {
+  min-height: calc(100vh - 64px);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.expense-entry-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    #e3f2fd 0%,   /* Light ocean blue */
+    #bbdefb 25%,  /* Ocean blue */
+    #90caf9 50%,  /* Medium blue */
+    #64b5f6 75%,  /* Deeper blue */
+    #fff3e0 100%  /* Sand color */
+  );
+  z-index: -1;
+}
+
+.expense-entry-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 140px);
+  padding: 24px;
+}
+
+/* Client Selector Styles */
+.client-selector-single .client-select-button {
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+  border-radius: 12px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: none;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
+}
+
+.client-selector-single .client-select-button:hover {
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+  transform: translateY(-2px);
+}
+
+.client-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.client-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.client-card.selected {
+  border: 2px solid #1976d2;
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.2);
+}
+
+/* Expense Form Styles */
+.expense-form {
+  margin: 16px;
+  margin-bottom: 100px; /* Space for navigation */
+}
+
+.expense-form .MuiCard-root {
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+}
+
+.expense-form-loading {
+  margin: 16px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced Input Styles */
+.expense-form .MuiTextField-root {
+  border-radius: 12px;
+}
+
+.expense-form .MuiOutlinedInput-root {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.expense-form .MuiOutlinedInput-root:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.expense-form .MuiOutlinedInput-root.Mui-focused {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+}
+
+/* Select Styles */
+.expense-form .MuiSelect-root {
+  border-radius: 12px;
+}
+
+/* Amount Field Special Styling */
+.expense-form .MuiTextField-root:first-of-type .MuiOutlinedInput-root {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.expense-form .MuiTextField-root:first-of-type .MuiInputAdornment-root .MuiSvgIcon-root {
+  color: #1976d2;
+  font-size: 24px;
+}
+
+/* Button Enhancements */
+.expense-form .MuiButton-contained {
+  border-radius: 12px;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
+}
+
+.expense-form .MuiButton-contained:hover {
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Expense Confirmation Styles */
+.expense-confirmation {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 100px; /* Space for navigation */
+}
+
+.expense-confirmation .MuiCard-root {
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.expense-confirmation .MuiButton-contained {
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: none;
+  box-shadow: 0 3px 10px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
+}
+
+.expense-confirmation .MuiButton-contained:hover {
+  box-shadow: 0 5px 14px rgba(25, 118, 210, 0.4);
+  transform: translateY(-1px);
+}
+
+.expense-confirmation .MuiButton-outlined {
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: none;
+  border-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.expense-confirmation .MuiButton-outlined:hover {
+  border-width: 2px;
+  background-color: rgba(25, 118, 210, 0.04);
+  transform: translateY(-1px);
+}
+
+/* Chip Enhancements */
+.expense-confirmation .MuiChip-root {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Header Styling */
+.sandyland-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* Floating Action Button */
+.expense-add-fab {
+  position: fixed !important;
+  bottom: 90px;
+  right: 16px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%) !important;
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+.expense-add-fab:hover {
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%) !important;
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.5) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Success Animation */
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.expense-confirmation .MuiSvgIcon-root:first-child {
+  animation: successPulse 2s ease-in-out infinite;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .expense-form {
+    margin: 8px;
+  }
+  
+  .expense-confirmation {
+    padding: 16px;
+  }
+  
+  .expense-add-fab {
+    bottom: 80px !important;
+    right: 12px !important;
+  }
+}
+
+/* Touch Improvements */
+@media (hover: none) and (pointer: coarse) {
+  .client-card:hover {
+    transform: none;
+  }
+  
+  .expense-form .MuiButton-contained:hover {
+    transform: none;
+  }
+  
+  .expense-confirmation .MuiButton-contained:hover {
+    transform: none;
+  }
+  
+  .expense-add-fab:hover {
+    transform: none !important;
+  }
+}
+
+/* Loading States */
+.expense-form .MuiButton-root.Mui-disabled {
+  background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%) !important;
+  color: #bdbdbd !important;
+}
+
+/* Error States */
+.expense-form .MuiFormControl-root.Mui-error .MuiOutlinedInput-root {
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.2);
+}
+
+/* Success States */
+.expense-form .MuiAlert-standardSuccess {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+}

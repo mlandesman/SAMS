@@ -1,0 +1,452 @@
+/* Mobile-first CSS for Sandyland Asset Management PWA */
+
+/* Global mobile optimizations */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px; /* Prevent iOS zoom on input focus */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+/* Layout containers */
+.mobile-app {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Dashboard Mobile Enhancements */
+.mobile-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+  background-attachment: fixed;
+  background-size: cover;
+  position: relative;
+}
+
+.mobile-dashboard-content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 80px; /* Account for bottom navigation */
+}
+
+.mobile-content {
+  flex: 1;
+  padding: 0 env(safe-area-inset-right) calc(80px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+  padding-top: calc(64px + env(safe-area-inset-top)); /* App bar height + safe area */
+  position: relative;
+}
+
+/* Touch-friendly buttons */
+.touch-button {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-button:active {
+  transform: scale(0.98);
+}
+
+/* Form styles */
+.mobile-form {
+  padding: 16px;
+  max-width: 100%;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Input optimizations */
+.mobile-input input {
+  font-size: 16px !important; /* Prevent iOS zoom */
+  min-height: 48px;
+  padding: 12px 16px;
+}
+
+.mobile-input .MuiSelect-select {
+  font-size: 16px !important;
+  min-height: 48px;
+  padding: 12px 16px;
+}
+
+/* Loading states */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* Error states */
+.error-message {
+  color: #d32f2f;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  border-left: 4px solid #d32f2f;
+}
+
+/* Success states */
+.success-message {
+  color: #2e7d32;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #e8f5e8;
+  border-radius: 4px;
+  border-left: 4px solid #2e7d32;
+}
+
+/* Card styles */
+.mobile-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin: 16px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+}
+
+/* Dashboard card centering */
+.dashboard-cards-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0 16px;
+  width: 100%;
+}
+
+.dashboard-card {
+  width: 100%;
+  max-width: 350px;
+  margin-bottom: 16px;
+}
+
+/* Projects and Budget cards side by side */
+.dashboard-horizontal-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
+}
+
+.dashboard-horizontal-cards .dashboard-card {
+  max-width: none;
+  margin-bottom: 0;
+}
+
+/* Client selection styles */
+.client-list {
+  padding: 0;
+  margin: 0;
+}
+
+.client-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+}
+
+.client-item:last-child {
+  border-bottom: none;
+}
+
+.client-item:active {
+  background-color: #f5f5f5;
+}
+
+.client-item.selected {
+  background-color: #e3f2fd;
+  border-left: 4px solid #1976d2;
+}
+
+/* Confirmation screen */
+.confirmation-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.confirmation-icon {
+  font-size: 64px;
+  color: #4caf50;
+  margin-bottom: 16px;
+}
+
+.transaction-id {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1976d2;
+  background-color: #e3f2fd;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  word-break: break-all;
+}
+
+.transaction-summary {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.summary-value {
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 0 16px 16px 16px;
+}
+
+.action-button {
+  flex: 1;
+  min-height: 48px;
+}
+
+/* Auth screen */
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding: 0 20px 40px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+  padding-top: max(env(safe-area-inset-top), 0);
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 24px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive design */
+@media (max-width: 360px) {
+  .mobile-card {
+    margin: 8px;
+    padding: 16px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-content {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .mobile-app {
+    min-height: -webkit-fill-available;
+  }
+  
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  background-color: #ff9800;
+  color: white;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+  z-index: 1000;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+.offline-indicator.show {
+  transform: translateY(0);
+}
+
+/* Pull to refresh */
+.ptr-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.ptr-indicator {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px;
+  color: #1976d2;
+  transition: top 0.3s ease;
+}
+
+.ptr-indicator.active {
+  top: 0;
+}
+
+/* About Screen Mobile Optimizations */
+.about-screen {
+  min-height: 100vh;
+  padding-bottom: 80px; /* Account for bottom navigation */
+}
+
+.about-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin: 16px;
+  overflow: visible;
+}
+
+.about-floating-icon {
+  position: relative;
+  top: -30px;
+  margin-bottom: -20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Touch-friendly interactions for About screen */
+.about-back-button {
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* About screen responsive design */
+@media (max-width: 360px) {
+  .about-card {
+    margin: 8px;
+  }
+  
+  .about-screen .MuiTypography-h5 {
+    font-size: 1.25rem;
+  }
+  
+  .about-screen .MuiAvatar-root {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .about-screen .MuiAvatar-root .MuiSvgIcon-root {
+    font-size: 30px;
+  }
+}
+
+/* Enhanced touch targets for About screen */
+.about-screen .MuiListItem-root {
+  min-height: 48px;
+  touch-action: manipulation;
+}
+
+.about-screen .MuiIconButton-root {
+  min-height: 48px;
+  min-width: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* About screen animations */
+.about-screen .MuiCard-root {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.about-screen .MuiCard-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}

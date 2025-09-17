@@ -1,0 +1,48 @@
+{
+  "name": "sams-mobile",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "SAMS Mobile Progressive Web App for expense entry",
+  "scripts": {
+    "version:stamp": "node ../../scripts/updateVersion.js update",
+    "version:bump": "node ../../scripts/updateVersion.js bump patch",
+    "version:bump:minor": "node ../../scripts/updateVersion.js bump minor",
+    "version:bump:major": "node ../../scripts/updateVersion.js bump major",
+    "version:validate": "node ../../scripts/updateVersion.js validate",
+    "build": "vite build",
+    "build:clean": "npm run version:stamp && rm -rf dist && vite build",
+    "build:staging": "REACT_APP_ENVIRONMENT=staging NODE_ENV=staging npm run build",
+    "build:production": "REACT_APP_ENVIRONMENT=production NODE_ENV=production npm run build",
+    "predev": "npm run version:stamp",
+    "dev": "vite",
+    "dev:clean": "npm run version:stamp && vite --force",
+    "deploy:staging": "npm run build:staging",
+    "deploy:production": "npm run build:production",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.1.1",
+    "@mui/material": "^7.1.1",
+    "firebase": "^11.7.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "vite": "^5.4.10",
+    "vite-plugin-pwa": "^0.20.5",
+    "workbox-window": "^7.0.0"
+  }
+}

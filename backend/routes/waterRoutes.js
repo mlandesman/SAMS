@@ -73,13 +73,15 @@ router.get('/clients/:clientId/readings/:year/:month', enforceClientAccess, asyn
 router.post('/clients/:clientId/readings/:year/:month', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year, month } = req.params;
-    const { readings } = req.body;
+    
+    console.log(`💾 Saving water readings: clientId=${clientId}, year=${year}, month=${month}`);
+    console.log('📦 Request payload:', JSON.stringify(req.body, null, 2));
     
     const data = await waterReadingsService.saveReadings(
       clientId,
       parseInt(year),
       parseInt(month),
-      readings
+      req.body
     );
     
     res.json({

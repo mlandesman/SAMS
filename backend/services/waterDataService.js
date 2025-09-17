@@ -240,6 +240,8 @@ class WaterDataService {
     return finalResult;
   }
 
+
+
   /**
    * Build data for a single month
    * Month 0 = July, Month 1 = August, etc.
@@ -289,13 +291,13 @@ class WaterDataService {
       
       // Extract reading from nested structure if present
       let currentReading = currentReadings[unitId] || 0;
-      let carWashCount = 0;
-      let boatWashCount = 0;
+      let washes = undefined; // Only include if washes array exists
       
       if (typeof currentReading === 'object' && currentReading.reading !== undefined) {
-        // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
-        carWashCount = currentReading.carWashCount || 0;
-        boatWashCount = currentReading.boatWashCount || 0;
+        // Extract washes array if it exists (ignore legacy count fields)
+        if (currentReading.washes && Array.isArray(currentReading.washes)) {
+          washes = currentReading.washes;
+        }
         currentReading = currentReading.reading;
       }
       
@@ -303,12 +305,15 @@ class WaterDataService {
       const consumption = currentReading - priorReading;
       const bill = bills?.bills?.units?.[unitId];
       
-      // Store wash counts in the currentReading object for frontend compatibility
+      // Store reading and washes array (only if washes exist)
       const currentReadingObj = {
-        reading: currentReading,
-        carWashCount: carWashCount,
-        boatWashCount: boatWashCount
+        reading: currentReading
       };
+      
+      // Only include washes if the array exists in Firebase
+      if (washes !== undefined) {
+        currentReadingObj.washes = washes;
+      }
       
       // Extract owner last name from owners array (following HOA pattern)
       let ownerLastName = 'Unknown';
@@ -382,21 +387,45 @@ class WaterDataService {
       billsGenerated: bills !== null  // True if YYYY-MM document exists
     };
     
-    // Add Common Area data if present (readings only, no billing)
-    if (currentReadings.commonArea !== undefined) {
+    // Add Common Area data - always include if we have prior readings or current readings
+    if (currentReadings.commonArea !== undefined || priorReadings.commonArea !== undefined) {
+      let currentCommonReading = currentReadings.commonArea;
+      // If it's an object, extract the reading value (like we do for units)
+      if (typeof currentCommonReading === 'object' && currentCommonReading.reading !== undefined) {
+        currentCommonReading = currentCommonReading.reading;
+      }
+      
+      let priorCommonReading = priorReadings.commonArea || 0;
+      // If it's an object, extract the reading value
+      if (typeof priorCommonReading === 'object' && priorCommonReading.reading !== undefined) {
+        priorCommonReading = priorCommonReading.reading;
+      }
+      
       monthData.commonArea = {
-        priorReading: priorReadings.commonArea || 0,
-        currentReading: currentReadings.commonArea || 0,
-        consumption: (currentReadings.commonArea || 0) - (priorReadings.commonArea || 0)
+        priorReading: priorCommonReading,
+        currentReading: currentCommonReading || null,
+        consumption: currentCommonReading !== undefined ? currentCommonReading - priorCommonReading : null
       };
     }
     
-    // Add Building Meter data if present (readings only, no billing)
-    if (currentReadings.buildingMeter !== undefined) {
+    // Add Building Meter data - always include if we have prior readings or current readings
+    if (currentReadings.buildingMeter !== undefined || priorReadings.buildingMeter !== undefined) {
+      let currentBuildingReading = currentReadings.buildingMeter;
+      // If it's an object, extract the reading value (like we do for units)
+      if (typeof currentBuildingReading === 'object' && currentBuildingReading.reading !== undefined) {
+        currentBuildingReading = currentBuildingReading.reading;
+      }
+      
+      let priorBuildingReading = priorReadings.buildingMeter || 0;
+      // If it's an object, extract the reading value
+      if (typeof priorBuildingReading === 'object' && priorBuildingReading.reading !== undefined) {
+        priorBuildingReading = priorBuildingReading.reading;
+      }
+      
       monthData.buildingMeter = {
-        priorReading: priorReadings.buildingMeter || 0,
-        currentReading: currentReadings.buildingMeter || 0,
-        consumption: (currentReadings.buildingMeter || 0) - (priorReadings.buildingMeter || 0)
+        priorReading: priorBuildingReading,
+        currentReading: currentBuildingReading || null,
+        consumption: currentBuildingReading !== undefined ? currentBuildingReading - priorBuildingReading : null
       };
     }
     
@@ -500,13 +529,13 @@ class WaterDataService {
       
       // Extract reading from nested structure if present
       let currentReading = currentReadings[unitId] || 0;
-      let carWashCount = 0;
-      let boatWashCount = 0;
+      let washes = undefined; // Only include if washes array exists
       
       if (typeof currentReading === 'object' && currentReading.reading !== undefined) {
-        // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
-        carWashCount = currentReading.carWashCount || 0;
-        boatWashCount = currentReading.boatWashCount || 0;
+        // Extract washes array if it exists (ignore legacy count fields)
+        if (currentReading.washes && Array.isArray(currentReading.washes)) {
+          washes = currentReading.washes;
+        }
         currentReading = currentReading.reading;
       }
       
@@ -514,12 +543,15 @@ class WaterDataService {
       const consumption = currentReading - priorReading;
       const bill = bills?.bills?.units?.[unitId];
       
-      // Store wash counts in the currentReading object for frontend compatibility
+      // Store reading and washes array (only if washes exist)
       const currentReadingObj = {
-        reading: currentReading,
-        carWashCount: carWashCount,
-        boatWashCount: boatWashCount
+        reading: currentReading
       };
+      
+      // Only include washes if the array exists in Firebase
+      if (washes !== undefined) {
+        currentReadingObj.washes = washes;
+      }
       
       // Extract owner last name from owners array (following HOA pattern)
       let ownerLastName = 'Unknown';
@@ -603,21 +635,45 @@ class WaterDataService {
       dueDate: bills?.dueDate || null
     };
     
-    // Add Common Area data if present (readings only, no billing)
-    if (currentReadings.commonArea !== undefined) {
+    // Add Common Area data - always include if we have prior readings or current readings
+    if (currentReadings.commonArea !== undefined || priorReadings.commonArea !== undefined) {
+      let currentCommonReading = currentReadings.commonArea;
+      // If it's an object, extract the reading value (like we do for units)
+      if (typeof currentCommonReading === 'object' && currentCommonReading.reading !== undefined) {
+        currentCommonReading = currentCommonReading.reading;
+      }
+      
+      let priorCommonReading = priorReadings.commonArea || 0;
+      // If it's an object, extract the reading value
+      if (typeof priorCommonReading === 'object' && priorCommonReading.reading !== undefined) {
+        priorCommonReading = priorCommonReading.reading;
+      }
+      
       monthData.commonArea = {
-        priorReading: priorReadings.commonArea || 0,
-        currentReading: currentReadings.commonArea || 0,
-        consumption: (currentReadings.commonArea || 0) - (priorReadings.commonArea || 0)
+        priorReading: priorCommonReading,
+        currentReading: currentCommonReading || null,
+        consumption: currentCommonReading !== undefined ? currentCommonReading - priorCommonReading : null
       };
     }
     
-    // Add Building Meter data if present (readings only, no billing)
-    if (currentReadings.buildingMeter !== undefined) {
+    // Add Building Meter data - always include if we have prior readings or current readings
+    if (currentReadings.buildingMeter !== undefined || priorReadings.buildingMeter !== undefined) {
+      let currentBuildingReading = currentReadings.buildingMeter;
+      // If it's an object, extract the reading value (like we do for units)
+      if (typeof currentBuildingReading === 'object' && currentBuildingReading.reading !== undefined) {
+        currentBuildingReading = currentBuildingReading.reading;
+      }
+      
+      let priorBuildingReading = priorReadings.buildingMeter || 0;
+      // If it's an object, extract the reading value
+      if (typeof priorBuildingReading === 'object' && priorBuildingReading.reading !== undefined) {
+        priorBuildingReading = priorBuildingReading.reading;
+      }
+      
       monthData.buildingMeter = {
-        priorReading: priorReadings.buildingMeter || 0,
-        currentReading: currentReadings.buildingMeter || 0,
-        consumption: (currentReadings.buildingMeter || 0) - (priorReadings.buildingMeter || 0)
+        priorReading: priorBuildingReading,
+        currentReading: currentBuildingReading || null,
+        consumption: currentBuildingReading !== undefined ? currentBuildingReading - priorBuildingReading : null
       };
     }
     
@@ -630,7 +686,15 @@ class WaterDataService {
   async fetchReadings(clientId, year, month) {
     try {
       const data = await waterReadingsService.getMonthReadings(clientId, year, month);
-      return data?.readings || {};
+      if (!data) return {};
+      
+      // Return the entire document data, not just the readings field
+      // This includes commonArea and buildingMeter at the top level
+      return {
+        ...data.readings || {},  // Spread unit readings at top level
+        commonArea: data.commonArea,
+        buildingMeter: data.buildingMeter
+      };
     } catch (error) {
       console.log(`No readings for ${year}-${month}`);
       return {};
