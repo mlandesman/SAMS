@@ -11,6 +11,9 @@
  * - fiscalYearUtils.js: Fiscal year period calculations
  */
 
+// Import Firebase for previous month data fetching
+import { getDb } from '../../firebase.js';
+
 // Backend-compatible utility functions (replicate frontend functionality)
 // Using simplified versions to avoid frontend/backend cross-imports
 
@@ -64,6 +67,37 @@ function formatCurrency(centavos, currency = 'MXN', showCents = true) {
 }
 
 /**
+ * Calculate previous billing period from current period
+ * @param {string} currentPeriod - Current billing period (e.g., "2026-01")
+ * @returns {string|null} Previous billing period (e.g., "2026-00") or null if invalid
+ */
+function getPreviousPeriod(currentPeriod) {
+  if (!currentPeriod || typeof currentPeriod !== 'string') {
+    return null;
+  }
+  
+  const parts = currentPeriod.split('-');
+  if (parts.length !== 2) {
+    return null;
+  }
+  
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  
+  if (isNaN(year) || isNaN(month)) {
+    return null;
+  }
+  
+  if (month === 0) {
+    // January, go to December of previous year
+    return `${year - 1}-11`;
+  } else {
+    // Go to previous month
+    return `${year}-${String(month - 1).padStart(2, '0')}`;
+  }
+}
+
+/**
  * Build template variables from real Firebase water bills data
  * CRITICAL: NO FALLBACK VALUES for financial data - GAAP compliance required
  * @param {Object} billDocument - Complete bill document from Firebase (clients/AVII/projects/waterBills/bills/2026-00)
@@ -72,10 +106,11 @@ function formatCurrency(centavos, currency = 'MXN', showCents = true) {
  * @param {Object} waterBillConfig - Water bill configuration (clients/AVII/config/waterBills)
  * @param {string} unitNumber - Unit number for this bill
  * @param {string} userLanguage - User's preferred language ('en' or 'es')
+ * @param {string} currentPeriodId - Current period ID (e.g., "2026-01") - used for previous month lookup
  * @returns {Object} Template variables for email processing
  * @throws {Error} If required financial data is missing
  */
-function buildWaterBillTemplateVariables(billDocument, readingsDocument, clientConfig, waterBillConfig, unitNumber, userLanguage = 'en') {
+async function buildWaterBillTemplateVariables(billDocument, readingsDocument, clientConfig, waterBillConfig, unitNumber, userLanguage = 'en', currentPeriodId = null) {
   // Validate required parameters exist
   validateRequiredData(billDocument, readingsDocument, clientConfig, waterBillConfig, unitNumber);
 
@@ -162,67 +197,118 @@ function buildWaterBillTemplateVariables(billDocument, readingsDocument, clientC
     throw new Error('Reading date is required from readings document');
   }
 
+  // Get previous month consumption for comparison by fetching previous period data
+  let lastMonthConsumption = null;
+  let usageChange = null;
+  
+  try {
+    // Calculate previous period from current period ID
+    // currentPeriodId should be passed as "2026-01" format where 00=Jan, 01=Feb, etc.
+    const previousPeriod = currentPeriodId ? getPreviousPeriod(currentPeriodId) : null;
+    
+    if (previousPeriod) {
+      // Fetch previous month's readings document from Firebase
+      const db = await getDb();
+      const previousReadingsRef = db.doc(`clients/AVII/projects/waterBills/readings/${previousPeriod}`);
+      const previousReadingsDoc = await previousReadingsRef.get();
+      
+      if (previousReadingsDoc.exists) {
+        const previousData = previousReadingsDoc.data();
+        const previousUnitReading = previousData.units?.[unitNumber];
+        
+        if (previousUnitReading && typeof previousUnitReading.reading === 'number') {
+          // Calculate previous month consumption from the readings
+          const currentReading = previousUnitReading.reading;
+          const priorReading = previousUnitReading.priorReading || 0;
+          lastMonthConsumption = currentReading - priorReading;
+          usageChange = consumption - lastMonthConsumption;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`Could not fetch previous month data for comparison: ${error.message}`);
+    // Continue without comparison data
+  }
+  
   // Template variables - STRICT validation, no fallbacks for financial data
   return {
     // Client Information - validated required fields
-    __ClientName__: clientConfig.basicInfo.displayName,
-    __ClientLogoUrl__: clientConfig.branding?.logoUrl || "", // Branding can have empty fallback
-    __ClientCurrency__: configSnapshot.currency,
-    __CurrencySymbol__: configSnapshot.currencySymbol,
-    __ClientAddress__: buildClientAddress(clientConfig.contactInfo.address),
-    __ClientPhone__: clientConfig.contactInfo.phone || "",
-    __ClientEmail__: clientConfig.contactInfo.primaryEmail || "",
+    ClientName: clientConfig.basicInfo.displayName,
+    ClientLogoUrl: clientConfig.branding?.logoUrl || "", // Branding can have empty fallback
+    ClientCurrency: configSnapshot.currency,
+    CurrencySymbol: configSnapshot.currencySymbol,
+    ClientAddress: buildClientAddress(clientConfig.contactInfo.address),
+    ClientPhone: clientConfig.contactInfo.phone || "",
+    ClientEmail: clientConfig.contactInfo.primaryEmail || "",
 
     // Bill Header Information - NO FALLBACKS, use actual Firebase data
-    __UnitNumber__: unitNumber,
-    __BillingPeriod__: billDocument.billingPeriod, // Real data: "July 2025"
-    __DueDate__: formatDate(billDocument.dueDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
-    __BillDate__: formatDate(billDocument.billDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
+    UnitNumber: unitNumber,
+    BillingPeriod: billDocument.billingPeriod, // Real data: "July 2025"
+    DueDate: formatDate(billDocument.dueDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
+    BillDate: formatDate(billDocument.billDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
 
     // Water Consumption - Real meter readings from Firebase
-    __WaterConsumption__: consumption,
-    __PriorReading__: priorReading,
-    __CurrentReading__: currentReading,
-    __ReadingDate__: formatDate(readingDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
-    __WaterCharge__: formatCurrencyLocal(waterCharge),
+    WaterConsumption: consumption,
+    PriorReading: priorReading,
+    CurrentReading: currentReading,
+    ReadingDate: formatDate(readingDate, userLanguage === 'es' ? 'es-MX' : 'en-US'),
+    WaterCharge: formatCurrencyLocal(waterCharge),
 
     // Service Charges - Can default to 0 for counts
-    __CarWashCount__: carWashCount,
-    __CarWashCharge__: formatCurrencyLocal(carWashCharge),
-    __BoatWashCount__: boatWashCount,
-    __BoatWashCharge__: formatCurrencyLocal(boatWashCharge),
+    CarWashCount: carWashCount,
+    CarWashCharge: formatCurrencyLocal(carWashCharge),
+    BoatWashCount: boatWashCount,
+    BoatWashCharge: formatCurrencyLocal(boatWashCharge),
 
     // Financial Totals - NO FALLBACKS for amounts, use backend currency utility
-    __CurrentMonthTotal__: formatCurrencyLocal(currentCharge),
-    __PenaltyAmount__: formatCurrencyLocal(penaltyAmount),
-    __TotalAmountDue__: formatCurrencyLocal(totalAmount),
+    CurrentMonthTotal: formatCurrencyLocal(currentCharge),
+    PenaltyAmount: formatCurrencyLocal(penaltyAmount),
+    TotalAmountDue: formatCurrencyLocal(totalAmount),
 
     // Conditional Display Logic
-    __ShowCarWash__: carWashCount > 0,
-    __ShowBoatWash__: boatWashCount > 0,
-    __ShowPenalties__: penaltyAmount > 0,
-    __ShowPaidStatus__: status === 'paid',
-    __IsHighUsage__: consumption > 30,
+    ShowCarWash: carWashCount > 0,
+    ShowBoatWash: boatWashCount > 0,
+    ShowPenalties: penaltyAmount > 0,
+    ShowPaidStatus: status === 'paid',
+    IsHighUsage: consumption > 30,
 
     // Payment Status - Required field
-    __PaymentStatus__: status,
-    __StatusMessage__: getStatusMessage(status, userLanguage),
+    PaymentStatus: status,
+    StatusMessage: getStatusMessage(status, userLanguage),
 
     // Additional Context
-    __BillNotes__: billNotes || "",
-    __PenaltyDays__: waterBillConfig.penaltyDays,
-    __PenaltyRate__: `${(configSnapshot.penaltyRate * 100).toFixed(1)}%`,
+    BillNotes: billNotes || "",
+    PenaltyDays: waterBillConfig.penaltyDays,
+    PenaltyRate: `${(configSnapshot.penaltyRate * 100).toFixed(1)}%`,
 
     // Rate Information - Required from configSnapshot (frozen at bill generation)
-    __RatePerM3__: formatCurrencyLocal(configSnapshot.ratePerM3),
-    __CarWashRate__: formatCurrencyLocal(waterBillConfig.rateCarWash),
-    __BoatWashRate__: formatCurrencyLocal(waterBillConfig.rateBoatWash),
+    RatePerM3: formatCurrencyLocal(configSnapshot.ratePerM3),
+    CarWashRate: formatCurrencyLocal(waterBillConfig.rateCarWash),
+    BoatWashRate: formatCurrencyLocal(waterBillConfig.rateBoatWash),
 
     // Branding Colors - Safe to have fallbacks for visual elements
-    __PrimaryColor__: clientConfig.branding?.brandColors?.primary || "#2563eb",
-    __AccentColor__: clientConfig.branding?.brandColors?.accent || "#10b981",
-    __DangerColor__: clientConfig.branding?.brandColors?.danger || "#ef4444",
-    __SuccessColor__: clientConfig.branding?.brandColors?.success || "#22c55e"
+    PrimaryColor: clientConfig.branding?.brandColors?.primary || "#2563eb",
+    AccentColor: clientConfig.branding?.brandColors?.accent || "#10b981",
+    DangerColor: clientConfig.branding?.brandColors?.danger || "#ef4444",
+    SuccessColor: clientConfig.branding?.brandColors?.success || "#22c55e",
+
+    // NEW: Consumption Comparison Features
+    LastMonthUsage: lastMonthConsumption || 0,
+    UsageChange: usageChange ? Math.abs(usageChange) : 0,
+    UsageChangeDisplay: buildUsageChangeDisplay(usageChange, userLanguage),
+    ComparisonChangeClass: getComparisonChangeClass(usageChange),
+    ShowComparison: lastMonthConsumption !== null,
+
+    // NEW: Enhanced High Usage Warning
+    HighUsageWarning: buildHighUsageWarning(consumption, lastMonthConsumption, userLanguage),
+
+    // NEW: Action Button URLs (placeholder URLs for SAMS integration)
+    BankInfoUrl: `https://sams.sandyland.com.mx/bank-info/${unitNumber}`,
+    AccountStatementUrl: `https://sams.sandyland.com.mx/account-statement/${unitNumber}`,
+
+    // NEW: Dynamic Content Sections
+    BillNotesSection: buildBillNotesSection(billNotes, userLanguage),
+    ClientContactInfo: buildClientContactInfo(clientConfig.contactInfo, userLanguage)
   };
 }
 
@@ -330,6 +416,112 @@ function getStatusMessage(status, language) {
 }
 
 /**
+ * Build usage change display string
+ * @param {number|null} usageChange - Change in consumption from last month
+ * @param {string} language - User language preference
+ * @returns {string} Formatted usage change display
+ */
+function buildUsageChangeDisplay(usageChange, language) {
+  if (usageChange === null || usageChange === 0) {
+    return language === 'es' ? 'Sin cambio' : 'No change';
+  }
+  
+  const absChange = Math.abs(usageChange);
+  const arrow = usageChange > 0 ? '↗️' : '↘️';
+  const sign = usageChange > 0 ? '+' : '';
+  
+  return `${sign}${absChange} m³ ${arrow}`;
+}
+
+/**
+ * Get CSS class for consumption comparison change
+ * @param {number|null} usageChange - Change in consumption from last month
+ * @returns {string} CSS class name
+ */
+function getComparisonChangeClass(usageChange) {
+  if (usageChange === null || usageChange === 0) {
+    return 'comparison-same';
+  }
+  return usageChange > 0 ? 'comparison-increase' : 'comparison-decrease';
+}
+
+/**
+ * Build high usage warning HTML section
+ * @param {number} consumption - Current month consumption
+ * @param {number|null} lastMonthConsumption - Previous month consumption
+ * @param {string} language - User language preference
+ * @returns {string} HTML for high usage warning or empty string
+ */
+function buildHighUsageWarning(consumption, lastMonthConsumption, language) {
+  const isHighUsage = consumption > 30;
+  const isSignificantIncrease = lastMonthConsumption && (consumption - lastMonthConsumption) > 10;
+  
+  if (!isHighUsage && !isSignificantIncrease) {
+    return '';
+  }
+  
+  const messages = {
+    en: {
+      title: '⚠️ High Water Usage Notice',
+      highUsage: `Your consumption of ${consumption} m³ is significantly above average. Please check for possible leaks or consider water conservation measures.`,
+      increase: `Your consumption increased by ${consumption - (lastMonthConsumption || 0)} m³ from last month. Please monitor your water usage.`
+    },
+    es: {
+      title: '⚠️ Aviso de Consumo Alto',
+      highUsage: `Su consumo de ${consumption} m³ está significativamente por encima del promedio. Por favor revise posibles fugas o considere medidas de conservación de agua.`,
+      increase: `Su consumo aumentó ${consumption - (lastMonthConsumption || 0)} m³ con respecto al mes pasado. Por favor monitoree su uso de agua.`
+    }
+  };
+  
+  const lang = messages[language] || messages.en;
+  const message = isHighUsage ? lang.highUsage : lang.increase;
+  
+  return `<div class="high-usage-warning">
+    <div class="warning-title">${lang.title}</div>
+    <div class="warning-text">${message}</div>
+  </div>`;
+}
+
+/**
+ * Build bill notes section HTML
+ * @param {string} billNotes - Notes for the bill
+ * @param {string} language - User language preference
+ * @returns {string} HTML for bill notes section or empty string
+ */
+function buildBillNotesSection(billNotes, language) {
+  if (!billNotes) {
+    return '';
+  }
+  
+  const label = language === 'es' ? 'Notas Adicionales' : 'Additional Notes';
+  
+  return `<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+    <strong>${label}:</strong><br>
+    ${billNotes}
+  </div>`;
+}
+
+/**
+ * Build client contact info HTML
+ * @param {Object} contactInfo - Client contact information
+ * @param {string} language - User language preference
+ * @returns {string} HTML for contact information
+ */
+function buildClientContactInfo(contactInfo, language) {
+  const parts = [];
+  
+  if (contactInfo.phone) {
+    parts.push(`📞 ${contactInfo.phone}`);
+  }
+  
+  if (contactInfo.primaryEmail) {
+    parts.push(`✉️ ${contactInfo.primaryEmail}`);
+  }
+  
+  return parts.join('<br>');
+}
+
+/**
  * Real test scenarios using actual Firebase data
  * Updated to use new function signature with proper document structure
  */
@@ -401,5 +593,11 @@ export {
   validateRequiredData,
   buildClientAddress,
   getStatusMessage,
+  buildUsageChangeDisplay,
+  getComparisonChangeClass,
+  buildHighUsageWarning,
+  buildBillNotesSection,
+  buildClientContactInfo,
+  getPreviousPeriod,
   testScenarios
 };

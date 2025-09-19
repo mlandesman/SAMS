@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faTint } from '@fortawesome/free-solid-svg-icons';
+import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
 const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
@@ -208,6 +209,10 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                       const consumption = unitData?.consumption;
                       const amount = unitData?.billAmount;
                       
+                      // Check for washes using existing billNotes or washes array
+                      const hasWashes = (unitData?.currentReading?.washes && Array.isArray(unitData.currentReading.washes) && unitData.currentReading.washes.length > 0) ||
+                                       (unitData?.billNotes && unitData.billNotes.includes('wash'));
+                      
                       // Handle amount cell click for transaction navigation
                       const handleAmountClick = () => {
                         if (unitData?.transactionId) {
@@ -239,10 +244,11 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                         }
                       };
                       
-                      // Enhanced tooltip with full bill notes and transaction info
-                      const tooltipText = unitData?.transactionId ? 
-                        `${unitData?.billNotes || `Unit ${unitId} - ${consumption} m³ consumption`} (Click to view transaction)` :
-                        unitData?.billNotes || (consumption > 0 ? `Unit ${unitId} - ${consumption} m³ consumption` : '');
+                      // Enhanced tooltip using billNotes (which already include wash info) and transaction info
+                      let tooltipText = unitData?.billNotes || (consumption > 0 ? `Unit ${unitId} - ${consumption} m³ consumption` : '');
+                      if (unitData?.transactionId) {
+                        tooltipText = `${tooltipText} (Click to view transaction)`;
+                      }
                       
                       return (
                         <td 
@@ -256,10 +262,21 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                                 className="link-button amount-link"
                                 onClick={handleAmountClick}
                                 title={tooltipText}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right', width: '100%' }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right', width: '100%', position: 'relative' }}
                               >
                                 <div style={{ fontSize: '20px', color: '#333' }}>
                                   {formatNumber(consumption)}
+                                  {hasWashes && (
+                                    <FontAwesomeIcon 
+                                      icon={faTint} 
+                                      style={{ 
+                                        fontSize: '12px', 
+                                        color: '#17a2b8', 
+                                        marginLeft: '4px',
+                                        verticalAlign: 'super'
+                                      }} 
+                                    />
+                                  )}
                                 </div>
                                 <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
                                   ${formatCurrency(amount)}
@@ -269,6 +286,17 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                               <>
                                 <div style={{ fontSize: '20px', color: '#333' }}>
                                   {formatNumber(consumption)}
+                                  {hasWashes && (
+                                    <FontAwesomeIcon 
+                                      icon={faTint} 
+                                      style={{ 
+                                        fontSize: '12px', 
+                                        color: '#17a2b8', 
+                                        marginLeft: '4px',
+                                        verticalAlign: 'super'
+                                      }} 
+                                    />
+                                  )}
                                 </div>
                                 <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
                                   ${formatCurrency(amount)}
@@ -276,7 +304,12 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                               </>
                             )
                           ) : (
-                            '-'
+                            hasWashes ? (
+                              <div style={{ fontSize: '14px', color: '#17a2b8', textAlign: 'center' }}>
+                                <FontAwesomeIcon icon={faTint} />
+                                <div style={{ fontSize: '10px', marginTop: '2px' }}>Washes</div>
+                              </div>
+                            ) : '-'
                           )}
                         </td>
                       );

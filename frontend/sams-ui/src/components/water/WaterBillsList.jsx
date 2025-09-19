@@ -3,6 +3,7 @@ import { useClient } from '../../context/ClientContext';
 import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import WaterPaymentModal from './WaterPaymentModal';
+import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
 import './WaterBillsList.css';
 
 const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) => {
@@ -190,16 +191,28 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       let monthPaid = 0;
       let monthConsumption = 0;
       let monthCharges = 0;
+      let monthWashes = 0;
       let monthPenalties = 0;
       
       Object.values(monthData.units || {}).forEach(unit => {
         const monthlyCharge = unit.billAmount || 0;
+        
+        // Calculate wash charges from currentReading.washes array
+        let washCharges = 0;
+        if (unit.currentReading?.washes && Array.isArray(unit.currentReading.washes)) {
+          const totalWashCents = unit.currentReading.washes.reduce((total, wash) => {
+            return total + (wash.cost || 0);
+          }, 0);
+          washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
+        }
+        
         const penalties = unit.penaltyAmount || 0;
-        const total = unit.totalAmount || (monthlyCharge + penalties);
+        const total = unit.totalAmount || (monthlyCharge + washCharges + penalties);
         const paid = unit.paidAmount || 0;
         
         monthConsumption += unit.consumption || 0;
         monthCharges += monthlyCharge;
+        monthWashes += washCharges;
         monthPenalties += penalties;
         monthTotal += total;
         monthPaid += paid;
@@ -208,6 +221,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       return {
         consumption: monthConsumption,
         billAmount: monthCharges,
+        washes: monthWashes,
         penalties: monthPenalties,
         total: monthTotal,
         paid: monthPaid,
@@ -216,7 +230,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     } else {
       // Phase 2: Will implement full aggregation
       // Placeholder for Phase 2 implementation
-      return { consumption: 0, billAmount: 0, penalties: 0, total: 0, paid: 0, due: 0 };
+      return { consumption: 0, billAmount: 0, washes: 0, penalties: 0, total: 0, paid: 0, due: 0 };
     }
   };
   
@@ -284,6 +298,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               <th className="text-left">Owner</th>
               <th className="text-right">Usage (m³)</th>
               <th className="text-right">Monthly Charge</th>
+              <th className="text-right">Washes</th>
               <th className="text-right">Overdue</th>
               <th className="text-right">Penalties</th>
               <th className="text-right">Due</th>
@@ -299,9 +314,19 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               
               // Calculate display values with new column structure
               const monthlyCharge = unit.billAmount || 0;  // Current month only
+              
+              // Calculate wash charges from currentReading.washes array
+              let washCharges = 0;
+              if (unit.currentReading?.washes && Array.isArray(unit.currentReading.washes)) {
+                const totalWashCents = unit.currentReading.washes.reduce((total, wash) => {
+                  return total + (wash.cost || 0);
+                }, 0);
+                washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
+              }
+              
               const penalties = unit.penaltyAmount || 0;   // Penalties from previous months
               const overdue = unit.previousBalance || 0;   // Overdue amounts from previous months
-              const due = monthlyCharge + overdue + penalties;  // Total amount to clear account
+              const due = monthlyCharge + washCharges + overdue + penalties;  // Total amount to clear account
               
               
               // Create bill object for selection/transaction linking
@@ -377,6 +402,17 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                   >
                     ${formatCurrency(monthlyCharge)}
                   </td>
+                  <td className="washes text-right">
+                    {washCharges > 0 ? (
+                      <span className="wash-amount" title={
+                        unit.currentReading?.washes 
+                          ? `Car: ${unit.currentReading.washes.filter(w => w.type === 'car').length}, Boat: ${unit.currentReading.washes.filter(w => w.type === 'boat').length}`
+                          : 'Wash charges'
+                      }>
+${washCharges.toFixed(2)}
+                      </span>
+                    ) : ''}
+                  </td>
                   <td className="overdue text-right">
                     {overdue > 0 ? (
                       <span className="overdue-amount">${formatCurrency(overdue)}</span>
@@ -425,6 +461,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               <td colSpan="2" className="text-right"><strong>Total</strong></td>
               <td className="text-right"><strong>{formatNumber(monthTotals.consumption)}</strong></td>
               <td className="text-right"><strong>${formatCurrency(monthTotals.billAmount)}</strong></td>
+              <td className="text-right"><strong>${monthTotals.washes.toFixed(2)}</strong></td>
               <td className="text-right">
                 {monthTotals.penalties > 0 ? (
                   <strong>${formatCurrency(monthTotals.penalties)}</strong>
