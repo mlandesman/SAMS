@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import waterAPI from '../../api/waterAPI';
+import WashModal from './WashModal';
 import './WaterReadingEntry.css';
 
 const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
   
   const [readings, setReadings] = useState({});
   const [priorReadings, setPriorReadings] = useState({});
-  const [carWashCounts, setCarWashCounts] = useState({});
-  const [boatWashCounts, setBoatWashCounts] = useState({});
+  const [carWashCounts, setCarWashCounts] = useState({}); // Legacy: for backwards compatibility
+  const [boatWashCounts, setBoatWashCounts] = useState({}); // Legacy: for backwards compatibility
+  const [washes, setWashes] = useState({}); // New: washes array by unitId
   const [commonAreaReading, setCommonAreaReading] = useState('');
   const [priorCommonAreaReading, setPriorCommonAreaReading] = useState(0);
   const [buildingMeterReading, setBuildingMeterReading] = useState('');
@@ -17,6 +19,14 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  
+  // Modal state
+  const [washModalOpen, setWashModalOpen] = useState(false);
+  const [currentEditingUnit, setCurrentEditingUnit] = useState(null);
+  
+  // Wash rates from aggregated data
+  const [carWashRate, setCarWashRate] = useState(100);
+  const [boatWashRate, setBoatWashRate] = useState(200);
 
   // Month names for display
   const monthNames = [
@@ -61,6 +71,14 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       // Get the aggregated data to see prior readings and month status
       const response = await waterAPI.getAggregatedData(clientId, year);
       console.log('🔍 Raw aggregated data response:', JSON.stringify(response.data, null, 2));
+      
+      // Extract wash rates from aggregated data
+      if (response.data.carWashRate !== undefined) {
+        setCarWashRate(response.data.carWashRate);
+      }
+      if (response.data.boatWashRate !== undefined) {
+        setBoatWashRate(response.data.boatWashRate);
+      }
       
       const monthData = response.data.months?.find(m => m.month === month);
       console.log(`🔍 Looking for month ${month} data:`, monthData ? 'found' : 'not found');
@@ -151,59 +169,55 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       
       setPriorReadings(priors);
       
-      // Now try to load saved readings for this specific month in the new nested format
-      try {
-        const savedReadingsResponse = await waterAPI.getReadings ? 
-          await waterAPI.getReadings(clientId, year, month) :
-          await waterAPI.getMonthReadings(clientId, year, month);
+      // Extract ALL current data from aggregated data (single source of truth)
+      const readings = {};
+      const carWashes = {};
+      const boatWashes = {};
+      const washesArrays = {};
+      
+      if (monthData) {
+        // Extract building-level readings
+        if (monthData.buildingMeter && monthData.buildingMeter.currentReading !== null && monthData.buildingMeter.currentReading !== undefined) {
+          setBuildingMeterReading(monthData.buildingMeter.currentReading.toString());
+        }
+        if (monthData.commonArea && monthData.commonArea.currentReading !== null && monthData.commonArea.currentReading !== undefined) {
+          setCommonAreaReading(monthData.commonArea.currentReading.toString());
+        }
         
-        if (savedReadingsResponse.data && savedReadingsResponse.data.readings) {
-          const savedReadings = savedReadingsResponse.data.readings;
-          console.log('🔍 Raw saved readings data:', JSON.stringify(savedReadings, null, 2));
-          const readings = {};
-          const carWashes = {};
-          const boatWashes = {};
-          
-          // Parse nested readings data
-          Object.entries(savedReadings).forEach(([unitId, data]) => {
-            if (unitId === 'commonArea') {
-              // Handle common area (flat number for now)
-              if (typeof data === 'number') {
-                setCommonAreaReading(data.toString());
-              }
-            } else if (unitId === 'buildingMeter') {
-              // Handle building meter (flat number for now)
-              if (typeof data === 'number') {
-                setBuildingMeterReading(data.toString());
-              }
-            } else {
-              // Handle unit readings with nested data
-              if (typeof data === 'object' && data !== null) {
-                // New nested format: {reading: 1780, carWashCount: 2, boatWashCount: 1}
-                if (data.reading !== undefined && data.reading !== null) {
-                  readings[unitId] = data.reading.toString();
+        // Extract unit readings and washes from aggregated data
+        if (monthData.units) {
+          Object.entries(monthData.units).forEach(([unitId, unitData]) => {
+            if (unitData.currentReading) {
+              if (typeof unitData.currentReading === 'object' && unitData.currentReading.reading !== undefined) {
+                // Extract reading value
+                readings[unitId] = unitData.currentReading.reading.toString();
+                
+                // Extract washes if they exist
+                if (unitData.currentReading.washes && Array.isArray(unitData.currentReading.washes)) {
+                  washesArrays[unitId] = unitData.currentReading.washes;
+                  // Update legacy counts for UI compatibility
+                  carWashes[unitId] = unitData.currentReading.washes.filter(wash => wash.type === 'car').length;
+                  boatWashes[unitId] = unitData.currentReading.washes.filter(wash => wash.type === 'boat').length;
+                } else {
+                  carWashes[unitId] = 0;
+                  boatWashes[unitId] = 0;
+                  washesArrays[unitId] = [];
                 }
-                carWashes[unitId] = data.carWashCount || 0;
-                boatWashes[unitId] = data.boatWashCount || 0;
-              } else if (typeof data === 'number') {
-                // Legacy flat format fallback
-                readings[unitId] = data.toString();
-                carWashes[unitId] = 0;
-                boatWashes[unitId] = 0;
               }
             }
           });
-          
-          // Update state with loaded data
-          setReadings(readings);
-          setCarWashCounts(carWashes);
-          setBoatWashCounts(boatWashes);
-          
         }
-      } catch (readingsError) {
-        // If there's no saved readings for this month, that's normal
-        console.log('No saved readings found for this month (normal for new months)');
       }
+      
+      // Set all the state from aggregated data
+      setReadings(readings);
+      setCarWashCounts(carWashes);
+      setBoatWashCounts(boatWashes);
+      setWashes(washesArrays);
+      
+      console.log('🔍 Extracted from aggregated data:', { readings, washesArrays, carWashes, boatWashes });
+      
+      // Aggregated data is the single source of truth - no separate database calls needed
       
       setLoading(false);
     } catch (error) {
@@ -255,43 +269,96 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
     }));
   };
 
+  const handleWashesClick = (unitId) => {
+    setCurrentEditingUnit(unitId);
+    setWashModalOpen(true);
+  };
+
+  const handleWashModalClose = () => {
+    setWashModalOpen(false);
+    setCurrentEditingUnit(null);
+  };
+
+  const handleWashModalSave = async (unitId, updatedWashes) => {
+    try {
+      // Update the washes state and sync legacy counts
+      updateWashesForUnit(unitId, updatedWashes);
+      
+      // The save will happen when the user clicks "Save Readings"
+      // For now, just update the local state
+      setMessage(`Updated wash entries for unit ${unitId}. Don't forget to save your readings!`);
+      
+    } catch (error) {
+      console.error('Error updating washes:', error);
+      throw error;
+    }
+  };
+
+  // Helper function to update washes array and sync legacy counts
+  const updateWashesForUnit = (unitId, newWashes) => {
+    setWashes(prev => ({
+      ...prev,
+      [unitId]: newWashes
+    }));
+    
+    // Sync legacy counts for UI compatibility
+    const carCount = newWashes.filter(wash => wash.type === 'car').length;
+    const boatCount = newWashes.filter(wash => wash.type === 'boat').length;
+    
+    setCarWashCounts(prev => ({
+      ...prev,
+      [unitId]: carCount
+    }));
+    
+    setBoatWashCounts(prev => ({
+      ...prev,
+      [unitId]: boatCount
+    }));
+  };
+
   const saveReadings = async () => {
     try {
       setSaving(true);
       setError('');
       setMessage('');
       
-      // Prepare readings object matching the database structure
-      const readingsToSave = {};
+      // Prepare readings object matching PWA structure
+      const apiPayload = {
+        readings: {},
+        buildingMeter: null,
+        commonArea: null
+      };
       let hasReadings = false;
       
-      // Add unit readings with wash counts
+      // Add unit readings with wash data (matching PWA format)
       units.forEach(unit => {
         const unitId = unit.unitId;
         const reading = readings[unitId] && parseInt(readings[unitId]) > 0 ? parseInt(readings[unitId]) : null;
-        const carWashes = carWashCounts[unitId] || 0;
-        const boatWashes = boatWashCounts[unitId] || 0;
+        const unitWashes = washes[unitId] || [];
         
-        // Save if there's a reading OR wash counts
-        if (reading || carWashes > 0 || boatWashes > 0) {
-          readingsToSave[unitId] = {
-            reading: reading,
-            carWashCount: carWashes,
-            boatWashCount: boatWashes
-          };
+        // Save if there's a reading OR wash data
+        if (reading || unitWashes.length > 0) {
+          const cleanUnit = { reading: reading };
+          
+          // Only include washes array if there are actual washes (PWA pattern)
+          if (unitWashes.length > 0) {
+            cleanUnit.washes = unitWashes;
+          }
+          
+          apiPayload.readings[unitId] = cleanUnit;
           hasReadings = true;
         }
       });
       
-      // Add Common Area reading (no wash counts)
+      // Add Common Area reading (at root level, PWA pattern)
       if (commonAreaReading && parseInt(commonAreaReading) > 0) {
-        readingsToSave.commonArea = parseInt(commonAreaReading);
+        apiPayload.commonArea = parseInt(commonAreaReading);
         hasReadings = true;
       }
       
-      // Add Building Meter reading (no wash counts)
+      // Add Building Meter reading (at root level, PWA pattern)
       if (buildingMeterReading && parseInt(buildingMeterReading) > 0) {
-        readingsToSave.buildingMeter = parseInt(buildingMeterReading);
+        apiPayload.buildingMeter = parseInt(buildingMeterReading);
         hasReadings = true;
       }
       
@@ -303,8 +370,12 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       }
       
       
-      // Save using the new endpoint
-      await waterAPI.saveReadings(clientId, year, month, readingsToSave);
+      // Debug logging to see what we're sending
+      console.log('🔍 Desktop save payload:', JSON.stringify(apiPayload, null, 2));
+      console.log('🔍 Save parameters:', { clientId, year, month });
+      
+      // Save using the new endpoint (PWA format)
+      await waterAPI.saveReadings(clientId, year, month, apiPayload);
       
       const { calendarMonth, calendarYear } = getCalendarDate(year, month);
       setMessage(`Successfully saved readings for ${monthNames[calendarMonth]} ${calendarYear}`);
@@ -369,8 +440,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
             <col style={{ width: '15%' }} />
             <col style={{ width: '15%' }} />
             <col style={{ width: '18%' }} />
-            <col style={{ width: '11%' }} />
-            <col style={{ width: '11%' }} />
+            <col style={{ width: '22%' }} />
           </colgroup>
           <thead>
             <tr>
@@ -379,8 +449,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
               <th>Prior Reading</th>
               <th>Current Reading</th>
               <th>Consumption (m³)</th>
-              <th>Car Washes</th>
-              <th>Boat Washes</th>
+              <th>Washes</th>
             </tr>
           </thead>
           <tbody>
@@ -425,42 +494,23 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                         </span>
                       )}
                     </td>
-                    <td className="wash-count">
+                    <td className="wash-management">
                       {monthLocked ? (
                         <div style={{ textAlign: 'center' }}>
-                          {carWashCounts[unitId] || 0}
+                          <span className="wash-summary">
+                            Car: {carWashCounts[unitId] || 0}, Boat: {boatWashCounts[unitId] || 0}
+                          </span>
                         </div>
                       ) : (
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={carWashCounts[unitId] || ''}
-                          onChange={(e) => updateCarWashCount(unitId, e.target.value)}
-                          className="wash-input"
-                          placeholder="0"
+                        <button 
+                          type="button"
+                          className={`wash-button ${((carWashCounts[unitId] || 0) + (boatWashCounts[unitId] || 0)) > 0 ? 'has-washes' : 'no-washes'}`}
+                          onClick={() => handleWashesClick(unitId)}
                           disabled={saving}
-                          style={{ width: '50px', textAlign: 'center' }}
-                        />
-                      )}
-                    </td>
-                    <td className="wash-count">
-                      {monthLocked ? (
-                        <div style={{ textAlign: 'center' }}>
-                          {boatWashCounts[unitId] || 0}
-                        </div>
-                      ) : (
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={boatWashCounts[unitId] || ''}
-                          onChange={(e) => updateBoatWashCount(unitId, e.target.value)}
-                          className="wash-input"
-                          placeholder="0"
-                          disabled={saving}
-                          style={{ width: '50px', textAlign: 'center' }}
-                        />
+                          title={`Car: ${carWashCounts[unitId] || 0}, Boat: ${boatWashCounts[unitId] || 0}`}
+                        >
+                          Washes ({(carWashCounts[unitId] || 0) + (boatWashCounts[unitId] || 0)})
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -468,7 +518,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
               })
             ) : (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
                   No units configured. Please check client configuration.
                 </td>
               </tr>
@@ -476,7 +526,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
             
             {/* Separator row */}
             <tr style={{ height: '10px', backgroundColor: '#f8f9fa' }}>
-              <td colSpan="7" style={{ borderBottom: '2px solid #dee2e6' }}></td>
+              <td colSpan="6" style={{ borderBottom: '2px solid #dee2e6' }}></td>
             </tr>
             
             {/* Common Area row */}
@@ -508,10 +558,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                 {(parseInt(commonAreaReading) || 0) > priorCommonAreaReading ? 
                   formatNumber((parseInt(commonAreaReading) || 0) - priorCommonAreaReading) : '-'}
               </td>
-              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
-                -
-              </td>
-              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+              <td className="wash-management" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
                 -
               </td>
             </tr>
@@ -545,10 +592,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                 {(parseInt(buildingMeterReading) || 0) > priorBuildingMeterReading ? 
                   formatNumber((parseInt(buildingMeterReading) || 0) - priorBuildingMeterReading) : '-'}
               </td>
-              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
-                -
-              </td>
-              <td className="wash-count" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
+              <td className="wash-management" style={{ color: '#6c757d', fontStyle: 'italic', textAlign: 'center' }}>
                 -
               </td>
             </tr>
@@ -568,6 +612,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
                 setReadings({});
                 setCarWashCounts({});
                 setBoatWashCounts({});
+                setWashes({});
                 setCommonAreaReading('');
                 setBuildingMeterReading('');
               }}
@@ -596,6 +641,19 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
           <li>You can save partial readings and complete them later</li>
         </ul>
       </div>
+
+      {/* Wash Modal */}
+      <WashModal
+        isOpen={washModalOpen}
+        onClose={handleWashModalClose}
+        onSave={handleWashModalSave}
+        unitId={currentEditingUnit}
+        unitLabel={currentEditingUnit}
+        initialWashes={currentEditingUnit ? (washes[currentEditingUnit] || []) : []}
+        loading={saving}
+        carWashRate={carWashRate}
+        boatWashRate={boatWashRate}
+      />
     </div>
   );
 };

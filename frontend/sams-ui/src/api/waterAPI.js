@@ -343,7 +343,7 @@ class WaterAPI {
   }
 
   /**
-   * Save readings for a month (new backend endpoint)
+   * Save readings for a month (using domain endpoint - matches PWA implementation)
    */
   async saveReadings(clientId, year, month, readings) {
     const token = await this.getAuthToken();
@@ -356,7 +356,7 @@ class WaterAPI {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ readings })
+        body: JSON.stringify(readings)
       }
     );
     

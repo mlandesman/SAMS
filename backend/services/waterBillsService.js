@@ -61,9 +61,19 @@ class WaterBillsService {
     
     for (const [unitId, data] of Object.entries(monthData.units || {})) {
       
-      // Extract car wash and boat wash counts from nested currentReading
-      const carWashCount = data.currentReading?.carWashCount || 0;
-      const boatWashCount = data.currentReading?.boatWashCount || 0;
+      // Extract car wash and boat wash counts from washes array or legacy count fields
+      let carWashCount = 0;
+      let boatWashCount = 0;
+      
+      // Check if washes array exists (new format)
+      if (data.currentReading?.washes && Array.isArray(data.currentReading.washes)) {
+        carWashCount = data.currentReading.washes.filter(wash => wash.type === 'car').length;
+        boatWashCount = data.currentReading.washes.filter(wash => wash.type === 'boat').length;
+      } else {
+        // Fallback to legacy count fields for backwards compatibility
+        carWashCount = data.currentReading?.carWashCount || 0;
+        boatWashCount = data.currentReading?.boatWashCount || 0;
+      }
       
       // Calculate water consumption charges
       let waterCharge = 0;
@@ -105,6 +115,9 @@ class WaterBillsService {
           carWashCount: carWashCount,
           boatWashCount: boatWashCount,
           
+          // Preserve original washes array for UI consumption
+          washes: data.currentReading?.washes || [],
+          
           // Detailed charges breakdown
           waterCharge: waterCharge,
           carWashCharge: carWashCharge,
@@ -135,7 +148,7 @@ class WaterBillsService {
     // Add validation to prevent field recreation
     const ALLOWED_BILL_FIELDS = [
       'priorReading', 'currentReading', 'consumption',
-      'carWashCount', 'boatWashCount',
+      'carWashCount', 'boatWashCount', 'washes',
       'waterCharge', 'carWashCharge', 'boatWashCharge',
       'currentCharge', 'penaltyAmount', 'totalAmount',
       'status', 'paidAmount', 'penaltyPaid',

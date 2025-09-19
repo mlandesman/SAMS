@@ -219,7 +219,9 @@ class WaterDataService {
       year,
       fiscalYear: true,
       months,
-      summary
+      summary,
+      carWashRate: (config?.rateCarWash || 10000) / 100,
+      boatWashRate: (config?.rateBoatWash || 20000) / 100
     };
     
     // DEBUG: Log what's actually being returned to frontend
@@ -312,7 +314,14 @@ class WaterDataService {
       
       // Only include washes if the array exists in Firebase
       if (washes !== undefined) {
-        currentReadingObj.washes = washes;
+        // Add cost field to each wash entry based on configuration
+        const washesWithCost = washes.map(wash => ({
+          ...wash,
+          cost: wash.type === 'car' 
+            ? (config?.rateCarWash || 100) 
+            : (config?.rateBoatWash || 200)
+        }));
+        currentReadingObj.washes = washesWithCost;
       }
       
       // Extract owner last name from owners array (following HOA pattern)
@@ -550,7 +559,14 @@ class WaterDataService {
       
       // Only include washes if the array exists in Firebase
       if (washes !== undefined) {
-        currentReadingObj.washes = washes;
+        // Add cost field to each wash entry based on configuration
+        const washesWithCost = washes.map(wash => ({
+          ...wash,
+          cost: wash.type === 'car' 
+            ? (config?.rateCarWash || 100) 
+            : (config?.rateBoatWash || 200)
+        }));
+        currentReadingObj.washes = washesWithCost;
       }
       
       // Extract owner last name from owners array (following HOA pattern)
