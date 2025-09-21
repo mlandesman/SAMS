@@ -90,11 +90,16 @@ export const transactionSchema = {
       description: 'Unit identifier for multi-unit properties (null for general expenses)'
     },
     
-    // Transaction details
+    // Payment method fields (denormalized - both or neither)
+    paymentMethodId: { 
+      type: 'string', 
+      required: false,
+      description: 'Payment method unique identifier'
+    },
     paymentMethod: { 
       type: 'string', 
       required: false,
-      description: 'Payment method used'
+      description: 'Payment method display name'
     },
     notes: { 
       type: 'string', 
@@ -142,8 +147,28 @@ export const transactionSchema = {
     duesDistribution: {
       type: 'array',
       required: false,
-      description: 'HOA dues distribution details'
+      description: 'HOA dues distribution details (legacy - use allocations)'
     },
+    
+    // Generalized allocation fields
+    allocations: {
+      type: 'array',
+      required: false,
+      description: 'Generalized allocation breakdown (replaces duesDistribution)'
+    },
+    allocationSummary: {
+      type: 'object',
+      required: false,
+      description: 'Summary of allocation data for quick access'
+    },
+    
+    // Migration metadata
+    migrationMetadata: {
+      type: 'object',
+      required: false,
+      description: 'Metadata about data migrations applied to this transaction'
+    },
+    
     metadata: {
       type: 'object',
       required: false,

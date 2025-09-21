@@ -1,1 +1,0 @@
-💧 Estado de Cuenta de Agua - Unidad {{__UnitNumber__}} - {{__BillingPeriod__}} - {{__TotalAmountDue__}} Vence {{__DueDate__}}

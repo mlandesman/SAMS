@@ -23,6 +23,7 @@ import ActivityActionBar from '../components/common/ActivityActionBar';
 import UnifiedExpenseEntry from '../components/UnifiedExpenseEntry';
 import ExpenseSuccessModal from '../components/ExpenseSuccessModal';
 import TransactionConfirmationModal from '../components/TransactionConfirmationModal';
+import SplitEntryModal from '../components/transactions/SplitEntryModal';
 import { LoadingSpinner } from '../components/common';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { getTransactionById } from '../api/hoaDuesService';
@@ -105,6 +106,8 @@ function TransactionsView() {
   const { 
     showFilterModal,
     showExpenseModal,
+    showSplitEntryModal,
+    setShowSplitEntryModal,
     handleFilterSelected, 
     handleAction,
     currentFilter,
@@ -115,7 +118,8 @@ function TransactionsView() {
     editTransaction,
     isRefreshing,
     setIsRefreshing,
-    balanceUpdateTrigger
+    balanceUpdateTrigger,
+    isSplitTransaction
   } = useTransactionsContext();
 
   // Reference to store if we've already calculated the balance and for which client
@@ -1312,20 +1316,25 @@ function TransactionsView() {
                 }
 
                 // Step 2: Create transaction with document references (no File objects)
+                // EXPLICIT FIELD MAPPING: Needed to handle undefined values properly
                 const cleanTransactionData = {
                   date: data.date,
                   amount: data.amount,
-                  categoryName: data.categoryName,
-                  vendorName: data.vendorName,
-                  notes: data.notes,
-                  accountName: data.accountName,
-                  accountId: data.accountId,
-                  accountType: data.accountType,
-                  paymentMethod: data.paymentMethod,
+                  // Include ID fields (primary data) with null fallbacks to prevent undefined
+                  categoryId: data.categoryId || null,
+                  vendorId: data.vendorId || null,
+                  paymentMethodId: data.paymentMethodId || null,
+                  accountId: data.accountId || null,
+                  unitId: data.unitId || null,
+                  // Include other required fields
+                  notes: data.notes || '',
+                  accountType: data.accountType || 'bank',
                   type: data.type,
                   clientId: data.clientId,
                   enteredBy: data.enteredBy,
-                  documents: uploadedDocuments.map(doc => doc.id), // Include document references, not File objects
+                  // Include allocations for split transactions
+                  ...(data.allocations && { allocations: data.allocations }),
+                  documents: uploadedDocuments.map(doc => doc.id), // Replace File objects with document IDs
                 };
 
                 console.log('📄 Creating transaction with clean data:', cleanTransactionData);
@@ -1509,6 +1518,59 @@ function TransactionsView() {
           transactionData={expenseSuccessData}
           onAddAnother={handleExpenseSuccessAddAnother}
           onDone={handleExpenseSuccessDone}
+        />
+      )}
+
+      {/* Split Entry Modal - for editing split transactions */}
+      {showSplitEntryModal && selectedTransaction && (
+        <SplitEntryModal
+          isOpen={showSplitEntryModal}
+          onClose={() => setShowSplitEntryModal(false)}
+          onSave={async (allocations) => {
+            try {
+              // Convert transaction data for split modal format
+              const transactionData = {
+                date: selectedTransaction.date?.display || selectedTransaction.date,
+                vendorName: selectedTransaction.vendorName || selectedTransaction.vendor,
+                amount: selectedTransaction.amount,
+                accountType: selectedTransaction.accountType || selectedTransaction.accountName,
+                paymentMethod: selectedTransaction.paymentMethod,
+                notes: selectedTransaction.notes,
+                allocations: allocations
+              };
+              
+              console.log('Saving split transaction edit:', transactionData);
+              
+              // Update the transaction using editTransaction from context
+              const result = await editTransaction(selectedTransaction.id, transactionData);
+              
+              if (result) {
+                console.log('✅ Split transaction updated successfully');
+                setShowSplitEntryModal(false);
+                
+                // Show success notification
+                showSuccess('Split Transaction Updated', 
+                  `Updated transaction for ${transactionData.vendorName} with ${allocations.length} allocations`);
+                
+                // Refresh the transaction list
+                setIsRefreshing(true);
+              } else {
+                throw new Error('Failed to update split transaction');
+              }
+            } catch (error) {
+              console.error('❌ Error updating split transaction:', error);
+              showError('Update Failed', `Failed to update split transaction: ${error.message}`);
+            }
+          }}
+          transactionData={selectedTransaction ? {
+            date: selectedTransaction.date?.display || selectedTransaction.date,
+            vendorName: selectedTransaction.vendorName || selectedTransaction.vendor,
+            amount: selectedTransaction.amount,
+            accountType: selectedTransaction.accountType || selectedTransaction.accountName,
+            paymentMethod: selectedTransaction.paymentMethod,
+            notes: selectedTransaction.notes
+          } : null}
+          existingAllocations={selectedTransaction?.allocations || []}
         />
       )}
 

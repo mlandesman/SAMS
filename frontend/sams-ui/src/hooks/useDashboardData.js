@@ -622,7 +622,7 @@ export const useDashboardData = () => {
           }
           
           // Use the correct water data endpoint (same as Water Bills screen)
-          const API_BASE_URL = config.api.domainBaseUrl;
+          const API_BASE_URL = config.api.baseUrl;
           const response = await fetch(`${API_BASE_URL}/water/clients/${selectedClient.id}/data/${currentYear}`, {
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -653,7 +653,7 @@ export const useDashboardData = () => {
                   console.log('💧 Triggering penalty recalculation - past 10th and not run this month');
                   
                   try {
-                    // Call penalty recalculation endpoint (uses existing API_BASE_URL = domainBaseUrl)
+                    // Call penalty recalculation endpoint (uses existing API_BASE_URL = baseUrl)
                     const recalcResponse = await fetch(
                       `${API_BASE_URL}/water/clients/${selectedClient.id}/bills/recalculate-penalties`,
                       {

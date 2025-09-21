@@ -48,15 +48,31 @@ async function testReceiptMapping() {
     const amountInWordsEng = numToWords(transaction.amount, "Pesos", "Eng");
     const amountInWordsEsp = numToWords(transaction.amount, "Pesos", "Esp");
 
-    // Create description from duesDistribution
+    // Create description from allocations or duesDistribution (backward compatibility)
     const monthNames = {
-      7: "Julio",
-      8: "Agosto",
-      9: "Septiembre",
-      10: "Octubre"
+      1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
+      7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
     };
 
-    const months = transaction.duesDistribution.map(d => monthNames[d.month]).join(', ');
+    // Get months from allocations first, fallback to duesDistribution
+    let monthsData = [];
+    if (transaction.allocations && transaction.allocations.length > 0) {
+      // Use new allocations format
+      monthsData = transaction.allocations
+        .filter(alloc => alloc.type === "hoa_month")
+        .map(alloc => ({
+          month: alloc.data.month,
+          name: alloc.targetName
+        }));
+    } else if (transaction.duesDistribution && transaction.duesDistribution.length > 0) {
+      // Fallback to legacy duesDistribution
+      monthsData = transaction.duesDistribution.map(d => ({
+        month: d.month,
+        name: monthNames[d.month]
+      }));
+    }
+
+    const months = monthsData.map(m => m.name).join(', ');
     const description = `HOA Dues payment for Unit ${transaction.unit} - ${months} ${transaction.metadata.year}`;
 
     // Map transaction data to receipt format
@@ -74,7 +90,9 @@ async function testReceiptMapping() {
       unitNumber: transaction.unit,
       category: transaction.category,
       transactionType: transaction.transactionType,
-      duesDistribution: transaction.duesDistribution,
+      duesDistribution: transaction.duesDistribution, // Preserve for backward compatibility
+      allocations: transaction.allocations, // New allocation data
+      allocationSummary: transaction.allocationSummary, // Allocation summary
       
       // Client data
       clientName: clientData.clientName,

@@ -23,6 +23,12 @@ const TransactionConfirmationModal = ({
   transactionData, 
   uploadedDocuments
 }) => {
+  // Debug: Log what data the success modal receives
+  if (isOpen && transactionData) {
+    console.log('🎉 SUCCESS MODAL - Transaction data received:', transactionData);
+    console.log('🎉 SUCCESS MODAL - Account name field:', transactionData.accountName);
+    console.log('🎉 SUCCESS MODAL - Account type field:', transactionData.accountType);
+  }
   const [documentViewer, setDocumentViewer] = useState({
     isOpen: false,
     documents: [],
@@ -199,7 +205,7 @@ const TransactionConfirmationModal = ({
                   </div>
                   <div className="detail-content">
                     <span className="detail-label">Account</span>
-                    <span className="detail-value">{transactionData.accountType}</span>
+                    <span className="detail-value">{transactionData.accountName}</span>
                   </div>
                 </div>
                 

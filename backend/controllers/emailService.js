@@ -391,7 +391,7 @@ async function sendWaterBillEmail(clientId, unitNumber, billingPeriod, userLangu
     console.log(`📧 Using ${templateLang} templates (body: ${bodyTemplate.length} chars)`);
     
     // Build template variables using GAAP-compliant system
-    const templateVariables = buildWaterBillTemplateVariables(
+    const templateVariables = await buildWaterBillTemplateVariables(
       billDocument,
       readingsDocument, 
       clientConfig,

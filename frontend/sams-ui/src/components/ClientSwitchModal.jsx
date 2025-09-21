@@ -49,9 +49,10 @@ function ClientSwitchModal({ onClose }) {
         console.log('✅ Session storage cleared');
         
         const clientData = await getClient(preview.id);
-        console.log('🔍 Client data received from API:', clientData);
-        console.log('🔍 Client configuration:', clientData.configuration);
-        setClient(clientData); // Update client context with fetched client data
+        
+        console.log('🔍 Mocked client data for domain testing:', clientData);
+        console.log('🔍 Mocked client configuration:', clientData.configuration);
+        setClient(clientData); // Update client context with mocked client data
         
         // Reset the transaction filter to yearToDate when changing clients
         localStorage.setItem('transactionFilter', 'yearToDate');

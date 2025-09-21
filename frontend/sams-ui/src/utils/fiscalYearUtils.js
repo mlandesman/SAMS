@@ -108,28 +108,28 @@ export function getFiscalYear(date, fiscalYearStartMonth) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1; // Convert to 1-based
   
-  // DEBUG: Log what we're calculating
-  console.log('🔍 getFiscalYear called with:');
-  console.log('  Date:', date.toISOString());
-  console.log('  Year:', year);
-  console.log('  Month:', month);
-  console.log('  Fiscal Year Start Month:', fiscalYearStartMonth);
+  // DEBUG: Log what we're calculating (disabled to prevent console spam)
+  // console.log('🔍 getFiscalYear called with:');
+  // console.log('  Date:', date.toISOString());
+  // console.log('  Year:', year);
+  // console.log('  Month:', month);
+  // console.log('  Fiscal Year Start Month:', fiscalYearStartMonth);
   
   // Special case: Calendar year (starts in January)
   if (fiscalYearStartMonth === 1) {
-    console.log('  Result: Calendar year (January start):', year);
+    // console.log('  Result: Calendar year (January start):', year);
     return year;
   }
   
   // For fiscal years named by their ending year:
   // If we're in or after the fiscal year start month, we're in the NEXT fiscal year
   if (month >= fiscalYearStartMonth) {
-    console.log('  Result: Next fiscal year:', year + 1);
+    // console.log('  Result: Next fiscal year:', year + 1);
     return year + 1;
   }
   
   // Otherwise we're still in the current fiscal year
-  console.log('  Result: Current fiscal year:', year);
+  // console.log('  Result: Current fiscal year:', year);
   return year;
 }
 

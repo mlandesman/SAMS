@@ -1,1 +1,0 @@
-💧 Water Bill Statement - Unit {{__UnitNumber__}} - {{__BillingPeriod__}} - {{__TotalAmountDue__}} Due {{__DueDate__}}

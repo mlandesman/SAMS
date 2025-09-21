@@ -8,8 +8,7 @@ import { config } from '../config';
  */
 class WaterAPI {
   constructor() {
-    this.baseUrl = config.api.baseUrl;                // Legacy endpoints (/api/clients/...)
-    this.domainBaseUrl = config.api.domainBaseUrl;    // Clean domain endpoints (/water/...)
+    this.baseUrl = config.api.baseUrl;                // Unified baseURL configuration
   }
 
   /**
@@ -34,14 +33,14 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/readings`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ year, month, readings })
+        body: JSON.stringify({ readings })
       }
     );
     
@@ -55,7 +54,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'GET',
         headers: {
@@ -75,7 +74,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/readings/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}`,
       {
         method: 'GET',
         headers: {
@@ -95,7 +94,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'PUT',
         headers: {
@@ -116,7 +115,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'DELETE',
         headers: {
@@ -136,7 +135,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/history/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/history/${year}`,
       {
         method: 'GET',
         headers: {
@@ -156,7 +155,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/meters`,
+      `${this.baseUrl}/water/clients/${clientId}/meters`,
       {
         method: 'GET',
         headers: {
@@ -176,7 +175,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/meters/initialize`,
+      `${this.baseUrl}/water/clients/${clientId}/meters/initialize`,
       {
         method: 'POST',
         headers: {
@@ -196,7 +195,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/config`,
+      `${this.baseUrl}/water/clients/${clientId}/config`,
       {
         method: 'GET',
         headers: {
@@ -216,7 +215,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/config/waterBilling`,
+      `${this.baseUrl}/water/clients/${clientId}/config`,
       {
         method: 'PUT',
         headers: {
@@ -237,7 +236,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/dashboard`,
+      `${this.baseUrl}/water/clients/${clientId}/dashboard`,
       {
         method: 'GET',
         headers: {
@@ -257,7 +256,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.baseUrl}/clients/${clientId}/projects/waterBills/bills/generate`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/generate`,
       {
         method: 'POST',
         headers: {
@@ -277,7 +276,7 @@ class WaterAPI {
   async getBills(clientId, year, month, unpaidOnly = false) {
     const token = await this.getAuthToken();
     
-    const url = new URL(`${this.baseUrl}/clients/${clientId}/projects/waterBills/bills/${year}/${month}`);
+    const url = new URL(`${this.baseUrl}/water/clients/${clientId}/bills/${year}/${month}`);
     if (unpaidOnly) {
       url.searchParams.append('unpaidOnly', 'true');
     }
@@ -301,7 +300,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/data/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/data/${year}`,
       {
         method: 'GET',
         headers: {
@@ -328,7 +327,7 @@ class WaterAPI {
     }
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/bills/generate`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/generate`,
       {
         method: 'POST',
         headers: {
@@ -349,7 +348,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'POST',
         headers: {
@@ -370,7 +369,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/payments/record`,
+      `${this.baseUrl}/water/clients/${clientId}/payments/record`,
       {
         method: 'POST',
         headers: {
@@ -391,7 +390,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/bills/unpaid/${unitId}`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/unpaid/${unitId}`,
       {
         method: 'GET',
         headers: {
@@ -410,7 +409,7 @@ class WaterAPI {
   async getPaymentHistory(clientId, unitId, year = null) {
     const token = await this.getAuthToken();
     
-    const url = new URL(`${this.domainBaseUrl}/water/clients/${clientId}/payments/history/${unitId}`);
+    const url = new URL(`${this.baseUrl}/water/clients/${clientId}/payments/history/${unitId}`);
     if (year) {
       url.searchParams.append('year', year.toString());
     }
@@ -433,7 +432,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'GET',
         headers: {
@@ -453,7 +452,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/cache/clear`,
+      `${this.baseUrl}/water/clients/${clientId}/cache/clear`,
       {
         method: 'POST',
         headers: {

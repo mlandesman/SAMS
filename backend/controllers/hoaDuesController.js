@@ -27,6 +27,95 @@ function formatDateField(dateValue) {
 // Initialize db as a properly awaited promise
 let dbInstance;
 
+// Month names for generating human-readable allocation names
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Get month name from month number (1-12)
+ */
+function getMonthName(month) {
+  return MONTH_NAMES[month - 1] || `Month ${month}`;
+}
+
+/**
+ * Create HOA allocations from distribution data
+ * @param {Array} distribution - Payment distribution array
+ * @param {string} unitId - Unit identifier
+ * @param {number} year - Payment year
+ * @returns {Array} Array of allocation objects
+ */
+function createHOAAllocations(distribution, unitId, year) {
+  if (!distribution || distribution.length === 0) {
+    return [];
+  }
+  
+  return distribution.map((item, index) => ({
+    id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
+    type: "hoa_month",
+    targetId: `month_${item.month}_${year}`,
+    targetName: `${getMonthName(item.month)} ${year}`,
+    amount: item.amountToAdd,
+    percentage: null, // Will be calculated in allocationSummary if needed
+    data: {
+      unitId: unitId,
+      month: item.month,
+      year: year
+    },
+    metadata: {
+      processingStrategy: "hoa_dues",
+      cleanupRequired: true,
+      auditRequired: true,
+      createdAt: new Date().toISOString()
+    }
+  }));
+}
+
+/**
+ * Create allocation summary for transaction
+ * @param {Array} distribution - Payment distribution array
+ * @param {number} totalAmountCents - Total transaction amount in cents
+ * @returns {Object} Allocation summary object
+ */
+function createAllocationSummary(distribution, totalAmountCents) {
+  if (!distribution || distribution.length === 0) {
+    return {
+      totalAllocated: 0,
+      allocationCount: 0,
+      allocationType: null,
+      hasMultipleTypes: false
+    };
+  }
+  
+  const totalAllocated = distribution.reduce((sum, item) => sum + item.amountToAdd, 0);
+  
+  // Debug logging to understand the units mismatch
+  console.log('🔍 [ALLOCATION DEBUG] Units comparison:', {
+    totalAmountCents,
+    totalAllocated,
+    distributionItems: distribution.map(item => ({ 
+      month: item.month, 
+      amountToAdd: item.amountToAdd 
+    })),
+    difference: totalAmountCents - totalAllocated
+  });
+  
+  return {
+    totalAllocated: totalAllocated,
+    allocationCount: distribution.length,
+    allocationType: "hoa_month",
+    hasMultipleTypes: false,
+    // Verify allocation integrity
+    integrityCheck: {
+      expectedTotal: totalAmountCents,
+      actualTotal: totalAllocated,
+      isValid: Math.abs(totalAmountCents - totalAllocated) < 100 // Allow 1 peso tolerance for debugging
+    }
+  };
+}
+
 /**
  * Initialize a year document with 12-month payment array
  * @param {string} clientId - ID of the client
@@ -243,8 +332,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       vendorName: 'Deposit',
       reference: `DUES-${unitId}-${year}`,
       
-      // Maintain additional fields for tracking but they won't be displayed in the UI
-      // These will be available for reporting and linking back to dues
+      // Enhanced allocation pattern - generalized for future split transactions
+      allocations: createHOAAllocations(distribution, unitId, year),
+      allocationSummary: createAllocationSummary(distribution, dollarsToCents(paymentData.amount)),
+      
+      // Maintain backward compatibility - preserve original duesDistribution
       duesDistribution: distribution.map(item => ({
         unitId,
         month: item.month,

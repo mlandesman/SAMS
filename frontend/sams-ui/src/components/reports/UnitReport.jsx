@@ -33,7 +33,7 @@ const UnitReport = ({ unitId, onClose }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/clients/${selectedClient.id}/reports/unit/${unitId}`, {
+      const response = await fetch(`/clients/${selectedClient.id}/reports/unit/${unitId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

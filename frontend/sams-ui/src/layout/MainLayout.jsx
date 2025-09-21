@@ -40,9 +40,12 @@ function MainLayout({ children, onChangeClientClick, showStatusBar, onActivityCh
         </div>
         {showStatusBar && <StatusBar />}
       </div>
-      <div className="pwa-navigation">
-        <PWANavigation />
-      </div>
+      {/* PWA Navigation - Only render on mobile PWA (port 5174), not desktop (port 5173) */}
+      {window.location.port === '5174' && (
+        <div className="pwa-navigation">
+          <PWANavigation />
+        </div>
+      )}
     </div>
   );
 }

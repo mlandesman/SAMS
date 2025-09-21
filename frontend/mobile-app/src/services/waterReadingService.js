@@ -51,7 +51,7 @@ async function handleApiResponse(response) {
 
 /**
  * Load Client Information
- * GET /api/clients/{clientId}
+ * GET /clients/{clientId}
  */
 export const loadClientInfo = async () => {
   try {
@@ -91,7 +91,7 @@ export const loadClientInfo = async () => {
 
 /**
  * Load Previous Month Readings
- * GET /api/clients/{clientId}/projects/waterBills/readings/{year}/{month}
+ * GET /clients/{clientId}/projects/waterBills/readings/{year}/{month}
  */
 export const loadPreviousReadings = async (inputYear = null, inputMonth = null) => {
   try {
@@ -162,7 +162,7 @@ export const loadPreviousReadings = async (inputYear = null, inputMonth = null) 
 
 /**
  * Load Current Month Readings
- * GET /api/clients/{clientId}/projects/waterBills/readings/{year}/{month}
+ * GET /clients/{clientId}/projects/waterBills/readings/{year}/{month}
  */
 export const loadCurrentReadings = async (inputYear = null, inputMonth = null) => {
   try {
@@ -219,7 +219,7 @@ export const loadCurrentReadings = async (inputYear = null, inputMonth = null) =
 
 /**
  * Save All Meter Readings
- * PUT /api/clients/{clientId}/projects/waterBills/readings/{year}/{month}
+ * PUT /clients/{clientId}/projects/waterBills/readings/{year}/{month}
  */
 export const saveAllReadings = async (readingsData, inputYear = null, inputMonth = null) => {
   try {

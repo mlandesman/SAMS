@@ -40,11 +40,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/comm': {
-        target: 'http://localhost:5001',
-        changeOrigin: true,
-        secure: false,
-      },
     },
     hmr: {
       // Reduce WebSocket connection error messages in console

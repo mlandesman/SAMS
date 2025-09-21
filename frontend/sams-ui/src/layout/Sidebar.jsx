@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,12 +14,8 @@ const DEFAULT_MENU_ITEMS = [
   { name: 'Transactions', path: '/transactions', activity: 'transactions' }
 ];
 
-function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityChange prop
-  const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
-  const { samsUser } = useAuth(); // Get user for role checking
-
-  // Filter menu items based on user role
-  const getVisibleMenuItems = (user, items) => {
+// Filter menu items based on user role (moved outside component to prevent recreating)
+const getVisibleMenuItems = (user, items, selectedClient) => {
     if (!items || !user) return items || [];
     
     console.log('🔍 SIDEBAR: Filtering menu items for user:', {
@@ -74,29 +70,37 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
       // Everything else is visible to all authenticated users
             return true;
     });
-  };
+};
 
-  // Use menuConfig if available, otherwise fall back to defaults
-  const allMenuItems = selectedClient
-    ? (menuConfig && menuConfig.length > 0 
-        ? menuConfig.map(item => {
-            const activityName = (item.activity || '').toLowerCase();
-            // Handle specific route mappings
-            let path = `/${activityName}`;
-            if (activityName === 'listmanagement') {
-              path = '/lists';
-            }
-            return {
-              name: item.label || item.name || item.activity,
-              path: path,
-              activity: activityName
-            };
-        })
-        : DEFAULT_MENU_ITEMS)
-    : [];
+function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityChange prop
+  const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
+  const { samsUser } = useAuth(); // Get user for role checking
 
-  // Filter menu items based on user role
-  const menuItems = getVisibleMenuItems(samsUser, allMenuItems);
+  // Use menuConfig if available, otherwise fall back to defaults (memoized)
+  const allMenuItems = useMemo(() => {
+    return selectedClient
+      ? (menuConfig && menuConfig.length > 0 
+          ? menuConfig.map(item => {
+              const activityName = (item.activity || '').toLowerCase();
+              // Handle specific route mappings
+              let path = `/${activityName}`;
+              if (activityName === 'listmanagement') {
+                path = '/lists';
+              }
+              return {
+                name: item.label || item.name || item.activity,
+                path: path,
+                activity: activityName
+              };
+          })
+          : DEFAULT_MENU_ITEMS)
+      : [];
+  }, [selectedClient, menuConfig]);
+
+  // Filter menu items based on user role (memoized to prevent render loops)
+  const menuItems = useMemo(() => {
+    return getVisibleMenuItems(samsUser, allMenuItems, selectedClient);
+  }, [samsUser, allMenuItems, selectedClient]);
 
   return (
     <div className="sidebar">

@@ -1,6 +1,7 @@
 import { auth } from './firebase';
+import { config } from '../config/index.js';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+export const API_BASE_URL = config.api.baseUrl;
 
 /**
  * Get the authorization header with Firebase ID token
@@ -36,7 +37,7 @@ export const userAPI = {
    */
   async getProfile() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/profile`, { headers });
+    const response = await fetch(`${API_BASE_URL}/api/user/profile`, { headers });
     return handleResponse(response);
   },
 
@@ -45,7 +46,7 @@ export const userAPI = {
    */
   async updateProfile(profileData) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/profile`, {
+    const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(profileData)
@@ -64,7 +65,7 @@ export const userAPI = {
    */
   async updateEmail(newEmail) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/email`, {
+    const response = await fetch(`${API_BASE_URL}/api/user/email`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ newEmail })
@@ -83,7 +84,7 @@ export const userAPI = {
    */
   async updatePassword(newPassword) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/password`, {
+    const response = await fetch(`${API_BASE_URL}/api/user/password`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ newPassword })
@@ -102,7 +103,7 @@ export const userAPI = {
    */
   async getClients() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/clients`, { headers });
+    const response = await fetch(`${API_BASE_URL}/api/user/clients`, { headers });
     return handleResponse(response);
   },
 
@@ -111,7 +112,7 @@ export const userAPI = {
    */
   async selectClient(clientId) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/select-client`, {
+    const response = await fetch(`${API_BASE_URL}/api/user/select-client`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ clientId })
@@ -124,7 +125,7 @@ export const userAPI = {
    */
   async getCurrentClient() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/user/current-client`, { headers });
+    const response = await fetch(`${API_BASE_URL}/api/user/current-client`, { headers });
     return handleResponse(response);
   }
 };

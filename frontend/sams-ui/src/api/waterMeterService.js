@@ -25,7 +25,7 @@ export const fetchAllWaterDataForYear = async (clientId, year) => {
     }
     
     // Use the NEW projects endpoint for full year data
-    const url = `${API_BASE_URL}/api/clients/${clientId}/projects/waterBills/${year}`;
+    const url = `${API_BASE_URL}/clients/${clientId}/projects/waterBills/${year}`;
     
     console.log('🔗 [WaterAPI] Fetching from URL:', url);
     console.log('🔑 [WaterAPI] Using token:', token ? 'Token present' : 'No token');

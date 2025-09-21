@@ -555,3 +555,52 @@ textarea {
   background: #6c757d;
   cursor: not-allowed;
 }
+
+/* Split button styling */
+.btn-split {
+  flex: 0 0 auto; /* Don't grow, maintain fixed size */
+  padding: 10px 16px; /* Slightly smaller than main buttons */
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.btn-split.enabled:hover {
+  background: var(--primary-color-dark, #0056b3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.btn-split.disabled,
+.btn-split:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-split:focus {
+  outline: 2px solid var(--primary-color, #007bff);
+  outline-offset: 2px;
+}
+
+/* Adjust form actions layout when Split button is present */
+.form-actions:has(.btn-split) {
+  justify-content: space-between;
+}
+
+.form-actions:has(.btn-split) .btn-cancel,
+.form-actions:has(.btn-split) .btn-submit {
+  flex: 1;
+  margin: 0 5px;
+}

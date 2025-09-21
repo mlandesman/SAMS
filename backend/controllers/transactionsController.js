@@ -85,6 +85,110 @@ async function resolveCategoryId(clientId, categoryName) {
   }
 }
 
+// Helper function to resolve category ID to name
+async function resolveCategoryName(clientId, categoryId) {
+  if (!categoryId) return null;
+  
+  // HARDCODED OVERRIDE: Handle special "-split-" categoryId for split transactions
+  if (categoryId === "-split-") {
+    return "-Split-";
+  }
+  
+  try {
+    const db = await getDb();
+    const categoryDoc = await db.collection(`clients/${clientId}/categories`)
+      .doc(categoryId)
+      .get();
+    
+    if (categoryDoc.exists) {
+      return categoryDoc.data().name;
+    }
+    
+    console.log(`ℹ️ Category ID "${categoryId}" not found`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving category name:', error);
+    return null;
+  }
+}
+
+// Helper function to resolve vendor ID to name
+async function resolveVendorName(clientId, vendorId) {
+  if (!vendorId) return null;
+  
+  try {
+    const db = await getDb();
+    const vendorDoc = await db.collection(`clients/${clientId}/vendors`)
+      .doc(vendorId)
+      .get();
+    
+    if (vendorDoc.exists) {
+      return vendorDoc.data().name;
+    }
+    
+    console.log(`ℹ️ Vendor ID "${vendorId}" not found`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving vendor name:', error);
+    return null;
+  }
+}
+
+// Helper function to resolve account ID to name
+async function resolveAccountName(clientId, accountId) {
+  if (!accountId) return null;
+  
+  try {
+    const db = await getDb();
+    const clientDoc = await db.collection('clients').doc(clientId).get();
+    
+    if (clientDoc.exists) {
+      const accounts = clientDoc.data().accounts || [];
+      const account = accounts.find(acc => acc.id === accountId);
+      
+      if (account) {
+        return account.name;
+      }
+    }
+    
+    console.log(`ℹ️ Account ID "${accountId}" not found`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving account name:', error);
+    return null;
+  }
+}
+
+// Helper function to resolve payment method ID to name
+async function resolvePaymentMethodName(clientId, paymentMethodId) {
+  if (!paymentMethodId) return null;
+  
+  try {
+    const db = await getDb();
+    
+    console.log(`🔍 DEBUG: Attempting to resolve payment method - clientId: "${clientId}", paymentMethodId: "${paymentMethodId}"`);
+    console.log(`🔍 DEBUG: Full path: clients/${clientId}/paymentMethods/${paymentMethodId}`);
+    
+    const paymentMethodDoc = await db.collection(`clients/${clientId}/paymentMethods`)
+      .doc(paymentMethodId)
+      .get();
+    
+    console.log(`🔍 DEBUG: Document exists: ${paymentMethodDoc.exists}`);
+    
+    if (paymentMethodDoc.exists) {
+      const data = paymentMethodDoc.data();
+      console.log(`💳 Found payment method data:`, data);
+      return data.name;
+    }
+    
+    console.log(`ℹ️ Payment Method ID "${paymentMethodId}" not found in clients/${clientId}/paymentMethods`);
+    return null;
+  } catch (error) {
+    console.error('❌ Error resolving payment method name:', error);
+    return null;
+  }
+}
+
 // Helper function to get category type (expense or income)
 async function getCategoryType(clientId, categoryId, categoryName) {
   if (!categoryId && !categoryName) return null;
@@ -176,19 +280,103 @@ async function createTransaction(clientId, data) {
       }
     }
     
-    // Step 2: Resolve vendor and category IDs if names are provided
-    const [vendorId, categoryId] = await Promise.all([
-      normalizedData.vendorName ? resolveVendorId(clientId, normalizedData.vendorName) : Promise.resolve(null),
-      normalizedData.categoryName ? resolveCategoryId(clientId, normalizedData.categoryName) : Promise.resolve(null)
-    ]);
+    // Step 2: Resolve IDs to names (new primary approach) or names to IDs (fallback)
+    // Priority: If IDs are provided, resolve them to names. Otherwise, resolve names to IDs.
     
-    // Add resolved IDs if found
-    if (vendorId) {
-      normalizedData.vendorId = vendorId;
+    let finalVendorId = normalizedData.vendorId;
+    let finalVendorName = normalizedData.vendorName;
+    let finalCategoryId = normalizedData.categoryId;
+    let finalCategoryName = normalizedData.categoryName;
+    let finalAccountId = normalizedData.accountId;
+    let finalAccountName = normalizedData.accountName;
+    let finalPaymentMethodId = normalizedData.paymentMethodId;
+    let finalPaymentMethodName = normalizedData.paymentMethod;
+    
+    console.log('🔄 Resolving transaction field relationships (ID→name priority)');
+    
+    // Vendor resolution: ID→name first, then name→ID fallback
+    if (finalVendorId && !finalVendorName) {
+      finalVendorName = await resolveVendorName(clientId, finalVendorId);
+      console.log(`🏢 Resolved vendor ID ${finalVendorId} → "${finalVendorName}"`);
+    } else if (finalVendorName && !finalVendorId) {
+      finalVendorId = await resolveVendorId(clientId, finalVendorName);
+      console.log(`🏢 Resolved vendor name "${finalVendorName}" → ${finalVendorId}`);
     }
     
-    if (categoryId) {
-      normalizedData.categoryId = categoryId;
+    // Category resolution: ID→name first, then name→ID fallback  
+    if (finalCategoryId && !finalCategoryName) {
+      finalCategoryName = await resolveCategoryName(clientId, finalCategoryId);
+      console.log(`📊 Resolved category ID ${finalCategoryId} → "${finalCategoryName}"`);
+    } else if (finalCategoryName && !finalCategoryId) {
+      finalCategoryId = await resolveCategoryId(clientId, finalCategoryName);
+      console.log(`📊 Resolved category name "${finalCategoryName}" → ${finalCategoryId}`);
+    }
+    
+    // Account resolution: ID→name first, then use account mapping fallback
+    if (finalAccountId && !finalAccountName) {
+      finalAccountName = await resolveAccountName(clientId, finalAccountId);
+      console.log(`💳 Resolved account ID ${finalAccountId} → "${finalAccountName}"`);
+    }
+    
+    // Payment method resolution: ID→name first
+    if (finalPaymentMethodId && !finalPaymentMethodName) {
+      finalPaymentMethodName = await resolvePaymentMethodName(clientId, finalPaymentMethodId);
+      console.log(`💳 Resolved payment method ID ${finalPaymentMethodId} → "${finalPaymentMethodName}"`);
+    }
+    
+    // Store both ID and name in the normalized data
+    normalizedData.vendorId = finalVendorId;
+    normalizedData.vendorName = finalVendorName || '';
+    normalizedData.categoryId = finalCategoryId;
+    normalizedData.categoryName = finalCategoryName || '';
+    normalizedData.accountId = finalAccountId;
+    normalizedData.accountName = finalAccountName || '';
+    normalizedData.paymentMethodId = finalPaymentMethodId;
+    normalizedData.paymentMethod = finalPaymentMethodName || '';
+    
+    console.log('✅ Field resolution complete:', {
+      vendor: `${finalVendorId} | "${finalVendorName}"`,
+      category: `${finalCategoryId} | "${finalCategoryName}"`,
+      account: `${finalAccountId} | "${finalAccountName}"`,
+      paymentMethod: `${finalPaymentMethodId} | "${finalPaymentMethodName}"`
+    });
+    
+    // Step 2.1: Handle split transaction allocations
+    if (normalizedData.allocations && Array.isArray(normalizedData.allocations) && normalizedData.allocations.length > 0) {
+      console.log('🔄 Processing split transaction allocations:', normalizedData.allocations);
+      
+      // Validate allocations structure and convert amounts to cents
+      for (let i = 0; i < normalizedData.allocations.length; i++) {
+        const allocation = normalizedData.allocations[i];
+        if (!allocation.categoryName || typeof allocation.amount !== 'number' || allocation.amount === 0) {
+          throw new Error(`Invalid allocation at index ${i}: must have categoryName and non-zero amount`);
+        }
+        // Convert allocation amount from dollars to cents for consistency
+        allocation.amount = dollarsToCents(allocation.amount);
+      }
+      
+      // Validate that allocations sum equals transaction amount
+      const allocationsTotal = normalizedData.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+      if (allocationsTotal !== normalizedData.amount) {
+        throw new Error(`Allocations total (${allocationsTotal} cents) does not equal transaction amount (${normalizedData.amount} cents)`);
+      }
+      
+      // Resolve category relationships for all allocations (ID→name priority)
+      for (let allocation of normalizedData.allocations) {
+        if (allocation.categoryId && !allocation.categoryName) {
+          allocation.categoryName = await resolveCategoryName(clientId, allocation.categoryId);
+          console.log(`🔄 Allocation resolved category ID ${allocation.categoryId} → "${allocation.categoryName}"`);
+        } else if (allocation.categoryName && !allocation.categoryId) {
+          allocation.categoryId = await resolveCategoryId(clientId, allocation.categoryName);
+          console.log(`🔄 Allocation resolved category name "${allocation.categoryName}" → ${allocation.categoryId}`);
+        }
+      }
+      
+      // Set category to "-Split-" for split transactions
+      normalizedData.categoryName = "-Split-";
+      normalizedData.categoryId = null; // Clear single category ID since this is split
+      
+      console.log(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
     }
     
     // Step 2.5: Apply proper accounting sign conventions based on category type
@@ -359,29 +547,74 @@ async function updateTransaction(clientId, txnId, newData) {
       normalizedData.date = convertToTimestamp(validation.data.date);
     }
     
-    // Resolve vendor and category IDs if names are provided
-    if (validation.data.vendorName || validation.data.categoryName) {
-      const [vendorId, categoryId] = await Promise.all([
-        validation.data.vendorName ? resolveVendorId(clientId, validation.data.vendorName) : Promise.resolve(null),
-        validation.data.categoryName ? resolveCategoryId(clientId, validation.data.categoryName) : Promise.resolve(null)
-      ]);
+    // Resolve field relationships (ID→name priority for updates)
+    if (validation.data.vendorId !== undefined || validation.data.vendorName !== undefined ||
+        validation.data.categoryId !== undefined || validation.data.categoryName !== undefined ||
+        validation.data.accountId !== undefined || validation.data.paymentMethodId !== undefined) {
       
-      // Add resolved IDs
-      if (validation.data.vendorName) {
-        if (vendorId) {
-          normalizedData.vendorId = vendorId;
+      console.log('🔄 Resolving updated field relationships (ID→name priority)');
+      
+      // Vendor resolution: ID→name first, then name→ID fallback
+      if (validation.data.vendorId !== undefined) {
+        if (validation.data.vendorId) {
+          normalizedData.vendorId = validation.data.vendorId;
+          normalizedData.vendorName = await resolveVendorName(clientId, validation.data.vendorId) || '';
+          console.log(`🏢 Updated vendor ID ${validation.data.vendorId} → "${normalizedData.vendorName}"`);
         } else {
-          // Clear vendorId if vendor name changed but ID not found
+          normalizedData.vendorId = null;
+          normalizedData.vendorName = '';
+        }
+      } else if (validation.data.vendorName !== undefined) {
+        normalizedData.vendorName = validation.data.vendorName;
+        if (validation.data.vendorName) {
+          normalizedData.vendorId = await resolveVendorId(clientId, validation.data.vendorName);
+          console.log(`🏢 Updated vendor name "${validation.data.vendorName}" → ${normalizedData.vendorId}`);
+        } else {
           normalizedData.vendorId = null;
         }
       }
       
-      if (validation.data.categoryName) {
-        if (categoryId) {
-          normalizedData.categoryId = categoryId;
+      // Category resolution: ID→name first, then name→ID fallback
+      if (validation.data.categoryId !== undefined) {
+        if (validation.data.categoryId) {
+          normalizedData.categoryId = validation.data.categoryId;
+          normalizedData.categoryName = await resolveCategoryName(clientId, validation.data.categoryId) || '';
+          console.log(`📊 Updated category ID ${validation.data.categoryId} → "${normalizedData.categoryName}"`);
         } else {
-          // Clear categoryId if category name changed but ID not found
           normalizedData.categoryId = null;
+          normalizedData.categoryName = '';
+        }
+      } else if (validation.data.categoryName !== undefined) {
+        normalizedData.categoryName = validation.data.categoryName;
+        if (validation.data.categoryName) {
+          normalizedData.categoryId = await resolveCategoryId(clientId, validation.data.categoryName);
+          console.log(`📊 Updated category name "${validation.data.categoryName}" → ${normalizedData.categoryId}`);
+        } else {
+          normalizedData.categoryId = null;
+        }
+      }
+      
+      // Account resolution: ID→name first
+      if (validation.data.accountId !== undefined) {
+        if (validation.data.accountId) {
+          normalizedData.accountId = validation.data.accountId;
+          normalizedData.accountName = await resolveAccountName(clientId, validation.data.accountId) || '';
+          console.log(`💳 Updated account ID ${validation.data.accountId} → "${normalizedData.accountName}"`);
+        } else {
+          normalizedData.accountId = null;
+          normalizedData.accountName = '';
+        }
+      }
+      
+      // Payment method resolution: ID→name first
+      if (validation.data.paymentMethodId !== undefined) {
+        if (validation.data.paymentMethodId) {
+          normalizedData.paymentMethodId = validation.data.paymentMethodId;
+          normalizedData.paymentMethod = await resolvePaymentMethodName(clientId, validation.data.paymentMethodId) || '';
+          console.log(`💳 Updated payment method ID ${validation.data.paymentMethodId} → "${normalizedData.paymentMethod}"`);
+        } else {
+          normalizedData.paymentMethodId = null;
+          normalizedData.paymentMethod = '';
         }
       }
     }
@@ -709,6 +942,38 @@ async function deleteTransaction(clientId, txnId) {
   }
 }
 
+/**
+ * Extract HOA month data from transaction - supports both allocations and duesDistribution
+ * @param {Object} transactionData - Transaction data
+ * @returns {Array} Array of month objects with { month, unitId, year, amount }
+ */
+function getHOAMonthsFromTransaction(transactionData) {
+  // Check for allocations first (new format)
+  if (transactionData.allocations && transactionData.allocations.length > 0) {
+    return transactionData.allocations
+      .filter(allocation => allocation.type === "hoa_month")
+      .map(allocation => ({
+        month: allocation.data.month,
+        unitId: allocation.data.unitId,
+        year: allocation.data.year,
+        amount: allocation.amount
+      }));
+  }
+  
+  // Fallback to duesDistribution (legacy format)
+  if (transactionData.duesDistribution && transactionData.duesDistribution.length > 0) {
+    return transactionData.duesDistribution.map(dues => ({
+      month: dues.month,
+      unitId: dues.unitId,
+      year: dues.year,
+      amount: dues.amount
+    }));
+  }
+  
+  // No HOA month data found
+  return [];
+}
+
 // HOA Dues cleanup logic for transaction deletion (write-only operations)
 function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId) {
   const currentCreditBalance = duesData.creditBalance || 0;
@@ -760,17 +1025,17 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   let monthsCleared = 0;
   const updatedPayments = [...currentPayments]; // Make a copy
   
-  // Get the months this transaction paid for from duesDistribution
-  const duesDistribution = originalData.duesDistribution || [];
-  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${duesDistribution.length} months`);
+  // Get the months this transaction paid for - check allocations first, fallback to duesDistribution
+  const monthsData = getHOAMonthsFromTransaction(originalData);
+  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months`);
   
   // Clear each month that was paid by this transaction
-  duesDistribution.forEach(dues => {
-    const monthIndex = dues.month - 1; // Convert month (1-12) to index (0-11)
+  monthsData.forEach(monthData => {
+    const monthIndex = monthData.month - 1; // Convert month (1-12) to index (0-11)
     const payment = updatedPayments[monthIndex];
     
     if (payment && payment.reference === txnId) {
-      console.log(`🗑️ [BACKEND] Clearing payment for month ${dues.month} (index ${monthIndex})`);
+      console.log(`🗑️ [BACKEND] Clearing payment for month ${monthData.month} (index ${monthIndex})`);
       monthsCleared++;
       
       // Clear the payment entry
@@ -782,7 +1047,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
         reference: null
       };
     } else {
-      console.log(`⚠️ [BACKEND] Month ${dues.month} payment reference doesn't match: expected ${txnId}, found ${payment?.reference}`);
+      console.log(`⚠️ [BACKEND] Month ${monthData.month} payment reference doesn't match: expected ${txnId}, found ${payment?.reference}`);
     }
   });
   

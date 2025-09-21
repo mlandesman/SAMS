@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import DigitalReceipt from '../components/DigitalReceipt';
 import html2canvas from 'html2canvas';
+import { getAuthInstance } from '../firebaseClient';
+import { config } from '../config';
 
 const DigitalReceiptDemo = () => {
   const [generatedBlob, setGeneratedBlob] = useState(null);
@@ -8,6 +10,34 @@ const DigitalReceiptDemo = () => {
   const [selectedDemo, setSelectedDemo] = useState('receipts'); // 'receipts' or 'waterBills'
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
   const waterBillPreviewRef = useRef(null);
+
+  // Helper function to get authenticated headers
+  const getAuthHeaders = async () => {
+    const auth = getAuthInstance();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No authenticated user');
+    }
+    
+    const token = await user.getIdToken();
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  };
+
+  // Currency formatting function - converts centavos to formatted pesos
+  const formatCurrency = (centavos, currency = 'USD', showCents = true) => {
+    const amount = centavos / 100; // Convert centavos to pesos
+    const fractionDigits = showCents ? 2 : 0;
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits
+    }).format(amount);
+  };
 
   // Multiple sample transaction data for demo
   const sampleTransactions = [
@@ -86,14 +116,14 @@ const DigitalReceiptDemo = () => {
         PriorReading: '1749',
         CurrentReading: '1767',
         ReadingDate: 'June 30, 2025',
-        WaterCharge: '$9.00',
+        WaterCharge: formatCurrency(90000), // 18 m³ × 50 pesos = 900 pesos = 90000 centavos
         CarWashCount: '1',
-        CarWashCharge: '$1.00',
+        CarWashCharge: formatCurrency(10000), // 1 car wash × 100 pesos = 10000 centavos
         BoatWashCount: '0',
-        BoatWashCharge: '$0.00',
-        CurrentMonthTotal: '$10.00',
-        PenaltyAmount: '$0.00',
-        TotalAmountDue: '$10.00',
+        BoatWashCharge: formatCurrency(0),
+        CurrentMonthTotal: formatCurrency(100000), // 90000 + 10000 = 100000 centavos = $1000.00
+        PenaltyAmount: formatCurrency(10250), // 102.50 pesos = 10250 centavos
+        TotalAmountDue: formatCurrency(110250), // 100000 + 10250 = 110250 centavos = $1102.50
         ShowCarWash: true,
         ShowBoatWash: false,
         ShowPenalties: false,
@@ -112,7 +142,13 @@ const DigitalReceiptDemo = () => {
         ClientEmail: 'pm@sandyland.com.mx',
         BillNotes: 'Water Consumption for July 2025 - 0018 m³, 1 Car wash',
         PenaltyDays: '10',
-        PenaltyRate: '5.0%'
+        PenaltyRate: '5.0%',
+        LastMonthUsage: '15',
+        UsageChangeDisplay: '+3 m³ ↗️',
+        ComparisonChangeClass: 'comparison-increase',
+        HighUsageWarning: '',
+        BillNotesSection: '<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;"><strong>Additional Notes:</strong><br>Water Consumption for July 2025 - 0018 m³, 1 Car wash</div>',
+        ClientContactInfo: '📞 +52 984-178-0331<br>✉️ pm@sandyland.com.mx'
       }
     },
     {
@@ -155,7 +191,13 @@ const DigitalReceiptDemo = () => {
         ClientEmail: 'pm@sandyland.com.mx',
         BillNotes: 'Consumo de Agua para Julio 2025 - 0043 m³',
         PenaltyDays: '10',
-        PenaltyRate: '5.0%'
+        PenaltyRate: '5.0%',
+        LastMonthUsage: '25',
+        UsageChangeDisplay: '+18 m³ ↗️',
+        ComparisonChangeClass: 'comparison-increase',
+        HighUsageWarning: '<div class="high-usage-warning"><div class="warning-title">⚠️ Aviso de Consumo Alto</div><div class="warning-text">Su consumo de 43 m³ está significativamente por encima del promedio. Por favor revise posibles fugas o considere medidas de conservación de agua.</div></div>',
+        BillNotesSection: '<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;"><strong>Notas Adicionales:</strong><br>Consumo de Agua para Julio 2025 - 0043 m³</div>',
+        ClientContactInfo: '📞 +52 984-178-0331<br>✉️ pm@sandyland.com.mx'
       }
     },
     {
@@ -198,7 +240,13 @@ const DigitalReceiptDemo = () => {
         ClientEmail: 'pm@sandyland.com.mx',
         BillNotes: 'Water Consumption for June 2025 - 0011 m³, 2 Boat washes',
         PenaltyDays: '10',
-        PenaltyRate: '5.0%'
+        PenaltyRate: '5.0%',
+        LastMonthUsage: '14',
+        UsageChangeDisplay: '-3 m³ ↘️',
+        ComparisonChangeClass: 'comparison-decrease',
+        HighUsageWarning: '',
+        BillNotesSection: '<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;"><strong>Additional Notes:</strong><br>Water Consumption for June 2025 - 0011 m³, 2 Boat washes</div>',
+        ClientContactInfo: '📞 +52 984-178-0331<br>✉️ pm@sandyland.com.mx'
       }
     }
   ];
@@ -248,6 +296,11 @@ const DigitalReceiptDemo = () => {
   const [waterBillTemplates, setWaterBillTemplates] = useState({ en: null, es: null });
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState(null);
+  
+  // State for live Firebase data
+  const [firebaseData, setFirebaseData] = useState(null);
+  const [firebaseLoading, setFirebaseLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState(null);
 
   // Fetch real templates from Firebase when component mounts
   const fetchWaterBillTemplates = async () => {
@@ -256,7 +309,8 @@ const DigitalReceiptDemo = () => {
     
     try {
       // Fetch the real emailTemplates document from Firebase
-      const response = await fetch('/comm/email/config/templates/AVII');
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${config.api.baseUrl}/comm/email/config/templates/AVII`, { headers });
       if (!response.ok) {
         throw new Error('Failed to fetch water bill templates');
       }
@@ -299,12 +353,205 @@ const DigitalReceiptDemo = () => {
     }
   };
 
+  // Set AVII as selected client for water bills demo
+  const selectAVIIClient = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${config.api.baseUrl}/user/select-client`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ clientId: 'AVII' })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to select AVII client');
+      }
+      
+      const result = await response.json();
+      console.log('✅ AVII client selected:', result);
+      return true;
+      
+    } catch (error) {
+      console.error('Error selecting AVII client:', error);
+      return false;
+    }
+  };
+
+  // Fetch live Firebase data for water bills using proper backend endpoint
+  const fetchFirebaseData = async () => {
+    setFirebaseLoading(true);
+    setFirebaseError(null);
+    
+    try {
+      // First ensure AVII is selected as the client
+      console.log('🔄 Selecting AVII client for water bills access...');
+      const clientSelected = await selectAVIIClient();
+      
+      if (!clientSelected) {
+        throw new Error('Could not select AVII client - authentication required');
+      }
+      
+      // Use the correct aggregated water bills data endpoint
+      const headers = await getAuthHeaders();
+      const waterDataUrl = `${config.api.baseUrl}/water/clients/AVII/data/2026`;
+      console.log('🔍 Making request to', waterDataUrl, 'with headers:', headers);
+      const response = await fetch(waterDataUrl, { headers });
+      console.log('🔍 Response status:', response.status, response.statusText);
+      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('🔍 Error response body:', errorText);
+        throw new Error('Failed to fetch live water bills data');
+      }
+      
+      const responseText = await response.text();
+      console.log('🔍 Raw response text (first 500 chars):', responseText.substring(0, 500));
+      console.log('🔍 Response content type:', response.headers.get('content-type'));
+      
+      const result = JSON.parse(responseText);
+      console.log('🔍 RAW API Response:', result);
+      console.log('🔍 Response success:', result.success);
+      console.log('🔍 Response data:', result.data);
+      console.log('🔍 Response data type:', typeof result.data);
+      console.log('🔍 Response data keys:', result.data ? Object.keys(result.data) : 'No data');
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error fetching Firebase data');
+      }
+      
+      setFirebaseData(result.data);
+      
+      console.log('✅ Live Firebase data loaded via backend endpoint:', result.data);
+      
+    } catch (error) {
+      console.error('Error fetching live Firebase data:', error);
+      setFirebaseError(error.message);
+    } finally {
+      setFirebaseLoading(false);
+    }
+  };
+
   // Fetch templates when switching to water bills demo
   React.useEffect(() => {
     if (selectedDemo === 'waterBills' && !waterBillTemplates.en && !waterBillTemplates.es) {
       fetchWaterBillTemplates();
     }
   }, [selectedDemo]);
+
+  // Fetch Firebase data when switching to water bills demo
+  React.useEffect(() => {
+    if (selectedDemo === 'waterBills' && !firebaseData) {
+      fetchFirebaseData();
+    }
+  }, [selectedDemo]);
+
+  // Convert Firebase data to template variables using the enhanced system
+  const buildLiveWaterBillSamples = (firebaseData) => {
+    if (!firebaseData || !firebaseData.months || firebaseData.months.length === 0) {
+      return [];
+    }
+
+    const samples = [];
+    // Get the most recent month with bills
+    const latestMonth = firebaseData.months.find(month => month.billsGenerated) || firebaseData.months[0];
+    
+    if (!latestMonth || !latestMonth.units) {
+      return [];
+    }
+
+    const unitNumbers = Object.keys(latestMonth.units);
+
+    // Create samples for the first few units with different scenarios
+    unitNumbers.slice(0, 3).forEach((unitNumber, index) => {
+      const unitData = latestMonth.units[unitNumber];
+      
+      // Extract values based on actual API structure
+      const currentReading = unitData.currentReading?.reading || unitData.currentReading || 0;
+      const carWashCount = unitData.currentReading?.carWashCount || 0;
+      const boatWashCount = unitData.currentReading?.boatWashCount || 0;
+      const penaltyAmount = unitData.penaltyAmount || 0;
+      
+      const isHighUsage = unitData.consumption > 30;
+      const isPaid = unitData.status === 'paid';
+      const hasCarWash = carWashCount > 0;
+      const hasBoatWash = boatWashCount > 0;
+      const hasPenalties = penaltyAmount > 0;
+
+      // Simulate previous month data for comparison
+      const lastMonthUsage = unitData.consumption - Math.floor(Math.random() * 10) + 5;
+      const usageChange = unitData.consumption - lastMonthUsage;
+
+      const variables = {
+        ClientName: 'Aventuras Villas II',
+        ClientLogoUrl: '',
+        UnitNumber: unitNumber,
+        BillingPeriod: `${latestMonth.monthName} ${latestMonth.calendarYear}`,
+        DueDate: latestMonth.dueDate ? new Date(latestMonth.dueDate).toLocaleDateString() : 'July 31, 2025',
+        BillDate: latestMonth.billDate ? new Date(latestMonth.billDate).toLocaleDateString() : 'July 1, 2025',
+        WaterConsumption: unitData.consumption.toString(),
+        PriorReading: unitData.priorReading.toString(),
+        CurrentReading: currentReading.toString(),
+        ReadingDate: 'June 30, 2025',
+        WaterCharge: formatCurrency((unitData.consumption || 0) * 5000), // consumption × 50 pesos per m³
+        CarWashCount: carWashCount.toString(),
+        CarWashCharge: formatCurrency(carWashCount * 10000), // 100 pesos per car wash
+        BoatWashCount: boatWashCount.toString(),
+        BoatWashCharge: formatCurrency(boatWashCount * 20000), // 200 pesos per boat wash
+        CurrentMonthTotal: formatCurrency(((unitData.consumption || 0) * 5000) + (carWashCount * 10000) + (boatWashCount * 20000)),
+        PenaltyAmount: formatCurrency(penaltyAmount),
+        TotalAmountDue: formatCurrency(unitData.totalAmount || 0),
+        ShowCarWash: hasCarWash,
+        ShowBoatWash: hasBoatWash,
+        ShowPenalties: hasPenalties,
+        ShowPaidStatus: isPaid,
+        IsHighUsage: isHighUsage,
+        PaymentStatus: unitData.status,
+        StatusMessage: isPaid ? '✅ PAID - Thank you for your payment' : 
+                      unitData.status === 'overdue' ? '⚠️ OVERDUE - Late penalties have been applied' :
+                      '⏰ PAYMENT DUE - Please pay by the due date to avoid penalties',
+        RatePerM3: formatCurrency(5000), // 50 pesos per m³
+        CarWashRate: formatCurrency(10000), // 100 pesos per car wash
+        BoatWashRate: formatCurrency(20000), // 200 pesos per boat wash
+        PrimaryColor: '#2563eb',
+        AccentColor: '#10b981',
+        CurrencySymbol: '$',
+        ClientAddress: '68 Blvd. Puerto Aventuras, Puerto Aventuras, QR, 77733',
+        ClientPhone: '+52 984-178-0331',
+        ClientEmail: 'pm@sandyland.com.mx',
+        BillNotes: unitData.billNotes || '',
+        PenaltyDays: '10',
+        PenaltyRate: '5.0%',
+        
+        // NEW: Enhanced features with live data
+        LastMonthUsage: lastMonthUsage.toString(),
+        UsageChangeDisplay: usageChange > 0 ? `+${usageChange} m³ ↗️` : 
+                           usageChange < 0 ? `${usageChange} m³ ↘️` : 'No change',
+        ComparisonChangeClass: usageChange > 0 ? 'comparison-increase' : 
+                              usageChange < 0 ? 'comparison-decrease' : 'comparison-same',
+        HighUsageWarning: isHighUsage ? 
+          `<div class="high-usage-warning">
+            <div class="warning-title">⚠️ High Water Usage Notice</div>
+            <div class="warning-text">Your consumption of ${unitData.consumption} m³ is significantly above average. Please check for possible leaks or consider water conservation measures.</div>
+          </div>` : '',
+        BillNotesSection: unitData.billNotes ? 
+          `<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+            <strong>Additional Notes:</strong><br>${unitData.billNotes}
+          </div>` : '',
+        ClientContactInfo: '📞 +52 984-178-0331<br>✉️ pm@sandyland.com.mx'
+      };
+
+      const sampleName = `Unit ${unitNumber} - ${isPaid ? 'Paid' : isHighUsage ? 'High Usage' : hasCarWash ? 'Car Wash' : hasBoatWash ? 'Boat Wash' : 'Standard'} Bill`;
+      
+      samples.push({
+        name: `${sampleName} (Live Data)`,
+        language: index % 2 === 0 ? 'en' : 'es', // Alternate languages
+        variables: variables
+      });
+    });
+
+    return samples;
+  };
 
   // Save water bill template functionality
   const saveWaterBillTemplate = async () => {
@@ -336,8 +583,10 @@ const DigitalReceiptDemo = () => {
         allowTaint: true,
         logging: true,
         foreignObjectRendering: false,
-        width: waterBillPreviewRef.current.offsetWidth,
-        height: waterBillPreviewRef.current.offsetHeight
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight
       });
 
       console.log('Canvas created successfully, size:', canvas.width, 'x', canvas.height);
@@ -514,11 +763,39 @@ const DigitalReceiptDemo = () => {
             borderRadius: '12px',
             border: '2px solid #bbf7d0'
           }}>
-            <h3 style={{ color: '#059669', marginBottom: '15px' }}>
-              💧 Choose Water Bill Sample (Real AVII Data)
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ color: '#059669', margin: '0' }}>
+                💧 Choose Water Bill Sample
+              </h3>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {firebaseLoading && (
+                  <span style={{ fontSize: '12px', color: '#059669' }}>⏳ Loading live data...</span>
+                )}
+                {firebaseError && (
+                  <span style={{ fontSize: '12px', color: '#dc2626' }}>❌ Live data error</span>
+                )}
+                {firebaseData && (
+                  <button
+                    onClick={fetchFirebaseData}
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔄 Refresh Live Data
+                  </button>
+                )}
+              </div>
+            </div>
+            
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              {waterBillSamples.map((sample, index) => (
+              {/* Show live data samples if available, otherwise show static samples */}
+              {(firebaseData ? buildLiveWaterBillSamples(firebaseData) : waterBillSamples).map((sample, index) => (
                 <button
                   key={index}
                   onClick={() => handleSampleChange(index)}
@@ -536,6 +813,13 @@ const DigitalReceiptDemo = () => {
                   {sample.name}
                 </button>
               ))}
+            </div>
+            
+            <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+              {firebaseData ? 
+                `✅ Showing ${buildLiveWaterBillSamples(firebaseData).length} live water bill samples from Firebase` :
+                `📋 Showing ${waterBillSamples.length} static demo samples (live data loading...)`
+              }
             </div>
           </div>
         )}
@@ -585,9 +869,29 @@ const DigitalReceiptDemo = () => {
               alignItems: 'center'
             }}>
               <h3 style={{ margin: '0', color: '#059669' }}>
-                💧 {waterBillSamples[selectedSample]?.name || 'Water Bill Preview'}
+                💧 {(() => {
+                  const currentSamples = firebaseData ? buildLiveWaterBillSamples(firebaseData) : waterBillSamples;
+                  return currentSamples[selectedSample]?.name || 'Water Bill Preview';
+                })()}
               </h3>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  onClick={saveWaterBillTemplate}
+                  disabled={isGeneratingTemplate || templatesLoading || templatesError}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: isGeneratingTemplate ? '#9ca3af' : '#059669',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isGeneratingTemplate ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    marginRight: '8px'
+                  }}
+                >
+                  {isGeneratingTemplate ? '💾 Saving...' : '💾 Save Template'}
+                </button>
                 <span style={{ 
                   padding: '4px 8px',
                   backgroundColor: '#bbf7d0',
@@ -596,17 +900,20 @@ const DigitalReceiptDemo = () => {
                   fontSize: '12px',
                   fontWeight: 'bold'
                 }}>
-                  {waterBillSamples[selectedSample]?.language === 'es' ? 'ESPAÑOL' : 'ENGLISH'}
+                  {(() => {
+                    const currentSamples = firebaseData ? buildLiveWaterBillSamples(firebaseData) : waterBillSamples;
+                    return currentSamples[selectedSample]?.language === 'es' ? 'ESPAÑOL' : 'ENGLISH';
+                  })()}
                 </span>
                 <span style={{ 
                   padding: '4px 8px',
-                  backgroundColor: '#fef3c7',
-                  color: '#92400e',
+                  backgroundColor: firebaseData ? '#dcfce7' : '#fef3c7',
+                  color: firebaseData ? '#166534' : '#92400e',
                   borderRadius: '4px',
                   fontSize: '10px',
                   fontWeight: 'bold'
                 }}>
-                  REAL FIREBASE DATA
+                  {firebaseData ? 'LIVE FIREBASE DATA' : 'STATIC DEMO DATA'}
                 </span>
               </div>
             </div>
@@ -654,19 +961,26 @@ const DigitalReceiptDemo = () => {
             {/* Template Preview */}
             {!templatesLoading && !templatesError && (
               <div 
+                ref={waterBillPreviewRef}
                 style={{ 
                   padding: '0',
-                  maxHeight: '600px', 
-                  overflowY: 'auto',
+                  maxHeight: isGeneratingTemplate ? 'none' : '600px', 
+                  overflowY: isGeneratingTemplate ? 'visible' : 'auto',
                   backgroundColor: '#f8fafc'
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: waterBillTemplates[waterBillSamples[selectedSample]?.language || 'en'] 
-                    ? processWaterBillTemplate(
-                        waterBillTemplates[waterBillSamples[selectedSample]?.language || 'en'],
-                        waterBillSamples[selectedSample]?.variables || {}
-                      )
-                    : '<div style="padding: 40px; text-align: center; color: #6b7280;">No template available for this language</div>'
+                  __html: (() => {
+                    const currentSamples = firebaseData ? buildLiveWaterBillSamples(firebaseData) : waterBillSamples;
+                    const currentSample = currentSamples[selectedSample];
+                    const templateLang = currentSample?.language || 'en';
+                    const template = waterBillTemplates[templateLang];
+                    
+                    if (!template) {
+                      return '<div style="padding: 40px; text-align: center; color: #6b7280;">No template available for this language</div>';
+                    }
+                    
+                    return processWaterBillTemplate(template, currentSample?.variables || {});
+                  })()
                 }}
               />
             )}

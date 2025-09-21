@@ -1,13 +1,7 @@
 // Water Bills API Service - Mobile PWA Version
 // Adapted from desktop waterAPI.js to use getAggregatedData pattern
 
-/**
- * API Configuration for Mobile PWA
- */
-const API_CONFIG = {
-  baseUrl: 'http://localhost:5001/api',
-  domainBaseUrl: 'http://localhost:5001'
-};
+import { config } from '../config/index.js';
 
 /**
  * Handle API response with proper error handling
@@ -28,8 +22,7 @@ async function handleApiResponse(response) {
  */
 class WaterAPI {
   constructor() {
-    this.baseUrl = API_CONFIG.baseUrl;                // Legacy endpoints (/api/clients/...)
-    this.domainBaseUrl = API_CONFIG.domainBaseUrl;    // Clean domain endpoints (/water/...)
+    this.baseUrl = config.api.baseUrl;                // Unified baseURL configuration
     this.cache = new Map();                           // Session cache for year data
   }
 
@@ -67,7 +60,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/data/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/data/${year}`,
       {
         method: 'GET',
         headers: {
@@ -99,7 +92,7 @@ class WaterAPI {
     const token = await this.getAuthToken();
     
     const response = await fetch(
-      `${this.domainBaseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
       {
         method: 'POST',
         headers: {

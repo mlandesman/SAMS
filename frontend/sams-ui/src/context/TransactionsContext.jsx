@@ -11,6 +11,7 @@ export const TransactionsProvider = ({ children }) => {
   const { selectedClient } = useClient();
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showSplitEntryModal, setShowSplitEntryModal] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +48,15 @@ export const TransactionsProvider = ({ children }) => {
   // Trigger balance recalculation
   const triggerBalanceUpdate = () => {
     setBalanceUpdateTrigger(prev => prev + 1);
+  };
+
+  // Helper function to detect split transactions
+  const isSplitTransaction = (transaction) => {
+    return transaction && 
+           transaction.categoryName === "-Split-" && 
+           transaction.allocations && 
+           Array.isArray(transaction.allocations) && 
+           transaction.allocations.length > 0;
   };
   
   // Select a transaction for editing or viewing details
@@ -333,7 +343,14 @@ export const TransactionsProvider = ({ children }) => {
           break;
         case 'edit':
           if (selectedTransaction) {
-            setShowExpenseModal(true);  // Open the modal for editing
+            // Check if this is a split transaction
+            if (isSplitTransaction(selectedTransaction)) {
+              console.log('Opening split transaction for editing:', selectedTransaction);
+              setShowSplitEntryModal(true);  // Open split modal for editing
+            } else {
+              console.log('Opening regular transaction for editing:', selectedTransaction);
+              setShowExpenseModal(true);  // Open regular modal for editing
+            }
           } else {
             alert('Please select a transaction to edit');
           }
@@ -346,9 +363,10 @@ export const TransactionsProvider = ({ children }) => {
           }
           break;
         case 'clear':
-          console.log('Clearing selection and closing expense modal');
+          console.log('Clearing selection and closing all modals');
           setSelectedTransaction(null);
-          setShowExpenseModal(false);   // Also close the modal when clearing selection
+          setShowExpenseModal(false);   // Close regular expense modal
+          setShowSplitEntryModal(false); // Close split entry modal
           break;
         case 'print':
           console.log('Print clicked');
@@ -370,10 +388,12 @@ export const TransactionsProvider = ({ children }) => {
   const value = {
     showFilterModal,
     showExpenseModal,
+    showSplitEntryModal,
     handleFilterClick,
     handleFilterSelected,
     setShowFilterModal,
     setShowExpenseModal,
+    setShowSplitEntryModal,
     handleAction,
     currentFilter,
     getFilterLabel,
@@ -390,7 +410,8 @@ export const TransactionsProvider = ({ children }) => {
     setIsRefreshing,
     error,
     balanceUpdateTrigger,
-    triggerBalanceUpdate
+    triggerBalanceUpdate,
+    isSplitTransaction
   };
   
   return (

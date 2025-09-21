@@ -72,19 +72,24 @@ app.use('/comm/email', emailRoutesComm); // Communication email routes
 
 // AUTHENTICATED ROUTES (require auth)
 console.log('Mounting water routes');
-app.use('/water', waterRoutes); // Change from /api to /water (prevents hijacking)
+app.use('/water', waterRoutes); // Domain-specific water billing
 
-console.log('Mounting /api/clients');
-app.use('/api/clients', clientRoutes); // Use client routes which also includes transaction routes
-app.use('/api/user', userRoutes); // Add user routes
+// AUTH & USER MANAGEMENT DOMAIN
+console.log('Mounting auth domain routes');
+app.use('/api/auth', authRoutes); // Authentication endpoints  
+app.use('/api/user', userRoutes); // User management (legacy mount)
+
+// CLIENT DOMAIN (same pattern as /auth, /water, /comm)
+console.log('Mounting clients domain routes');
+app.use('/clients', clientRoutes); // Client domain (same pattern as /auth, /water, /comm)
 
 // Mount email routes under each client
 console.log('Mounting email routes');
-app.use('/api/clients/:clientId/email', emailRoutes); // Add email routes
+app.use('/clients/:clientId/email', emailRoutes); // Add email routes
 
 // Mount document routes under each client
 console.log('Mounting document routes');
-app.use('/api/clients/:clientId/documents', documentsRoutes); // Add document routes
+app.use('/clients/:clientId/documents', documentsRoutes); // Add document routes
 
 // Mount client onboarding routes
 console.log('Mounting client onboarding routes');
@@ -94,22 +99,18 @@ app.use('/api/onboarding', clientOnboardingRoutes); // Add client onboarding rou
 console.log('Mounting client management routes');
 app.use('/api/client-management', clientManagementRoutes); // Add client management routes
 
-// Mount admin routes
-console.log('Mounting admin routes');
-app.use('/api/admin', adminRoutes); // Add admin routes
-
-// Mount auth routes (public endpoints)
-console.log('Mounting auth routes');
-app.use('/api/auth', authRoutes); // Add auth routes
+// ADMIN DOMAIN (domain-specific)
+console.log('Mounting admin domain routes');
+app.use('/admin', adminRoutes); // Admin functions under dedicated domain
 
 // Version routes now mounted under /system (see above)
 
-// Mount HOA dues routes for cross-module credit balance API
-console.log('Mounting HOA dues routes');
-app.use('/api/hoa', hoaDuesRoutes); // Add HOA dues routes
+// HOA DUES DOMAIN (domain-specific)
+console.log('Mounting HOA dues domain routes');
+app.use('/hoadues', hoaDuesRoutes); // HOA dues under dedicated domain
 
-// Add basic health check endpoint
-app.get('/api/health', (req, res) => {
+// SYSTEM HEALTH CHECK (under system domain)
+app.get('/system/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -121,12 +122,20 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'SAMS Backend API',
-    version: '1.0.0',
-    endpoints: [
-      '/api/health',
-      '/api/clients',
-      '/api/user',
-      '/api/auth'
+    version: '2.0.0',
+    architecture: 'domain-specific-routing',
+    domains: [
+      '/system/*',     // System services (health, version, exchange rates)
+      '/auth/*',       // Authentication & user management
+      '/water/*',      // Water billing & meter management
+      '/comm/*',       // Communications & email
+      '/admin/*',      // Administrative functions
+      '/hoadues/*',    // HOA dues & assessments
+    ],
+    legacy: [
+      '/api/clients/*',          // LEGACY: Being migrated to domain-specific
+      '/api/onboarding/*',       // LEGACY: To be migrated
+      '/api/client-management/*' // LEGACY: To be migrated
     ]
   });
 });

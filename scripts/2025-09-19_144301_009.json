@@ -1,0 +1,57 @@
+{
+  "_id": "2025-09-19_144301_009",
+  "date": {
+    "_seconds": 1758258000,
+    "_nanoseconds": 0
+  },
+  "amount": 1800000,
+  "categoryId": "hoa-dues",
+  "categoryName": "HOA Dues",
+  "type": "income",
+  "accountType": "bank",
+  "accountId": "bank-001",
+  "paymentMethod": "etransfer",
+  "notes": "HOA Dues payment for Unit PH4D - Sep, Oct, Nov 2025 - Test Transaction to show Split functionality - $17400 Dues + $600 credit",
+  "unitId": "PH4D",
+  "vendorId": "deposit",
+  "vendorName": "Deposit",
+  "reference": "DUES-PH4D-2025",
+  "duesDistribution": [
+    {
+      "unitId": "PH4D",
+      "month": 9,
+      "amount": 5800,
+      "year": 2025
+    },
+    {
+      "unitId": "PH4D",
+      "month": 10,
+      "amount": 5800,
+      "year": 2025
+    },
+    {
+      "unitId": "PH4D",
+      "month": 11,
+      "amount": 5800,
+      "year": 2025
+    }
+  ],
+  "metadata": {
+    "type": "hoa_dues",
+    "unitId": "PH4D",
+    "year": 2025,
+    "months": [
+      9,
+      10,
+      11
+    ]
+  },
+  "clientId": "MTC",
+  "propertyId": "MTC",
+  "enteredBy": "system",
+  "updated": {
+    "_seconds": 1758310980,
+    "_nanoseconds": 665000000
+  },
+  "documents": []
+}

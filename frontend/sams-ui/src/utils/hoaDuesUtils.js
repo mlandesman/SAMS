@@ -14,6 +14,7 @@
  *   - monthlyPayments: array of monthly payment amounts in sequential order
  */
 import debug from './debug';
+import { fiscalToCalendarMonth } from './fiscalYearUtils';
 
 export function calculatePayments(amtPaid, amtMonthly, amtCredit) {
   // Coerce the inputs to numbers to ensure they are numeric
@@ -106,23 +107,44 @@ export function getMonthName(monthIndex, short = false) {
 /**
  * Generates a description of the months being paid
  * 
- * @param {number} startMonth - Starting month index (1-12)
+ * @param {number} startFiscalMonth - Starting fiscal month index (1-12)
  * @param {number} count - Number of months to include
- * @param {number} year - The year for these months
- * @return {string} Formatted description like "Jan, Feb, Mar 2023"
+ * @param {number} fiscalYear - The fiscal year for these months
+ * @param {number} fiscalYearStartMonth - The calendar month when fiscal year starts (1-12)
+ * @return {string} Formatted description like "Jul, Aug, Sep 2025"
  */
-export function generateMonthsDescription(startMonth, count, year) {
+export function generateMonthsDescription(startFiscalMonth, count, fiscalYear, fiscalYearStartMonth = 1) {
   if (count <= 0) return '';
   
   let months = [];
   for (let i = 0; i < count; i++) {
-    // Handle wrapping to the next year if needed
-    const actualMonth = ((startMonth + i - 1) % 12) + 1;
-    const actualYear = year + Math.floor((startMonth + i - 1) / 12);
+    const currentFiscalMonth = startFiscalMonth + i;
+    
+    // Convert fiscal month to calendar month
+    let fiscalMonthInYear = ((currentFiscalMonth - 1) % 12) + 1;
+    const calendarMonth = fiscalToCalendarMonth(fiscalMonthInYear, fiscalYearStartMonth);
+    
+    // Calculate the calendar year
+    // For fiscal months 1-6 (e.g., Jul-Dec), we're in the previous calendar year
+    // For fiscal months 7-12 (e.g., Jan-Jun), we're in the same calendar year as fiscal year
+    let calendarYear;
+    if (fiscalYearStartMonth === 1) {
+      // Calendar year system
+      calendarYear = fiscalYear;
+    } else {
+      // Fiscal year system - need to calculate proper calendar year
+      if (fiscalMonthInYear <= (12 - fiscalYearStartMonth + 1)) {
+        // First part of fiscal year (e.g., Jul-Dec) = previous calendar year
+        calendarYear = fiscalYear - 1;
+      } else {
+        // Second part of fiscal year (e.g., Jan-Jun) = same calendar year as fiscal year
+        calendarYear = fiscalYear;
+      }
+    }
     
     months.push({
-      name: getMonthName(actualMonth, true),
-      year: actualYear
+      name: getMonthName(calendarMonth, true),
+      year: calendarYear
     });
   }
   

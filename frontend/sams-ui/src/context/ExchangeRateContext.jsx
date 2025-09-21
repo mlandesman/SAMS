@@ -15,7 +15,7 @@ export function ExchangeRateProvider({ children }) {
     // console.log(`🔍 Getting exchange rates for ${date}`);
     
     // Use domain base URL for clean domain routing (/system endpoints)
-    const response = await fetch(`${config.api.domainBaseUrl}/system/exchange-rates/check`);
+    const response = await fetch(`${config.api.baseUrl}/system/exchange-rates/check`);
     const result = await response.json();
     
     if (result.exists && result.data) {

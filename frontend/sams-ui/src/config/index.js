@@ -9,8 +9,8 @@
  * - Firebase configuration management
  */
 
-// Enhanced environment-aware configuration
-const getApiUrl = () => {
+// Unified baseURL configuration - eliminates dual pattern confusion
+const getUnifiedApiUrl = () => {
   // 1. Explicit environment variable (highest priority)
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
@@ -18,34 +18,17 @@ const getApiUrl = () => {
   
   // 2. Production environment auto-detection
   if (import.meta.env.PROD) {
-    return 'https://backend-liart-seven.vercel.app/api';
+    return 'https://backend-liart-seven.vercel.app';  // Clean base (no /api suffix)
   }
   
   // 3. Development fallback
-  return 'http://localhost:5001/api';
-};
-
-// Domain-specific base URL (for clean domain routing like /water, /system)
-const getDomainApiUrl = () => {
-  // 1. Explicit environment variable (highest priority)
-  if (import.meta.env.VITE_DOMAIN_API_BASE_URL) {
-    return import.meta.env.VITE_DOMAIN_API_BASE_URL;
-  }
-  
-  // 2. Production environment auto-detection
-  if (import.meta.env.PROD) {
-    return 'https://backend-liart-seven.vercel.app';
-  }
-  
-  // 3. Development fallback
-  return 'http://localhost:5001';
+  return 'http://localhost:5001';  // Clean base (no /api suffix)
 };
 
 export const config = {
   // API Configuration
   api: {
-    baseUrl: getApiUrl(),                    // Legacy /api endpoints
-    domainBaseUrl: getDomainApiUrl(),       // Clean domain routing (/water, /system)
+    baseUrl: getUnifiedApiUrl(),            // Single unified baseURL (no /api suffix)
     timeout: 30000, // 30 seconds
   },
   
@@ -93,11 +76,12 @@ if (import.meta.env.PROD && typeof window !== 'undefined') {
 
 // Development logging
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  console.log('🔧 SAMS Config:', {
+  console.log('🔧 SAMS Unified Config:', {
     apiUrl: config.api.baseUrl,
     environment: import.meta.env.MODE,
     viteEnv: import.meta.env.VITE_API_BASE_URL || 'not set',
     firebase: config.firebase.projectId ? '✓ Configured' : '❌ Missing',
-    maintenanceMode: config.features.maintenanceMode
+    maintenanceMode: config.features.maintenanceMode,
+    configType: 'unified-baseurl-v1'
   });
 }

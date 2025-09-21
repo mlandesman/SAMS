@@ -23,6 +23,11 @@ const TransactionConfirmationModal = ({
   transactionData, 
   uploadedDocuments
 }) => {
+  // Monitor expense submission success
+  if (isOpen && transactionData) {
+    console.log('✅ Expense transaction submitted successfully:', transactionData.amount, transactionData.category);
+  }
+  
   const [documentViewer, setDocumentViewer] = useState({
     isOpen: false,
     documents: [],
@@ -209,7 +214,7 @@ const TransactionConfirmationModal = ({
                   </div>
                   <div className="detail-content">
                     <span className="detail-label">Account</span>
-                    <span className="detail-value">{transactionData.accountType}</span>
+                    <span className="detail-value">{transactionData.account}</span>
                   </div>
                 </div>
                 

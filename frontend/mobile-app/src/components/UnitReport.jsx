@@ -95,7 +95,7 @@ const UnitReport = ({ unitId, onClose }) => {
         throw new Error('No authenticated user');
       }
       
-      console.log('UnitReport: Fetching from:', `/api/clients/${clientId}/reports/unit/${currentUnitId}`);
+      console.log('UnitReport: Fetching from:', `/clients/${clientId}/reports/unit/${currentUnitId}`);
       console.log('UnitReport: Firebase user:', firebaseUser ? 'Yes' : 'No');
 
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';

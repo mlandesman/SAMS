@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperclip } from '@fortawesome/free-solid-svg-icons';
+import { faPaperclip, faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
 import { getAuthInstance } from '../firebaseClient';
@@ -43,6 +43,9 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
     currentDocument: null,
     loading: false
   });
+
+  // State for managing expanded split transactions
+  const [expandedSplits, setExpandedSplits] = useState(new Set());
 
   // Helper function to convert documents object to array
   const getDocumentsArray = (docs) => {
@@ -112,6 +115,59 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
     });
   };
 
+  // Helper functions for split transactions
+  const isSplitTransaction = (transaction) => {
+    return transaction.categoryName === "-Split-" && 
+           transaction.allocations && 
+           Array.isArray(transaction.allocations) && 
+           transaction.allocations.length > 0;
+  };
+
+  const toggleSplitExpansion = (transactionId, e) => {
+    e.stopPropagation(); // Prevent row selection when clicking expand icon
+    setExpandedSplits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
+  };
+
+  const renderCategoryCell = (transaction) => {
+    if (isSplitTransaction(transaction)) {
+      const isExpanded = expandedSplits.has(transaction.id);
+      return (
+        <div className="split-category-container">
+          <div className="split-category-header" onClick={(e) => toggleSplitExpansion(transaction.id, e)}>
+            <FontAwesomeIcon 
+              icon={isExpanded ? faChevronDown : faChevronRight} 
+              className="split-chevron"
+            />
+            <span className="split-category-text">-Split-</span>
+          </div>
+          {isExpanded && (
+            <div className="split-allocations">
+              {transaction.allocations.map((allocation, index) => (
+                <div key={index} className="split-allocation-item">
+                  <span className="allocation-category">{allocation.categoryName}</span>
+                  <span className="allocation-amount">
+                    {databaseFieldMappings.formatCurrency(allocation.amount, transaction.currency || 'USD', false)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Regular single-category transaction
+    return transaction.categoryName || transaction.category || '';
+  };
+
   return (
     <div className="transaction-section">
       <div className="transaction-table-container">
@@ -155,7 +211,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
               >
                 <td className="date-column">{tx.date?.display || tx.created?.display || ''}</td>
                 <td className="vendor-column">{tx.vendorName || tx.vendor || ''}</td>
-                <td className="category-column">{tx.categoryName || tx.category || ''}</td>
+                <td className="category-column">{renderCategoryCell(tx)}</td>
                 <td className="unit-column">{tx.unitId || tx.unit || ''}</td>
                 <td className="amount-column amount-cell" style={{ 
                   color: getAmountDisplay(tx).color,

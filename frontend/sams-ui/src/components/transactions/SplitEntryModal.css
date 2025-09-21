@@ -1,0 +1,347 @@
+/* SplitEntryModal.css - Quicken-style split transaction interface */
+
+.split-entry-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 5px;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.close-button:hover {
+  color: #333;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Transaction Summary Section */
+.transaction-summary {
+  padding: 16px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 50px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #666;
+  white-space: nowrap;
+  justify-content: flex-start;
+  padding: 4px 0;
+}
+
+.summary-row svg {
+  color: #007bff;
+  width: 14px;
+}
+
+/* Remaining Balance */
+.remaining-balance {
+  padding: 12px 20px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.remaining-balance.balanced {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.remaining-balance.over {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.remaining-balance.under {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* Allocations Container */
+.allocations-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.allocations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.allocations-table th {
+  background-color: #f8f9fa;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.allocations-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+/* Category Select */
+.category-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.category-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.category-select:disabled {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
+
+/* Amount Input */
+.amount-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 8px;
+  color: #666;
+  font-weight: 500;
+  z-index: 1;
+}
+
+.amount-input {
+  width: 100%;
+  padding: 8px 8px 8px 20px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: right;
+  transition: border-color 0.2s;
+}
+
+.amount-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Notes Input */
+.notes-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.notes-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Action Buttons */
+.remove-allocation-button {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.remove-allocation-button:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.add-allocation-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 2px dashed #007bff;
+  color: #007bff;
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.add-allocation-button:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+  border-color: #0056b3;
+  color: #0056b3;
+}
+
+/* Error Messages */
+.error-messages {
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-message:last-child {
+  margin-bottom: 0;
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.cancel-button,
+.save-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
+}
+
+.save-button.enabled {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-button.enabled:hover {
+  background-color: #218838;
+}
+
+.save-button.disabled {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .split-entry-modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .transaction-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .allocations-table {
+    font-size: 0.8rem;
+  }
+  
+  .allocations-table th,
+  .allocations-table td {
+    padding: 6px 4px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .cancel-button,
+  .save-button {
+    width: 100%;
+  }
+}
+
+/* Loading State */
+.allocations-container.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Focus States for Accessibility */
+.category-select:focus,
+.amount-input:focus,
+.notes-input:focus,
+.add-allocation-button:focus,
+.remove-allocation-button:focus,
+.save-button:focus,
+.cancel-button:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}

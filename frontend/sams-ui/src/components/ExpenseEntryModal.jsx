@@ -7,8 +7,12 @@ import { fetchVendors, createTransaction } from '../api/transaction';
 import { uploadDocumentsForTransaction, linkDocumentsToTransaction } from '../api/documents';
 import { DocumentUploader } from './documents';
 import TransactionConfirmationModal from './TransactionConfirmationModal';
+import SplitEntryModal from './transactions/SplitEntryModal';
 import { Timestamp } from 'firebase/firestore';
 import { getMexicoDateString } from '../utils/timezone';
+import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+
+const { dollarsToCents } = databaseFieldMappings;
 
 /**
  * ExpenseEntryModal component for adding/editing expense transactions
@@ -27,6 +31,10 @@ const ExpenseEntryModal = ({ isOpen, onClose, onSubmit, initialData = null }) =>
   // Confirmation modal state
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingTransactionData, setPendingTransactionData] = useState(null);
+
+  // Split entry modal state
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitAllocations, setSplitAllocations] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -148,6 +156,53 @@ const ExpenseEntryModal = ({ isOpen, onClose, onSubmit, initialData = null }) =>
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Check if Split button should be enabled
+  const isSplitButtonEnabled = () => {
+    return formData.date && 
+           formData.vendor && 
+           formData.amount > 0 && 
+           formData.accountType;
+    // Note: category is not required for split transactions
+  };
+
+  // Handle Split button click
+  const handleSplitTransaction = () => {
+    if (!isSplitButtonEnabled()) return;
+    
+    // Prepare transaction data for split modal
+    const transactionDataForSplit = {
+      date: formData.date,
+      vendorName: formData.vendor,
+      amount: dollarsToCents(formData.amount), // Convert to cents for consistency
+      accountType: formData.accountType,
+      paymentMethod: formData.paymentMethod,
+      unit: formData.unit,
+      notes: formData.notes
+    };
+    
+    setPendingTransactionData(transactionDataForSplit);
+    setShowSplitModal(true);
+  };
+
+  // Handle save from split modal
+  const handleSplitSave = (allocations) => {
+    setSplitAllocations(allocations);
+    setShowSplitModal(false);
+    
+    // Prepare final transaction data with allocations
+    const finalTransactionData = {
+      ...pendingTransactionData,
+      allocations: allocations,
+      categoryName: "-Split-", // This will be set by backend
+      // Remove single category since this is split
+      category: undefined
+    };
+    
+    // Show confirmation modal with split transaction data
+    setPendingTransactionData(finalTransactionData);
+    setShowConfirmation(true);
   };
 
   // Handle form submission - show confirmation first
@@ -431,6 +486,24 @@ const ExpenseEntryModal = ({ isOpen, onClose, onSubmit, initialData = null }) =>
           >
             Cancel
           </button>
+          
+          {/* Split button - only show for new transactions */}
+          {!initialData && (
+            <button
+              className={`split-button ${isSplitButtonEnabled() ? 'enabled' : 'disabled'}`}
+              onClick={(e) => {
+                console.log('Split button clicked');
+                e.preventDefault();
+                handleSplitTransaction();
+              }}
+              disabled={loading || !isSplitButtonEnabled()}
+              type="button"
+              title="Split transaction across multiple categories"
+            >
+              Split
+            </button>
+          )}
+          
           <button
             className="primary"
             onClick={(e) => {
@@ -454,6 +527,15 @@ const ExpenseEntryModal = ({ isOpen, onClose, onSubmit, initialData = null }) =>
         onConfirm={handleConfirmedSubmit}
         transactionData={pendingTransactionData}
         uploadedDocuments={uploadedDocuments}
+      />
+
+      {/* Split Entry Modal */}
+      <SplitEntryModal
+        isOpen={showSplitModal}
+        onClose={() => setShowSplitModal(false)}
+        onSave={handleSplitSave}
+        transactionData={pendingTransactionData}
+        existingAllocations={splitAllocations}
       />
     </div>
   );

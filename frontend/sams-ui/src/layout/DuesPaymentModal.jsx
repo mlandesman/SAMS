@@ -1,26 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useHOADues } from '../context/HOADuesContext';
 import { useClient } from '../context/ClientContext';
+import { recordDuesPayment, updateCreditBalance } from '../api/hoaDuesService';
 import { 
   calculatePayments, 
   formatAsMXN, 
   getMonthName, 
-  generateMonthsDescription
+  generateMonthsDescription, 
+  generateSequenceNumber 
 } from '../utils/hoaDuesUtils';
-import { formatUnitIdWithOwnerAndDues, sortUnitsByUnitId } from '../utils/unitUtils';
-import { recordDuesPayment as apiRecordDuesPayment } from '../api/hoaDuesService';
-import { generateHOADuesReceipt } from '../utils/receiptUtils';
-import { getPaymentMethods } from '../api/paymentMethods';
-import { getAuthInstance } from '../firebaseClient';
-import DigitalReceipt from './DigitalReceipt';
-import NotificationModal from './NotificationModal';
-import { useNotification } from '../hooks/useNotification';
-import { getMexicoDateString } from '../utils/timezone';
-import { useTransactionsContext } from '../context/TransactionsContext';
 import './DuesPaymentModal.css';
 
 function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
-  const { selectedClient } = useClient();
   const { 
     units, 
     duesData, 
@@ -28,38 +19,18 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     selectedYear
   } = useHOADues();
   
-  // Access transaction context for balance updates
-  const { triggerBalanceUpdate } = useTransactionsContext();
-  
-  // Digital Receipt integration state
-  const [showDigitalReceipt, setShowDigitalReceipt] = useState(false);
-  const [receiptTransactionData, setReceiptTransactionData] = useState(null);
-  
-  // Notification system for Digital Receipt and success messages
-  const { 
-    notification, 
-    closeNotification, 
-    showError, 
-    showSuccess,
-    showEmailSuccess
-  } = useNotification();
+  const { selectedClient } = useClient();
   
   const [selectedUnitId, setSelectedUnitId] = useState(unitId || '');
   const [unit, setUnit] = useState(null);
   const [amount, setAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(getMexicoDateString()); // Use Mexico timezone
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [checkNumber, setCheckNumber] = useState('');
   const [calculationResult, setCalculationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  // Client data for dynamic payment methods and accounts
-  const [clientPaymentMethods, setClientPaymentMethods] = useState([]);
-  const [clientAccounts, setClientAccounts] = useState([]);
-  const [selectedAccount, setSelectedAccount] = useState('');
-  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   
   // Convert string amount to number
   const amountNumber = parseFloat(amount) || 0;
@@ -72,84 +43,12 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   // Update unit when selectedUnitId changes
   useEffect(() => {
     if (units && selectedUnitId) {
-      const foundUnit = units.find(u => u.unitId === selectedUnitId);
+      const foundUnit = units.find(u => u.id === selectedUnitId);
       setUnit(foundUnit);
     } else {
       setUnit(null);
     }
   }, [units, selectedUnitId]);
-  
-  // Load client payment methods dynamically from database
-  useEffect(() => {
-    const loadPaymentMethods = async () => {
-      if (selectedClient?.id) {
-        try {
-          setLoadingPaymentMethods(true);
-          console.log('🔄 Loading payment methods from database for client:', selectedClient.id);
-          
-          // Get auth token
-          const auth = getAuthInstance();
-          const token = await auth.currentUser?.getIdToken();
-          
-          // Fetch payment methods from API
-          const response = await getPaymentMethods(selectedClient.id, token);
-          const paymentMethodsData = response.data || [];
-          
-          // Extract method names and sort
-          const methodNames = paymentMethodsData
-            .filter(method => method.status === 'active') // Only active methods
-            .map(method => method.name)
-            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-          
-          console.log('✅ Loaded payment methods from database:', methodNames);
-          
-          if (methodNames.length > 0) {
-            setClientPaymentMethods(methodNames);
-            // Auto-select first payment method
-            setPaymentMethod(methodNames[0].toLowerCase().replace(/\s+/g, '_'));
-          } else {
-            console.warn('⚠️ No active payment methods found in database');
-            setClientPaymentMethods([]);
-          }
-          
-        } catch (error) {
-          console.error('❌ Error loading payment methods from database:', error);
-          // Show user-friendly error - but don't overwrite existing errors
-          if (!error) {
-            setError('Failed to load payment methods. Please refresh the page.');
-          }
-          setClientPaymentMethods([]);
-        } finally {
-          setLoadingPaymentMethods(false);
-        }
-      }
-    };
-    
-    // Load accounts from client data (keep existing logic for accounts)
-    const loadAccounts = () => {
-      if (selectedClient) {
-        const rawAccounts = selectedClient.accounts || [];
-        const processedAccounts = rawAccounts
-          .map(item => typeof item === 'string' ? item : item.name || item.id || String(item))
-          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-        
-        // Fallback for accounts if empty
-        const finalAccounts = processedAccounts.length > 0 
-          ? processedAccounts 
-          : ['Bank', 'Cash'];
-        
-        setClientAccounts(finalAccounts);
-        
-        // Auto-select first account
-        if (finalAccounts.length > 0) {
-          setSelectedAccount(finalAccounts[0]);
-        }
-      }
-    };
-    
-    loadPaymentMethods();
-    loadAccounts();
-  }, [selectedClient]);
   
   // Handle unit dropdown change
   const handleUnitChange = (e) => {
@@ -162,12 +61,12 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   useEffect(() => {
     if (isOpen) {
       setAmount('');
-      setPaymentDate(getMexicoDateString()); // Use Mexico timezone
+      setPaymentDate(new Date().toISOString().split('T')[0]);
       setNotes('');
+      setPaymentMethod('bank_transfer');
       setCheckNumber('');
       setCalculationResult(null);
       setError(null);
-      // Payment method and account will be set by the client data loading effect
     }
   }, [isOpen]);
   
@@ -216,7 +115,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   const getCreditMessage = () => {
     if (!calculationResult) return '';
     
-    const { amtOverpayment } = calculationResult;
+    const { amtOverpayment, remainingCredit } = calculationResult;
     
     if (amtOverpayment < 0) {
       return `Used ${formatAsMXN(Math.abs(amtOverpayment))} from credit balance`;
@@ -270,31 +169,16 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     const monthlyAmount = unitDuesData.scheduledAmount || unit.duesAmount || 0;
     const firstUnpaidMonth = getFirstUnpaidMonth();
     
-    // STEP 1: Handle credit balance repair if negative
-    let remainingAmount = amountNumber;
-    let creditRepairAmount = 0;
-    let creditBalanceAfterRepair = currentCredit;
-    
-    if (currentCredit < 0) {
-      creditRepairAmount = Math.min(Math.abs(currentCredit), remainingAmount);
-      creditBalanceAfterRepair = currentCredit + creditRepairAmount;
-      remainingAmount -= creditRepairAmount;
-      
-      console.log(`🔧 Credit repair needed: ${creditRepairAmount} to fix negative balance of ${currentCredit}`);
-      console.log(`Credit balance after repair: ${creditBalanceAfterRepair}, Remaining for dues: ${remainingAmount}`);
-    }
-    
     // Debug log to verify calculation
     console.log('---- Payment Distribution Calculation ----');
     console.log(`Unit: ${selectedUnitId}, Monthly Amount: ${monthlyAmount}, Payment: ${amountNumber}`);
-    console.log(`Original Credit Balance: ${currentCredit}, After Repair: ${creditBalanceAfterRepair}`);
-    console.log(`Credit Repair Amount: ${creditRepairAmount}, Remaining for Dues: ${remainingAmount}`);
+    console.log(`Credit Balance: ${currentCredit}, First Unpaid Month: ${firstUnpaidMonth}`);
     
     // Run the test calculation
     testMonthCalculation();
     
-    // STEP 2: Use remaining amount for monthly dues calculation
-    const result = calculatePayments(remainingAmount, monthlyAmount, creditBalanceAfterRepair);
+    // Use the HOA dues calculation logic
+    const result = calculatePayments(amountNumber, monthlyAmount, currentCredit);
     
     console.log('Calculation result:', result);
     
@@ -329,23 +213,19 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     console.log("Months that will be paid:", monthsThatWillBePaid);
     
     // Calculate the description based on the actual months that will be paid
+    const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
     const monthsDescription = monthsThatWillBePaid.length > 0 
-      ? generateMonthsDescription(monthsThatWillBePaid[0], monthsThatWillBePaid.length, selectedYear)
+      ? generateMonthsDescription(monthsThatWillBePaid[0], monthsThatWillBePaid.length, selectedYear, fiscalYearStartMonth)
       : '';
     
-    // Add additional info for display including credit repair
+    // Add additional info for display
     setCalculationResult({
       ...result,
       startMonth: firstUnpaidMonth,
       monthlyAmount,
       totalPaid: result.monthlyPayments.reduce((sum, val) => sum + val, 0),
       monthsDescription: monthsDescription,
-      actualMonthsToPayIndexes: monthsThatWillBePaid,
-      // Credit repair information
-      creditRepairAmount,
-      creditBalanceAfterRepair,
-      originalCreditBalance: currentCredit,
-      remainingAmountForDues: remainingAmount
+      actualMonthsToPayIndexes: monthsThatWillBePaid
     });
     
     console.log('Final calculation result with months:', {
@@ -354,7 +234,8 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       description: generateMonthsDescription(
         firstUnpaidMonth,
         result.monthlyPayments.length,
-        selectedYear
+        selectedYear,
+        fiscalYearStartMonth
       )
     });
   };
@@ -362,90 +243,19 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   // Run calculation when amount changes
   useEffect(() => {
     calculateDistribution();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amountNumber, unit, duesData, selectedUnitId, monthIndex, selectedYear]);
-
-  // Run calculation when amount changes
-  useEffect(() => {
-    calculateDistribution();
-  }, [amountNumber, unit, duesData, selectedUnitId, monthIndex, selectedYear, calculateDistribution]);
-  
-  // Digital Receipt handlers
-  const handleDigitalReceiptClose = async () => {
-    setShowDigitalReceipt(false);
-    setReceiptTransactionData(null);
-    
-    // Now trigger the data refresh that was deferred
-    setLoading(true);
-    
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data after receipt closure:', error);
-    } finally {
-      setLoading(false);
-      // Close the payment modal after data refresh
-      onClose();
-    }
-  };
-  
-  const handleEmailSent = async (result) => {
-    console.log('Receipt email sent successfully:', result);
-    // Close the Digital Receipt modal
-    setShowDigitalReceipt(false);
-    setReceiptTransactionData(null);
-    
-    // Trigger data refresh after email is sent
-    setLoading(true);
-    
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Error refreshing data after email sent:', error);
-    } finally {
-      setLoading(false);
-      // Close the payment modal
-      onClose();
-    }
-  };
   
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Improved logic at the beginning of the handleSubmit function to validate all required fields
     if (!selectedUnitId) {
       setError('Please select a unit');
       return;
     }
     
-    if (!selectedClient?.id) {
-      setError('No client selected');
-      return;
-    }
-    
-    if (!selectedYear) {
-      setError('Year is not specified');
-      return;
-    }
-    
     if (!amountNumber || amountNumber <= 0) {
       setError('Please enter a valid payment amount');
-      return;
-    }
-    
-    if (!paymentDate) {
-      setError('Please select a payment date');
-      return;
-    }
-    
-    if (clientPaymentMethods.length === 0) {
-      setError('No payment methods are configured for this client. Please contact an administrator.');
-      return;
-    }
-    
-    if (!paymentMethod) {
-      setError('Please select a payment method');
       return;
     }
     
@@ -463,279 +273,140 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     setError(null);
     
     try {
-      // Create a detailed description for the transaction
-      const generateTransactionDescription = () => {
-        if (calculationResult.monthlyPayments.length === 0) {
-          return `Credit balance for Unit ${selectedUnitId}`;
-        } else {
-          return `HOA Dues payment for Unit ${selectedUnitId} - ${calculationResult.monthsDescription}`;
-        }
-      };    // Create payment record with details - ensure all required fields are properly set
-    const dateObj = new Date(paymentDate);
-    
-    // Validate date object
-    if (isNaN(dateObj.getTime())) {
-      setError('Invalid payment date format');
-      setLoading(false);
-      return;
-    }
-    
-    const paymentDetails = {
-      date: dateObj, // Use the validated Date object
-      amount: amountNumber,
-      method: paymentMethod,
-      checkNumber: paymentMethod === 'check' ? checkNumber : null,
-      notes: notes,
-      description: generateTransactionDescription(),
-      scheduledAmount: duesData[selectedUnitId]?.scheduledAmount || unit?.duesAmount || 0,
-      creditBalanceAdded: calculationResult.amtOverpayment > 0 ? calculationResult.amtOverpayment : 0,
-      newCreditBalance: calculationResult.remainingCredit, // Send the new calculated credit balance
-      creditUsed: calculationResult.amtOverpayment < 0 ? Math.abs(calculationResult.amtOverpayment) : 0, // Amount of credit used
-      creditRepairAmount: calculationResult.creditRepairAmount || 0 // Amount used to repair negative credit balance
-    };
-    
-    // Handle case where no full months can be paid (add directly to credit)
-    if (calculationResult.monthlyPayments.length === 0) {
-      try {
-        // Use the API instead of direct function call for consistency
-        await apiRecordDuesPayment(
-          selectedClient.id,
-          selectedUnitId,
-          selectedYear,
-          paymentDetails,
-          [] // Empty distribution since all goes to credit
-        );
-        
-        // Show success notification for credit addition
-        showSuccess(
-          'Credit Added Successfully!',
-          `${formatAsMXN(amountNumber)} has been added to the credit balance for Unit ${selectedUnitId}.`,
-          [
-            { label: 'Unit', value: `Unit ${selectedUnitId}` },
-            { label: 'Amount', value: formatAsMXN(amountNumber) },
-            { label: 'Payment Method', value: clientPaymentMethods.find(m => m.toLowerCase().replace(/\s+/g, '_') === paymentMethod) || paymentMethod },
-            { label: 'Date', value: new Date(paymentDate).toLocaleDateString() }
-          ]
-        );
+      // Create payment record with details
+      const paymentDetails = {
+        date: new Date(paymentDate),
+        method: paymentMethod,
+        checkNumber: paymentMethod === 'check' ? checkNumber : null,
+        notes: notes,
+        transactionId: generateSequenceNumber()
+      };
+      
+      // Handle case where no full months can be paid (add directly to credit)
+      if (calculationResult.monthlyPayments.length === 0) {
+        // Just add the payment amount to the credit balance
+        const currentCredit = duesData[selectedUnitId]?.creditBalance || 0;
+        await updateCreditBalance(selectedClient.id, selectedUnitId, selectedYear, currentCredit + amountNumber);
         
         // Refresh data and close the modal
         await refreshData();
-        setTimeout(() => onClose(), 800); // Close modal quickly to show notification
-      } catch (error) {
-        console.error('Error adding to credit balance:', error);
-        setError(`Failed to add credit: ${error.message || 'Unknown error'}`);
-        setLoading(false);
+        onClose();
+        return;
       }
-      return;
-    }
-    
-    // Find months that need payment, starting from the first unpaid month
-    console.log("Finding months that need payment...");
-    const monthlyAmount = calculationResult.monthlyAmount;
-    const monthsNeeded = calculationResult.monthlyPayments.length;
-    let monthsToUpdate = [];
-    let currentMonthIndex = calculationResult.startMonth;
-    let paymentsRemaining = monthsNeeded;
-    
-    console.log(`Starting with month ${currentMonthIndex}, need to allocate ${paymentsRemaining} payments`);
-    
-    while (paymentsRemaining > 0) {
-      // Calculate actual month (1-12) considering wrapping to next year
-      const actualMonth = ((currentMonthIndex - 1) % 12) + 1;
       
-      // Find existing payment for this month or create placeholder
-      const existingPayment = duesData[selectedUnitId]?.payments?.find(p => p.month === actualMonth) || {
-        month: actualMonth,
-        paid: 0
-      };
+      // Find months that need payment, starting from the first unpaid month
+      console.log("Finding months that need payment...");
+      const monthlyAmount = calculationResult.monthlyAmount;
+      const monthsNeeded = calculationResult.monthlyPayments.length;
+      let monthsToUpdate = [];
+      let currentMonthIndex = calculationResult.startMonth;
+      let paymentsRemaining = monthsNeeded;
       
-      const existingPaidAmount = Number(existingPayment.paid || 0);
+      console.log(`Starting with month ${currentMonthIndex}, need to allocate ${paymentsRemaining} payments`);
       
-      console.log(`Checking month ${actualMonth}: Existing paid=${existingPaidAmount}, Monthly amount=${monthlyAmount}`);
-      
-      // If this month isn't fully paid, add it to our update list
-      if (existingPaidAmount < monthlyAmount) {
-        console.log(`Month ${actualMonth} needs payment (${existingPaidAmount} < ${monthlyAmount})`);
-        monthsToUpdate.push({
+      while (paymentsRemaining > 0) {
+        // Calculate actual month (1-12) considering wrapping to next year
+        const actualMonth = ((currentMonthIndex - 1) % 12) + 1;
+        
+        // Find existing payment for this month or create placeholder
+        const existingPayment = duesData[selectedUnitId]?.payments?.find(p => p.month === actualMonth) || {
           month: actualMonth,
-          existingAmount: existingPaidAmount,
-          newAmount: monthlyAmount,  // Always pay the full monthly amount
-          amountToAdd: monthlyAmount - existingPaidAmount // Amount to add to existing payment
-        });
+          paid: 0
+        };
         
-        paymentsRemaining--;
-      } else {
-        console.log(`Month ${actualMonth} already fully paid, skipping`);
-      }
-      
-      // Move to next month
-      currentMonthIndex++;
-    }
-    
-    console.log(`Will update ${monthsToUpdate.length} months:`, monthsToUpdate);
-
-    // Create the payment distribution data for the API
-    const distribution = monthsToUpdate.map(monthData => ({
-      month: monthData.month,
-      existingAmount: monthData.existingAmount,
-      newAmount: monthData.newAmount,
-      amountToAdd: monthData.amountToAdd
-    }));
-
-    // Double check distribution data integrity
-    console.log('Generated distribution data:', JSON.stringify(distribution));
-
-    try {
-      // Using the API to create both the transaction and update dues records
-      if (!selectedClient?.id) {
-        throw new Error('No client selected');
-      }
-
-      // Enhanced debugging for date handling specifically
-      console.log('Recording payment with details:', {
-        clientId: selectedClient.id,
-        unitId: selectedUnitId,
-        year: selectedYear,
-        paymentData: {
-          ...paymentDetails,
-          date: paymentDetails.date,
-          dateISO: paymentDetails.date instanceof Date ? paymentDetails.date.toISOString() : 'Not a Date object',
-          dateObject: typeof paymentDetails.date,
-          dateValid: paymentDetails.date instanceof Date
-        },
-        distribution,
-        distributionLength: distribution.length
-      });
-
-      // Ensure all parameters are correctly formatted and present 
-      console.log('About to call API with:', {
-        clientId: selectedClient.id,
-        unitId: selectedUnitId,
-        year: selectedYear,
-        paymentDetails,
-        distribution
-      });
-      
-      // Make API call to create transaction and update dues records
-      const result = await apiRecordDuesPayment(
-        selectedClient.id,
-        selectedUnitId,
-        selectedYear,
-        paymentDetails,
-        distribution
-      );
-
-      // Success notification to the user - helps provide visual feedback
-      if (result?.success) {
+        const existingPaidAmount = Number(existingPayment.paid || 0);
         
-        // HOA payment creates a regular transaction, so trigger standard balance update
-        triggerBalanceUpdate();
+        console.log(`Checking month ${actualMonth}: Existing paid=${existingPaidAmount}, Monthly amount=${monthlyAmount}`);
         
-        // Generate Digital Receipt using the utility function
-        console.log('Selected client data:', selectedClient);
-        const receiptGenerated = await generateHOADuesReceipt(result.transactionId, {
-          setReceiptTransactionData,
-          setShowDigitalReceipt,
-          showError,
-          selectedClient,
-          units
-        });
-        
-        if (!receiptGenerated) {
-          console.warn('Receipt generation failed, but payment was successful');
-          // Only show notification if receipt generation failed
-          showSuccess(
-            'Payment Recorded Successfully!',
-            `HOA Dues payment of ${formatAsMXN(amountNumber)} has been recorded for Unit ${selectedUnitId}.`,
-            [
-              { label: 'Unit', value: `Unit ${selectedUnitId}` },
-              { label: 'Amount', value: formatAsMXN(amountNumber) },
-              { label: 'Payment Method', value: clientPaymentMethods.find(m => m.toLowerCase().replace(/\s+/g, '_') === paymentMethod) || paymentMethod },
-              { label: 'Date', value: new Date(paymentDate).toLocaleDateString() }
-            ]
-          );
-        }
-
-        // If Digital Receipt was successfully generated, don't refresh data immediately
-        // Let the user interact with the receipt first
-        if (receiptGenerated) {
-          return; // Exit early, don't refresh data yet
-        }
-      }
-
-      // Refresh data with multiple attempts to ensure we catch the latest data
-      // Only if Digital Receipt is not showing
-      setLoading(true);
-      
-      // Close modal quickly to show success notification
-      if (result?.success) {
-        setTimeout(() => {
-          onClose();
-        }, 800); // Close modal quickly to let user see success notification
-      }
-      
-      // First attempt at refresh after a short delay
-      setTimeout(async () => {
-        try {
-          console.log('First refresh attempt...');
-          await refreshData();
-          console.log('First refresh completed');
+        // If this month isn't fully paid, add it to our update list
+        if (existingPaidAmount < monthlyAmount) {
+          console.log(`Month ${actualMonth} needs payment (${existingPaidAmount} < ${monthlyAmount})`);
+          monthsToUpdate.push({
+            month: actualMonth,
+            existingAmount: existingPaidAmount,
+            newAmount: monthlyAmount  // Always pay the full monthly amount
+          });
           
-          // Second refresh after another delay to catch any cached data issues
-          setTimeout(async () => {
-            try {
-              console.log('Second refresh attempt...');
-              await refreshData();
-              console.log('Second refresh completed - data should now be fully updated');
-            } catch (secondRefreshError) {
-              console.error('Error in second refresh:', secondRefreshError);
-            } finally {
-              setLoading(false);
-            }
-          }, 1500);
-        } catch (firstRefreshError) {
-          console.error('Error in first refresh:', firstRefreshError);
-          setLoading(false);
+          paymentsRemaining--;
+        } else {
+          console.log(`Month ${actualMonth} already fully paid, skipping`);
         }
-      }, 1000);
-    } catch (apiError) {
-      console.error('API error while recording payment:', apiError);
-      
-      // Try to get more details if this is a response error
-      if (apiError.response) {
-        try {
-          const errorBody = await apiError.response.json();
-          console.error('Error response body:', errorBody);
-          setError(`Server error: ${errorBody.error || 'Unknown error'}`);
-        } catch (e) {
-          console.error('Could not parse error response:', e);
-          setError(`API error: ${apiError.message || 'Unknown error'}`);
-        }
-      } else {
-        setError(`API error: ${apiError.message || 'Unknown error'}`);
+        
+        // Move to next month
+        currentMonthIndex++;
       }
-      throw apiError;
-    }
-    
-    // We no longer need this part because it's handled in the previous code block
-    // The API call handles the credit balance update
+      
+      // Create a common payment note
+      let paymentNote = `${calculationResult.monthsDescription}`;
+      
+      // Add credit usage information if applicable
+      if (calculationResult.amtOverpayment < 0) {
+        paymentNote += ` using ${formatAsMXN(Math.abs(calculationResult.amtOverpayment))} from credit balance`;
+      } else if (calculationResult.amtOverpayment > 0) {
+        paymentNote += ` + ${formatAsMXN(calculationResult.amtOverpayment)} credit`;
+      }
+      
+      // Add user notes if provided
+      if (notes) {
+        paymentNote += ` - ${notes}`;
+      }
+      
+      console.log(`Will update ${monthsToUpdate.length} months:`, monthsToUpdate);
+      
+      // Update each month in our update list
+      for (const monthData of monthsToUpdate) {
+        const paymentDataForAPI = {
+          amount: monthData.newAmount,
+          date: new Date(paymentDate),
+          notes: paymentNote,
+          paymentDetails: paymentDetails,
+          monthIndex: monthData.month
+        };
+        
+        await recordDuesPayment(
+          selectedClient.id,
+          selectedUnitId,
+          selectedYear,
+          paymentDataForAPI,
+          calculationResult.monthlyPayments
+        );
+        
+        console.log(`Updated month ${monthData.month} payment to ${monthData.newAmount}`);
+      }
+      
+      // Update credit balance if there's a remaining credit
+      if (calculationResult.remainingCredit > 0) {
+        await updateCreditBalance(selectedClient.id, selectedUnitId, selectedYear, calculationResult.remainingCredit);
+      }
+      
+      // Refresh data
+      await refreshData();
+      
+      // Close the modal
+      onClose();
     } catch (error) {
       console.error('Error saving payment:', error);
-      
-      // Provide more specific error messages based on error types
-      if (error.message && error.message.includes('Cannot connect to backend server')) {
-        setError('Cannot connect to the server. Please check if the server is running and try again.');
-      } else if (error.status === 400) {
-        setError(`Bad request: ${error.message || 'Please check your input data.'}`);
-      } else if (error.status === 500) {
-        setError(`Server error: ${error.message || 'The server encountered an error processing your request.'}`);
-      } else {
-        setError(`Failed to save payment: ${error.message || 'Please try again.'}`);
-      }
+      setError('Failed to save payment. Please try again.');
     } finally {
       setLoading(false);
     }
-};
+  };
+  
+  // Sort units by unit ID
+  const sortedUnits = units ? [...units].sort((a, b) => a.id.localeCompare(b.id)) : [];
+
+  // Get last name from owner name
+  const getLastName = (ownerName) => {
+    if (!ownerName) return '';
+    const nameParts = ownerName.trim().split(' ');
+    return nameParts[nameParts.length - 1];
+  };
+
+  // Format unit option text like "PH4D (Landesman)"
+  const formatUnitOption = (unit) => {
+    const lastName = getLastName(unit.owner);
+    return `${unit.id} (${lastName})`;
+  };
   
   if (!isOpen) return null;
   
@@ -743,38 +414,44 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     <div className="modal-backdrop">
       <div className="dues-payment-modal">
         <div className="modal-header">
-          <h2>Payment for {unit ? `Unit ${unit.unitId}` : 'HOA Dues'} {monthIndex && unit ? `- ${getMonthName(monthIndex)}` : ''}</h2>
+          <h2>Add Payment</h2>
           <button type="button" className="close-button" onClick={onClose}>×</button>
         </div>
         
         <div className="modal-body">
           <form onSubmit={handleSubmit}>
-            <div className="unit-inline">
-              <label>Unit: </label>{selectedUnitId === '' ? (
-                <select 
-                  className="unit-selector" 
-                  value={selectedUnitId} 
-                  onChange={handleUnitChange}
-                  required
-                >
-                  <option value="">-- Select a Unit --</option>
-                  {sortUnitsByUnitId(units).map(unit => {
-                    const formattedOption = formatUnitIdWithOwnerAndDues(unit);
-                    return (
-                      <option key={unit.unitId} value={unit.unitId}>
-                        {formattedOption}
-                      </option>
-                    );
-                  })}
-                </select>
-              ) : (
-                formatUnitIdWithOwnerAndDues(unit)
-              )}
+            {/* Unit selector dropdown */}
+            <div className="form-group">
+              <label htmlFor="unit-selector">Unit:</label>
+              <select 
+                id="unit-selector" 
+                value={selectedUnitId} 
+                onChange={handleUnitChange}
+                className="unit-selector-dropdown"
+              >
+                <option value="">-- Select a Unit --</option>
+                {sortedUnits.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {formatUnitOption(unit)}
+                  </option>
+                ))}
+              </select>
             </div>
             
-            {/* Row 1: Payment Amount and Payment Date */}
-            <div className="form-row">
-              <div className="form-col">
+            {unit && (
+              <>
+                <div className="form-group">
+                  <label>Monthly Dues:</label>
+                  <div className="form-value">{formatAsMXN(unit.duesAmount)}</div>
+                </div>
+                
+                {duesData[selectedUnitId]?.creditBalance > 0 && (
+                  <div className="form-group">
+                    <label>Credit Balance:</label>
+                    <div className="form-value credit-balance">{formatAsMXN(duesData[selectedUnitId]?.creditBalance || 0)}</div>
+                  </div>
+                )}
+                
                 <div className="form-group">
                   <label htmlFor="paymentAmount">Payment Amount:</label>
                   <div className="input-group">
@@ -789,10 +466,22 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                       required
                       autoFocus
                     />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        console.clear();
+                        testMonthCalculation();
+                        console.log("Recalculating distribution...");
+                        calculateDistribution();
+                      }}
+                      className="test-button"
+                      title="Test calculation (check console)"
+                    >
+                      Test
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="form-col">
+                
                 <div className="form-group">
                   <label htmlFor="paymentDate">Payment Date:</label>
                   <input
@@ -803,12 +492,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                     required
                   />
                 </div>
-              </div>
-            </div>
-            
-            {/* Row 2: Payment Method and Account to Credit */}
-            <div className="form-row">
-              <div className="form-col">
+                
                 <div className="form-group">
                   <label htmlFor="paymentMethod">Payment Method:</label>
                   <select
@@ -816,201 +500,100 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
                     required
-                    disabled={loadingPaymentMethods}
                   >
-                    {loadingPaymentMethods ? (
-                      <option value="">Loading payment methods...</option>
-                    ) : clientPaymentMethods.length === 0 ? (
-                      <option value="">No payment methods configured</option>
-                    ) : (
-                      clientPaymentMethods.map(method => {
-                        const value = method.toLowerCase().replace(/\s+/g, '_');
-                        return (
-                          <option key={value} value={value}>
-                            {method}
-                          </option>
-                        );
-                      })
-                    )}
+                    <option value="check">Check</option>
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
-              </div>
-              <div className="form-col">
+                
+                {paymentMethod === 'check' && (
+                  <div className="form-group">
+                    <label htmlFor="checkNumber">Check Number:</label>
+                    <input
+                      id="checkNumber"
+                      type="text"
+                      value={checkNumber}
+                      onChange={e => setCheckNumber(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                
                 <div className="form-group">
-                  <label htmlFor="accountToCredit">Account to Credit:</label>
-                  <select
-                    id="accountToCredit"
-                    value={selectedAccount}
-                    onChange={e => setSelectedAccount(e.target.value)}
-                    required
-                  >
-                    {clientAccounts.map(account => (
-                      <option key={account} value={account}>
-                        {account}
-                      </option>
-                    ))}
-                  </select>
+                  <label htmlFor="notes">Notes:</label>
+                  <textarea
+                    id="notes"
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    rows={3}
+                  />
                 </div>
-              </div>
-            </div>
-            
-            {paymentMethod === 'check' && (
-              <div className="form-group">
-                <label htmlFor="checkNumber">Check Number:</label>
-                <input
-                  id="checkNumber"
-                  type="text"
-                  value={checkNumber}
-                  onChange={e => setCheckNumber(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-            
-            <div className="form-group">
-              <label htmlFor="notes">Notes:</label>
-              <textarea
-                id="notes"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-            
-            <div className="payment-distribution">
-              <h3>Payment Distribution</h3>
-              
-              {calculationResult ? (
-                <>
-                  <div className="distribution-summary">
-                    <p><strong>Monthly Due Amount:</strong> {formatAsMXN(calculationResult.monthlyAmount)}</p>
-                    <p><strong>Payment Amount:</strong> {formatAsMXN(amountNumber)}</p>
-                    
-                    {/* Show original credit balance with negative indicator */}
-                    <p>
-                      <strong>Current Credit Balance:</strong> 
-                      <span style={{ color: calculationResult.originalCreditBalance < 0 ? '#d9534f' : 'inherit' }}>
-                        {formatAsMXN(calculationResult.originalCreditBalance)}
-                        {calculationResult.originalCreditBalance < 0 && ' (NEGATIVE - Requires Repair)'}
-                      </span>
-                    </p>
-                    
-                    {/* Show credit repair section if applicable */}
-                    {calculationResult.creditRepairAmount > 0 && (
-                      <div className="credit-repair-section" style={{ 
-                        backgroundColor: '#fff3cd', 
-                        border: '1px solid #ffeaa7', 
-                        padding: '12px', 
-                        borderRadius: '6px',
-                        margin: '12px 0',
-                        borderLeft: '4px solid #f39c12'
-                      }}>
-                        <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#8b5d00' }}>
-                          🔧 Credit Balance Repair Required
-                        </p>
-                        <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                          • <strong>{formatAsMXN(calculationResult.creditRepairAmount)}</strong> will be used to repair negative credit balance
-                        </p>
-                        <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                          • Credit balance after repair: <strong>{formatAsMXN(calculationResult.creditBalanceAfterRepair)}</strong>
-                        </p>
-                        <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                          • Remaining amount for dues: <strong>{formatAsMXN(calculationResult.remainingAmountForDues)}</strong>
-                        </p>
+                
+                <div className="payment-distribution">
+                  <h3>Payment Distribution</h3>
+                  
+                  {calculationResult ? (
+                    <>
+                      <div className="distribution-summary">
+                        <p><strong>Monthly Due Amount:</strong> {formatAsMXN(calculationResult.monthlyAmount)}</p>
+                        <p><strong>Payment Amount:</strong> {formatAsMXN(amountNumber)}</p>
+                        <p><strong>Current Credit Balance:</strong> {formatAsMXN(duesData[selectedUnitId]?.creditBalance || 0)}</p>
+                        {calculationResult.monthlyPayments.length > 0 ? (
+                          <p><strong>Months Covered:</strong> {calculationResult.monthsDescription || 'None'}</p>
+                        ) : (
+                          <p><strong>Months Covered:</strong> <span style={{color: '#d9534f'}}>No full months can be paid with this amount</span></p>
+                        )}
+                        <p><strong>Total Months:</strong> {calculationResult.monthlyPayments.length}</p>
                       </div>
-                    )}
-                    {duesData[selectedUnitId]?.creditBalanceHistory && duesData[selectedUnitId].creditBalanceHistory.length > 0 && (
-                      <details className="credit-balance-history">
-                        <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#007bff', marginTop: '8px' }}>
-                          View Credit Balance History ({duesData[selectedUnitId].creditBalanceHistory.length} entries)
-                        </summary>
-                        <div style={{ 
-                          marginTop: '8px', 
-                          padding: '10px', 
-                          backgroundColor: '#f8f9fa', 
-                          border: '1px solid #dee2e6', 
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontFamily: 'monospace',
-                          whiteSpace: 'pre-wrap',
-                          maxHeight: '200px',
-                          overflowY: 'auto'
-                        }}>
-                          {(() => {
-                            // Generate display string from credit balance history array
-                            const history = duesData[selectedUnitId].creditBalanceHistory;
-                            if (!history || history.length === 0) return '';
-                            
-                            let display = '';
-                            history.forEach((entry, index) => {
-                              const dateStr = new Date(entry.timestamp).toLocaleString();
-                              const typeLabel = entry.type.replace(/_/g, ' ').toUpperCase();
-                              
-                              if (index > 0) display += '\n';
-                              display += `${typeLabel}: ${entry.amount} on ${dateStr}`;
-                              if (entry.description) display += ` ${entry.description}`;
-                              if (entry.transactionId && !entry.transactionId.includes('_reversal')) {
-                                display += ` (Transaction: ${entry.transactionId})`;
-                              }
-                              if (entry.notes) display += ` - ${entry.notes}`;
-                            });
-                            
-                            return display;
-                          })()}
-                        </div>
-                      </details>
-                    )}
-                    {calculationResult.monthlyPayments.length > 0 ? (
-                      <p><strong>Months Covered:</strong> {calculationResult.monthsDescription || 'None'}</p>
-                    ) : (
-                      <p><strong>Months Covered:</strong> <span style={{color: '#d9534f'}}>No full months can be paid with this amount</span></p>
-                    )}
-                    <p><strong>Total Months:</strong> {calculationResult.monthlyPayments.length}</p>
-                  </div>
-                  
-                  {calculationResult.monthlyPayments.length > 0 && (
-                    <div className="distribution-table">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Month</th>
-                            <th>Amount Applied</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(calculationResult.actualMonthsToPayIndexes || []).map((monthIndex, i) => {
-                            return (
-                              <tr key={`month-${monthIndex}`}>
-                                <td>{getMonthName(monthIndex)} {selectedYear}</td>
-                                <td>{formatAsMXN(calculationResult.monthlyPayments[i])}</td>
+                      
+                      {calculationResult.monthlyPayments.length > 0 && (
+                        <div className="distribution-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Month</th>
+                                <th>Amount Applied</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td><strong>Total Applied</strong></td>
-                            <td><strong>{formatAsMXN(calculationResult.totalPaid)}</strong></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                            </thead>
+                            <tbody>
+                              {(calculationResult.actualMonthsToPayIndexes || []).map((monthIndex, i) => {
+                                return (
+                                  <tr key={`month-${monthIndex}`}>
+                                    <td>{getMonthName(monthIndex)} {selectedYear}</td>
+                                    <td>{formatAsMXN(calculationResult.monthlyPayments[i])}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                            <tfoot>
+                              <tr>
+                                <td><strong>Total Applied</strong></td>
+                                <td><strong>{formatAsMXN(calculationResult.totalPaid)}</strong></td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
+                      
+                      <div className="leftover-amount">
+                        <p><strong>Credit Activity:</strong> {getCreditMessage()}</p>
+                        <p><strong>Credit Balance After Payment:</strong> {formatAsMXN(calculationResult.remainingCredit)}</p>
+                        {calculationResult.remainingCredit > 0 && (
+                          <p className="credit-explanation">
+                            This credit will be automatically applied to future payments.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p>Enter an amount to see the distribution</p>
                   )}
-                  
-                  <div className="leftover-amount">
-                    <p><strong>Credit Activity:</strong> {getCreditMessage()}</p>
-                    <p><strong>Credit Balance After Payment:</strong> {formatAsMXN(calculationResult.remainingCredit)}</p>
-                    {calculationResult.remainingCredit > 0 && (
-                      <p className="credit-explanation">
-                        This credit will be automatically applied to future payments.
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p>Enter an amount to see the distribution</p>
-              )}
-            </div>
+                </div>
+              </>
+            )}
             
             {error && <div className="error-message">{error}</div>}
             
@@ -1026,7 +609,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
               <button
                 type="submit"
                 className="submit-button"
-                disabled={loading}
+                disabled={loading || !selectedUnitId}
               >
                 {loading ? 'Saving...' : 'Save Payment'}
               </button>
@@ -1034,46 +617,6 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
           </form>
         </div>
       </div>
-      
-      {/* Digital Receipt Modal - shown after successful payment */}
-      {console.log('🔍 Render check - showDigitalReceipt:', showDigitalReceipt, 'receiptTransactionData:', !!receiptTransactionData)}
-      {showDigitalReceipt && receiptTransactionData && (
-        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-content digital-receipt-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Payment Receipt</h2>
-              <button className="close-button" onClick={handleDigitalReceiptClose}>×</button>
-            </div>
-            {console.log('Full selectedClient object:', selectedClient)}
-            <DigitalReceipt 
-              transactionData={receiptTransactionData}
-              clientData={{
-                id: selectedClient?.id,
-                name: selectedClient?.clientName || 'Client Name Not Available',
-                logoUrl: selectedClient?.logoUrl || '/sandyland-logo.png'
-              }}
-              showPreview={true}
-              onImageGenerated={(blob) => {
-                console.log('HOA Dues receipt image generated:', blob);
-              }}
-              onEmailSent={handleEmailSent}
-              // Pass notification handlers to display at parent level
-              onEmailSuccess={showEmailSuccess}
-              onEmailError={showError}
-            />
-          </div>
-        </div>
-      )}
-      
-      {/* Global Notification Modal for email status */}
-      <NotificationModal
-        isOpen={notification.isOpen}
-        onClose={closeNotification}
-        type={notification.type}
-        title={notification.title}
-        message={notification.message}
-        details={notification.details}
-      />
     </div>
   );
 }

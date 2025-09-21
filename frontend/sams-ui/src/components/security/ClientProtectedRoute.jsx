@@ -3,7 +3,7 @@
  * Ensures user has access to the currently selected client before rendering content
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
@@ -29,52 +29,68 @@ const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
     return <div className="loading-spinner">Loading user profile...</div>;
   }
 
-  // Validate client access - security check
-  const hasClientAccess = samsUser.globalRole === 'superAdmin' ||
-                         samsUser.propertyAccess?.[selectedClient.id];
+  // Memoize access check to prevent re-renders
+  const accessCheck = useMemo(() => {
+    // Validate client access - security check
+    const hasClientAccess = samsUser.globalRole === 'superAdmin' ||
+                           samsUser.propertyAccess?.[selectedClient.id];
 
-  if (!hasClientAccess) {
-    console.error('🚫 ClientProtectedRoute: Access denied to client', selectedClient.id);
-    // Clear the unauthorized client from context and storage
-    localStorage.removeItem('selectedClient');
-    return <Navigate to="/dashboard" replace />;
-  }
+    if (!hasClientAccess) {
+      console.error('🚫 ClientProtectedRoute: Access denied to client', selectedClient.id);
+      // Clear the unauthorized client from context and storage
+      localStorage.removeItem('selectedClient');
+      return { allowed: false, reason: 'client_access_denied' };
+    }
 
-  // Check specific permission if required
-  if (requiredPermission) {
-    // SuperAdmin bypass - always allow
-    if (samsUser.globalRole === 'superAdmin') {
-      console.log('✅ ClientProtectedRoute: SuperAdmin bypass for permission:', requiredPermission);
-    } else {
-      const propertyAccess = samsUser.propertyAccess?.[selectedClient.id];
-      const clientRole = propertyAccess?.role;
-      
-      console.log('🔍 ClientProtectedRoute: Permission check details:', {
-        user: samsUser.email,
-        clientId: selectedClient.id,
-        propertyAccess: propertyAccess,
-        clientRole: clientRole,
-        requiredPermission: requiredPermission,
-        globalRole: samsUser.globalRole
-      });
-      
-      const hasPermission = checkPermission(clientRole, requiredPermission);
-      
-      if (!hasPermission) {
-        console.error('🚫 ClientProtectedRoute: Permission denied:', {
-          requiredPermission,
-          clientRole,
-          user: samsUser.email
+    // Check specific permission if required
+    if (requiredPermission) {
+      // SuperAdmin bypass - always allow
+      if (samsUser.globalRole === 'superAdmin') {
+        console.log('✅ ClientProtectedRoute: SuperAdmin bypass for permission:', requiredPermission);
+        return { allowed: true, reason: 'superadmin_bypass' };
+      } else {
+        const propertyAccess = samsUser.propertyAccess?.[selectedClient.id];
+        const clientRole = propertyAccess?.role;
+        
+        console.log('🔍 ClientProtectedRoute: Permission check details:', {
+          user: samsUser.email,
+          clientId: selectedClient.id,
+          propertyAccess: propertyAccess,
+          clientRole: clientRole,
+          requiredPermission: requiredPermission,
+          globalRole: samsUser.globalRole
         });
-        return (
-          <div className="access-denied">
-            <h3>Access Denied</h3>
-            <p>You don't have permission to access this feature.</p>
-            <p>Required permission: {requiredPermission}</p>
-            <p>Your role: {clientRole || 'No role assigned'}</p>
-          </div>
-        );
+        
+        const hasPermission = checkPermission(clientRole, requiredPermission);
+        
+        if (!hasPermission) {
+          console.error('🚫 ClientProtectedRoute: Permission denied:', {
+            requiredPermission,
+            clientRole,
+            user: samsUser.email
+          });
+          return { allowed: false, reason: 'permission_denied', clientRole, requiredPermission };
+        }
       }
+    }
+    
+    return { allowed: true, reason: 'access_granted' };
+  }, [samsUser, selectedClient, requiredPermission]);
+
+  // Handle access denied cases
+  if (!accessCheck.allowed) {
+    if (accessCheck.reason === 'client_access_denied') {
+      return <Navigate to="/dashboard" replace />;
+    }
+    if (accessCheck.reason === 'permission_denied') {
+      return (
+        <div className="access-denied">
+          <h3>Access Denied</h3>
+          <p>You don't have permission to access this feature.</p>
+          <p>Required permission: {accessCheck.requiredPermission}</p>
+          <p>Your role: {accessCheck.clientRole || 'No role assigned'}</p>
+        </div>
+      );
     }
   }
 
