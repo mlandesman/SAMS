@@ -2,14 +2,14 @@ import dotenv from 'dotenv';
 import { getDb, initializeFirebase } from './firebase.js'; // Import initializeFirebase
 import express from 'express';
 import cors from 'cors';
-import transactionsRoutes from './routes/transactions.js'; // Add .js extension
+// Transactions routes only available via client domain - see clientRoutes.js:49
 import clientRoutes from './routes/clientRoutes.js'; // Import client routes
 import exchangeRatesRoutes from './routes/exchangeRates.js'; // Import exchange rates routes
-import emailRoutes from './routes/email.js'; // Import email routes
+// Email routes only available via client domain - see clientRoutes.js:130
 import userRoutes from './routes/user.js'; // Import user routes
 import documentsRoutes from './routes/documents.js'; // Import documents routes
-import clientOnboardingRoutes from './routes/clientOnboarding.js'; // Import client onboarding routes
-import clientManagementRoutes from './routes/clientManagement.js'; // Import client management routes
+// Client onboarding routes now mounted via admin domain - see admin.js:103
+// Client management routes now mounted via admin domain - see admin.js:106
 import adminRoutes from './routes/admin.js'; // Import admin routes
 import authRoutes from './routes/auth.js'; // Import auth routes
 import versionRoutes from './routes/version.js'; // Import version routes
@@ -77,27 +77,24 @@ app.use('/water', waterRoutes); // Domain-specific water billing
 // AUTH & USER MANAGEMENT DOMAIN
 console.log('Mounting auth domain routes');
 app.use('/api/auth', authRoutes); // Authentication endpoints  
-app.use('/api/user', userRoutes); // User management (legacy mount)
+app.use('/auth/user', userRoutes); // User management (migrated to auth domain)
 
 // CLIENT DOMAIN (same pattern as /auth, /water, /comm)
 console.log('Mounting clients domain routes');
 app.use('/clients', clientRoutes); // Client domain (same pattern as /auth, /water, /comm)
 
-// Mount email routes under each client
-console.log('Mounting email routes');
-app.use('/clients/:clientId/email', emailRoutes); // Add email routes
+// Email routes now mounted only via clientRoutes.js to avoid duplication
+// See backend/routes/clientRoutes.js:130 for the single mounting point
 
 // Mount document routes under each client
 console.log('Mounting document routes');
 app.use('/clients/:clientId/documents', documentsRoutes); // Add document routes
 
-// Mount client onboarding routes
-console.log('Mounting client onboarding routes');
-app.use('/api/onboarding', clientOnboardingRoutes); // Add client onboarding routes
+// Client onboarding routes migrated to admin domain
+// See /admin domain mounting at line 103
 
-// Mount client management routes
-console.log('Mounting client management routes');
-app.use('/api/client-management', clientManagementRoutes); // Add client management routes
+// Client management routes migrated to admin domain
+// See /admin domain mounting at line 103
 
 // ADMIN DOMAIN (domain-specific)
 console.log('Mounting admin domain routes');
@@ -129,13 +126,11 @@ app.get('/', (req, res) => {
       '/auth/*',       // Authentication & user management
       '/water/*',      // Water billing & meter management
       '/comm/*',       // Communications & email
-      '/admin/*',      // Administrative functions
+      '/admin/*',      // Admin functions (users, clients, onboarding, management)
       '/hoadues/*',    // HOA dues & assessments
     ],
     legacy: [
       '/api/clients/*',          // LEGACY: Being migrated to domain-specific
-      '/api/onboarding/*',       // LEGACY: To be migrated
-      '/api/client-management/*' // LEGACY: To be migrated
     ]
   });
 });

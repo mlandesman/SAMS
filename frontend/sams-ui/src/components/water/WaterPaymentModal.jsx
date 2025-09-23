@@ -13,6 +13,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   // Form state
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethodId, setPaymentMethodId] = useState('');
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
@@ -77,15 +78,17 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
       
       const activeMethods = response.data
         .filter(method => method.status === 'active')
-        .map(method => method.name)
-        .sort();
+        .sort((a, b) => a.name.localeCompare(b.name));
       
       setClientPaymentMethods(activeMethods);
       // Default to eTransfer for faster testing
-      if (activeMethods.includes('eTransfer')) {
-        setPaymentMethod('etransfer');
+      const eTransferMethod = activeMethods.find(method => method.name === 'eTransfer');
+      if (eTransferMethod) {
+        setPaymentMethodId(eTransferMethod.id);
+        setPaymentMethod(eTransferMethod.name);
       } else if (activeMethods.length > 0) {
-        setPaymentMethod(activeMethods[0].toLowerCase().replace(/\s+/g, '_'));
+        setPaymentMethodId(activeMethods[0].id);
+        setPaymentMethod(activeMethods[0].name);
       }
     } catch (error) {
       console.error('Error loading payment methods:', error);
@@ -216,6 +219,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         amount: parseFloat(amount),
         paymentDate,
         paymentMethod,
+        paymentMethodId,
         reference,
         notes,
         accountId: selectedAccount.id,
@@ -410,20 +414,22 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                   <div className="form-group">
                     <label>Payment Method:</label>
                     <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      value={paymentMethodId}
+                      onChange={(e) => {
+                        const methodId = e.target.value;
+                        const method = clientPaymentMethods.find(m => m.id === methodId);
+                        setPaymentMethodId(methodId);
+                        setPaymentMethod(method ? method.name : '');
+                      }}
                       required
                       disabled={loading}
                     >
                       <option value="">-- Select Method --</option>
-                      {clientPaymentMethods.map(method => {
-                        const value = method.toLowerCase().replace(/\s+/g, '_');
-                        return (
-                          <option key={value} value={value}>
-                            {method}
-                          </option>
-                        );
-                      })}
+                      {clientPaymentMethods.map(method => (
+                        <option key={method.id} value={method.id}>
+                          {method.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   

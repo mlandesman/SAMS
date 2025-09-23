@@ -28,18 +28,8 @@ router.get('/', authenticateUserWithProfile, listAuthorizedClients);
 // Get a specific client by ID (SECURE)
 router.get('/:id', authenticateUserWithProfile, getClient);
 
-// Mount HOA Dues routes
-router.use('/:clientId/hoadues', authenticateUserWithProfile, (req, res, next) => {
-  // Make sure clientId from the parent router is available to the child router
-  const clientId = req.params.clientId;
-  console.log('Client router passing clientId:', clientId);
-  
-  // Store original URL parameters before they get overwritten
-  req.originalParams = req.originalParams || {};
-  req.originalParams.clientId = clientId;
-  
-  next();
-}, hoaDuesRoutes);
+// HOA Dues routes moved to domain-specific mounting at /hoadues
+// See backend/index.js:110 for the new mounting pattern
 
 // Mount Transactions routes
 router.use('/:clientId/transactions', (req, res, next) => {
@@ -177,17 +167,8 @@ router.use('/:clientId/projects', (req, res, next) => {
 }, projectsRoutes);
 
 // Mount Water Bills routes (new structure)
-router.use('/:clientId/projects/waterBills', (req, res, next) => {
-  // Make sure clientId from the parent router is available to the child router
-  const clientId = req.params.clientId;
-  console.log('Client router passing clientId for water bills:', clientId);
-  
-  // Store original URL parameters before they get overwritten
-  req.originalParams = req.originalParams || {};
-  req.originalParams.clientId = clientId;
-  
-  next();
-}, waterRoutes);
+// Legacy water bills mounting removed - now uses domain-specific /water routes
+// See backend/index.js:75 for domain mounting: app.use('/water', waterRoutes)
 
 // Mount Config routes
 router.use('/:clientId/config', (req, res, next) => {

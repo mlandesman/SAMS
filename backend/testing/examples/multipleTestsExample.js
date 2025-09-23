@@ -14,7 +14,7 @@ async function runMultipleTests() {
     {
       name: 'Backend Health Check',
       async test({ api }) {
-        const response = await api.get('/api/clients/test');
+        const response = await api.get('/system/health');
         return {
           passed: response.status === 200,
           data: response.data

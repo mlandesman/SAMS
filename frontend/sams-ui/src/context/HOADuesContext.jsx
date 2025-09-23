@@ -310,7 +310,7 @@ export function HOADuesProvider({ children }) {
       
       // Use backend API to ensure consistency
       const API_BASE_URL = config.api.baseUrl;
-      const response = await fetch(`${API_BASE_URL}/clients/${selectedClient.id}/hoadues/year/${year}`, {
+      const response = await fetch(`${API_BASE_URL}/hoadues/${selectedClient.id}/year/${year}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

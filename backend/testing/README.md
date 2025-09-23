@@ -70,7 +70,7 @@ import { testHarness } from './testing/testHarness.js';
 await testHarness.runTest({
   name: 'Health Check',
   async test({ api }) {
-    const response = await api.get('/api/clients/test');
+    const response = await api.get('/system/health');
     return {
       passed: response.status === 200,
       data: response.data
@@ -185,7 +185,7 @@ Run multiple tests in sequence.
 import { quickApiTest, testUserProfile, testUserClients } from './testing/testHarness.js';
 
 // Quick API endpoint test
-await quickApiTest('Health Check', '/api/clients/test');
+await quickApiTest('Health Check', '/system/health');
 
 // Common user tests
 await testUserProfile();
@@ -351,6 +351,119 @@ This test harness should achieve:
 - ✅ **30+ minute time savings** per test agent session
 - ✅ **Standardized testing approach** across all agents
 - ✅ **No more token generation confusion**
+
+## 📁 Automatic File Logging
+
+> **NEW FEATURE**: All test results are automatically saved to files for verification and audit trails!
+
+The test harness now automatically creates detailed log files for every test run, providing concrete proof of test execution for coding agents.
+
+### 🎯 Why File Logging?
+
+- **Agent Verification**: Provides verifiable proof when agents claim they ran tests
+- **Debugging**: Detailed test data and console output for troubleshooting
+- **Audit Trail**: Complete history of all test executions
+- **Performance Tracking**: Duration and success rate metrics over time
+
+### 📋 What Gets Logged
+
+Each log file contains:
+- **Test Results**: Pass/fail status, duration, error details
+- **Metadata**: Timestamp, environment, API endpoints tested
+- **Configuration**: Debug mode, timeouts, test user IDs
+- **Console Output**: All console messages during test execution (optional)
+- **Summary**: Success rates, average durations, totals
+
+### 📂 Log File Location
+
+```
+backend/testing/test-results/
+├── test-results-2025-09-22_19-59-33-867.json
+├── test-results-2025-09-22_20-15-42-123.json
+└── test-results-2025-09-22_20-30-15-456.json
+```
+
+### 🔧 Configuration Options
+
+```javascript
+// In config.js
+FILE_LOGGING: {
+  ENABLED: true,                    // Enable/disable file logging
+  LOG_DIRECTORY: './test-results',  // Where to save log files
+  LOG_FILENAME_PATTERN: 'test-results-{timestamp}.json',
+  APPEND_MODE: false,               // New file each run vs append
+  INCLUDE_CONSOLE_OUTPUT: true,     // Capture console messages
+  AUTO_CLEANUP_DAYS: 7              // Delete logs older than 7 days
+}
+```
+
+### 📊 Example Log File
+
+```json
+{
+  "metadata": {
+    "timestamp": "2025-09-22T19:59:34.524Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 1,
+    "passedTests": 1,
+    "failedTests": 0
+  },
+  "testResults": [
+    {
+      "id": "TEST-1758571173868-pq18rnp15",
+      "name": "Health Check Test",
+      "passed": true,
+      "duration": 655,
+      "data": { "status": "ok" },
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-09-22T19:59:34.523Z"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "successRate": 100,
+    "averageDuration": 655
+  }
+}
+```
+
+### 💡 For Coding Agents
+
+When you claim "I ran tests successfully", you can now provide the log file as proof:
+- **File Path**: Point to the specific log file created
+- **Success Rate**: Reference the summary statistics  
+- **Test Details**: Show specific test results and timings
+- **Error Analysis**: Failed tests include detailed error information
+
+### 🚀 Usage
+
+File logging is **automatic** - no changes needed to your test code:
+
+```javascript
+import { testHarness } from './testing/testHarness.js';
+
+await testHarness.runTest({
+  name: 'My Test',
+  async test({ api }) {
+    // Your test logic
+    return { passed: true };
+  }
+});
+
+// Logs are automatically saved when showSummary() is called
+testHarness.showSummary();
+```
+
+**Output:**
+```
+📝 Test logging enabled: test-results/test-results-2025-09-22_19-59-33-867.json
+...test execution...
+📁 Test results saved to: test-results/test-results-2025-09-22_19-59-33-867.json
+```
 
 ---
 

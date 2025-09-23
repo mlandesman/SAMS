@@ -37,7 +37,7 @@ export const userAPI = {
    */
   async getProfile() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/profile`, { headers });
+    const response = await fetch(`${API_BASE_URL}/auth/user/profile`, { headers });
     return handleResponse(response);
   },
 
@@ -46,7 +46,7 @@ export const userAPI = {
    */
   async updateProfile(profileData) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+    const response = await fetch(`${API_BASE_URL}/auth/user/profile`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(profileData)
@@ -65,7 +65,7 @@ export const userAPI = {
    */
   async updateEmail(newEmail) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/email`, {
+    const response = await fetch(`${API_BASE_URL}/auth/user/email`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ newEmail })
@@ -84,7 +84,7 @@ export const userAPI = {
    */
   async updatePassword(newPassword) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/password`, {
+    const response = await fetch(`${API_BASE_URL}/auth/user/password`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ newPassword })
@@ -103,7 +103,7 @@ export const userAPI = {
    */
   async getClients() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/clients`, { headers });
+    const response = await fetch(`${API_BASE_URL}/auth/user/clients`, { headers });
     return handleResponse(response);
   },
 
@@ -112,7 +112,7 @@ export const userAPI = {
    */
   async selectClient(clientId) {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/select-client`, {
+    const response = await fetch(`${API_BASE_URL}/auth/user/select-client`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ clientId })
@@ -125,7 +125,7 @@ export const userAPI = {
    */
   async getCurrentClient() {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/user/current-client`, { headers });
+    const response = await fetch(`${API_BASE_URL}/auth/user/current-client`, { headers });
     return handleResponse(response);
   }
 };

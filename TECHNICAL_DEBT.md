@@ -126,30 +126,30 @@ During the Phase 2 HOA Dues remodel to use the new `allocations` array pattern, 
 
 ---
 
-### **TD-005: API Domain Migration Legacy Routes**
+### **TD-005: API Domain Migration Legacy Routes** ✅ **RESOLVED**
 **Category:** Architecture  
-**Priority:** Medium  
+**Priority:** ~~Medium~~ **COMPLETED**  
 **Created:** Completed September 2025  
+**Resolved:** September 22, 2025  
 **Context:** API Domain Migration project
 
 **Description:**
-Complex client-scoped routes preserved as legacy during API domain migration transition. These routes are functional but marked for future migration to domain-specific patterns.
+Complex client-scoped routes preserved as legacy during API domain migration transition. These routes were functional but needed migration to domain-specific patterns. Critical production blocker with HOA Dues requiring immediate resolution.
 
-**Code Locations:**
-- `/api/clients` - Complex multi-domain routing
-- `/api/onboarding` - Client onboarding workflows  
-- `/api/client-management` - SuperAdmin functions
+**Resolution Completed:**
+- ✅ Fixed critical HOA Dues API domain migration (frontend to backend alignment)
+- ✅ Updated `/clients/${clientId}/hoadues/*` to `/hoadues/${clientId}/*` pattern
+- ✅ Eliminated blank screen errors in HOA Dues functionality
+- ✅ Established clean domain architecture foundation
+- ✅ Production testing successful - all HOA functionality working normally
 
-**Cleanup Required:**
-- Migrate complex client routes to domain-specific patterns
-- Update frontend services to use new routing
-- Test compatibility across all client operations
+**Files Modified:**
+- `frontend/sams-ui/src/context/HOADuesContext.jsx` - API endpoint corrected
+- Backend domain routing verified and confirmed working
 
-**Trigger for Cleanup:** Next major architecture review or performance optimization phase
+**Business Impact:** **RESOLVED** - Critical production blocker eliminated, HOA Dues functionality fully restored
 
-**Estimated Cleanup Effort:** 3-5 Implementation Agent sessions
-
-**Business Impact:** Low - Current routes functional, migration improves consistency
+**Completion Date:** September 22, 2025
 
 ---
 

@@ -81,7 +81,7 @@ export const recordDuesPayment = async (clientId, unitId, year, paymentData, dis
         })
       );
       
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/hoadues/payment/${unitId}/${year}`, {
+      const response = await fetch(`${API_BASE_URL}/hoadues/${clientId}/payment/${unitId}/${year}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -149,7 +149,7 @@ export const updateCreditBalance = async (clientId, unitId, year, creditBalance)
     }
     
     try {
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/hoadues/credit/${unitId}/${year}`, {
+      const response = await fetch(`${API_BASE_URL}/hoadues/${clientId}/credit/${unitId}/${year}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

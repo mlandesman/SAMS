@@ -1,92 +1,14 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useClient } from './ClientContext';
 import debug from '../utils/debug';
-import * as waterMeterService from '../api/waterMeterService';
+import waterAPI from '../api/waterAPI';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 
 console.log('📁 [WaterBillsContext] Module loaded');
 
 const WaterBillsContext = createContext();
 
-// Cache utility functions - EXACT COPY from HOA Pattern
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-
-const getCacheKey = (clientId, year) => `water_bills_${clientId}_${year}`;
-
-const isCacheValid = (timestamp) => {
-  return Date.now() - timestamp < CACHE_DURATION;
-};
-
-const getFromCache = (key) => {
-  try {
-    const cached = sessionStorage.getItem(key);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (isCacheValid(timestamp)) {
-        debug.log('Water cache hit for key:', key);
-        return data;
-      }
-      debug.log('Water cache expired for key:', key);
-    }
-  } catch (error) {
-    debug.error('Water cache read error:', error);
-  }
-  return null;
-};
-
-const saveToCache = (key, data) => {
-  try {
-    const cacheData = { data, timestamp: Date.now() };
-    sessionStorage.setItem(key, JSON.stringify(cacheData));
-    debug.log('Saved water data to cache:', key);
-  } catch (error) {
-    debug.error('Water cache write error:', error);
-    // Handle quota exceeded error
-    if (error.name === 'QuotaExceededError') {
-      clearOldWaterCacheEntries();
-      try {
-        sessionStorage.setItem(key, JSON.stringify(cacheData));
-        debug.log('Saved to cache after clearing old entries:', key);
-      } catch (retryError) {
-        debug.error('Cache write failed even after clearing:', retryError);
-      }
-    }
-  }
-};
-
-const clearWaterCache = (clientId) => {
-  // Clear all water cache entries for the client
-  const pattern = `water_bills_${clientId}`;
-  
-  Object.keys(sessionStorage)
-    .filter(key => key.includes(pattern))
-    .forEach(key => {
-      sessionStorage.removeItem(key);
-      debug.log('Cleared water cache:', key);
-    });
-};
-
-const clearOldWaterCacheEntries = () => {
-  const pattern = /^water_bills_/;
-  Object.keys(sessionStorage)
-    .filter(key => pattern.test(key))
-    .forEach(key => {
-      try {
-        const cached = sessionStorage.getItem(key);
-        if (cached) {
-          const { timestamp } = JSON.parse(cached);
-          if (!isCacheValid(timestamp)) {
-            sessionStorage.removeItem(key);
-            debug.log('Removed expired water cache entry:', key);
-          }
-        }
-      } catch (error) {
-        // If we can't parse it, remove it
-        sessionStorage.removeItem(key);
-        debug.log('Removed invalid water cache entry:', key);
-      }
-    });
-};
+// Cache is now handled by waterAPI.getAggregatedData() internally
 
 export function WaterBillsProvider({ children }) {
   const { selectedClient } = useClient();
@@ -129,13 +51,12 @@ export function WaterBillsProvider({ children }) {
     }
   }, [selectedClient, selectedYear]);
 
-  // Fetch water data with caching - EXACT PATTERN from HOA
-  const fetchWaterData = async (year, forceRefresh = false) => {
+  // Fetch water data using aggregated data API
+  const fetchWaterData = async (year) => {
     console.log('💧 [WaterBillsContext] fetchWaterData called:', {
       hasClient: !!selectedClient,
       clientId: selectedClient?.id,
-      year,
-      forceRefresh
+      year
     });
     
     if (!selectedClient || !year) {
@@ -147,54 +68,25 @@ export function WaterBillsProvider({ children }) {
       return;
     }
 
-    const cacheKey = getCacheKey(selectedClient.id, year);
-    console.log('🔑 [WaterBillsContext] Cache key:', cacheKey);
     
-    // Check cache first unless force refresh
-    if (!forceRefresh) {
-      console.log('🔍 [WaterBillsContext] Checking cache...');
-      const cachedData = getFromCache(cacheKey);
-      if (cachedData) {
-        console.log('✅ [WaterBillsContext] Cache HIT! Using cached data:', {
-          cacheKey,
-          dataKeys: Object.keys(cachedData),
-          unitCount: Object.keys(cachedData).length
-        });
-        debug.log('WaterBillsContext - Using cached data for year:', year);
-        setWaterData(cachedData);
-        setLoading(false);
-        return;
-      } else {
-        console.log('❌ [WaterBillsContext] Cache MISS - will fetch from API');
-      }
-    } else {
-      console.log('🔄 [WaterBillsContext] Force refresh - skipping cache');
-    }
-
-    // Fetch from API
-    console.log('🌐 [WaterBillsContext] Starting API fetch...');
+    // Fetch from API using the same aggregated data endpoint as Dashboard (with built-in caching)
+    console.log('🌐 [WaterBillsContext] Fetching aggregated data...');
     setLoading(true);
     setError(null);
     
     try {
       debug.log('WaterBillsContext - Fetching water data from API for year:', year);
-      const response = await waterMeterService.fetchAllWaterDataForYear(selectedClient.id, year);
+      const response = await waterAPI.getAggregatedData(selectedClient.id, year);
       
       console.log('📦 [WaterBillsContext] API Response received:', {
         hasResponse: !!response,
-        hasWaterData: !!response?.waterData,
-        unitCount: response?.unitCount,
-        year: response?.year
+        hasData: !!response?.data,
+        dataKeys: response?.data ? Object.keys(response.data) : 'none'
       });
       
-      // Save to cache
-      if (response?.waterData) {
-        console.log('💾 [WaterBillsContext] Saving to cache:', cacheKey);
-        saveToCache(cacheKey, response.waterData);
-      }
-      
+      // The response.data contains the aggregated data (already cached by waterAPI)
       // Update state
-      const dataToSet = response?.waterData || {};
+      const dataToSet = response?.data || {};
       console.log('📊 [WaterBillsContext] Setting water data state:', {
         unitCount: Object.keys(dataToSet).length,
         units: Object.keys(dataToSet)
@@ -244,8 +136,15 @@ export function WaterBillsProvider({ children }) {
     if (!selectedClient || !selectedYear) return;
     
     debug.log('WaterBillsContext - Clearing cache and refreshing data');
-    clearWaterCache(selectedClient.id);
-    await fetchWaterData(selectedYear, true); // Force refresh
+    // Clear the aggregated data cache
+    const cacheKey = `water_bills_${selectedClient.id}_${selectedYear}`;
+    try {
+      sessionStorage.removeItem(cacheKey);
+      debug.log('Cleared aggregated data cache:', cacheKey);
+    } catch (error) {
+      debug.error('Error clearing cache:', error);
+    }
+    await fetchWaterData(selectedYear); // Fetch fresh data
   };
 
   const submitBatchReadings = async (readings, readingDate) => {

@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { app, db } from '../firebaseClient';
 import { useAuth } from './AuthContext';
+import { clearFeatureCache } from '../utils/clientFeatures';
 
 const ClientContext = createContext();
 
@@ -52,6 +53,9 @@ export const ClientProvider = ({ children }) => {
   // Log when client changes and update document title
   useEffect(() => {
     console.log('🔄 ClientContext: Client changed to:', selectedClient);
+    
+    // Clear feature cache when client changes
+    clearFeatureCache();
     
     // Update document title with client name
     if (selectedClient) {

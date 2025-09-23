@@ -23,6 +23,8 @@ import {
   addUnitRoleAssignment,
   removeUnitRoleAssignment
 } from '../controllers/userManagementController.js';
+import clientOnboardingRoutes from './clientOnboarding.js';
+import clientManagementRoutes from './clientManagement.js';
 
 const router = express.Router();
 
@@ -94,28 +96,14 @@ router.delete('/users/:userId',
 );
 
 /**
- * Client Management Routes (Future expansion)
+ * Client Management Routes (Migrated from legacy /api paths)
  */
 
-// Get all clients (SuperAdmin only)
-router.get('/clients',
-  requirePermission('system.admin'),
-  logSecurityEvent('ADMIN_CLIENTS_VIEW'),
-  async (req, res) => {
-    // TODO: Implement client listing for SuperAdmin
-    res.json({ message: 'Client management coming soon' });
-  }
-);
+// Mount client onboarding routes (migrated from /api/onboarding)
+router.use('/onboarding', clientOnboardingRoutes);
 
-// Create new client (SuperAdmin only)
-router.post('/clients',
-  requirePermission('system.admin'),
-  logSecurityEvent('ADMIN_CLIENT_CREATE'),
-  async (req, res) => {
-    // TODO: Implement client creation
-    res.json({ message: 'Client creation coming soon' });
-  }
-);
+// Mount client management routes (migrated from /api/client-management)  
+router.use('/client-management', clientManagementRoutes);
 
 /**
  * Production Configuration Routes (Public access for deployment)

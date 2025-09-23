@@ -7,13 +7,13 @@ import { getOwnerInfo } from '../utils/unitUtils';
 import { config } from '../config';
 import debug from '../utils/debug';
 import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils';
+import { hasWaterBills } from '../utils/clientFeatures';
 
 // Cache utility functions (same as HOADuesContext)
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const getCacheKey = (clientId, year) => `hoa_dues_${clientId}_${year}`;
 const getUnitsCacheKey = (clientId) => `hoa_units_${clientId}`;
-const getWaterCacheKey = (clientId, year) => `water_bills_${clientId}_${year}`;
 
 const isCacheValid = (timestamp) => {
   return Date.now() - timestamp < CACHE_DURATION;
@@ -48,7 +48,7 @@ const saveToCache = (key, data) => {
 
 export const useDashboardData = () => {
   const { samsUser } = useAuth();
-  const { selectedClient } = useClient();
+  const { selectedClient, menuConfig, isLoadingMenu } = useClient();
   const { exchangeRate, loading: exchangeLoading } = useExchangeRates();
   
   const [accountBalances, setAccountBalances] = useState({
@@ -247,7 +247,7 @@ export const useDashboardData = () => {
               if (token) {
                 // Use same API endpoint as HOADuesView
                 const API_BASE_URL = config.api.baseUrl;
-                const response = await fetch(`${API_BASE_URL}/clients/${selectedClient.id}/hoadues/year/${currentYear}`, {
+                const response = await fetch(`${API_BASE_URL}/hoadues/${selectedClient.id}/year/${currentYear}`, {
                   headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -554,7 +554,7 @@ export const useDashboardData = () => {
     fetchHOADuesStatus();
   }, [selectedClient, samsUser]);
 
-  // Fetch Water Bills Past Due data (following HOA Dues pattern)
+  // Fetch Water Bills Past Due data (using WaterBillsContext pattern)
   useEffect(() => {
     const fetchWaterBillsStatus = async () => {
       if (!selectedClient || !samsUser) {
@@ -570,13 +570,17 @@ export const useDashboardData = () => {
         return;
       }
       
-      // Check if this client has water bills enabled
-      const hasWaterBills = selectedClient?.configuration?.activities?.some(
-        activity => activity.activity === 'WaterBills'
-      );
+      // Wait for menu config to load before checking water bills
+      if (isLoadingMenu) {
+        console.log('💧 Dashboard: Menu still loading, waiting...');
+        return;
+      }
       
-      if (!hasWaterBills) {
-        // Client doesn't have water bills - clear the data and skip processing
+      // Check if this client has water bills enabled using centralized utility
+      const clientHasWaterBills = hasWaterBills(selectedClient, menuConfig);
+      
+      if (!clientHasWaterBills) {
+        console.log('💧 Dashboard: Client does not have water bills enabled, skipping');
         setWaterBillsStatus({
           totalUnpaid: 0,
           overdueCount: 0,
@@ -588,6 +592,8 @@ export const useDashboardData = () => {
         setLoading(prev => ({ ...prev, water: false }));
         return;
       }
+      
+      console.log('💧 Dashboard: Client has water bills enabled, proceeding with data fetch');
       
       try {
         setLoading(prev => ({ ...prev, water: true }));
@@ -601,160 +607,77 @@ export const useDashboardData = () => {
         console.log('💧 Dashboard Water Bills calculation:');
         console.log('  Client:', selectedClient.id);
         console.log('  Fiscal Year:', currentYear);
+        console.log('  Has Water Bills:', hasWaterBills);
         
-        // Check cache first
-        const waterCacheKey = getWaterCacheKey(selectedClient.id, currentYear);
-        const cachedWaterData = getFromCache(waterCacheKey);
+        // Use the same aggregated data API as all water bills modules (with built-in caching)
+        const waterAPI = (await import('../api/waterAPI')).default;
+        let waterResponse = null;
         
-        let waterData = null;
-        
-        if (cachedWaterData) {
-          console.log(`💧 Dashboard using cached water bills data for client ${selectedClient.id}, year ${currentYear}`);
-          waterData = cachedWaterData;
-        } else {
-          // Get auth token for API call
-          const { getAuthInstance } = await import('../firebaseClient');
-          const auth = getAuthInstance();
-          const token = await auth.currentUser?.getIdToken();
-          
-          if (!token) {
-            throw new Error('Failed to get authentication token for water bills');
-          }
-          
-          // Use the correct water data endpoint (same as Water Bills screen)
-          const API_BASE_URL = config.api.baseUrl;
-          const response = await fetch(`${API_BASE_URL}/water/clients/${selectedClient.id}/data/${currentYear}`, {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
+        try {
+          waterResponse = await waterAPI.getAggregatedData(selectedClient.id, currentYear);
+          console.log('💧 Dashboard: Water API response received:', {
+            hasResponse: !!waterResponse,
+            hasData: !!waterResponse?.data,
+            dataKeys: waterResponse?.data ? Object.keys(waterResponse.data) : 'none'
           });
           
-          if (response.ok) {
-            const waterResponse = await response.json();
-            console.log('💧 Successfully fetched water bills aggregated data');
-            waterData = waterResponse.data;
-            
-            // Check if penalty recalculation is needed (we already know client has water bills)
-            if (waterData) {
-              const currentDate = new Date();
-              const currentDay = currentDate.getDate();
-              
-              // Check if we're past the 10th of the month
-              if (currentDay > 10) {
-                // Check lastPenaltyRecalc from waterData config
-                const lastRecalc = waterData.config?.lastPenaltyRecalc;
-                const lastRecalcDate = lastRecalc ? new Date(lastRecalc) : null;
-                
-                // Check if we haven't run recalc since the 10th of this month
-                const tenthOfThisMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 10);
-                
-                if (!lastRecalcDate || lastRecalcDate < tenthOfThisMonth) {
-                  console.log('💧 Triggering penalty recalculation - past 10th and not run this month');
-                  
-                  try {
-                    // Call penalty recalculation endpoint (uses existing API_BASE_URL = baseUrl)
-                    const recalcResponse = await fetch(
-                      `${API_BASE_URL}/water/clients/${selectedClient.id}/bills/recalculate-penalties`,
-                      {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
-                        }
-                      }
-                    );
-                    
-                    if (recalcResponse.ok) {
-                      const recalcResult = await recalcResponse.json();
-                      console.log('💧 Penalty recalculation completed successfully:', recalcResult);
-                      
-                      // Clear cache to force fresh data fetch next time
-                      sessionStorage.removeItem(waterCacheKey);
-                      
-                      // Re-fetch the water data to get updated penalties
-                      const updatedResponse = await fetch(
-                        `${API_BASE_URL}/water/clients/${selectedClient.id}/data/${currentYear}`,
-                        {
-                          headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                          }
-                        }
-                      );
-                      
-                      if (updatedResponse.ok) {
-                        const updatedWaterResponse = await updatedResponse.json();
-                        waterData = updatedWaterResponse.data;
-                        console.log('💧 Updated water data with new penalties fetched');
-                      }
-                    } else {
-                      const errorResult = await recalcResponse.json();
-                      if (errorResult.error && errorResult.error.type === 'CONFIG_ERROR') {
-                        console.warn('💧 Water bills configuration missing or invalid:', errorResult.error.message);
-                      } else {
-                        console.warn('💧 Penalty recalculation failed:', errorResult);
-                      }
-                    }
-                  } catch (penaltyError) {
-                    console.error('💧 Error triggering penalty recalculation:', penaltyError);
-                    // Continue with existing data even if recalc fails
-                  }
-                }
-              }
-            }
-            
-            // Cache the water data for quick access
-            if (waterData) {
-              saveToCache(waterCacheKey, waterData);
-              console.log('💧 Water bills data cached for quick access');
-            }
+          // Normalize response structure for dashboard processing
+          if (waterResponse?.data) {
+            waterResponse = { waterData: waterResponse.data };
+          }
+        } catch (waterError) {
+          console.log('💧 Dashboard: Water API error:', waterError.message);
+          if (waterError.status === 404) {
+            console.log('💧 Dashboard: No water data found for this client/year (normal)');
+            waterResponse = null;
           } else {
-            // Water bills not available for this client - that's OK
-            console.log('💧 Water bills not available for this client (this is normal)');
-            waterData = null;
+            throw waterError;
           }
         }
         
-        // Calculate water bills past due information (SIMPLIFIED - use most recent bills + penalty calculator)
+        // Calculate water bills past due information using new data structure
         let totalUnpaid = 0;
         let overdueCount = 0;
         let pastDueDetails = [];
         let totalBilled = 0;
         let totalPaid = 0;
         
-        if (waterData && waterData.months) {
-          console.log('💧 Using simplified water bills past due calculation');
+        if (waterResponse && waterResponse.waterData && waterResponse.waterData.months) {
+          console.log('💧 Dashboard: Processing water bills data with months structure');
+          console.log('💧 Dashboard: Months available:', waterResponse.waterData.months.length);
           
           // Get current fiscal month to find the most recent bills
-          const currentDate = new Date();
-          const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
           const currentFiscalMonth = getCurrentFiscalMonth(currentDate, fiscalYearStartMonth);
           
           // Find the most recent month with bills generated (working backwards from current month)
           let mostRecentMonth = null;
           for (let monthIndex = currentFiscalMonth - 1; monthIndex >= 0; monthIndex--) {
-            const month = waterData.months[monthIndex];
+            const month = waterResponse.waterData.months[monthIndex];
             if (month && month.billsGenerated) {
               mostRecentMonth = month;
-              console.log(`💧 Found most recent bills: ${month.monthName} ${month.calendarYear}`);
+              console.log(`💧 Dashboard: Found most recent bills: ${month.monthName} ${month.calendarYear}`);
+              console.log(`💧 Dashboard: Month has ${Object.keys(month.units || {}).length} units`);
               break;
             }
           }
           
           if (mostRecentMonth && mostRecentMonth.units) {
+            console.log('💧 Dashboard: Processing most recent bills for past due calculation');
+            
             // Process the most recent bills - the penalty calculator handles grace periods automatically
             Object.entries(mostRecentMonth.units).forEach(([unitId, unitData]) => {
               const unpaidAmount = unitData.unpaidAmount || 0;
               const billAmount = unitData.billAmount || 0;
               const paidAmount = unitData.paidAmount || 0;
               
+              console.log(`💧 Dashboard: Unit ${unitId} - Bill: $${billAmount}, Paid: $${paidAmount}, Unpaid: $${unpaidAmount}`);
+              
               // Add to totals for collection rate
               totalBilled += billAmount;
               totalPaid += paidAmount;
               
               if (unpaidAmount > 0) {
-                console.log(`💧   Unit ${unitId} has $${unpaidAmount} unpaid`);
+                console.log(`💧 Dashboard: Unit ${unitId} has $${unpaidAmount} unpaid`);
                 totalUnpaid += unpaidAmount;
                 overdueCount++;
                 
@@ -766,18 +689,30 @@ export const useDashboardData = () => {
               }
             });
           } else {
-            console.log('💧 No bills found with generated status - no past due amounts');
+            console.log('💧 Dashboard: No bills found with generated status - no past due amounts');
           }
           
-          console.log('💧 Simplified Water Bills Past Due Results:');
+          console.log('💧 Dashboard: Water Bills Past Due Results:');
           console.log(`  - Most Recent Bills Month: ${mostRecentMonth?.monthName || 'None'}`);
           console.log(`  - Total Unpaid: $${totalUnpaid.toLocaleString()}`);
           console.log(`  - Overdue Units: ${overdueCount}`);
+          console.log(`  - Total Billed: $${totalBilled.toLocaleString()}`);
+          console.log(`  - Total Paid: $${totalPaid.toLocaleString()}`);
           console.log(`  - Past Due Details:`, pastDueDetails);
+        } else {
+          console.log('💧 Dashboard: No water data with months structure found');
         }
         
         // Calculate collection rate
         const collectionRate = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
+        
+        console.log('💧 Dashboard: Final water bills status being set:', {
+          totalUnpaid: Math.round(totalUnpaid),
+          overdueCount,
+          totalBilled: Math.round(totalBilled),
+          totalPaid: Math.round(totalPaid),
+          collectionRate: Math.round(collectionRate * 100) / 100
+        });
         
         setWaterBillsStatus({
           totalUnpaid: Math.round(totalUnpaid),
@@ -789,7 +724,10 @@ export const useDashboardData = () => {
         });
         
       } catch (error) {
-        console.error('Error fetching water bills status:', error);
+        console.error('💧 Dashboard: Error fetching water bills status:', {
+          message: error.message,
+          stack: error.stack
+        });
         setError(prev => ({ ...prev, water: error.message }));
         
         // Fallback to zero data on error
@@ -807,7 +745,7 @@ export const useDashboardData = () => {
     };
 
     fetchWaterBillsStatus();
-  }, [selectedClient, samsUser]);
+  }, [selectedClient, samsUser, isLoadingMenu, menuConfig]);
 
   // Update exchange rates loading state
   useEffect(() => {
@@ -825,11 +763,20 @@ export const useDashboardData = () => {
       
       try {
         // Clear all possible cache keys for the previous client
-        sessionStorage.removeItem(getCacheKey(previousClientId, currentYear));
-        sessionStorage.removeItem(getCacheKey(previousClientId, currentYear - 1));
-        sessionStorage.removeItem(getUnitsCacheKey(previousClientId));
-        sessionStorage.removeItem(getWaterCacheKey(previousClientId, currentYear));
-        sessionStorage.removeItem(getWaterCacheKey(previousClientId, currentYear - 1));
+        const keysToRemove = [
+          getCacheKey(previousClientId, currentYear),
+          getCacheKey(previousClientId, currentYear - 1),
+          getUnitsCacheKey(previousClientId),
+          `water_bills_${previousClientId}_${currentYear}`,
+          `water_bills_${previousClientId}_${currentYear - 1}`
+        ];
+        
+        console.log(`🧹 [useDashboardData] Clearing cache keys:`, keysToRemove);
+        
+        keysToRemove.forEach(key => {
+          sessionStorage.removeItem(key);
+          console.log(`🧹 [useDashboardData] Removed cache key: ${key}`);
+        });
         
         console.log(`✅ [useDashboardData] Cleared caches for previous client ${previousClientId}`);
       } catch (error) {

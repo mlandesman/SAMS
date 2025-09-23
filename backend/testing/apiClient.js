@@ -86,7 +86,7 @@ async function createApiClient(userId = null) {
   // Helper method to check if backend is running
   client.healthCheck = async () => {
     try {
-      const response = await client.get('/api/clients/test');
+      const response = await client.get('/system/health');
       return { healthy: true, status: response.status };
     } catch (error) {
       return { 

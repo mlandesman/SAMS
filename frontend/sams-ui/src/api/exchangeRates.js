@@ -15,7 +15,7 @@ export async function triggerDailyExchangeRatesUpdate() {
   try {
     console.log('🔄 Triggering daily exchange rates update...');
     
-    const response = await fetch(`${API_BASE_URL}/exchange-rates/daily-update`, {
+    const response = await fetch(`${API_BASE_URL}/system/exchange-rates/daily-update`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ export async function triggerManualExchangeRatesUpdate(options = {}) {
   try {
     console.log('🔧 Triggering manual exchange rates update...', options);
     
-    const response = await fetch(`${API_BASE_URL}/exchange-rates/manual-update`, {
+    const response = await fetch(`${API_BASE_URL}/system/exchange-rates/manual-update`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export async function triggerManualExchangeRatesUpdate(options = {}) {
  */
 export async function checkTodaysExchangeRates() {
   try {
-    const response = await fetch(`${API_BASE_URL}/exchange-rates/check`, {
+    const response = await fetch(`${API_BASE_URL}/system/exchange-rates/check`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ export async function fetchAllExchangeRates() {
   try {
     console.log('📊 Fetching all exchange rate records...');
     
-    const response = await fetch(`${API_BASE_URL}/exchange-rates/`, {
+    const response = await fetch(`${API_BASE_URL}/system/exchange-rates/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -146,7 +146,7 @@ export async function getExchangeRatesForDate(date) {
   try {
     console.log(`📊 Fetching exchange rates for ${date}...`);
     
-    const response = await fetch(`${API_BASE_URL}/exchange-rates/date/${date}`, {
+    const response = await fetch(`${API_BASE_URL}/system/exchange-rates/date/${date}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

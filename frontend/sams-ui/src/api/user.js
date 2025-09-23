@@ -32,7 +32,7 @@ export const userAPI = {
   async getProfile() {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/user/profile`, { 
+      const response = await fetch(`${API_BASE_URL}/auth/user/profile`, { 
         method: 'GET',
         headers 
       });
@@ -51,7 +51,7 @@ export const userAPI = {
   async updateProfile(profileData) {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+      const response = await fetch(`${API_BASE_URL}/auth/user/profile`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(profileData)
@@ -70,7 +70,7 @@ export const userAPI = {
   async getAccessibleClients() {
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/api/user/clients`, { 
+      const response = await fetch(`${API_BASE_URL}/auth/user/clients`, { 
         method: 'GET',
         headers 
       });

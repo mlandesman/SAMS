@@ -13,7 +13,7 @@ async function runBasicTests() {
   await testHarness.runTest({
     name: 'Test Health Endpoint',
     async test({ api }) {
-      const response = await api.get('/api/clients/test');
+      const response = await api.get('/system/health');
       
       return {
         passed: response.status === 200,
@@ -55,7 +55,7 @@ async function runBasicTests() {
   });
 
   // Example 4: Using the quick API test helper
-  await quickApiTest('Quick Health Check', '/api/clients/test');
+  await quickApiTest('Quick Health Check', '/system/health');
 
   // Show summary
   testHarness.showSummary();

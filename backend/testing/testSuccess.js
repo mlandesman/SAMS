@@ -12,7 +12,7 @@ console.log('🎯 Test Harness Validation\n');
 await testHarness.runTest({
   name: 'Validation Test - Health Check',
   async test({ api, userId }) {
-    const response = await api.get('/api/clients/test');
+    const response = await api.get('/system/health');
     
     return {
       passed: response.status === 200,

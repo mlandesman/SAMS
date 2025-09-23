@@ -1,6 +1,8 @@
 import { createApiClient, getDefaultApiClient } from './apiClient.js';
 import { tokenManager } from './tokenManager.js';
 import { testConfig, validateConfig, isDebugMode } from './config.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Universal Test Harness for SAMS Backend
@@ -12,6 +14,161 @@ class TestHarness {
     this.testResults = [];
     this.startTime = null;
     this.backendHealthy = null;
+    this.logFilePath = null;
+    this.consoleOutput = [];
+    
+    // Set up file logging if enabled
+    if (testConfig.FILE_LOGGING.ENABLED) {
+      this.initializeFileLogging();
+    }
+  }
+
+  /**
+   * Initialize file logging system
+   */
+  initializeFileLogging() {
+    try {
+      const logDir = testConfig.FILE_LOGGING.LOG_DIRECTORY;
+      
+      // Create log directory if it doesn't exist
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + 
+                       new Date().toISOString().replace(/[:.]/g, '-').split('T')[1].split('Z')[0];
+      const filename = testConfig.FILE_LOGGING.LOG_FILENAME_PATTERN.replace('{timestamp}', timestamp);
+      this.logFilePath = path.join(logDir, filename);
+      
+      // Clean up old log files if configured
+      this.cleanupOldLogs();
+      
+      console.log(`📝 Test logging enabled: ${this.logFilePath}`);
+    } catch (error) {
+      console.warn(`⚠️ Could not initialize file logging: ${error.message}`);
+      this.logFilePath = null;
+    }
+  }
+
+  /**
+   * Clean up old log files based on AUTO_CLEANUP_DAYS configuration
+   */
+  cleanupOldLogs() {
+    try {
+      const logDir = testConfig.FILE_LOGGING.LOG_DIRECTORY;
+      const cleanupDays = testConfig.FILE_LOGGING.AUTO_CLEANUP_DAYS;
+      
+      if (!cleanupDays || cleanupDays <= 0) return;
+      
+      const cutoffTime = Date.now() - (cleanupDays * 24 * 60 * 60 * 1000);
+      const files = fs.readdirSync(logDir);
+      
+      files.forEach(file => {
+        const filePath = path.join(logDir, file);
+        const stats = fs.statSync(filePath);
+        
+        if (stats.mtime.getTime() < cutoffTime && file.startsWith('test-results-')) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Cleaned up old log file: ${file}`);
+        }
+      });
+    } catch (error) {
+      console.warn(`⚠️ Could not cleanup old logs: ${error.message}`);
+    }
+  }
+
+  /**
+   * Log console output for inclusion in file log
+   */
+  logConsoleOutput(message) {
+    if (testConfig.FILE_LOGGING.INCLUDE_CONSOLE_OUTPUT) {
+      this.consoleOutput.push({
+        timestamp: new Date().toISOString(),
+        message: message
+      });
+    }
+  }
+
+  /**
+   * Log to both console and file (if enabled)
+   */
+  log(message) {
+    console.log(message);
+    this.logConsoleOutput(message);
+  }
+
+  /**
+   * Write test results to file
+   */
+  async writeLogFile() {
+    if (!this.logFilePath || !testConfig.FILE_LOGGING.ENABLED) {
+      return;
+    }
+
+    try {
+      const logData = {
+        metadata: {
+          timestamp: new Date().toISOString(),
+          testHarnessVersion: '1.0.0',
+          environment: process.env.NODE_ENV || 'development',
+          apiBaseUrl: testConfig.API_BASE_URL,
+          totalTests: this.testResults.length,
+          passedTests: this.testResults.filter(r => r.passed).length,
+          failedTests: this.testResults.filter(r => !r.passed).length,
+          totalDuration: this.startTime ? Date.now() - this.startTime : 0
+        },
+        configuration: {
+          debugMode: isDebugMode(),
+          defaultTestUid: testConfig.DEFAULT_TEST_UID,
+          timeout: testConfig.DEFAULT_TIMEOUT
+        },
+        testResults: this.testResults,
+        consoleOutput: this.consoleOutput,
+        summary: this.generateSummaryData()
+      };
+
+      const jsonData = JSON.stringify(logData, null, 2);
+      
+      if (testConfig.FILE_LOGGING.APPEND_MODE && fs.existsSync(this.logFilePath)) {
+        // Append mode - read existing, add new data, write back
+        const existingData = JSON.parse(fs.readFileSync(this.logFilePath, 'utf8'));
+        existingData.testResults = existingData.testResults.concat(logData.testResults);
+        existingData.consoleOutput = existingData.consoleOutput.concat(logData.consoleOutput);
+        existingData.metadata.totalTests = existingData.testResults.length;
+        existingData.metadata.passedTests = existingData.testResults.filter(r => r.passed).length;
+        existingData.metadata.failedTests = existingData.testResults.filter(r => !r.passed).length;
+        
+        fs.writeFileSync(this.logFilePath, JSON.stringify(existingData, null, 2));
+      } else {
+        // New file mode
+        fs.writeFileSync(this.logFilePath, jsonData);
+      }
+      
+      console.log(`📁 Test results saved to: ${this.logFilePath}`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to write log file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate summary data for the log file
+   */
+  generateSummaryData() {
+    const total = this.testResults.length;
+    const passed = this.testResults.filter(r => r.passed).length;
+    const failed = total - passed;
+    
+    return {
+      total,
+      passed,
+      failed,
+      successRate: total > 0 ? Math.round((passed / total) * 100) : 0,
+      averageDuration: total > 0 ? Math.round(this.testResults.reduce((sum, r) => sum + r.duration, 0) / total) : 0,
+      startTime: this.startTime,
+      endTime: Date.now()
+    };
   }
 
   /**
@@ -220,6 +377,13 @@ class TestHarness {
     }
 
     console.log(`\n${failed === 0 ? '🎉 All tests passed!' : '⚠️  Some tests failed'}`);
+    
+    // Automatically write log file when showing summary
+    if (testConfig.FILE_LOGGING.ENABLED) {
+      this.writeLogFile().catch(error => {
+        console.error(`❌ Failed to save log file: ${error.message}`);
+      });
+    }
   }
 
   /**
@@ -229,7 +393,14 @@ class TestHarness {
     this.testResults = [];
     this.startTime = null;
     this.backendHealthy = null;
+    this.consoleOutput = [];
+    this.logFilePath = null;
     tokenManager.clearCache();
+    
+    // Reinitialize file logging if enabled
+    if (testConfig.FILE_LOGGING.ENABLED) {
+      this.initializeFileLogging();
+    }
   }
 
   /**

@@ -15,12 +15,12 @@ const router = express.Router();
 
 /**
  * Debug endpoint to check Firestore connection and test writing to a specific path
- * GET /api/clients/:clientId/hoadues/debug/connection
+ * GET /hoadues/:clientId/debug/connection
  */
-router.get('/debug/connection', async (req, res) => {
+router.get('/:clientId/debug/connection', async (req, res) => {
   try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
+    // Access clientId from path parameters (domain-specific mounting)
+    const { clientId } = req.params;
     
     // First check general Firestore connection
     const connectionStatus = await checkFirestoreConnection();
@@ -92,37 +92,17 @@ router.get('/debug/connection', async (req, res) => {
   }
 });
 
-/**
- * Get all dues data for a specific year
- * GET /api/clients/:clientId/hoadues/:year
- */
-router.get('/:year', async (req, res) => {
-  try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { year } = req.params;
-    
-    if (!clientId) {
-      return res.status(400).json({ error: 'Missing clientId parameter' });
-    }
-    
-    const duesData = await getAllDuesDataForYear(clientId, parseInt(year));
-    res.json(duesData);
-  } catch (error) {
-    console.error('Error fetching dues data:', error);
-    res.status(500).json({ error: 'Failed to fetch dues data' });
-  }
-});
+// Removed redundant /:year route to avoid conflicts with /:clientId/year/:year
+// All year-based queries should use the specific /:clientId/year/:year pattern
 
 /**
- * Get all dues data for a specific year (alternative endpoint)
- * GET /api/clients/:clientId/hoadues/year/:year
+ * Get all dues data for a specific year (domain-specific endpoint)
+ * GET /hoadues/:clientId/year/:year
  */
-router.get('/year/:year', async (req, res) => {
+router.get('/:clientId/year/:year', async (req, res) => {
   try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { year } = req.params;
+    // Access clientId from path parameters (domain-specific mounting)
+    const { clientId, year } = req.params;
     
     if (!clientId) {
       return res.status(400).json({ error: 'Missing clientId parameter' });
@@ -139,13 +119,12 @@ router.get('/year/:year', async (req, res) => {
 
 /**
  * Get dues data for a specific unit and year
- * GET /api/clients/:clientId/hoadues/unit/:unitId/:year
+ * GET /hoadues/:clientId/unit/:unitId/:year
  */
-router.get('/unit/:unitId/:year', async (req, res) => {
+router.get('/:clientId/unit/:unitId/:year', async (req, res) => {
   try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { unitId, year } = req.params;
+    // Access clientId from path parameters (domain-specific mounting)
+    const { clientId, unitId, year } = req.params;
     
     if (!clientId) {
       return res.status(400).json({ error: 'Missing clientId parameter' });
@@ -190,13 +169,12 @@ router.get('/unit/:unitId/:year', async (req, res) => {
 
 /**
  * Record a dues payment
- * POST /api/clients/:clientId/hoadues/payment/:unitId/:year
+ * POST /hoadues/:clientId/payment/:unitId/:year
  */
-router.post('/payment/:unitId/:year', async (req, res) => {
+router.post('/:clientId/payment/:unitId/:year', async (req, res) => {
   try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { unitId, year } = req.params;
+    // Access clientId from path parameters (domain-specific mounting)
+    const { clientId, unitId, year } = req.params;
     const { paymentData, distribution } = req.body;
     
     // Debug logging for production issue
@@ -369,13 +347,12 @@ router.post('/payment/:unitId/:year', async (req, res) => {
 
 /**
  * Update credit balance for a unit
- * PUT /api/clients/:clientId/hoadues/credit/:unitId/:year
+ * PUT /hoadues/:clientId/credit/:unitId/:year
  */
-router.put('/credit/:unitId/:year', async (req, res) => {
+router.put('/:clientId/credit/:unitId/:year', async (req, res) => {
   try {
-    // Access clientId from parent router or originalParams
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { unitId, year } = req.params;
+    // Access clientId from path parameters (domain-specific mounting)
+    const { clientId, unitId, year } = req.params;
     const { creditBalance } = req.body;
     
     if (!clientId) {

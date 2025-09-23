@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useExchangeRates } from '../hooks/useExchangeRates';
+import { hasWaterBills } from '../utils/clientFeatures';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
 import { LoadingSpinner } from '../components/common';
@@ -326,8 +327,8 @@ function DashboardView() {
           </Grid>
         )}
 
-        {/* Water Bills Past Due Card - Only show for AVII client */}
-        {isAdmin && selectedClient?.id === 'AVII' && (
+        {/* Water Bills Past Due Card - Only show for clients with water bills enabled */}
+        {isAdmin && hasWaterBills(selectedClient, menuConfig) && (
           <Grid item xs={12} sm={6} md={4}>
             <Card 
               sx={{ 

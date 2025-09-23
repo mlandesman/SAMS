@@ -12,7 +12,7 @@ import { config } from '../config';
  */
 export const needsExchangeRateUpdate = async () => {
   try {
-    const response = await fetch(`${config.api.baseUrl}/exchange-rates/check`);
+    const response = await fetch(`${config.api.baseUrl}/system/exchange-rates/check`);
     const result = await response.json();
     
     console.log(`📊 Exchange rates check for ${result.date}: exists = ${result.exists}`);
@@ -37,7 +37,7 @@ export const fetchExchangeRates = async () => {
   try {
     console.log('🔄 Requesting exchange rate fetch from backend...');
     
-    const response = await fetch(`${config.api.baseUrl}/exchange-rates/fetch`, {
+    const response = await fetch(`${config.api.baseUrl}/system/exchange-rates/fetch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const fillMissingExchangeRates = async () => {
   try {
     console.log('🔄 Checking for missing exchange rate gaps...');
     
-    const response = await fetch(`${config.api.baseUrl}/exchange-rates/fill-missing`, {
+    const response = await fetch(`${config.api.baseUrl}/system/exchange-rates/fill-missing`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

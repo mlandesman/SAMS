@@ -33,7 +33,7 @@ const testConfig = {
   RETRY_DELAY: 1000, // 1 second
   
   // Backend health check
-  BACKEND_HEALTH_CHECK_PATH: '/api/clients/test',
+  BACKEND_HEALTH_CHECK_PATH: '/system/health',
   BACKEND_START_TIMEOUT: 30000, // 30 seconds to wait for backend startup
   
   // Firebase configuration (inherited from environment)
@@ -41,7 +41,7 @@ const testConfig = {
   
   // Common API endpoints for quick reference
   ENDPOINTS: {
-    HEALTH: '/api/clients/test',
+    HEALTH: '/system/health',
     USER_PROFILE: '/api/user/profile',
     USER_CLIENTS: '/api/user/clients',
     SELECT_CLIENT: '/api/user/select-client',
@@ -59,6 +59,16 @@ const testConfig = {
     SHOW_DURATION: true,
     COLORED_OUTPUT: !isProduction, // No colors in production logs
     DETAILED_ERRORS: isDevelopment
+  },
+  
+  // File logging configuration
+  FILE_LOGGING: {
+    ENABLED: process.env.TEST_LOG_FILE === 'true' || true, // Default enabled
+    LOG_DIRECTORY: './test-results',
+    LOG_FILENAME_PATTERN: 'test-results-{timestamp}.json',
+    APPEND_MODE: false, // false = new file each run, true = append to existing
+    INCLUDE_CONSOLE_OUTPUT: true,
+    AUTO_CLEANUP_DAYS: 7 // Delete logs older than 7 days
   },
   
   // Environment flags

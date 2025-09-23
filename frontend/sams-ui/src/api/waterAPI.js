@@ -295,8 +295,31 @@ class WaterAPI {
   /**
    * Get aggregated water data for a fiscal year
    * This endpoint returns everything: readings, bills, payments, status
+   * Uses cache to prevent redundant API calls
    */
   async getAggregatedData(clientId, year) {
+    const cacheKey = `water_bills_${clientId}_${year}`;
+    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+    
+    // Check cache first
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const isValid = Date.now() - timestamp < CACHE_DURATION;
+        if (isValid) {
+          console.log('💧 WaterAPI cache hit for key:', cacheKey);
+          // Return in the same format as the API response
+          return { data };
+        }
+        console.log('💧 WaterAPI cache expired for key:', cacheKey);
+      }
+    } catch (error) {
+      console.error('💧 WaterAPI cache read error:', error);
+    }
+
+    // Cache miss - fetch from API
+    console.log('💧 WaterAPI cache miss - fetching from API:', cacheKey);
     const token = await this.getAuthToken();
     
     const response = await fetch(
@@ -310,7 +333,20 @@ class WaterAPI {
       }
     );
     
-    return handleApiResponse(response);
+    const result = await handleApiResponse(response);
+    
+    // Cache the result
+    if (result?.data) {
+      try {
+        const cacheData = { data: result.data, timestamp: Date.now() };
+        sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        console.log('💧 WaterAPI saved to cache:', cacheKey);
+      } catch (error) {
+        console.error('💧 WaterAPI cache write error:', error);
+      }
+    }
+    
+    return result;
   }
 
   /**

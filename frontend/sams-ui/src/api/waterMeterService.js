@@ -24,8 +24,8 @@ export const fetchAllWaterDataForYear = async (clientId, year) => {
       throw new Error('User not authenticated');
     }
     
-    // Use the NEW projects endpoint for full year data
-    const url = `${API_BASE_URL}/clients/${clientId}/projects/waterBills/${year}`;
+    // Use the domain-specific water endpoint for full year data
+    const url = `${API_BASE_URL}/water/clients/${clientId}/data/${year}`;
     
     console.log('🔗 [WaterAPI] Fetching from URL:', url);
     console.log('🔑 [WaterAPI] Using token:', token ? 'Token present' : 'No token');
@@ -90,7 +90,7 @@ export const fetchLatestReadings = async (clientId) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/readings/latest`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/readings/latest`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ export const submitBatchReadings = async (clientId, readings, readingDate) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/readings`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/readings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -169,7 +169,7 @@ export const generateBills = async (clientId, billingMonth, dueDate, options = {
     // CORRECTED: Split billingMonth into year and month as backend expects
     const [year, month] = billingMonth.split('-');
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/bills/generate`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/bills/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -212,7 +212,7 @@ export const fetchWaterBills = async (clientId, year = new Date().getFullYear())
     }
     
     // CORRECTED: Use the actual route structure /bills/:year
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/bills/${year}`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/bills/${year}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ export const recordPayment = async (clientId, billId, paymentData) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/payments`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/payments/record`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -287,7 +287,7 @@ export const fetchUnitWaterMeter = async (clientId, unitId) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/unit/${unitId}`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/meters/unit/${unitId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ export const fetchWaterMeters = async (clientId) => {
     }
     
     // First fetch the units list
-    const unitsResponse = await fetch(`${API_BASE_URL}/clients/${clientId}/units`, {
+    const unitsResponse = await fetch(`${API_BASE_URL}/water/clients/${clientId}/meters`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -375,7 +375,7 @@ export const importReadingsFromCSV = async (clientId, file, readingDate) => {
     formData.append('readingDate', readingDate);
     
     // Note: This endpoint may not exist in backend
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/readings/import`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/readings/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -410,7 +410,7 @@ export const fetchMonthlyReadings = async (clientId, year, month) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/readings/${year}/${month}`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/readings/${year}/${month}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -445,7 +445,7 @@ export const fetchWaterBill = async (clientId, unitId, billId) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/bills/${unitId}/${billId}`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/bills/${unitId}/${billId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -478,7 +478,7 @@ export const fetchOutstandingBalances = async (clientId) => {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/watermeters/outstanding`, {
+    const response = await fetch(`${API_BASE_URL}/water/clients/${clientId}/outstanding`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

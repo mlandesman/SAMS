@@ -392,8 +392,12 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     }
   };
   
-  // Sort units by unit ID
-  const sortedUnits = units ? [...units].sort((a, b) => a.id.localeCompare(b.id)) : [];
+  // Sort units by unit ID (safe property access)
+  const sortedUnits = units ? [...units].sort((a, b) => {
+    const aId = a.id || a.unitId || '';
+    const bId = b.id || b.unitId || '';
+    return aId.localeCompare(bId);
+  }) : [];
 
   // Get last name from owner name
   const getLastName = (ownerName) => {
