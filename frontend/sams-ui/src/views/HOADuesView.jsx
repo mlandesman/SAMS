@@ -4,12 +4,13 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DuesPaymentModal from '../components/DuesPaymentModal';
+import CreditBalanceEditModal from '../components/CreditBalanceEditModal';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import { LoadingSpinner } from '../components/common';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { getOwnerInfo } from '../utils/unitUtils';
-import { isSuperAdmin } from '../utils/userRoles';
+import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
@@ -31,7 +32,8 @@ function HOADuesView() {
     loading, 
     error, 
     selectedYear, 
-    setSelectedYear
+    setSelectedYear,
+    refreshData
   } = useHOADues();
   
   console.log('🔴 HOADuesView - selectedYear from context:', selectedYear);
@@ -54,6 +56,11 @@ function HOADuesView() {
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [highlightedUnit, setHighlightedUnit] = useState(null);
+  
+  // Credit balance edit modal state
+  const [showCreditEditModal, setShowCreditEditModal] = useState(false);
+  const [creditEditUnitId, setCreditEditUnitId] = useState(null);
+  const [creditEditCurrentBalance, setCreditEditCurrentBalance] = useState(0);
   
   // Check for url parameters on component mount or url change
   useEffect(() => {
@@ -80,7 +87,15 @@ function HOADuesView() {
   const handlePaymentClick = (unitId, fiscalMonth) => {
     // Special handling for credit row
     if (fiscalMonth === 'credit') {
-      // For now, just return - credit handling is separate
+      // Check if user has permission to edit credit balance
+      if (isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id)) {
+        const unitData = duesData[unitId] || {};
+        const currentBalance = unitData.creditBalance || 0;
+        
+        setCreditEditUnitId(unitId);
+        setCreditEditCurrentBalance(currentBalance);
+        setShowCreditEditModal(true);
+      }
       return;
     }
     
@@ -128,6 +143,20 @@ function HOADuesView() {
   // Close payment modal
   const closePaymentModal = () => {
     setShowPaymentModal(false);
+  };
+
+  // Close credit edit modal
+  const closeCreditEditModal = () => {
+    setShowCreditEditModal(false);
+    setCreditEditUnitId(null);
+    setCreditEditCurrentBalance(0);
+  };
+
+  // Handle credit balance update
+  const handleCreditBalanceUpdate = () => {
+    // Refresh the dues data to show the updated credit balance
+    refreshData();
+    closeCreditEditModal();
   };
 
   // Calculate payment status for a unit in a specific fiscal month
@@ -336,15 +365,22 @@ function HOADuesView() {
               {units.map(unit => {
                 const unitData = duesData[unit.unitId] || {};
                 const hasCreditHistory = unitData.creditBalanceHistory && unitData.creditBalanceHistory.length > 0;
+                const canEditCredit = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
                 return (
                   <td 
                     key={`credit-${unit.unitId}`}
-                    className={`credit-cell ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''} ${(unitData.creditBalance || 0) < 0 ? 'negative-credit' : ''} ${hasCreditHistory ? 'has-credit-history' : ''}`}
+                    className={`credit-cell ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''} ${(unitData.creditBalance || 0) < 0 ? 'negative-credit' : ''} ${hasCreditHistory ? 'has-credit-history' : ''} ${canEditCredit ? 'editable' : ''}`}
                     onClick={() => handlePaymentClick(unit.unitId, 'credit')}
                     title={(() => {
                       // Generate tooltip from credit balance history array
+                      let tooltip = `Credit Balance: $${formatNumber((unitData.creditBalance || 0))}`;
+                      
+                      if (canEditCredit) {
+                        tooltip += '\n\nClick to edit credit balance';
+                      }
+                      
                       if (hasCreditHistory) {
-                        let tooltip = `Credit Balance: $${formatNumber((unitData.creditBalance || 0))}\n\nHistory:\n`;
+                        tooltip += '\n\nHistory:\n';
                         unitData.creditBalanceHistory.forEach(entry => {
                           // Handle Firestore timestamp objects
                           const timestamp = entry.timestamp;
@@ -354,9 +390,9 @@ function HOADuesView() {
                           if (entry.description) tooltip += ` ${entry.description}`;
                           tooltip += '\n';
                         });
-                        return tooltip;
                       }
-                      return `Credit Balance: $${formatNumber((unitData.creditBalance || 0))}`;
+                      
+                      return tooltip;
                     })()}
                     style={{
                       backgroundColor: (unitData.creditBalance || 0) < 0 ? '#ffebee' : 'inherit',
@@ -505,6 +541,16 @@ function HOADuesView() {
         onClose={closePaymentModal}
         unitId={selectedUnitId}
         monthIndex={selectedMonth}
+      />
+      
+      {/* Credit Balance Edit Modal */}
+      <CreditBalanceEditModal
+        isOpen={showCreditEditModal}
+        onClose={closeCreditEditModal}
+        unitId={creditEditUnitId}
+        currentBalance={creditEditCurrentBalance}
+        year={selectedYear}
+        onUpdate={handleCreditBalanceUpdate}
       />
     </div>
   );
