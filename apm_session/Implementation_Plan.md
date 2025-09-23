@@ -1,4 +1,4 @@
-# SAMS (Sandy's Accounting Management System) – Implementation Plan
+# SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
 **Last Modification:** Manager Agent 8 - Comprehensive rebuild integrating Additional Plans
@@ -46,6 +46,14 @@
 - **Features:** Desktop UI, PWA water meter entry, nested data structure, service charges
 - **Current Status:** Active for AVII client, ready for expansion
 
+### Water Bills Dashboard Data Structure Fix (COMPLETED - September 23, 2025)
+**Status:** ✅ FULLY IMPLEMENTED - EXEMPLARY
+- **Achievement:** Fixed dashboard water bills card showing $0, implemented unified caching architecture
+- **Key Results:** Dashboard now displays actual $2,625 past due amount for AVII instead of $0
+- **Architectural Enhancement:** Moved cache logic to API layer benefiting entire system
+- **Impact:** Restored financial visibility, created system-wide performance improvements
+- **Infrastructure Milestone:** All critical infrastructure fixes now complete
+
 ### Core SAMS Platform (OPERATIONAL)
 **Status:** ✅ LIVE IN PRODUCTION
 - **Authentication:** Firebase Auth with role-based access control
@@ -56,30 +64,76 @@
 
 ---
 
-## 🔥 IMMEDIATE PRIORITIES (Critical Production Issues)
+## 🔥 IMMEDIATE PRIORITIES
 
-### Priority 1: Critical Production Fixes
-**Estimated Effort:** 6-8 Implementation Agent sessions
+### Priority 1: Credit Balance Fixes │ Agent_Credit_Balance
+**Status:** Critical foundation issue affecting payment processing
+**Estimated Effort:** 2-3 Implementation Agent sessions
 
-#### Fix 1.1: Units List Management Multiple UI Issues │ Agent_Production
-- **Priority:** HIGH - Severely impacts production usability
-- **Issues:** Data inconsistency, no row highlighting, save failures, broken search
-- **Impact:** Users cannot effectively manage unit data
-- **Effort:** 2-3 sessions
+#### Task 1.1: Fix Credit Balance Reading Components
+- **Issue:** HOA Dues and Water Bills payment components not reading credit balances properly
+- **Impact:** Incorrect payment calculations and balance displays
+- **Effort:** 1-2 sessions
 
-#### Fix 1.2: PropertyAccess Map Creation Missing │ Agent_Production  
-- **Priority:** HIGH - BLOCKING new users/clients
-- **Impact:** Cannot add new users or clients without manual database intervention
+#### Task 1.2: Add Credit Balance Editing Interface
+- **Scope:** Create interface to edit credit balance in units documents
+- **Requirements:** Direct credit balance adjustment with audit trail
 - **Effort:** 1 session
 
-#### Fix 1.3: Water Bills Payment Tracking Restoration │ Agent_Production
-- **Priority:** HIGH - Business critical
-- **Impact:** Cannot generate or track water bill payments
-- **Cleanup Required:** Restore payment tracking logic, re-enable validation
-- **Effort:** 3-4 sessions
+### Priority 2: Water Bills Fixes │ Agent_Water_Bills
+**Status:** Five specific issues affecting Water Bills functionality
+**Estimated Effort:** 1-2 Implementation Agent sessions
 
-### Priority 2: Edit Transactions Enhancement │ Agent_Enhancement
-- **Priority:** HIGH - User workflow completion
+#### Task 2.1: Fix MonthData Consumption Display
+- **Issue:** WaterBillsList.jsx:175 shows currentReading/priorReading but not consumption values
+- **Root Cause:** Aggregator function not processing consumption data
+- **Effort:** 0.5 sessions
+
+#### Task 2.2: Change Due Date to Display Value
+- **Issue:** Due Date shows calendar picker instead of display value after bill generation
+- **Solution:** Switch to read-only display when bill record exists
+- **Effort:** 0.25 sessions
+
+#### Task 2.3: Fix Reading Period to Prior Month
+- **Issue:** August 2025 readings should show July 2025 period
+- **Solution:** Display prior month for reading period
+- **Effort:** 0.25 sessions
+
+#### Task 2.4: Auto-Advance Readings Screen
+- **Issue:** Should advance to next available reading period
+- **Solution:** Last monthly readings file + 1 (if last bill 2026-01, show 2026-02)
+- **Effort:** 0.5 sessions
+
+#### Task 2.5: Auto-Advance Bills Screen
+- **Issue:** Should advance to last available reading period
+- **Solution:** Highest number monthly bill file (if last bill 2026-01, show 2026-01)
+- **Effort:** 0.5 sessions
+
+### Priority 3: HOA Dues Quarterly Collection Support │ Agent_HOA_Quarterly
+**Status:** Data-driven architecture change for client flexibility
+**Estimated Effort:** 4-5 Implementation Agent sessions
+
+#### Task 3.1: Implement Quarterly View Logic
+- **Scope:** Change HOA Dues table to quarterly view when config.feeStructure.duesFrequency == "quarterly"
+- **Data Source:** /clients/:clientId/config.feeStructure.duesFrequency
+- **Effort:** 2-3 sessions
+
+#### Task 3.2: Handle Partial Payments and Tracking
+- **Complexity:** Quarterly amounts with partial payment tracking
+- **Requirements:** Fiscal calendar-based quarters
+- **Effort:** 1-2 sessions
+
+#### Task 3.3: Adjust Penalty Calculations
+- **Change:** Penalties affect quarterly amount, not monthly amount
+- **Integration:** Coordinate with fiscal calendar configuration
+- **Effort:** 1 session
+
+---
+
+## 🛠️ MEDIUM PRIORITY ENHANCEMENTS
+
+### Edit Transactions Enhancement │ Agent_Enhancement
+- **Priority:** MEDIUM - User workflow improvement (not blocking core functionality)
 - **Gap:** Edit function doesn't handle ID-first structures and split allocations  
 - **Issues:** Form reverts to name-based, split transactions don't open SplitEntryModal
 - **Effort:** 2-3 sessions
@@ -88,60 +142,134 @@
 
 ## 🧑🏻‍💻 ENHANCEMENT COMPLETION PHASE
 
-### Phase E1: Communications Enhancement Phase 2B │ Agent_Communications
-**Status:** Ready to implement - Phase 2A complete
-**Estimated Effort:** 4-6 Implementation Agent sessions
-
-#### Task E1.1: Water Bills Payment Request Templates
-- **Scope:** Email templates for water bill payment requests
-- **Status:** Framework ready from Phase 2A completion
-- **Effort:** 2-3 sessions
-
-#### Task E1.2: HOA Dues Notification Templates  
-- **Scope:** Automated HOA dues payment notifications
-- **Status:** Framework ready, template structure exists
-- **Effort:** 2 sessions
-
-#### Task E1.3: Admin Go/No-Go Approval Workflow
-- **Scope:** Administrative approval system for communications
-- **Status:** New feature building on Phase 2A foundation
-- **Effort:** 2-3 sessions
-
-### Phase E2: Digital Receipts Production Integration │ Agent_Receipts
-**Status:** Code complete but not moved from demo to production
-**Estimated Effort:** 3-4 Implementation Agent sessions
-
-#### Task E2.1: Move Digital Receipts from Demo to Production
-- **Scope:** Receipts sent by email for all payment types
-- **Current Status:** Complete in some modules but demo mode only
-- **Integration Required:** HOA, Water Bills, Expense payments
-- **Effort:** 3-4 sessions
-
-### Phase E3: HOA Dues Late Fee Penalties │ Agent_Penalties
-**Status:** Penalty calculator built for Water Bills, needs extension
+### Priority 4: HOA Dues Late Fee Penalties │ Agent_Penalties
+**Status:** Apply Water Bills penalty logic to HOA Dues with quarterly adjustments
 **Estimated Effort:** 4-5 Implementation Agent sessions
 
-#### Task E3.1: Extend Penalty Calculator to HOA Dues
+#### Task 4.1: Extend Penalty Calculator to HOA Dues
 - **Scope:** Late payment penalties based on grace period, due date, compound percentage
 - **Foundation:** Water Bills penalty system already implemented
-- **Customization:** Different grace periods per client configuration
+- **Integration:** Must work with quarterly collection periods (Priority 3)
+- **Data-Driven:** Same logic as Water Bills, different configuration
 - **Effort:** 4-5 sessions
 
-### Water Bills Dashboard Data Structure Fix (COMPLETED - September 23, 2025)
-**Status:** ✅ FULLY IMPLEMENTED - EXEMPLARY
-- **Achievement:** Fixed dashboard water bills card showing $0, implemented unified caching architecture
-- **Key Results:** Dashboard now displays actual $2,625 past due amount for AVII instead of $0
-- **Architectural Enhancement:** Moved cache logic to API layer benefiting entire system
-- **Impact:** Restored financial visibility, created system-wide performance improvements
-- **Infrastructure Milestone:** All critical infrastructure fixes now complete
+### Priority 5: Water Bill Payment Request │ Agent_Communications
+**Status:** Automated email with consumption, past due, penalties, notes
+**Estimated Effort:** 2-3 Implementation Agent sessions
+
+#### Task 5.1: Generate Automated Water Bill Emails
+- **Scope:** Monthly water consumption amount, past due, penalties, notes
+- **Framework:** Communications Phase 2A foundation ready
+- **Future Integration:** Account statement when Reports module completed
+- **Current Solution:** Formatted email sufficient for now
+- **Effort:** 2-3 sessions
+
+### Priority 6: Digital Receipts Production Integration │ Agent_Receipts
+**Status:** Code mostly in place, needs fine-tuning and testing
+**Estimated Effort:** 3-4 Implementation Agent sessions
+
+#### Task 6.1: Fine-tune and Test Digital Receipts
+- **Scope:** Attach to all payments received, test templates and sending process
+- **Current Status:** Complete in some modules but demo mode only
+- **Testing Required:** Templates, email addresses, sending process
+- **Integration:** HOA, Water Bills, Expense payments
+- **Effort:** 3-4 sessions
+
+### Priority 7: Budget Module │ Agent_Budget
+**Status:** New system required for Budget vs Actual reporting
+**Estimated Effort:** 3-4 Implementation Agent sessions
+
+#### Task 7.1: Create Budget Entry System
+- **Scope:** Structure and data entry for budget values per category
+- **Integration:** Required for Report Generator Budget vs Actual analysis
+- **Data Model:** Category-based budget structure matching transaction categories
+- **Interface:** Budget entry and editing interface
+- **Effort:** 3-4 sessions
+
 
 ---
 
 ## 🇲🇽 NEW FEATURES DEVELOPMENT PHASE
 
-### Phase N1: Report Generator (Pre-defined) │ Agent_Reports
-**Priority:** HIGH - Required to replace Google Sheets automation
-**Estimated Effort:** 26-30 Implementation Agent sessions
+### Priority 8a: Statement of Account Report │ Agent_Reports_Priority
+**Status:** Critical report for unit owners and managers
+**Estimated Effort:** 8-10 Implementation Agent sessions
+
+#### Task 8a.1: Gather Statement Requirements
+- **Objective:** Document comprehensive requirements for Statement of Account
+- **Output:** Complete specifications for individual unit reports
+- **Bilingual:** English/Spanish support from the start
+- **Effort:** 1 session
+
+#### Task 8a.2: Design Statement Template
+- **Objective:** Professional report template for unit owner statements
+- **Output:** Approved HTML/PDF template matching existing quality
+- **Features:** Transaction history, running balances, payment status
+- **Effort:** 1-2 sessions
+
+#### Task 8a.3: Select Technical Stack for Statements
+- **Objective:** Evaluate libraries for PDF generation and charts
+- **Output:** Technical stack documentation and integration approach
+- **Requirements:** Gmail API support, bilingual compatibility
+- **Effort:** 1 session
+
+#### Task 8a.4: Implement Statement Generation
+- **Objective:** Generate individual unit statements with full fiscal year activity
+- **Output:** Functional statement system with PDF storage in Firebase
+- **Features:** Chronological transactions, running balances, bilingual support
+- **Effort:** 3-4 sessions
+
+#### Task 8a.5: Add Charts to Statements
+- **Objective:** Visual representation of unit financial data
+- **Output:** Charts embedded in statements with PDF compatibility
+- **Requirements:** Charts must render properly in PDF format
+- **Effort:** 1-2 sessions
+
+#### Task 8a.6: Integrate Gmail for Statement Delivery
+- **Objective:** Email delivery system for unit owner statements
+- **Output:** Automated statement distribution with bilingual templates
+- **Domain:** sandyland.com.mx, reliable queue system
+- **Effort:** 1-2 sessions
+
+### Priority 8b: Other Reports │ Agent_Reports_Secondary
+**Status:** Monthly reports for owners/admins after Statement priority
+**Estimated Effort:** 16-20 Implementation Agent sessions
+
+#### Task 8b.1: Monthly Transaction History Report
+- **Scope:** Comprehensive monthly transaction reports
+- **Integration:** Budget vs Actual analysis (requires Priority 7 completion)
+- **Effort:** 4-5 sessions
+
+#### Task 8b.2: HOA Dues Update Report
+- **Scope:** HOA dues collection and status reports
+- **Integration:** Quarterly collection support (Priority 3)
+- **Effort:** 3-4 sessions
+
+#### Task 8b.3: Special Projects Reports
+- **Scope:** Water Bills, Propane Tanks, other project reporting
+- **Integration:** Depends on Propane Tanks completion (Priority 9)
+- **Effort:** 4-5 sessions
+
+#### Task 8b.4: Budget vs Actual Report
+- **Scope:** Budget analysis and variance reporting
+- **Dependency:** Requires Budget Module completion (Priority 7)
+- **Effort:** 3-4 sessions
+
+#### Task 8b.5: Complete Report System Integration
+- **Scope:** Unified report generation system
+- **Output:** Complete Google Sheets replacement capability
+- **Effort:** 2-3 sessions
+
+### Priority 9: Propane Tanks Module │ Agent_Propane
+**Status:** Similar to Water Bills but simpler - readings only
+**Estimated Effort:** 4-5 Implementation Agent sessions
+
+#### Task 9.1: Implement Propane Tank Readings
+- **Scope:** Monthly readings for MTC client propane tanks
+- **Foundation:** Subset of Water Bills functionality
+- **Features:** Monthly readings only, no bill generation or payments
+- **Integration:** PWA maintenance worker interface
+- **Effort:** 4-5 sessions
 
 #### Task N1.1: Gather Report Requirements │ Agent_Reports
 - **Objective:** Document comprehensive requirements for all report types including bilingual support needs
@@ -191,9 +319,104 @@
 - **Guidance:** Use sandyland.com.mx domain, implement queue for reliability
 - **Effort:** 4-5 sessions
 
-### Phase N2: Mobile PWA Worker App Refactor │ Agent_Mobile
-**Status:** PWA built but needs complete refactor for current DB structure
-**Estimated Effort:** 30-34 Implementation Agent sessions
+### Priority 10: PWA/Mobile App for Maintenance Workers │ Agent_Mobile_Workers
+**Status:** Water meter reading test code complete, needs PWA integration
+**Estimated Effort:** 6-8 Implementation Agent sessions
+
+#### Task 10.1: Integrate Water Meter Readings into PWA
+- **Status:** Test code completed, needs PWA integration
+- **User Role:** New "maintenance" role implementation
+- **Triggers:** Dashboard cards with hasWaterBills configuration
+- **Effort:** 3-4 sessions
+
+#### Task 10.2: Complete Propane Tank Reading Module
+- **Status:** Shell built but incomplete, needs completion and integration
+- **Triggers:** Dashboard cards with hasPropaneTanks configuration
+- **Integration:** Similar to water meter readings
+- **Effort:** 3-4 sessions
+
+### Priority 11: PWA/Mobile Refactor │ Agent_Mobile_Refactor
+**Status:** PWA needs complete update to current standards
+**Estimated Effort:** 20-24 Implementation Agent sessions
+
+#### Task 11.1: Assess PWA Breaking Changes
+- **Objective:** Document all system changes that broke PWA during 2+ months of desktop development
+- **Output:** Comprehensive breaking changes report with recovery plan
+- **Timeline:** PWA last updated over a month ago, extensive changes expected
+- **Effort:** 2-3 sessions
+
+#### Task 11.2: Update PWA Foundation
+- **Scope:** Update to current endpoints, authentication, collection/document structures
+- **Output:** Functional PWA with current database compatibility
+- **Focus:** Core functionality before features
+- **Effort:** 4-5 sessions
+
+#### Task 11.3: Restore Core Admin Functions
+- **Scope:** Basic admin functionality for data viewing and client management
+- **Output:** PWA with working admin navigation and client switching
+- **Approach:** Read-only functionality before write operations
+- **Effort:** 3-4 sessions
+
+#### Task 11.4: Design Mobile Admin Interface
+- **Scope:** Mobile-optimized admin interface for field operations
+- **Output:** Touch-friendly design optimized for slow connections
+- **Focus:** Data efficiency and field usability
+- **Effort:** 2-3 sessions
+
+#### Task 11.5: Optimize for Field Conditions
+- **Scope:** Performance optimization for poor connectivity
+- **Output:** PWA optimized for LTE/poor connectivity with caching
+- **Testing:** Real-world field condition testing
+- **Effort:** 2-3 sessions
+
+#### Task 11.6: Spanish UI for Maintenance Workers
+- **Scope:** Spanish-only interface for maintenance workers
+- **Features:** Client-specific task routing and simple navigation
+- **Integration:** Maintenance worker role from Priority 10
+- **Effort:** 3-4 sessions
+
+#### Task 11.7: Restore Offline Capabilities
+- **Scope:** Offline data entry with sync capabilities
+- **Requirements:** Essential for field work with poor connectivity
+- **Effort:** 3-4 sessions
+
+### Priority 12: PWA/Mobile Expense Entry and Payment Receipts │ Agent_Mobile_Payments
+**Status:** New functionality for field payment and expense recording
+**Estimated Effort:** 8-10 Implementation Agent sessions
+
+#### Task 12.1: Implement Mobile Expense Entry
+- **Scope:** Field expense recording with optional receipt photos
+- **User Role:** Admin users in field
+- **Features:** Quick entry for common expense scenarios
+- **Effort:** 3-4 sessions
+
+#### Task 12.2: Implement Mobile HOA Payment Receipt
+- **Scope:** HOA payment recording with credit balance handling
+- **Features:** Unit selection, credit management, receipt generation
+- **Complexity:** Handle overpayment and credit balance scenarios
+- **Effort:** 4-5 sessions
+
+#### Task 12.3: Implement Mobile Water Payment Receipt
+- **Scope:** Water bills payment recording with penalty calculations
+- **Features:** Penalty handling, credits, receipt generation
+- **Integration:** Complex penalty and credit calculations
+- **Effort:** 3-4 sessions
+
+### Priority 13: Export Functions │ Agent_Export
+**Status:** CSV and Excel export capability for reports and queries
+**Estimated Effort:** 3-4 Implementation Agent sessions
+
+#### Task 13.1: Implement CSV Export
+- **Scope:** Export reports and query results to CSV format
+- **Features:** All report types and transaction queries
+- **Use Case:** Manual reporting and data manipulation
+- **Effort:** 1-2 sessions
+
+#### Task 13.2: Implement Excel Export
+- **Scope:** Excel format export with formatting preservation
+- **Features:** Enhanced formatting and multi-sheet capabilities
+- **Integration:** Report system compatibility
+- **Effort:** 2 sessions
 
 #### Task N2.1: Assess PWA Breaking Changes │ Agent_Mobile
 - **Objective:** Document all system changes that broke PWA functionality during 2+ months of desktop development
@@ -294,11 +517,16 @@
 
 ### Critical Technical Debt (HIGH Priority)
 
-#### TD-001: Water Bills Payment Tracking Disabled
-- **Status:** COVERED IN IMMEDIATE PRIORITIES (Fix 1.3)
+#### TD-001: Units List Management Multiple UI Issues
+- **Priority:** LOW - Dev environment only, not blocking workflow
+- **Issues:** Data inconsistency, no row highlighting, save failures, broken search
+- **Impact:** Minor usability issues for single dev/admin user
+- **Effort:** 2-3 sessions
 
-#### TD-002: Units List Management UI Issues  
-- **Status:** COVERED IN IMMEDIATE PRIORITIES (Fix 1.1)
+#### TD-002: PropertyAccess Map Creation Missing
+- **Priority:** LOW - Manual database intervention available
+- **Impact:** Cannot add new users/clients through UI (console workaround available)
+- **Effort:** 1 session
 
 #### TD-003: Client Selector Logo Display
 - **Impact:** Logo and description not appearing in client selector modal
@@ -310,38 +538,20 @@
 - **Solution:** Production nightly function push data to Dev Firebase
 - **Effort:** 1-2 sessions
 
-#### TD-005: Water Bills Dashboard Cache Re-enablement (COMPLETED - September 23, 2025)
-- **Status:** ✅ COMPLETED - EXEMPLARY
-- **Achievement:** Unified caching architecture implemented with system-wide benefits
-- **Impact:** Dashboard now shows accurate financial data, enhanced performance across platform
 
 ### Moderate Technical Debt
 
 #### TD-006: Year-End Processing System
+- **Priority:** LOW - Not needed until December 2025
 - **Scope:** Build new fiscal year files, year-end reports, balance carryover
 - **Requirements:** Year-end balance report, owner/accountant reports
-- **Impact:** Manual year-end processing currently required
+- **Impact:** Manual year-end processing currently acceptable
 - **Effort:** 5-6 sessions
 
 #### TD-007: Special Projects Activity Cleanup
 - **Scope:** Remove unused "Extra Activity" option
 - **Reason:** Each project gets dedicated Activity (Water Bills, Propane, etc.)
 - **Effort:** 1 session
-
-#### TD-008: ES6 Module Export Compliance
-- **Priority:** Critical - System breaks if CommonJS used
-- **Requirements:** Ongoing maintenance plus compliance audit
-- **Effort:** Ongoing + 1 session for audit
-
-#### TD-009: TypeScript Migration
-- **Priority:** High - Runtime errors impact user experience
-- **Scope:** Incremental migration to improve system stability
-- **Effort:** 8-12 sessions
-
-#### TD-010: Test Coverage Enhancement
-- **Priority:** High - Currently below 40%
-- **Impact:** Risk of production regressions without adequate testing
-- **Effort:** 6-8 sessions
 
 ---
 
@@ -353,18 +563,21 @@
 - **AVII Client:** 249 documents, $86,211.73 in transactions
 
 ### Development Pipeline Priorities
-1. **Immediate (0-30 days):** Critical production fixes + Edit Transactions
-2. **Short-term (30-90 days):** Enhancement completion (Communications 2B, Digital Receipts, Penalties)
-3. **Medium-term (90-180 days):** Reports system to replace Google Sheets automation
-4. **Long-term (180+ days):** Advanced features (Mobile refactor, WhatsApp, Business features)
+1. **Immediate (0-30 days):** Critical foundation fixes (Credit Balance, Water Bills, HOA Quarterly)
+2. **Short-term (30-60 days):** Core enhancement completion (Penalties, Communications, Digital Receipts, Budget)
+3. **Medium-term (60-120 days):** Report system implementation (Statement of Account priority, then other reports)
+4. **Long-term (120-180 days):** Mobile/PWA completion and export functions
+5. **Extended (180+ days):** Advanced features (WhatsApp, Business features, Technical debt optimization)
 
 ### Total Estimated Effort
-- **Immediate Priorities:** 8-11 sessions
-- **Enhancement Completion:** 11-15 sessions  
-- **New Features Development:** 77-93 sessions
-- **Technical Debt Resolution:** 24-33 sessions
+- **Immediate Priorities (1-3):** 7-10 sessions
+- **Enhancement Completion (4-7):** 12-16 sessions
+- **Report System (8a-8b):** 24-30 sessions
+- **Mobile/PWA Development (9-12):** 41-52 sessions
+- **Export Functions (13):** 3-4 sessions
+- **Technical Debt Resolution:** 8-12 sessions
 
-**Grand Total:** 120-152 Implementation Agent sessions
+**Grand Total:** 95-124 Implementation Agent sessions
 
 ### Success Metrics
 - ✅ **Core Platform:** Fully operational in production

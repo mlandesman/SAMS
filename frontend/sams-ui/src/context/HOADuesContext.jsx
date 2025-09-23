@@ -412,5 +412,9 @@ export function HOADuesProvider({ children }) {
 }
 
 export function useHOADues() {
-  return useContext(HOADuesContext);
+  const context = useContext(HOADuesContext);
+  if (!context) {
+    throw new Error('useHOADues must be used within a HOADuesProvider');
+  }
+  return context;
 }

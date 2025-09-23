@@ -20,12 +20,10 @@ In Claude Code, use these commands with the `/project:` prefix:
 ## Command Arguments
 Some commands accept arguments using `$ARGUMENTS`:
 - `newIA` - Optional task assignment text or path to a task file
+- `newMA` - Optional task assignment text or path to a task file
 
-## Quick Start Example
-
-### Manager Agent (Instance 1)
-
-### Implementation Agent (Instance 2)
+## Get current system time for session context
+  `date` - Use a bash command to get the current date and time 
 
 ## Best Practices
 

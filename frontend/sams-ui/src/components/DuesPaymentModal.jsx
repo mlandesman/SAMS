@@ -408,8 +408,13 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
 
   // Format unit option text like "PH4D (Landesman)"
   const formatUnitOption = (unit) => {
-    const lastName = getLastName(unit.owner);
-    return `${unit.id} (${lastName})`;
+    // Use same pattern as unitUtils - try owners array first, fall back to owner
+    const ownerName = (Array.isArray(unit.owners) && unit.owners.length > 0) 
+      ? unit.owners[0] 
+      : unit.owner || '';
+    const lastName = getLastName(ownerName);
+    const unitId = unit.unitId || unit.id;
+    return `${unitId} (${lastName})`;
   };
   
   if (!isOpen) return null;
@@ -434,11 +439,14 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                 className="unit-selector-dropdown"
               >
                 <option value="">-- Select a Unit --</option>
-                {sortedUnits.map(unit => (
-                  <option key={unit.id} value={unit.id}>
-                    {formatUnitOption(unit)}
-                  </option>
-                ))}
+                {sortedUnits.map(unit => {
+                  const unitId = unit.unitId || unit.id;
+                  return (
+                    <option key={unitId} value={unitId}>
+                      {formatUnitOption(unit)}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             

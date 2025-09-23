@@ -62,8 +62,9 @@ class WaterPaymentsService {
     console.log(`💧 Recording water payment: Unit ${unitId}, Amount $${amount}`);
     
     // STEP 1: Get current credit balance from HOA Dues module
-    const currentYear = new Date().getFullYear();
-    const creditResponse = await this._getCreditBalance(clientId, unitId, currentYear);
+    const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
+    const fiscalYear = getFiscalYear(new Date(), 7); // AVII uses July start
+    const creditResponse = await this._getCreditBalance(clientId, unitId, fiscalYear);
     const currentCreditBalance = creditResponse.creditBalance || 0;
     
     console.log(`💰 Current credit balance: $${currentCreditBalance}`);
@@ -721,9 +722,10 @@ class WaterPaymentsService {
       console.log(`📋 Found ${unpaidBills?.length || 0} unpaid bills`);
       
       // Also get current credit balance
-      const currentYear = new Date().getFullYear();
-      console.log(`💰 Getting credit balance for year ${currentYear}`);
-      const creditData = await this._getCreditBalance(clientId, unitId, currentYear);
+      const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
+      const fiscalYear = getFiscalYear(new Date(), 7); // AVII uses July start
+      console.log(`💰 Getting credit balance for year ${fiscalYear}`);
+      const creditData = await this._getCreditBalance(clientId, unitId, fiscalYear);
       console.log(`💰 Credit balance: $${creditData?.creditBalance || 0}`);
       
       const result = {

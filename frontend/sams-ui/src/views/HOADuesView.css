@@ -238,6 +238,29 @@
   background-color: #f5f5f5;
   border: 1px solid #ddd;
 }
+
+.credit-cell.editable {
+  position: relative;
+}
+
+.credit-cell.editable::after {
+  content: "✏️";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.credit-cell.editable:hover {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.credit-cell.editable:hover::after {
+  opacity: 1;
+}
 .payment-cell {
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s;

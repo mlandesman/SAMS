@@ -16,6 +16,7 @@ import versionRoutes from './routes/version.js'; // Import version routes
 import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
+import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // Load environment variables
 dotenv.config();
@@ -102,9 +103,9 @@ app.use('/admin', adminRoutes); // Admin functions under dedicated domain
 
 // Version routes now mounted under /system (see above)
 
-// HOA DUES DOMAIN (domain-specific)
+// HOA DUES DOMAIN (domain-specific with authentication)
 console.log('Mounting HOA dues domain routes');
-app.use('/hoadues', hoaDuesRoutes); // HOA dues under dedicated domain
+app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues under dedicated domain with auth
 
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {
