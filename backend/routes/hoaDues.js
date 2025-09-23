@@ -353,7 +353,7 @@ router.put('/:clientId/credit/:unitId/:year', async (req, res) => {
   try {
     // Access clientId from path parameters (domain-specific mounting)
     const { clientId, unitId, year } = req.params;
-    const { creditBalance } = req.body;
+    const { creditBalance, notes } = req.body;
     
     if (!clientId) {
       return res.status(400).json({ error: 'Missing clientId parameter' });
@@ -387,7 +387,8 @@ router.put('/:clientId/credit/:unitId/:year', async (req, res) => {
       clientId, 
       unitId, 
       parseInt(year), 
-      parseFloat(creditBalance)
+      parseFloat(creditBalance),
+      notes
     );
     
     res.json({ success: result });

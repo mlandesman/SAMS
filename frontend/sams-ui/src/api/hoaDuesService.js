@@ -124,9 +124,10 @@ export const recordDuesPayment = async (clientId, unitId, year, paymentData, dis
  * @param {string} unitId - The unit ID
  * @param {number} year - The year
  * @param {number} creditBalance - The new credit balance
+ * @param {string} notes - User notes explaining the change
  * @returns {Promise<object>} The result of the update
  */
-export const updateCreditBalance = async (clientId, unitId, year, creditBalance) => {
+export const updateCreditBalance = async (clientId, unitId, year, creditBalance, notes) => {
   try {
     // Use the same API base URL for consistency
     const API_BASE_URL = config.api.baseUrl;
@@ -156,7 +157,8 @@ export const updateCreditBalance = async (clientId, unitId, year, creditBalance)
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          creditBalance
+          creditBalance,
+          notes
         }),
       });
 

@@ -958,9 +958,10 @@ async function getAllDuesDataForYear(clientId, year) {
  * @param {string} unitId - ID of the unit
  * @param {number} year - Year for which to update credit balance
  * @param {number} newCreditBalance - New credit balance value
+ * @param {string} notes - User notes explaining the change
  * @returns {boolean} Success status
  */
-async function updateCreditBalance(clientId, unitId, year, newCreditBalance) {
+async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes) {
   try {
     // Get the database instance if not already initialized
     if (!dbInstance) {
@@ -998,7 +999,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance) {
       description: 'Manual credit balance update',
       balanceBefore: originalBalance,
       balanceAfter: newBalanceInCents,
-      notes: 'Updated via API'
+      notes: notes || 'Updated via API'
     };
     
     // Prepare the existing history array
@@ -1023,7 +1024,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance) {
       parentPath: `clients/${clientId}/units/${unitId}/dues`,
       docId: `${year}`,
       friendlyName: `Unit ${unitId} Credit Balance Update`,
-      notes: `Updated credit balance to ${newCreditBalance} for year ${year}`,
+      notes: notes || `Updated credit balance to ${newCreditBalance} for year ${year}`,
       metadata: {
         unitId,
         newCreditBalance,
