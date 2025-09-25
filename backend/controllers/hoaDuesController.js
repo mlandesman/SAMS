@@ -296,8 +296,6 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     // First, create a transaction record
     // Enhanced date handling with Mexico timezone utilities for proper timezone support
     console.log('Payment date received by backend:', paymentData.date, 'Type:', typeof paymentData.date);
-    // Import Mexico timezone utilities
-    const { getMexicoDate, getMexicoDateString } = await import('../utils/timezone.js');
     let paymentDate;
     let paymentTimestamp;
     
@@ -593,15 +591,16 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Add credit repair entry if negative balance was fixed
       if (paymentData.creditRepairAmount && paymentData.creditRepairAmount > 0) {
         console.log(`Credit repair amount: ${paymentData.creditRepairAmount}`);
+        const creditRepairAmountCents = dollarsToCents(paymentData.creditRepairAmount);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: convertToTimestamp(new Date()),
           transactionId: transactionId,
           type: 'credit_repair',
-          amount: paymentData.creditRepairAmount,
+          amount: creditRepairAmountCents,  // Store in centavos
           description: 'to fix negative balance',
-          balanceBefore: originalCreditBalance,
-          balanceAfter: originalCreditBalance + paymentData.creditRepairAmount,
+          balanceBefore: originalCreditBalance,  // Already in centavos
+          balanceAfter: originalCreditBalance + creditRepairAmountCents,  // Both in centavos
           notes: `${paymentData.method || 'Payment'} repair`
         });
       }
@@ -609,31 +608,34 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Add credit usage entry
       if (paymentData.creditUsed && paymentData.creditUsed > 0) {
         console.log(`Credit used in this payment: ${paymentData.creditUsed}`);
-        const balanceAfterUse = paymentData.newCreditBalance - (paymentData.creditBalanceAdded || 0);
+        const creditUsedCents = dollarsToCents(paymentData.creditUsed);
+        const balanceAfterUseCents = dollarsToCents(paymentData.newCreditBalance) - dollarsToCents(paymentData.creditBalanceAdded || 0);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: convertToTimestamp(new Date()),
           transactionId: transactionId,
           type: 'credit_used',
-          amount: paymentData.creditUsed,
+          amount: creditUsedCents,  // Store in centavos
           description: `from ${paymentData.method || 'Payment'}`,
-          balanceBefore: balanceAfterUse + paymentData.creditUsed,
-          balanceAfter: balanceAfterUse,
+          balanceBefore: balanceAfterUseCents + creditUsedCents,  // Both in centavos
+          balanceAfter: balanceAfterUseCents,  // In centavos
           notes: paymentData.notes || ''
         });
       }
       
       // Add credit addition entry
       if (paymentData.creditBalanceAdded && paymentData.creditBalanceAdded > 0) {
+        const creditAddedCents = dollarsToCents(paymentData.creditBalanceAdded);
+        const newCreditBalanceCents = dollarsToCents(paymentData.newCreditBalance);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: convertToTimestamp(new Date()),
           transactionId: transactionId,
           type: 'credit_added',
-          amount: paymentData.creditBalanceAdded,
+          amount: creditAddedCents,  // Store in centavos
           description: 'from Overpayment',
-          balanceBefore: paymentData.newCreditBalance - paymentData.creditBalanceAdded,
-          balanceAfter: paymentData.newCreditBalance,
+          balanceBefore: newCreditBalanceCents - creditAddedCents,  // Both in centavos
+          balanceAfter: newCreditBalanceCents,  // In centavos
           notes: paymentData.notes || ''
         });
       }
@@ -641,7 +643,8 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     } else if (paymentData.creditBalanceAdded) {
       // Fallback to old logic for backward compatibility
       console.log(`Adding to credit balance (legacy): ${paymentData.creditBalanceAdded}`);
-      duesData.creditBalance = (duesData.creditBalance || 0) + paymentData.creditBalanceAdded;
+      const creditAddedCents = dollarsToCents(paymentData.creditBalanceAdded);
+      duesData.creditBalance = (duesData.creditBalance || 0) + creditAddedCents;
       
       // Add entry for legacy credit addition
       duesData.creditBalanceHistory.push({
@@ -649,10 +652,10 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         timestamp: new Date().toISOString(),
         transactionId: transactionId,
         type: 'credit_added',
-        amount: paymentData.creditBalanceAdded,
+        amount: creditAddedCents,  // Store in centavos
         description: 'from Legacy payment',
-        balanceBefore: duesData.creditBalance - paymentData.creditBalanceAdded,
-        balanceAfter: duesData.creditBalance,
+        balanceBefore: duesData.creditBalance - creditAddedCents,  // Both in centavos
+        balanceAfter: duesData.creditBalance,  // In centavos
         notes: 'Legacy compatibility'
       });
     }
@@ -910,11 +913,20 @@ async function getUnitDuesData(clientId, unitId, year) {
           date: formatDateField(payment.date),
           transactionId: payment.reference || null  // Map reference to transactionId for frontend display
         })),
-        creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => ({
-          ...entry,
-          timestamp: formatDateField(entry.timestamp),
-          amount: typeof entry.amount === 'number' ? entry.amount : 0
-        })) : [],
+        creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => {
+          const dateStr = formatDateField(entry.timestamp);
+          return {
+            ...entry,
+            timestamp: {
+              display: dateStr,
+              displayFull: dateStr,
+              raw: entry.timestamp
+            },
+            amount: typeof entry.amount === 'number' ? centsToDollars(entry.amount) : 0,  // Convert from centavos to dollars
+            balanceBefore: typeof entry.balanceBefore === 'number' ? centsToDollars(entry.balanceBefore) : 0,
+            balanceAfter: typeof entry.balanceAfter === 'number' ? centsToDollars(entry.balanceAfter) : 0
+          };
+        }) : [],
         created: formatDateField(data.created),
         updated: data.updated ? convertFromTimestamp(data.updated) : null
       };
@@ -978,11 +990,20 @@ async function getAllDuesDataForYear(clientId, year) {
               amount: payment.amount ? centsToDollars(payment.amount) : 0,
               date: formatDateField(payment.date)
             })),
-            creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => ({
-              ...entry,
-              timestamp: formatDateField(entry.timestamp),
-              amount: typeof entry.amount === 'number' ? entry.amount : 0
-            })) : [],
+            creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => {
+              const dateStr = formatDateField(entry.timestamp);
+              return {
+                ...entry,
+                timestamp: {
+                  display: dateStr,
+                  displayFull: dateStr,
+                  raw: entry.timestamp
+                },
+                amount: typeof entry.amount === 'number' ? centsToDollars(entry.amount) : 0,  // Convert from centavos to dollars
+                balanceBefore: typeof entry.balanceBefore === 'number' ? centsToDollars(entry.balanceBefore) : 0,
+                balanceAfter: typeof entry.balanceAfter === 'number' ? centsToDollars(entry.balanceAfter) : 0
+              };
+            }) : [],
             created: formatDateField(data.created),
             updated: formatDateField(data.updated)
           };
@@ -1213,11 +1234,12 @@ async function updateCreditBalanceFromModule(req, res) {
     
     // Create history entry with module tracking
     const historyEntry = {
+      id: randomUUID(),
       timestamp: convertToTimestamp(new Date()),
       type: changeType, // 'water_payment_applied', 'water_overpayment', etc.
-      amount: changeAmount,
-      balanceBefore: centsToDollars(originalBalance),
-      balanceAfter: newBalance,
+      amount: dollarsToCents(changeAmount),  // Store in centavos
+      balanceBefore: originalBalance,  // Already in centavos
+      balanceAfter: newBalanceInCents,  // Already in centavos
       description: description,
       module: module, // Track which module made the change
       transactionId: transactionId || null
