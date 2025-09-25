@@ -25,18 +25,41 @@ import { updateAccountBalance, rebuildBalances } from './accountsController.js';
 import { applyAccountMapping, validateAccountFields } from '../utils/accountMapping.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { validateDocument } from '../utils/validateDocument.js';
-import { DateService } from '../services/DateService.js';
+import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
 
-// Create date service for formatting API responses
-const dateService = new DateService({ timezone: 'America/Cancun' });
-
-// Helper to format date fields consistently for API responses
+// Helper to format date fields consistently for API responses using Mexico timezone
 function formatDateField(dateValue) {
   if (!dateValue) return null;
-  return dateService.formatForFrontend(dateValue);
+  
+  try {
+    // Handle Firestore timestamp
+    if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+      return getMexicoDateString(dateValue.toDate());
+    }
+    
+    // Handle Date object
+    if (dateValue instanceof Date) {
+      return getMexicoDateString(dateValue);
+    }
+    
+    // Handle string dates
+    if (typeof dateValue === 'string') {
+      const dateObj = new Date(dateValue);
+      if (!isNaN(dateObj.getTime())) {
+        return getMexicoDateString(dateObj);
+      }
+    }
+    
+    // Fallback
+    console.warn('Could not format date field:', dateValue);
+    return null;
+  } catch (error) {
+    console.error('Error formatting date field:', error);
+    return null;
+  }
 }
 
 // Helper function to resolve vendor name to ID
@@ -248,11 +271,10 @@ async function createTransaction(clientId, data) {
     const db = await getDb();
     
     // Step 1: Convert date to timestamp and amount to cents (using validated data)
-    // Use Luxon DateService for proper timezone handling
-    const dateService = new DateService({ timezone: 'America/Cancun' });
+    // Use Mexico timezone utilities for proper timezone handling
     const normalizedData = {
       ...validation.data, // Start with validated data
-      date: dateService.parseFromFrontend(validation.data.date || new Date().toISOString().split('T')[0]),
+      date: admin.firestore.Timestamp.fromDate(new Date(validation.data.date || getMexicoDateString())),
       amount: dollarsToCents(validation.data.amount), // Convert to cents for storage
       // Only add updated timestamp - created should be handled by audit log
       updated: admin.firestore.Timestamp.now(),
@@ -331,7 +353,7 @@ async function createTransaction(clientId, data) {
     normalizedData.categoryName = finalCategoryName || '';
     normalizedData.accountId = finalAccountId;
     normalizedData.accountName = finalAccountName || '';
-    normalizedData.paymentMethodId = finalPaymentMethodId;
+    normalizedData.paymentMethodId = finalPaymentMethodId || null;
     normalizedData.paymentMethod = finalPaymentMethodName || '';
     
     console.log('✅ Field resolution complete:', {
@@ -720,6 +742,19 @@ async function deleteTransaction(clientId, txnId) {
     // Check if this is an HOA Dues transaction requiring special cleanup
     const isHOATransaction = originalData.category === 'HOA Dues' || 
                             originalData.metadata?.type === 'hoa_dues';
+    
+    // 🔍 CREDIT BALANCE DEBUG: Add detailed transaction analysis logging
+    console.log('🔍 DELETE: Analyzing transaction for HOA cleanup:', {
+        transactionId: txnId,
+        category: originalData.category,
+        metadataType: originalData.metadata?.type,
+        isHOATransaction: isHOATransaction,
+        hasAllocations: !!originalData.allocations,
+        hasDuesDistribution: !!originalData.duesDistribution,
+        unitId: originalData.metadata?.unitId || originalData.metadata?.id,
+        year: originalData.metadata?.year,
+        amount: originalData.amount
+    });
                             
     // Check if this is a Water Bills transaction requiring special cleanup
     const isWaterTransaction = originalData.categoryId === 'water_payments' || 
@@ -976,6 +1011,22 @@ function getHOAMonthsFromTransaction(transactionData) {
 
 // HOA Dues cleanup logic for transaction deletion (write-only operations)
 function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId) {
+  // 🧹 CREDIT BALANCE DEBUG: Add entry point logging
+  console.log('🧹 CLEANUP: Starting HOA dues cleanup write:', {
+    transactionId: txnId,
+    transactionData: {
+      category: originalData.category,
+      amount: originalData.amount,
+      metadata: originalData.metadata,
+      allocations: originalData.allocations,
+      duesDistribution: originalData.duesDistribution
+    },
+    duesData: {
+      creditBalance: duesData.creditBalance,
+      creditHistoryLength: duesData.creditBalanceHistory?.length || 0,
+      paymentsType: Array.isArray(duesData.payments) ? 'array' : typeof duesData.payments
+    }
+  });
   const currentCreditBalance = duesData.creditBalance || 0;
   // Handle payments as either array or object with numeric keys
   let currentPayments = duesData.payments || [];
@@ -1001,6 +1052,21 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   // Find credit history entries for this transaction
   const creditHistory = duesData.creditBalanceHistory || [];
   const transactionEntries = creditHistory.filter(entry => entry.transactionId === txnId);
+  
+  // 💰 CREDIT BALANCE DEBUG: Add detailed credit processing logging
+  console.log('💰 CREDIT: Processing credit balance reversal:', {
+    unitId: originalData.metadata?.unitId || originalData.metadata?.id,
+    currentCreditBalance: duesData.creditBalance,
+    creditHistoryEntries: creditHistory.length,
+    entriesToReverse: transactionEntries.map(e => ({
+      id: e.id,
+      type: e.type,
+      amount: e.amount,
+      transactionId: e.transactionId,
+      description: e.description,
+      timestamp: e.timestamp
+    }))
+  });
   
   console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
   
@@ -1075,6 +1141,22 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     });
   }
   
+  // 📝 CREDIT BALANCE DEBUG: Add detailed update operations logging
+  console.log('📝 UPDATE: Applying credit balance changes:', {
+    unitId: originalData.metadata?.unitId || originalData.metadata?.id,
+    balanceBefore: currentCreditBalance,
+    balanceAfter: newCreditBalance,
+    creditBalanceReversal: creditBalanceReversal,
+    historyEntriesRemoved: transactionEntries.length,
+    newHistoryEntry: creditBalanceReversal !== 0 ? {
+      type: creditBalanceReversal > 0 ? 'credit_restored' : 'credit_removed',
+      amount: Math.abs(creditBalanceReversal),
+      transactionId: txnId + '_reversal'
+    } : null,
+    monthsCleared: monthsCleared,
+    finalHistoryLength: creditBalanceHistory.length
+  });
+
   // 4. Update dues document with cleaned data and history
   const updateData = {
     creditBalance: newCreditBalance,

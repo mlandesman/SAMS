@@ -538,17 +538,37 @@
 - **Solution:** Production nightly function push data to Dev Firebase
 - **Effort:** 1-2 sessions
 
+#### TD-005: HOA Dues Credit Balance Cascading Delete Fix
+- **Priority:** HIGH - Data integrity issue identified September 24, 2025
+- **Impact:** Deleting HOA payments doesn't reverse credit balance, causing corruption
+- **Root Cause:** Credit balance history array not properly updated during payment deletion
+- **Previously Working:** This was functional before recent system changes
+- **Effort:** 2-3 sessions
+
+#### TD-006: HOA Dues Transaction Date Timezone Fix  
+- **Priority:** HIGH - Date accuracy issue identified September 24, 2025
+- **Impact:** Daytime payments recorded with previous date due to UTC conversion
+- **Root Cause:** System dates in UTC with midnight getting converted to America/Cancun (UTC-5)
+- **Solution:** Must use existing SAMS getMexicoDate() utilities, not create new date tools
+- **Effort:** 1-2 sessions
+
+#### TD-007: HOA Dues Unnecessary Split Allocations
+- **Priority:** MEDIUM - System efficiency issue identified September 24, 2025
+- **Impact:** All HOA payments routed through splits system even for simple exact payments
+- **Optimization:** Only use splits for multi-period payments or credit balance scenarios
+- **Performance:** Reduce overhead for majority of simple payment cases
+- **Effort:** 1-2 sessions
 
 ### Moderate Technical Debt
 
-#### TD-006: Year-End Processing System
+#### TD-008: Year-End Processing System
 - **Priority:** LOW - Not needed until December 2025
 - **Scope:** Build new fiscal year files, year-end reports, balance carryover
 - **Requirements:** Year-end balance report, owner/accountant reports
 - **Impact:** Manual year-end processing currently acceptable
 - **Effort:** 5-6 sessions
 
-#### TD-007: Special Projects Activity Cleanup
+#### TD-009: Special Projects Activity Cleanup
 - **Scope:** Remove unused "Extra Activity" option
 - **Reason:** Each project gets dedicated Activity (Water Bills, Propane, etc.)
 - **Effort:** 1 session

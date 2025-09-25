@@ -12,6 +12,7 @@ import {
 import './DuesPaymentModal.css';
 
 function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
+  console.log('🔴 BASIC MODAL FROM /components/_archive/DuesPaymentModal-basic.jsx IS LOADING');
   const { 
     units, 
     duesData, 
@@ -43,7 +44,8 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   // Update unit when selectedUnitId changes
   useEffect(() => {
     if (units && selectedUnitId) {
-      const foundUnit = units.find(u => u.id === selectedUnitId);
+      const foundUnit = units.find(u => (u.unitId || u.id) === selectedUnitId);
+      console.log('🔍 DuesPaymentModal - Found unit for', selectedUnitId, ':', foundUnit);
       setUnit(foundUnit);
     } else {
       setUnit(null);
@@ -454,7 +456,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
               <>
                 <div className="form-group">
                   <label>Monthly Dues:</label>
-                  <div className="form-value">{formatAsMXN(unit.duesAmount)}</div>
+                  <div className="form-value">{formatAsMXN(duesData[selectedUnitId]?.scheduledAmount || 0)}</div>
                 </div>
                 
                 {duesData[selectedUnitId]?.creditBalance > 0 && (

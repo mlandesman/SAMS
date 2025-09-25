@@ -28,6 +28,10 @@ const DigitalReceipt = ({
   onEmailSuccess = null,
   onEmailError = null
 }) => {
+  console.log('🧾 [DIGITAL RECEIPT] Component instantiated with props:', {
+    hasTransactionData: !!transactionData,
+    transactionDataKeys: transactionData ? Object.keys(transactionData) : null
+  });
   const receiptRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -49,6 +53,7 @@ const DigitalReceipt = ({
 
   // Validate that we have required transaction data
   if (!transactionData) {
+    console.error('🧾 [DIGITAL RECEIPT] No transaction data provided');
     return (
       <div className="digital-receipt-error">
         <h3>Error: No Transaction Data</h3>
@@ -57,11 +62,20 @@ const DigitalReceipt = ({
     );
   }
 
+  console.log('🧾 [DIGITAL RECEIPT] Transaction data received:', transactionData);
+
   // Validate required fields
   const requiredFields = ['date', 'receiptNumber', 'receivedFrom', 'amount'];
   const missingFields = requiredFields.filter(field => !transactionData[field]);
   
+  console.log('🧾 [DIGITAL RECEIPT] Required fields validation:', {
+    requiredFields,
+    providedFields: Object.keys(transactionData),
+    missingFields
+  });
+  
   if (missingFields.length > 0) {
+    console.error('🧾 [DIGITAL RECEIPT] Missing required fields:', missingFields);
     return (
       <div className="digital-receipt-error">
         <h3>Error: Missing Required Data</h3>
@@ -82,7 +96,7 @@ const DigitalReceipt = ({
   });
 
   const defaultClient = {
-    name: 'Marina Turquesa Condominiums',
+    name: clientData?.basicInfo?.displayName || 'No Client Name Specified',
     logoUrl: '/sandyland-logo.png'  // Use local logo from public folder
   };
 
@@ -283,6 +297,8 @@ const DigitalReceipt = ({
     }
   };
 
+  console.log('🧾 [DIGITAL RECEIPT] Rendering receipt component...');
+
   return (
     <div className="digital-receipt-container">
       {showPreview && (
@@ -378,7 +394,7 @@ const DigitalReceipt = ({
               />
               <h1 className="company-name">{client.name}</h1>
             </div>
-            <h2 className="receipt-title">Payment Receipt / Recibo de Pago</h2>
+            <h2 className="receipt-title">Recibo de Pago / Payment Receipt</h2>
           </div>
 
           {/* Professional Table-Based Receipt Content - Email Compatible */}
@@ -403,7 +419,7 @@ const DigitalReceipt = ({
                 </tr>
                 <tr className="amount-row">
                   <td className="label">Cantidad / Amount:</td>
-                  <td className="value amount">{formatCurrency(receipt.amount)}</td>
+                  <td className="value amount" style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '2em' }}>{formatCurrency(receipt.amount)}</td>
                 </tr>
                 <tr>
                   <td className="label">Por concepto de / For:</td>
@@ -432,7 +448,7 @@ const DigitalReceipt = ({
           {/* Professional Footer with Portal Integration */}
           <div className="receipt-footer">
             <div className="receipt-footer-text">
-              Thank you for your prompt payment. / Gracias por su pago puntual.
+              Gracias por su pago puntual. / Thank you for your prompt payment.
             </div>
             {/* Future portal link integration */}
             <div style={{ margin: '16px 0', fontSize: '12px', color: '#666' }}>

@@ -24,6 +24,8 @@ import { numberToSpanishWords } from './numberToWords';
  * @returns {Promise<boolean>} - Success status
  */
 export const generateReceipt = async (transactionId, options) => {
+  console.log('🧾 [RECEIPT UTILS] generateReceipt called with:', { transactionId, optionsKeys: Object.keys(options || {}) });
+  
   const {
     setReceiptTransactionData,
     setShowDigitalReceipt,
@@ -33,20 +35,49 @@ export const generateReceipt = async (transactionId, options) => {
   } = options;
 
   try {
+    console.log('🧾 [RECEIPT UTILS] Starting receipt generation validation...');
+    
     // Validate required options
     if (!setReceiptTransactionData || !setShowDigitalReceipt) {
+      console.error('🧾 [RECEIPT UTILS] Missing required modal state setters');
       throw new Error('Missing required modal state setters');
     }
 
     if (!selectedClient?.id) {
+      console.error('🧾 [RECEIPT UTILS] No client selected');
       throw new Error('No client selected');
     }
+    
+    console.log('🧾 [RECEIPT UTILS] Validation passed, fetching transaction...');
 
-    // 1. Fetch the transaction data
-    const transaction = await getTransactionById(selectedClient.id, transactionId);
+    // 1. Fetch the transaction data with retry logic for database consistency
+    let transaction = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (!transaction && retryCount < maxRetries) {
+      try {
+        console.log(`🧾 [RECEIPT UTILS] Fetch attempt ${retryCount + 1}/${maxRetries} for transaction ${transactionId}`);
+        transaction = await getTransactionById(selectedClient.id, transactionId);
+        if (transaction) {
+          console.log('🧾 [RECEIPT UTILS] Transaction fetched successfully:', { id: transaction.id, amount: transaction.amount });
+          break;
+        } else {
+          console.log('🧾 [RECEIPT UTILS] Transaction returned null/undefined');
+        }
+      } catch (error) {
+        console.warn(`🧾 [RECEIPT UTILS] Transaction fetch attempt ${retryCount + 1} failed:`, error);
+      }
+      
+      retryCount++;
+      if (retryCount < maxRetries) {
+        console.log(`🧾 [RECEIPT UTILS] Transaction not found, retrying in ${retryCount * 500}ms... (attempt ${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryCount * 500)); // Progressive delay
+      }
+    }
     
     if (!transaction) {
-      throw new Error('Transaction not found');
+      throw new Error(`Transaction ${transactionId} not found after ${maxRetries} attempts`);
     }
 
     // 2. Validate that transaction has a unit ID (required for receipts)
@@ -155,8 +186,8 @@ export const generateReceipt = async (transactionId, options) => {
       receiptNumber: `${selectedClient.id}-${transaction.id}`,
       receivedFrom: ownerInfo.name,
       
-      // Amount in words (Spanish)
-      amountInWords: numberToSpanishWords(Math.abs(transaction.amount)),
+      // Amount in words (Spanish) - Convert centavos to pesos first
+      amountInWords: numberToSpanishWords(Math.abs(transaction.amount) / 100),
       
       // Owner information
       ownerName: ownerInfo.name,
@@ -178,16 +209,31 @@ export const generateReceipt = async (transactionId, options) => {
     }
 
     // 6. Set the receipt data and show the modal
+    console.log('🧾 [RECEIPT UTILS] Setting receipt data and showing modal...');
+    console.log('🧾 [RECEIPT UTILS] Receipt data:', { 
+      id: receiptData.id, 
+      unitId: receiptData.unitId, 
+      amount: receiptData.amount,
+      receiptNumber: receiptData.receiptNumber 
+    });
+    
+    console.log('🧾 [RECEIPT UTILS] Calling setReceiptTransactionData...');
     setReceiptTransactionData(receiptData);
+    
+    console.log('🧾 [RECEIPT UTILS] Calling setShowDigitalReceipt(true)...');
     setShowDigitalReceipt(true);
-
+    
+    console.log('🧾 [RECEIPT UTILS] Receipt generation completed successfully');
     return true;
 
   } catch (error) {
-    console.error('Error generating receipt:', error);
+    console.error('🧾 [RECEIPT UTILS] Error generating receipt:', error);
+    console.error('🧾 [RECEIPT UTILS] Error stack:', error.stack);
     
     // Show user-friendly error message
     const errorMessage = error.message || 'Failed to generate receipt';
+    
+    console.log('🧾 [RECEIPT UTILS] Showing error to user:', errorMessage);
     
     if (showError) {
       showError(errorMessage);
@@ -196,6 +242,7 @@ export const generateReceipt = async (transactionId, options) => {
       alert(`Error: ${errorMessage}`);
     }
     
+    console.log('🧾 [RECEIPT UTILS] Returning false from generateReceipt');
     return false;
   }
 };

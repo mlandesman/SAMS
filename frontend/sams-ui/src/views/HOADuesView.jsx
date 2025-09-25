@@ -3,7 +3,7 @@ import { useHOADues } from '../context/HOADuesContext';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import DuesPaymentModal from '../components/DuesPaymentModal';
+import DuesPaymentModal from '../layout/DuesPaymentModal';
 import CreditBalanceEditModal from '../components/CreditBalanceEditModal';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import { LoadingSpinner } from '../components/common';

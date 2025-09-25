@@ -10,18 +10,41 @@ import {
   validatePayment,
   getYearSummary 
 } from '../utils/hoaCalculations.js';
-import { DateService } from '../services/DateService.js';
+// DateService removed - using Mexico timezone utilities instead
+import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import admin from 'firebase-admin';
 
 const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
 
-// Create date service for formatting API responses
-const dateService = new DateService({ timezone: 'America/Cancun' });
-
 // Helper to format date fields consistently for API responses
 function formatDateField(dateValue) {
   if (!dateValue) return null;
-  return dateService.formatForFrontend(dateValue);
+  
+  try {
+    // Handle Firestore timestamp
+    if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate().toISOString().split('T')[0];
+    }
+    
+    // Handle Date object - extract YYYY-MM-DD part and create date at noon Mexico time
+    if (dateValue instanceof Date) {
+      return dateValue.toISOString().split('T')[0];
+    }
+    
+    // Handle string dates
+    if (typeof dateValue === 'string') {
+      // Extract YYYY-MM-DD part if it's an ISO string
+      if (dateValue.includes('T')) {
+        return dateValue.split('T')[0];
+      }
+      return dateValue;
+    }
+    
+    return dateValue;
+  } catch (error) {
+    console.error('Error formatting date field:', error);
+    return null;
+  }
 }
 
 // Initialize db as a properly awaited promise
@@ -45,32 +68,89 @@ function getMonthName(month) {
  * @param {Array} distribution - Payment distribution array
  * @param {string} unitId - Unit identifier
  * @param {number} year - Payment year
+ * @param {object} paymentData - Payment data containing credit info
  * @returns {Array} Array of allocation objects
  */
-function createHOAAllocations(distribution, unitId, year) {
-  if (!distribution || distribution.length === 0) {
-    return [];
+function createHOAAllocations(distribution, unitId, year, paymentData) {
+  const allocations = [];
+  
+  // Add HOA Dues allocations for each month
+  if (distribution && distribution.length > 0) {
+    distribution.forEach((item, index) => {
+      allocations.push({
+        id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
+        type: "hoa_month",
+        targetId: `month_${item.month}_${year}`,
+        targetName: `${getMonthName(item.month)} ${year}`,
+        amount: item.amountToAdd,
+        percentage: null, // Will be calculated in allocationSummary if needed
+        categoryName: "HOA Dues", // Required for split transaction validation
+        categoryId: "hoa_dues", // Optional but recommended for consistency
+        data: {
+          unitId: unitId,
+          month: item.month,
+          year: year
+        },
+        metadata: {
+          processingStrategy: "hoa_dues",
+          cleanupRequired: true,
+          auditRequired: true,
+          createdAt: new Date().toISOString()
+        }
+      });
+    });
   }
   
-  return distribution.map((item, index) => ({
-    id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
-    type: "hoa_month",
-    targetId: `month_${item.month}_${year}`,
-    targetName: `${getMonthName(item.month)} ${year}`,
-    amount: item.amountToAdd,
-    percentage: null, // Will be calculated in allocationSummary if needed
-    data: {
-      unitId: unitId,
-      month: item.month,
-      year: year
-    },
-    metadata: {
-      processingStrategy: "hoa_dues",
-      cleanupRequired: true,
-      auditRequired: true,
-      createdAt: new Date().toISOString()
-    }
-  }));
+  // Add Credit Balance allocation for overpayments (positive) or usage (negative)
+  if (paymentData && paymentData.creditBalanceAdded && paymentData.creditBalanceAdded > 0) {
+    // Overpayment: Credit balance is ADDED (positive allocation)
+    allocations.push({
+      id: `alloc_${String(allocations.length + 1).padStart(3, '0')}`,
+      type: "account_credit",
+      targetId: `credit_${unitId}_${year}`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: paymentData.creditBalanceAdded,
+      percentage: null,
+      categoryName: "Account Credit", // Required for split transaction validation
+      categoryId: "account-credit", // As specified by user
+      data: {
+        unitId: unitId,
+        year: year,
+        creditType: "overpayment"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: new Date().toISOString()
+      }
+    });
+  } else if (paymentData && paymentData.creditUsed && paymentData.creditUsed > 0) {
+    // Underpayment: Credit balance is USED (negative allocation)
+    allocations.push({
+      id: `alloc_${String(allocations.length + 1).padStart(3, '0')}`,
+      type: "account_credit",
+      targetId: `credit_${unitId}_${year}`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: -paymentData.creditUsed, // Negative amount for credit usage
+      percentage: null,
+      categoryName: "Account Credit", // Required for split transaction validation
+      categoryId: "account-credit", // As specified by user
+      data: {
+        unitId: unitId,
+        year: year,
+        creditType: "usage"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: new Date().toISOString()
+      }
+    });
+  }
+  
+  return allocations;
 }
 
 /**
@@ -214,32 +294,33 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     const description = paymentData.description || `HOA Dues payment for Unit ${unitId}`;
     
     // First, create a transaction record
-    // Enhanced date handling with Luxon DateService for proper timezone support
+    // Enhanced date handling with Mexico timezone utilities for proper timezone support
     console.log('Payment date received by backend:', paymentData.date, 'Type:', typeof paymentData.date);
-    const dateService = new DateService({ timezone: 'America/Cancun' });
+    // Import Mexico timezone utilities
+    const { getMexicoDate, getMexicoDateString } = await import('../utils/timezone.js');
     let paymentDate;
     let paymentTimestamp;
     
     try {
-      // Determine type and convert appropriately using Luxon
+      // Determine type and convert appropriately using Mexico timezone utilities
       if (!paymentData.date) {
-        console.log('No date provided, using current date');
-        paymentTimestamp = admin.firestore.Timestamp.now();
-        paymentDate = paymentTimestamp.toDate();
+        console.log('No date provided, using current Mexico date');
+        paymentDate = getMexicoDate();
+        paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       } else if (paymentData.date instanceof Date) {
         console.log('Date is already a Date object');
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentData.date);
         paymentDate = paymentData.date;
       } else if (typeof paymentData.date === 'string') {
-        console.log('Date is a string, parsing with Luxon in Mexico timezone');
-        try {
-          paymentTimestamp = dateService.parseFromFrontend(paymentData.date);
-          paymentDate = paymentTimestamp.toDate();
-        } catch (parseError) {
-          console.error('Invalid date string format, using current date:', parseError);
-          paymentTimestamp = admin.firestore.Timestamp.now();
-          paymentDate = paymentTimestamp.toDate();
-        }
+        console.log('Date is a string, parsing with Mexico timezone handling');
+        // Extract date part from ISO string if present (YYYY-MM-DD)
+        const dateOnly = paymentData.date.split('T')[0];
+        console.log('Extracted date part:', dateOnly);
+        
+        // Create date at noon Mexico time to avoid timezone boundary issues
+        // This matches the frontend getMexicoDateTime function approach
+        paymentDate = new Date(dateOnly + 'T12:00:00');
+        paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       } else if (paymentData.date && typeof paymentData.date.toDate === 'function') {
         console.log('Date is a Firestore Timestamp');
         paymentTimestamp = paymentData.date;
@@ -251,30 +332,30 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           paymentTimestamp = new admin.firestore.Timestamp(paymentData.date.seconds, paymentData.date.nanoseconds || 0);
           paymentDate = paymentTimestamp.toDate();
         } else {
-          // Final fallback - use current date
-          console.error('Could not parse date object, using current date');
-          paymentTimestamp = admin.firestore.Timestamp.now();
-          paymentDate = paymentTimestamp.toDate();
+          // Final fallback - use current Mexico date
+          console.error('Could not parse date object, using current Mexico date');
+          paymentDate = getMexicoDate();
+          paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
         }
       } else {
         // Final fallback
-        console.error('Unrecognized date format, using current date');
-        paymentTimestamp = admin.firestore.Timestamp.now();
-        paymentDate = paymentTimestamp.toDate();
+        console.error('Unrecognized date format, using current Mexico date');
+        paymentDate = getMexicoDate();
+        paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
       
       console.log('Payment date after conversion:', paymentDate, 'Valid:', !isNaN(paymentDate.getTime()));
       
-      // Final validation - if date is still invalid, use current date
+      // Final validation - if date is still invalid, use current Mexico date
       if (isNaN(paymentDate.getTime())) {
-        console.error('Date is invalid after conversion, using current date');
-        paymentTimestamp = admin.firestore.Timestamp.now();
-        paymentDate = paymentTimestamp.toDate();
+        console.error('Date is invalid after conversion, using current Mexico date');
+        paymentDate = getMexicoDate();
+        paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
     } catch (dateError) {
       console.error('Error converting date:', dateError);
-      paymentTimestamp = admin.firestore.Timestamp.now();
-      paymentDate = paymentTimestamp.toDate();
+      paymentDate = getMexicoDate();
+      paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
     }
     
     // Format notes to match the existing schema format
@@ -325,7 +406,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // For now, use a simple mapping based on common patterns
       accountType: paymentData.accountType || 'bank', // Default to bank, frontend should pass this
       accountId: paymentData.accountId || paymentData.accountToCredit || 'bank-001', // Use standard account IDs
-      paymentMethod: paymentData.method,  // This is the payment method document ID
+      paymentMethodId: paymentData.method || null,  // This is the payment method document ID
       notes: formattedNotes, // Consolidated notes field with all information
       unitId: unitId, // Use the new field name
       vendorId: 'deposit',
@@ -333,7 +414,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       reference: `DUES-${unitId}-${year}`,
       
       // Enhanced allocation pattern - generalized for future split transactions
-      allocations: createHOAAllocations(distribution, unitId, year),
+      allocations: createHOAAllocations(distribution, unitId, year, paymentData),
       allocationSummary: createAllocationSummary(distribution, dollarsToCents(paymentData.amount)),
       
       // Maintain backward compatibility - preserve original duesDistribution

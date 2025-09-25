@@ -283,20 +283,48 @@ export const TransactionsProvider = ({ children }) => {
         transactionToDelete.metadata?.type === 'hoa_dues'
       );
       
+      // 🗑️ CREDIT BALANCE DEBUG: Add detailed frontend transaction removal logging
+      console.log('🗑️ DELETE: Frontend transaction removal:', {
+        transactionId,
+        clientId,
+        isHOATransaction,
+        transactionData: transactionToDelete ? {
+          category: transactionToDelete.category,
+          amount: transactionToDelete.amount,
+          metadata: transactionToDelete.metadata,
+          unitId: transactionToDelete.metadata?.unitId || transactionToDelete.metadata?.id,
+          year: transactionToDelete.metadata?.year
+        } : null,
+        willClearHOACache: isHOATransaction
+      });
+      
       // Use the local clientId variable we defined earlier
       await deleteTransaction(clientId, transactionId);
       
       // If it was an HOA transaction, clear the HOA cache
       if (isHOATransaction) {
-        console.log('🧹 Clearing HOA cache after deleting HOA transaction');
-        // Clear HOA-specific cache entries
+        console.log('🧹 CLEARING: HOA cache after deleting HOA transaction');
+        
+        // Get all cache keys before clearing
+        const allCacheKeys = Object.keys(sessionStorage);
         const hoaPattern = `hoa_`;
-        Object.keys(sessionStorage)
-          .filter(key => key.includes(hoaPattern))
-          .forEach(key => {
-            sessionStorage.removeItem(key);
-            console.log(`✅ Cleared HOA cache: ${key}`);
-          });
+        const hoaCacheKeys = allCacheKeys.filter(key => key.includes(hoaPattern));
+        
+        console.log('🧹 CACHE: HOA cache analysis:', {
+          totalCacheKeys: allCacheKeys.length,
+          hoaCacheKeysFound: hoaCacheKeys.length,
+          hoaCacheKeys: hoaCacheKeys,
+          unitId: transactionToDelete.metadata?.unitId || transactionToDelete.metadata?.id,
+          year: transactionToDelete.metadata?.year
+        });
+        
+        // Clear HOA-specific cache entries
+        hoaCacheKeys.forEach(key => {
+          sessionStorage.removeItem(key);
+          console.log(`✅ Cleared HOA cache: ${key}`);
+        });
+        
+        console.log('🧹 CACHE: HOA cache clearing completed');
       }
       
       // Remove the transaction from the list
