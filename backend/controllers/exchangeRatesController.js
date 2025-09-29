@@ -1,5 +1,6 @@
 import { getDb } from '../firebase.js';
 import { getMexicoDateString, getMexicoDate, logMexicoTime } from '../utils/timezone.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Get all exchange rate records (for List Management display)
@@ -216,7 +217,7 @@ export const fetchExchangeRates = async (req, res) => {
     // Use Mexico timezone for consistent date calculations
     logMexicoTime();
     const dateStr = getMexicoDateString();
-    const today = getMexicoDate();
+    const today = getNow();
     
     // Check if it's a weekday (Monday = 1, Friday = 5)
     const dayOfWeek = today.getDay();
@@ -245,7 +246,7 @@ export const fetchExchangeRates = async (req, res) => {
     // Prepare exchange rates document
     const exchangeRates = {
       date: dateStr,
-      lastUpdated: new Date(),
+      lastUpdated: getNow(),
       rates: {
         MXN_USD: {
           rate: mxnToUsd,
@@ -377,7 +378,7 @@ export const fillMissingRates = async (req, res) => {
   try {
     console.log('🔍 Checking for missing exchange rate gaps...');
     
-    const today = new Date();
+    const today = getNow();
     const db = await getDb();
     
     // Find the most recent exchange rate document
@@ -387,7 +388,7 @@ export const fillMissingRates = async (req, res) => {
     let startDate;
     if (recentSnapshot.empty) {
       // No data exists, start from 30 days ago
-      startDate = new Date();
+      startDate = getNow();
       startDate.setDate(startDate.getDate() - 30);
       console.log('📊 No existing data found, starting from 30 days ago');
     } else {
@@ -495,7 +496,7 @@ async function fetchRatesForDate(date, db) {
     // Prepare exchange rates document
     const exchangeRates = {
       date: dateStr,
-      lastUpdated: new Date(),
+      lastUpdated: getNow(),
       source: 'Gap Fill',
       rates: {
         MXN_USD: {
@@ -616,7 +617,7 @@ export const dailyExchangeRatesUpdate = async (req, res) => {
     res.json({ 
       success: true,
       message: 'Daily exchange rates update completed',
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
     
   } catch (error) {
@@ -627,7 +628,7 @@ export const dailyExchangeRatesUpdate = async (req, res) => {
       success: false,
       error: error.message,
       message: 'Exchange rates update failed, but login can continue',
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
   }
 };
@@ -671,7 +672,7 @@ export const manualExchangeRatesUpdate = async (req, res) => {
       mode,
       dryRun,
       message: 'Manual exchange rates update completed',
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
     
   } catch (error) {
@@ -679,7 +680,7 @@ export const manualExchangeRatesUpdate = async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
   }
 };

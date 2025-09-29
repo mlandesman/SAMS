@@ -1,0 +1,128 @@
+{
+  "_id": "2025-09-24_192810_953",
+  "date": {
+    "_seconds": 1758690000,
+    "_nanoseconds": 0
+  },
+  "amount": 900000,
+  "categoryId": null,
+  "categoryName": "-Split-",
+  "type": "income",
+  "accountType": "bank",
+  "accountId": "bank-001",
+  "paymentMethodId": "etransfer",
+  "notes": "HOA Dues payment for Unit 1B - Sep, Oct 2025 - Testing for $700 credit balance now - $8800 Dues + $200 credit",
+  "unitId": "1B",
+  "vendorId": "deposit",
+  "vendorName": "Deposit",
+  "reference": "DUES-1B-2025",
+  "allocations": [
+    {
+      "id": "alloc_001",
+      "type": "hoa_month",
+      "targetId": "month_9_2025",
+      "targetName": "September 2025",
+      "amount": 440000,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "1B",
+        "month": 9,
+        "year": 2025
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T00:28:10.581Z"
+      }
+    },
+    {
+      "id": "alloc_002",
+      "type": "hoa_month",
+      "targetId": "month_10_2025",
+      "targetName": "October 2025",
+      "amount": 440000,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "1B",
+        "month": 10,
+        "year": 2025
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T00:28:10.581Z"
+      }
+    },
+    {
+      "id": "alloc_003",
+      "type": "account_credit",
+      "targetId": "credit_1B_2025",
+      "targetName": "Account Credit - Unit 1B",
+      "amount": 20000,
+      "percentage": null,
+      "categoryName": "Account Credit",
+      "categoryId": "account-credit",
+      "data": {
+        "unitId": "1B",
+        "year": 2025,
+        "creditType": "overpayment"
+      },
+      "metadata": {
+        "processingStrategy": "account_credit",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T00:28:10.581Z"
+      }
+    }
+  ],
+  "allocationSummary": {
+    "totalAllocated": 8800,
+    "allocationCount": 2,
+    "allocationType": "hoa_month",
+    "hasMultipleTypes": false,
+    "integrityCheck": {
+      "expectedTotal": 900000,
+      "actualTotal": 8800,
+      "isValid": false
+    }
+  },
+  "duesDistribution": [
+    {
+      "unitId": "1B",
+      "month": 9,
+      "amount": 4400,
+      "year": 2025
+    },
+    {
+      "unitId": "1B",
+      "month": 10,
+      "amount": 4400,
+      "year": 2025
+    }
+  ],
+  "metadata": {
+    "type": "hoa_dues",
+    "unitId": "1B",
+    "year": 2025,
+    "months": [
+      9,
+      10
+    ]
+  },
+  "clientId": "MTC",
+  "propertyId": "MTC",
+  "enteredBy": "system",
+  "updated": {
+    "_seconds": 1758673690,
+    "_nanoseconds": 669000000
+  },
+  "paymentMethod": "eTransfer",
+  "accountName": "MTC Bank",
+  "documents": []
+}

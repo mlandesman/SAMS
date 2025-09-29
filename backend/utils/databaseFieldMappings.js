@@ -4,6 +4,8 @@
  */
 
 import admin from 'firebase-admin';
+import { getNow } from '../services/DateService.js';
+import { DateTime } from 'luxon';
 
 // Timezone configuration - America/Cancun (no DST)
 const CANCUN_TIMEZONE = 'America/Cancun';
@@ -170,27 +172,35 @@ export const databaseFieldMappings = {
     let retryCount = 0;
     
     while (retryCount < maxRetries) {
-      // Use provided date for historical imports, or current timestamp for real-time entries
-      const now = isoDateString ? new Date(isoDateString) : new Date();
-
-      // Convert to Cancun time using proper timezone handling
-      // Use toLocaleString with America/Cancun timezone to get local time components
-      const cancunTimeString = now.toLocaleString("en-CA", {
-        timeZone: "America/Cancun",
-        year: "numeric",
-        month: "2-digit", 
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false
-      });
+      let dt;
       
-      // Parse the formatted string: "2025-01-07, 15:51:22"
-      const [datePart, timePart] = cancunTimeString.split(', ');
-      const [year, month, day] = datePart.split('-');
-      const [hours, minutes, seconds] = timePart.split(':');
-      const ms = String(now.getMilliseconds()).padStart(3, '0');
+      if (isoDateString) {
+        // Parse the ISO string in Cancun timezone to preserve the user-selected date
+        // This prevents date shifting when combining with current Cancun time
+        dt = DateTime.fromISO(isoDateString, { zone: 'America/Cancun' });
+        
+        // For user-provided dates, use current time to ensure uniqueness
+        // but keep the user's date
+        const now = DateTime.now().setZone('America/Cancun');
+        dt = dt.set({
+          hour: now.hour,
+          minute: now.minute,
+          second: now.second,
+          millisecond: now.millisecond
+        });
+      } else {
+        // Use current Cancun time for system-generated timestamps
+        dt = DateTime.now().setZone('America/Cancun');
+      }
+      
+      // Format using Luxon's formatting capabilities
+      const year = dt.toFormat('yyyy');
+      const month = dt.toFormat('MM');
+      const day = dt.toFormat('dd');
+      const hours = dt.toFormat('HH');
+      const minutes = dt.toFormat('mm');
+      const seconds = dt.toFormat('ss');
+      const ms = dt.toFormat('SSS');
       
       const transactionId = `${year}-${month}-${day}_${hours}${minutes}${seconds}_${ms}`;
       

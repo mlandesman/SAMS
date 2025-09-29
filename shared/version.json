@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.0.1",
-  "buildDate": "2025-09-25T13:16:51.976Z",
-  "buildTimestamp": 1758806211977,
+  "buildDate": "2025-09-28T23:40:47.189Z",
+  "buildTimestamp": 1759102847189,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "f7072a9",
-    "branch": "fix-credit-balance-delete-reversal",
-    "lastCommitDate": "2025-09-24 20:50:52 -0500"
+    "hash": "c151978",
+    "branch": "fix-transaction-date-timezone",
+    "lastCommitDate": "2025-09-25 11:11:18 -0500"
   },
   "build": {
-    "timestamp": "2025-09-25T13:16:51.976Z",
+    "timestamp": "2025-09-28T23:40:47.189Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "250925.0816"
+    "buildNumber": "250928.1840"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-09-25T13:16:51.976Z",
+    "date": "2025-09-28T23:40:47.189Z",
     "automated": true
   }
 }

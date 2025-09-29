@@ -2,6 +2,7 @@
 import waterBillsService from '../services/waterBillsService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Get billing configuration for a client
@@ -174,7 +175,7 @@ export const recalculatePenalties = async (req, res) => {
       await db.collection('clients').doc(clientId)
         .collection('projects').doc('waterBills')
         .update({
-          'config.lastPenaltyRecalc': new Date().toISOString()
+          'config.lastPenaltyRecalc': getNow().toISOString()
         });
     } catch (configUpdateError) {
       console.warn('Failed to update lastPenaltyRecalc timestamp:', configUpdateError);

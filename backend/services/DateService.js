@@ -231,6 +231,20 @@ class DateService {
   }
 
   /**
+   * Get current date/time as JavaScript Date in Cancun timezone
+   * This replaces new Date() throughout the system to ensure all timestamps are in Cancun time
+   * @returns {Date} JavaScript Date object in Cancun timezone
+   */
+  getNow() {
+    // Get current time in Cancun timezone
+    const nowInCancun = DateTime.now().setZone('America/Cancun');
+    
+    // Return as JavaScript Date object
+    // This date will represent the current Cancun time
+    return nowInCancun.toJSDate();
+  }
+
+  /**
    * Compare two dates for equality (ignoring time)
    * @param {any} date1 - First date
    * @param {any} date2 - Second date
@@ -275,7 +289,14 @@ class DateService {
 // Export singleton for default Mexico timezone
 const defaultDateService = new DateService({ timezone: 'America/Cancun' });
 
+// Standalone function to replace new Date() system-wide
+const getNow = () => {
+  const nowInCancun = DateTime.now().setZone('America/Cancun');
+  return nowInCancun.toJSDate();
+};
+
 export {
   DateService,
-  defaultDateService
+  defaultDateService,
+  getNow
 };

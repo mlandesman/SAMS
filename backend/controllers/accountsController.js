@@ -5,6 +5,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 import admin from 'firebase-admin';
 
 /**
@@ -44,7 +45,7 @@ async function createAccount(clientId, accountData) {
     // Generate a stable ID based on account type and name
     const accountType = accountData.type || 'bank';
     const safeName = accountData.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const accountId = `${accountType}-${safeName}-${new Date().getTime().toString(36)}`;
+    const accountId = `${accountType}-${safeName}-${getNow().getTime().toString(36)}`;
     
     // Create new account object
     const newAccount = {
@@ -211,14 +212,14 @@ async function closeAccount(clientId, accountId, transferToAccountId = null) {
         
         // Transfer balance
         accounts[targetIndex].balance += accounts[accountIndex].balance;
-        accounts[targetIndex].updated = new Date();
+        accounts[targetIndex].updated = getNow();
         accounts[accountIndex].balance = 0;
       }
       
       // Mark the account as inactive instead of removing it
       accounts[accountIndex].active = false;
-      accounts[accountIndex].closed = new Date();
-      accounts[accountIndex].updated = new Date();
+      accounts[accountIndex].closed = getNow();
+      accounts[accountIndex].updated = getNow();
       
       // Update client document
       transaction.update(clientRef, { accounts });
@@ -271,7 +272,7 @@ async function reopenAccount(clientId, accountId) {
       // Mark the account as active
       accounts[accountIndex].active = true;
       delete accounts[accountIndex].closed;
-      accounts[accountIndex].updated = new Date();
+      accounts[accountIndex].updated = getNow();
       
       // Update client document
       transaction.update(clientRef, { accounts });
@@ -337,7 +338,7 @@ async function deleteAccount(clientId, accountId, transferToAccountId = null) {
         
         // Transfer balance
         accounts[targetIndex].balance += accounts[accountIndex].balance;
-        accounts[targetIndex].updated = new Date();
+        accounts[targetIndex].updated = getNow();
       }
       
       // Remove the account
@@ -409,7 +410,7 @@ async function updateAccountBalance(clientId, accountId, amount) {
       
       // Update balance
       accounts[accountIndex].balance += amount;
-      accounts[accountIndex].updated = new Date();
+      accounts[accountIndex].updated = getNow();
       newBalance = accounts[accountIndex].balance;
       accountName = accounts[accountIndex].name;
       
@@ -484,7 +485,7 @@ async function setAccountBalance(clientId, accountId, newBalance) {
       
       // Set balance directly
       accounts[accountIndex].balance = newBalance;
-      accounts[accountIndex].updated = new Date();
+      accounts[accountIndex].updated = getNow();
       
       // Update client document
       transaction.update(clientRef, { accounts });
@@ -545,7 +546,7 @@ async function createYearEndSnapshot(clientId, year) {
       .doc(year)
       .set({
         accounts: yearEndAccounts,
-        createdAt: new Date()
+        createdAt: getNow()
       });
     
     // Log audit entry
@@ -748,7 +749,7 @@ async function rebuildBalances(clientId, startYear = null) {
     // Update the client with recalculated balances
     await clientRef.update({ 
       accounts,
-      lastBalanceRebuild: new Date()
+      lastBalanceRebuild: getNow()
     });
     
     // Log audit entry

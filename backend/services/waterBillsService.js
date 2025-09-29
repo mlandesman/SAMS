@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { waterDataService } from './waterDataService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
+import { getNow } from '../services/DateService.js';
 
 class WaterBillsService {
   constructor() {
@@ -47,7 +48,7 @@ class WaterBillsService {
     const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
     
     // 4. Calculate or use provided due date (MOVE EARLIER)
-    const billDate = new Date();
+    const billDate = getNow();
     const dueDate = options.dueDate ? new Date(options.dueDate).toISOString() : this._calculateDueDate(billDate, config);
     
     // 5. CRITICAL: Run penalty recalculation before generating new bills
@@ -134,7 +135,7 @@ class WaterBillsService {
           billNotes: billNotes,
           
           // Timestamp
-          lastPenaltyUpdate: new Date().toISOString(),
+          lastPenaltyUpdate: getNow().toISOString(),
           
           // Payment tracking (keep for payment service compatibility)
           penaltyPaid: 0

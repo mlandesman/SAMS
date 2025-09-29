@@ -5,6 +5,7 @@
 
 import { getCurrentUser, isAuthenticated, getAuthInstance } from '../firebaseClient';
 import { config } from '../config';
+import { getMexicoDateTime } from '../utils/timezone';
 
 /**
  * Create a new transaction via secure backend API
@@ -32,6 +33,12 @@ export async function createTransaction(clientId, data) {
       throw new Error('Unable to get authentication token');
     }
 
+    // Ensure date is properly formatted using Mexico timezone utility
+    const transactionData = {
+      ...data,
+      date: data.date instanceof Date ? data.date : getMexicoDateTime(data.date)
+    };
+
     // Call secure backend API
     const API_BASE_URL = config.api.baseUrl;
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/transactions`, {
@@ -40,7 +47,7 @@ export async function createTransaction(clientId, data) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(transactionData)
     });
 
     if (!response.ok) {
@@ -132,6 +139,12 @@ export async function updateTransaction(clientId, transactionId, data) {
       throw new Error('Unable to get authentication token');
     }
 
+    // Ensure date is properly formatted using Mexico timezone utility if present
+    const transactionData = data.date ? {
+      ...data,
+      date: data.date instanceof Date ? data.date : getMexicoDateTime(data.date)
+    } : data;
+
     // Call secure backend API
     const API_BASE_URL = config.api.baseUrl;
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/transactions/${transactionId}`, {
@@ -140,7 +153,7 @@ export async function updateTransaction(clientId, transactionId, data) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(transactionData)
     });
 
     if (!response.ok) {

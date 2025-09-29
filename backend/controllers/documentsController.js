@@ -2,6 +2,7 @@ import { getDb, getApp } from '../firebase.js';
 import admin from 'firebase-admin';
 import multer from 'multer';
 import path from 'path';
+import { getNow } from '../services/DateService.js';
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
@@ -31,12 +32,12 @@ const upload = multer({
 
 // Generate unique document ID
 function generateDocumentId() {
-  return `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `doc_${getNow().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // Generate storage path
 function generateStoragePath(clientId, documentId, originalName) {
-  const now = new Date();
+  const now = getNow();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const extension = path.extname(originalName);

@@ -3,6 +3,8 @@
  * Backend version of timezone utilities
  */
 
+import { getNow } from '../services/DateService.js';
+
 const MEXICO_TIMEZONE = 'America/Cancun';
 
 /**
@@ -10,16 +12,9 @@ const MEXICO_TIMEZONE = 'America/Cancun';
  * @returns {Date} Date object representing current time in Mexico
  */
 function getMexicoDate() {
-  // Create a new date in Mexico timezone using Intl.DateTimeFormat
-  const now = new Date();
-  const mexTime = new Intl.DateTimeFormat('en-CA', {
-    timeZone: MEXICO_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(now);
-  
-  return new Date(mexTime + 'T00:00:00');
+  // DEPRECATED: Use getNow() instead
+  // This function now just returns getNow() for backward compatibility
+  return getNow();
 }
 
 /**
@@ -34,7 +29,7 @@ function getMexicoDateString(date) {
   }
   
   // For current date, get Mexico timezone date
-  const now = new Date();
+  const now = getNow();
   const mexDateString = new Intl.DateTimeFormat('en-CA', {
     timeZone: MEXICO_TIMEZONE,
     year: 'numeric',

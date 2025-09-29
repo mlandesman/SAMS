@@ -1,9 +1,10 @@
 import { getDb } from '../firebase.js'; // Add .js extension
 import admin from 'firebase-admin';
+import { getNow } from '../services/DateService.js';
 const db = await getDb(); // Await getDb
 
 function generateAuditId() {
-  const now = new Date();
+  const now = getNow();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');

@@ -4,6 +4,7 @@ import { createTransaction } from '../controllers/transactionsController.js';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import axios from 'axios';
+import { getNow } from '../services/DateService.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 
@@ -41,7 +42,7 @@ class WaterPaymentsService {
     
     const { 
       amount, 
-      paymentDate = new Date().toISOString().split('T')[0], 
+      paymentDate = getNow().toISOString().split('T')[0], 
       paymentMethod = 'cash',
       paymentMethodId,
       reference = '',
@@ -63,7 +64,7 @@ class WaterPaymentsService {
     
     // STEP 1: Get current credit balance from HOA Dues module
     const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
-    const fiscalYear = getFiscalYear(new Date(), 7); // AVII uses July start
+    const fiscalYear = getFiscalYear(getNow(), 7); // AVII uses July start
     const creditResponse = await this._getCreditBalance(clientId, unitId, fiscalYear);
     const currentCreditBalance = creditResponse.creditBalance || 0;
     
@@ -434,7 +435,7 @@ class WaterPaymentsService {
     // Determine which month to record the FULL payment amount in
     // Use current fiscal month based on payment date
     const currentDate = new Date(paymentDate);
-    const currentFiscalYear = new Date().getFullYear() + 1; // AVII uses FY 2026 for 2025 calendar year
+    const currentFiscalYear = getNow().getFullYear() + 1; // AVII uses FY 2026 for 2025 calendar year
     const currentFiscalMonth = Math.max(0, currentDate.getMonth() - 6); // July = 0, Aug = 1, etc.
     const paymentMonthId = `${currentFiscalYear}-${String(currentFiscalMonth).padStart(2, '0')}`;
     
@@ -478,7 +479,7 @@ class WaterPaymentsService {
           paymentMethod: paymentMethod,
           reference: reference,
           transactionId: transactionResult || null,
-          recordedAt: new Date().toISOString()
+          recordedAt: getNow().toISOString()
         }
       });
     }
@@ -723,7 +724,7 @@ class WaterPaymentsService {
       
       // Also get current credit balance
       const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
-      const fiscalYear = getFiscalYear(new Date(), 7); // AVII uses July start
+      const fiscalYear = getFiscalYear(getNow(), 7); // AVII uses July start
       console.log(`💰 Getting credit balance for year ${fiscalYear}`);
       const creditData = await this._getCreditBalance(clientId, unitId, fiscalYear);
       console.log(`💰 Credit balance: $${creditData?.creditBalance || 0}`);

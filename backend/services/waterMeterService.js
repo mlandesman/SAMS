@@ -4,6 +4,7 @@ import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { randomUUID } from 'crypto';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { getNow } from './DateService.js';
 
 /**
  * Water Meter Service
@@ -188,7 +189,7 @@ class WaterMeterService extends MeterReadingService {
    * @param {Date|string} [currentDate] - Current date (defaults to now)
    * @returns {number} Days late (0 if not late)
    */
-  calculateDaysLate(dueDate, currentDate = new Date()) {
+  calculateDaysLate(dueDate, currentDate = getNow()) {
     const due = this._parseDate(dueDate);
     const current = this._parseDate(currentDate);
     
@@ -366,7 +367,7 @@ class WaterMeterService extends MeterReadingService {
         // Metadata with proper date formatting
         created: admin.firestore.Timestamp.now(),
         updated: admin.firestore.Timestamp.now(),
-        createdAt: this.dateService.formatForFrontend(new Date())
+        createdAt: this.dateService.formatForFrontend(getNow())
       };
 
       // Generate unique bill ID with readable format (no prefix needed - we're already in bills collection)
@@ -628,7 +629,7 @@ class WaterMeterService extends MeterReadingService {
         readingDate = readingData.readingDate;
       }
     } else {
-      readingDate = new Date();
+      readingDate = getNow();
     }
     
     // Get fiscal year based on reading date and client's fiscal year configuration
@@ -748,7 +749,7 @@ class WaterMeterService extends MeterReadingService {
     
     // Get current fiscal year
     const fiscalYearStartMonth = this.clientConfig?.configuration?.fiscalYearStartMonth || 1;
-    const currentYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+    const currentYear = getFiscalYear(getNow(), fiscalYearStartMonth);
     
     const bills = await this.getUnitBills(
       clientId,
@@ -891,7 +892,7 @@ class WaterMeterService extends MeterReadingService {
     
     // Get current fiscal year
     const fiscalYearStartMonth = this.clientConfig?.configuration?.fiscalYearStartMonth || 1;
-    const currentYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+    const currentYear = getFiscalYear(getNow(), fiscalYearStartMonth);
     
     const readings = await this.getUnitReadings(clientId, unitId, currentYear);
     

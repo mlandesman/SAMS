@@ -3,13 +3,15 @@
  * Utility functions for handling timestamps in the backend
  */
 
+import { getNow } from '../services/DateService.js';
+
 /**
  * Ensures a date field is a proper Date object for storage in Firestore
  * @param {Date|Object} dateValue - Date value to normalize
  * @returns {Date} - JavaScript Date object
  */
 export function normalizeDate(dateValue) {
-  if (!dateValue) return new Date();
+  if (!dateValue) return getNow();
   
   if (dateValue instanceof Date) {
     return dateValue;
@@ -36,7 +38,7 @@ export function normalizeDate(dateValue) {
     return date;
   } catch (e) {
     console.error('Error converting to date:', e);
-    return new Date();
+    return getNow();
   }
 }
 

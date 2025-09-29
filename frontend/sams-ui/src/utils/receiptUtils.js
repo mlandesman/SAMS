@@ -105,65 +105,43 @@ export const generateReceipt = async (transactionId, options) => {
     }
 
     // 4. Prepare receipt data in the format expected by DigitalReceipt component
-    // Format the date properly - handle Firestore timestamp
+    // Format the date properly - use backend-provided display format or format object
     let formattedDate;
     const rawDate = transaction.transactionDate || transaction.date;
     
     if (rawDate) {
-      try {
-        if (rawDate.toDate && typeof rawDate.toDate === 'function') {
-          // Firestore timestamp
-          formattedDate = rawDate.toDate().toLocaleDateString('en-US', {
+      // Check if date has .display property from backend DateService
+      if (rawDate.display) {
+        // Use the display format provided by backend
+        formattedDate = rawDate.display;
+      } else if (rawDate.month && rawDate.day && rawDate.year) {
+        // Use month/day/year from date object
+        formattedDate = `${rawDate.month} ${rawDate.day}, ${rawDate.year}`;
+      } else if (typeof rawDate === 'string') {
+        // For string dates, parse and format in Cancun timezone to avoid shifts
+        try {
+          const dateObj = new Date(rawDate + 'T12:00:00'); // Noon to avoid timezone issues
+          formattedDate = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'America/Cancun'
           });
-        } else if (rawDate instanceof Date) {
-          // Regular Date object
-          formattedDate = rawDate.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-        } else if (typeof rawDate === 'string') {
-          // String date
-          const dateObj = new Date(rawDate);
-          if (!isNaN(dateObj.getTime())) {
-            formattedDate = dateObj.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-          } else {
-            throw new Error('Invalid date string');
-          }
-        } else {
-          // Try to convert other formats
-          const dateObj = new Date(rawDate);
-          if (!isNaN(dateObj.getTime())) {
-            formattedDate = dateObj.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-          } else {
-            throw new Error('Cannot parse date');
-          }
+        } catch {
+          formattedDate = rawDate; // Use raw string as fallback
         }
-      } catch {
-        console.warn('Date parsing failed, using current date');
-        // Fallback to current date
-        formattedDate = new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+      } else {
+        // Fallback to raw date
+        console.warn('Unknown date format, using raw value:', rawDate);
+        formattedDate = String(rawDate);
       }
     } else {
+      // No date provided, use current date in Cancun timezone
       formattedDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: 'America/Cancun'
       });
     }
 

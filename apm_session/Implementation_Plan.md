@@ -538,19 +538,24 @@
 - **Solution:** Production nightly function push data to Dev Firebase
 - **Effort:** 1-2 sessions
 
-#### TD-005: HOA Dues Credit Balance Cascading Delete Fix
+#### TD-005: HOA Dues Credit Balance Cascading Delete Fix ✅ FIXED
 - **Priority:** HIGH - Data integrity issue identified September 24, 2025
+- **Status:** ✅ FIXED - September 25, 2025
 - **Impact:** Deleting HOA payments doesn't reverse credit balance, causing corruption
 - **Root Cause:** Credit balance history array not properly updated during payment deletion
+- **Resolution:** Fixed unit conversion mismatch - credit history now stores amounts in centavos consistently
 - **Previously Working:** This was functional before recent system changes
-- **Effort:** 2-3 sessions
+- **Actual Effort:** 1.5 hours (faster than estimated 2-3 sessions)
+- **Git Commit:** c151978
 
-#### TD-006: HOA Dues Transaction Date Timezone Fix  
+#### TD-006: HOA Dues Transaction Date Timezone Fix ✅ FIXED
 - **Priority:** HIGH - Date accuracy issue identified September 24, 2025
+- **Status:** ✅ FIXED - September 28, 2025
 - **Impact:** Daytime payments recorded with previous date due to UTC conversion
 - **Root Cause:** System dates in UTC with midnight getting converted to America/Cancun (UTC-5)
-- **Solution:** Must use existing SAMS getMexicoDate() utilities, not create new date tools
-- **Effort:** 1-2 sessions
+- **Resolution:** Implemented DateService.formatForFrontend() and updated transaction ID generation to parse dates in Cancun timezone
+- **Previously Broken:** Transaction dates showed previous day, empty date columns, receipt date shifts
+- **Actual Effort:** 2 hours (faster than estimated 1-2 sessions)
 
 #### TD-007: HOA Dues Unnecessary Split Allocations
 - **Priority:** MEDIUM - System efficiency issue identified September 24, 2025

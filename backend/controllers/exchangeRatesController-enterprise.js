@@ -8,6 +8,7 @@ import { getDbEnterprise, releaseDbConnection } from '../firebase-enterprise.js'
 import { EnterpriseDataValidator } from '../utils/dataValidation-enterprise.js';
 import { PerformanceUtils } from '../utils/performance-monitor.js';
 import { getMexicoDateString, getMexicoDate } from '../utils/timezone.js';
+import { getNow } from '../services/DateService.js';
 
 // Enterprise configuration
 const ENTERPRISE_CONFIG = {
@@ -97,7 +98,7 @@ export const fetchExchangeRatesEnterprise = async (req, res) => {
   return await PerformanceUtils.trackFunction('fetchExchangeRatesEnterprise', async () => {
     try {
       const dateStr = getMexicoDateString();
-      const today = getMexicoDate();
+      const today = getNow();
 
       const validation = await EnterpriseDataValidator.validateGenericRequest({
         action: 'fetch_exchange_rates',

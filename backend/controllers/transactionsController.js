@@ -27,35 +27,20 @@ import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { validateDocument } from '../utils/validateDocument.js';
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
+import { getNow, DateService } from '../services/DateService.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
+
+// Initialize DateService for Mexico timezone
+const dateService = new DateService({ timezone: 'America/Cancun' });
 
 // Helper to format date fields consistently for API responses using Mexico timezone
 function formatDateField(dateValue) {
   if (!dateValue) return null;
   
   try {
-    // Handle Firestore timestamp
-    if (dateValue.toDate && typeof dateValue.toDate === 'function') {
-      return getMexicoDateString(dateValue.toDate());
-    }
-    
-    // Handle Date object
-    if (dateValue instanceof Date) {
-      return getMexicoDateString(dateValue);
-    }
-    
-    // Handle string dates
-    if (typeof dateValue === 'string') {
-      const dateObj = new Date(dateValue);
-      if (!isNaN(dateObj.getTime())) {
-        return getMexicoDateString(dateObj);
-      }
-    }
-    
-    // Fallback
-    console.warn('Could not format date field:', dateValue);
-    return null;
+    // Use DateService's formatForFrontend method to create multi-format date object
+    return dateService.formatForFrontend(dateValue);
   } catch (error) {
     console.error('Error formatting date field:', error);
     return null;
@@ -460,7 +445,7 @@ async function createTransaction(clientId, data) {
     
     // For ID generation: combine transaction date with current time for uniqueness
     // This ensures the ID reflects when the transaction occurred, not when it was entered
-    const now = new Date();
+    const now = getNow();
     const dateForId = new Date(
       transactionDate.getFullYear(),
       transactionDate.getMonth(),
@@ -642,7 +627,7 @@ async function updateTransaction(clientId, txnId, newData) {
     }
     
     // Always update the updated timestamp
-    normalizedData.updated = convertToTimestamp(new Date());
+    normalizedData.updated = convertToTimestamp(getNow());
     
     // Use a transaction to ensure consistency
     await db.runTransaction(async (transaction) => {

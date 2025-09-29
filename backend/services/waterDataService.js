@@ -5,6 +5,7 @@ import waterReadingsService from './waterReadingsService.js';
 import waterBillsService from './waterBillsService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
+import { getNow } from '../services/DateService.js';
 
 class WaterDataService {
   constructor() {
@@ -20,7 +21,7 @@ class WaterDataService {
   async getYearData(clientId, year = null) {
     // Default to current FY if not specified
     if (!year) {
-      year = getFiscalYear(new Date(), this.fiscalYearStartMonth);
+      year = getFiscalYear(getNow(), this.fiscalYearStartMonth);
     }
     
     const cacheKey = `${clientId}-${year}`;
@@ -780,7 +781,7 @@ class WaterDataService {
     if (bill.paidAmount >= bill.totalAmount) return 'paid';
     
     const dueDate = bill.dueDate ? new Date(bill.dueDate) : null;
-    if (dueDate && dueDate < new Date()) return 'overdue';
+    if (dueDate && dueDate < getNow()) return 'overdue';
     
     return 'unpaid';
   }
@@ -793,7 +794,7 @@ class WaterDataService {
     if (bill.paidAmount >= bill.totalAmount) return 0;
     
     const dueDate = new Date(billDueDate);
-    const today = new Date();
+    const today = getNow();
     if (today <= dueDate) return 0;
     
     const daysPast = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));

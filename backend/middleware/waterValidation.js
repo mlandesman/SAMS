@@ -14,6 +14,7 @@ import {
   validateRequiredFields
 } from '../utils/requestValidator.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Middleware to validate water meter readings
@@ -86,7 +87,7 @@ export function validateBillGeneration(req, res, next) {
   if (!month) errors.push('Month is required');
   
   // Validate year and month
-  const currentYear = new Date().getFullYear();
+  const currentYear = getNow().getFullYear();
   if (year && (year < 2024 || year > currentYear + 1)) {
     errors.push('Invalid year');
   }

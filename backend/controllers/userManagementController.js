@@ -11,6 +11,7 @@ import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
 import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Generate secure random password
@@ -452,7 +453,7 @@ export async function createUser(req, res) {
             role: 'admin', // SuperAdmins show as admin in specific clients
             unitId: null,
             permissions: customPermissions,
-            addedDate: new Date().toISOString(),
+            addedDate: getNow().toISOString(),
             addedBy: creatingUser.email
           };
         }
@@ -461,7 +462,7 @@ export async function createUser(req, res) {
           role: role,
           unitId: unitId || null,
           permissions: customPermissions,
-          addedDate: new Date().toISOString(),
+          addedDate: getNow().toISOString(),
           addedBy: creatingUser.email
         };
       }
@@ -685,7 +686,7 @@ export async function updateUser(req, res) {
       
       await db.collection('users').doc(userId).update({
         ...allowedUpdates,
-        lastModifiedDate: new Date().toISOString(),
+        lastModifiedDate: getNow().toISOString(),
         lastModifiedBy: updatingUser.email
       });
 
@@ -701,7 +702,7 @@ export async function updateUser(req, res) {
           // Also update Firestore profile to ensure user is active
           const selfProfileUpdate = {
             isActive: true,
-            lastModifiedDate: new Date().toISOString(),
+            lastModifiedDate: getNow().toISOString(),
             lastModifiedBy: updatingUser.email
           };
           
@@ -759,7 +760,7 @@ export async function updateUser(req, res) {
 
     // Prepare update data
     const updateData = {
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: updatingUser.email
     };
 
@@ -838,7 +839,7 @@ export async function updateUser(req, res) {
         // Update Firestore profile to ensure user is active
         const profileUpdate = {
           isActive: true,
-          lastModifiedDate: new Date().toISOString(),
+          lastModifiedDate: getNow().toISOString(),
           lastModifiedBy: updatingUser.email
         };
         
@@ -966,14 +967,14 @@ export async function addClientAccess(req, res) {
         role: role,
         unitId: unitId || null,
         permissions: [],
-        addedDate: new Date().toISOString(),
+        addedDate: getNow().toISOString(),
         addedBy: assigningUser.email
       }
     };
 
     await db.collection('users').doc(userId).update({
       propertyAccess: updatedClientAccess,
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: assigningUser.email
     });
 
@@ -1037,7 +1038,7 @@ export async function removeClientAccess(req, res) {
 
     await db.collection('users').doc(userId).update({
       propertyAccess: updatedClientAccess,
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: removingUser.email
     });
 
@@ -1112,7 +1113,7 @@ export async function addUnitRoleAssignment(req, res) {
       updatedClientAccess[clientId] = {
         role: 'user', // Default role
         unitAssignments: [],
-        addedDate: new Date().toISOString(),
+        addedDate: getNow().toISOString(),
         addedBy: assigningUser.email
       };
     }
@@ -1130,14 +1131,14 @@ export async function addUnitRoleAssignment(req, res) {
     if (existingAssignment) {
       // Update existing assignment
       existingAssignment.role = role;
-      existingAssignment.lastModifiedDate = new Date().toISOString();
+      existingAssignment.lastModifiedDate = getNow().toISOString();
       existingAssignment.lastModifiedBy = assigningUser.email;
     } else {
       // Add new assignment
       updatedClientAccess[clientId].unitAssignments.push({
         unitId: unitId,
         role: role,
-        addedDate: new Date().toISOString(),
+        addedDate: getNow().toISOString(),
         addedBy: assigningUser.email
       });
     }
@@ -1145,7 +1146,7 @@ export async function addUnitRoleAssignment(req, res) {
     // Update user record
     await db.collection('users').doc(userId).update({
       propertyAccess: updatedClientAccess,
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: assigningUser.email
     });
 
@@ -1250,7 +1251,7 @@ export async function removeUnitRoleAssignment(req, res) {
     // Update user record
     await db.collection('users').doc(userId).update({
       propertyAccess: updatedClientAccess,
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: removingUser.email
     });
 

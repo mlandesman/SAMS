@@ -12,6 +12,7 @@ import {
 } from '../utils/hoaCalculations.js';
 // DateService removed - using Mexico timezone utilities instead
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
+import { getNow } from '../services/DateService.js';
 import admin from 'firebase-admin';
 
 const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
@@ -95,7 +96,7 @@ function createHOAAllocations(distribution, unitId, year, paymentData) {
           processingStrategy: "hoa_dues",
           cleanupRequired: true,
           auditRequired: true,
-          createdAt: new Date().toISOString()
+          createdAt: getNow().toISOString()
         }
       });
     });
@@ -122,7 +123,7 @@ function createHOAAllocations(distribution, unitId, year, paymentData) {
         processingStrategy: "account_credit",
         cleanupRequired: true,
         auditRequired: true,
-        createdAt: new Date().toISOString()
+        createdAt: getNow().toISOString()
       }
     });
   } else if (paymentData && paymentData.creditUsed && paymentData.creditUsed > 0) {
@@ -145,7 +146,7 @@ function createHOAAllocations(distribution, unitId, year, paymentData) {
         processingStrategy: "account_credit",
         cleanupRequired: true,
         auditRequired: true,
-        createdAt: new Date().toISOString()
+        createdAt: getNow().toISOString()
       }
     });
   }
@@ -227,7 +228,7 @@ async function initializeYearDocument(clientId, unitId, year) {
       totalDue: dollarsToCents(monthlyDue * 12),
       totalPaid: 0,
       // Only updated timestamp - creation metadata in audit log
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     };
     
     // Document ID is the year
@@ -303,7 +304,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Determine type and convert appropriately using Mexico timezone utilities
       if (!paymentData.date) {
         console.log('No date provided, using current Mexico date');
-        paymentDate = getMexicoDate();
+        paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       } else if (paymentData.date instanceof Date) {
         console.log('Date is already a Date object');
@@ -332,13 +333,13 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         } else {
           // Final fallback - use current Mexico date
           console.error('Could not parse date object, using current Mexico date');
-          paymentDate = getMexicoDate();
+          paymentDate = getNow();
           paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
         }
       } else {
         // Final fallback
         console.error('Unrecognized date format, using current Mexico date');
-        paymentDate = getMexicoDate();
+        paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
       
@@ -347,12 +348,12 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Final validation - if date is still invalid, use current Mexico date
       if (isNaN(paymentDate.getTime())) {
         console.error('Date is invalid after conversion, using current Mexico date');
-        paymentDate = getMexicoDate();
+        paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
     } catch (dateError) {
       console.error('Error converting date:', dateError);
-      paymentDate = getMexicoDate();
+      paymentDate = getNow();
       paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
     }
     
@@ -563,7 +564,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     
     // Update credit balance based on the calculation from frontend
     const originalCreditBalance = duesData.creditBalance || 0;
-    const currentDateTime = new Date().toString();
+    const currentDateTime = getNow().toString();
     
     // Initialize creditBalanceHistory as array if it doesn't exist
     if (!duesData.creditBalanceHistory) {
@@ -572,7 +573,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       if (originalCreditBalance !== 0) {
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
-          timestamp: convertToTimestamp(new Date()),
+          timestamp: convertToTimestamp(getNow()),
           transactionId: null,
           type: 'starting_balance',
           amount: originalCreditBalance,
@@ -594,7 +595,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         const creditRepairAmountCents = dollarsToCents(paymentData.creditRepairAmount);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
-          timestamp: convertToTimestamp(new Date()),
+          timestamp: convertToTimestamp(getNow()),
           transactionId: transactionId,
           type: 'credit_repair',
           amount: creditRepairAmountCents,  // Store in centavos
@@ -612,7 +613,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         const balanceAfterUseCents = dollarsToCents(paymentData.newCreditBalance) - dollarsToCents(paymentData.creditBalanceAdded || 0);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
-          timestamp: convertToTimestamp(new Date()),
+          timestamp: convertToTimestamp(getNow()),
           transactionId: transactionId,
           type: 'credit_used',
           amount: creditUsedCents,  // Store in centavos
@@ -629,7 +630,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         const newCreditBalanceCents = dollarsToCents(paymentData.newCreditBalance);
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
-          timestamp: convertToTimestamp(new Date()),
+          timestamp: convertToTimestamp(getNow()),
           transactionId: transactionId,
           type: 'credit_added',
           amount: creditAddedCents,  // Store in centavos
@@ -649,7 +650,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Add entry for legacy credit addition
       duesData.creditBalanceHistory.push({
         id: randomUUID(),
-        timestamp: new Date().toISOString(),
+        timestamp: getNow().toISOString(),
         transactionId: transactionId,
         type: 'credit_added',
         amount: creditAddedCents,  // Store in centavos
@@ -717,7 +718,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         creditBalanceHistory: Array.isArray(duesData.creditBalanceHistory) ? [...duesData.creditBalanceHistory] : [],
         
         // Update timestamp
-        updated: convertToTimestamp(new Date())
+        updated: convertToTimestamp(getNow())
       };
       
       // IMPORTANT: We do NOT include these fields in updates:
@@ -1094,11 +1095,11 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     // Prepare credit balance history entry
     const historyEntry = {
       id: randomUUID(),
-      timestamp: convertToTimestamp(new Date()),
+      timestamp: convertToTimestamp(getNow()),
       transactionId: null,
       type: 'manual_adjustment',
       amount: newBalanceInCents - originalBalance,
-      description: 'Manual credit balance update',
+      description: notes ? `MANUAL ADJUSTMENT: ${notes}` : 'MANUAL ADJUSTMENT',
       balanceBefore: originalBalance,
       balanceAfter: newBalanceInCents,
       notes: notes || 'Updated via API'
@@ -1113,7 +1114,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     const updates = {
       creditBalance: newBalanceInCents,
       creditBalanceHistory: creditBalanceHistory,
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     };
     
     // Use update() for surgical updates
@@ -1235,7 +1236,7 @@ async function updateCreditBalanceFromModule(req, res) {
     // Create history entry with module tracking
     const historyEntry = {
       id: randomUUID(),
-      timestamp: convertToTimestamp(new Date()),
+      timestamp: convertToTimestamp(getNow()),
       type: changeType, // 'water_payment_applied', 'water_overpayment', etc.
       amount: dollarsToCents(changeAmount),  // Store in centavos
       balanceBefore: originalBalance,  // Already in centavos
@@ -1249,7 +1250,7 @@ async function updateCreditBalanceFromModule(req, res) {
     const updates = {
       creditBalance: newBalanceInCents,
       creditBalanceHistory: admin.firestore.FieldValue.arrayUnion(historyEntry),
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     };
     
     await duesRef.update(updates);

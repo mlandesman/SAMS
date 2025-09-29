@@ -6,6 +6,7 @@
 
 import { normalizeDate } from './timestampUtils.js';
 import { getMexicoDate, getMexicoDateString } from './timezone.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Calculate current penalties for an array of base amounts and due dates
@@ -18,7 +19,7 @@ export function calculateCurrentPenalties(bills, currentDate = null) {
   const defaultPenaltyRate = 0.05; // 5% per month
   
   // Use Mexico timezone for current date if not provided
-  const calcDate = currentDate ? normalizeDate(currentDate) : getMexicoDate();
+  const calcDate = currentDate ? normalizeDate(currentDate) : getNow();
   
   return bills.map(bill => {
     const {
