@@ -43,7 +43,7 @@ export class ImportService {
   }
   
   /**
-   * Helper to report progress
+   * Helper to report progress with enhanced status information
    */
   reportProgress(component, index, total, results) {
     if (this.onProgress && (index % 10 === 0 || index === total - 1)) {
@@ -51,8 +51,51 @@ export class ImportService {
         total: total,
         processed: index + 1,
         percent: Math.round(((index + 1) / total) * 100),
+        success: results.success || 0,
+        failed: results.failed || 0,
+        errors: results.errors ? results.errors.length : 0,
         ...results
       });
+    }
+  }
+
+  /**
+   * Helper to report detailed progress for purge operations
+   */
+  reportPurgeProgress(component, currentCount, totalCount, deletedCount, errors = []) {
+    if (this.onProgress && (currentCount % 50 === 0 || currentCount === totalCount)) {
+      this.onProgress(component, 'purging', {
+        total: totalCount,
+        processed: currentCount,
+        deleted: deletedCount,
+        percent: Math.round((currentCount / totalCount) * 100),
+        errors: errors.length,
+        status: currentCount === totalCount ? 'completed' : 'running'
+      });
+    }
+  }
+
+  /**
+   * Helper to report import progress with JSON size estimates
+   */
+  reportImportProgress(component, index, total, results, jsonSize = null) {
+    if (this.onProgress && (index % 5 === 0 || index === total - 1)) {
+      const progress = {
+        total: total,
+        processed: index + 1,
+        percent: Math.round(((index + 1) / total) * 100),
+        success: results.success || 0,
+        failed: results.failed || 0,
+        errors: results.errors ? results.errors.length : 0,
+        status: index === total - 1 ? 'completed' : 'running'
+      };
+
+      if (jsonSize) {
+        progress.estimatedSize = jsonSize;
+        progress.processedSize = Math.round((progress.percent / 100) * jsonSize);
+      }
+
+      this.onProgress(component, 'importing', progress);
     }
   }
 
@@ -280,7 +323,7 @@ export class ImportService {
           }
           
           // Report progress using helper
-          this.reportProgress('units', i, results.total, results);
+          this.reportImportProgress('units', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing unit ${unit.Unit}: ${error.message}`);
@@ -489,7 +532,7 @@ export class ImportService {
           }
           
           // Report progress using helper
-          this.reportProgress('transactions', i, results.total, results);
+          this.reportImportProgress('transactions', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing transaction ${transaction.Google_ID}: ${error.message}`);
@@ -845,7 +888,7 @@ export class ImportService {
         }
         
         // Report progress
-        this.reportProgress('hoadues', i, results.total, results);
+        this.reportImportProgress('hoadues', i, results.total, results);
       }
       
       console.log(`📊 Enhanced ${results.enhancedTransactions} transactions with HOA allocations`);

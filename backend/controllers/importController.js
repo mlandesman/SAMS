@@ -7,6 +7,122 @@ import { getDb } from '../firebase.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { ImportService } from '../services/importService.js';
+import { readFileSync, statSync } from 'fs';
+import { join } from 'path';
+
+/**
+ * Get document counts for purge progress tracking
+ */
+async function getDocumentCounts(db, clientId, purgeSequence) {
+  const counts = {};
+  
+  for (const step of purgeSequence) {
+    try {
+      let count = 0;
+      
+      switch (step.id) {
+        case 'hoadues':
+          // Count HOA dues documents (nested structure)
+          const unitsSnapshot = await db.collection(`clients/${clientId}/units`).get();
+          for (const unitDoc of unitsSnapshot.docs) {
+            const duesSnapshot = await unitDoc.ref.collection('dues').get();
+            count += duesSnapshot.size;
+          }
+          break;
+        case 'transactions':
+          const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`).get();
+          count = transactionsSnapshot.size;
+          break;
+        case 'units':
+          const unitsSnapshot2 = await db.collection(`clients/${clientId}/units`).get();
+          count = unitsSnapshot2.size;
+          break;
+        default:
+          // Generic collection count
+          const collectionSnapshot = await db.collection(`clients/${clientId}/${step.id}`).get();
+          count = collectionSnapshot.size;
+      }
+      
+      counts[step.id] = count;
+      console.log(`📊 ${step.name}: ${count} documents`);
+    } catch (error) {
+      console.warn(`⚠️ Could not count documents for ${step.id}: ${error.message}`);
+      counts[step.id] = 0;
+    }
+  }
+  
+  return counts;
+}
+
+/**
+ * Get JSON file sizes for import progress tracking
+ */
+function getJsonFileSizes(dataPath) {
+  const jsonFiles = [
+    'Categories.json',
+    'Vendors.json', 
+    'Units.json',
+    'Transactions.json',
+    'HOADues.json',
+    'YearEndBalances.json'
+  ];
+  
+  const sizes = {};
+  let totalSize = 0;
+  
+  for (const fileName of jsonFiles) {
+    try {
+      const filePath = join(dataPath, fileName);
+      const stats = statSync(filePath);
+      const sizeKB = Math.round(stats.size / 1024);
+      sizes[fileName] = sizeKB;
+      totalSize += sizeKB;
+      console.log(`📁 ${fileName}: ${sizeKB} KB`);
+    } catch (error) {
+      console.warn(`⚠️ Could not get size for ${fileName}: ${error.message}`);
+      sizes[fileName] = 0;
+    }
+  }
+  
+  return { sizes, totalSize };
+}
+
+/**
+ * Get import data counts for progress tracking
+ */
+function getImportDataCounts(dataPath) {
+  const counts = {};
+  let totalRecords = 0;
+  
+  try {
+    const files = {
+      'categories': 'Categories.json',
+      'vendors': 'Vendors.json',
+      'units': 'Units.json', 
+      'transactions': 'Transactions.json',
+      'hoadues': 'HOADues.json',
+      'yearEndBalances': 'YearEndBalances.json'
+    };
+    
+    for (const [key, fileName] of Object.entries(files)) {
+      try {
+        const filePath = join(dataPath, fileName);
+        const data = JSON.parse(readFileSync(filePath, 'utf8'));
+        const count = Array.isArray(data) ? data.length : Object.keys(data).length;
+        counts[key] = count;
+        totalRecords += count;
+        console.log(`📋 ${fileName}: ${count} records`);
+      } catch (error) {
+        console.warn(`⚠️ Could not count records in ${fileName}: ${error.message}`);
+        counts[key] = 0;
+      }
+    }
+  } catch (error) {
+    console.warn(`⚠️ Could not read data files: ${error.message}`);
+  }
+  
+  return { counts, totalRecords };
+}
 
 /**
  * Get import configuration options for a client
@@ -96,6 +212,9 @@ async function executePurge(user, clientId, options = {}) {
       global.importProgress = {};
     }
     
+    // Get document counts for progress tracking
+    const documentCounts = await getDocumentCounts(db, clientId, purgeSequence);
+    
     const progress = {
       operationId,
       status: 'running',
@@ -103,7 +222,9 @@ async function executePurge(user, clientId, options = {}) {
       currentStep: null,
       startTime: getNow(),
       clientId,
-      dryRun
+      dryRun,
+      documentCounts,
+      totalDocuments: Object.values(documentCounts).reduce((sum, count) => sum + count, 0)
     };
     
     // Store in global for progress tracking
@@ -113,7 +234,14 @@ async function executePurge(user, clientId, options = {}) {
     for (const step of purgeSequence) {
       progress.currentStep = step.id;
       progress.components = progress.components || {};
-      progress.components[step.id] = { status: 'purging', step: step.name };
+      progress.components[step.id] = { 
+        status: 'purging', 
+        step: step.name,
+        total: documentCounts[step.id] || 0,
+        processed: 0,
+        deleted: 0,
+        percent: 0
+      };
       
       // Update global progress
       if (global.importProgress[clientId]) {
@@ -523,13 +651,22 @@ async function executeImport(user, clientId, options = {}) {
       global.importProgress = {};
     }
     
+    // Get import data counts and file sizes for progress tracking
+    const { counts: dataCounts, totalRecords } = getImportDataCounts(dataPath);
+    const { sizes: fileSizes, totalSize } = getJsonFileSizes(dataPath);
+    
     const progress = {
       operationId,
       status: 'running',
       sequence: importSequence,
       currentStep: null,
       startTime: getNow(),
-      clientId
+      clientId,
+      dataCounts,
+      totalRecords,
+      fileSizes,
+      totalSizeKB: totalSize,
+      dryRun
     };
     
     // Store in global for progress tracking
@@ -542,7 +679,16 @@ async function executeImport(user, clientId, options = {}) {
     for (const step of importSequence) {
       progress.currentStep = step.id;
       progress.components = progress.components || {};
-      progress.components[step.id] = { status: 'importing', step: step.name };
+      progress.components[step.id] = { 
+        status: 'importing', 
+        step: step.name,
+        total: dataCounts[step.id] || 0,
+        processed: 0,
+        success: 0,
+        failed: 0,
+        percent: 0,
+        fileSizeKB: fileSizes[`${step.name.replace(' ', '')}.json`] || 0
+      };
       
       // Update global progress
       if (global.importProgress[clientId]) {

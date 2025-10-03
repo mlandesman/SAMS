@@ -192,6 +192,7 @@ export function ImportManagement({ clientId }) {
         }
         
         const data = await response.json();
+        console.log('Progress data received:', data); // Debug log
         setProgress(data);
         
         if (data.status === 'completed' || data.status === 'error') {
@@ -352,6 +353,8 @@ export function ImportManagement({ clientId }) {
         {/* Progress Display */}
         {progress && (
           <div className="card">
+            {/* Debug info */}
+            {console.log('Rendering progress:', progress)}
             <div className="card-header">
               <h3>📊 Operation Progress</h3>
             </div>
@@ -372,8 +375,14 @@ export function ImportManagement({ clientId }) {
               <div className="overall-status">
                 <strong>Status:</strong> 
                 <span className={`status-badge ${getProgressStatusClass(progress.status)}`}>
-                  {progress.status}
+{progress.status}
                 </span>
+              </div>
+              
+              {/* Debug: Show raw progress data */}
+              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f0f0f0', fontSize: '12px' }}>
+                <strong>Debug Progress Data:</strong>
+                <pre>{JSON.stringify(progress, null, 2)}</pre>
               </div>
               
               {progress.sequence && progress.sequence.length > 0 && (
@@ -402,41 +411,92 @@ export function ImportManagement({ clientId }) {
               )}
               
               {progress.components && Object.keys(progress.components).length > 0 && (
-                <div className="progress-details">
-                  <h4>Component Details:</h4>
-                  {Object.entries(progress.components).map(([component, status]) => (
-                    <div key={component} className="component-progress">
+                <div className="component-progress-list">
+                  <h4>Component Progress:</h4>
+                  {Object.entries(progress.components).map(([componentId, component]) => (
+                    <div key={componentId} className="component-progress">
                       <div className="progress-header">
-                        <span className="component-name">{status.step || component}</span>
-                        <span className={`status-badge ${getProgressStatusClass(status.status)}`}>
-                          {status.status}
+                        <span className="component-name">{component.step || componentId}</span>
+                        <span className={`status-badge ${getProgressStatusClass(component.status)}`}>
+                          {component.status}
                         </span>
                       </div>
-                      {status.message && (
-                        <p className="progress-message">{status.message}</p>
+                      
+                      {/* Progress Bar */}
+                      {component.total > 0 && (
+                        <div className="progress-bar-container">
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-bar-fill" 
+                              style={{ width: `${component.percent || 0}%` }}
+                            />
+                          </div>
+                          <span className="progress-percent">
+                            {component.percent || 0}%
+                          </span>
+                        </div>
                       )}
-                      {status.error && (
-                        <p className="progress-error">Error: {status.error}</p>
+                      
+                      {/* Progress Details */}
+                      <div className="progress-detail">
+                        {component.total > 0 && (
+                          <span>
+                            {component.processed || 0} / {component.total}
+                            {component.deleted !== undefined && ` (${component.deleted} deleted)`}
+                            {component.success !== undefined && ` (${component.success} success, ${component.failed || 0} failed)`}
+                          </span>
+                        )}
+                        {component.fileSizeKB && (
+                          <span> • {component.fileSizeKB} KB</span>
+                        )}
+                      </div>
+                      
+                      {/* Messages */}
+                      {component.message && (
+                        <div className="progress-message">{component.message}</div>
                       )}
-                      {status.count !== undefined && (
-                        <p className="progress-count">Count: {status.count}</p>
-                      )}
-                      {status.success !== undefined && (
-                        <p className="progress-success">Success: {status.success}</p>
-                      )}
-                      {status.failed !== undefined && (
-                        <p className="progress-failed">Failed: {status.failed}</p>
+                      {component.error && (
+                        <div className="progress-error">Error: {component.error}</div>
                       )}
                     </div>
                   ))}
                 </div>
               )}
               
+              {/* Overall Progress Summary */}
+              {progress.totalDocuments > 0 && (
+                <div className="progress-summary">
+                  <h4>Overall Progress:</h4>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-bar-fill" 
+                        style={{ width: `${Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="progress-percent">
+                      {Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%
+                    </span>
+                  </div>
+                  <div className="progress-detail">
+                    {Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0)} / {progress.totalDocuments} documents
+                    {progress.totalSizeKB && (
+                      <span> • {progress.totalSizeKB} KB total</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Timing Information */}
               {progress.startTime && (
                 <div className="timing-info">
-                  <p>Started: {new Date(progress.startTime).toLocaleString()}</p>
+                  <h4>Operation Details:</h4>
+                  <p><strong>Started:</strong> {new Date(progress.startTime).toLocaleString()}</p>
                   {progress.endTime && (
-                    <p>Completed: {new Date(progress.endTime).toLocaleString()}</p>
+                    <p><strong>Completed:</strong> {new Date(progress.endTime).toLocaleString()}</p>
+                  )}
+                  {progress.dryRun && (
+                    <p><strong>Mode:</strong> Dry Run (Preview Only)</p>
                   )}
                 </div>
               )}
