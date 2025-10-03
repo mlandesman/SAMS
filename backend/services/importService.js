@@ -520,35 +520,33 @@ export class ImportService {
   }
 
   /**
-   * Import HOA dues
+   * Import HOA dues - Create CrossRef and enhance existing transactions with allocations
+   */
+  /**
+   * Import HOA dues - Create CrossRef and enhance existing transactions with allocations
    */
   async importHOADues(user, options = {}) {
-    console.log('🏦 Importing HOA dues...');
+    console.log('🏦 Importing HOA dues and enhancing transactions with allocations...');
     const { dryRun = false, maxErrors = 3 } = options;
-    const results = { success: 0, failed: 0, errors: [], linkedPayments: 0, unlinkedPayments: 0, total: 0 };
+    const results = { 
+      success: 0, 
+      failed: 0, 
+      errors: [], 
+      linkedPayments: 0, 
+      unlinkedPayments: 0, 
+      total: 0, 
+      enhancedTransactions: 0 
+    };
     
     if (dryRun) {
       console.log('🔍 DRY RUN MODE: No HOA Dues data will be written to Firebase');
     }
     
-    // Track allocations by transaction ID for later update
-    const transactionAllocations = {};
-    
-    // Group HOA Dues by sequence number to handle split transactions
-    const groupedDues = {};
-    
     try {
       const duesData = await this.loadJsonFile('HOADues.json');
       const year = new Date().getFullYear();
-      const unitIds = Object.keys(duesData);
-      results.total = unitIds.length;
       
-      // Report starting
-      if (this.onProgress) {
-        this.onProgress('hoadues', 'importing', { total: results.total, processed: 0 });
-      }
-      
-      // Try to load transaction cross-reference if available
+      // Load transaction cross-reference if available
       let crossReference = { bySequence: {} };
       try {
         const crossRefData = await this.loadJsonFile('HOA_Transaction_CrossRef.json');
@@ -557,10 +555,13 @@ export class ImportService {
           console.log(`✅ Loaded cross-reference with ${Object.keys(crossReference.bySequence).length} entries`);
         }
       } catch (error) {
-        console.warn(`⚠️ No cross-reference file found, payments will not be linked to transactions`);
+        console.warn(`⚠️ No cross-reference file found, will try to match sequences manually`);
       }
       
-      // First pass: Group dues by sequence number to identify split transactions
+      // Step 1: Build HOADues CrossRef from HOADues.json
+      console.log('📋 Building HOA Dues CrossRef...');
+      const hoaCrossRef = {};
+      
       for (const [unitId, unitData] of Object.entries(duesData)) {
         if (unitData.payments && Array.isArray(unitData.payments)) {
           for (const payment of unitData.payments) {
@@ -568,17 +569,14 @@ export class ImportService {
             const sequenceNumber = seqMatch ? seqMatch[1] : null;
             
             if (sequenceNumber) {
-              if (!groupedDues[sequenceNumber]) {
-                groupedDues[sequenceNumber] = {
+              if (!hoaCrossRef[sequenceNumber]) {
+                hoaCrossRef[sequenceNumber] = {
                   sequenceNumber,
-                  totalAmount: 0,
-                  payments: [],
-                  transactionId: crossReference.bySequence[sequenceNumber]?.transactionId || null
+                  payments: []
                 };
               }
               
-              groupedDues[sequenceNumber].totalAmount += payment.paid;
-              groupedDues[sequenceNumber].payments.push({
+              hoaCrossRef[sequenceNumber].payments.push({
                 unitId,
                 month: payment.month,
                 amount: payment.paid,
@@ -589,231 +587,135 @@ export class ImportService {
         }
       }
       
-      const splitTransactions = Object.values(groupedDues).filter(g => g.payments.length > 1);
-      console.log(`📊 Grouped ${Object.keys(groupedDues).length} sequence numbers, ${splitTransactions.length} are split transactions`);
+      console.log(`📊 Built CrossRef with ${Object.keys(hoaCrossRef).length} sequence numbers`);
       
-      // Process grouped dues by sequence number (split transaction consolidation)
-      const processedSequences = new Set();
+      // Step 2: Load Transactions and find ones that need allocations
+      console.log('🔍 Finding transactions that need HOA Dues allocations...');
+      const transactionsData = await this.loadJsonFile('Transactions.json');
       
-      for (const [sequenceNumber, groupData] of Object.entries(groupedDues)) {
-        if (processedSequences.has(sequenceNumber)) {
-          continue; // Skip if already processed
-        }
+      const transactionsNeedingAllocations = [];
+      
+      for (const transaction of transactionsData) {
+        // Look for sequence number in first unnamed field ("" or index 0)
+        const sequenceNumber = transaction[''] || transaction[0] || null;
         
-        processedSequences.add(sequenceNumber);
-        
-        // For split transactions (multiple payments), create single consolidated payment
-        if (groupData.payments.length > 1) {
-          console.log(`🔄 Processing split transaction sequence ${sequenceNumber} with ${groupData.payments.length} payments`);
+        if (sequenceNumber && hoaCrossRef[sequenceNumber]) {
+          const hoaData = hoaCrossRef[sequenceNumber];
           
-          // Get the first payment as the base (they should all be from the same unit and date)
-          const basePayment = groupData.payments[0];
-          const unitId = basePayment.unitId;
+          // Try to find the transaction ID from our CrossRef
+          let transactionId = null;
+          if (crossReference.bySequence[sequenceNumber]) {
+            transactionId = crossReference.bySequence[sequenceNumber].transactionId;
+          }
           
-          // Initialize year document for this unit
-          await initializeYearDocument(this.clientId, unitId, year);
-          
-          // Try to link to transaction
-          let transactionId = groupData.transactionId;
           if (transactionId) {
-            results.linkedPayments++;
-            console.log(`🔗 Linked split transaction: Unit ${unitId}, Sequence ${sequenceNumber} → ${transactionId}`);
+            transactionsNeedingAllocations.push({
+              transactionId,
+              sequenceNumber,
+              hoaData,
+              transaction
+            });
+            results.linkedPayments += hoaData.payments.length;
+            console.log(`🔗 Will enhance transaction ${transactionId} (Seq ${sequenceNumber}) with ${hoaData.payments.length} allocations`);
           } else {
-            results.unlinkedPayments++;
-            console.log(`⚠️ Unlinked split transaction: Unit ${unitId}, Sequence ${sequenceNumber}, ${groupData.payments.length} payments`);
-          }
-
-          // Extract payment date from notes if available
-          let paymentDate = null;
-          const dateMatch = basePayment.notes?.match(/on\s+(.+?)\s+GMT/);
-          if (dateMatch) {
-            paymentDate = new Date(dateMatch[1]);
-          }
-          
-          // Create consolidated payment data
-          const paymentData = {
-            amount: groupData.totalAmount,
-            date: paymentDate || new Date(),
-            method: 'bank', // Default, could be extracted from notes
-            notes: basePayment.notes || '',
-            description: `HOA Dues split payment for Unit ${unitId} - Sequence ${sequenceNumber} (${groupData.payments.length} months)`,
-            transactionId: transactionId
-          };
-          
-          // Create distribution for all months in the split transaction
-          const distribution = groupData.payments.map(payment => ({
-            month: payment.month,
-            amountToAdd: payment.amount,
-            newAmount: payment.amount
-          }));
-          
-          // Record the consolidated payment using hoaDuesController
-          try {
-            if (!dryRun) {
-              await recordDuesPayment(this.clientId, unitId, year, paymentData, distribution);
-              console.log(`✅ Recorded consolidated payment for unit ${unitId} sequence ${sequenceNumber} (${groupData.payments.length} months)`);
-            } else {
-              console.log(`🔍 [DRY RUN] Would record consolidated payment for unit ${unitId} sequence ${sequenceNumber} (${groupData.payments.length} months)`);
-            }
-            
-            // If this payment is linked to a transaction, build allocations for it
-            if (transactionId) {
-              const allocations = groupData.payments.map(payment => {
-                const monthName = this.getMonthName(payment.month);
-                return {
-                  type: 'hoa_month',
-                  targetId: `hoaDues-${unitId}-${year}`,
-                  targetName: monthName,
-                  data: {
-                    unitId: unitId,
-                    month: payment.month,
-                    year: year
-                  },
-                  amount: payment.amount
-                };
-              });
-              
-              // Add all allocations to transaction allocations collection
-              if (!transactionAllocations[transactionId]) {
-                transactionAllocations[transactionId] = [];
-              }
-              transactionAllocations[transactionId].push(...allocations);
-            }
-          } catch (paymentError) {
-            console.error(`❌ Failed to record consolidated payment for unit ${unitId} sequence ${sequenceNumber}:`, paymentError.message);
-            results.errors.push(`Consolidated payment recording failed for unit ${unitId} sequence ${sequenceNumber}: ${paymentError.message}`);
+            results.unlinkedPayments += hoaData.payments.length;
+            console.log(`⚠️ No transaction ID found for sequence ${sequenceNumber} with ${hoaData.payments.length} payments`);
           }
         }
       }
       
-      // Process individual payments (non-split transactions)
+      console.log(`📊 Found ${transactionsNeedingAllocations.length} transactions needing HOA allocations`);
+      
+      // Step 3: Enhance transactions with allocations
+      for (const { transactionId, sequenceNumber, hoaData, transaction } of transactionsNeedingAllocations) {
+        try {
+          // Build allocations from HOA payments
+          const allocations = hoaData.payments.map((payment, index) => {
+            const monthName = this.getMonthName(payment.month);
+            return {
+              type: 'hoa_month',
+              targetId: `hoaDues-${payment.unitId}-${year}`,
+              targetName: monthName,
+              data: {
+                unitId: payment.unitId,
+                month: payment.month,
+                year: year
+              },
+              amount: payment.amount
+            };
+          });
+          
+          // Calculate allocation summary
+          const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+          const allocationSummary = {
+            totalAllocated: totalAllocated,
+            allocationCount: allocations.length,
+            allocationType: 'hoa_month',
+            hasMultipleTypes: false
+          };
+          
+          // Update the transaction with allocations
+          if (!dryRun) {
+            await updateTransaction(this.clientId, transactionId, {
+              allocations: allocations,
+              allocationSummary: allocationSummary,
+              categoryName: '-Split-' // Mark as split transaction
+            });
+            console.log(`✅ Enhanced transaction ${transactionId} with ${allocations.length} allocations`);
+          } else {
+            console.log(`🔍 [DRY RUN] Would enhance transaction ${transactionId} with ${allocations.length} allocations`);
+          }
+          
+          results.enhancedTransactions++;
+          
+        } catch (error) {
+          console.error(`❌ Failed to enhance transaction ${transactionId}:`, error.message);
+          results.errors.push(`Failed to enhance transaction ${transactionId}: ${error.message}`);
+        }
+      }
+      
+      // Step 4: Create HOA Dues documents for each unit (for payment tracking)
+      console.log('📋 Creating HOA Dues documents for payment tracking...');
+      const unitIds = Object.keys(duesData);
+      results.total = unitIds.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('hoadues', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      // Process each unit's dues data (for HOA Dues documents tracking)
       for (let i = 0; i < unitIds.length; i++) {
         const unitId = unitIds[i];
         const unitData = duesData[unitId];
+        
         try {
-          // Extract data from source
-          const {
-            scheduledAmount = 0,
-            creditBalance = 0,
-            payments = []
-          } = unitData;
-
           // Initialize year document for this unit
           await initializeYearDocument(this.clientId, unitId, year);
           
-          // Process each payment that's not part of a split transaction
-          for (const payment of payments) {
-            if (!payment.paid || payment.paid <= 0) {
-              continue;
-            }
-
-            // Parse payment notes to extract sequence number
-            const seqMatch = payment.notes?.match(/Seq:\s*(\d+)/);
-            const sequenceNumber = seqMatch ? seqMatch[1] : null;
-            
-            // Skip if this payment is part of a split transaction (already processed)
-            if (sequenceNumber && groupedDues[sequenceNumber] && groupedDues[sequenceNumber].payments.length > 1) {
-              continue;
-            }
-            
-            // Try to link to transaction
-            let transactionId = null;
-            if (sequenceNumber && crossReference.bySequence[sequenceNumber]) {
-              transactionId = crossReference.bySequence[sequenceNumber].transactionId;
-              results.linkedPayments++;
-              console.log(`🔗 Linked payment: Unit ${unitId}, Sequence ${sequenceNumber} → ${transactionId}`);
-            } else {
-              results.unlinkedPayments++;
-              console.log(`⚠️ Unlinked payment: Unit ${unitId}, Sequence ${sequenceNumber}, Month ${payment.month}, Amount ${payment.paid}`);
-              // Debug: Check if sequence exists in CrossRef
-              if (sequenceNumber) {
-                console.log(`🔍 Debug: Available sequences: ${Object.keys(crossReference.bySequence).slice(0, 10).join(', ')}...`);
-              }
-            }
-
-            // Extract payment date from notes if available
-            let paymentDate = null;
-            const dateMatch = payment.notes?.match(/on\s+(.+?)\s+GMT/);
-            if (dateMatch) {
-              paymentDate = new Date(dateMatch[1]);
-            }
-            
-            // Create payment data
-            const paymentData = {
-              amount: payment.paid,
-              date: paymentDate || new Date(),
-              method: 'bank', // Default, could be extracted from notes
-              notes: payment.notes || '',
-              description: `HOA Dues payment for Unit ${unitId} - Month ${payment.month}`,
-              transactionId: transactionId
-            };
-            
-            // Create distribution for this payment (single month)
-            const distribution = [{
-              month: payment.month,
-              amountToAdd: payment.paid,
-              newAmount: payment.paid
-            }];
-            
-            // Record the payment using hoaDuesController
-            try {
-              if (!dryRun) {
-                await recordDuesPayment(this.clientId, unitId, year, paymentData, distribution);
-                console.log(`✅ Recorded payment for unit ${unitId} month ${payment.month}`);
-              } else {
-                console.log(`🔍 [DRY RUN] Would record payment for unit ${unitId} month ${payment.month}`);
-              }
-              
-              // If this payment is linked to a transaction, build allocations for it
-              if (transactionId) {
-                const monthName = this.getMonthName(payment.month);
-                const allocation = {
-                  type: 'hoa_month',
-                  targetId: `hoaDues-${unitId}-${year}`,
-                  targetName: monthName,
-                  data: {
-                    unitId: unitId,
-                    month: payment.month,
-                    year: year
-                  },
-                  amount: payment.paid
-                };
-                
-                // Add to transaction allocations collection
-                if (!transactionAllocations[transactionId]) {
-                  transactionAllocations[transactionId] = [];
-                }
-                transactionAllocations[transactionId].push(allocation);
-              }
-            } catch (paymentError) {
-              console.error(`❌ Failed to record payment for unit ${unitId} month ${payment.month}:`, paymentError.message);
-              results.errors.push(`Payment recording failed for unit ${unitId} month ${payment.month}: ${paymentError.message}`);
-            }
-          }
-          
           // Update credit balance if needed
-          if (creditBalance !== 0) {
+          if (unitData.creditBalance && unitData.creditBalance !== 0) {
             const duesRef = await this.getDb().collection('clients').doc(this.clientId)
               .collection('units').doc(unitId)
               .collection('dues').doc(year.toString());
             
             await duesRef.update({
-              creditBalance: creditBalance * 100, // Convert to cents
+              creditBalance: unitData.creditBalance * 100, // Convert to cents
               creditBalanceHistory: [{
                 id: this.generateId(),
                 timestamp: new Date(),
                 type: 'migration',
-                amount: creditBalance * 100,
+                amount: unitData.creditBalance * 100,
                 description: 'Initial credit balance from migration',
                 balanceBefore: 0,
-                balanceAfter: creditBalance * 100,
+                balanceAfter: unitData.creditBalance * 100,
                 notes: 'Imported from legacy system'
               }]
             });
           }
           
           results.success++;
-          console.log(`✅ Imported HOA dues for unit: ${unitId}`);
+          console.log(`✅ Processed HOA dues data for unit: ${unitId}`);
           
           // Create metadata record for the HOA dues year document
           await this.createMetadataRecord(
@@ -825,61 +727,21 @@ export class ImportService {
           
         } catch (error) {
           results.failed++;
-          results.errors.push(`Error importing HOA dues for unit ${unitId}: ${error.message}`);
+          results.errors.push(`Error processing HOA dues for unit ${unitId}: ${error.message}`);
         }
         
         // Report progress
         this.reportProgress('hoadues', i, results.total, results);
       }
+      
+      console.log(`📊 Enhanced ${results.enhancedTransactions} transactions with HOA allocations`);
+      console.log(`📊 Linked payments: ${results.linkedPayments}, unlinked: ${results.unlinkedPayments}`);
+      
+      return results;
+      
     } catch (error) {
       throw new Error(`HOA dues import failed: ${error.message}`);
     }
-    
-    console.log(`📊 Payment linking: ${results.linkedPayments} linked, ${results.unlinkedPayments} unlinked`);
-    
-    // Phase 2: Update transactions with allocations
-    console.log('\n📝 Updating transactions with allocations...');
-    const transactionIds = Object.keys(transactionAllocations);
-    let updatedTransactions = 0;
-    let failedUpdates = 0;
-    
-    for (const transactionId of transactionIds) {
-      try {
-        const allocations = transactionAllocations[transactionId];
-        const totalAmount = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
-        
-        // Build allocation summary
-        const allocationSummary = {
-          totalAmount: totalAmount,
-          byCategory: { 'hoa_dues': totalAmount }
-        };
-        
-        // updateTransaction expects (clientId, txnId, newData)
-        if (!dryRun) {
-          await updateTransaction(this.clientId, transactionId, {
-            allocations: allocations,
-            allocationSummary: allocationSummary
-            // Don't set categoryName to '-Split-' - let the transaction keep its original category
-          });
-          console.log(`✅ Updated transaction ${transactionId} with ${allocations.length} allocations`);
-        } else {
-          console.log(`🔍 [DRY RUN] Would update transaction ${transactionId} with ${allocations.length} allocations`);
-        }
-        
-        updatedTransactions++;
-      } catch (error) {
-        failedUpdates++;
-        console.error(`❌ Failed to update transaction ${transactionId}:`, error.message);
-        results.errors.push(`Failed to update transaction ${transactionId}: ${error.message}`);
-      }
-    }
-    
-    results.transactionsUpdated = updatedTransactions;
-    results.transactionUpdatesFailed = failedUpdates;
-    
-    console.log(`📊 Transaction updates: ${updatedTransactions} successful, ${failedUpdates} failed`);
-    
-    return results;
   }
 
   /**
