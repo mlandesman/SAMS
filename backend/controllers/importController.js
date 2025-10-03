@@ -672,8 +672,23 @@ async function executeImport(user, clientId, options = {}) {
     // Store in global for progress tracking
     global.importProgress[clientId] = progress;
     
-    // Create import service instance
+    // Create import service instance with progress callback
     const importService = new ImportService(clientId, dataPath);
+    importService.onProgress = (component, status, data) => {
+      // Update progress in real-time
+      if (progress.components && progress.components[component]) {
+        progress.components[component] = {
+          ...progress.components[component],
+          ...data,
+          status: status
+        };
+        
+        // Update global progress
+        if (global.importProgress[clientId]) {
+          global.importProgress[clientId] = progress;
+        }
+      }
+    };
     
     // Execute imports in strict sequence
     for (const step of importSequence) {
