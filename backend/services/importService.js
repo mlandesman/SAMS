@@ -592,7 +592,101 @@ export class ImportService {
       const splitTransactions = Object.values(groupedDues).filter(g => g.payments.length > 1);
       console.log(`📊 Grouped ${Object.keys(groupedDues).length} sequence numbers, ${splitTransactions.length} are split transactions`);
       
-      // Process each unit's dues
+      // Process grouped dues by sequence number (split transaction consolidation)
+      const processedSequences = new Set();
+      
+      for (const [sequenceNumber, groupData] of Object.entries(groupedDues)) {
+        if (processedSequences.has(sequenceNumber)) {
+          continue; // Skip if already processed
+        }
+        
+        processedSequences.add(sequenceNumber);
+        
+        // For split transactions (multiple payments), create single consolidated payment
+        if (groupData.payments.length > 1) {
+          console.log(`🔄 Processing split transaction sequence ${sequenceNumber} with ${groupData.payments.length} payments`);
+          
+          // Get the first payment as the base (they should all be from the same unit and date)
+          const basePayment = groupData.payments[0];
+          const unitId = basePayment.unitId;
+          
+          // Initialize year document for this unit
+          await initializeYearDocument(this.clientId, unitId, year);
+          
+          // Try to link to transaction
+          let transactionId = groupData.transactionId;
+          if (transactionId) {
+            results.linkedPayments++;
+            console.log(`🔗 Linked split transaction: Unit ${unitId}, Sequence ${sequenceNumber} → ${transactionId}`);
+          } else {
+            results.unlinkedPayments++;
+            console.log(`⚠️ Unlinked split transaction: Unit ${unitId}, Sequence ${sequenceNumber}, ${groupData.payments.length} payments`);
+          }
+
+          // Extract payment date from notes if available
+          let paymentDate = null;
+          const dateMatch = basePayment.notes?.match(/on\s+(.+?)\s+GMT/);
+          if (dateMatch) {
+            paymentDate = new Date(dateMatch[1]);
+          }
+          
+          // Create consolidated payment data
+          const paymentData = {
+            amount: groupData.totalAmount,
+            date: paymentDate || new Date(),
+            method: 'bank', // Default, could be extracted from notes
+            notes: basePayment.notes || '',
+            description: `HOA Dues split payment for Unit ${unitId} - Sequence ${sequenceNumber} (${groupData.payments.length} months)`,
+            transactionId: transactionId
+          };
+          
+          // Create distribution for all months in the split transaction
+          const distribution = groupData.payments.map(payment => ({
+            month: payment.month,
+            amountToAdd: payment.amount,
+            newAmount: payment.amount
+          }));
+          
+          // Record the consolidated payment using hoaDuesController
+          try {
+            if (!dryRun) {
+              await recordDuesPayment(this.clientId, unitId, year, paymentData, distribution);
+              console.log(`✅ Recorded consolidated payment for unit ${unitId} sequence ${sequenceNumber} (${groupData.payments.length} months)`);
+            } else {
+              console.log(`🔍 [DRY RUN] Would record consolidated payment for unit ${unitId} sequence ${sequenceNumber} (${groupData.payments.length} months)`);
+            }
+            
+            // If this payment is linked to a transaction, build allocations for it
+            if (transactionId) {
+              const allocations = groupData.payments.map(payment => {
+                const monthName = this.getMonthName(payment.month);
+                return {
+                  type: 'hoa_month',
+                  targetId: `hoaDues-${unitId}-${year}`,
+                  targetName: monthName,
+                  data: {
+                    unitId: unitId,
+                    month: payment.month,
+                    year: year
+                  },
+                  amount: payment.amount
+                };
+              });
+              
+              // Add all allocations to transaction allocations collection
+              if (!transactionAllocations[transactionId]) {
+                transactionAllocations[transactionId] = [];
+              }
+              transactionAllocations[transactionId].push(...allocations);
+            }
+          } catch (paymentError) {
+            console.error(`❌ Failed to record consolidated payment for unit ${unitId} sequence ${sequenceNumber}:`, paymentError.message);
+            results.errors.push(`Consolidated payment recording failed for unit ${unitId} sequence ${sequenceNumber}: ${paymentError.message}`);
+          }
+        }
+      }
+      
+      // Process individual payments (non-split transactions)
       for (let i = 0; i < unitIds.length; i++) {
         const unitId = unitIds[i];
         const unitData = duesData[unitId];
@@ -607,7 +701,7 @@ export class ImportService {
           // Initialize year document for this unit
           await initializeYearDocument(this.clientId, unitId, year);
           
-          // Process each payment
+          // Process each payment that's not part of a split transaction
           for (const payment of payments) {
             if (!payment.paid || payment.paid <= 0) {
               continue;
@@ -616,6 +710,11 @@ export class ImportService {
             // Parse payment notes to extract sequence number
             const seqMatch = payment.notes?.match(/Seq:\s*(\d+)/);
             const sequenceNumber = seqMatch ? seqMatch[1] : null;
+            
+            // Skip if this payment is part of a split transaction (already processed)
+            if (sequenceNumber && groupedDues[sequenceNumber] && groupedDues[sequenceNumber].payments.length > 1) {
+              continue;
+            }
             
             // Try to link to transaction
             let transactionId = null;
