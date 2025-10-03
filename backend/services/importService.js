@@ -641,7 +641,7 @@ export class ImportService {
                 month: payment.month,
                 year: year
               },
-              amount: payment.amount
+              amount: payment.amount * 100 // Convert pesos to centavos
             };
           });
           
@@ -723,12 +723,20 @@ export class ImportService {
                 }
               }
               
-              // Extract sequence reference from notes: "Seq: 25010"
+              // Extract sequence reference from notes and look up transaction ID: "Seq: 25010"
               let reference = null;
               if (payment.notes) {
                 const seqMatch = payment.notes.match(/Seq:\s*(\d+)/);
                 if (seqMatch) {
-                  reference = seqMatch[1];
+                  const sequenceNumber = seqMatch[1];
+                  // Look up transaction ID from CrossRef using sequence number
+                  if (crossReference && crossReference.bySequence && crossReference.bySequence[sequenceNumber]) {
+                    reference = crossReference.bySequence[sequenceNumber].transactionId;
+                    console.log(`🔗 Payment reference: Seq ${sequenceNumber} → Transaction ${reference}`);
+                  } else {
+                    console.warn(`⚠️ No CrossRef found for sequence ${sequenceNumber} in unit ${unitId}`);
+                    reference = sequenceNumber; // Fallback to sequence number
+                  }
                 }
               }
               
