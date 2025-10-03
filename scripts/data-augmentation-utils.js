@@ -150,9 +150,11 @@ export function augmentMTCUser(userUnitMapping) {
 }
 
 /**
- * Augment MTC transaction data with proper account mapping
+ * Augment MTC transaction data with proper ID resolution
+ * NOTE: This function now requires vendorId, categoryId, and accountId to be resolved
+ * by the calling code since it doesn't have access to the database
  */
-export function augmentMTCTransaction(mtcTransaction) {
+export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryId = null, accountId = null, vendorName = null) {
   const accountMapping = getMTCImportMapping();
   
   // Get account mapping
@@ -163,36 +165,64 @@ export function augmentMTCTransaction(mtcTransaction) {
     console.warn(`⚠️ No account mapping for: ${accountName}`);
   }
   
-  return {
+  // Determine transaction type based on amount
+  const amount = parseFloat(mtcTransaction.Amount);
+  const type = amount >= 0 ? 'income' : 'expense';
+  
+  const augmentedData = {
     // Required fields
-    amount: parseFloat(mtcTransaction.Amount),
+    amount: amount,
+    type: type, // 'income' for positive amounts, 'expense' for negative
     
     // Account mapping (critical for balance calculations)
-    accountId: mapping?.accountId || null,
-    accountType: mapping?.accountType || null,
-    account: mapping?.account || accountName,
-    
-    // Optional fields with fallbacks
-    date: mtcTransaction.Date || new Date().toISOString(),
-    vendor: mtcTransaction.Vendor || '',
-    category: mtcTransaction.Category || '',
-    notes: mtcTransaction.Notes || '',
-    
-    // Import tracking
-    googleId: mtcTransaction[''] || null, // First field is google ID
-    
-    // Metadata
-    clientId: 'MTC',
-    
-    // Migration metadata
-    migrationData: {
-      originalAccount: accountName,
-      originalAmount: mtcTransaction.Amount,
-      originalDate: mtcTransaction.Date,
-      unit: mtcTransaction.Unit || null,
-      migratedAt: new Date().toISOString()
-    }
+    accountName: mapping?.account || accountName,
   };
+  
+  // Only add accountId if it exists (avoid null values)
+  if (accountId || mapping?.accountId) {
+    augmentedData.accountId = accountId || mapping.accountId;
+  }
+  
+  // Only add accountType if it exists (avoid null values)
+  if (mapping?.accountType) {
+    augmentedData.accountType = mapping.accountType;
+  }
+  
+  // Only add vendorId if it exists (avoid null values)
+  if (vendorId) {
+    augmentedData.vendorId = vendorId;
+  }
+  augmentedData.vendorName = vendorName || mtcTransaction.Vendor || '';
+  
+  // Only add categoryId if it exists (avoid null values)
+  if (categoryId) {
+    augmentedData.categoryId = categoryId;
+  }
+  augmentedData.categoryName = mtcTransaction.Category || '';
+  
+  // Optional fields with fallbacks
+  augmentedData.date = mtcTransaction.Date || new Date().toISOString();
+  augmentedData.notes = mtcTransaction.Notes || '';
+  augmentedData.description = vendorName || mtcTransaction.Vendor || ''; // Use mapped vendor as description
+  
+  // Import tracking
+  if (mtcTransaction[''] && typeof mtcTransaction[''] === 'string' && mtcTransaction[''].trim() !== '') {
+    augmentedData.googleId = mtcTransaction['']; // First field is google ID
+  }
+  
+  // Metadata
+  augmentedData.clientId = 'MTC';
+  
+  // Migration metadata
+  augmentedData.migrationData = {
+    originalAccount: accountName,
+    originalAmount: mtcTransaction.Amount,
+    originalDate: mtcTransaction.Date,
+    unit: mtcTransaction.Unit || null,
+    migratedAt: new Date().toISOString()
+  };
+  
+  return augmentedData;
 }
 
 /**

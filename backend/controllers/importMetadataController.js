@@ -30,7 +30,7 @@ export async function createImportMetadata(clientId, metadata) {
     }
 
     // Validate type
-    const validTypes = ['category', 'vendor', 'transaction', 'unit', 'user', 'hoa-dues', 'paymentMethod'];
+    const validTypes = ['category', 'vendor', 'transaction', 'unit', 'user', 'hoa-dues', 'paymentMethod', 'yearEndBalance'];
     if (!validTypes.includes(metadata.type)) {
       return { success: false, error: `Invalid type: ${metadata.type}. Must be one of: ${validTypes.join(', ')}` };
     }

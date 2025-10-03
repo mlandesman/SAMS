@@ -1,0 +1,1168 @@
+/*
+ * File: /backend/services/importService.js
+ * Purpose: Service for handling web-based import operations using real controllers
+ */
+
+import fs from 'fs/promises';
+import path from 'path';
+import { DateService } from './DateService.js';
+import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { 
+  augmentMTCTransaction,
+  augmentMTCUnit,
+  augmentMTCCategory,
+  augmentMTCVendor,
+  augmentMTCUser,
+  augmentMTCHOADues,
+  linkUsersToUnits,
+  validateImportOrder
+} from '../../scripts/data-augmentation-utils.js';
+import {
+  createTransaction,
+  updateTransaction,
+  createUnit,
+  createCategory,
+  createVendor,
+  createUser,
+  createYearEndBalance,
+  createImportMetadata
+} from '../controllers/index.js';
+import {
+  initializeYearDocument,
+  recordDuesPayment
+} from '../controllers/hoaDuesController.js';
+
+export class ImportService {
+  constructor(clientId, dataPath) {
+    this.clientId = clientId;
+    this.dataPath = dataPath;
+    this.dateService = new DateService({ timezone: 'America/Cancun' });
+    this.results = {};
+    this.onProgress = null; // Progress callback
+    this.importScriptName = 'web-based-import-system'; // Track which import system created the data
+  }
+  
+  /**
+   * Helper to report progress
+   */
+  reportProgress(component, index, total, results) {
+    if (this.onProgress && (index % 10 === 0 || index === total - 1)) {
+      this.onProgress(component, 'importing', {
+        total: total,
+        processed: index + 1,
+        percent: Math.round(((index + 1) / total) * 100),
+        ...results
+      });
+    }
+  }
+
+  /**
+   * Helper to create import metadata record
+   */
+  async createMetadataRecord(type, documentId, documentPath, originalData, source = 'import-script') {
+    try {
+      // Clean originalData to remove empty fields and invalid field names
+      const cleanedOriginalData = {};
+      if (originalData && typeof originalData === 'object') {
+        for (const [key, value] of Object.entries(originalData)) {
+          // Skip empty string keys and null/undefined values
+          if (key && key.trim() !== '' && value !== null && value !== undefined) {
+            // Use a safe field name if the original key is empty or invalid
+            const safeKey = key.trim() === '' ? 'unnamed_field' : key;
+            cleanedOriginalData[safeKey] = value;
+          }
+        }
+      }
+
+      const metadata = {
+        type,
+        documentId,
+        documentPath,
+        source,
+        originalData: cleanedOriginalData,
+        importScript: this.importScriptName
+      };
+
+      const result = await createImportMetadata(this.clientId, metadata);
+      if (!result.success) {
+        console.warn(`Failed to create metadata for ${type}/${documentId}:`, result.error);
+      }
+      return result;
+    } catch (error) {
+      console.warn(`Error creating metadata for ${type}/${documentId}:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Load JSON file from data path
+   */
+  async loadJsonFile(filename) {
+    const filePath = path.join(this.dataPath, filename);
+    try {
+      const data = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error(`❌ Error loading ${filename}:`, error.message);
+      throw new Error(`Failed to load ${filename}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Import categories
+   */
+  async importCategories(user) {
+    console.log('📁 Importing categories...');
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    try {
+      const categoriesData = await this.loadJsonFile('Categories.json');
+      results.total = categoriesData.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('categories', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      for (let i = 0; i < categoriesData.length; i++) {
+        const category = categoriesData[i];
+        try {
+          const augmentedData = augmentMTCCategory(category);
+          
+          // Remove createdAt as controller adds it
+          delete augmentedData.createdAt;
+          
+          // createCategory expects (clientId, data, user)
+          const categoryId = await createCategory(
+            this.clientId,
+            augmentedData,
+            user
+          );
+          
+          if (categoryId) {
+            results.success++;
+            console.log(`✅ Imported category: ${augmentedData.name}`);
+            
+            // Create metadata record
+            await this.createMetadataRecord(
+              'category',
+              categoryId,
+              `clients/${this.clientId}/categories/${categoryId}`,
+              category
+            );
+          } else {
+            results.failed++;
+            results.errors.push(`Failed to import category: ${augmentedData.name}`);
+          }
+          
+          // Report progress
+          if (this.onProgress && (i + 1) % 5 === 0 || i === categoriesData.length - 1) {
+            this.onProgress('categories', 'importing', { 
+              total: results.total, 
+              processed: i + 1,
+              success: results.success,
+              failed: results.failed
+            });
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing category ${category.Category}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Categories import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import vendors
+   */
+  async importVendors(user) {
+    console.log('🏢 Importing vendors...');
+    const results = { success: 0, failed: 0, errors: [] };
+    
+    try {
+      const vendorsData = await this.loadJsonFile('Vendors.json');
+      
+      for (const vendor of vendorsData) {
+        try {
+          const augmentedData = augmentMTCVendor(vendor);
+          
+          // Remove createdAt as controller adds it
+          delete augmentedData.createdAt;
+          
+          // createVendor expects (clientId, data, user)
+          const vendorId = await createVendor(
+            this.clientId,
+            augmentedData,
+            user
+          );
+          
+          if (vendorId) {
+            results.success++;
+            console.log(`✅ Imported vendor: ${augmentedData.name}`);
+            
+            // Create metadata record
+            await this.createMetadataRecord(
+              'vendor',
+              vendorId,
+              `clients/${this.clientId}/vendors/${vendorId}`,
+              vendor
+            );
+          } else {
+            results.failed++;
+            results.errors.push(`Failed to import vendor: ${augmentedData.name}`);
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing vendor ${vendor.Vendor}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Vendors import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import units
+   */
+  async importUnits(user) {
+    console.log('🏠 Importing units...');
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    try {
+      const unitsData = await this.loadJsonFile('Units.json');
+      const sizesData = await this.loadJsonFile('UnitSizes.json');
+      results.total = unitsData.length;
+      
+      // Create lookup map for sizes
+      const sizesMap = new Map(sizesData.map(s => [s.Unit, s]));
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('units', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      for (let i = 0; i < unitsData.length; i++) {
+        const unit = unitsData[i];
+        try {
+          const sizeData = sizesMap.get(unit.Unit) || {};
+          const augmentedData = augmentMTCUnit(unit, sizeData);
+          
+          // Remove createdAt as controller adds it
+          delete augmentedData.createdAt;
+          
+          // createUnit expects (clientId, unitData, docId)
+          const unitId = await createUnit(
+            this.clientId,
+            augmentedData,
+            augmentedData.unitId // Use unitId from augmented data as document ID
+          );
+          
+          if (unitId) {
+            results.success++;
+            console.log(`✅ Imported unit: ${augmentedData.unitName}`);
+            
+            // Create metadata record
+            await this.createMetadataRecord(
+              'unit',
+              unitId,
+              `clients/${this.clientId}/units/${unitId}`,
+              { ...unit, ...sizeData }
+            );
+          } else {
+            results.failed++;
+            results.errors.push(`Failed to import unit: ${augmentedData.unitName}`);
+          }
+          
+          // Report progress using helper
+          this.reportProgress('units', i, results.total, results);
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing unit ${unit.Unit}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Units import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import users
+   */
+  async importUsers(user) {
+    console.log('👥 Importing users...');
+    const results = { success: 0, failed: 0, errors: [] };
+    
+    try {
+      const usersData = await this.loadJsonFile('MTCUsers.json');
+      const unitsData = await this.loadJsonFile('Units.json');
+      
+      // Link users to units
+      const userUnitMapping = linkUsersToUnits(usersData, unitsData);
+      
+      for (const mtcUser of usersData) {
+        try {
+          const mapping = userUnitMapping.find(m => m.user === mtcUser);
+          const augmentedData = augmentMTCUser(mapping);
+          
+          // Remove createdAt as controller adds it
+          delete augmentedData.createdAt;
+          
+          // TODO: createUser is a route handler, not a direct function
+          // Need to implement proper user creation for imports
+          const userId = null; // await createUser(user, augmentedData);
+          
+          if (userId) {
+            results.success++;
+            console.log(`✅ Imported user: ${augmentedData.email}`);
+          } else {
+            results.failed++;
+            results.errors.push(`Failed to import user: ${augmentedData.email}`);
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing user ${mtcUser.Email}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Users import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import transactions
+   */
+  async importTransactions(user, options = {}) {
+    console.log('💰 Importing transactions...');
+    const { dryRun = false, maxErrors = 3 } = options;
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    // Initialize CrossRef structure
+    const hoaCrossRef = {
+      generated: new Date().toISOString(),
+      totalRecords: 0,
+      bySequence: {},
+      byUnit: {}
+    };
+    
+    if (dryRun) {
+      console.log('🔍 DRY RUN MODE: No data will be written to Firebase');
+    }
+    
+    try {
+      const transactionsData = await this.loadJsonFile('Transactions.json');
+      results.total = transactionsData.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('transactions', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      // Get lookup maps for vendor and category IDs
+      const db = await this.getDb();
+      const vendorMap = await this.getVendorLookupMap(db);
+      const categoryMap = await this.getCategoryLookupMap(db);
+      const accountMap = await this.getAccountsMapping();
+      
+      console.log(`📊 Loaded lookup maps: ${Object.keys(vendorMap).length} vendors, ${Object.keys(categoryMap).length} categories, ${Object.keys(accountMap).length} accounts`);
+      console.log(`🔍 Sample vendor mappings:`, Object.keys(vendorMap).slice(0, 5));
+      
+      for (let i = 0; i < transactionsData.length; i++) {
+        const transaction = transactionsData[i];
+        try {
+          // Resolve IDs from names with fallback logic
+          let vendorId = vendorMap[transaction.Vendor] || null;
+          let vendorName = transaction.Vendor;
+          
+          // If vendor not found, try to map to a real vendor or use fallback
+          if (!vendorId) {
+            const mappedVendor = this.mapDescriptionToVendor(transaction.Vendor);
+            if (mappedVendor) {
+              vendorId = vendorMap[mappedVendor] || null;
+              vendorName = mappedVendor;
+              if (vendorId) {
+                console.log(`🔗 Mapped "${transaction.Vendor}" → "${mappedVendor}" (${vendorId})`);
+              }
+            }
+            
+            // If still no vendor, use "OTHER" as fallback
+            if (!vendorId && vendorMap['OTHER']) {
+              vendorId = vendorMap['OTHER'];
+              vendorName = 'OTHER';
+              console.log(`🔗 Fallback: "${transaction.Vendor}" → "OTHER" (${vendorId})`);
+            }
+          }
+          
+          const categoryId = categoryMap[transaction.Category] || null;
+          const accountId = accountMap[transaction.Account]?.id || null;
+          
+          // Debug vendor lookup for first few transactions
+          if (i < 5) {
+            console.log(`🔍 Transaction ${i}: Vendor="${transaction.Vendor}", vendorId=${vendorId}, vendorMap has key: ${vendorMap.hasOwnProperty(transaction.Vendor)}`);
+          }
+          
+          const augmentedData = augmentMTCTransaction(transaction, vendorId, categoryId, accountId, vendorName);
+          
+          // Parse date properly - handle ISO format
+          if (transaction.Date.includes('T') && transaction.Date.includes('Z')) {
+            // ISO format: 2024-01-03T05:00:00.000Z
+            augmentedData.date = new Date(transaction.Date);
+          } else {
+            // Legacy format: M/d/yyyy
+            augmentedData.date = this.dateService.parseFromFrontend(
+              transaction.Date, 
+              'M/d/yyyy'
+            );
+          }
+          
+          // Remove createdAt as controller adds it
+          delete augmentedData.createdAt;
+          
+          let transactionId = null;
+          
+          if (!dryRun) {
+            // createTransaction expects (clientId, data)
+            transactionId = await createTransaction(
+              this.clientId,
+              augmentedData
+            );
+            
+            if (transactionId) {
+              results.success++;
+              console.log(`✅ Imported transaction: ${augmentedData.description}`);
+              
+              // Create metadata record
+              await this.createMetadataRecord(
+                'transaction',
+                transactionId,
+                `clients/${this.clientId}/transactions/${transactionId}`,
+                transaction
+              );
+            } else {
+              results.failed++;
+              results.errors.push(`Failed to import transaction: ${augmentedData.description}`);
+            }
+          } else {
+            // Dry run - simulate success
+            transactionId = `dry-run-${i}`;
+            results.success++;
+            console.log(`🔍 [DRY RUN] Would import transaction: ${augmentedData.description}`);
+          }
+          
+          if (transactionId) {
+            // Build CrossRef for HOA Dues transactions
+            const seqNumber = transaction[""]; // Unnamed first field contains sequence number
+            if (transaction.Category === "HOA Dues" && seqNumber) {
+              // Convert to string for consistent lookup
+              const seqKey = String(seqNumber);
+              hoaCrossRef.bySequence[seqKey] = {
+                transactionId: transactionId,
+                unitId: transaction.Unit,
+                amount: transaction.Amount,
+                date: transaction.Date
+              };
+              hoaCrossRef.totalRecords++;
+              
+              // Also track by unit
+              if (!hoaCrossRef.byUnit[transaction.Unit]) {
+                hoaCrossRef.byUnit[transaction.Unit] = [];
+              }
+              hoaCrossRef.byUnit[transaction.Unit].push({
+                transactionId: transactionId,
+                unitId: transaction.Unit,
+                amount: transaction.Amount,
+                date: transaction.Date,
+                sequenceNumber: seqNumber
+              });
+              
+              console.log(`📝 Recorded HOA CrossRef: Seq ${seqKey} → ${transactionId}`);
+            }
+          }
+          
+          // Report progress using helper
+          this.reportProgress('transactions', i, results.total, results);
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing transaction ${transaction.Google_ID}: ${error.message}`);
+          console.error(`❌ Transaction ${i} failed:`, error.message);
+          
+          // Stop if we hit the max error limit
+          if (results.failed >= maxErrors) {
+            console.error(`🛑 Stopping import after ${maxErrors} errors`);
+            throw new Error(`Import stopped after ${maxErrors} errors. Last error: ${error.message}`);
+          }
+        }
+      }
+      
+      // Save CrossRef to file if we found any HOA transactions
+      if (hoaCrossRef.totalRecords > 0) {
+        const crossRefPath = path.join(this.dataPath, 'HOA_Transaction_CrossRef.json');
+        await fs.writeFile(crossRefPath, JSON.stringify(hoaCrossRef, null, 2));
+        console.log(`💾 Saved HOA CrossRef with ${hoaCrossRef.totalRecords} entries to ${crossRefPath}`);
+        results.hoaCrossRefGenerated = true;
+        results.hoaCrossRefRecords = hoaCrossRef.totalRecords;
+      }
+      
+    } catch (error) {
+      throw new Error(`Transactions import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import HOA dues
+   */
+  async importHOADues(user, options = {}) {
+    console.log('🏦 Importing HOA dues...');
+    const { dryRun = false, maxErrors = 3 } = options;
+    const results = { success: 0, failed: 0, errors: [], linkedPayments: 0, unlinkedPayments: 0, total: 0 };
+    
+    if (dryRun) {
+      console.log('🔍 DRY RUN MODE: No HOA Dues data will be written to Firebase');
+    }
+    
+    // Track allocations by transaction ID for later update
+    const transactionAllocations = {};
+    
+    // Group HOA Dues by sequence number to handle split transactions
+    const groupedDues = {};
+    
+    try {
+      const duesData = await this.loadJsonFile('HOADues.json');
+      const year = new Date().getFullYear();
+      const unitIds = Object.keys(duesData);
+      results.total = unitIds.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('hoadues', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      // Try to load transaction cross-reference if available
+      let crossReference = { bySequence: {} };
+      try {
+        const crossRefData = await this.loadJsonFile('HOA_Transaction_CrossRef.json');
+        if (crossRefData && crossRefData.bySequence) {
+          crossReference = crossRefData;
+          console.log(`✅ Loaded cross-reference with ${Object.keys(crossReference.bySequence).length} entries`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ No cross-reference file found, payments will not be linked to transactions`);
+      }
+      
+      // First pass: Group dues by sequence number to identify split transactions
+      for (const [unitId, unitData] of Object.entries(duesData)) {
+        if (unitData.payments && Array.isArray(unitData.payments)) {
+          for (const payment of unitData.payments) {
+            const seqMatch = payment.notes?.match(/Seq:\s*(\d+)/);
+            const sequenceNumber = seqMatch ? seqMatch[1] : null;
+            
+            if (sequenceNumber) {
+              if (!groupedDues[sequenceNumber]) {
+                groupedDues[sequenceNumber] = {
+                  sequenceNumber,
+                  totalAmount: 0,
+                  payments: [],
+                  transactionId: crossReference.bySequence[sequenceNumber]?.transactionId || null
+                };
+              }
+              
+              groupedDues[sequenceNumber].totalAmount += payment.paid;
+              groupedDues[sequenceNumber].payments.push({
+                unitId,
+                month: payment.month,
+                amount: payment.paid,
+                notes: payment.notes
+              });
+            }
+          }
+        }
+      }
+      
+      const splitTransactions = Object.values(groupedDues).filter(g => g.payments.length > 1);
+      console.log(`📊 Grouped ${Object.keys(groupedDues).length} sequence numbers, ${splitTransactions.length} are split transactions`);
+      
+      // Process each unit's dues
+      for (let i = 0; i < unitIds.length; i++) {
+        const unitId = unitIds[i];
+        const unitData = duesData[unitId];
+        try {
+          // Extract data from source
+          const {
+            scheduledAmount = 0,
+            creditBalance = 0,
+            payments = []
+          } = unitData;
+
+          // Initialize year document for this unit
+          await initializeYearDocument(this.clientId, unitId, year);
+          
+          // Process each payment
+          for (const payment of payments) {
+            if (!payment.paid || payment.paid <= 0) {
+              continue;
+            }
+
+            // Parse payment notes to extract sequence number
+            const seqMatch = payment.notes?.match(/Seq:\s*(\d+)/);
+            const sequenceNumber = seqMatch ? seqMatch[1] : null;
+            
+            // Try to link to transaction
+            let transactionId = null;
+            if (sequenceNumber && crossReference.bySequence[sequenceNumber]) {
+              transactionId = crossReference.bySequence[sequenceNumber].transactionId;
+              results.linkedPayments++;
+              console.log(`🔗 Linked payment: Unit ${unitId}, Sequence ${sequenceNumber} → ${transactionId}`);
+            } else {
+              results.unlinkedPayments++;
+              console.log(`⚠️ Unlinked payment: Unit ${unitId}, Sequence ${sequenceNumber}, Month ${payment.month}, Amount ${payment.paid}`);
+              // Debug: Check if sequence exists in CrossRef
+              if (sequenceNumber) {
+                console.log(`🔍 Debug: Available sequences: ${Object.keys(crossReference.bySequence).slice(0, 10).join(', ')}...`);
+              }
+            }
+
+            // Extract payment date from notes if available
+            let paymentDate = null;
+            const dateMatch = payment.notes?.match(/on\s+(.+?)\s+GMT/);
+            if (dateMatch) {
+              paymentDate = new Date(dateMatch[1]);
+            }
+            
+            // Create payment data
+            const paymentData = {
+              amount: payment.paid,
+              date: paymentDate || new Date(),
+              method: 'bank', // Default, could be extracted from notes
+              notes: payment.notes || '',
+              description: `HOA Dues payment for Unit ${unitId} - Month ${payment.month}`,
+              transactionId: transactionId
+            };
+            
+            // Create distribution for this payment (single month)
+            const distribution = [{
+              month: payment.month,
+              amountToAdd: payment.paid,
+              newAmount: payment.paid
+            }];
+            
+            // Record the payment using hoaDuesController
+            try {
+              if (!dryRun) {
+                await recordDuesPayment(this.clientId, unitId, year, paymentData, distribution);
+                console.log(`✅ Recorded payment for unit ${unitId} month ${payment.month}`);
+              } else {
+                console.log(`🔍 [DRY RUN] Would record payment for unit ${unitId} month ${payment.month}`);
+              }
+              
+              // If this payment is linked to a transaction, build allocations for it
+              if (transactionId) {
+                const monthName = this.getMonthName(payment.month);
+                const allocation = {
+                  type: 'hoa_month',
+                  targetId: `hoaDues-${unitId}-${year}`,
+                  targetName: monthName,
+                  data: {
+                    unitId: unitId,
+                    month: payment.month,
+                    year: year
+                  },
+                  amount: payment.paid
+                };
+                
+                // Add to transaction allocations collection
+                if (!transactionAllocations[transactionId]) {
+                  transactionAllocations[transactionId] = [];
+                }
+                transactionAllocations[transactionId].push(allocation);
+              }
+            } catch (paymentError) {
+              console.error(`❌ Failed to record payment for unit ${unitId} month ${payment.month}:`, paymentError.message);
+              results.errors.push(`Payment recording failed for unit ${unitId} month ${payment.month}: ${paymentError.message}`);
+            }
+          }
+          
+          // Update credit balance if needed
+          if (creditBalance !== 0) {
+            const duesRef = await this.getDb().collection('clients').doc(this.clientId)
+              .collection('units').doc(unitId)
+              .collection('dues').doc(year.toString());
+            
+            await duesRef.update({
+              creditBalance: creditBalance * 100, // Convert to cents
+              creditBalanceHistory: [{
+                id: this.generateId(),
+                timestamp: new Date(),
+                type: 'migration',
+                amount: creditBalance * 100,
+                description: 'Initial credit balance from migration',
+                balanceBefore: 0,
+                balanceAfter: creditBalance * 100,
+                notes: 'Imported from legacy system'
+              }]
+            });
+          }
+          
+          results.success++;
+          console.log(`✅ Imported HOA dues for unit: ${unitId}`);
+          
+          // Create metadata record for the HOA dues year document
+          await this.createMetadataRecord(
+            'hoa-dues',
+            year.toString(),
+            `clients/${this.clientId}/units/${unitId}/dues/${year}`,
+            unitData
+          );
+          
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing HOA dues for unit ${unitId}: ${error.message}`);
+        }
+        
+        // Report progress
+        this.reportProgress('hoadues', i, results.total, results);
+      }
+    } catch (error) {
+      throw new Error(`HOA dues import failed: ${error.message}`);
+    }
+    
+    console.log(`📊 Payment linking: ${results.linkedPayments} linked, ${results.unlinkedPayments} unlinked`);
+    
+    // Phase 2: Update transactions with allocations
+    console.log('\n📝 Updating transactions with allocations...');
+    const transactionIds = Object.keys(transactionAllocations);
+    let updatedTransactions = 0;
+    let failedUpdates = 0;
+    
+    for (const transactionId of transactionIds) {
+      try {
+        const allocations = transactionAllocations[transactionId];
+        const totalAmount = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+        
+        // Build allocation summary
+        const allocationSummary = {
+          totalAmount: totalAmount,
+          byCategory: { 'hoa_dues': totalAmount }
+        };
+        
+        // updateTransaction expects (clientId, txnId, newData)
+        if (!dryRun) {
+          await updateTransaction(this.clientId, transactionId, {
+            allocations: allocations,
+            allocationSummary: allocationSummary
+            // Don't set categoryName to '-Split-' - let the transaction keep its original category
+          });
+          console.log(`✅ Updated transaction ${transactionId} with ${allocations.length} allocations`);
+        } else {
+          console.log(`🔍 [DRY RUN] Would update transaction ${transactionId} with ${allocations.length} allocations`);
+        }
+        
+        updatedTransactions++;
+      } catch (error) {
+        failedUpdates++;
+        console.error(`❌ Failed to update transaction ${transactionId}:`, error.message);
+        results.errors.push(`Failed to update transaction ${transactionId}: ${error.message}`);
+      }
+    }
+    
+    results.transactionsUpdated = updatedTransactions;
+    results.transactionUpdatesFailed = failedUpdates;
+    
+    console.log(`📊 Transaction updates: ${updatedTransactions} successful, ${failedUpdates} failed`);
+    
+    return results;
+  }
+
+  /**
+   * Helper to get database instance
+   */
+  async getDb() {
+    if (!this.db) {
+      const { getDb } = await import('../firebase.js');
+      this.db = await getDb();
+    }
+    return this.db;
+  }
+
+  /**
+   * Helper to generate unique IDs
+   */
+  generateId() {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
+  /**
+   * Helper to get month name in Spanish
+   */
+  getMonthName(monthNumber) {
+    const monthNames = {
+      1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 
+      5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto", 
+      9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+    };
+    return monthNames[monthNumber] || `Month ${monthNumber}`;
+  }
+
+  /**
+   * Get or create accounts mapping
+   */
+  async getAccountsMapping() {
+    console.log('🔗 Loading accounts mapping...');
+    
+    const db = await this.getDb();
+    const accountsRef = db.collection('clients').doc(this.clientId).collection('accounts');
+    const accountsSnapshot = await accountsRef.get();
+    
+    const accountsMap = {};
+    accountsSnapshot.forEach(doc => {
+      const account = doc.data();
+      accountsMap[account.name] = {
+        id: doc.id,
+        name: account.name,
+        type: account.type
+      };
+    });
+    
+    console.log(`✅ Loaded ${Object.keys(accountsMap).length} account mappings`);
+    return accountsMap;
+  }
+
+  /**
+   * Get vendor lookup map (name -> id)
+   */
+  async getVendorLookupMap(db) {
+    console.log('🏢 Loading vendor lookup map...');
+    
+    const vendorsRef = db.collection('clients').doc(this.clientId).collection('vendors');
+    const vendorsSnapshot = await vendorsRef.get();
+    
+    const vendorMap = {};
+    vendorsSnapshot.forEach(doc => {
+      const vendor = doc.data();
+      vendorMap[vendor.name] = doc.id;
+    });
+    
+    console.log(`✅ Loaded ${Object.keys(vendorMap).length} vendor mappings`);
+    return vendorMap;
+  }
+
+  /**
+   * Map transaction descriptions to real vendors
+   */
+  mapDescriptionToVendor(description) {
+    const mappings = {
+      // Jose variations (map to OTHER since Jose is not in vendor list)
+      'Jose - Salary': 'OTHER',
+      'Jose Salary': 'OTHER', 
+      'José Salary': 'OTHER',
+      'José Holiday Pay': 'OTHER',
+      'Jose 3 Days work during holidays': 'OTHER',
+      'José Shopping Expenses': 'OTHER',
+      'Jose (repair lights)': 'OTHER',
+      'Jose: Pool and Cleaning Supplies': 'OTHER',
+      'Jose - Salary (missed one day)': 'OTHER',
+      'Jose - Salary (final payment)': 'OTHER',
+      
+      // MTC Administration Fee
+      'MTC Administration Fee': 'Administration Fee',
+      
+      // Elevator related
+      'Elevator Assessment 1 & 2 (less $1,000)': 'Vertical City',
+      'Elevator Assessment (Xoom → MTC Bank)': 'Vertical City',
+      'Vertical City Lift (50% deposit for modernization)': 'Vertical City',
+      'Elevator Refurb': 'Vertical City',
+      'Elevator Refub (paid in USD)': 'Vertical City',
+      'Elevator Refub': 'Vertical City',
+      'Elevator Refurb (USD)': 'Vertical City',
+      'Elevator Refurb #3': 'Vertical City',
+      'Elevator Motor ($9,500 of $16,140)': 'Vertical City',
+      'Elevator Motor Paid In Full': 'Vertical City',
+      'Elevator Motor & Variator (paid in full)': 'Vertical City',
+      'Elevator Motor and Variator': 'Vertical City',
+      'Elevator Modernization (VC)': 'Vertical City',
+      'Pool Pump Maintenance': 'Vertical City',
+      
+      // Pool related
+      'Pool Pump (Bomba) from Unicornio PDC': 'OTHER',
+      'Pool and Lawn Chemicals': 'OTHER',
+      'Cleaning Supplies': 'OTHER',
+      'Pool Skimmer Net': 'OTHER',
+      'Janitorial Supplies': 'OTHER',
+      
+      // Tools and repairs
+      'Tools to repair pool door (remachadora)': 'Jorge Juan Perez',
+      'Electrician (Rudi) for ground bar parts': 'Rudi (Electrician)',
+      'Jorge Juan -- Pool Electrical Repair': 'Jorge Juan Perez',
+      'Hose Bib (llave) for backyard (Jorge Juan Perez)': 'Jorge Juan Perez',
+      
+      // Security
+      'Security Camera Install (Parking Lot)': 'OTHER',
+      
+      // Passport
+      'Annual PA Passport (Jose)': 'OTHER',
+      
+      // Cash transfers
+      'Cash to Jose for Supplies (pool and garden)': 'Petty Cash',
+      
+      // SPLIT transactions (internal accounting)
+      '[SPLIT] Overpayment for Account Credit': 'OTHER',
+      '[SPLIT] Overpayment for Credit': 'OTHER',
+      '[SPLIT] Salary': 'OTHER',
+      '[SPLIT] Chemicals': 'OTHER',
+      '[SPLIT] Elevator Refurb': 'OTHER',
+      '[SPLIT] Payment in Full': 'OTHER',
+      '[SPLIT] 50% (less 205 pesos)': 'OTHER',
+      '[SPLIT] Elevator Refurb': 'OTHER',
+      '[SPLIT] Overpayment for Account Credit': 'OTHER',
+      '[SPLIT] Elevator Assessment #3': 'OTHER',
+      '[SPLIT] Elevator Motor and Modernization Project': 'OTHER',
+      '[SPLIT] Account Credit': 'OTHER',
+      '[SPLIT] 50% payment for Elevator Modernization (VC)': 'OTHER',
+      '[SPLIT] 50% deposit for new Elevator Motor and Variator': 'OTHER',
+      '[SPLIT] Elevator Motor and Variator 2A Paid in Full': 'OTHER',
+      '[SPLIT] Elevator Motor and Variator PH3C Paid in Full': 'OTHER',
+      
+      // Deposits with descriptions
+      'Deposit: Roof Water Sealing': 'Deposit',
+      'Deposit: HOA Dues': 'Deposit',
+      'Deposit: Account Credit': 'Deposit',
+      
+      // Complex descriptions
+      'Paid deposit to Vertical City for Elevator Motor (refund from MTC due of $13,860': 'Vertical City',
+      'Vertical City -- 50% Deposit for new Elevator Motor and Variator including shipping': 'Vertical City'
+    };
+    
+    return mappings[description] || null;
+  }
+
+  /**
+   * Get category lookup map (name -> id)
+   */
+  async getCategoryLookupMap(db) {
+    console.log('📁 Loading category lookup map...');
+    
+    const categoriesRef = db.collection('clients').doc(this.clientId).collection('categories');
+    const categoriesSnapshot = await categoriesRef.get();
+    
+    const categoryMap = {};
+    categoriesSnapshot.forEach(doc => {
+      const category = doc.data();
+      categoryMap[category.name] = doc.id;
+    });
+    
+    console.log(`✅ Loaded ${Object.keys(categoryMap).length} category mappings`);
+    return categoryMap;
+  }
+
+  /**
+   * Create fallback year-end balance with zero amounts
+   */
+  createFallbackYearEnd(accountsMap, fiscalYear) {
+    const yearEndDate = new Date(`${fiscalYear}-12-31`).toISOString();
+    
+    return {
+      year: fiscalYear,
+      date: yearEndDate,
+      accounts: Object.entries(accountsMap).map(([id, account]) => ({
+        id: id,
+        name: account.name,
+        balance: 0
+      }))
+    };
+  }
+
+  /**
+   * Import year-end balances
+   */
+  async importYearEndBalances(user) {
+    console.log('📊 Importing year-end balances...');
+    const results = { success: 0, failed: 0, errors: [], balanceIds: [] };
+    
+    try {
+      // Try to load year-end balances
+      let balancesData = null;
+      try {
+        balancesData = await this.loadJsonFile('yearEndBalances.json');
+      } catch (error) {
+        if (error.message.includes('ENOENT')) {
+          console.log('⚠️  No yearEndBalances.json found - will create fallback with zero balances');
+        } else {
+          throw error;
+        }
+      }
+      
+      // Load client configuration - check both root and subdirectory
+      let clientConfig = { fiscalYearStart: 'calendar', accounts: [] };
+      try {
+        // First try the root directory
+        const configData = await this.loadJsonFile('client-config.json');
+        if (configData) clientConfig = configData;
+      } catch (error) {
+        try {
+          // Try the subdirectory
+          const configData = await this.loadJsonFile('2025-08-06/client-config.json');
+          if (configData) clientConfig = configData;
+        } catch (subError) {
+          console.log('⚠️  No client config found - using defaults');
+        }
+      }
+      
+      // Get accounts mapping
+      const accountsMap = await this.getAccountsMapping();
+      
+      // If no data, create fallback
+      if (!balancesData) {
+        const currentFiscalYear = getFiscalYear(new Date(), clientConfig.fiscalYearStart);
+        const fallbackYear = currentFiscalYear - 1;
+        
+        balancesData = {
+          [fallbackYear]: this.createFallbackYearEnd(accountsMap, fallbackYear)
+        };
+        
+        console.log(`📝 Created fallback year-end balance for fiscal year ${fallbackYear}`);
+      }
+      
+      // Process each year
+      for (const [year, yearData] of Object.entries(balancesData)) {
+        // Skip any internal/private keys
+        if (year.startsWith('_')) continue;
+        
+        try {
+          // Extract the simple structure from yearData
+          const simpleData = {
+            year: yearData.year || parseInt(year),
+            date: yearData.date || new Date(`${year}-12-31`).toISOString(),
+            accounts: yearData.accounts || [],
+            created: new Date().toISOString(),
+            createdBy: 'import-script'
+          };
+          
+          // Ensure accounts have correct structure
+          simpleData.accounts = simpleData.accounts.map(acc => ({
+            id: acc.id,
+            name: acc.name,
+            balance: parseFloat(acc.balance) || 0
+          }));
+          
+          // Save directly to Firestore with the correct structure
+          const db = await this.getDb();
+          const docId = simpleData.year.toString();
+          const balanceRef = db.doc(`clients/${this.clientId}/yearEndBalances/${docId}`);
+          
+          // Check if document already exists
+          const existing = await balanceRef.get();
+          if (existing.exists) {
+            console.log(`⚠️ Year-end balance for ${simpleData.year} already exists, updating instead`);
+            // Update only the accounts array and update metadata
+            await balanceRef.update({
+              accounts: simpleData.accounts,
+              updated: new Date().toISOString(),
+              updatedBy: 'import-script'
+            });
+          } else {
+            // Create new document with clean structure
+            await balanceRef.set(simpleData);
+          }
+          
+          results.success++;
+          results.balanceIds.push(docId);
+          console.log(`✅ Imported year-end balance for fiscal year ${year}`);
+          
+          // Create metadata record
+          await this.createMetadataRecord(
+            'yearEndBalance',
+            docId,
+            `clients/${this.clientId}/yearEndBalances/${docId}`,
+            yearData
+          );
+          
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing balance for year ${year}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Year-end balances import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Execute import for selected components
+   */
+  async executeImport(user, components = []) {
+    console.log(`🚀 Starting import for components: ${components.join(', ')}`);
+    
+    // Define import order
+    const importOrder = [
+      'categories',
+      'vendors',
+      'units',
+      'users',
+      'transactions',
+      'hoadues',
+      'yearEndBalances'
+    ];
+    
+    // Filter and order components based on defined order
+    const orderedComponents = importOrder.filter(comp => components.includes(comp));
+    
+    const results = {
+      status: 'running',
+      components: {},
+      startTime: new Date().toISOString()
+    };
+    
+    // Map component names to import methods
+    const importMethods = {
+      'categories': this.importCategories.bind(this),
+      'vendors': this.importVendors.bind(this),
+      'units': this.importUnits.bind(this),
+      'users': this.importUsers.bind(this),
+      'transactions': this.importTransactions.bind(this),
+      'hoadues': this.importHOADues.bind(this),
+      'yearEndBalances': this.importYearEndBalances.bind(this)
+    };
+    
+    // Execute imports in order
+    for (const component of orderedComponents) {
+      results.components[component] = { status: 'importing' };
+      
+      try {
+        const importMethod = importMethods[component];
+        if (!importMethod) {
+          throw new Error(`Unknown component: ${component}`);
+        }
+        
+        const componentResult = await importMethod(user);
+        results.components[component] = {
+          status: 'completed',
+          ...componentResult
+        };
+        
+      } catch (error) {
+        results.components[component] = {
+          status: 'error',
+          error: error.message
+        };
+        console.error(`❌ Error importing ${component}:`, error);
+      }
+    }
+    
+    results.status = 'completed';
+    results.endTime = new Date().toISOString();
+    
+    return results;
+  }
+}

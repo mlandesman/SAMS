@@ -345,9 +345,12 @@ export const logSecurityEvent = (eventType) => {
   return (req, res, next) => {
     const { user, authorizedClientId } = req;
     
+    // Get clientId from params if available (for import routes)
+    const clientId = req.params?.clientId || authorizedClientId;
+    
     console.log(`🔍 Security Event: ${eventType}`, {
       user: user.email,
-      clientId: authorizedClientId,
+      clientId: clientId,
       timestamp: new Date().toISOString(),
       userAgent: req.get('User-Agent'),
       ip: req.ip
