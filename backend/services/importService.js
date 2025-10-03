@@ -674,17 +674,20 @@ export class ImportService {
         }
       }
       
-      // Step 4: Create HOA Dues documents for each unit (for payment tracking)
-      console.log('📋 Creating HOA Dues documents for payment tracking...');
+      // Step 4: Process payments and credit balances for each unit
+      console.log('📋 Processing HOA dues payments and credit balances...');
       const unitIds = Object.keys(duesData);
       results.total = unitIds.length;
+      
+      console.log(`🔍 Debug: Processing ${unitIds.length} units for client ${this.clientId}, year ${year}`);
+      console.log(`🔍 Debug: Unit IDs:`, unitIds.slice(0, 3));
       
       // Report starting
       if (this.onProgress) {
         this.onProgress('hoadues', 'importing', { total: results.total, processed: 0 });
       }
       
-      // Process each unit's dues data (for HOA Dues documents tracking)
+      // Process each unit's dues data
       for (let i = 0; i < unitIds.length; i++) {
         const unitId = unitIds[i];
         const unitData = duesData[unitId];
@@ -693,29 +696,132 @@ export class ImportService {
           // Initialize year document for this unit
           await initializeYearDocument(this.clientId, unitId, year);
           
-          // Update credit balance if needed
-          if (unitData.creditBalance && unitData.creditBalance !== 0) {
-            const duesRef = await this.getDb().collection('clients').doc(this.clientId)
-              .collection('units').doc(unitId)
-              .collection('dues').doc(year.toString());
+          const db = await this.getDb();
+          const duesRef = db.collection('clients').doc(this.clientId)
+            .collection('units').doc(unitId)
+            .collection('dues').doc(year.toString());
+          
+          // Process payments
+          if (unitData.payments && unitData.payments.length > 0) {
+            const paymentData = unitData.payments.map(payment => {
+              // Extract date from notes: "Posted: MXN 15,000.00 on Sat Dec 28 2024 13:56:50 GMT-0500"
+              let extractedDate = null;
+              if (payment.notes) {
+                const dateMatch = payment.notes.match(/Posted:.*?on\s+(.+?)\s+GMT/i);
+                if (dateMatch) {
+                  try {
+                    // Parse the date string
+                    const dateStr = dateMatch[1].trim();
+                    // Convert "Sat Dec 28 2024 13:56:50" format
+                    extractedDate = new Date(dateStr);
+                    if (isNaN(extractedDate.getTime())) {
+                      extractedDate = null; // Invalid date
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ Could not parse date from notes for unit ${unitId}: ${payment.notes}`);
+                  }
+                }
+              }
+              
+              // Extract sequence reference from notes: "Seq: 25010"
+              let reference = null;
+              if (payment.notes) {
+                const seqMatch = payment.notes.match(/Seq:\s*(\d+)/);
+                if (seqMatch) {
+                  reference = seqMatch[1];
+                }
+              }
+              
+              return {
+                month: payment.month,
+                amount: payment.paid * 100, // Convert to cents  
+                paid: payment.paid > 0,
+                date: extractedDate,
+                method: 'bank',
+                notes: payment.notes || '',
+                reference: reference
+              };
+            });
             
             await duesRef.update({
-              creditBalance: unitData.creditBalance * 100, // Convert to cents
-              creditBalanceHistory: [{
-                id: this.generateId(),
-                timestamp: new Date(),
-                type: 'migration',
-                amount: unitData.creditBalance * 100,
-                description: 'Initial credit balance from migration',
-                balanceBefore: 0,
-                balanceAfter: unitData.creditBalance * 100,
-                notes: 'Imported from legacy system'
-              }]
+              payments: paymentData
+            });
+            
+            console.log(`✅ Recorded ${paymentData.length} payments for unit ${unitId}`);
+          }
+          
+          // Process credit balance and build history
+          const creditBalanceHistory = [];
+          let runningBalance = 0;
+          
+          // Parse credit balance changes from payment notes and transaction CrossRef
+          const creditBalanceTransactions = [];
+          
+          // Look for credit balance changes in transactions by sequence
+          for (const [sequenceNumber, crossRefData] of Object.entries(crossReference.bySequence)) {
+            if (crossRefData.transactionId && hoaCrossRef[sequenceNumber]) {
+              const transaction = transactionsData.find(t => 
+                t[''] == sequenceNumber || t[0] == sequenceNumber
+              );
+              
+              if (transaction && transaction.Notes) {
+                // Parse credit balance from transaction notes
+                const creditMatch = transaction.Notes.match(/\+?\s*MXN\s*([\d,]+)\.00\s*Credit/i);
+                if (creditMatch) {
+                  const creditAmount = parseFloat(creditMatch[1].replace(/,/g, '')) * 100; // Convert to cents
+                  runningBalance += creditAmount;
+                  
+                  creditBalanceTransactions.push({
+                    sequenceNumber,
+                    transactionId: crossRefData.transactionId,
+                    amount: creditAmount,
+                    notes: transaction.Notes,
+                    date: transaction.Date
+                  });
+                }
+              }
+            }
+          }
+          
+          // Build credit balance history from transactions
+          for (const tx of creditBalanceTransactions) {
+            creditBalanceHistory.push({
+              id: this.generateId(),
+              timestamp: new Date(tx.date),
+              type: 'credit_addition',
+              amount: tx.amount,
+              description: `Credit added from transaction ${tx.transactionId}`,
+              balanceBefore: runningBalance - tx.amount,
+              balanceAfter: runningBalance,
+              notes: tx.notes,
+              sequenceNumber: tx.sequenceNumber,
+              transactionId: tx.transactionId
             });
           }
           
+          // Add initial credit balance entry if there's a current balance
+          const finalCreditBalance = (unitData.creditBalance || 0) * 100;
+          if (finalCreditBalance > 0 && creditBalanceHistory.length === 0) {
+            creditBalanceHistory.push({
+              id: this.generateId(),
+              timestamp: new Date(),
+              type: 'migration',
+              amount: finalCreditBalance,
+              description: 'Initial credit balance from migration',
+              balanceBefore: 0,
+              balanceAfter: finalCreditBalance,
+              notes: 'Imported from legacy system'
+            });
+          }
+          
+          // Update dues document with credit balance and history
+          await duesRef.update({
+            creditBalance: finalCreditBalance,
+            creditBalanceHistory: creditBalanceHistory
+          });
+          
           results.success++;
-          console.log(`✅ Processed HOA dues data for unit: ${unitId}`);
+          console.log(`✅ Processed HOA dues for unit ${unitId}: ${unitData.payments?.length || 0} payments, ${finalCreditBalance/100} credit balance`);
           
           // Create metadata record for the HOA dues year document
           await this.createMetadataRecord(
@@ -740,6 +846,8 @@ export class ImportService {
       return results;
       
     } catch (error) {
+      console.error(`🔍 DEBUG: Error in importHOADues:`, error.message);
+      console.error(`🔍 DEBUG: Stack trace:`, error.stack);
       throw new Error(`HOA dues import failed: ${error.message}`);
     }
   }
