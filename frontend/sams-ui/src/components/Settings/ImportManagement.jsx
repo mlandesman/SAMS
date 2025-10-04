@@ -279,9 +279,10 @@ export function ImportManagement({ clientId }) {
                 <li>Categories (independent)</li>
                 <li>Payment Types (independent)</li>
                 <li>Config Collection (independent)</li>
-                <li>Client Document (independent)</li>
+                <li>Client Document (document only - subcollections already purged)</li>
                 <li>Import Metadata</li>
               </ul>
+              <p><strong>Note:</strong> Client Document purge only deletes the client document itself, not its subcollections, which are already purged in previous steps.</p>
             </div>
             
             <div className="dry-run-section" style={{ margin: '15px 0' }}>

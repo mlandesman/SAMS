@@ -544,6 +544,8 @@ async function purgeTransactions(db, clientId, dryRun = false) {
 
 /**
  * Comprehensive purge for Client document
+ * NOTE: This only deletes the client document itself, NOT its subcollections.
+ * Subcollections are already purged individually in the purge sequence.
  */
 async function purgeClient(db, clientId, dryRun = false) {
   console.log(`🏢 Purging Client document for client: ${clientId}`);
@@ -559,13 +561,14 @@ async function purgeClient(db, clientId, dryRun = false) {
     if (clientDoc.exists) {
       try {
         if (!dryRun) {
-          // Delete all sub-collections first (if any)
-          await deleteSubCollections(clientRef);
-          // Delete the client document
+          // IMPORTANT: Only delete the client document itself, NOT subcollections
+          // Subcollections are already purged individually in the purge sequence
+          // This prevents accidentally deleting other clients' data
           await clientRef.delete();
         }
         deletedCount++;
         console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Client document: ${clientId}`);
+        console.log(`ℹ️ Note: Subcollections were already purged in previous steps`);
       } catch (error) {
         errors.push(`Failed to delete client document ${clientId}: ${error.message}`);
         console.error(`❌ Error deleting client document ${clientId}:`, error);
