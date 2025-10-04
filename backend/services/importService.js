@@ -43,7 +43,7 @@ export class ImportService {
   }
   
   /**
-   * Helper to report progress with enhanced status information
+   * Helper to report progress
    */
   reportProgress(component, index, total, results) {
     if (this.onProgress && (index % 10 === 0 || index === total - 1)) {
@@ -51,51 +51,8 @@ export class ImportService {
         total: total,
         processed: index + 1,
         percent: Math.round(((index + 1) / total) * 100),
-        success: results.success || 0,
-        failed: results.failed || 0,
-        errors: results.errors ? results.errors.length : 0,
         ...results
       });
-    }
-  }
-
-  /**
-   * Helper to report detailed progress for purge operations
-   */
-  reportPurgeProgress(component, currentCount, totalCount, deletedCount, errors = []) {
-    if (this.onProgress && (currentCount % 50 === 0 || currentCount === totalCount)) {
-      this.onProgress(component, 'purging', {
-        total: totalCount,
-        processed: currentCount,
-        deleted: deletedCount,
-        percent: Math.round((currentCount / totalCount) * 100),
-        errors: errors.length,
-        status: currentCount === totalCount ? 'completed' : 'running'
-      });
-    }
-  }
-
-  /**
-   * Helper to report import progress with JSON size estimates
-   */
-  reportImportProgress(component, index, total, results, jsonSize = null) {
-    if (this.onProgress && (index % 5 === 0 || index === total - 1)) {
-      const progress = {
-        total: total,
-        processed: index + 1,
-        percent: Math.round(((index + 1) / total) * 100),
-        success: results.success || 0,
-        failed: results.failed || 0,
-        errors: results.errors ? results.errors.length : 0,
-        status: index === total - 1 ? 'completed' : 'running'
-      };
-
-      if (jsonSize) {
-        progress.estimatedSize = jsonSize;
-        progress.processedSize = Math.round((progress.percent / 100) * jsonSize);
-      }
-
-      this.onProgress(component, 'importing', progress);
     }
   }
 
@@ -323,7 +280,7 @@ export class ImportService {
           }
           
           // Report progress using helper
-          this.reportImportProgress('units', i, results.total, results);
+          this.reportProgress('units', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing unit ${unit.Unit}: ${error.message}`);
@@ -532,7 +489,7 @@ export class ImportService {
           }
           
           // Report progress using helper
-          this.reportImportProgress('transactions', i, results.total, results);
+          this.reportProgress('transactions', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing transaction ${transaction.Google_ID}: ${error.message}`);
@@ -672,21 +629,68 @@ export class ImportService {
       // Step 3: Enhance transactions with allocations
       for (const { transactionId, sequenceNumber, hoaData, transaction } of transactionsNeedingAllocations) {
         try {
-          // Build allocations from HOA payments
+          // Build allocations from HOA payments (match working AVII structure)
           const allocations = hoaData.payments.map((payment, index) => {
             const monthName = this.getMonthName(payment.month);
             return {
-              type: 'hoa_month',
-              targetId: `hoaDues-${payment.unitId}-${year}`,
-              targetName: monthName,
+              id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
+              type: "hoa_month",
+              targetId: `month_${payment.month}_${year}`, // month_3_2026 format
+              targetName: `${monthName} ${year}`, // "March 2026" format
+              amount: payment.amount * 100, // Convert pesos to centavos
+              percentage: null, // Required field
+              categoryName: "HOA Dues", // Required for split transaction UI
+              categoryId: "hoa_dues", // Required for consistency
               data: {
                 unitId: payment.unitId,
                 month: payment.month,
                 year: year
               },
-              amount: payment.amount * 100 // Convert pesos to centavos
+              metadata: {
+                processingStrategy: "hoa_dues",
+                cleanupRequired: true,
+                auditRequired: true,
+                createdAt: new Date().toISOString()
+              }
             };
           });
+          
+          // Calculate if there's a credit balance allocation needed
+          const totalDuesAmount = hoaData.payments.reduce((sum, p) => sum + (p.amount * 100), 0);
+          const transactionAmount = Math.round(transaction.Amount * 100); // Convert to centavos
+          const creditAmount = transactionAmount - totalDuesAmount;
+          
+          // Add credit allocation if transaction amount doesn't equal dues amount
+          if (creditAmount !== 0) {
+            const creditType = creditAmount > 0 ? 'overpayment' : 'usage';
+            const creditDescription = creditAmount > 0 
+              ? 'Credit Added from Overpayment' 
+              : 'Credit Used for Payment';
+            
+            allocations.push({
+              id: `alloc_${String(allocations.length + 1).padStart(3, '0')}`,
+              type: "account_credit",
+              targetId: `credit_${hoaData.payments[0]?.unitId}_${year}`,
+              targetName: `Account Credit - Unit ${hoaData.payments[0]?.unitId}`,
+              amount: creditAmount, // Positive for credit added, negative for credit used
+              percentage: null,
+              categoryName: "Account Credit",
+              categoryId: "account-credit",
+              data: {
+                unitId: hoaData.payments[0]?.unitId,
+                year: year,
+                creditType: creditType
+              },
+              metadata: {
+                processingStrategy: "account_credit",
+                cleanupRequired: true,
+                auditRequired: true,
+                createdAt: new Date().toISOString()
+              }
+            });
+            
+            console.log(`💳 Added ${creditType} allocation: ${creditAmount / 100} pesos (Transaction: ${transactionAmount / 100}, Dues: ${totalDuesAmount / 100})`);
+          }
           
           // Calculate allocation summary
           const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
@@ -790,7 +794,8 @@ export class ImportService {
                 date: extractedDate,
                 method: 'bank',
                 notes: payment.notes || '',
-                reference: reference
+                reference: reference, // Backend storage
+                transactionId: reference // Frontend display (UI looks for this)
               };
             });
             
@@ -888,7 +893,7 @@ export class ImportService {
         }
         
         // Report progress
-        this.reportImportProgress('hoadues', i, results.total, results);
+        this.reportProgress('hoadues', i, results.total, results);
       }
       
       console.log(`📊 Enhanced ${results.enhancedTransactions} transactions with HOA allocations`);

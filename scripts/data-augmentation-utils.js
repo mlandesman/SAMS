@@ -205,6 +205,11 @@ export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryI
   augmentedData.notes = mtcTransaction.Notes || '';
   augmentedData.description = vendorName || mtcTransaction.Vendor || ''; // Use mapped vendor as description
   
+  // Add unitId as top-level field (UI expects this)
+  if (mtcTransaction.Unit) {
+    augmentedData.unitId = mtcTransaction.Unit;
+  }
+  
   // Import tracking
   if (mtcTransaction[''] && typeof mtcTransaction[''] === 'string' && mtcTransaction[''].trim() !== '') {
     augmentedData.googleId = mtcTransaction['']; // First field is google ID

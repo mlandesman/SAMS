@@ -192,7 +192,6 @@ export function ImportManagement({ clientId }) {
         }
         
         const data = await response.json();
-        console.log('Progress data received:', data); // Debug log
         setProgress(data);
         
         if (data.status === 'completed' || data.status === 'error') {
@@ -353,8 +352,6 @@ export function ImportManagement({ clientId }) {
         {/* Progress Display */}
         {progress && (
           <div className="card">
-            {/* Debug info */}
-            {console.log('Rendering progress:', progress)}
             <div className="card-header">
               <h3>📊 Operation Progress</h3>
             </div>
@@ -375,14 +372,8 @@ export function ImportManagement({ clientId }) {
               <div className="overall-status">
                 <strong>Status:</strong> 
                 <span className={`status-badge ${getProgressStatusClass(progress.status)}`}>
-{progress.status}
+                  {progress.status}
                 </span>
-              </div>
-              
-              {/* Debug: Show raw progress data */}
-              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f0f0f0', fontSize: '12px' }}>
-                <strong>Debug Progress Data:</strong>
-                <pre>{JSON.stringify(progress, null, 2)}</pre>
               </div>
               
               {progress.sequence && progress.sequence.length > 0 && (
