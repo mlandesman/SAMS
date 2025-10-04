@@ -326,6 +326,7 @@ async function purgeHOADues(db, clientId, dryRun = false) {
   console.log(`🏦 Purging HOA Dues for client: ${clientId}`);
   let deletedCount = 0;
   const errors = [];
+  let totalDocs = 0;
   
   try {
     // HOA Dues structure: /clients/MTC/units/{unitId}/dues/{year}
@@ -334,6 +335,22 @@ async function purgeHOADues(db, clientId, dryRun = false) {
     
     const unitsSnapshot = await unitsRef.get();
     console.log(`📊 Found ${unitsSnapshot.size} unit documents to check for HOA Dues`);
+    
+    // First count total documents for accurate progress
+    for (const unitDoc of unitsSnapshot.docs) {
+      const duesRef = unitDoc.ref.collection('dues');
+      const duesSnapshot = await duesRef.get();
+      totalDocs += duesSnapshot.size;
+    }
+    
+    // Also count legacy documents
+    const legacyHoaDuesRef = db.collection('clients').doc(clientId).collection('hoaDues');
+    const legacySnapshot = await legacyHoaDuesRef.get();
+    totalDocs += legacySnapshot.size;
+    
+    console.log(`📊 Total HOA Dues documents to process: ${totalDocs}`);
+    
+    let processedCount = 0;
     
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
@@ -351,7 +368,18 @@ async function purgeHOADues(db, clientId, dryRun = false) {
             await duesDoc.ref.delete();
           }
           deletedCount++;
+          processedCount++;
           console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} HOA Dues: ${unitId}/${duesDoc.id}`);
+          
+          // Update progress in global state
+          if (global.importProgress && global.importProgress[clientId] && global.importProgress[clientId].components) {
+            global.importProgress[clientId].components.hoadues = {
+              ...global.importProgress[clientId].components.hoadues,
+              processed: processedCount,
+              deleted: deletedCount,
+              percent: Math.round((processedCount / totalDocs) * 100)
+            };
+          }
         } catch (error) {
           errors.push(`Failed to delete HOA Dues ${unitId}/${duesDoc.id}: ${error.message}`);
           console.error(`❌ Error deleting HOA Dues ${unitId}/${duesDoc.id}:`, error);
@@ -361,10 +389,6 @@ async function purgeHOADues(db, clientId, dryRun = false) {
     
     // Also check for legacy HOA Dues structure: /clients/MTC/hoaDues
     console.log(`🔍 Checking legacy HOA Dues structure at path: clients/${clientId}/hoaDues`);
-    const legacyHoaDuesRef = db.collection('clients').doc(clientId).collection('hoaDues');
-    const legacySnapshot = await legacyHoaDuesRef.get();
-    
-    console.log(`📊 Found ${legacySnapshot.size} legacy HOA Dues documents`);
     
     for (const doc of legacySnapshot.docs) {
       try {
@@ -373,7 +397,18 @@ async function purgeHOADues(db, clientId, dryRun = false) {
           await doc.ref.delete();
         }
         deletedCount++;
+        processedCount++;
         console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} legacy HOA Dues: ${doc.id}`);
+        
+        // Update progress in global state
+        if (global.importProgress && global.importProgress[clientId] && global.importProgress[clientId].components) {
+          global.importProgress[clientId].components.hoadues = {
+            ...global.importProgress[clientId].components.hoadues,
+            processed: processedCount,
+            deleted: deletedCount,
+            percent: Math.round((processedCount / totalDocs) * 100)
+          };
+        }
       } catch (error) {
         errors.push(`Failed to delete legacy HOA Dues ${doc.id}: ${error.message}`);
         console.error(`❌ Error deleting legacy HOA Dues ${doc.id}:`, error);
@@ -447,8 +482,10 @@ async function purgeTransactions(db, clientId, dryRun = false) {
   try {
     const transactionsRef = db.collection('clients').doc(clientId).collection('transactions');
     const snapshot = await transactionsRef.get();
+    const total = snapshot.size;
     
-    for (const doc of snapshot.docs) {
+    for (let i = 0; i < snapshot.docs.length; i++) {
+      const doc = snapshot.docs[i];
       try {
         if (!dryRun) {
           // Delete all sub-collections first
@@ -458,6 +495,16 @@ async function purgeTransactions(db, clientId, dryRun = false) {
         }
         deletedCount++;
         console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Transaction: ${doc.id}`);
+        
+        // Update progress in global state
+        if (global.importProgress && global.importProgress[clientId] && global.importProgress[clientId].components) {
+          global.importProgress[clientId].components.transactions = {
+            ...global.importProgress[clientId].components.transactions,
+            processed: i + 1,
+            deleted: deletedCount,
+            percent: Math.round(((i + 1) / total) * 100)
+          };
+        }
       } catch (error) {
         errors.push(`Failed to delete transaction ${doc.id}: ${error.message}`);
       }
@@ -530,8 +577,10 @@ async function purgeComponentWithSubCollections(db, clientId, component, dryRun 
   try {
     const collectionRef = db.collection('clients').doc(clientId).collection(component);
     const snapshot = await collectionRef.get();
+    const total = snapshot.size;
     
-    for (const doc of snapshot.docs) {
+    for (let i = 0; i < snapshot.docs.length; i++) {
+      const doc = snapshot.docs[i];
       try {
         if (!dryRun) {
           // Delete all sub-collections first
@@ -541,6 +590,17 @@ async function purgeComponentWithSubCollections(db, clientId, component, dryRun 
         }
         deletedCount++;
         console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} ${component}: ${doc.id}`);
+        
+        // Update progress in global state
+        if (global.importProgress && global.importProgress[clientId] && global.importProgress[clientId].components) {
+          const componentKey = component === 'hoadues' ? 'hoadues' : component;
+          global.importProgress[clientId].components[componentKey] = {
+            ...global.importProgress[clientId].components[componentKey],
+            processed: i + 1,
+            deleted: deletedCount,
+            percent: Math.round(((i + 1) / total) * 100)
+          };
+        }
       } catch (error) {
         errors.push(`Failed to delete ${component} ${doc.id}: ${error.message}`);
       }

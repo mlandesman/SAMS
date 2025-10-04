@@ -46,7 +46,8 @@ export class ImportService {
    * Helper to report progress
    */
   reportProgress(component, index, total, results) {
-    if (this.onProgress && (index % 10 === 0 || index === total - 1)) {
+    // Report every item for better real-time feedback
+    if (this.onProgress) {
       this.onProgress(component, 'importing', {
         total: total,
         processed: index + 1,
