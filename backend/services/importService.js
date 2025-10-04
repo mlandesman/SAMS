@@ -156,15 +156,8 @@ export class ImportService {
             results.errors.push(`Failed to import category: ${augmentedData.name}`);
           }
           
-          // Report progress
-          if (this.onProgress && (i + 1) % 5 === 0 || i === categoriesData.length - 1) {
-            this.onProgress('categories', 'importing', { 
-              total: results.total, 
-              processed: i + 1,
-              success: results.success,
-              failed: results.failed
-            });
-          }
+          // Report progress using helper
+          this.reportProgress('categories', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing category ${category.Category}: ${error.message}`);
@@ -182,12 +175,19 @@ export class ImportService {
    */
   async importVendors(user) {
     console.log('🏢 Importing vendors...');
-    const results = { success: 0, failed: 0, errors: [] };
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
     
     try {
       const vendorsData = await this.loadJsonFile('Vendors.json');
+      results.total = vendorsData.length;
       
-      for (const vendor of vendorsData) {
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('vendors', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      for (let i = 0; i < vendorsData.length; i++) {
+        const vendor = vendorsData[i];
         try {
           const augmentedData = augmentMTCVendor(vendor);
           
@@ -216,6 +216,9 @@ export class ImportService {
             results.failed++;
             results.errors.push(`Failed to import vendor: ${augmentedData.name}`);
           }
+          
+          // Report progress using helper
+          this.reportProgress('vendors', i, results.total, results);
         } catch (error) {
           results.failed++;
           results.errors.push(`Error importing vendor ${vendor.Vendor}: ${error.message}`);
