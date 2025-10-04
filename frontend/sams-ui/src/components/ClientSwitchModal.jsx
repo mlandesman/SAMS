@@ -123,13 +123,9 @@ function ClientSwitchModal({ onClose }) {
       preview: clientPreview
     }));
     
-    // DON'T close modal or deselect client - just navigate to Settings
-    // The currently selected client (e.g., AVII) stays selected to avoid splash screen
-    // Data Management will use the onboarding data to create the NEW client
-    navigate('/settings');
-    
-    // Then close the modal after navigation starts
-    setTimeout(() => onClose(), 100);
+    // Use window.location to navigate directly to Settings
+    // This bypasses React Router and keeps current client selected
+    window.location.href = '/settings';
   };
 
   const handleConfirm = async () => {
