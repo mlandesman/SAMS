@@ -272,11 +272,13 @@ async function executePurge(user, clientId, options = {}) {
         }
         
         progress.components[step.id] = {
+          ...progress.components[step.id], // Preserve progress values (processed, total, percent)
           status: 'completed',
           step: step.name,
           count: result.deletedCount,
           message: `${dryRun ? 'Would purge' : 'Purged'} ${result.deletedCount} ${step.name}`,
-          errors: result.errors
+          errors: result.errors,
+          percent: 100 // Ensure it shows 100%
         };
         
         console.log(`✅ ${step.name} purge completed: ${result.deletedCount} documents processed`);
@@ -809,9 +811,11 @@ async function executeImport(user, clientId, options = {}) {
                 }
         
         progress.components[step.id] = {
+          ...progress.components[step.id], // Preserve progress values (processed, total, percent)
           status: 'completed',
           step: step.name,
-          ...result
+          ...result,
+          percent: 100 // Ensure it shows 100%
         };
         
         console.log(`✅ ${step.name} import completed: ${result.success} success, ${result.failed} failed`);
