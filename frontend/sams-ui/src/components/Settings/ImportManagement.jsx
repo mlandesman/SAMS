@@ -4,6 +4,7 @@ import { useClient } from '../../context/ClientContext';
 import { config as appConfig } from '../../config';
 import { getCurrentUser, getAuthInstance } from '../../firebaseClient';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { InfoTooltip } from './InfoTooltip';
 import './ImportManagement.css';
 
 export function ImportManagement({ clientId }) {
@@ -233,6 +234,111 @@ export function ImportManagement({ clientId }) {
 
   return (
     <div className="import-management">
+      {/* Progress Display - Sticky at top when active */}
+      {(progress || isProcessing) && (
+        <div className="progress-section-sticky">
+          <div className="card progress-card">
+            <div className="card-header">
+              <h3>📊 Operation Progress</h3>
+            </div>
+            <div className="card-content">
+              {isProcessing && progress?.status !== 'completed' && (
+                <div className="progress-loading">
+                  <LoadingSpinner 
+                    size="large" 
+                    variant="logo" 
+                    message={progress?.currentStep 
+                      ? `Processing ${progress.currentStep}... This may take several minutes for large datasets.`
+                      : "Processing operation... This may take several minutes for large datasets."
+                    }
+                  />
+                </div>
+              )}
+              
+              <div className="overall-status">
+                <strong>Status:</strong> 
+                <span className={`status-badge ${getProgressStatusClass(progress?.status || 'pending')}`}>
+                  {progress?.status || 'PENDING'}
+                </span>
+              </div>
+              
+              {progress?.components && Object.keys(progress.components).length > 0 && (
+                <div className="component-progress-list">
+                  <h4>Component Progress:</h4>
+                  {Object.entries(progress.components).map(([componentId, component]) => (
+                    <div key={componentId} className="component-progress">
+                      <div className="progress-header">
+                        <span className="component-name">{component.step || componentId}</span>
+                        <span className={`status-badge ${getProgressStatusClass(component.status)}`}>
+                          {component.status}
+                        </span>
+                      </div>
+                      
+                      {component.total > 0 && (
+                        <div className="progress-bar-container">
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-bar-fill" 
+                              style={{ width: `${component.percent || 0}%` }}
+                            />
+                          </div>
+                          <span className="progress-percent">
+                            {component.percent || 0}%
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="progress-detail">
+                        {component.total > 0 && (
+                          <span>
+                            {component.processed || 0} / {component.total}
+                            {component.deleted !== undefined && ` (${component.deleted} deleted)`}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {component.message && (
+                        <div className="progress-message">{component.message}</div>
+                      )}
+                      {component.error && (
+                        <div className="progress-error">Error: {component.error}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {progress?.totalDocuments > 0 && (
+                <div className="progress-summary">
+                  <h4>Overall Progress:</h4>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-bar-fill" 
+                        style={{ width: `${Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="progress-percent">
+                      {Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%
+                    </span>
+                  </div>
+                  <div className="progress-detail">
+                    {Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0)} / {progress.totalDocuments} documents
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="alert alert-error">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
       <div className="import-section">
         {/* Data Path Configuration */}
         <div className="card">
@@ -260,33 +366,27 @@ export function ImportManagement({ clientId }) {
         {/* Purge Section */}
         <div className="card">
           <div className="card-header">
-            <h3>🗑️ Purge All Data</h3>
+            <h3>
+              🗑️ Purge All Data
+              <InfoTooltip 
+                title="Purge Process Details"
+                content={
+                  <div>
+                    <p><strong>Two-step recursive deletion:</strong></p>
+                    <ul>
+                      <li><strong>Client Document</strong> - Recursively deletes ALL subcollections: HOA Dues, Transactions, Year End Balances, Units, Vendors, Categories, Payment Methods, Config, and all nested data</li>
+                      <li><strong>Import Metadata</strong> - Removes tracking data</li>
+                    </ul>
+                    <p>Real-time progress tracking ensures complete cleanup with no ghost documents.</p>
+                  </div>
+                }
+              />
+            </h3>
           </div>
           <div className="card-content">
             <div className="alert alert-warning">
               <strong>⚠️ Warning:</strong> This will permanently delete ALL data for {clientId}. 
               Always backup before purging production data.
-            </div>
-            
-            <div className="operation-description">
-              <p><strong>Simplified Purge Process:</strong></p>
-              <ul>
-                <li><strong>Client Document (Recursive)</strong> - Single operation that deletes:
-                  <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
-                    <li>HOA Dues</li>
-                    <li>Transactions</li>
-                    <li>Year End Balances</li>
-                    <li>Units</li>
-                    <li>Vendors</li>
-                    <li>Categories</li>
-                    <li>Payment Methods</li>
-                    <li>Config Collection</li>
-                    <li>All other subcollections and nested data</li>
-                  </ul>
-                </li>
-                <li><strong>Import Metadata</strong> - Tracking data for imports</li>
-              </ul>
-              <p><strong>Note:</strong> The recursive purge walks through ALL subcollections automatically with real-time progress tracking, ensuring complete cleanup with no ghost documents.</p>
             </div>
             
             <div className="dry-run-section" style={{ margin: '15px 0' }}>
@@ -316,23 +416,29 @@ export function ImportManagement({ clientId }) {
         {/* Import Section */}
         <div className="card">
           <div className="card-header">
-            <h3>📥 Import All Data</h3>
+            <h3>
+              📥 Import All Data
+              <InfoTooltip 
+                title="Import Order (Dependency-Aware)"
+                content={
+                  <div>
+                    <ul>
+                      <li>Client Document</li>
+                      <li>Config Collection</li>
+                      <li>Payment Methods</li>
+                      <li>Categories</li>
+                      <li>Vendors</li>
+                      <li>Units</li>
+                      <li>Year End Balances</li>
+                      <li>Transactions (builds CrossRef)</li>
+                      <li>HOA Dues (requires CrossRef + Units)</li>
+                    </ul>
+                  </div>
+                }
+              />
+            </h3>
           </div>
           <div className="card-content">
-            <div className="operation-description">
-              <p><strong>Import order (dependency-aware):</strong></p>
-              <ul>
-                <li>Client Document (independent)</li>
-                <li>Config Collection (independent)</li>
-                <li>Payment Methods (independent)</li>
-                <li>Categories (independent)</li>
-                <li>Vendors (independent)</li>
-                <li>Units (independent)</li>
-                <li>Year End Balances (independent)</li>
-                <li>Transactions (builds CrossRef for HOA transactions)</li>
-                <li>HOA Dues (uses CrossRef + requires Units)</li>
-              </ul>
-            </div>
             
             <div className="button-group">
               <button
@@ -353,133 +459,6 @@ export function ImportManagement({ clientId }) {
           </div>
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="alert alert-error">
-            <strong>Error:</strong> {error}
-          </div>
-        )}
-
-        {/* Progress Display */}
-        {progress && (
-          <div className="card">
-            <div className="card-header">
-              <h3>📊 Operation Progress</h3>
-            </div>
-            <div className="card-content">
-              {isProcessing && progress.status !== 'completed' && (
-                <div className="progress-loading">
-                  <LoadingSpinner 
-                    size="large" 
-                    variant="logo" 
-                    message={progress.currentStep 
-                      ? `Processing ${progress.currentStep}... This may take several minutes for large datasets.`
-                      : "Processing operation... This may take several minutes for large datasets."
-                    }
-                  />
-                </div>
-              )}
-              
-              <div className="overall-status">
-                <strong>Status:</strong> 
-                <span className={`status-badge ${getProgressStatusClass(progress.status)}`}>
-                  {progress.status}
-                </span>
-              </div>
-              
-              {progress.components && Object.keys(progress.components).length > 0 && (
-                <div className="component-progress-list">
-                  <h4>Component Progress:</h4>
-                  {Object.entries(progress.components).map(([componentId, component]) => (
-                    <div key={componentId} className="component-progress">
-                      <div className="progress-header">
-                        <span className="component-name">{component.step || componentId}</span>
-                        <span className={`status-badge ${getProgressStatusClass(component.status)}`}>
-                          {component.status}
-                        </span>
-                      </div>
-                      
-                      {/* Progress Bar */}
-                      {component.total > 0 && (
-                        <div className="progress-bar-container">
-                          <div className="progress-bar">
-                            <div 
-                              className="progress-bar-fill" 
-                              style={{ width: `${component.percent || 0}%` }}
-                            />
-                          </div>
-                          <span className="progress-percent">
-                            {component.percent || 0}%
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Progress Details */}
-                      <div className="progress-detail">
-                        {component.total > 0 && (
-                          <span>
-                            {component.processed || 0} / {component.total}
-                            {component.deleted !== undefined && ` (${component.deleted} deleted)`}
-                            {component.success !== undefined && ` (${component.success} success, ${component.failed || 0} failed)`}
-                          </span>
-                        )}
-                        {component.fileSizeKB && (
-                          <span> • {component.fileSizeKB} KB</span>
-                        )}
-                      </div>
-                      
-                      {/* Messages */}
-                      {component.message && (
-                        <div className="progress-message">{component.message}</div>
-                      )}
-                      {component.error && (
-                        <div className="progress-error">Error: {component.error}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Overall Progress Summary */}
-              {progress.totalDocuments > 0 && (
-                <div className="progress-summary">
-                  <h4>Overall Progress:</h4>
-                  <div className="progress-bar-container">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ width: `${Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="progress-percent">
-                      {Math.round((Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0) / progress.totalDocuments) * 100)}%
-                    </span>
-                  </div>
-                  <div className="progress-detail">
-                    {Object.values(progress.components || {}).reduce((sum, comp) => sum + (comp.processed || 0), 0)} / {progress.totalDocuments} documents
-                    {progress.totalSizeKB && (
-                      <span> • {progress.totalSizeKB} KB total</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Timing Information */}
-              {progress.startTime && (
-                <div className="timing-info">
-                  <h4>Operation Details:</h4>
-                  <p><strong>Started:</strong> {new Date(progress.startTime).toLocaleString()}</p>
-                  {progress.endTime && (
-                    <p><strong>Completed:</strong> {new Date(progress.endTime).toLocaleString()}</p>
-                  )}
-                  {progress.dryRun && (
-                    <p><strong>Mode:</strong> Dry Run (Preview Only)</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
