@@ -705,6 +705,29 @@ async function purgeComponentWithSubCollections(db, clientId, component, dryRun 
 }
 
 /**
+ * Emit progress update to global progress tracker
+ */
+function emitProgress(operationId, componentId, status, data) {
+  // Find the client ID from the operation ID
+  const clientId = operationId.split('-')[1]; // format: purge-MTC-timestamp
+  
+  if (global.importProgress && global.importProgress[clientId]) {
+    const progress = global.importProgress[clientId];
+    if (!progress.components) progress.components = {};
+    if (!progress.components[componentId]) progress.components[componentId] = {};
+    
+    progress.components[componentId] = {
+      ...progress.components[componentId],
+      status,
+      ...data
+    };
+    
+    // Update global progress
+    global.importProgress[clientId] = progress;
+  }
+}
+
+/**
  * Count all documents in all subcollections recursively
  */
 async function countAllDocuments(docRef) {
