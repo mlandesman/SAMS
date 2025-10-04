@@ -246,7 +246,12 @@ function ClientSwitchModal({ onClose }) {
           </div>
 
           <div className="modal-buttons">
-            <button onClick={() => { setShowOnboarding(false); setClientPreview(null); }}>
+            <button onClick={() => { 
+              setShowOnboarding(false); 
+              setClientPreview(null);
+              setSelectedId(''); // Reset dropdown selection
+              setOnboardingPath(''); // Clear path
+            }}>
               ← Back to Clients
             </button>
             <button 
