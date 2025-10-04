@@ -105,10 +105,8 @@ function ClientSwitchModal({ onClose }) {
       `• Name: ${clientPreview.displayName}\n` +
       `• Type: ${clientPreview.clientType}\n` +
       `• Units: ${clientPreview.totalUnits}\n\n` +
-      `You will be redirected to Data Management where you can:\n` +
-      `1. Review the pre-filled data path\n` +
-      `2. Click "Import All Data" to create the client\n` +
-      `3. Monitor import progress\n\n` +
+      `You will be redirected to Data Management.\n` +
+      `Click "Import All Data" to create the client.\n\n` +
       `Continue?`;
     
     if (!window.confirm(confirmMessage)) {
@@ -123,9 +121,14 @@ function ClientSwitchModal({ onClose }) {
       preview: clientPreview
     }));
     
-    // Use window.location to navigate directly to Settings
-    // This bypasses React Router and keeps current client selected
-    window.location.href = '/settings';
+    // Navigate to Settings first
+    navigate('/settings');
+    
+    // Show success message
+    alert(`✅ Onboarding data prepared!\n\nRedirecting to Data Management...\n\nYou can now:\n1. Close this modal\n2. Click "Import All Data" to create ${clientPreview.clientId}`);
+    
+    // Close modal after a short delay to let user see the message
+    setTimeout(() => onClose(), 1500);
   };
 
   const handleConfirm = async () => {
