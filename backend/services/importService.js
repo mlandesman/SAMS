@@ -900,8 +900,15 @@ export class ImportService {
             }
           }
           
-          // Update dues document with credit balance and history
+          // Calculate totalPaid from payments array
+          const totalPaid = unitData.payments 
+            ? unitData.payments.reduce((sum, p) => sum + (p.paid || 0), 0) * 100 
+            : 0;
+          
+          // Update dues document with scheduled amount, totals, credit balance and history
           await duesRef.update({
+            scheduledAmount: (unitData.scheduledAmount || 0) * 100, // Convert pesos to centavos
+            totalPaid: totalPaid, // Calculate from payments
             creditBalance: finalCreditBalance,
             creditBalanceHistory: creditBalanceHistory
           });
