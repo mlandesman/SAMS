@@ -477,18 +477,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       };
       
       // Create payment record with details - ensure all required fields are properly set
-      // Use getMexicoDateTime to properly handle date string without timezone shift
-      const dateObj = getMexicoDateTime(paymentDate);
-      
-      // Validate date object
-      if (isNaN(dateObj.getTime())) {
-        setError('Invalid payment date format');
-        setLoading(false);
-        return;
-      }
-      
+      // Send date string directly - backend handles timezone conversion (matches UnifiedExpenseEntry pattern)
       const paymentDetails = {
-        date: dateObj, // Use the validated Date object
+        date: paymentDate, // Send date string directly
         amount: amountNumber,
         method: paymentMethod,
         checkNumber: paymentMethod === 'check' ? checkNumber : null,
