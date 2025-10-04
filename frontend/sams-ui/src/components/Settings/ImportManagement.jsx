@@ -64,7 +64,7 @@ export function ImportManagement({ clientId }) {
   };
 
   const handlePurge = async () => {
-    const confirmMessage = `This will permanently DELETE ALL DATA for ${clientId}:\n\n• HOA Dues\n• Transactions\n• Year End Balances\n• Units\n• Vendors\n• Categories\n• Import Metadata\n\nThis action cannot be undone. Continue?`;
+    const confirmMessage = `This will permanently DELETE ALL DATA for ${clientId}:\n\n• HOA Dues\n• Transactions\n• Year End Balances\n• Units\n• Vendors\n• Categories\n• Payment Types\n• Config Collection\n• Client Document\n• Import Metadata\n\nThis action cannot be undone. Continue?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -116,8 +116,8 @@ export function ImportManagement({ clientId }) {
 
   const handleImport = async (dryRun = false) => {
     const confirmMessage = dryRun 
-      ? `DRY RUN - Import ALL DATA for ${clientId}:\n\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will simulate the import without writing to the database.\n\nContinue?`
-      : `Import ALL DATA for ${clientId}:\n\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will import data in the correct dependency order.\n\nContinue?`;
+      ? `DRY RUN - Import ALL DATA for ${clientId}:\n\n• Client Document\n• Config Collection\n• Payment Types\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will simulate the import without writing to the database.\n\nContinue?`
+      : `Import ALL DATA for ${clientId}:\n\n• Client Document\n• Config Collection\n• Payment Types\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will import data in the correct dependency order.\n\nContinue?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -277,8 +277,12 @@ export function ImportManagement({ clientId }) {
                 <li>Units (independent)</li>
                 <li>Vendors (independent)</li>
                 <li>Categories (independent)</li>
+                <li>Payment Types (independent)</li>
+                <li>Config Collection (independent)</li>
+                <li>Client Document (recursive - cleans up any remaining subcollections)</li>
                 <li>Import Metadata</li>
               </ul>
+              <p><strong>Note:</strong> Client Document purge uses recursive deletion to ensure complete cleanup of any remaining subcollections or ghost documents.</p>
             </div>
             
             <div className="dry-run-section" style={{ margin: '15px 0' }}>
@@ -314,6 +318,9 @@ export function ImportManagement({ clientId }) {
             <div className="operation-description">
               <p><strong>Import order (dependency-aware):</strong></p>
               <ul>
+                <li>Client Document (independent)</li>
+                <li>Config Collection (independent)</li>
+                <li>Payment Types (independent)</li>
                 <li>Categories (independent)</li>
                 <li>Vendors (independent)</li>
                 <li>Units (independent)</li>

@@ -37,6 +37,11 @@ async function getDocumentCounts(db, clientId, purgeSequence) {
           const unitsSnapshot2 = await db.collection(`clients/${clientId}/units`).get();
           count = unitsSnapshot2.size;
           break;
+        case 'client':
+          // Client document is a single document at /clients/{clientId}
+          const clientDoc = await db.doc(`clients/${clientId}`).get();
+          count = clientDoc.exists ? 1 : 0;
+          break;
         default:
           // Generic collection count
           const collectionSnapshot = await db.collection(`clients/${clientId}/${step.id}`).get();
@@ -59,6 +64,9 @@ async function getDocumentCounts(db, clientId, purgeSequence) {
  */
 function getJsonFileSizes(dataPath) {
   const jsonFiles = [
+    'Client.json',
+    'Config.json',
+    'PaymentTypes.json',
     'Categories.json',
     'Vendors.json', 
     'Units.json',
@@ -96,6 +104,9 @@ function getImportDataCounts(dataPath) {
   
   try {
     const files = {
+      'client': 'Client.json',
+      'config': 'Config.json',
+      'paymentTypes': 'PaymentTypes.json',
       'categories': 'Categories.json',
       'vendors': 'Vendors.json',
       'units': 'Units.json', 
@@ -149,7 +160,10 @@ async function getImportConfig(user, clientId) {
         { id: 'vendors', label: 'Vendors', canPurge: true, canImport: true },
         { id: 'transactions', label: 'Transactions', canPurge: true, canImport: true },
         { id: 'hoadues', label: 'HOA Dues', canPurge: true, canImport: true },
-        { id: 'yearEndBalances', label: 'Year End Balances', canPurge: true, canImport: true }
+        { id: 'yearEndBalances', label: 'Year End Balances', canPurge: true, canImport: true },
+        { id: 'client', label: 'Client Document', canPurge: true, canImport: true },
+        { id: 'paymentTypes', label: 'Payment Types', canPurge: true, canImport: true },
+        { id: 'config', label: 'Config Collection', canPurge: true, canImport: true }
       ],
       dataPath: `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/${clientId}data`
     };
@@ -191,7 +205,7 @@ async function executePurge(user, clientId, options = {}) {
     const { dryRun = false } = options;
     const db = await getDb();
     
-    // CRITICAL: Single purge sequence - reverse of import order
+    // CRITICAL: Purge sequence with recursive client cleanup
     const purgeSequence = [
       { id: 'hoadues', name: 'HOA Dues', hasDependencies: true },
       { id: 'transactions', name: 'Transactions', hasDependencies: true },
@@ -199,6 +213,9 @@ async function executePurge(user, clientId, options = {}) {
       { id: 'units', name: 'Units', hasDependencies: false },
       { id: 'vendors', name: 'Vendors', hasDependencies: false },
       { id: 'categories', name: 'Categories', hasDependencies: false },
+      { id: 'paymentTypes', name: 'Payment Types', hasDependencies: false },
+      { id: 'config', name: 'Config Collection', hasDependencies: false },
+      { id: 'client', name: 'Client Document (Recursive)', hasDependencies: false, recursive: true },
       { id: 'importMetadata', name: 'Import Metadata', hasDependencies: false }
     ];
     
@@ -263,6 +280,9 @@ async function executePurge(user, clientId, options = {}) {
             break;
           case 'units':
             result = await purgeUnits(db, clientId, dryRun);
+            break;
+          case 'client':
+            result = await purgeClient(db, clientId, dryRun);
             break;
           case 'importMetadata':
             result = await purgeImportMetadata(db, clientId, dryRun);
@@ -523,6 +543,53 @@ async function purgeTransactions(db, clientId, dryRun = false) {
 }
 
 /**
+ * Comprehensive purge for Client document
+ * This recursively deletes ALL subcollections and then the client document itself.
+ * This is more thorough than individual purges and handles any edge cases.
+ */
+async function purgeClient(db, clientId, dryRun = false) {
+  console.log(`🏢 Purging Client document and ALL subcollections for client: ${clientId}`);
+  let deletedCount = 0;
+  const errors = [];
+  
+  try {
+    const clientRef = db.doc(`clients/${clientId}`);
+    console.log(`🔍 Checking client document at path: clients/${clientId}`);
+    
+    const clientDoc = await clientRef.get();
+    
+    if (clientDoc.exists) {
+      try {
+        if (!dryRun) {
+          // Recursively delete ALL subcollections first
+          // This handles any subcollections that might have been missed in individual purges
+          await deleteSubCollections(clientRef);
+          
+          // Then delete the client document itself
+          await clientRef.delete();
+        }
+        deletedCount++;
+        console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Client document and ALL subcollections: ${clientId}`);
+        console.log(`ℹ️ Note: Recursive deletion ensures no ghost documents remain`);
+      } catch (error) {
+        errors.push(`Failed to delete client document ${clientId}: ${error.message}`);
+        console.error(`❌ Error deleting client document ${clientId}:`, error);
+      }
+    } else {
+      console.log(`ℹ️ Client document ${clientId} does not exist`);
+    }
+    
+    console.log(`📊 Client document purge completed: ${deletedCount} documents processed`);
+    
+  } catch (error) {
+    errors.push(`Client document purge failed: ${error.message}`);
+    console.error(`❌ Client document purge error:`, error);
+  }
+  
+  return { deletedCount, errors };
+}
+
+/**
  * Comprehensive purge for Import Metadata
  */
 async function purgeImportMetadata(db, clientId, dryRun = false) {
@@ -709,6 +776,9 @@ async function executeImport(user, clientId, options = {}) {
     
     // CRITICAL: Single import sequence - no component selection
     const importSequence = [
+      { id: 'client', name: 'Client Document', independent: true },
+      { id: 'config', name: 'Config Collection', independent: true },
+      { id: 'paymentTypes', name: 'Payment Types', independent: true },
       { id: 'categories', name: 'Categories', independent: true },
       { id: 'vendors', name: 'Vendors', independent: true },
       { id: 'units', name: 'Units', independent: true },
@@ -788,6 +858,15 @@ async function executeImport(user, clientId, options = {}) {
         
                 // Call the appropriate import method based on step.id
                 switch (step.id) {
+                  case 'client':
+                    result = await importService.importClient(user, { dryRun, maxErrors });
+                    break;
+                  case 'config':
+                    result = await importService.importConfig(user, { dryRun, maxErrors });
+                    break;
+                  case 'paymentTypes':
+                    result = await importService.importPaymentTypes(user, { dryRun, maxErrors });
+                    break;
                   case 'categories':
                     result = await importService.importCategories(user, { dryRun, maxErrors });
                     break;
