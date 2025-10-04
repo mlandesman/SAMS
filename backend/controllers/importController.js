@@ -675,6 +675,18 @@ async function executeImport(user, clientId, options = {}) {
     // Create import service instance
     const importService = new ImportService(clientId, dataPath);
     
+    // Set up progress callback to update global progress
+    importService.onProgress = (component, status, data) => {
+      if (global.importProgress[clientId] && global.importProgress[clientId].components) {
+        global.importProgress[clientId].components[component] = {
+          ...global.importProgress[clientId].components[component],
+          status: status,
+          ...data
+        };
+        console.log(`📊 Progress update: ${component} - ${data.processed}/${data.total} (${data.percent}%)`);
+      }
+    };
+    
     // Execute imports in strict sequence
     for (const step of importSequence) {
       progress.currentStep = step.id;
