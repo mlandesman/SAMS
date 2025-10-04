@@ -205,16 +205,8 @@ async function executePurge(user, clientId, options = {}) {
     const { dryRun = false } = options;
     const db = await getDb();
     
-    // CRITICAL: Purge sequence with recursive client cleanup
+    // CRITICAL: Simplified purge sequence - recursive client deletion handles all subcollections
     const purgeSequence = [
-      { id: 'hoadues', name: 'HOA Dues', hasDependencies: true },
-      { id: 'transactions', name: 'Transactions', hasDependencies: true },
-      { id: 'yearEndBalances', name: 'Year End Balances', hasDependencies: false },
-      { id: 'units', name: 'Units', hasDependencies: false },
-      { id: 'vendors', name: 'Vendors', hasDependencies: false },
-      { id: 'categories', name: 'Categories', hasDependencies: false },
-      { id: 'paymentTypes', name: 'Payment Methods', hasDependencies: false },
-      { id: 'config', name: 'Config Collection', hasDependencies: false },
       { id: 'client', name: 'Client Document (Recursive)', hasDependencies: false, recursive: true },
       { id: 'importMetadata', name: 'Import Metadata', hasDependencies: false }
     ];
@@ -272,23 +264,14 @@ async function executePurge(user, clientId, options = {}) {
         
         // Use component-specific purge methods
         switch (step.id) {
-          case 'hoadues':
-            result = await purgeHOADues(db, clientId, dryRun);
-            break;
-          case 'transactions':
-            result = await purgeTransactions(db, clientId, dryRun);
-            break;
-          case 'units':
-            result = await purgeUnits(db, clientId, dryRun);
-            break;
           case 'client':
-            result = await purgeClient(db, clientId, dryRun);
+            result = await purgeClient(db, clientId, dryRun, operationId);
             break;
           case 'importMetadata':
             result = await purgeImportMetadata(db, clientId, dryRun);
             break;
           default:
-            result = await purgeComponentWithSubCollections(db, clientId, step.id, dryRun);
+            throw new Error(`Unknown purge component: ${step.id}`);
         }
         
         progress.components[step.id] = {
@@ -547,7 +530,7 @@ async function purgeTransactions(db, clientId, dryRun = false) {
  * This recursively deletes ALL subcollections and then the client document itself.
  * This is more thorough than individual purges and handles any edge cases.
  */
-async function purgeClient(db, clientId, dryRun = false) {
+async function purgeClient(db, clientId, dryRun = false, operationId = null) {
   console.log(`🏢 Purging Client document and ALL subcollections for client: ${clientId}`);
   let deletedCount = 0;
   const errors = [];
@@ -560,16 +543,29 @@ async function purgeClient(db, clientId, dryRun = false) {
     
     if (clientDoc.exists) {
       try {
+        // First count all documents that will be deleted for progress tracking
+        const totalCount = await countAllDocuments(clientRef);
+        console.log(`📊 Found ${totalCount} total documents to purge (including subcollections)`);
+        
         if (!dryRun) {
-          // Recursively delete ALL subcollections first
-          // This handles any subcollections that might have been missed in individual purges
-          await deleteSubCollections(clientRef);
+          // Recursively delete ALL subcollections first with progress tracking
+          // This handles all subcollections: categories, vendors, units, transactions, hoadues, etc.
+          const subCollectionResult = await deleteSubCollectionsWithProgress(
+            clientRef, 
+            operationId, 
+            totalCount
+          );
+          deletedCount += subCollectionResult.deletedCount;
+          errors.push(...subCollectionResult.errors);
           
           // Then delete the client document itself
           await clientRef.delete();
+          deletedCount++;
+        } else {
+          deletedCount = totalCount;
         }
-        deletedCount++;
-        console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Client document and ALL subcollections: ${clientId}`);
+        
+        console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} ${deletedCount} documents: Client document and ALL subcollections`);
         console.log(`ℹ️ Note: Recursive deletion ensures no ghost documents remain`);
       } catch (error) {
         errors.push(`Failed to delete client document ${clientId}: ${error.message}`);
@@ -698,7 +694,95 @@ async function purgeComponentWithSubCollections(db, clientId, component, dryRun 
 }
 
 /**
- * Recursively delete all sub-collections of a document
+ * Count all documents in all subcollections recursively
+ */
+async function countAllDocuments(docRef) {
+  let count = 1; // Count the document itself
+  
+  try {
+    const collections = await docRef.listCollections();
+    
+    for (const subCollection of collections) {
+      const subSnapshot = await subCollection.get();
+      
+      for (const subDoc of subSnapshot.docs) {
+        // Recursively count sub-sub-collections
+        count += await countAllDocuments(subDoc.ref);
+      }
+    }
+  } catch (error) {
+    console.warn(`Warning: Failed to count documents for ${docRef.path}:`, error.message);
+  }
+  
+  return count;
+}
+
+/**
+ * Recursively delete all sub-collections with progress tracking
+ */
+async function deleteSubCollectionsWithProgress(docRef, operationId, totalCount) {
+  let deletedCount = 0;
+  const errors = [];
+  let processedCount = 0;
+  
+  try {
+    const collections = await docRef.listCollections();
+    
+    for (const subCollection of collections) {
+      const collectionName = subCollection.id;
+      console.log(`🗑️ Purging subcollection: ${collectionName}`);
+      
+      const subSnapshot = await subCollection.get();
+      const docsToDelete = subSnapshot.docs.length;
+      
+      // Delete all documents in sub-collection
+      for (const subDoc of subSnapshot.docs) {
+        try {
+          // Recursively delete sub-sub-collections
+          const subResult = await deleteSubCollectionsWithProgress(subDoc.ref, operationId, totalCount);
+          deletedCount += subResult.deletedCount;
+          processedCount += subResult.deletedCount;
+          errors.push(...subResult.errors);
+          
+          // Delete the document itself
+          await subDoc.ref.delete();
+          deletedCount++;
+          processedCount++;
+          
+          // Report progress periodically (every 10 documents or at collection boundaries)
+          if (processedCount % 10 === 0 || processedCount === docsToDelete) {
+            const percent = Math.min(Math.round((processedCount / totalCount) * 100), 100);
+            console.log(`📊 Progress: ${processedCount}/${totalCount} documents (${percent}%)`);
+            
+            // Emit progress via socket if operationId is provided
+            if (operationId) {
+              emitProgress(operationId, 'client', 'purging', {
+                total: totalCount,
+                processed: processedCount,
+                percent: percent
+              });
+            }
+          }
+        } catch (error) {
+          const errorMsg = `Failed to delete document ${subDoc.id} in ${collectionName}: ${error.message}`;
+          errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+      
+      console.log(`✅ Purged ${docsToDelete} documents from ${collectionName}`);
+    }
+  } catch (error) {
+    const errorMsg = `Failed to delete sub-collections for ${docRef.path}: ${error.message}`;
+    errors.push(errorMsg);
+    console.warn(`⚠️ ${errorMsg}`);
+  }
+  
+  return { deletedCount, errors };
+}
+
+/**
+ * Recursively delete all sub-collections of a document (simple version without progress)
  */
 async function deleteSubCollections(docRef) {
   try {

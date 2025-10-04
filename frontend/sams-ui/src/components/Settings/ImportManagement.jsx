@@ -64,7 +64,7 @@ export function ImportManagement({ clientId }) {
   };
 
   const handlePurge = async () => {
-    const confirmMessage = `This will permanently DELETE ALL DATA for ${clientId}:\n\n• HOA Dues\n• Transactions\n• Year End Balances\n• Units\n• Vendors\n• Categories\n• Payment Methods\n• Config Collection\n• Client Document\n• Import Metadata\n\nThis action cannot be undone. Continue?`;
+    const confirmMessage = `This will permanently DELETE ALL DATA for ${clientId}:\n\n• Client Document (Recursively deletes ALL subcollections)\n  - HOA Dues\n  - Transactions\n  - Year End Balances\n  - Units\n  - Vendors\n  - Categories\n  - Payment Methods\n  - Config Collection\n  - All other subcollections\n• Import Metadata\n\nThis action cannot be undone. Continue?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -269,20 +269,24 @@ export function ImportManagement({ clientId }) {
             </div>
             
             <div className="operation-description">
-              <p><strong>Purge order (reverse of import):</strong></p>
+              <p><strong>Simplified Purge Process:</strong></p>
               <ul>
-                <li>HOA Dues (first - has dependencies)</li>
-                <li>Transactions (second - referenced by HOA Dues)</li>
-                <li>Year End Balances (independent)</li>
-                <li>Units (independent)</li>
-                <li>Vendors (independent)</li>
-                <li>Categories (independent)</li>
-                <li>Payment Methods (independent)</li>
-                <li>Config Collection (independent)</li>
-                <li>Client Document (recursive - cleans up any remaining subcollections)</li>
-                <li>Import Metadata</li>
+                <li><strong>Client Document (Recursive)</strong> - Single operation that deletes:
+                  <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
+                    <li>HOA Dues</li>
+                    <li>Transactions</li>
+                    <li>Year End Balances</li>
+                    <li>Units</li>
+                    <li>Vendors</li>
+                    <li>Categories</li>
+                    <li>Payment Methods</li>
+                    <li>Config Collection</li>
+                    <li>All other subcollections and nested data</li>
+                  </ul>
+                </li>
+                <li><strong>Import Metadata</strong> - Tracking data for imports</li>
               </ul>
-              <p><strong>Note:</strong> Client Document purge uses recursive deletion to ensure complete cleanup of any remaining subcollections or ghost documents.</p>
+              <p><strong>Note:</strong> The recursive purge walks through ALL subcollections automatically with real-time progress tracking, ensuring complete cleanup with no ghost documents.</p>
             </div>
             
             <div className="dry-run-section" style={{ margin: '15px 0' }}>

@@ -13,13 +13,17 @@ async function firestoreToJson(firestorePath) {
       console.error('❌ Please provide a Firestore path');
       console.log('Usage: node firestore-to-json.js <path>');
       console.log('Example: node firestore-to-json.js clients/MTC/units/PH4D/dues/2025');
+      console.log('        node firestore-to-json.js /clients/MTC  (leading slash optional)');
       process.exit(1);
     }
 
-    console.log(`📋 Fetching data from: ${firestorePath}`);
+    // Remove leading slash if present
+    const normalizedPath = firestorePath.startsWith('/') ? firestorePath.slice(1) : firestorePath;
+    
+    console.log(`📋 Fetching data from: ${normalizedPath}`);
     
     // Split the path into segments
-    const pathSegments = firestorePath.split('/');
+    const pathSegments = normalizedPath.split('/');
     
     // Build the reference
     let ref = db;
