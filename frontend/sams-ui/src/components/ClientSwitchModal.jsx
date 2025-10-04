@@ -121,14 +121,12 @@ function ClientSwitchModal({ onClose }) {
       preview: clientPreview
     }));
     
-    // Navigate to Settings first
+    // Navigate to Settings and show instructions
     navigate('/settings');
     
-    // Show success message
-    alert(`✅ Onboarding data prepared!\n\nRedirecting to Data Management...\n\nYou can now:\n1. Close this modal\n2. Click "Import All Data" to create ${clientPreview.clientId}`);
+    alert(`✅ Onboarding data prepared!\n\nYou are now on the Data Management page.\n\nPlease:\n1. Close this modal (click X)\n2. Look for the blue "Onboarding New Client" banner\n3. Click "Import All Data" to create ${clientPreview.clientId}`);
     
-    // Close modal after a short delay to let user see the message
-    setTimeout(() => onClose(), 1500);
+    // DON'T close modal automatically - let user close it manually
   };
 
   const handleConfirm = async () => {
