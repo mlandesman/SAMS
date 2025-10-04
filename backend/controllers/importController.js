@@ -533,9 +533,11 @@ async function purgeImportMetadata(db, clientId, dryRun = false) {
     console.log(`🔍 Checking importMetadata collection at path: clients/${clientId}/importMetadata`);
     
     const snapshot = await importMetadataRef.get();
-    console.log(`📊 Found ${snapshot.size} importMetadata documents`);
+    const total = snapshot.size;
+    console.log(`📊 Found ${total} importMetadata documents`);
     
-    for (const doc of snapshot.docs) {
+    for (let i = 0; i < snapshot.docs.length; i++) {
+      const doc = snapshot.docs[i];
       try {
         console.log(`🔍 Processing importMetadata document: ${doc.id}`);
         if (!dryRun) {
@@ -546,6 +548,16 @@ async function purgeImportMetadata(db, clientId, dryRun = false) {
         }
         deletedCount++;
         console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Import Metadata: ${doc.id}`);
+        
+        // Update progress in global state
+        if (global.importProgress && global.importProgress[clientId] && global.importProgress[clientId].components) {
+          global.importProgress[clientId].components.importMetadata = {
+            ...global.importProgress[clientId].components.importMetadata,
+            processed: i + 1,
+            deleted: deletedCount,
+            percent: Math.round(((i + 1) / total) * 100)
+          };
+        }
       } catch (error) {
         errors.push(`Failed to delete importMetadata ${doc.id}: ${error.message}`);
         console.error(`❌ Error deleting importMetadata ${doc.id}:`, error);
