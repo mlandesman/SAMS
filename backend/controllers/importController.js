@@ -548,12 +548,15 @@ async function purgeClient(db, clientId, dryRun = false, operationId = null) {
         console.log(`📊 Found ${totalCount} total documents to purge (including subcollections)`);
         
         if (!dryRun) {
+          // Create a shared progress tracker
+          const progressTracker = { processed: 0, total: totalCount };
+          
           // Recursively delete ALL subcollections first with progress tracking
           // This handles all subcollections: categories, vendors, units, transactions, hoadues, etc.
           const subCollectionResult = await deleteSubCollectionsWithProgress(
             clientRef, 
             operationId, 
-            totalCount
+            progressTracker
           );
           deletedCount += subCollectionResult.deletedCount;
           errors.push(...subCollectionResult.errors);
@@ -561,6 +564,14 @@ async function purgeClient(db, clientId, dryRun = false, operationId = null) {
           // Then delete the client document itself
           await clientRef.delete();
           deletedCount++;
+          
+          // Final progress update
+          progressTracker.processed++;
+          emitProgress(operationId, 'client', 'purging', {
+            total: progressTracker.total,
+            processed: progressTracker.processed,
+            percent: 100
+          });
         } else {
           deletedCount = totalCount;
         }
@@ -719,11 +730,11 @@ async function countAllDocuments(docRef) {
 
 /**
  * Recursively delete all sub-collections with progress tracking
+ * @param {Object} progressTracker - Shared object with {processed, total} for tracking across recursive calls
  */
-async function deleteSubCollectionsWithProgress(docRef, operationId, totalCount) {
+async function deleteSubCollectionsWithProgress(docRef, operationId, progressTracker) {
   let deletedCount = 0;
   const errors = [];
-  let processedCount = 0;
   
   try {
     const collections = await docRef.listCollections();
@@ -733,32 +744,31 @@ async function deleteSubCollectionsWithProgress(docRef, operationId, totalCount)
       console.log(`🗑️ Purging subcollection: ${collectionName}`);
       
       const subSnapshot = await subCollection.get();
-      const docsToDelete = subSnapshot.docs.length;
+      const docsInCollection = subSnapshot.docs.length;
       
       // Delete all documents in sub-collection
       for (const subDoc of subSnapshot.docs) {
         try {
           // Recursively delete sub-sub-collections
-          const subResult = await deleteSubCollectionsWithProgress(subDoc.ref, operationId, totalCount);
+          const subResult = await deleteSubCollectionsWithProgress(subDoc.ref, operationId, progressTracker);
           deletedCount += subResult.deletedCount;
-          processedCount += subResult.deletedCount;
           errors.push(...subResult.errors);
           
           // Delete the document itself
           await subDoc.ref.delete();
           deletedCount++;
-          processedCount++;
+          progressTracker.processed++;
           
-          // Report progress periodically (every 10 documents or at collection boundaries)
-          if (processedCount % 10 === 0 || processedCount === docsToDelete) {
-            const percent = Math.min(Math.round((processedCount / totalCount) * 100), 100);
-            console.log(`📊 Progress: ${processedCount}/${totalCount} documents (${percent}%)`);
+          // Report progress periodically (every 10 documents)
+          if (progressTracker.processed % 10 === 0) {
+            const percent = Math.min(Math.round((progressTracker.processed / progressTracker.total) * 100), 100);
+            console.log(`📊 Progress: ${progressTracker.processed}/${progressTracker.total} documents (${percent}%)`);
             
             // Emit progress via socket if operationId is provided
             if (operationId) {
               emitProgress(operationId, 'client', 'purging', {
-                total: totalCount,
-                processed: processedCount,
+                total: progressTracker.total,
+                processed: progressTracker.processed,
                 percent: percent
               });
             }
@@ -770,7 +780,7 @@ async function deleteSubCollectionsWithProgress(docRef, operationId, totalCount)
         }
       }
       
-      console.log(`✅ Purged ${docsToDelete} documents from ${collectionName}`);
+      console.log(`✅ Purged ${docsInCollection} documents from ${collectionName}`);
     }
   } catch (error) {
     const errorMsg = `Failed to delete sub-collections for ${docRef.path}: ${error.message}`;
