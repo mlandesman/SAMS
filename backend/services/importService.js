@@ -178,9 +178,10 @@ export class ImportService {
     try {
       const configData = await this.loadJsonFile('Config.json');
       
-      // Config can be either an array of documents or a single object
-      const configArray = Array.isArray(configData) ? configData : [configData];
-      results.total = configArray.length;
+      // Config should be an object where each key becomes a separate document
+      // e.g., { activities: {...}, emailTemplates: {...} }
+      const configKeys = Object.keys(configData);
+      results.total = configKeys.length;
       
       // Report starting
       if (this.onProgress) {
@@ -190,8 +191,10 @@ export class ImportService {
       const db = await this.getDb();
       const configRef = db.collection(`clients/${this.clientId}/config`);
       
-      for (let i = 0; i < configArray.length; i++) {
-        const configItem = configArray[i];
+      for (let i = 0; i < configKeys.length; i++) {
+        const configKey = configKeys[i];
+        const configItem = configData[configKey];
+        
         try {
           // Clean the config data
           const cleanConfigData = {
@@ -203,8 +206,8 @@ export class ImportService {
           // Remove createdAt as it will be set by the system
           delete cleanConfigData.createdAt;
           
-          // Use the config item's ID or generate one
-          const docId = configItem.id || configItem.key || `config_${i}`;
+          // Use the config key as the document ID (e.g., 'activities', 'emailTemplates')
+          const docId = configKey;
           await configRef.doc(docId).set(cleanConfigData);
           
           results.success++;
@@ -220,7 +223,7 @@ export class ImportService {
           
         } catch (error) {
           results.failed++;
-          results.errors.push(`Error importing config item ${i}: ${error.message}`);
+          results.errors.push(`Error importing config item ${configKey}: ${error.message}`);
         }
         
         // Report progress
@@ -270,7 +273,7 @@ export class ImportService {
       }
       
       const db = await this.getDb();
-      const paymentTypesRef = db.collection(`clients/${this.clientId}/paymentTypes`);
+      const paymentTypesRef = db.collection(`clients/${this.clientId}/paymentMethods`);
       
       for (let i = 0; i < paymentTypesArray.length; i++) {
         const paymentType = paymentTypesArray[i];
@@ -294,9 +297,9 @@ export class ImportService {
           
           // Create metadata record
           await this.createMetadataRecord(
-            'paymentType',
+            'paymentMethod',
             docId,
-            `clients/${this.clientId}/paymentTypes/${docId}`,
+            `clients/${this.clientId}/paymentMethods/${docId}`,
             paymentType
           );
           
