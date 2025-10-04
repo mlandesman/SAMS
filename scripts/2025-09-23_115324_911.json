@@ -1,0 +1,128 @@
+{
+  "_id": "2025-09-23_115324_911",
+  "date": {
+    "_seconds": 1758672000,
+    "_nanoseconds": 0
+  },
+  "amount": 1400000,
+  "categoryId": null,
+  "categoryName": "-Split-",
+  "type": "income",
+  "accountType": "bank",
+  "accountId": "bank-001",
+  "paymentMethodId": "cash",
+  "notes": "HOA Dues payment for Unit 202 - Mar, Apr 2026 - $13418 Dues + $582 credit",
+  "unitId": "202",
+  "vendorId": "deposit",
+  "vendorName": "Deposit",
+  "reference": "DUES-202-2026",
+  "allocations": [
+    {
+      "id": "alloc_001",
+      "type": "hoa_month",
+      "targetId": "month_3_2026",
+      "targetName": "March 2026",
+      "amount": 670878,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "202",
+        "month": 3,
+        "year": 2026
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T16:53:24.492Z"
+      }
+    },
+    {
+      "id": "alloc_002",
+      "type": "hoa_month",
+      "targetId": "month_4_2026",
+      "targetName": "April 2026",
+      "amount": 670878,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "202",
+        "month": 4,
+        "year": 2026
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T16:53:24.492Z"
+      }
+    },
+    {
+      "id": "alloc_003",
+      "type": "account_credit",
+      "targetId": "credit_202_2026",
+      "targetName": "Account Credit - Unit 202",
+      "amount": 58244,
+      "percentage": null,
+      "categoryName": "Account Credit",
+      "categoryId": "account-credit",
+      "data": {
+        "unitId": "202",
+        "year": 2026,
+        "creditType": "overpayment"
+      },
+      "metadata": {
+        "processingStrategy": "account_credit",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-09-24T16:53:24.492Z"
+      }
+    }
+  ],
+  "allocationSummary": {
+    "totalAllocated": 13417.56,
+    "allocationCount": 2,
+    "allocationType": "hoa_month",
+    "hasMultipleTypes": false,
+    "integrityCheck": {
+      "expectedTotal": 1400000,
+      "actualTotal": 13417.56,
+      "isValid": false
+    }
+  },
+  "duesDistribution": [
+    {
+      "unitId": "202",
+      "month": 3,
+      "amount": 6708.78,
+      "year": 2026
+    },
+    {
+      "unitId": "202",
+      "month": 4,
+      "amount": 6708.78,
+      "year": 2026
+    }
+  ],
+  "metadata": {
+    "type": "hoa_dues",
+    "unitId": "202",
+    "year": 2026,
+    "months": [
+      3,
+      4
+    ]
+  },
+  "clientId": "AVII",
+  "propertyId": "AVII",
+  "enteredBy": "system",
+  "updated": {
+    "_seconds": 1758732804,
+    "_nanoseconds": 568000000
+  },
+  "paymentMethod": "Cash",
+  "accountName": "Scotiabank",
+  "documents": []
+}

@@ -66,7 +66,7 @@ function getJsonFileSizes(dataPath) {
   const jsonFiles = [
     'Client.json',
     'Config.json',
-    'PaymentTypes.json',
+    'paymentMethods.json',
     'Categories.json',
     'Vendors.json', 
     'Units.json',
@@ -106,7 +106,7 @@ function getImportDataCounts(dataPath) {
     const files = {
       'client': 'Client.json',
       'config': 'Config.json',
-      'paymentTypes': 'PaymentTypes.json',
+      'paymentTypes': 'paymentMethods.json',
       'categories': 'Categories.json',
       'vendors': 'Vendors.json',
       'units': 'Units.json', 
@@ -213,7 +213,7 @@ async function executePurge(user, clientId, options = {}) {
       { id: 'units', name: 'Units', hasDependencies: false },
       { id: 'vendors', name: 'Vendors', hasDependencies: false },
       { id: 'categories', name: 'Categories', hasDependencies: false },
-      { id: 'paymentTypes', name: 'Payment Types', hasDependencies: false },
+      { id: 'paymentTypes', name: 'Payment Methods', hasDependencies: false },
       { id: 'config', name: 'Config Collection', hasDependencies: false },
       { id: 'client', name: 'Client Document (Recursive)', hasDependencies: false, recursive: true },
       { id: 'importMetadata', name: 'Import Metadata', hasDependencies: false }
@@ -778,7 +778,7 @@ async function executeImport(user, clientId, options = {}) {
     const importSequence = [
       { id: 'client', name: 'Client Document', independent: true },
       { id: 'config', name: 'Config Collection', independent: true },
-      { id: 'paymentTypes', name: 'Payment Types', independent: true },
+      { id: 'paymentTypes', name: 'Payment Methods', independent: true },
       { id: 'categories', name: 'Categories', independent: true },
       { id: 'vendors', name: 'Vendors', independent: true },
       { id: 'units', name: 'Units', independent: true },

@@ -94,37 +94,6 @@ start_pwa() {
   echo "📝 PWA mobile app logs will appear in this terminal"
 }
 
-# Function to start Chrome with remote debugging for agent testing
-start_debug_chrome() {
-  echo "🔄 Starting Chrome with remote debugging..."
-  
-  # Kill any existing debug Chrome instance
-  kill_port 9222 "Chrome remote debugging"
-  
-  echo "🚀 Starting Chrome with remote debugging on port 9222 (sams-testing profile)"
-  /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-    --remote-debugging-port=9222 \
-    --user-data-dir=/tmp/chrome-debug \
-    --profile-directory="sams-testing" \
-    --no-default-browser-check \
-    --disable-extensions \
-    --disable-plugins \
-    --disable-popup-blocking \
-    --disable-translate \
-    --disable-background-timer-throttling \
-    --disable-backgrounding-occluded-windows \
-    --disable-renderer-backgrounding > /dev/null 2>&1 &
-  
-  CHROME_PID=$!
-  echo "✅ Debug Chrome started with PID: $CHROME_PID"
-  echo "🌐 DevTools available at: http://localhost:9222"
-  
-  # Wait a moment for Chrome to start, then open SAMS app
-  sleep 3
-  echo "📱 Opening SAMS app in debug Chrome..."
-  open -a "Google Chrome" --args --profile-directory="sams-testing" "http://localhost:5173"
-}
-
 # Main execution
 echo "🔍 Checking environment..."
 
@@ -169,16 +138,12 @@ start_pwa
 # Give the PWA frontend a moment to start
 sleep 4
 
-# Start Chrome with remote debugging for agent testing
-start_debug_chrome
-
 echo ""
 echo "======================================================"
 echo "🌐 Services Status:"
 echo "   Backend: http://localhost:5001"
 echo "   Frontend: http://localhost:5173"
 echo "   PWA Mobile App: http://localhost:5174"
-echo "   Chrome DevTools: http://localhost:9222"
 echo "======================================================"
 echo ""
 echo "💡 Press Ctrl+C to stop all services"
@@ -190,10 +155,6 @@ cleanup() {
   kill_port 5001 "backend server"
   kill_port 5173 "frontend server"
   kill_port 5174 "PWA mobile app"
-  kill_port 9222 "Chrome remote debugging"
-  
-  # Clean up Chrome debug profile
-  rm -rf /tmp/chrome-debug
   
   echo "✅ All services stopped"
   exit 0

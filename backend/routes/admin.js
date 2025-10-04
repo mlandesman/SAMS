@@ -25,6 +25,7 @@ import {
 } from '../controllers/userManagementController.js';
 import clientOnboardingRoutes from './clientOnboarding.js';
 import clientManagementRoutes from './clientManagement.js';
+import importRoutes from './import.js';
 
 const router = express.Router();
 
@@ -104,6 +105,9 @@ router.use('/onboarding', clientOnboardingRoutes);
 
 // Mount client management routes (migrated from /api/client-management)  
 router.use('/client-management', clientManagementRoutes);
+
+// Mount import routes (for data import/purge operations)
+router.use('/import', importRoutes);
 
 /**
  * Production Configuration Routes (Public access for deployment)

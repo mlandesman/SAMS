@@ -242,10 +242,26 @@ export class ImportService {
     const results = { success: 0, failed: 0, errors: [], total: 0 };
     
     try {
-      const paymentTypesData = await this.loadJsonFile('PaymentTypes.json');
+      const paymentTypesData = await this.loadJsonFile('paymentMethods.json');
       
-      // Payment types can be either an array of documents or a single object
-      const paymentTypesArray = Array.isArray(paymentTypesData) ? paymentTypesData : [paymentTypesData];
+      // Payment types can be either an array, a single object, or an object with keys
+      let paymentTypesArray;
+      if (Array.isArray(paymentTypesData)) {
+        paymentTypesArray = paymentTypesData;
+      } else if (paymentTypesData && typeof paymentTypesData === 'object') {
+        // Check if it's a keyed object (like {wise: {...}, zelle: {...}})
+        // vs a single payment type object
+        const keys = Object.keys(paymentTypesData);
+        if (keys.length > 0 && keys.some(key => !['_id', 'name', 'type', 'currency', 'details'].includes(key))) {
+          // It's a keyed object, convert to array
+          paymentTypesArray = Object.values(paymentTypesData);
+        } else {
+          // It's a single payment type object
+          paymentTypesArray = [paymentTypesData];
+        }
+      } else {
+        paymentTypesArray = [];
+      }
       results.total = paymentTypesArray.length;
       
       // Report starting

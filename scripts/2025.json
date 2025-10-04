@@ -1,198 +1,415 @@
 {
   "_id": "2025",
   "year": 2025,
-  "unitId": "1B",
-  "scheduledAmount": 440000,
-  "creditBalanceHistory": [
-    {
-      "id": "86a51869-737f-474f-bac4-230080f5dfd1",
-      "timestamp": {
-        "_seconds": 1754779736,
-        "_nanoseconds": 0
-      },
-      "transactionId": null,
-      "type": "starting_balance",
-      "amount": 328600,
-      "description": "Initial credit balance",
-      "balanceBefore": 0,
-      "balanceAfter": 328600,
-      "notes": "System initialization"
-    },
-    {
-      "id": "171d3483-3a9d-4885-ab75-ef664376a783",
-      "timestamp": {
-        "_seconds": 1754779736,
-        "_nanoseconds": 0
-      },
-      "transactionId": "2025-08-09_174855_480",
-      "type": "credit_added",
-      "amount": 600,
-      "description": "from Overpayment",
-      "balanceBefore": 3286,
-      "balanceAfter": 3886,
-      "notes": ""
-    },
-    {
-      "id": "5594ec18-9ad5-438b-84ec-708b2840acb9",
-      "timestamp": {
-        "_seconds": 1758673467,
-        "_nanoseconds": 0
-      },
-      "transactionId": null,
-      "type": "manual_adjustment",
-      "amount": -338600,
-      "description": "Manual credit balance update",
-      "balanceBefore": 388600,
-      "balanceAfter": 50000,
-      "notes": "Manual Update for Testing"
-    },
-    {
-      "id": "f3754032-3762-4755-bde8-c968bf06c422",
-      "timestamp": {
-        "_seconds": 1758673691,
-        "_nanoseconds": 0
-      },
-      "transactionId": "2025-09-24_192810_953",
-      "type": "credit_added",
-      "amount": 200,
-      "description": "from Overpayment",
-      "balanceBefore": 500,
-      "balanceAfter": 700,
-      "notes": "Testing for $700 credit balance now"
-    }
-  ],
-  "totalPaid": 4400000,
+  "unitId": "1A",
+  "totalDue": 300000,
+  "totalPaid": 0,
+  "updated": {
+    "_seconds": 1759534507,
+    "_nanoseconds": 0
+  },
   "payments": [
     {
       "month": 1,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1736379531,
+        "_seconds": 1735412210,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 5,000.00 on Wed Jan 08 2025 18:38:51 GMT-0500 (Eastern Standard Time)\nJan 2025 + MXN 600.00 Credit \nSeq: 25026",
-      "sequenceNumber": "25026",
-      "reference": "2025-01-08_150340_249"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Dec 28 2024 13:56:50 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar 2025; HSBC\nSeq: 25010",
+      "reference": "2024-12-28_183239_498"
     },
     {
       "month": 2,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1739838111,
+        "_seconds": 1735412210,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 4,500.00 on Mon Feb 17 2025 19:21:51 GMT-0500 (Eastern Standard Time)\nFeb 2025 + MXN 100.00 Credit \nSeq: 25043",
-      "sequenceNumber": "25043",
-      "reference": "2025-02-17_150408_267"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Dec 28 2024 13:56:50 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar 2025; HSBC\nSeq: 25010",
+      "reference": "2024-12-28_183239_498"
     },
     {
       "month": 3,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1741734539,
+        "_seconds": 1735412210,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 4,500.00 on Tue Mar 11 2025 18:08:59 GMT-0500 (Eastern Standard Time)\nMar 2025 + MXN 100.00 Credit \nSeq: 25059",
-      "sequenceNumber": "25059",
-      "reference": "2025-03-11_150421_137"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Dec 28 2024 13:56:50 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar 2025; HSBC\nSeq: 25010",
+      "reference": "2024-12-28_183239_498"
     },
     {
       "month": 4,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1744765618,
+        "_seconds": 1743267588,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 5,000.00 on Tue Apr 15 2025 20:06:58 GMT-0500 (Eastern Standard Time)\nApr 2025 + MXN 600.00 Credit \nSeq: 25088",
-      "sequenceNumber": "25088",
-      "reference": "2025-04-15_150447_336"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Mar 29 2025 11:59:48 GMT-0500 (Eastern Standard Time)\nApr, May, Jun 2025 + MXN 1,200.00 Credit HSBC\nSeq: 25065",
+      "reference": "2025-03-29_183331_807"
     },
     {
       "month": 5,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1744765683,
+        "_seconds": 1743267588,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 5,000.00 on Tue Apr 15 2025 20:08:03 GMT-0500 (Eastern Standard Time)\nMay 2025 + MXN 600.00 Credit \nSeq: 25089",
-      "sequenceNumber": "25089",
-      "reference": "2025-04-15_150448_166"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Mar 29 2025 11:59:48 GMT-0500 (Eastern Standard Time)\nApr, May, Jun 2025 + MXN 1,200.00 Credit HSBC\nSeq: 25065",
+      "reference": "2025-03-29_183331_807"
     },
     {
       "month": 6,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1749849104,
+        "_seconds": 1743267588,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 4,500.00 on Fri Jun 13 2025 16:11:44 GMT-0500 (Eastern Standard Time)\nJun 2025 + MXN 100.00 Credit \nSeq: 25114",
-      "sequenceNumber": "25114",
-      "reference": "2025-06-13_150512_458"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sat Mar 29 2025 11:59:48 GMT-0500 (Eastern Standard Time)\nApr, May, Jun 2025 + MXN 1,200.00 Credit HSBC\nSeq: 25065",
+      "reference": "2025-03-29_183331_807"
     },
     {
       "month": 7,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1751871059,
+        "_seconds": 1751480980,
         "_nanoseconds": 0
       },
-      "notes": "Posted: MXN 5,000.00 on Mon Jul 07 2025 01:50:59 GMT-0500 (Eastern Standard Time)\nJul 2025 + MXN 600.00 Credit \nSeq: 25129",
-      "sequenceNumber": "25129",
-      "reference": "2025-07-07_150526_169"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Wed Jul 02 2025 13:29:40 GMT-0500 (Eastern Standard Time)\nJul, Aug, Sep, Oct 2025 using MXN 3,400.00 from Credit Balance eTransfer to cIbanco\nSeq: 25125",
+      "reference": "2025-07-02_183414_188"
     },
     {
+      "month": 8,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1754715600,
+        "_seconds": 1751480980,
         "_nanoseconds": 0
       },
-      "reference": "2025-08-09_174855_480",
-      "notes": "Payment recorded in Transaction ID: 2025-08-09_174855_480"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Wed Jul 02 2025 13:29:40 GMT-0500 (Eastern Standard Time)\nJul, Aug, Sep, Oct 2025 using MXN 3,400.00 from Credit Balance eTransfer to cIbanco\nSeq: 25125",
+      "reference": "2025-07-02_183414_188"
     },
     {
+      "month": 9,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1758673690,
+        "_seconds": 1751480980,
         "_nanoseconds": 0
       },
-      "reference": "2025-09-24_192810_953",
-      "notes": "Testing for $700 credit balance now (Transaction ID: 2025-09-24_192810_953)"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Wed Jul 02 2025 13:29:40 GMT-0500 (Eastern Standard Time)\nJul, Aug, Sep, Oct 2025 using MXN 3,400.00 from Credit Balance eTransfer to cIbanco\nSeq: 25125",
+      "reference": "2025-07-02_183414_188"
     },
     {
+      "month": 10,
+      "amount": 460000,
       "paid": true,
-      "amount": 440000,
       "date": {
-        "_seconds": 1758673690,
+        "_seconds": 1751480980,
         "_nanoseconds": 0
       },
-      "reference": "2025-09-24_192810_953",
-      "notes": "Testing for $700 credit balance now (Transaction ID: 2025-09-24_192810_953)"
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Wed Jul 02 2025 13:29:40 GMT-0500 (Eastern Standard Time)\nJul, Aug, Sep, Oct 2025 using MXN 3,400.00 from Credit Balance eTransfer to cIbanco\nSeq: 25125",
+      "reference": "2025-07-02_183414_188"
     },
     {
-      "paid": false,
-      "amount": 0,
-      "date": null,
-      "reference": null
+      "month": 11,
+      "amount": 460000,
+      "paid": true,
+      "date": {
+        "_seconds": 1759076621,
+        "_nanoseconds": 0
+      },
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sun Sep 28 2025 11:23:41 GMT-0500 (Eastern Standard Time)\nNov, Dec, undefined 2025 + MXN 1,200.00 Credit HSBC → BBVA\nSeq: 25150",
+      "reference": "2025-09-28_183444_850"
     },
     {
-      "paid": false,
-      "amount": 0,
-      "date": null,
-      "reference": null
+      "month": 12,
+      "amount": 460000,
+      "paid": true,
+      "date": {
+        "_seconds": 1759076621,
+        "_nanoseconds": 0
+      },
+      "method": "bank",
+      "notes": "Posted: MXN 15,000.00 on Sun Sep 28 2025 11:23:41 GMT-0500 (Eastern Standard Time)\nNov, Dec, undefined 2025 + MXN 1,200.00 Credit HSBC → BBVA\nSeq: 25150",
+      "reference": "2025-09-28_183444_850"
     }
   ],
-  "updated": {
-    "_seconds": 1758673691,
-    "_nanoseconds": 0
-  },
-  "creditBalance": 70000
+  "creditBalanceHistory": [
+    {
+      "id": "qn5meh43wshmgbhezff",
+      "timestamp": {
+        "_seconds": 1735695009,
+        "_nanoseconds": 300000000
+      },
+      "type": "credit_addition",
+      "amount": 380000,
+      "description": "Credit added from transaction 2024-12-31_183240_827",
+      "balanceBefore": 1170000,
+      "balanceAfter": 1550000,
+      "notes": "Jan, Feb, Mar, Apr, May 2025 + MXN 3,800.00 Credit; DolarApp",
+      "sequenceNumber": "25016",
+      "transactionId": "2024-12-31_183240_827"
+    },
+    {
+      "id": "mmohprg7klgmgbhezff",
+      "timestamp": {
+        "_seconds": 1735695873,
+        "_nanoseconds": 622000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2024-12-31_183241_481",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "Jun 2025 + MXN 600.00 Credit; DolarApp",
+      "sequenceNumber": "25017",
+      "transactionId": "2024-12-31_183241_481"
+    },
+    {
+      "id": "2lu2dfsrom8mgbhezff",
+      "timestamp": {
+        "_seconds": 1736379532,
+        "_nanoseconds": 914000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2025-01-08_183246_935",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "Jan 2025 + MXN 600.00 Credit ",
+      "sequenceNumber": "25026",
+      "transactionId": "2025-01-08_183246_935"
+    },
+    {
+      "id": "pvqe5d0qlzhmgbhezff",
+      "timestamp": {
+        "_seconds": 1739838111,
+        "_nanoseconds": 784000000
+      },
+      "type": "credit_addition",
+      "amount": 10000,
+      "description": "Credit added from transaction 2025-02-17_183313_252",
+      "balanceBefore": 1540000,
+      "balanceAfter": 1550000,
+      "notes": "Feb 2025 + MXN 100.00 Credit ",
+      "sequenceNumber": "25043",
+      "transactionId": "2025-02-17_183313_252"
+    },
+    {
+      "id": "1ve5fw5y9etmgbhezff",
+      "timestamp": {
+        "_seconds": 1741734539,
+        "_nanoseconds": 899000000
+      },
+      "type": "credit_addition",
+      "amount": 10000,
+      "description": "Credit added from transaction 2025-03-11_183325_068",
+      "balanceBefore": 1540000,
+      "balanceAfter": 1550000,
+      "notes": "Mar 2025 + MXN 100.00 Credit ",
+      "sequenceNumber": "25059",
+      "transactionId": "2025-03-11_183325_068"
+    },
+    {
+      "id": "1wr41jfo4ncmgbhezff",
+      "timestamp": {
+        "_seconds": 1743267589,
+        "_nanoseconds": 271000000
+      },
+      "type": "credit_addition",
+      "amount": 120000,
+      "description": "Credit added from transaction 2025-03-29_183331_807",
+      "balanceBefore": 1430000,
+      "balanceAfter": 1550000,
+      "notes": "Apr, May, Jun 2025 + MXN 1,200.00 Credit HSBC",
+      "sequenceNumber": "25065",
+      "transactionId": "2025-03-29_183331_807"
+    },
+    {
+      "id": "bffuoef0jm6mgbhezff",
+      "timestamp": {
+        "_seconds": 1744765618,
+        "_nanoseconds": 457000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2025-04-15_183346_151",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "Apr 2025 + MXN 600.00 Credit ",
+      "sequenceNumber": "25088",
+      "transactionId": "2025-04-15_183346_151"
+    },
+    {
+      "id": "ps3fenn55nmgbhezff",
+      "timestamp": {
+        "_seconds": 1744765684,
+        "_nanoseconds": 159000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2025-04-15_183346_848",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "May 2025 + MXN 600.00 Credit ",
+      "sequenceNumber": "25089",
+      "transactionId": "2025-04-15_183346_848"
+    },
+    {
+      "id": "wwolhszhcqjmgbhezff",
+      "timestamp": {
+        "_seconds": 1744765728,
+        "_nanoseconds": 642000000
+      },
+      "type": "credit_addition",
+      "amount": 0,
+      "description": "Credit added from transaction 2025-04-15_183347_525",
+      "balanceBefore": 1550000,
+      "balanceAfter": 1550000,
+      "notes": "Apr, May 2025 + MXN 0.00 Credit ",
+      "sequenceNumber": "25090",
+      "transactionId": "2025-04-15_183347_525"
+    },
+    {
+      "id": "flip11rkzslmgbhezff",
+      "timestamp": {
+        "_seconds": 1749849105,
+        "_nanoseconds": 27000000
+      },
+      "type": "credit_addition",
+      "amount": 10000,
+      "description": "Credit added from transaction 2025-06-13_183406_682",
+      "balanceBefore": 1540000,
+      "balanceAfter": 1550000,
+      "notes": "Jun 2025 + MXN 100.00 Credit ",
+      "sequenceNumber": "25114",
+      "transactionId": "2025-06-13_183406_682"
+    },
+    {
+      "id": "j74rnoasgpfmgbhezff",
+      "timestamp": {
+        "_seconds": 1749849255,
+        "_nanoseconds": 846000000
+      },
+      "type": "credit_addition",
+      "amount": 20000,
+      "description": "Credit added from transaction 2025-06-13_183407_367",
+      "balanceBefore": 1530000,
+      "balanceAfter": 1550000,
+      "notes": "Jun 2025 + MXN 200.00 Credit ",
+      "sequenceNumber": "25115",
+      "transactionId": "2025-06-13_183407_367"
+    },
+    {
+      "id": "dngmaewuxxpmgbhezff",
+      "timestamp": {
+        "_seconds": 1751871060,
+        "_nanoseconds": 209000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2025-07-07_183417_603",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "Jul 2025 + MXN 600.00 Credit ",
+      "sequenceNumber": "25129",
+      "transactionId": "2025-07-07_183417_603"
+    },
+    {
+      "id": "2yhk94qntl3mgbhezff",
+      "timestamp": {
+        "_seconds": 1751871122,
+        "_nanoseconds": 807000000
+      },
+      "type": "credit_addition",
+      "amount": 20000,
+      "description": "Credit added from transaction 2025-07-07_183418_272",
+      "balanceBefore": 1530000,
+      "balanceAfter": 1550000,
+      "notes": "Jul 2025 + MXN 200.00 Credit ",
+      "sequenceNumber": "25130",
+      "transactionId": "2025-07-07_183418_272"
+    },
+    {
+      "id": "e2scebrxl4mmgbhezff",
+      "timestamp": {
+        "_seconds": 1754782741,
+        "_nanoseconds": 745000000
+      },
+      "type": "credit_addition",
+      "amount": 60000,
+      "description": "Credit added from transaction 2025-08-09_183427_738",
+      "balanceBefore": 1490000,
+      "balanceAfter": 1550000,
+      "notes": "Aug 2025 + MXN 600.00 Credit ",
+      "sequenceNumber": "25139",
+      "transactionId": "2025-08-09_183427_738"
+    },
+    {
+      "id": "d62jlid4jtmgbhezff",
+      "timestamp": {
+        "_seconds": 1757440341,
+        "_nanoseconds": 746000000
+      },
+      "type": "credit_addition",
+      "amount": 20000,
+      "description": "Credit added from transaction 2025-09-09_183439_313",
+      "balanceBefore": 1530000,
+      "balanceAfter": 1550000,
+      "notes": "Sep 2025 + MXN 200.00 Credit ",
+      "sequenceNumber": "25147",
+      "transactionId": "2025-09-09_183439_313"
+    },
+    {
+      "id": "m1qkcwo0i1mgbhezff",
+      "timestamp": {
+        "_seconds": 1758045142,
+        "_nanoseconds": 488000000
+      },
+      "type": "credit_addition",
+      "amount": 20000,
+      "description": "Credit added from transaction 2025-09-16_183440_669",
+      "balanceBefore": 1530000,
+      "balanceAfter": 1550000,
+      "notes": "Sep 2025 + MXN 200.00 Credit Elizabeth",
+      "sequenceNumber": "25148",
+      "transactionId": "2025-09-16_183440_669"
+    },
+    {
+      "id": "nkw74sscg1hmgbhezff",
+      "timestamp": {
+        "_seconds": 1759076621,
+        "_nanoseconds": 418000000
+      },
+      "type": "credit_addition",
+      "amount": 580000,
+      "description": "Credit added from transaction 2025-09-28_183444_850",
+      "balanceBefore": 970000,
+      "balanceAfter": 1550000,
+      "notes": "Nov, Dec 2025 + MXN 5,800.00 Credit HSBC → BBVA",
+      "sequenceNumber": "25150",
+      "transactionId": "2025-09-28_183444_850"
+    }
+  ],
+  "creditBalance": 623900
 }

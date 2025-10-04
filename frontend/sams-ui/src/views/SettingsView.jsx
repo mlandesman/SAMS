@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../api/exchangeRates';
 import { useAuth } from '../context/AuthContext';
+import { useClient } from '../context/ClientContext';
 import { SuperAdminGuard } from '../components/security/PermissionGuard';
+import ImportManagement from '../components/Settings/ImportManagement';
 
 function SettingsView() {
   const { samsUser } = useAuth();
+  const { selectedClient } = useClient();
   const [updateStatus, setUpdateStatus] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [exchangeRateInfo, setExchangeRateInfo] = useState(null);
@@ -143,6 +146,20 @@ function SettingsView() {
           }}
         >
           📈 Exchange Rates
+        </button>
+        
+        <button
+          onClick={() => setActiveSection('data-management')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderBottom: activeSection === 'data-management' ? '3px solid #007bff' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            fontWeight: activeSection === 'data-management' ? 'bold' : 'normal'
+          }}
+        >
+          📊 Data Management
         </button>
         
         <button
@@ -314,6 +331,19 @@ function SettingsView() {
           </ul>
         </div>
       </div>
+      )}
+
+      {/* Data Management Section */}
+      {activeSection === 'data-management' && (
+        <SuperAdminGuard>
+          {selectedClient ? (
+            <ImportManagement clientId={selectedClient.id} />
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center' }}>
+              <p>Please select a client to access Data Management features.</p>
+            </div>
+          )}
+        </SuperAdminGuard>
       )}
 
       

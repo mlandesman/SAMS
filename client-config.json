@@ -1,0 +1,58 @@
+{
+  "_id": "MTC",
+  "accounts": [
+    {
+      "active": true,
+      "balance": 22808793,
+      "currency": "USD",
+      "id": "bank-001",
+      "name": "MTC Bank",
+      "type": "bank"
+    },
+    {
+      "active": true,
+      "balance": 1158000,
+      "currency": "USD",
+      "id": "cash-001",
+      "name": "Cash Account",
+      "type": "cash"
+    }
+  ],
+  "basicInfo": {
+    "clientId": "MTC",
+    "clientType": "HOA",
+    "displayName": "MTC",
+    "fullName": "Marina Turquesa Condominiums"
+  },
+  "configuration": {
+    "accountingMethod": "cash",
+    "currency": "MXN",
+    "dateFormat": "DD/MM/YYYY",
+    "fiscalYearStartMonth": 1,
+    "language": "en",
+    "locale": "en-US",
+    "timezone": "America/Cancun"
+  },
+  "contactInfo": {
+    "address": {
+      "city": "Puerto Aventuras",
+      "country": "MX",
+      "postalCode": "77733",
+      "state": "QR",
+      "street": "Mza 20 Lote 12-13 Privada Xel-ha"
+    },
+    "phone": "+52 984-178-0331",
+    "primaryEmail": "pm@sandyland.com.mx"
+  },
+  "feeStructure": {
+    "duesFrequency": "monthly",
+    "lateFeePolicy": {
+      "gracePeriodDays": 10,
+      "lateFeeAmount": 50000
+    }
+  },
+  "propertyInfo": {
+    "totalUnits": 10
+  },
+  "status": "active"
+}

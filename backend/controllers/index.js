@@ -24,3 +24,4 @@ export * from './transactionsController.js';
 export * from './unitsController.js';
 export * from './userManagementController.js';
 export * from './vendorsController.js';
+export * from './yearEndBalancesController.js';

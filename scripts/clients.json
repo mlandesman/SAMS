@@ -1,0 +1,207 @@
+{
+  "_id": "MTC",
+  "accounts": [
+    {
+      "active": true,
+      "balance": 20254901,
+      "currency": "MXN",
+      "id": "bank-001",
+      "lastRebuildSnapshot": "2024-12-31",
+      "name": "MTC Bank",
+      "type": "bank",
+      "updated": {
+        "_nanoseconds": 845000000,
+        "_seconds": 1758760694
+      }
+    },
+    {
+      "active": true,
+      "balance": 2950000,
+      "currency": "MXN",
+      "id": "cash-001",
+      "lastRebuildSnapshot": "2024-12-31",
+      "name": "Cash Account",
+      "type": "cash",
+      "updated": {
+        "_nanoseconds": 476000000,
+        "_seconds": 1758555831
+      }
+    }
+  ],
+  "basicInfo": {
+    "clientId": "MTC",
+    "clientType": "HOA",
+    "description": "Marina-front condominiums in Puerto Aventuras",
+    "displayName": "Marina Turquesa Condominiums",
+    "established": {
+      "_nanoseconds": 559000000,
+      "_seconds": 1753912730
+    },
+    "fullName": "Marina Turquesa Condominiums",
+    "legalType": "AC",
+    "taxId": ""
+  },
+  "branding": {
+    "brandColors": {
+      "accent": "#10b981",
+      "danger": "#ef4444",
+      "primary": "#2563eb",
+      "secondary": "#64748b",
+      "success": "#22c55e"
+    },
+    "customCSS": null,
+    "iconUrl": "",
+    "logoUrl": ""
+  },
+  "clientId": "MTC",
+  "configuration": {
+    "accountingMethod": "cash",
+    "currency": "MXN",
+    "dateFormat": "DD/MM/YYYY",
+    "fiscalYearStartMonth": 1,
+    "language": "en",
+    "locale": "en-US",
+    "timezone": "America/Cancun"
+  },
+  "contactInfo": {
+    "address": {
+      "city": "Puerto Aventuras",
+      "country": "MX",
+      "postalCode": "77733",
+      "state": "QR",
+      "street": "M20 L12-13 Privada Xel-ha"
+    },
+    "alternatePhone": null,
+    "mailingAddress": null,
+    "phone": "+52 984-178-0331",
+    "primaryEmail": "pm@sandyland.com.mx",
+    "secondaryEmail": "ms@landesman.com",
+    "website": "https://sandyland.com.mx/MTC"
+  },
+  "documents": {
+    "bylaws": null,
+    "ccrs": null,
+    "contracts": [],
+    "financialReports": [],
+    "insurancePolicies": [],
+    "meetingMinutes": []
+  },
+  "emergencyContacts": [
+    {
+      "alternatePhone": null,
+      "available": "24/7",
+      "email": "security@puertoaventuras.com",
+      "name": "Puerto Aventuras Security",
+      "notes": "Main gate security",
+      "phone": "+52 984-873-5000",
+      "type": "Security"
+    }
+  ],
+  "feeStructure": {
+    "bankDetails": {
+      "accountName": "Michael Alan Landesman",
+      "bankName": "BBVA",
+      "clabe": "012 694 01553632775 6",
+      "reference": "Unit number/name",
+      "swiftCode": "BCMRMXMMPYM"
+    },
+    "duesFrequency": "monthly",
+    "lateFeePolicy": {
+      "gracePeriodDays": 15,
+      "interestRate": 0,
+      "lateFeeAmount": 0,
+      "lateFeePercent": 5
+    },
+    "specialAssessments": []
+  },
+  "governance": {
+    "boardMembers": [
+      {
+        "email": "michael@landesman.com",
+        "isPrimary": true,
+        "name": "Michael Landesman",
+        "phone": "+52 984 178 0331",
+        "position": "Administrator",
+        "termEnd": {
+          "_nanoseconds": 559000000,
+          "_seconds": 1753912730
+        },
+        "termStart": {
+          "_nanoseconds": 559000000,
+          "_seconds": 1753912730
+        }
+      },
+      {
+        "email": "",
+        "isPrimary": false,
+        "name": "",
+        "phone": "",
+        "position": "",
+        "termEnd": {
+          "_nanoseconds": 559000000,
+          "_seconds": 1753912730
+        },
+        "termStart": {
+          "_nanoseconds": 559000000,
+          "_seconds": 1753912730
+        }
+      }
+    ],
+    "committees": [
+      {
+        "chair": "",
+        "members": [],
+        "name": "Finance"
+      },
+      {
+        "chair": "",
+        "members": [],
+        "name": "Maintenance"
+      }
+    ],
+    "managementCompany": {
+      "contact": "Sandyland Properties",
+      "contractEnd": {
+        "_nanoseconds": 560000000,
+        "_seconds": 1753912730
+      },
+      "email": "pm@sandyland.com.mx",
+      "name": "Sandyland Properties",
+      "phone": "+52 984-178-0331"
+    },
+    "meetingSchedule": {
+      "annualMeeting": 11,
+      "boardMeetings": "Annually",
+      "dayOfMonth": 15
+    }
+  },
+  "lastBalanceRebuild": {
+    "_nanoseconds": 872000000,
+    "_seconds": 1759535817
+  },
+  "lastBalanceRebuildSource": "2024 year-end snapshot",
+  "propertyInfo": {
+    "amenities": [],
+    "buildings": 1,
+    "commonAreas": [
+      {
+        "description": "Pool with marina view",
+        "maintenanceSchedule": "Weekly",
+        "name": "Pool Area"
+      }
+    ],
+    "parkingSpaces": {
+      "assigned": 7,
+      "guest": 7,
+      "total": 14
+    },
+    "propertyType": "Highrise",
+    "totalUnits": 10,
+    "yearBuilt": 2012
+  },
+  "status": "active",
+  "updated": {
+    "_nanoseconds": 560000000,
+    "_seconds": 1753912730
+  }
+}
