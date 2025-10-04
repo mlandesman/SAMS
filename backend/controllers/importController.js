@@ -205,7 +205,7 @@ async function executePurge(user, clientId, options = {}) {
     const { dryRun = false } = options;
     const db = await getDb();
     
-    // CRITICAL: Single purge sequence - reverse of import order
+    // CRITICAL: Purge sequence with recursive client cleanup
     const purgeSequence = [
       { id: 'hoadues', name: 'HOA Dues', hasDependencies: true },
       { id: 'transactions', name: 'Transactions', hasDependencies: true },
@@ -215,7 +215,7 @@ async function executePurge(user, clientId, options = {}) {
       { id: 'categories', name: 'Categories', hasDependencies: false },
       { id: 'paymentTypes', name: 'Payment Types', hasDependencies: false },
       { id: 'config', name: 'Config Collection', hasDependencies: false },
-      { id: 'client', name: 'Client Document', hasDependencies: false },
+      { id: 'client', name: 'Client Document (Recursive)', hasDependencies: false, recursive: true },
       { id: 'importMetadata', name: 'Import Metadata', hasDependencies: false }
     ];
     
@@ -544,11 +544,11 @@ async function purgeTransactions(db, clientId, dryRun = false) {
 
 /**
  * Comprehensive purge for Client document
- * NOTE: This only deletes the client document itself, NOT its subcollections.
- * Subcollections are already purged individually in the purge sequence.
+ * This recursively deletes ALL subcollections and then the client document itself.
+ * This is more thorough than individual purges and handles any edge cases.
  */
 async function purgeClient(db, clientId, dryRun = false) {
-  console.log(`🏢 Purging Client document for client: ${clientId}`);
+  console.log(`🏢 Purging Client document and ALL subcollections for client: ${clientId}`);
   let deletedCount = 0;
   const errors = [];
   
@@ -561,14 +561,16 @@ async function purgeClient(db, clientId, dryRun = false) {
     if (clientDoc.exists) {
       try {
         if (!dryRun) {
-          // IMPORTANT: Only delete the client document itself, NOT subcollections
-          // Subcollections are already purged individually in the purge sequence
-          // This prevents accidentally deleting other clients' data
+          // Recursively delete ALL subcollections first
+          // This handles any subcollections that might have been missed in individual purges
+          await deleteSubCollections(clientRef);
+          
+          // Then delete the client document itself
           await clientRef.delete();
         }
         deletedCount++;
-        console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Client document: ${clientId}`);
-        console.log(`ℹ️ Note: Subcollections were already purged in previous steps`);
+        console.log(`✅ ${dryRun ? 'Would delete' : 'Deleted'} Client document and ALL subcollections: ${clientId}`);
+        console.log(`ℹ️ Note: Recursive deletion ensures no ghost documents remain`);
       } catch (error) {
         errors.push(`Failed to delete client document ${clientId}: ${error.message}`);
         console.error(`❌ Error deleting client document ${clientId}:`, error);
