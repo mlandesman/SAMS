@@ -99,7 +99,72 @@ router.get('/preview', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
-// Execute import operation
+// Onboard a NEW client (reads clientId from Client.json)
+router.post('/onboard', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const { dataPath, dryRun = false, maxErrors = 3 } = req.body;
+    const user = req.user;
+    
+    if (!dataPath) {
+      return res.status(400).json({ error: 'dataPath is required' });
+    }
+    
+    console.log(`🆕 [IMPORT ROUTES] Onboarding new client from: ${dataPath}`);
+    
+    // Read Client.json to get the clientId
+    const { previewClientData } = await import('../controllers/importController.js');
+    const preview = await previewClientData(user, dataPath);
+    
+    if (!preview || !preview.clientId) {
+      return res.status(400).json({ 
+        error: 'Could not determine clientId from Client.json' 
+      });
+    }
+    
+    const clientId = preview.clientId;
+    console.log(`📋 Client ID from file: ${clientId}`);
+    console.log(`📦 Onboarding client: ${preview.displayName} (${clientId})`);
+    
+    // Initialize progress in global state
+    if (!global.importProgress) {
+      global.importProgress = {};
+    }
+    
+    global.importProgress[clientId] = {
+      status: 'starting',
+      clientId,
+      dataPath,
+      dryRun,
+      onboarding: true,
+      startTime: new Date().toISOString()
+    };
+    
+    // Start import in background (this will create the client)
+    executeImport(user, clientId, { 
+      dataPath, 
+      dryRun, 
+      maxErrors,
+      onboarding: true
+    }).catch(error => {
+      console.error('❌ [IMPORT ROUTES] Onboarding error:', error);
+      if (global.importProgress[clientId]) {
+        global.importProgress[clientId].status = 'error';
+        global.importProgress[clientId].error = error.message;
+      }
+    });
+    
+    // Return immediately with client info and initial progress
+    res.json({
+      ...global.importProgress[clientId],
+      preview
+    });
+  } catch (error) {
+    console.error('❌ [IMPORT ROUTES] Error starting client onboarding:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Execute import operation (for existing clients)
 router.post('/:clientId/import', authenticateUserWithProfile, async (req, res) => {
   try {
     const { clientId } = req.params;

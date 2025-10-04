@@ -14,6 +14,8 @@ export function ImportManagement({ clientId }) {
   const [error, setError] = useState(null);
   const [customDataPath, setCustomDataPath] = useState('');
   const [dryRun, setDryRun] = useState(true); // Default to dry run for safety
+  const [clientPreview, setClientPreview] = useState(null);
+  const [onboardingPath, setOnboardingPath] = useState('');
   
   const { currentUser } = useAuth();
   const { selectedClient } = useClient();
@@ -61,6 +63,79 @@ export function ImportManagement({ clientId }) {
     } catch (error) {
       console.error('Failed to load config:', error);
       setError('Failed to load import configuration');
+    }
+  };
+
+  const handlePreviewClient = async () => {
+    if (!onboardingPath) {
+      setError('Please enter a data path');
+      return;
+    }
+    
+    try {
+      setError(null);
+      const response = await fetch(`${appConfig.api.baseUrl}/admin/import/preview?dataPath=${encodeURIComponent(onboardingPath)}`, {
+        headers: await getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to preview client data');
+      }
+      
+      const preview = await response.json();
+      setClientPreview(preview);
+      console.log('Client preview loaded:', preview);
+    } catch (err) {
+      console.error('Failed to preview client:', err);
+      setError(err.message);
+      setClientPreview(null);
+    }
+  };
+
+  const handleOnboardClient = async (dryRun = false) => {
+    if (!clientPreview) {
+      setError('Please preview the client data first');
+      return;
+    }
+    
+    const confirmMessage = dryRun
+      ? `DRY RUN - Onboard NEW client:\n\n• Client ID: ${clientPreview.clientId}\n• Name: ${clientPreview.displayName}\n• Type: ${clientPreview.clientType}\n• Units: ${clientPreview.totalUnits}\n\nThis will simulate onboarding without writing to the database.\n\nContinue?`
+      : `Onboard NEW client:\n\n• Client ID: ${clientPreview.clientId}\n• Name: ${clientPreview.displayName}\n• Type: ${clientPreview.clientType}\n• Units: ${clientPreview.totalUnits}\n\nData to import:\n• Config: ${clientPreview.dataCounts.config} items\n• Payment Methods: ${clientPreview.dataCounts.paymentMethods} items\n• Categories: ${clientPreview.dataCounts.categories} items\n• Vendors: ${clientPreview.dataCounts.vendors} items\n• Units: ${clientPreview.dataCounts.units} items\n• Transactions: ${clientPreview.dataCounts.transactions} items\n• HOA Dues: ${clientPreview.dataCounts.hoadues} items\n\nThis will CREATE a new client in the database.\n\nContinue?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    setIsProcessing(true);
+    setProgress({ status: 'starting', sequence: [], components: {} });
+    
+    try {
+      const response = await fetch(`${appConfig.api.baseUrl}/admin/import/onboard`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({
+          dataPath: onboardingPath,
+          dryRun,
+          maxErrors: 3
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to onboard client');
+      }
+      
+      const result = await response.json();
+      console.log('Onboarding started:', result);
+      setProgress(result);
+      
+      // Start polling for progress (using the new client ID from preview)
+      pollIntervalRef.current = setInterval(() => pollProgress(clientPreview.clientId), 1000);
+    } catch (err) {
+      console.error('Failed to onboard client:', err);
+      setError(err.message);
+      setIsProcessing(false);
     }
   };
 
@@ -340,10 +415,111 @@ export function ImportManagement({ clientId }) {
       )}
 
       <div className="import-section">
+        {/* Client Onboarding - NEW CLIENT */}
+        <div className="card onboarding-card">
+          <div className="card-header">
+            <h3>
+              🆕 Onboard New Client
+              <InfoTooltip 
+                title="Client Onboarding"
+                content={
+                  <div>
+                    <p>Import a NEW client that doesn't exist in the system yet.</p>
+                    <p><strong>Process:</strong></p>
+                    <ul>
+                      <li>Enter path to client data folder</li>
+                      <li>Preview client info from Client.json</li>
+                      <li>Confirm and import all data</li>
+                    </ul>
+                    <p>The Client ID is read from Client.json automatically.</p>
+                  </div>
+                }
+              />
+            </h3>
+          </div>
+          <div className="card-content">
+            <div className="data-path-section">
+              <label className="field-label">Data Path for New Client:</label>
+              <input
+                type="text"
+                value={onboardingPath}
+                onChange={(e) => setOnboardingPath(e.target.value)}
+                placeholder="/path/to/clientdata (e.g., /path/to/MTCdata)"
+                className="data-path-input"
+                disabled={isProcessing}
+              />
+              <button
+                className="btn btn-secondary"
+                onClick={handlePreviewClient}
+                disabled={isProcessing || !onboardingPath}
+                style={{ marginTop: '10px' }}
+              >
+                👁️ Preview Client Data
+              </button>
+            </div>
+            
+            {clientPreview && (
+              <div className="client-preview">
+                <h4>📋 Client Information Preview:</h4>
+                <div className="preview-grid">
+                  <div className="preview-item">
+                    <strong>Client ID:</strong> {clientPreview.clientId}
+                  </div>
+                  <div className="preview-item">
+                    <strong>Name:</strong> {clientPreview.displayName}
+                  </div>
+                  <div className="preview-item">
+                    <strong>Type:</strong> {clientPreview.clientType}
+                  </div>
+                  <div className="preview-item">
+                    <strong>Units:</strong> {clientPreview.totalUnits}
+                  </div>
+                  <div className="preview-item">
+                    <strong>Currency:</strong> {clientPreview.preview?.currency}
+                  </div>
+                  <div className="preview-item">
+                    <strong>Accounts:</strong> {clientPreview.preview?.accounts}
+                  </div>
+                </div>
+                
+                <h4>📦 Data Files to Import:</h4>
+                <div className="data-counts">
+                  {Object.entries(clientPreview.dataCounts).map(([key, count]) => (
+                    <div key={key} className="data-count-item">
+                      <span className="data-label">{key}:</span>
+                      <span className="data-value">{count}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="button-group" style={{ marginTop: '20px' }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleOnboardClient(true)}
+                    disabled={isProcessing}
+                  >
+                    🔍 Dry Run Onboard
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleOnboardClient(false)}
+                    disabled={isProcessing}
+                  >
+                    🆕 Onboard Client
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <hr style={{ margin: '30px 0', border: 'none', borderTop: '2px solid #e2e8f0' }} />
+
         {/* Data Path Configuration */}
         <div className="card">
           <div className="card-header">
-            <h3>⚙️ Data Source Configuration</h3>
+            <h3>⚙️ Data Source Configuration (Existing Client: {clientId})</h3>
           </div>
           <div className="card-content">
             <div className="data-path-section">
