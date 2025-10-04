@@ -90,6 +90,47 @@
 - **Requirements:** Direct credit balance adjustment with audit trail
 - **Effort:** 1 session
 
+### Priority 1.5: Water Bills Data Import/Export System │ Agent_Water_Import
+**Status:** New requirement - Complete export/import system for Water Bills module
+**Estimated Effort:** 5-6 Implementation Agent sessions
+**Scheduling:** After credit balance fixes verified, before report builder development
+
+#### Task 1.5.1: Define Water Bills Export Specification
+- **Objective:** Document complete export format from Google Sheets for water bills data
+- **Data Requirements:** 
+  - Monthly readings (all units, all months)
+  - Car wash and boat wash activity
+  - Bills already generated (amounts, due dates)
+  - Penalty amounts applied
+  - Payments made (dates, amounts, methods)
+- **Output:** Export specification document with exact JSON/CSV structure
+- **Effort:** 1 session
+
+#### Task 1.5.2: Create Water Bills Export from Google Sheets
+- **Objective:** Build export tool/script to extract water bills data from Google Sheets
+- **Output:** Export script or manual export process with validation
+- **Integration:** Must match import specification exactly
+- **Effort:** 1-2 sessions
+
+#### Task 1.5.3: Implement Water Bills Purge Function
+- **Objective:** Create selective purge for water bills data without affecting other client data
+- **Scope:** Purge readings, bills, payments, wash activity
+- **Safety:** Preserve units, transactions, HOA dues, categories, vendors
+- **Integration:** Add to Data Management UI as separate option
+- **Effort:** 1 session
+
+#### Task 1.5.4: Implement Water Bills Import Function
+- **Objective:** Import complete water bills history including readings, bills, penalties, payments
+- **Complexity:** Complex nested structure with multiple document types
+- **Data Types:**
+  - Monthly readings documents (current and prior readings)
+  - Bills documents (generated amounts, due dates, penalties)
+  - Payment records within bills
+  - Car wash and boat wash activity
+- **Validation:** Verify imported data matches Google Sheets source
+- **Integration:** Add to Data Management UI with progress tracking
+- **Effort:** 2-3 sessions
+
 ### Priority 2: Water Bills Fixes │ Agent_Water_Bills
 **Status:** Five specific issues affecting Water Bills functionality
 **Estimated Effort:** 1-2 Implementation Agent sessions
