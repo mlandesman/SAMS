@@ -110,6 +110,197 @@ export class ImportService {
   }
 
   /**
+   * Import client document
+   */
+  async importClient(user) {
+    console.log('🏢 Importing client document...');
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    try {
+      const clientData = await this.loadJsonFile('Client.json');
+      results.total = 1; // Client is a single document
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('client', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      try {
+        const db = await this.getDb();
+        const clientRef = db.doc(`clients/${this.clientId}`);
+        
+        // Clean the client data - remove any fields that shouldn't be imported
+        const cleanClientData = {
+          ...clientData,
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'import-script'
+        };
+        
+        // Remove createdAt as it will be set by the system
+        delete cleanClientData.createdAt;
+        
+        // Set the document
+        await clientRef.set(cleanClientData);
+        
+        results.success++;
+        console.log(`✅ Imported client document: ${this.clientId}`);
+        
+        // Create metadata record
+        await this.createMetadataRecord(
+          'client',
+          this.clientId,
+          `clients/${this.clientId}`,
+          clientData
+        );
+        
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Error importing client document: ${error.message}`);
+      }
+      
+      // Report progress
+      this.reportProgress('client', 0, results.total, results);
+      
+    } catch (error) {
+      throw new Error(`Client document import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import config collection
+   */
+  async importConfig(user) {
+    console.log('⚙️ Importing config collection...');
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    try {
+      const configData = await this.loadJsonFile('Config.json');
+      
+      // Config can be either an array of documents or a single object
+      const configArray = Array.isArray(configData) ? configData : [configData];
+      results.total = configArray.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('config', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      const db = await this.getDb();
+      const configRef = db.collection(`clients/${this.clientId}/config`);
+      
+      for (let i = 0; i < configArray.length; i++) {
+        const configItem = configArray[i];
+        try {
+          // Clean the config data
+          const cleanConfigData = {
+            ...configItem,
+            updatedAt: new Date().toISOString(),
+            updatedBy: 'import-script'
+          };
+          
+          // Remove createdAt as it will be set by the system
+          delete cleanConfigData.createdAt;
+          
+          // Use the config item's ID or generate one
+          const docId = configItem.id || configItem.key || `config_${i}`;
+          await configRef.doc(docId).set(cleanConfigData);
+          
+          results.success++;
+          console.log(`✅ Imported config: ${docId}`);
+          
+          // Create metadata record
+          await this.createMetadataRecord(
+            'config',
+            docId,
+            `clients/${this.clientId}/config/${docId}`,
+            configItem
+          );
+          
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing config item ${i}: ${error.message}`);
+        }
+        
+        // Report progress
+        this.reportProgress('config', i, results.total, results);
+      }
+      
+    } catch (error) {
+      throw new Error(`Config collection import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Import payment types collection
+   */
+  async importPaymentTypes(user) {
+    console.log('💳 Importing payment types collection...');
+    const results = { success: 0, failed: 0, errors: [], total: 0 };
+    
+    try {
+      const paymentTypesData = await this.loadJsonFile('PaymentTypes.json');
+      
+      // Payment types can be either an array of documents or a single object
+      const paymentTypesArray = Array.isArray(paymentTypesData) ? paymentTypesData : [paymentTypesData];
+      results.total = paymentTypesArray.length;
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('paymentTypes', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      const db = await this.getDb();
+      const paymentTypesRef = db.collection(`clients/${this.clientId}/paymentTypes`);
+      
+      for (let i = 0; i < paymentTypesArray.length; i++) {
+        const paymentType = paymentTypesArray[i];
+        try {
+          // Clean the payment type data
+          const cleanPaymentTypeData = {
+            ...paymentType,
+            updatedAt: new Date().toISOString(),
+            updatedBy: 'import-script'
+          };
+          
+          // Remove createdAt as it will be set by the system
+          delete cleanPaymentTypeData.createdAt;
+          
+          // Use the payment type's ID or generate one
+          const docId = paymentType.id || paymentType.name || `paymentType_${i}`;
+          await paymentTypesRef.doc(docId).set(cleanPaymentTypeData);
+          
+          results.success++;
+          console.log(`✅ Imported payment type: ${docId}`);
+          
+          // Create metadata record
+          await this.createMetadataRecord(
+            'paymentType',
+            docId,
+            `clients/${this.clientId}/paymentTypes/${docId}`,
+            paymentType
+          );
+          
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing payment type ${i}: ${error.message}`);
+        }
+        
+        // Report progress
+        this.reportProgress('paymentTypes', i, results.total, results);
+      }
+      
+    } catch (error) {
+      throw new Error(`Payment types collection import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
    * Import categories
    */
   async importCategories(user) {
