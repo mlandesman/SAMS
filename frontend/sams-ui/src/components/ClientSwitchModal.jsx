@@ -38,8 +38,14 @@ function ClientSwitchModal({ onClose }) {
   }, []);
 
   useEffect(() => {
-    const match = clients.find((c) => c.id === selectedId);
-    setPreview(match || null);
+    if (selectedId === '__CREATE_NEW__') {
+      setPreview(null);
+      setShowOnboarding(true);
+    } else {
+      const match = clients.find((c) => c.id === selectedId);
+      setPreview(match || null);
+      setShowOnboarding(false);
+    }
   }, [selectedId, clients]);
 
   // Auto-proceed for single-client users (but not for SuperAdmins - they might want to create)
@@ -274,6 +280,11 @@ function ClientSwitchModal({ onClose }) {
                 {client.id} {/* Display doc.id (short name) */}
               </option>
             ))}
+            {isSuperAdmin && (
+              <option value="__CREATE_NEW__" style={{ fontWeight: 'bold', color: '#10b981' }}>
+                🆕 - New Client -
+              </option>
+            )}
           </select>
 
           {preview && (
@@ -289,27 +300,6 @@ function ClientSwitchModal({ onClose }) {
               )}
             </div>
           )}
-          
-          {isSuperAdmin && (
-            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
-              <button 
-                onClick={() => setShowOnboarding(true)}
-                className="btn-create-client"
-                style={{ 
-                  width: '100%', 
-                  padding: '12px', 
-                  background: '#10b981', 
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                🆕 Create New Client
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="modal-buttons">
@@ -320,7 +310,11 @@ function ClientSwitchModal({ onClose }) {
           >
             Cancel
           </button>
-          <button onClick={handleConfirm} disabled={!preview} className="primary">
+          <button 
+            onClick={handleConfirm} 
+            disabled={!preview || selectedId === '__CREATE_NEW__'} 
+            className="primary"
+          >
             Confirm
           </button>
         </div>
