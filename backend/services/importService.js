@@ -866,19 +866,34 @@ export class ImportService {
             });
           }
           
-          // Add initial credit balance entry if there's a current balance
+          // Calculate final balance and add starting balance if needed
           const finalCreditBalance = (unitData.creditBalance || 0) * 100;
-          if (finalCreditBalance > 0 && creditBalanceHistory.length === 0) {
-            creditBalanceHistory.push({
+          const startingBalance = finalCreditBalance - runningBalance;
+          
+          // If there was a starting balance (from pre-2025 or manual adjustments), add it as first entry
+          if (startingBalance !== 0) {
+            // Insert at beginning of history array
+            creditBalanceHistory.unshift({
               id: this.generateId(),
-              timestamp: new Date(),
-              type: 'migration',
-              amount: finalCreditBalance,
-              description: 'Initial credit balance from migration',
+              timestamp: new Date('2025-01-01'), // Start of 2025
+              transactionId: null,
+              type: 'starting_balance',
+              amount: Math.abs(startingBalance),
+              description: startingBalance > 0 ? 'Starting credit balance from prior period' : 'Starting debit balance from prior period',
               balanceBefore: 0,
-              balanceAfter: finalCreditBalance,
+              balanceAfter: startingBalance,
               notes: 'Imported from legacy system'
             });
+            
+            // Adjust all subsequent balanceBefore/balanceAfter to include starting balance
+            let cumulativeBalance = startingBalance;
+            for (let i = 1; i < creditBalanceHistory.length; i++) {
+              const entry = creditBalanceHistory[i];
+              const changeAmount = entry.type === 'credit_used' ? -entry.amount : entry.amount;
+              entry.balanceBefore = cumulativeBalance;
+              cumulativeBalance += changeAmount;
+              entry.balanceAfter = cumulativeBalance;
+            }
           }
           
           // Update dues document with credit balance and history
