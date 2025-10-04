@@ -810,48 +810,59 @@ export class ImportService {
           const creditBalanceHistory = [];
           let runningBalance = 0;
           
-          // Parse credit balance changes from payment notes and transaction CrossRef
+          // Calculate credit balance changes from transaction amounts (match allocation logic)
           const creditBalanceTransactions = [];
           
           // Look for credit balance changes in transactions by sequence
           for (const [sequenceNumber, crossRefData] of Object.entries(crossReference.bySequence)) {
             if (crossRefData.transactionId && hoaCrossRef[sequenceNumber]) {
-              const transaction = transactionsData.find(t => 
-                t[''] == sequenceNumber || t[0] == sequenceNumber
-              );
+              const hoaPaymentsForSequence = hoaCrossRef[sequenceNumber].payments.filter(p => p.unitId === unitId);
               
-              if (transaction && transaction.Notes) {
-                // Parse credit balance from transaction notes
-                const creditMatch = transaction.Notes.match(/\+?\s*MXN\s*([\d,]+)\.00\s*Credit/i);
-                if (creditMatch) {
-                  const creditAmount = parseFloat(creditMatch[1].replace(/,/g, '')) * 100; // Convert to cents
-                  runningBalance += creditAmount;
+              if (hoaPaymentsForSequence.length > 0) {
+                const transaction = transactionsData.find(t => 
+                  t[''] == sequenceNumber || t[0] == sequenceNumber
+                );
+                
+                if (transaction) {
+                  // Calculate credit using SAME logic as allocation creation
+                  const totalDuesAmount = hoaPaymentsForSequence.reduce((sum, p) => sum + (p.amount * 100), 0);
+                  const transactionAmount = Math.round(transaction.Amount * 100);
+                  const creditAmount = transactionAmount - totalDuesAmount;
                   
-                  creditBalanceTransactions.push({
-                    sequenceNumber,
-                    transactionId: crossRefData.transactionId,
-                    amount: creditAmount,
-                    notes: transaction.Notes,
-                    date: transaction.Date
-                  });
+                  if (creditAmount !== 0) {
+                    runningBalance += creditAmount;
+                    
+                    creditBalanceTransactions.push({
+                      sequenceNumber,
+                      transactionId: crossRefData.transactionId,
+                      amount: creditAmount,
+                      notes: transaction.Notes,
+                      date: transaction.Date,
+                      creditType: creditAmount > 0 ? 'overpayment' : 'usage'
+                    });
+                  }
                 }
               }
             }
           }
           
-          // Build credit balance history from transactions
+          // Build credit balance history from transactions (match AVII structure)
           for (const tx of creditBalanceTransactions) {
+            const type = tx.creditType === 'overpayment' ? 'credit_added' : 'credit_used';
+            const description = tx.creditType === 'overpayment' 
+              ? 'from Overpayment' 
+              : 'from Credit Balance Usage';
+            
             creditBalanceHistory.push({
               id: this.generateId(),
               timestamp: new Date(tx.date),
-              type: 'credit_addition',
-              amount: tx.amount,
-              description: `Credit added from transaction ${tx.transactionId}`,
+              transactionId: tx.transactionId,
+              type: type,
+              amount: Math.abs(tx.amount), // Store as positive value
+              description: description,
               balanceBefore: runningBalance - tx.amount,
               balanceAfter: runningBalance,
-              notes: tx.notes,
-              sequenceNumber: tx.sequenceNumber,
-              transactionId: tx.transactionId
+              notes: tx.notes || ''
             });
           }
           
