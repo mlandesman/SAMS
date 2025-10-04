@@ -40,6 +40,24 @@ export function ImportManagement({ clientId }) {
     if (clientId) {
       loadConfig();
     }
+    
+    // Check for onboarding mode
+    const onboardingData = localStorage.getItem('onboardingClient');
+    if (onboardingData) {
+      try {
+        const onboarding = JSON.parse(onboardingData);
+        setCustomDataPath(onboarding.dataPath);
+        setClientPreview(onboarding.preview);
+        setOnboardingPath(onboarding.dataPath);
+        console.log('📋 Onboarding mode detected for client:', onboarding.clientId);
+        
+        // Clear it so it doesn't persist
+        localStorage.removeItem('onboardingClient');
+      } catch (e) {
+        console.error('Error parsing onboarding data:', e);
+      }
+    }
+    
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -191,9 +209,14 @@ export function ImportManagement({ clientId }) {
   };
 
   const handleImport = async (dryRun = false) => {
+    // If we have a client preview, we're onboarding a new client - use onboard endpoint
+    const isOnboarding = !!clientPreview;
+    const targetClientId = isOnboarding ? clientPreview.clientId : clientId;
+    const dataPath = customDataPath || config?.dataPath;
+    
     const confirmMessage = dryRun 
-      ? `DRY RUN - Import ALL DATA for ${clientId}:\n\n• Client Document\n• Config Collection\n• Payment Methods\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will simulate the import without writing to the database.\n\nContinue?`
-      : `Import ALL DATA for ${clientId}:\n\n• Client Document\n• Config Collection\n• Payment Methods\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${customDataPath || config?.dataPath}\n\nThis will import data in the correct dependency order.\n\nContinue?`;
+      ? `DRY RUN - ${isOnboarding ? 'ONBOARD NEW CLIENT' : 'Import ALL DATA for'} ${targetClientId}:\n\n• Client Document\n• Config Collection\n• Payment Methods\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${dataPath}\n\nThis will simulate the import without writing to the database.\n\nContinue?`
+      : `${isOnboarding ? 'ONBOARD NEW CLIENT' : 'Import ALL DATA for'} ${targetClientId}:\n\n• Client Document\n• Config Collection\n• Payment Methods\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${dataPath}\n\n${isOnboarding ? 'This will CREATE a new client and import all data.' : 'This will import data in the correct dependency order.'}\n\nContinue?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -203,14 +226,19 @@ export function ImportManagement({ clientId }) {
     setProgress({ status: 'starting', sequence: [], components: {} });
     
     try {
-      const response = await fetch(`${appConfig.api.baseUrl}/admin/import/${clientId}/import`, {
+      // Use onboard endpoint if onboarding, otherwise use regular import
+      const endpoint = isOnboarding 
+        ? `${appConfig.api.baseUrl}/admin/import/onboard`
+        : `${appConfig.api.baseUrl}/admin/import/${clientId}/import`;
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           ...(await getAuthHeaders()),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          dataPath: customDataPath || config?.dataPath,
+          dataPath: dataPath,
           dryRun: dryRun,
           maxErrors: 3
         })
@@ -223,6 +251,9 @@ export function ImportManagement({ clientId }) {
       
       const result = await response.json();
       setProgress(result);
+      
+      // Start polling for progress using the correct clientId
+      pollIntervalRef.current = setInterval(() => pollProgress(targetClientId), 1000);
       
         // Check if operation is already completed
         if (result.status === 'completed') {
@@ -415,8 +446,23 @@ export function ImportManagement({ clientId }) {
       )}
 
       <div className="import-section">
+        {/* Onboarding Banner */}
+        {clientPreview && (
+          <div className="alert alert-info" style={{ background: '#e0f2fe', border: '2px solid #0ea5e9', marginBottom: '20px' }}>
+            <h3 style={{ margin: '0 0 10px 0' }}>🆕 Onboarding New Client</h3>
+            <p style={{ margin: '5px 0' }}>
+              <strong>Client ID:</strong> {clientPreview.clientId} | 
+              <strong> Name:</strong> {clientPreview.displayName} | 
+              <strong> Type:</strong> {clientPreview.clientType}
+            </p>
+            <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+              ℹ️ Data path has been pre-filled below. Click <strong>"Import All Data"</strong> to create this client and import all data.
+            </p>
+          </div>
+        )}
+
         {/* Client Onboarding - NEW CLIENT */}
-        <div className="card onboarding-card">
+        <div className="card onboarding-card" style={{ display: 'none' }}>
           <div className="card-header">
             <h3>
               🆕 Onboard New Client

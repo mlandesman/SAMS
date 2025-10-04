@@ -94,7 +94,7 @@ function ClientSwitchModal({ onClose }) {
     }
   };
 
-  const handleOnboardClient = async () => {
+  const handleOnboardClient = () => {
     if (!clientPreview) {
       alert('Please preview the client data first');
       return;
@@ -105,51 +105,27 @@ function ClientSwitchModal({ onClose }) {
       `• Name: ${clientPreview.displayName}\n` +
       `• Type: ${clientPreview.clientType}\n` +
       `• Units: ${clientPreview.totalUnits}\n\n` +
-      `This will CREATE a new client in the database.\n\nContinue?`;
+      `You will be redirected to Data Management where you can:\n` +
+      `1. Review the pre-filled data path\n` +
+      `2. Click "Import All Data" to create the client\n` +
+      `3. Monitor import progress\n\n` +
+      `Continue?`;
     
     if (!window.confirm(confirmMessage)) {
       return;
     }
     
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${appConfig.api.baseUrl}/admin/import/onboard`, {
-        method: 'POST',
-        headers: await getAuthHeaders(),
-        body: JSON.stringify({
-          dataPath: onboardingPath,
-          dryRun: false,
-          maxErrors: 3
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to onboard client');
-      }
-      
-      const result = await response.json();
-      console.log('Onboarding started:', result);
-      
-      // Wait a moment for the client to be created
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Fetch the new client and select it
-      const clientData = await getClient(clientPreview.clientId);
-      setClient(clientData);
-      
-      // Close modal and navigate to dashboard
-      onClose();
-      navigate('/dashboard');
-      
-      alert(`Client ${clientPreview.clientId} is being imported. Check Data Management for progress.`);
-      
-    } catch (err) {
-      console.error('Failed to onboard client:', err);
-      alert(`Error: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+    // Store onboarding info in localStorage for Data Management to pick up
+    localStorage.setItem('onboardingClient', JSON.stringify({
+      clientId: clientPreview.clientId,
+      displayName: clientPreview.displayName,
+      dataPath: onboardingPath,
+      preview: clientPreview
+    }));
+    
+    // Close modal and navigate to Settings
+    onClose();
+    navigate('/settings');
   };
 
   const handleConfirm = async () => {
@@ -253,8 +229,8 @@ function ClientSwitchModal({ onClose }) {
     );
   }
 
-  // Show loading message for single-client auto-selection (but not during onboarding)
-  if (clients.length === 1 && !preview && !showOnboarding) {
+  // Show loading message for single-client auto-selection (but not when creating new client)
+  if (clients.length === 1 && !preview && selectedId !== '__CREATE_NEW__') {
     return (
       <div className="modal-overlay">
         <div className="modal client-switch-modal">
