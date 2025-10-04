@@ -123,9 +123,13 @@ function ClientSwitchModal({ onClose }) {
       preview: clientPreview
     }));
     
-    // Close modal and navigate to Settings
-    onClose();
+    // DON'T close modal or deselect client - just navigate to Settings
+    // The currently selected client (e.g., AVII) stays selected to avoid splash screen
+    // Data Management will use the onboarding data to create the NEW client
     navigate('/settings');
+    
+    // Then close the modal after navigation starts
+    setTimeout(() => onClose(), 100);
   };
 
   const handleConfirm = async () => {
