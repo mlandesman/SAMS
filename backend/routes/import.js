@@ -70,6 +70,35 @@ router.post('/:clientId/purge', authenticateUserWithProfile, async (req, res) =>
   }
 });
 
+// Preview client data from dataPath (reads Client.json)
+router.get('/preview', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const { dataPath } = req.query;
+    const user = req.user;
+    
+    if (!dataPath) {
+      return res.status(400).json({ error: 'dataPath query parameter is required' });
+    }
+    
+    console.log(`👁️ [IMPORT ROUTES] Previewing client data from: ${dataPath}`);
+    
+    // Import previewClientData function
+    const { previewClientData } = await import('../controllers/importController.js');
+    const preview = await previewClientData(user, dataPath);
+    
+    if (!preview) {
+      return res.status(404).json({ 
+        error: 'Client.json not found or access denied' 
+      });
+    }
+    
+    res.json(preview);
+  } catch (error) {
+    console.error('❌ [IMPORT ROUTES] Error previewing client data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Execute import operation
 router.post('/:clientId/import', authenticateUserWithProfile, async (req, res) => {
   try {

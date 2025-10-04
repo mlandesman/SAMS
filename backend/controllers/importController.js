@@ -913,6 +913,33 @@ async function executeImport(user, clientId, options = {}) {
       throw new Error('Data path is required for import operation');
     }
     
+    // CRITICAL SAFETY CHECK: Read Client.json and verify clientId matches
+    console.log(`🔒 Validating Client.json clientId matches target: ${clientId}`);
+    const clientJsonPath = `${dataPath}/Client.json`;
+    
+    if (!fs.existsSync(clientJsonPath)) {
+      throw new Error(`❌ Client.json not found at ${clientJsonPath}. Cannot proceed with import.`);
+    }
+    
+    const clientData = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
+    const fileClientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
+    
+    if (!fileClientId) {
+      throw new Error(`❌ Could not determine clientId from Client.json. File may be malformed.`);
+    }
+    
+    if (fileClientId !== clientId) {
+      throw new Error(
+        `❌ SAFETY CHECK FAILED: Client ID mismatch!\n` +
+        `   Selected client: ${clientId}\n` +
+        `   Client.json file: ${fileClientId}\n` +
+        `   Cannot import ${fileClientId} data to ${clientId} client.\n` +
+        `   Please select the correct client (${fileClientId}) before importing.`
+      );
+    }
+    
+    console.log(`✅ Client ID validated: ${clientId} matches Client.json`);
+    
     // CRITICAL: Single import sequence - no component selection
     const importSequence = [
       { id: 'client', name: 'Client Document', independent: true },
@@ -1113,9 +1140,91 @@ async function getImportProgress(user, clientId) {
   }
 }
 
+/**
+ * Preview client data from Client.json file
+ * Reads the file and returns key information without importing
+ * @param {Object} user - The authenticated user
+ * @param {string} dataPath - Path to directory containing Client.json
+ * @returns {Object} Client preview data
+ */
+async function previewClientData(user, dataPath) {
+  try {
+    // Check user permissions
+    if (!user.isSuperAdmin()) {
+      console.error(`❌ User ${user.email} lacks superadmin access`);
+      return null;
+    }
+    
+    console.log(`👁️ Reading Client.json from: ${dataPath}`);
+    
+    // Read Client.json file
+    const clientJsonPath = `${dataPath}/Client.json`;
+    
+    if (!fs.existsSync(clientJsonPath)) {
+      throw new Error(`Client.json not found at ${clientJsonPath}`);
+    }
+    
+    const clientData = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
+    
+    // Extract key information
+    const clientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
+    const displayName = clientData.basicInfo?.displayName || clientData.displayName || clientId;
+    const fullName = clientData.basicInfo?.fullName || clientData.fullName;
+    const clientType = clientData.basicInfo?.clientType || clientData.type;
+    const totalUnits = clientData.propertyInfo?.totalUnits || 0;
+    
+    // Count other data files
+    const dataCounts = {};
+    const dataFiles = [
+      { key: 'config', file: 'Config.json' },
+      { key: 'paymentMethods', file: 'paymentMethods.json' },
+      { key: 'categories', file: 'Categories.json' },
+      { key: 'vendors', file: 'Vendors.json' },
+      { key: 'units', file: 'Units.json' },
+      { key: 'transactions', file: 'Transactions.json' },
+      { key: 'hoadues', file: 'HOADues.json' },
+      { key: 'yearEndBalances', file: 'YearEndBalances.json' }
+    ];
+    
+    for (const { key, file } of dataFiles) {
+      const filePath = `${dataPath}/${file}`;
+      if (fs.existsSync(filePath)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          dataCounts[key] = Array.isArray(data) ? data.length : Object.keys(data).length;
+        } catch (e) {
+          dataCounts[key] = 'Error reading file';
+        }
+      } else {
+        dataCounts[key] = 0;
+      }
+    }
+    
+    return {
+      clientId,
+      displayName,
+      fullName,
+      clientType,
+      totalUnits,
+      dataCounts,
+      dataPath,
+      preview: {
+        accounts: clientData.accounts?.length || 0,
+        status: clientData.status,
+        currency: clientData.configuration?.currency
+      }
+    };
+    
+  } catch (error) {
+    console.error(`❌ Error previewing client data:`, error);
+    throw error;
+  }
+}
+
 export {
   getImportConfig,
   executePurge,
   executeImport,
-  getImportProgress
+  getImportProgress,
+  previewClientData
 };
