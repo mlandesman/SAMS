@@ -181,21 +181,7 @@ function ClientSwitchModal({ onClose }) {
     }
   };
 
-  // Show loading message for single-client auto-selection
-  if (clients.length === 1 && !preview) {
-    return (
-      <div className="modal-overlay">
-        <div className="modal client-switch-modal">
-          <h2 className="modal-title">Loading Client...</h2>
-          <div className="modal-content">
-            <p>Redirecting to your client...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Onboarding UI
+  // Onboarding UI - CHECK THIS FIRST before loading screen
   if (showOnboarding) {
     return (
       <div className="modal-overlay">
@@ -261,6 +247,20 @@ function ClientSwitchModal({ onClose }) {
             >
               {isLoading ? '⏳ Creating...' : '🆕 Onboard Client'}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading message for single-client auto-selection (but not during onboarding)
+  if (clients.length === 1 && !preview && !showOnboarding) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal client-switch-modal">
+          <h2 className="modal-title">Loading Client...</h2>
+          <div className="modal-content">
+            <p>Redirecting to your client...</p>
           </div>
         </div>
       </div>
