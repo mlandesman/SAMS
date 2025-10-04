@@ -38,9 +38,15 @@ async function getDocumentCounts(db, clientId, purgeSequence) {
           count = unitsSnapshot2.size;
           break;
         case 'client':
-          // Client document is a single document at /clients/{clientId}
-          const clientDoc = await db.doc(`clients/${clientId}`).get();
-          count = clientDoc.exists ? 1 : 0;
+          // Client document - count recursively but EXCLUDE importMetadata
+          // since it's purged separately
+          const clientRef = db.doc(`clients/${clientId}`);
+          const clientDoc = await clientRef.get();
+          if (clientDoc.exists) {
+            count = await countAllDocuments(clientRef, ['importMetadata']);
+          } else {
+            count = 0;
+          }
           break;
         default:
           // Generic collection count
@@ -544,19 +550,21 @@ async function purgeClient(db, clientId, dryRun = false, operationId = null) {
     if (clientDoc.exists) {
       try {
         // First count all documents that will be deleted for progress tracking
-        const totalCount = await countAllDocuments(clientRef);
-        console.log(`📊 Found ${totalCount} total documents to purge (including subcollections)`);
+        // Exclude importMetadata since it's a separate purge step
+        const totalCount = await countAllDocuments(clientRef, ['importMetadata']);
+        console.log(`📊 Found ${totalCount} total documents to purge (excluding importMetadata)`);
         
         if (!dryRun) {
           // Create a shared progress tracker
           const progressTracker = { processed: 0, total: totalCount };
           
-          // Recursively delete ALL subcollections first with progress tracking
-          // This handles all subcollections: categories, vendors, units, transactions, hoadues, etc.
+          // Recursively delete ALL subcollections EXCEPT importMetadata
+          // importMetadata is purged separately as its own step
           const subCollectionResult = await deleteSubCollectionsWithProgress(
             clientRef, 
             operationId, 
-            progressTracker
+            progressTracker,
+            ['importMetadata']  // Exclude importMetadata - it's a separate purge step
           );
           deletedCount += subCollectionResult.deletedCount;
           errors.push(...subCollectionResult.errors);
@@ -729,19 +737,25 @@ function emitProgress(operationId, componentId, status, data) {
 
 /**
  * Count all documents in all subcollections recursively
+ * @param {Array} excludeCollections - Collection names to skip when counting
  */
-async function countAllDocuments(docRef) {
+async function countAllDocuments(docRef, excludeCollections = []) {
   let count = 1; // Count the document itself
   
   try {
     const collections = await docRef.listCollections();
     
     for (const subCollection of collections) {
+      // Skip excluded collections
+      if (excludeCollections.includes(subCollection.id)) {
+        continue;
+      }
+      
       const subSnapshot = await subCollection.get();
       
       for (const subDoc of subSnapshot.docs) {
         // Recursively count sub-sub-collections
-        count += await countAllDocuments(subDoc.ref);
+        count += await countAllDocuments(subDoc.ref, excludeCollections);
       }
     }
   } catch (error) {
@@ -754,8 +768,9 @@ async function countAllDocuments(docRef) {
 /**
  * Recursively delete all sub-collections with progress tracking
  * @param {Object} progressTracker - Shared object with {processed, total} for tracking across recursive calls
+ * @param {Array} excludeCollections - Collection names to skip (e.g., ['importMetadata'])
  */
-async function deleteSubCollectionsWithProgress(docRef, operationId, progressTracker) {
+async function deleteSubCollectionsWithProgress(docRef, operationId, progressTracker, excludeCollections = []) {
   let deletedCount = 0;
   const errors = [];
   
@@ -764,6 +779,13 @@ async function deleteSubCollectionsWithProgress(docRef, operationId, progressTra
     
     for (const subCollection of collections) {
       const collectionName = subCollection.id;
+      
+      // Skip excluded collections (they'll be purged separately)
+      if (excludeCollections.includes(collectionName)) {
+        console.log(`⏭️ Skipping ${collectionName} (purged separately)`);
+        continue;
+      }
+      
       console.log(`🗑️ Purging subcollection: ${collectionName}`);
       
       const subSnapshot = await subCollection.get();
