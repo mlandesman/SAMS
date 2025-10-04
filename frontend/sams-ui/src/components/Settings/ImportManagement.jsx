@@ -376,31 +376,6 @@ export function ImportManagement({ clientId }) {
                 </span>
               </div>
               
-              {progress.sequence && progress.sequence.length > 0 && (
-                <div className="progress-details">
-                  <h4>Import/Purge Sequence:</h4>
-                  <div className="sequence-list">
-                    {progress.sequence.map((step, index) => (
-                      <div key={step.id} className={`sequence-step ${progress.currentStep === step.id ? 'current' : ''} ${progress.components[step.id]?.status || 'pending'}`}>
-                        <div className="step-number">{index + 1}</div>
-                        <div className="step-info">
-                          <span className="step-name">{step.name}</span>
-                          <span className={`status-badge ${getProgressStatusClass(progress.components[step.id]?.status || 'pending')}`}>
-                            {progress.components[step.id]?.status || 'pending'}
-                          </span>
-                        </div>
-                        {progress.components[step.id]?.message && (
-                          <p className="step-message">{progress.components[step.id].message}</p>
-                        )}
-                        {progress.components[step.id]?.error && (
-                          <p className="step-error">Error: {progress.components[step.id].error}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
               {progress.components && Object.keys(progress.components).length > 0 && (
                 <div className="component-progress-list">
                   <h4>Component Progress:</h4>
