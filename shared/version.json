@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.0.1",
-  "buildDate": "2025-10-04T14:51:12.977Z",
-  "buildTimestamp": 1759589472978,
+  "buildDate": "2025-10-04T15:00:19.134Z",
+  "buildTimestamp": 1759590019135,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "52f499f",
+    "hash": "0fc4f2a",
     "branch": "main",
-    "lastCommitDate": "2025-10-04 09:45:08 -0500"
+    "lastCommitDate": "2025-10-04 09:58:56 -0500"
   },
   "build": {
-    "timestamp": "2025-10-04T14:51:12.977Z",
+    "timestamp": "2025-10-04T15:00:19.134Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251004.0951"
+    "buildNumber": "251004.1000"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-04T14:51:12.977Z",
+    "date": "2025-10-04T15:00:19.134Z",
     "automated": true
   }
 }

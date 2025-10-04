@@ -11,7 +11,13 @@ const logoUrl = "https://firebasestorage.googleapis.com/v0/b/sandyland-managemen
 // Default menu items to use if client configuration fails or is empty
 const DEFAULT_MENU_ITEMS = [
   { name: 'Dashboard', path: '/dashboard', activity: 'dashboard' },
-  { name: 'Transactions', path: '/transactions', activity: 'transactions' }
+  { name: 'Transactions', path: '/transactions', activity: 'transactions' },
+  { name: 'Settings', path: '/settings', activity: 'settings' }
+];
+
+// SuperAdmin-only menu items that are ALWAYS available regardless of client config
+const SUPERADMIN_MENU_ITEMS = [
+  { name: 'Settings', path: '/settings', activity: 'settings' }
 ];
 
 // Filter menu items based on user role (moved outside component to prevent recreating)
@@ -78,7 +84,8 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
   const allMenuItems = useMemo(() => {
-    return selectedClient
+    // Start with client-specific menu items
+    let items = selectedClient
       ? (menuConfig && menuConfig.length > 0 
           ? menuConfig.map(item => {
               const activityName = (item.activity || '').toLowerCase();
@@ -94,8 +101,21 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
               };
           })
           : DEFAULT_MENU_ITEMS)
-      : [];
-  }, [selectedClient, menuConfig]);
+      : DEFAULT_MENU_ITEMS; // Show defaults even without client
+    
+    // For SuperAdmins, ALWAYS ensure Settings is available
+    if (samsUser && isSuperAdmin(samsUser)) {
+      // Check if Settings is already in the menu
+      const hasSettings = items.some(item => item.activity === 'settings');
+      
+      // If not, append SuperAdmin items
+      if (!hasSettings) {
+        items = [...items, ...SUPERADMIN_MENU_ITEMS];
+      }
+    }
+    
+    return items;
+  }, [selectedClient, menuConfig, samsUser]);
 
   // Filter menu items based on user role (memoized to prevent render loops)
   const menuItems = useMemo(() => {
