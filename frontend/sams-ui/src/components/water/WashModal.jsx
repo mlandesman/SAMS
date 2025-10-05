@@ -372,9 +372,8 @@ const WashModal = ({
                     type="date"
                     value={newWash.date}
                     onChange={(e) => {
-                      // Use getMexicoDateTime to properly handle timezone conversion
-                      const mexDate = getMexicoDateTime(e.target.value);
-                      setNewWash({...newWash, date: mexDate.toISOString().split('T')[0]});
+                      // Send date string directly - backend handles timezone conversion
+                      setNewWash({...newWash, date: e.target.value});
                     }}
                     disabled={loading}
                     className="wash-date-input"

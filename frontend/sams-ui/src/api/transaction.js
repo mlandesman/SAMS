@@ -5,7 +5,7 @@
 
 import { getCurrentUser, isAuthenticated, getAuthInstance } from '../firebaseClient';
 import { config } from '../config';
-import { getMexicoDateTime } from '../utils/timezone';
+// getMexicoDateTime import removed - no longer needed as backend handles timezone conversion
 
 /**
  * Create a new transaction via secure backend API
@@ -33,10 +33,10 @@ export async function createTransaction(clientId, data) {
       throw new Error('Unable to get authentication token');
     }
 
-    // Ensure date is properly formatted using Mexico timezone utility
+    // Send date string directly - backend handles timezone conversion
     const transactionData = {
       ...data,
-      date: data.date instanceof Date ? data.date : getMexicoDateTime(data.date)
+      date: data.date // Send date as string, let backend handle timezone conversion
     };
 
     // Call secure backend API
@@ -139,10 +139,10 @@ export async function updateTransaction(clientId, transactionId, data) {
       throw new Error('Unable to get authentication token');
     }
 
-    // Ensure date is properly formatted using Mexico timezone utility if present
+    // Send date string directly - backend handles timezone conversion
     const transactionData = data.date ? {
       ...data,
-      date: data.date instanceof Date ? data.date : getMexicoDateTime(data.date)
+      date: data.date // Send date as string, let backend handle timezone conversion
     } : data;
 
     // Call secure backend API

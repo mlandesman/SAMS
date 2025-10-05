@@ -11,7 +11,7 @@ import { faTimes, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { clientAPI } from '../api/client';
 import { getCurrentUser } from '../firebaseClient';
 import { DocumentUploader } from './documents';
-import { getMexicoDateString, getMexicoDateTime } from '../utils/timezone';
+import { getMexicoDateString } from '../utils/timezone';
 import './UnifiedExpenseEntry.css';
 
 const UnifiedExpenseEntry = ({ 
@@ -128,7 +128,7 @@ const UnifiedExpenseEntry = ({
       if (onSubmit) {
         // In modal mode, pass the raw data and let the parent handle the atomic workflow
         const transactionData = {
-          date: getMexicoDateTime(formData.date), // Use Mexico timezone utility
+          date: formData.date, // Send date as string, let backend handle timezone conversion
           amount: -Math.abs(parseFloat(formData.amount)), // Ensure negative for expenses
           categoryName: formData.category,
           vendorName: formData.vendor,
@@ -175,7 +175,7 @@ const UnifiedExpenseEntry = ({
 
         // Step 2: Create transaction with document references
         const transactionData = {
-          date: getMexicoDateTime(formData.date), // Use Mexico timezone utility
+          date: formData.date, // Send date as string, let backend handle timezone conversion
           amount: -Math.abs(parseFloat(formData.amount)), // Ensure negative for expenses
           categoryName: formData.category,
           vendorName: formData.vendor,
@@ -208,7 +208,7 @@ const UnifiedExpenseEntry = ({
 
       // Show confirmation modal
       const confirmationData = {
-        date: getMexicoDateTime(formData.date),
+        date: formData.date, // Send date as string, let backend handle timezone conversion
         amount: -Math.abs(parseFloat(formData.amount)),
         category: formData.category,
         vendor: formData.vendor,
