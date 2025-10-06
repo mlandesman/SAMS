@@ -339,9 +339,17 @@ function SettingsView() {
           {selectedClient ? (
             <ImportManagement clientId={selectedClient.id} />
           ) : (
-            <div style={{ padding: '20px', textAlign: 'center' }}>
-              <p>Please select a client to access Data Management features.</p>
-            </div>
+            // Check if we're in onboarding mode (data stored in localStorage)
+            localStorage.getItem('onboardingClient') ? (
+              <ImportManagement clientId={null} />
+            ) : (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <p>Please select a client to access Data Management features.</p>
+                <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                  Or use the "🆕 - New Client -" option in the client switcher to onboard a new client.
+                </p>
+              </div>
+            )
           )}
         </SuperAdminGuard>
       )}

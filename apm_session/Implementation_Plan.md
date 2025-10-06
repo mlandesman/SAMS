@@ -64,6 +64,15 @@
 - **Duration:** ~4 hours Manager Agent 11 direct implementation
 - **Production Status:** MTC client successfully imported with correct structure, ready for AVII client migration
 
+### MTC PaymentMethods Import Fix (COMPLETED - January 16, 2025)
+**Status:** ✅ FULLY IMPLEMENTED AND PRODUCTION-READY
+- **Achievement:** Fixed collection name mismatch in MTC import process
+- **Key Fix:** Changed import service to create `paymentMethods` collection instead of `paymentTypes`
+- **Impact:** Resolved mismatch between import process and application code expectations
+- **Result:** All 7 payment methods (Cash, DolarApp, eTransfer, Venmo, Wire, Wise, Zelle) successfully imported
+- **Collection Path:** `clients/MTC/paymentMethods` now accessible to application code
+- **Commit:** 38ed6f6 - Fix paymentMethods import: Change collection name from paymentTypes to paymentMethods
+
 ### Core SAMS Platform (OPERATIONAL)
 **Status:** ✅ LIVE IN PRODUCTION
 - **Authentication:** Firebase Auth with role-based access control
@@ -89,47 +98,6 @@
 - **Scope:** Create interface to edit credit balance in units documents
 - **Requirements:** Direct credit balance adjustment with audit trail
 - **Effort:** 1 session
-
-### Priority 1.5: Water Bills Data Import/Export System │ Agent_Water_Import
-**Status:** New requirement - Complete export/import system for Water Bills module
-**Estimated Effort:** 5-6 Implementation Agent sessions
-**Scheduling:** After credit balance fixes verified, before report builder development
-
-#### Task 1.5.1: Define Water Bills Export Specification
-- **Objective:** Document complete export format from Google Sheets for water bills data
-- **Data Requirements:** 
-  - Monthly readings (all units, all months)
-  - Car wash and boat wash activity
-  - Bills already generated (amounts, due dates)
-  - Penalty amounts applied
-  - Payments made (dates, amounts, methods)
-- **Output:** Export specification document with exact JSON/CSV structure
-- **Effort:** 1 session
-
-#### Task 1.5.2: Create Water Bills Export from Google Sheets
-- **Objective:** Build export tool/script to extract water bills data from Google Sheets
-- **Output:** Export script or manual export process with validation
-- **Integration:** Must match import specification exactly
-- **Effort:** 1-2 sessions
-
-#### Task 1.5.3: Implement Water Bills Purge Function
-- **Objective:** Create selective purge for water bills data without affecting other client data
-- **Scope:** Purge readings, bills, payments, wash activity
-- **Safety:** Preserve units, transactions, HOA dues, categories, vendors
-- **Integration:** Add to Data Management UI as separate option
-- **Effort:** 1 session
-
-#### Task 1.5.4: Implement Water Bills Import Function
-- **Objective:** Import complete water bills history including readings, bills, penalties, payments
-- **Complexity:** Complex nested structure with multiple document types
-- **Data Types:**
-  - Monthly readings documents (current and prior readings)
-  - Bills documents (generated amounts, due dates, penalties)
-  - Payment records within bills
-  - Car wash and boat wash activity
-- **Validation:** Verify imported data matches Google Sheets source
-- **Integration:** Add to Data Management UI with progress tracking
-- **Effort:** 2-3 sessions
 
 ### Priority 2: Water Bills Fixes │ Agent_Water_Bills
 **Status:** Five specific issues affecting Water Bills functionality
@@ -183,16 +151,6 @@
 
 ## 🛠️ MEDIUM PRIORITY ENHANCEMENTS
 
-### Edit Transactions Enhancement │ Agent_Enhancement
-- **Priority:** MEDIUM - User workflow improvement (not blocking core functionality)
-- **Gap:** Edit function doesn't handle ID-first structures and split allocations  
-- **Issues:** Form reverts to name-based, split transactions don't open SplitEntryModal
-- **Effort:** 2-3 sessions
-
----
-
-## 🧑🏻‍💻 ENHANCEMENT COMPLETION PHASE
-
 ### Priority 4: HOA Dues Late Fee Penalties │ Agent_Penalties
 **Status:** Apply Water Bills penalty logic to HOA Dues with quarterly adjustments
 **Estimated Effort:** 4-5 Implementation Agent sessions
@@ -237,82 +195,47 @@
 - **Interface:** Budget entry and editing interface
 - **Effort:** 3-4 sessions
 
+---
+
+## 🧑🏻‍💻 ENHANCEMENT COMPLETION PHASE
+
 
 ---
 
 ## 🇲🇽 NEW FEATURES DEVELOPMENT PHASE
 
-### Priority 8a: Statement of Account Report │ Agent_Reports_Priority
-**Status:** Critical report for unit owners and managers
-**Estimated Effort:** 8-10 Implementation Agent sessions
+### Priority 8: Report Generator │ Agent_Reports
+**Status:** Key component with many parts - Reports are fixed format (not ad-hoc)
+**Estimated Effort:** 20-25 Implementation Agent sessions
 
-#### Task 8a.1: Gather Statement Requirements
-- **Objective:** Document comprehensive requirements for Statement of Account
-- **Output:** Complete specifications for individual unit reports
-- **Bilingual:** English/Spanish support from the start
-- **Effort:** 1 session
-
-#### Task 8a.2: Design Statement Template
-- **Objective:** Professional report template for unit owner statements
-- **Output:** Approved HTML/PDF template matching existing quality
+#### Task 8.1: Statement of Account (Individual Units)
+- **Scope:** Individual unit reports for owners
 - **Features:** Transaction history, running balances, payment status
-- **Effort:** 1-2 sessions
+- **Bilingual:** English/Spanish support from the start
+- **Effort:** 8-10 sessions
 
-#### Task 8a.3: Select Technical Stack for Statements
-- **Objective:** Evaluate libraries for PDF generation and charts
-- **Output:** Technical stack documentation and integration approach
-- **Requirements:** Gmail API support, bilingual compatibility
-- **Effort:** 1 session
-
-#### Task 8a.4: Implement Statement Generation
-- **Objective:** Generate individual unit statements with full fiscal year activity
-- **Output:** Functional statement system with PDF storage in Firebase
-- **Features:** Chronological transactions, running balances, bilingual support
-- **Effort:** 3-4 sessions
-
-#### Task 8a.5: Add Charts to Statements
-- **Objective:** Visual representation of unit financial data
-- **Output:** Charts embedded in statements with PDF compatibility
-- **Requirements:** Charts must render properly in PDF format
-- **Effort:** 1-2 sessions
-
-#### Task 8a.6: Integrate Gmail for Statement Delivery
-- **Objective:** Email delivery system for unit owner statements
-- **Output:** Automated statement distribution with bilingual templates
-- **Domain:** sandyland.com.mx, reliable queue system
-- **Effort:** 1-2 sessions
-
-### Priority 8b: Other Reports │ Agent_Reports_Secondary
-**Status:** Monthly reports for owners/admins after Statement priority
-**Estimated Effort:** 16-20 Implementation Agent sessions
-
-#### Task 8b.1: Monthly Transaction History Report
+#### Task 8.2: Monthly Transaction History Report
 - **Scope:** Comprehensive monthly transaction reports
 - **Integration:** Budget vs Actual analysis (requires Priority 7 completion)
 - **Effort:** 4-5 sessions
 
-#### Task 8b.2: HOA Dues Update Report
+#### Task 8.3: HOA Dues Update Report
 - **Scope:** HOA dues collection and status reports
 - **Integration:** Quarterly collection support (Priority 3)
 - **Effort:** 3-4 sessions
 
-#### Task 8b.3: Special Projects Reports
+#### Task 8.4: Special Projects Reports
 - **Scope:** Water Bills, Propane Tanks, other project reporting
 - **Integration:** Depends on Propane Tanks completion (Priority 9)
 - **Effort:** 4-5 sessions
 
-#### Task 8b.4: Budget vs Actual Report
+#### Task 8.5: Budget vs Actual Report
 - **Scope:** Budget analysis and variance reporting
 - **Dependency:** Requires Budget Module completion (Priority 7)
 - **Effort:** 3-4 sessions
 
-#### Task 8b.5: Complete Report System Integration
-- **Scope:** Unified report generation system
-- **Output:** Complete Google Sheets replacement capability
-- **Effort:** 2-3 sessions
-
 ### Priority 9: Propane Tanks Module │ Agent_Propane
-**Status:** Similar to Water Bills but simpler - readings only
+**Status:** Similar to Water Bills but simpler - readings only for MTC client
 **Estimated Effort:** 4-5 Implementation Agent sessions
 
 #### Task 9.1: Implement Propane Tank Readings
@@ -387,7 +310,7 @@
 - **Effort:** 3-4 sessions
 
 ### Priority 11: PWA/Mobile Refactor │ Agent_Mobile_Refactor
-**Status:** PWA needs complete update to current standards
+**Status:** PWA needs complete update to current standards for endpoints, authentication and collection/document structures
 **Estimated Effort:** 20-24 Implementation Agent sessions
 
 #### Task 11.1: Assess PWA Breaking Changes
@@ -432,7 +355,7 @@
 - **Effort:** 3-4 sessions
 
 ### Priority 12: PWA/Mobile Expense Entry and Payment Receipts │ Agent_Mobile_Payments
-**Status:** New functionality for field payment and expense recording
+**Status:** Add ability to accept payments or entry expense on mobile app by Admin to post data to backend
 **Estimated Effort:** 8-10 Implementation Agent sessions
 
 #### Task 12.1: Implement Mobile Expense Entry
@@ -454,7 +377,7 @@
 - **Effort:** 3-4 sessions
 
 ### Priority 13: Export Functions │ Agent_Export
-**Status:** CSV and Excel export capability for reports and queries
+**Status:** Export function to save reports and queries to CSV or Excel files for manual reporting and manipulation
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
 #### Task 13.1: Implement CSV Export
@@ -648,12 +571,13 @@
 ### Total Estimated Effort
 - **Immediate Priorities (1-3):** 7-10 sessions
 - **Enhancement Completion (4-7):** 12-16 sessions
-- **Report System (8a-8b):** 24-30 sessions
-- **Mobile/PWA Development (9-12):** 41-52 sessions
+- **Report System (8):** 20-25 sessions
+- **Propane Tanks (9):** 4-5 sessions
+- **Mobile/PWA Development (10-12):** 34-42 sessions
 - **Export Functions (13):** 3-4 sessions
 - **Technical Debt Resolution:** 8-12 sessions
 
-**Grand Total:** 95-124 Implementation Agent sessions
+**Grand Total:** 88-114 Implementation Agent sessions
 
 ### Success Metrics
 - ✅ **Core Platform:** Fully operational in production

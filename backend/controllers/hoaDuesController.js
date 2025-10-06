@@ -10,38 +10,23 @@ import {
   validatePayment,
   getYearSummary 
 } from '../utils/hoaCalculations.js';
-// DateService removed - using Mexico timezone utilities instead
+// Use DateService for proper timezone handling
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
-import { getNow } from '../services/DateService.js';
+import { getNow, DateService } from '../services/DateService.js';
 import admin from 'firebase-admin';
 
 const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
 
-// Helper to format date fields consistently for API responses
+// Initialize DateService for Mexico timezone
+const dateService = new DateService({ timezone: 'America/Cancun' });
+
+// Helper to format date fields consistently for API responses using DateService
 function formatDateField(dateValue) {
   if (!dateValue) return null;
   
   try {
-    // Handle Firestore timestamp
-    if (dateValue.toDate && typeof dateValue.toDate === 'function') {
-      return dateValue.toDate().toISOString().split('T')[0];
-    }
-    
-    // Handle Date object - extract YYYY-MM-DD part and create date at noon Mexico time
-    if (dateValue instanceof Date) {
-      return dateValue.toISOString().split('T')[0];
-    }
-    
-    // Handle string dates
-    if (typeof dateValue === 'string') {
-      // Extract YYYY-MM-DD part if it's an ISO string
-      if (dateValue.includes('T')) {
-        return dateValue.split('T')[0];
-      }
-      return dateValue;
-    }
-    
-    return dateValue;
+    // Use DateService's formatForFrontend method to create multi-format date object
+    return dateService.formatForFrontend(dateValue);
   } catch (error) {
     console.error('Error formatting date field:', error);
     return null;
@@ -316,10 +301,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         const dateOnly = paymentData.date.split('T')[0];
         console.log('Extracted date part:', dateOnly);
         
-        // Create date at noon Mexico time to avoid timezone boundary issues
-        // This matches the frontend getMexicoDateTime function approach
-        paymentDate = new Date(dateOnly + 'T12:00:00');
-        paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
+        // Use DateService for proper timezone handling
+        paymentTimestamp = dateService.parseFromFrontend(dateOnly);
+        paymentDate = paymentTimestamp.toDate();
       } else if (paymentData.date && typeof paymentData.date.toDate === 'function') {
         console.log('Date is a Firestore Timestamp');
         paymentTimestamp = paymentData.date;

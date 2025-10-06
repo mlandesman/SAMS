@@ -100,19 +100,6 @@ function ClientSwitchModal({ onClose }) {
       return;
     }
     
-    const confirmMessage = `Onboard NEW client:\n\n` +
-      `• Client ID: ${clientPreview.clientId}\n` +
-      `• Name: ${clientPreview.displayName}\n` +
-      `• Type: ${clientPreview.clientType}\n` +
-      `• Units: ${clientPreview.totalUnits}\n\n` +
-      `You will be redirected to Data Management.\n` +
-      `Click "Import All Data" to create the client.\n\n` +
-      `Continue?`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-    
     // Store onboarding info in localStorage for Data Management to pick up
     localStorage.setItem('onboardingClient', JSON.stringify({
       clientId: clientPreview.clientId,
@@ -121,10 +108,49 @@ function ClientSwitchModal({ onClose }) {
       preview: clientPreview
     }));
     
-    // Use window.location.assign to force navigation to Settings
-    window.location.assign('/settings');
+    // Create a temporary client object from the preview data
+    const tempClient = {
+      id: clientPreview.clientId,
+      basicInfo: {
+        fullName: clientPreview.displayName,
+        clientId: clientPreview.clientId,
+        displayName: clientPreview.displayName,
+        clientType: clientPreview.clientType,
+        status: 'onboarding'
+      },
+      branding: {
+        logoUrl: null,
+        iconUrl: null
+      },
+      configuration: {
+        timezone: 'America/Cancun',
+        currency: clientPreview.preview?.currency || 'MXN',
+        language: 'es-MX',
+        dateFormat: 'DD/MM/YYYY'
+      },
+      contactInfo: {
+        primaryEmail: '',
+        phone: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          postalCode: '',
+          country: 'MX'
+        }
+      },
+      // Mark this as a temporary client for onboarding
+      _isOnboarding: true
+    };
     
-    alert(`✅ Onboarding data prepared!\n\nRedirecting to Data Management...\n\nLook for the blue "Onboarding New Client" banner and click "Import All Data" to create ${clientPreview.clientId}`);
+    // Set the client context so the system has a valid clientId
+    setClient(tempClient);
+    
+    // Close the modal
+    onClose();
+    
+    // Navigate to Settings - now with a valid client context
+    navigate('/settings');
   };
 
   const handleConfirm = async () => {

@@ -1,0 +1,43 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2865
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww24040\viewh20660\viewkind1
+\deftab720
+\pard\pardeftab720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf0 1. Credit Balance Fixed: The components that read the credit balance (payments for HOA Dues and Water Bills) are not reading them properly and we need a way to edit the Credit Balance in the units documents.\
+\
+2. Water Bills Fixes: \
+	- In Bills tab, the MonthData from WaterBillsList.jsx:175 shows currentReading and priorReading but not values for consumption so I assume this is not being processing by the aggregator function that adds that data.\
+	- In Bills tab, the Due Date should change to a display value and not a calendar pick list once a bill has been generated as the data is now stored in the bill record.\
+	- In Readings, change the Reading Period to be the prior month.  For the August 2025 readings (Select Month) that period is for July 2025 (reading at the end of the month for the prior month\'92s consumption)\
+	- In Readings, the screen should change to the next available reading period (last monthly readings file + 1) to allow for quick entry.  If the last bill generated was 2026-01 (in bills) then the Readings screen should advance to 2026-02.\
+	- In Bills, the screen should change to the last available reading period (highest number monthly bill file) to allow for quick entry of payments.  If the last bill generated was 2026-01 (in bills) then the Bill screen should advance to 2026-01.\
+\
+3. Change HOA Dues system to support different collection periods. If /clients/:clientId/config.feeStructure.duesFrequency == \'93quarterly\'94 then the HOA Dues table should change to a quarterly view.  Complexity comes from partial payments and tracking.  Penalties change to affect the Quarterly amount, not the monthly amount.  Quarters have to be based on Fiscal calendar.\
+\
+4. HOA Penalty System: We implemented Penalties for Water Bills and it is handled in the Aggregator functions.  We need to apply similar logic for HOA Dues, following the quarterly adjustment in #3.  The penalty math is data-driven (grace periods, % to charge, etc) so the logic should be the same.\
+\
+5. Water Bill Payment Request:  We need to generate an automated email with the monthly water consumption amount, past due, penalties and any notes attached.  This will eventually include an account statement when the Reports module is developed.  Until then, just a formatted email will suffice.\
+\
+6. Digital Receipts:  The code is mostly in place but we need to fine tune it and attach it to all payments received.  This may already be done but we need to test and accept the templates, email addresses and sending process.\
+\
+7. Budget Module: We need to create a budget entry system that will be used with the Reporting module to show Budget vs Actual.\
+\
+8. Report Generator: Key component with many parts.  Reports are fixed format (not ad-hoc).\
+	- State of Account (individual units for owners)\
+	- Monthly Transaction History\
+	- HOA Dues update\
+	- Special Projects (Water Bills, Propane Tanks, etc)\
+	- Budget vs Actual\
+\
+9. Propane Tanks: Similar to the Water Bills for AVII, we have to take monthly readings of the Propane Tanks for client MTC.  It will be a very small subset of Water Bills with only monthly Readings and no Bill generation or payment requirements.\
+\
+10. PWA/Mobile App for Maintenance Workers: We have completed the test code for Water Bill Meter Readings but we need to integrate that into the PWA with a new user role for \'93maintenance\'94.  The shell of the Propane Tank reading module is built but not complete and needs to be integrated. These will be triggered like the dashboard cards with hasWaterBills or hasPropaneTanks.\
+\
+11. PWA/Mobile Refactor: The rest of the PWA needs to be brought up to the new standards for endpoints, authentication and collection/document structures.\
+\
+12. PWA/Mobile Expense Entry and Payment Receipts: Add the ability to accept payments or entry expense on the mobile app by an Admin to post the data to the backend.\
+\
+13. Export function to save reports and queries to CSV or Excel files for manual reporting and manipulation.}

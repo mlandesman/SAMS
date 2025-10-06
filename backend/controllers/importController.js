@@ -7,7 +7,7 @@ import { getDb } from '../firebase.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { ImportService } from '../services/importService.js';
-import { readFileSync, statSync, existsSync } from 'fs';
+import fs from 'fs';
 import { join } from 'path';
 
 /**
@@ -87,7 +87,7 @@ function getJsonFileSizes(dataPath) {
   for (const fileName of jsonFiles) {
     try {
       const filePath = join(dataPath, fileName);
-      const stats = statSync(filePath);
+      const stats = fs.statSync(filePath);
       const sizeKB = Math.round(stats.size / 1024);
       sizes[fileName] = sizeKB;
       totalSize += sizeKB;
@@ -124,7 +124,7 @@ function getImportDataCounts(dataPath) {
     for (const [key, fileName] of Object.entries(files)) {
       try {
         const filePath = join(dataPath, fileName);
-        const data = JSON.parse(readFileSync(filePath, 'utf8'));
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         const count = Array.isArray(data) ? data.length : Object.keys(data).length;
         counts[key] = count;
         totalRecords += count;
@@ -1160,11 +1160,11 @@ async function previewClientData(user, dataPath) {
     // Read Client.json file
     const clientJsonPath = `${dataPath}/Client.json`;
     
-    if (!existsSync(clientJsonPath)) {
+    if (!fs.existsSync(clientJsonPath)) {
       throw new Error(`Client.json not found at ${clientJsonPath}`);
     }
     
-    const clientData = JSON.parse(readFileSync(clientJsonPath, 'utf8'));
+    const clientData = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
     
     // Extract key information
     const clientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
@@ -1188,9 +1188,9 @@ async function previewClientData(user, dataPath) {
     
     for (const { key, file } of dataFiles) {
       const filePath = `${dataPath}/${file}`;
-      if (existsSync(filePath)) {
+      if (fs.existsSync(filePath)) {
         try {
-          const data = JSON.parse(readFileSync(filePath, 'utf8'));
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
           dataCounts[key] = Array.isArray(data) ? data.length : Object.keys(data).length;
         } catch (e) {
           dataCounts[key] = 'Error reading file';

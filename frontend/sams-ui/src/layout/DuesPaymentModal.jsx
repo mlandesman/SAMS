@@ -17,16 +17,61 @@ import NotificationModal from './NotificationModal';
 import { useNotification } from '../hooks/useNotification';
 import { getMexicoDateString } from '../utils/timezone';
 import { useTransactionsContext } from '../context/TransactionsContext';
+import { getFiscalYear } from '../utils/fiscalYearUtils';
 import './DuesPaymentModal.css';
 
 function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   const { selectedClient } = useClient();
-  const { 
-    units, 
-    duesData, 
+  const {
+    units,
+    duesData,
     refreshData,
     selectedYear
   } = useHOADues();
+
+  // Always use current fiscal year for credit balance operations
+  // Credit balances should be "live" regardless of which year is being viewed
+  const currentFiscalYear = getFiscalYear(new Date(), selectedClient?.configuration?.fiscalYearStartMonth || 7);
+
+  // State for current fiscal year credit balance (separate from selected year)
+  const [currentYearCreditBalance, setCurrentYearCreditBalance] = useState(0);
+  const [currentYearCreditHistory, setCurrentYearCreditHistory] = useState([]);
+
+  // Fetch current fiscal year credit balance when modal opens or unit changes
+  useEffect(() => {
+    if (isOpen && selectedClient && unitId && currentFiscalYear) {
+      fetchCurrentYearCreditBalance();
+    }
+  }, [isOpen, selectedClient, unitId, currentFiscalYear]);
+
+  const fetchCurrentYearCreditBalance = async () => {
+    try {
+      const { getAuthInstance } = await import('../firebaseClient');
+      const { config } = await import('../config');
+      const token = await getAuthInstance().currentUser.getIdToken();
+
+      const response = await fetch(`${config.api.baseUrl}/hoadues/${selectedClient.id}/unit/${unitId}/${currentFiscalYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentYearCreditBalance(data.creditBalance || 0);
+        setCurrentYearCreditHistory(data.creditBalanceHistory || []);
+      } else {
+        console.warn(`Failed to fetch current year credit balance for unit ${unitId}, year ${currentFiscalYear}`);
+        setCurrentYearCreditBalance(0);
+        setCurrentYearCreditHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching current year credit balance:', error);
+      setCurrentYearCreditBalance(0);
+      setCurrentYearCreditHistory([]);
+    }
+  };
   
   // Access transaction context for balance updates
   const { triggerBalanceUpdate } = useTransactionsContext();
@@ -273,7 +318,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       }))
     };
     
-    const currentCredit = unitDuesData.creditBalance || 0;
+    // Use current fiscal year credit balance for payment calculations
+    // This ensures credit balances are always "live" regardless of which year is being viewed
+    const currentCredit = currentYearCreditBalance;
     const monthlyAmount = unitDuesData.scheduledAmount || unit.duesAmount || 0;
     const firstUnpaidMonth = getFirstUnpaidMonth();
     
@@ -383,6 +430,8 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     
     try {
       await refreshData();
+      // Also refresh current year credit balance after data refresh
+      await fetchCurrentYearCreditBalance();
     } catch (error) {
       console.error('Error refreshing data after receipt closure:', error);
     } finally {
@@ -404,6 +453,8 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     
     try {
       await refreshData();
+      // Also refresh current year credit balance after data refresh
+      await fetchCurrentYearCreditBalance();
     } catch (error) {
       console.error('Error refreshing data after email sent:', error);
     } finally {
@@ -496,10 +547,11 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       if (calculationResult.monthlyPayments.length === 0) {
         try {
           // Use the API instead of direct function call for consistency
+          // Note: Credit balance operations use current fiscal year, but payment is recorded for selected year
           await apiRecordDuesPayment(
             selectedClient.id,
             selectedUnitId,
-            selectedYear,
+            currentFiscalYear, // Use current fiscal year for credit balance operations
             paymentDetails,
             [] // Empty distribution since all goes to credit
           );
@@ -516,8 +568,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
             ]
           );
           
-          // Refresh data and close the modal
+          // Refresh data and current year credit balance, then close the modal
           await refreshData();
+          await fetchCurrentYearCreditBalance();
           setTimeout(() => onClose(), 800); // Close modal quickly to show notification
         } catch (error) {
           console.error('Error adding to credit balance:', error);
@@ -615,10 +668,11 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
         });
         
         // Make API call to create transaction and update dues records
+        // Note: Credit balance operations use current fiscal year, but payment is recorded for selected year
         const result = await apiRecordDuesPayment(
           selectedClient.id,
           selectedUnitId,
-          selectedYear,
+          currentFiscalYear, // Use current fiscal year for credit balance operations
           paymentDetails,
           distribution
         );
@@ -629,8 +683,11 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
           // HOA payment creates a regular transaction, so trigger standard balance update
           triggerBalanceUpdate();
           
-          // DON'T refresh data yet - wait until after receipt is closed to avoid state conflicts
-          console.log('🧾 [RECEIPT DEBUG] Skipping immediate data refresh to prevent state conflicts');
+          // Refresh current year credit balance data after successful payment
+          await fetchCurrentYearCreditBalance();
+
+          // DON'T refresh selected year data yet - wait until after receipt is closed to avoid state conflicts
+          console.log('🧾 [RECEIPT DEBUG] Skipping immediate selected year data refresh to prevent state conflicts');
           
           // Generate Digital Receipt using the utility function
           console.log('🧾 [RECEIPT DEBUG] About to generate receipt for transaction:', result.transactionId);
@@ -692,6 +749,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
           try {
             console.log('First refresh attempt...');
             await refreshData();
+            await fetchCurrentYearCreditBalance();
             console.log('First refresh completed');
             
             // Second refresh after another delay to catch any cached data issues
@@ -699,6 +757,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
               try {
                 console.log('Second refresh attempt...');
                 await refreshData();
+                await fetchCurrentYearCreditBalance();
                 console.log('Second refresh completed - data should now be fully updated');
               } catch (secondRefreshError) {
                 console.error('Error in second refresh:', secondRefreshError);

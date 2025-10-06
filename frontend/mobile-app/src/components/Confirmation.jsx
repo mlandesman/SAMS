@@ -15,7 +15,7 @@ import {
   Share,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { databaseFieldMappings } from '../../../src/utils/databaseFieldMappings';
+import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
 
 const Confirmation = () => {
   const location = useLocation();

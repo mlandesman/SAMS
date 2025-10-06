@@ -16,7 +16,7 @@ import {
   augmentMTCHOADues,
   linkUsersToUnits,
   validateImportOrder
-} from '../../scripts/data-augmentation-utils.js';
+} from '../utils/data-augmentation-utils.js';
 import {
   createTransaction,
   updateTransaction,

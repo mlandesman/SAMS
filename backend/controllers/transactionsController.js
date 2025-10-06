@@ -256,10 +256,10 @@ async function createTransaction(clientId, data) {
     const db = await getDb();
     
     // Step 1: Convert date to timestamp and amount to cents (using validated data)
-    // Use Mexico timezone utilities for proper timezone handling
+    // Use DateService for proper timezone handling
     const normalizedData = {
       ...validation.data, // Start with validated data
-      date: admin.firestore.Timestamp.fromDate(new Date(validation.data.date || getMexicoDateString())),
+      date: dateService.parseFromFrontend(validation.data.date || getMexicoDateString()),
       amount: dollarsToCents(validation.data.amount), // Convert to cents for storage
       // Only add updated timestamp - created should be handled by audit log
       updated: admin.firestore.Timestamp.now(),

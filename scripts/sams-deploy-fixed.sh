@@ -114,9 +114,9 @@ deploy_backend() {
   else
     echo "Deploying to Vercel..."
     if [ "$ENVIRONMENT" = "production" ]; then
-      vercel --prod
+      vercel --prod --yes
     else
-      vercel
+      vercel --yes
     fi
   fi
   
