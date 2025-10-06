@@ -130,30 +130,84 @@ function getJsonFileSizes(dataPath) {
 /**
  * Get import data counts for progress tracking
  */
-function getImportDataCounts(dataPath) {
+async function getImportDataCounts(dataPath, clientId = null, user = null) {
   const counts = {};
   let totalRecords = 0;
   
-  // If using Firebase Storage, we can't easily count records without clientId context
-  // This function is only used for import progress, not purge progress
+  // If using Firebase Storage, we need to use ImportService to read files
   if (dataPath === 'firebase_storage') {
-    console.log(`📋 Firebase Storage mode - data counts not available for progress tracking`);
-    const files = {
-      'client': 'Client.json',
-      'config': 'Config.json',
-      'paymentTypes': 'paymentMethods.json',
-      'categories': 'Categories.json',
-      'vendors': 'Vendors.json',
-      'units': 'Units.json', 
-      'transactions': 'Transactions.json',
-      'hoadues': 'HOADues.json',
-      'yearEndBalances': 'YearEndBalances.json'
-    };
-    
-    for (const [key, fileName] of Object.entries(files)) {
-      counts[key] = 0; // Will be calculated during actual import
+    if (!clientId || !user) {
+      console.log(`📋 Firebase Storage mode - need clientId and user for counting records`);
+      // Return zeros if we don't have the context needed
+      const files = {
+        'client': 'Client.json',
+        'config': 'Config.json',
+        'paymentTypes': 'paymentMethods.json',
+        'categories': 'Categories.json',
+        'vendors': 'Vendors.json',
+        'units': 'Units.json', 
+        'transactions': 'Transactions.json',
+        'hoadues': 'HOADues.json',
+        'yearEndBalances': 'YearEndBalances.json'
+      };
+      
+      for (const [key, fileName] of Object.entries(files)) {
+        counts[key] = 0;
+      }
+      return { counts, totalRecords };
     }
-    return { counts, totalRecords };
+    
+    try {
+      console.log(`📋 Counting records in Firebase Storage files...`);
+      const importService = new ImportService(clientId, dataPath, user);
+      
+      const files = {
+        'client': 'Client.json',
+        'config': 'Config.json',
+        'paymentTypes': 'paymentMethods.json',
+        'categories': 'Categories.json',
+        'vendors': 'Vendors.json',
+        'units': 'Units.json', 
+        'transactions': 'Transactions.json',
+        'hoadues': 'HOADues.json',
+        'yearEndBalances': 'YearEndBalances.json'
+      };
+      
+      for (const [key, fileName] of Object.entries(files)) {
+        try {
+          const data = await importService.loadJsonFile(fileName);
+          const count = Array.isArray(data) ? data.length : Object.keys(data).length;
+          counts[key] = count;
+          totalRecords += count;
+          console.log(`📋 ${fileName}: ${count} records`);
+        } catch (error) {
+          console.warn(`⚠️ Could not count records in ${fileName}: ${error.message}`);
+          counts[key] = 0;
+        }
+      }
+      
+      console.log(`📋 Firebase Storage record counting complete: ${totalRecords} total records`);
+      return { counts, totalRecords };
+    } catch (error) {
+      console.warn(`⚠️ Could not count Firebase Storage records: ${error.message}`);
+      // Fall back to zeros
+      const files = {
+        'client': 'Client.json',
+        'config': 'Config.json',
+        'paymentTypes': 'paymentMethods.json',
+        'categories': 'Categories.json',
+        'vendors': 'Vendors.json',
+        'units': 'Units.json', 
+        'transactions': 'Transactions.json',
+        'hoadues': 'HOADues.json',
+        'yearEndBalances': 'YearEndBalances.json'
+      };
+      
+      for (const [key, fileName] of Object.entries(files)) {
+        counts[key] = 0;
+      }
+      return { counts, totalRecords };
+    }
   }
   
   try {
@@ -1041,7 +1095,7 @@ async function executeImport(user, clientId, options = {}) {
     }
     
     // Get import data counts and file sizes for progress tracking
-    const { counts: dataCounts, totalRecords } = getImportDataCounts(dataPath);
+    const { counts: dataCounts, totalRecords } = await getImportDataCounts(dataPath, clientId, user);
     const { sizes: fileSizes, totalSize } = getJsonFileSizes(dataPath);
     
     const progress = {
