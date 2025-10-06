@@ -172,7 +172,7 @@ async function getImportConfig(user, clientId) {
         { id: 'paymentTypes', label: 'Payment Types', canPurge: true, canImport: true },
         { id: 'config', label: 'Config Collection', canPurge: true, canImport: true }
       ],
-      dataPath: `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/${clientId}data`
+      dataPath: 'firebase_storage' // Always use Firebase Storage in production
     };
     
     await writeAuditLog({
