@@ -101,6 +101,15 @@ function getJsonFileSizes(dataPath) {
   const sizes = {};
   let totalSize = 0;
   
+  // If using Firebase Storage, we can't get file sizes easily, so return 0
+  if (dataPath === 'firebase_storage') {
+    console.log(`📁 Firebase Storage mode - file sizes not available`);
+    for (const fileName of jsonFiles) {
+      sizes[fileName] = 0;
+    }
+    return { sizes, totalSize };
+  }
+  
   for (const fileName of jsonFiles) {
     try {
       const filePath = join(dataPath, fileName);
@@ -124,6 +133,28 @@ function getJsonFileSizes(dataPath) {
 function getImportDataCounts(dataPath) {
   const counts = {};
   let totalRecords = 0;
+  
+  // If using Firebase Storage, we can't easily count records without clientId context
+  // This function is only used for import progress, not purge progress
+  if (dataPath === 'firebase_storage') {
+    console.log(`📋 Firebase Storage mode - data counts not available for progress tracking`);
+    const files = {
+      'client': 'Client.json',
+      'config': 'Config.json',
+      'paymentTypes': 'paymentMethods.json',
+      'categories': 'Categories.json',
+      'vendors': 'Vendors.json',
+      'units': 'Units.json', 
+      'transactions': 'Transactions.json',
+      'hoadues': 'HOADues.json',
+      'yearEndBalances': 'YearEndBalances.json'
+    };
+    
+    for (const [key, fileName] of Object.entries(files)) {
+      counts[key] = 0; // Will be calculated during actual import
+    }
+    return { counts, totalRecords };
+  }
   
   try {
     const files = {
