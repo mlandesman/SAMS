@@ -916,13 +916,16 @@ async function executeImport(user, clientId, options = {}) {
     
     // CRITICAL SAFETY CHECK: Read Client.json and verify clientId matches
     console.log(`🔒 Validating Client.json clientId matches target: ${clientId}`);
-    const clientJsonPath = `${dataPath}/Client.json`;
     
-    if (!fs.existsSync(clientJsonPath)) {
-      throw new Error(`❌ Client.json not found at ${clientJsonPath}. Cannot proceed with import.`);
+    // Create ImportService instance to properly handle both filesystem and Firebase Storage
+    const importService = new ImportService(clientId, dataPath, user);
+    let clientData;
+    
+    try {
+      clientData = await importService.loadJsonFile('Client.json');
+    } catch (error) {
+      throw new Error(`❌ Client.json not found at ${dataPath}. Cannot proceed with import. Error: ${error.message}`);
     }
-    
-    const clientData = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
     const fileClientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
     
     if (!fileClientId) {
@@ -982,9 +985,6 @@ async function executeImport(user, clientId, options = {}) {
     
     // Store in global for progress tracking
     global.importProgress[clientId] = progress;
-    
-    // Create import service instance
-    const importService = new ImportService(clientId, dataPath, user);
     
     // Delete existing import files if using Firebase Storage
     if (dataPath === 'firebase_storage') {
