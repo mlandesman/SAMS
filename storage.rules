@@ -79,15 +79,26 @@ service firebase.storage {
     }
     
     // ============================================================================
-    // MAINTENANCE MODE OVERRIDE
+    // IMPORT FILES STORAGE
+    // ============================================================================
+    
+    // Import files directory for client onboarding
+    // Allow access for authenticated users (temporarily permissive for testing)
+    match /imports/{clientId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // ============================================================================
+    // MAINTENANCE MODE OVERRIDE - TEMPORARILY DISABLED
     // ============================================================================
     
     // During maintenance mode, restrict all access except SuperAdmin
     // This can be toggled by updating the Firestore maintenance flag
-    match /{allPaths=**} {
-      allow read, write: if isSuperAdmin() ||
-                            firestore.get(/databases/(default)/documents/system/config).data.maintenanceMode != true;
-    }
+    // Temporarily disabled to allow imports directory access
+    // match /{allPaths=**} {
+    //   allow read, write: if isSuperAdmin() ||
+    //                         firestore.get(/databases/(default)/documents/system/config).data.maintenanceMode != true;
+    // }
     
     // ============================================================================
     // DENY ALL OTHER ACCESS

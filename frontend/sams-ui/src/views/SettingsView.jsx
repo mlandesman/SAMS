@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../api/exchangeRates';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
@@ -13,6 +13,15 @@ function SettingsView() {
   const [exchangeRateInfo, setExchangeRateInfo] = useState(null);
   const [checkingRates, setCheckingRates] = useState(false);
   const [activeSection, setActiveSection] = useState('exchange-rates');
+
+  // Check for onboarding mode and switch to data-management section
+  useEffect(() => {
+    const onboardingData = localStorage.getItem('onboardingClient');
+    if (onboardingData) {
+      console.log('📋 Onboarding mode detected, switching to Data Management section');
+      setActiveSection('data-management');
+    }
+  }, []);
 
   // Check today's exchange rates
   const handleCheckRates = async () => {

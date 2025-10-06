@@ -134,6 +134,7 @@ export function ImportManagement({ clientId }) {
         headers: await getAuthHeaders(),
         body: JSON.stringify({
           dataPath: onboardingPath,
+          clientId: clientPreview?.clientId, // Pass the clientId from the preview
           dryRun,
           maxErrors: 3
         })
@@ -239,6 +240,7 @@ export function ImportManagement({ clientId }) {
         },
         body: JSON.stringify({
           dataPath: dataPath,
+          clientId: isOnboarding ? clientPreview?.clientId : clientId, // Pass clientId for onboarding or regular import
           dryRun: dryRun,
           maxErrors: 3
         })
@@ -530,12 +532,16 @@ export function ImportManagement({ clientId }) {
                 
                 <h4>📦 Data Files to Import:</h4>
                 <div className="data-counts">
-                  {Object.entries(clientPreview.dataCounts).map(([key, count]) => (
+                  {clientPreview.dataCounts ? Object.entries(clientPreview.dataCounts).map(([key, count]) => (
                     <div key={key} className="data-count-item">
                       <span className="data-label">{key}:</span>
                       <span className="data-value">{count}</span>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="data-count-item">
+                      <span className="data-label">Loading data counts...</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="button-group" style={{ marginTop: '20px' }}>

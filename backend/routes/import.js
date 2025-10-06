@@ -102,26 +102,28 @@ router.get('/preview', authenticateUserWithProfile, async (req, res) => {
 // Onboard a NEW client (reads clientId from Client.json)
 router.post('/onboard', authenticateUserWithProfile, async (req, res) => {
   try {
-    const { dataPath, dryRun = false, maxErrors = 3 } = req.body;
+    const { dataPath, clientId, dryRun = false, maxErrors = 3 } = req.body;
     const user = req.user;
     
     if (!dataPath) {
       return res.status(400).json({ error: 'dataPath is required' });
     }
     
-    console.log(`🆕 [IMPORT ROUTES] Onboarding new client from: ${dataPath}`);
-    
-    // Read Client.json to get the clientId
-    const { previewClientData } = await import('../controllers/importController.js');
-    const preview = await previewClientData(user, dataPath);
-    
-    if (!preview || !preview.clientId) {
-      return res.status(400).json({ 
-        error: 'Could not determine clientId from Client.json' 
-      });
+    if (!clientId) {
+      return res.status(400).json({ error: 'clientId is required' });
     }
     
-    const clientId = preview.clientId;
+    console.log(`🆕 [IMPORT ROUTES] Onboarding new client: ${clientId} from: ${dataPath}`);
+    
+    // Read Client.json to validate and get preview data
+    const { previewClientData } = await import('../controllers/importController.js');
+    const preview = await previewClientData(user, dataPath, clientId);
+    
+    if (!preview) {
+      return res.status(400).json({ 
+        error: 'Could not read Client.json from Firebase Storage' 
+      });
+    }
     console.log(`📋 Client ID from file: ${clientId}`);
     console.log(`📦 Onboarding client: ${preview.displayName} (${clientId})`);
     

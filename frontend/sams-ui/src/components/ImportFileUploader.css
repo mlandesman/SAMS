@@ -1,0 +1,150 @@
+/* ImportFileUploader.css */
+
+.import-file-uploader {
+  margin: 1rem 0;
+}
+
+.upload-section {
+  margin-bottom: 1rem;
+}
+
+.drop-zone {
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+}
+
+.drop-zone:hover:not(.disabled) {
+  border-color: #4299e1;
+  background-color: #ebf8ff;
+}
+
+.drop-zone.drag-over {
+  border-color: #3182ce;
+  background-color: #bee3f8;
+}
+
+.drop-zone.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+}
+
+.upload-prompt {
+  color: #64748b;
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-prompt p {
+  margin: 0.25rem 0;
+}
+
+.file-types {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.file-note {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.selected-files {
+  background-color: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.selected-files h4 {
+  margin: 0 0 0.75rem 0;
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.file-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.required-indicator {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-weight: 500;
+  background-color: #fef3c7;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  line-height: 1;
+  margin-left: 0.5rem;
+}
+
+.remove-file:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.remove-file:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .drop-zone {
+    padding: 1.5rem;
+  }
+  
+  .upload-icon {
+    font-size: 1.5rem;
+  }
+}

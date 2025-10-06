@@ -7,6 +7,7 @@ import { getDb } from '../firebase.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { ImportService } from '../services/importService.js';
+import { deleteImportFiles } from '../api/importStorage.js';
 import fs from 'fs';
 import { join } from 'path';
 
@@ -983,7 +984,18 @@ async function executeImport(user, clientId, options = {}) {
     global.importProgress[clientId] = progress;
     
     // Create import service instance
-    const importService = new ImportService(clientId, dataPath);
+    const importService = new ImportService(clientId, dataPath, user);
+    
+    // Delete existing import files if using Firebase Storage
+    if (dataPath === 'firebase_storage') {
+      try {
+        console.log(`🗑️ Deleting existing import files for client: ${clientId}`);
+        await deleteImportFiles(clientId, user);
+      } catch (error) {
+        console.error(`❌ Failed to delete existing import files:`, error);
+        throw new Error(`Failed to delete existing import files: ${error.message}`);
+      }
+    }
     
     // Set up progress callback to update global progress
     importService.onProgress = (component, status, data) => {
@@ -1147,7 +1159,7 @@ async function getImportProgress(user, clientId) {
  * @param {string} dataPath - Path to directory containing Client.json
  * @returns {Object} Client preview data
  */
-async function previewClientData(user, dataPath) {
+async function previewClientData(user, dataPath, clientId = null) {
   try {
     // Check user permissions
     if (!user.isSuperAdmin()) {
@@ -1155,20 +1167,15 @@ async function previewClientData(user, dataPath) {
       return null;
     }
     
-    console.log(`👁️ Reading Client.json from: ${dataPath}`);
+    console.log(`👁️ Reading Client.json from: ${dataPath}${clientId ? ` for client: ${clientId}` : ''}`);
     
-    // Read Client.json file
-    const clientJsonPath = `${dataPath}/Client.json`;
-    
-    if (!fs.existsSync(clientJsonPath)) {
-      throw new Error(`Client.json not found at ${clientJsonPath}`);
-    }
-    
-    const clientData = JSON.parse(fs.readFileSync(clientJsonPath, 'utf8'));
+    // Use ImportService to read Client.json (handles both file system and Firebase Storage)
+    const importService = new ImportService(clientId || 'temp', dataPath, user);
+    const clientData = await importService.loadJsonFile('Client.json');
     
     // Extract key information
-    const clientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
-    const displayName = clientData.basicInfo?.displayName || clientData.displayName || clientId;
+    const extractedClientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
+    const displayName = clientData.basicInfo?.displayName || clientData.displayName || extractedClientId;
     const fullName = clientData.basicInfo?.fullName || clientData.fullName;
     const clientType = clientData.basicInfo?.clientType || clientData.type;
     const totalUnits = clientData.propertyInfo?.totalUnits || 0;
@@ -1201,7 +1208,7 @@ async function previewClientData(user, dataPath) {
     }
     
     return {
-      clientId,
+      clientId: extractedClientId,
       displayName,
       fullName,
       clientType,

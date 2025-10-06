@@ -5,8 +5,10 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import admin from 'firebase-admin';
 import { DateService } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { readFileFromFirebaseStorage, deleteImportFiles } from '../api/importStorage.js';
 import { 
   augmentMTCTransaction,
   augmentMTCUnit,
@@ -33,13 +35,15 @@ import {
 } from '../controllers/hoaDuesController.js';
 
 export class ImportService {
-  constructor(clientId, dataPath) {
+  constructor(clientId, dataPath, user = null) {
     this.clientId = clientId;
     this.dataPath = dataPath;
+    this.user = user; // Store user context for authenticated Storage operations
     this.dateService = new DateService({ timezone: 'America/Cancun' });
     this.results = {};
     this.onProgress = null; // Progress callback
     this.importScriptName = 'web-based-import-system'; // Track which import system created the data
+    this.isFirebaseStorage = dataPath === 'firebase_storage'; // Check if using Firebase Storage
   }
   
   /**
@@ -96,13 +100,25 @@ export class ImportService {
   }
 
   /**
-   * Load JSON file from data path
+   * Load JSON file from data path (file system or Firebase Storage)
    */
   async loadJsonFile(filename) {
-    const filePath = path.join(this.dataPath, filename);
     try {
-      const data = await fs.readFile(filePath, 'utf-8');
-      return JSON.parse(data);
+      let data;
+      
+      if (this.isFirebaseStorage) {
+        // Read from Firebase Storage using the provided clientId
+        const filePath = `imports/${this.clientId}/${filename}`;
+        const text = await readFileFromFirebaseStorage(filePath, this.user);
+        data = JSON.parse(text);
+      } else {
+        // Read from file system (existing logic)
+        const filePath = path.join(this.dataPath, filename);
+        const text = await fs.readFile(filePath, 'utf-8');
+        data = JSON.parse(text);
+      }
+      
+      return data;
     } catch (error) {
       console.error(`❌ Error loading ${filename}:`, error.message);
       throw new Error(`Failed to load ${filename}: ${error.message}`);
@@ -592,6 +608,7 @@ export class ImportService {
       
       for (let i = 0; i < transactionsData.length; i++) {
         const transaction = transactionsData[i];
+        
         try {
           // Resolve IDs from names with fallback logic
           let vendorId = vendorMap[transaction.Vendor] || null;
@@ -627,15 +644,14 @@ export class ImportService {
           const augmentedData = augmentMTCTransaction(transaction, vendorId, categoryId, accountId, vendorName);
           
           // Parse date properly - handle ISO format
+          // NOTE: createTransaction expects string dates, not Firestore timestamps
           if (transaction.Date.includes('T') && transaction.Date.includes('Z')) {
-            // ISO format: 2024-01-03T05:00:00.000Z
-            augmentedData.date = new Date(transaction.Date);
+            // ISO format: 2024-01-03T05:00:00.000Z - extract date part only
+            // Split on 'T' to get just the date part: 2024-01-03
+            augmentedData.date = transaction.Date.split('T')[0];
           } else {
-            // Legacy format: M/d/yyyy
-            augmentedData.date = this.dateService.parseFromFrontend(
-              transaction.Date, 
-              'M/d/yyyy'
-            );
+            // Legacy format: M/d/yyyy - pass as-is to createTransaction
+            augmentedData.date = transaction.Date;
           }
           
           // Remove createdAt as controller adds it

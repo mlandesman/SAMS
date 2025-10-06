@@ -66,13 +66,26 @@ class DateService {
    * @returns {FirestoreTimestamp} Firestore timestamp in UTC
    */
   parseFromFrontend(dateString, format = 'yyyy-MM-dd') {
+    // Handle null/undefined input
+    if (!dateString) {
+      throw new Error(`Date string is null or undefined. Expected format: ${format}`);
+    }
+    
+    // Ensure input is a string
+    const dateStr = String(dateString).trim();
+    if (!dateStr) {
+      throw new Error(`Date string is empty. Expected format: ${format}`);
+    }
+    
+    console.log(`📅 DateService.parseFromFrontend: parsing "${dateStr}" with format "${format}"`);
+    
     // Parse in user's timezone
-    const dt = DateTime.fromFormat(dateString, format, {
+    const dt = DateTime.fromFormat(dateStr, format, {
       zone: this.timezone
     });
     
     if (!dt.isValid) {
-      throw new Error(`Invalid date format: ${dateString}. Expected format: ${format}`);
+      throw new Error(`Invalid date format: "${dateStr}". Expected format: ${format}. Error: ${dt.invalidReason}`);
     }
     
     // Convert to UTC for storage

@@ -9,15 +9,18 @@ import { getClient } from '../api/client'; // Import getClient
 import { useNavigate } from 'react-router-dom';
 import { config as appConfig } from '../config';
 import { getAuthInstance } from '../firebaseClient';
+import ImportFileUploader from './ImportFileUploader';
+import { uploadImportFilesWithProgress, deleteImportFiles } from '../api/importStorage';
 
 function ClientSwitchModal({ onClose }) {
   const [clients, setClients] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [preview, setPreview] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingPath, setOnboardingPath] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [clientPreview, setClientPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const { selectedClient, setClient } = useClient(); // Access current client and setClient from context
   const { samsUser } = useAuth();
   const navigate = useNavigate(); // Get the navigate function
@@ -66,26 +69,59 @@ function ClientSwitchModal({ onClose }) {
   };
 
   const handlePreviewClient = async () => {
-    if (!onboardingPath) {
-      alert('Please enter a data path');
+    if (!selectedFiles?.length) {
+      alert('Please upload client data files first');
+      return;
+    }
+    
+    if (!clientPreview) {
+      alert('Could not parse Client.json from uploaded files');
       return;
     }
     
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${appConfig.api.baseUrl}/admin/import/preview?dataPath=${encodeURIComponent(onboardingPath)}`,
-        { headers: await getAuthHeaders() }
-      );
+      // Use the SAME logic as previewClientData function but with uploaded files
+      const dataCounts = {};
+      const dataFiles = [
+        { key: 'config', file: 'config.json' },
+        { key: 'paymentMethods', file: 'paymentMethods.json' },
+        { key: 'categories', file: 'Categories.json' },
+        { key: 'vendors', file: 'Vendors.json' },
+        { key: 'units', file: 'Units.json' },
+        { key: 'transactions', file: 'Transactions.json' },
+        { key: 'hoadues', file: 'HOADues.json' },
+        { key: 'yearEndBalances', file: 'yearEndBalances.json' },
+        { key: 'autoCategorize', file: 'AutoCategorize.json' },
+        { key: 'unitSizes', file: 'UnitSizes.json' },
+        { key: 'users', file: 'Users.json' },
+        { key: 'hoaTransactionCrossRef', file: 'HOA_Transaction_CrossRef.json' }
+      ];
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to preview client data');
+      for (const { key, file } of dataFiles) {
+        const fileData = selectedFiles.find(f => f.name === file);
+        if (fileData) {
+          try {
+            const text = await fileData.text();
+            const data = JSON.parse(text);
+            dataCounts[key] = Array.isArray(data) ? data.length : Object.keys(data).length;
+          } catch (e) {
+            dataCounts[key] = 'Error reading file';
+          }
+        } else {
+          dataCounts[key] = 0;
+        }
       }
       
-      const preview = await response.json();
-      setClientPreview(preview);
-      console.log('Client preview loaded:', preview);
+      // Update clientPreview with dataCounts
+      const updatedPreview = {
+        ...clientPreview,
+        dataCounts,
+        dataPath: 'firebase_storage' // Updated to indicate Firebase Storage
+      };
+      
+      setClientPreview(updatedPreview);
+      console.log('Client preview loaded from uploaded files:', updatedPreview);
     } catch (err) {
       console.error('Failed to preview client:', err);
       alert(`Error: ${err.message}`);
@@ -94,63 +130,115 @@ function ClientSwitchModal({ onClose }) {
     }
   };
 
-  const handleOnboardClient = () => {
-    if (!clientPreview) {
+  const handleOnboardClient = async () => {
+    if (!clientPreview || !selectedFiles?.length) {
       alert('Please preview the client data first');
       return;
     }
     
-    // Store onboarding info in localStorage for Data Management to pick up
-    localStorage.setItem('onboardingClient', JSON.stringify({
-      clientId: clientPreview.clientId,
-      displayName: clientPreview.displayName,
-      dataPath: onboardingPath,
-      preview: clientPreview
-    }));
+    // Ensure dataCounts are populated before proceeding
+    if (!clientPreview.dataCounts) {
+      console.log('📊 DataCounts not found, generating preview first...');
+      await handlePreviewClient();
+    }
     
-    // Create a temporary client object from the preview data
-    const tempClient = {
-      id: clientPreview.clientId,
-      basicInfo: {
-        fullName: clientPreview.displayName,
+    try {
+      setIsLoading(true);
+      
+      // 1. Delete existing files from /imports/{clientId}/
+      await deleteImportFiles(clientPreview.clientId);
+      
+      // 2. Upload files to /imports/{clientId}/ with progress
+      await uploadImportFilesWithProgress(clientPreview.clientId, selectedFiles);
+      
+      // 3. Start import process (SAME as current)
+      await startImportProcess(clientPreview.clientId);
+      
+      // 4. Store onboarding info (SAME as current)
+      localStorage.setItem('onboardingClient', JSON.stringify({
         clientId: clientPreview.clientId,
         displayName: clientPreview.displayName,
-        clientType: clientPreview.clientType,
-        status: 'onboarding'
-      },
-      branding: {
-        logoUrl: null,
-        iconUrl: null
-      },
-      configuration: {
-        timezone: 'America/Cancun',
-        currency: clientPreview.preview?.currency || 'MXN',
-        language: 'es-MX',
-        dateFormat: 'DD/MM/YYYY'
-      },
-      contactInfo: {
-        primaryEmail: '',
-        phone: '',
-        address: {
-          street: '',
-          city: '',
-          state: '',
-          postalCode: '',
-          country: 'MX'
+        dataPath: 'firebase_storage', // Updated to indicate Firebase Storage
+        preview: clientPreview
+      }));
+      
+      // 5. Create temp client and navigate (SAME as current)
+      const tempClient = {
+        id: clientPreview.clientId,
+        basicInfo: {
+          fullName: clientPreview.displayName,
+          clientId: clientPreview.clientId,
+          displayName: clientPreview.displayName,
+          clientType: clientPreview.clientType,
+          status: 'onboarding'
+        },
+        branding: {
+          logoUrl: null,
+          iconUrl: null
+        },
+        configuration: {
+          timezone: 'America/Cancun',
+          currency: clientPreview.preview?.currency || 'MXN',
+          language: 'es-MX',
+          dateFormat: 'DD/MM/YYYY'
+        },
+        contactInfo: {
+          primaryEmail: '',
+          phone: '',
+          address: {
+            street: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: 'MX'
+          }
+        },
+        _isOnboarding: true
+      };
+      
+      setClient(tempClient);
+      onClose();
+      navigate('/settings');
+      
+    } catch (error) {
+      console.error('Onboarding failed:', error);
+      alert(`Onboarding failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startImportProcess = async (clientId) => {
+    try {
+      console.log(`🚀 Starting import process for client: ${clientId}`);
+      
+      const response = await fetch(
+        `${appConfig.api.baseUrl}/admin/import/onboard`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            dataPath: 'firebase_storage', // Indicate we're using Firebase Storage
+            clientId: clientPreview.clientId, // Pass the clientId from the parsed Client.json
+            dryRun: false,
+            maxErrors: 3
+          })
         }
-      },
-      // Mark this as a temporary client for onboarding
-      _isOnboarding: true
-    };
-    
-    // Set the client context so the system has a valid clientId
-    setClient(tempClient);
-    
-    // Close the modal
-    onClose();
-    
-    // Navigate to Settings - now with a valid client context
-    navigate('/settings');
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start import process');
+      }
+      
+      const result = await response.json();
+      console.log('Import process started:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to start import process:', error);
+      throw error;
+    }
   };
 
   const handleConfirm = async () => {
@@ -190,18 +278,60 @@ function ClientSwitchModal({ onClose }) {
           <h2 className="modal-title">🆕 Onboard New Client</h2>
           <div className="modal-content">
             <div className="onboarding-section">
-              <label className="field-label">Data Path:</label>
-              <input
-                type="text"
-                value={onboardingPath}
-                onChange={(e) => setOnboardingPath(e.target.value)}
-                placeholder="/path/to/clientdata (e.g., /path/to/MTCdata)"
-                className="data-path-input"
-                style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+              <label className="field-label">Upload Client Data Files:</label>
+              <ImportFileUploader
+                onFilesSelected={(files) => {
+                  try {
+                    console.log('📁 ClientSwitchModal: Files selected:', files);
+                    setSelectedFiles(files);
+                    setUploadError(null);
+                  } catch (error) {
+                    console.error('❌ ClientSwitchModal: Error handling file selection:', error);
+                    setUploadError(error.message);
+                  }
+                }}
+                selectedFiles={selectedFiles}
+                onClientDataParsed={(clientData) => {
+                  try {
+                    console.log('📁 ClientSwitchModal: Client data parsed:', clientData);
+                    
+                    // Extract client information using the same logic as backend previewClientData
+                    const extractedClientId = clientData.clientId || clientData._id || clientData.basicInfo?.clientId;
+                    const displayName = clientData.basicInfo?.displayName || clientData.displayName || extractedClientId;
+                    const fullName = clientData.basicInfo?.fullName || clientData.fullName;
+                    const clientType = clientData.basicInfo?.clientType || clientData.type;
+                    const totalUnits = clientData.propertyInfo?.totalUnits || 0;
+                    
+                    // Create structured clientPreview object
+                    const structuredPreview = {
+                      clientId: extractedClientId,
+                      displayName,
+                      fullName,
+                      clientType,
+                      totalUnits,
+                      preview: {
+                        accounts: clientData.accounts?.length || 0,
+                        currency: clientData.configuration?.currency || 'MXN',
+                        timezone: clientData.configuration?.timezone || 'America/Cancun'
+                      },
+                      // Keep original data for reference
+                      originalData: clientData
+                    };
+                    
+                    console.log('📁 ClientSwitchModal: Structured preview:', structuredPreview);
+                    setClientPreview(structuredPreview);
+                    setUploadError(null);
+                  } catch (error) {
+                    console.error('❌ ClientSwitchModal: Error handling client data:', error);
+                    setUploadError(error.message);
+                  }
+                }}
+                mode="deferred"
+                disabled={isLoading}
               />
               <button
                 onClick={handlePreviewClient}
-                disabled={isLoading || !onboardingPath}
+                disabled={isLoading || !selectedFiles?.length}
                 className="primary"
                 style={{ marginBottom: '15px' }}
               >
@@ -222,11 +352,16 @@ function ClientSwitchModal({ onClose }) {
                 
                 <h4>📦 Data to Import:</h4>
                 <div style={{ fontSize: '14px', marginBottom: '15px' }}>
-                  {Object.entries(clientPreview.dataCounts).map(([key, count]) => (
+                  {clientPreview.dataCounts && Object.entries(clientPreview.dataCounts).map(([key, count]) => (
                     <div key={key} style={{ padding: '4px 0' }}>
                       <strong>{key}:</strong> {count} items
                     </div>
                   ))}
+                  {!clientPreview.dataCounts && (
+                    <div style={{ padding: '4px 0', color: '#666' }}>
+                      Click "Preview Client" to see data counts
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -236,8 +371,8 @@ function ClientSwitchModal({ onClose }) {
             <button onClick={() => { 
               setShowOnboarding(false); 
               setClientPreview(null);
+              setSelectedFiles([]); // Clear uploaded files
               setSelectedId(''); // Reset dropdown selection
-              setOnboardingPath(''); // Clear path
             }}>
               ← Back to Clients
             </button>
