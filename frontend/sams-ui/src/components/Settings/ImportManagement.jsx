@@ -213,7 +213,8 @@ export function ImportManagement({ clientId }) {
     // If we have a client preview, we're onboarding a new client - use onboard endpoint
     const isOnboarding = !!clientPreview;
     const targetClientId = isOnboarding ? clientPreview.clientId : clientId;
-    const dataPath = customDataPath || config?.dataPath;
+    // For onboarding, always use Firebase Storage; for regular imports, use configured dataPath
+    const dataPath = isOnboarding ? 'firebase_storage' : (customDataPath || config?.dataPath);
     
     const confirmMessage = dryRun 
       ? `DRY RUN - ${isOnboarding ? 'ONBOARD NEW CLIENT' : 'Import ALL DATA for'} ${targetClientId}:\n\n• Client Document\n• Config Collection\n• Payment Methods\n• Categories\n• Vendors\n• Units\n• Year End Balances\n• Transactions\n• HOA Dues\n\nFrom: ${dataPath}\n\nThis will simulate the import without writing to the database.\n\nContinue?`
@@ -565,34 +566,17 @@ export function ImportManagement({ clientId }) {
           </div>
         </div>
 
-        {/* Divider */}
-        <hr style={{ margin: '30px 0', border: 'none', borderTop: '2px solid #e2e8f0' }} />
-
-        {/* Data Path Configuration */}
-        <div className="card">
-          <div className="card-header">
-            <h3>⚙️ Data Source Configuration (Existing Client: {clientId})</h3>
-          </div>
-          <div className="card-content">
-            <div className="data-path-section">
-              <label className="field-label">Data Path:</label>
-              <input
-                type="text"
-                value={customDataPath}
-                onChange={(e) => setCustomDataPath(e.target.value)}
-                placeholder={config.dataPath}
-                className="data-path-input"
-                disabled={isProcessing}
-              />
-              <small className="help-text">
-                Leave blank to use default: {config.dataPath}
-              </small>
-            </div>
-          </div>
-        </div>
-
-        {/* Purge Section */}
-        <div className="card">
+        {/* Purge and Import Sections - Side by Side */}
+        <div className="operations-grid" style={{ 
+          display: 'flex', 
+          flexDirection: 'row', 
+          gap: '30px', 
+          marginBottom: '20px',
+          width: '100%',
+          alignItems: 'stretch'
+        }}>
+          {/* Purge Section */}
+          <div className="card" style={{ flex: 1, minWidth: '300px', width: '100%' }}>
           <div className="card-header">
             <h3>
               🗑️ Purge All Data
@@ -639,10 +623,10 @@ export function ImportManagement({ clientId }) {
               {isProcessing ? '🔄 Processing...' : dryRun ? '🔍 Preview Purge All Data' : '🗑️ Purge All Data'}
             </button>
           </div>
-        </div>
+          </div>
 
-        {/* Import Section */}
-        <div className="card">
+          {/* Import Section */}
+          <div className="card" style={{ flex: 1, minWidth: '300px', width: '100%' }}>
           <div className="card-header">
             <h3>
               📥 Import All Data
@@ -684,6 +668,7 @@ export function ImportManagement({ clientId }) {
                 {isProcessing ? '🔄 Processing...' : '📥 Import All Data'}
               </button>
             </div>
+          </div>
           </div>
         </div>
 
