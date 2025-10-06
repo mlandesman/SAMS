@@ -16,10 +16,12 @@ import { join } from 'path';
  */
 async function getDocumentCounts(db, clientId, purgeSequence) {
   const counts = {};
+  let totalCounted = 0;
   
   for (const step of purgeSequence) {
     try {
       let count = 0;
+      console.log(`🔢 Counting ${step.name}...`);
       
       switch (step.id) {
         case 'hoadues':
@@ -56,13 +58,27 @@ async function getDocumentCounts(db, clientId, purgeSequence) {
       }
       
       counts[step.id] = count;
-      console.log(`📊 ${step.name}: ${count} documents`);
+      totalCounted += count;
+      console.log(`📊 ${step.name}: ${count} documents (Total: ${totalCounted})`);
+      
+      // Update progress with running count
+      if (global.importProgress && global.importProgress[clientId]) {
+        global.importProgress[clientId].components.counting = {
+          status: 'counting',
+          step: 'Counting Documents',
+          total: 0, // We don't know total yet
+          processed: totalCounted,
+          percent: 0, // Can't calculate percent without total
+          message: `Found ${totalCounted} documents so far...`
+        };
+      }
     } catch (error) {
       console.warn(`⚠️ Could not count documents for ${step.id}: ${error.message}`);
       counts[step.id] = 0;
     }
   }
   
+  console.log(`✅ Document counting complete: ${totalCounted} total documents`);
   return counts;
 }
 
@@ -228,9 +244,37 @@ async function executePurge(user, clientId, options = {}) {
       global.importProgress = {};
     }
     
-    // Get document counts for progress tracking
+    // Initialize progress with "counting" status immediately
+    const initialProgress = {
+      operationId,
+      status: 'counting',
+      sequence: purgeSequence,
+      currentStep: 'counting',
+      startTime: getNow(),
+      clientId,
+      dryRun,
+      documentCounts: {},
+      totalDocuments: 0,
+      components: {
+        counting: {
+          status: 'counting',
+          step: 'Counting Documents',
+          total: 0,
+          processed: 0,
+          percent: 0,
+          message: 'Counting documents before purge...'
+        }
+      }
+    };
+    
+    // Store initial progress immediately
+    global.importProgress[clientId] = initialProgress;
+    
+    // Get document counts for progress tracking (this takes time)
+    console.log(`🔢 Counting documents for progress tracking...`);
     const documentCounts = await getDocumentCounts(db, clientId, purgeSequence);
     
+    // Update progress with actual counts
     const progress = {
       operationId,
       status: 'running',
@@ -243,7 +287,7 @@ async function executePurge(user, clientId, options = {}) {
       totalDocuments: Object.values(documentCounts).reduce((sum, count) => sum + count, 0)
     };
     
-    // Store in global for progress tracking
+    // Update global progress with actual counts
     global.importProgress[clientId] = progress;
 
     // Execute purges in strict sequence (reverse of import)
