@@ -7,7 +7,7 @@ import {
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
-import { DateService } from '../services/DateService.js';
+import { DateService, getNow } from '../services/DateService.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -51,8 +51,8 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
         uid: uid,
         email: email,
         name: name || email,
-        createdAt: new Date(),
-        lastLogin: new Date(),
+        createdAt: getNow(),
+        lastLogin: getNow(),
         globalRole: "user", // Default role, can be updated by admin
         propertyAccess: {},
         isActive: true,
@@ -69,7 +69,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     
     // Update last login
     await db.collection('users').doc(uid).update({
-      lastLogin: new Date()
+      lastLogin: getNow()
     });
     
     const userData = userDoc.data();
@@ -90,7 +90,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
       createdAt: formatDateField(userData.createdAt),
-      lastLogin: formatDateField(new Date())
+      lastLogin: formatDateField(getNow())
     };
     
     // Use sanitizeUserData properly by passing req.user as requesting user
@@ -231,7 +231,7 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
     const db = await getDb();
     await db.collection('users').doc(userId).update({
       preferredClient: clientId,
-      lastClientSelection: new Date()
+      lastClientSelection: getNow()
     });
     
     // Log the client selection
@@ -240,7 +240,7 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
       userId: userId,
       userEmail: req.user.email,
       clientId: clientId,
-      timestamp: new Date(),
+      timestamp: getNow(),
       ip: req.ip
     });
     

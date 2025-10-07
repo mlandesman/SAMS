@@ -7,6 +7,7 @@ import {
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -47,7 +48,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
         
         // Update last login timestamp
         await db.collection('users').doc(uid).update({
-          lastLogin: new Date()
+          lastLogin: getNow()
         });
 
         console.log('Migrated existing user profile');
@@ -72,8 +73,8 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
         },
         globalRole: "admin", // Default new users to admin for now
         preferredClient: "MTC",
-        createdAt: new Date(),
-        lastLogin: new Date()
+        createdAt: getNow(),
+        lastLogin: getNow()
       };
       
       await db.collection('users').doc(uid).set(newUser);
@@ -90,7 +91,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
 
     // Update last login timestamp
     await db.collection('users').doc(uid).update({
-      lastLogin: new Date()
+      lastLogin: getNow()
     });
 
     const userData = userDoc.data();
@@ -141,7 +142,7 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
 
     // Prepare update data
     const updateData = {
-      lastProfileUpdate: new Date()
+      lastProfileUpdate: getNow()
     };
 
     // Only update provided fields
@@ -203,7 +204,7 @@ router.put('/email', authenticateUserWithProfile, async (req, res) => {
     const db = await getDb();
     await db.collection('users').doc(uid).update({
       email: newEmail,
-      lastProfileUpdate: new Date()
+      lastProfileUpdate: getNow()
     });
 
     console.log('User email updated successfully');
@@ -250,7 +251,7 @@ router.put('/password', authenticateUserWithProfile, async (req, res) => {
     // Update last profile update timestamp in Firestore
     const db = await getDb();
     await db.collection('users').doc(uid).update({
-      lastProfileUpdate: new Date()
+      lastProfileUpdate: getNow()
     });
 
     console.log('User password updated successfully');
@@ -374,7 +375,7 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
     // Update preferred client
     await db.collection('users').doc(uid).update({
       preferredClient: clientId,
-      lastClientChange: new Date()
+      lastClientChange: getNow()
     });
 
     console.log(`Successfully set preferred client to ${clientId}`);
@@ -452,7 +453,7 @@ router.post('/complete-password-setup', async (req, res) => {
       batch.update(doc.ref, {
         accountState: 'active',
         mustChangePassword: false,
-        lastModifiedDate: new Date().toISOString()
+        lastModifiedDate: getNow().toISOString()
       });
     });
 

@@ -6,6 +6,7 @@
 
 import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Extract client template from existing client (primarily MTC)
@@ -23,7 +24,7 @@ const extractClientTemplate = async (req, res) => {
       clientType: "HOA_Management",
       version: "1.0.0",
       extractedFrom: sourceClientId,
-      extractedAt: new Date().toISOString(),
+      extractedAt: getNow().toISOString(),
       
       // Client metadata template
       clientMetadata: await extractClientMetadata(sourceClientId, db),

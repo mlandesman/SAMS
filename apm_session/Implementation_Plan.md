@@ -16,6 +16,7 @@
 - **Testing:** All core functionality working - authentication, transactions, CORS properly configured
 - **Cleanup:** Removed old `sams-ui` project, cleaned up deployment configuration
 - **Import System:** ✅ COMPLETE - Firebase Storage-based import system with drag-and-drop UI (October 6, 2025)
+- **Transaction Date Regression:** 🚨 URGENT - Date picker shows correct date but transaction ID shows previous day (October 6, 2025)
 - **Production URLs:** 
   - Frontend: `https://sams.sandyland.com.mx`
   - Backend: `https://backend-hla1k6lsj-michael-landesmans-projects.vercel.app`

@@ -7,6 +7,7 @@ import express from 'express';
 import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { sendPasswordNotification } from '../services/emailService.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -80,10 +81,10 @@ router.post('/reset-password', async (req, res) => {
     await db.collection('users').doc(userId).update({
       accountState: 'pending_password_change',
       mustChangePassword: true,
-      lastPasswordResetDate: new Date().toISOString(),
+      lastPasswordResetDate: getNow().toISOString(),
       passwordResetBy: 'forgot-password-request',
       isActive: true,
-      lastModifiedDate: new Date().toISOString(),
+      lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: 'system'
     });
 

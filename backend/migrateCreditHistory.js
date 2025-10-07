@@ -1,6 +1,7 @@
 import admin from 'firebase-admin';
 import { readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
+import { getNow } from './services/DateService.js';
 const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf8'));
 
 admin.initializeApp({
@@ -106,7 +107,7 @@ async function migrateCreditBalanceHistory() {
         for (const transaction of transactions) {
           const txnData = transaction.data;
           const transactionId = transaction.id;
-          const timestamp = txnData.createdAt ? new Date(txnData.createdAt._seconds * 1000).toISOString() : new Date().toISOString();
+          const timestamp = txnData.createdAt ? new Date(txnData.createdAt._seconds * 1000).toISOString() : getNow().toISOString();
           
           // Check for credit balance changes
           if (txnData.creditBalanceAdded && txnData.creditBalanceAdded > 0) {

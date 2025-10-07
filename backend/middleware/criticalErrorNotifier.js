@@ -1,5 +1,6 @@
 // Critical Error Notifier Middleware
 import { sendEmail } from '../services/emailService.js';
+import { getNow } from '../services/DateService.js';
 
 // Configuration for critical error monitoring
 const CRITICAL_ERROR_PATTERNS = [
@@ -36,7 +37,7 @@ export function criticalErrorNotifier(err, req, res, next) {
 
   if (matchedPattern) {
     const errorDetails = {
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       type: matchedPattern.type,
       severity: matchedPattern.severity,
       message: errorMessage,

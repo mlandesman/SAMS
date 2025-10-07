@@ -6,6 +6,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
+import { getNow } from '../services/DateService.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -30,7 +31,7 @@ export async function createYearEndBalance(clientId, data, user) {
     // Build year-end balance structure to match existing route structure
     const yearEndBalance = {
       accounts: data.accounts || [],
-      createdAt: convertToTimestamp(new Date()),
+      createdAt: convertToTimestamp(getNow()),
       createdBy: user.email || user.uid,
       clientId: clientId,
       // Additional fields from the modern import
@@ -44,9 +45,9 @@ export async function createYearEndBalance(clientId, data, user) {
       },
       metadata: {
         ...data.metadata,
-        createdAt: convertToTimestamp(new Date()),
+        createdAt: convertToTimestamp(getNow()),
         createdBy: user.email || user.uid,
-        updatedAt: convertToTimestamp(new Date()),
+        updatedAt: convertToTimestamp(getNow()),
         updatedBy: user.email || user.uid
       }
     };
@@ -109,7 +110,7 @@ export async function updateYearEndBalance(clientId, yearId, newData, user) {
       ...newData,
       metadata: {
         ...newData.metadata,
-        updatedAt: convertToTimestamp(new Date()),
+        updatedAt: convertToTimestamp(getNow()),
         updatedBy: user.email || user.uid
       }
     };

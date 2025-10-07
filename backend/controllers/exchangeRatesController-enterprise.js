@@ -223,7 +223,7 @@ export const fillMissingRatesEnterprise = async (req, res) => {
 
       try {
         // Find missing dates logic
-        const today = new Date();
+        const today = getNow();
         const collection = db.collection('exchangeRates');
 
         let searchStartDate;
@@ -233,7 +233,7 @@ export const fillMissingRatesEnterprise = async (req, res) => {
           // Find most recent exchange rate
           const recentSnapshot = await collection.orderBy('date', 'desc').limit(1).get();
           if (recentSnapshot.empty) {
-            searchStartDate = new Date();
+            searchStartDate = getNow();
             searchStartDate.setDate(searchStartDate.getDate() - 30);
           } else {
             const mostRecentDate = recentSnapshot.docs[0].data().date;
@@ -432,7 +432,7 @@ function calculateExchangeRates(banxicoData, colombianData, dateStr) {
 
   return {
     date: dateStr,
-    lastUpdated: new Date(),
+    lastUpdated: getNow(),
     source: 'enterprise_apis',
     rates: {
       MXN_USD: {

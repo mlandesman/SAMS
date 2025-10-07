@@ -157,7 +157,7 @@ export class ImportService {
         // Clean the client data - remove any fields that shouldn't be imported
         const cleanClientData = {
           ...clientData,
-          updatedAt: new Date().toISOString(),
+          updatedAt: getNow().toISOString(),
           updatedBy: 'import-script'
         };
         
@@ -224,7 +224,7 @@ export class ImportService {
           // Clean the config data
           const cleanConfigData = {
             ...configItem,
-            updatedAt: new Date().toISOString(),
+            updatedAt: getNow().toISOString(),
             updatedBy: 'import-script'
           };
           
@@ -306,7 +306,7 @@ export class ImportService {
           // Clean the payment type data
           const cleanPaymentTypeData = {
             ...paymentType,
-            updatedAt: new Date().toISOString(),
+            updatedAt: getNow().toISOString(),
             updatedBy: 'import-script'
           };
           
@@ -587,7 +587,7 @@ export class ImportService {
     
     // Initialize CrossRef structure
     const hoaCrossRef = {
-      generated: new Date().toISOString(),
+      generated: getNow().toISOString(),
       totalRecords: 0,
       bySequence: {},
       byUnit: {}
@@ -794,7 +794,7 @@ export class ImportService {
     
     try {
       const duesData = await this.loadJsonFile('HOADues.json');
-      const year = new Date().getFullYear();
+      const year = getNow().getFullYear();
       
       // Load transaction cross-reference if available
       let crossReference = { bySequence: {} };
@@ -900,7 +900,7 @@ export class ImportService {
                 processingStrategy: "hoa_dues",
                 cleanupRequired: true,
                 auditRequired: true,
-                createdAt: new Date().toISOString()
+                createdAt: getNow().toISOString()
               }
             };
           });
@@ -935,7 +935,7 @@ export class ImportService {
                 processingStrategy: "account_credit",
                 cleanupRequired: true,
                 auditRequired: true,
-                createdAt: new Date().toISOString()
+                createdAt: getNow().toISOString()
               }
             });
             
@@ -1430,7 +1430,7 @@ export class ImportService {
       
       // If no data, create fallback
       if (!balancesData) {
-        const currentFiscalYear = getFiscalYear(new Date(), clientConfig.fiscalYearStart);
+        const currentFiscalYear = getFiscalYear(getNow(), clientConfig.fiscalYearStart);
         const fallbackYear = currentFiscalYear - 1;
         
         balancesData = {
@@ -1449,9 +1449,9 @@ export class ImportService {
           // Extract the simple structure from yearData
           const simpleData = {
             year: yearData.year || parseInt(year),
-            date: yearData.date || new Date(`${year}-12-31`).toISOString(),
+            date: yearData.date || getNow().toISOString(),
             accounts: yearData.accounts || [],
-            created: new Date().toISOString(),
+            created: getNow().toISOString(),
             createdBy: 'import-script'
           };
           
@@ -1474,7 +1474,7 @@ export class ImportService {
             // Update only the accounts array and update metadata
             await balanceRef.update({
               accounts: simpleData.accounts,
-              updated: new Date().toISOString(),
+              updated: getNow().toISOString(),
               updatedBy: 'import-script'
             });
           } else {
@@ -1529,7 +1529,7 @@ export class ImportService {
     const results = {
       status: 'running',
       components: {},
-      startTime: new Date().toISOString()
+      startTime: getNow().toISOString()
     };
     
     // Map component names to import methods
@@ -1569,7 +1569,7 @@ export class ImportService {
     }
     
     results.status = 'completed';
-    results.endTime = new Date().toISOString();
+    results.endTime = getNow().toISOString();
     
     return results;
   }

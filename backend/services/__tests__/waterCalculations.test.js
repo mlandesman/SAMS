@@ -1,4 +1,5 @@
 import { WaterMeterService } from '../waterMeterService.js';
+import { getNow } from '../DateService.js';
 
 describe('Water Calculation Engine', () => {
   let service;
@@ -142,7 +143,7 @@ describe('Water Calculation Engine', () => {
     });
     
     test('uses current date when not provided', () => {
-      const dueDate = new Date();
+      const dueDate = getNow();
       dueDate.setDate(dueDate.getDate() - 5); // 5 days ago
       const result = service.calculateDaysLate(dueDate);
       expect(result).toBeGreaterThanOrEqual(5);

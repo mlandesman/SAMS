@@ -19,6 +19,7 @@ import {
 } from '../templates/clientTemplates.js';
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -438,7 +439,7 @@ router.post('/:clientId/logo', upload.single('logo'), async (req, res) => {
         contentType: file.mimetype,
         metadata: {
           uploadedBy: req.user.uid,
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: getNow().toISOString(),
           clientId: clientId,
           originalName: file.originalname
         }
@@ -478,7 +479,7 @@ router.post('/:clientId/logo', upload.single('logo'), async (req, res) => {
         logoUrl,
         fileName: file.originalname,
         size: file.size,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: getNow().toISOString()
       },
       message: 'Logo uploaded successfully'
     });
@@ -533,7 +534,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
         contentType: file.mimetype,
         metadata: {
           uploadedBy: req.user.uid,
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: getNow().toISOString(),
           clientId: clientId,
           originalName: file.originalname,
           type: 'icon'
@@ -574,7 +575,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
         logoUrl: iconUrl, // Keep same field name for compatibility
         fileName: file.originalname,
         size: file.size,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: getNow().toISOString()
       },
       message: 'Icon uploaded successfully'
     });

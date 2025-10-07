@@ -26,6 +26,7 @@ import {
 import clientOnboardingRoutes from './clientOnboarding.js';
 import clientManagementRoutes from './clientManagement.js';
 import importRoutes from './import.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -171,7 +172,7 @@ router.get('/enable-unit-management',
           // Update configuration to enable units
           await listsConfigRef.update({
             unit: true,
-            updatedAt: new Date(),
+            updatedAt: getNow(),
             updatedBy: 'admin-web-endpoint'
           });
           
@@ -186,7 +187,7 @@ router.get('/enable-unit-management',
             method: true,
             unit: true,
             exchangerates: true,
-            createdAt: new Date(),
+            createdAt: getNow(),
             createdBy: 'admin-web-endpoint'
           };
           
@@ -315,7 +316,7 @@ router.get('/stats',
           totalUsers: 0,
           totalClients: 0,
           activeUsers: 0,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: getNow().toISOString()
         }
       });
     } catch (error) {

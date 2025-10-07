@@ -109,7 +109,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {admin.firestore.Timestamp} Start of day in Cancun time
    */
-  getStartOfDayCancun: (date = new Date()) => {
+  getStartOfDayCancun: (date = getNow()) => {
     const d = new Date(date);
     // Set to midnight Cancun time
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00-05:00`;
@@ -121,7 +121,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {admin.firestore.Timestamp} End of day in Cancun time
    */
-  getEndOfDayCancun: (date = new Date()) => {
+  getEndOfDayCancun: (date = getNow()) => {
     const d = new Date(date);
     // Set to 23:59:59.999 Cancun time
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T23:59:59.999-05:00`;
@@ -175,9 +175,14 @@ export const databaseFieldMappings = {
       let dt;
       
       if (isoDateString) {
-        // Parse the ISO string in Cancun timezone to preserve the user-selected date
-        // This prevents date shifting when combining with current Cancun time
-        dt = DateTime.fromISO(isoDateString, { zone: 'America/Cancun' });
+        // Check if it's a YYYY-MM-DD format (from user-selected date) or ISO format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(isoDateString)) {
+          // YYYY-MM-DD format - parse as local date and set to Cancun timezone
+          dt = DateTime.fromFormat(isoDateString, 'yyyy-MM-dd', { zone: 'America/Cancun' });
+        } else {
+          // ISO format - parse in Cancun timezone to preserve the user-selected date
+          dt = DateTime.fromISO(isoDateString, { zone: 'America/Cancun' });
+        }
         
         // For user-provided dates, use current time to ensure uniqueness
         // but keep the user's date
@@ -224,7 +229,7 @@ export const databaseFieldMappings = {
     }
     
     // If all retries failed, append a random suffix to ensure uniqueness
-    const now = isoDateString ? new Date(isoDateString) : new Date();
+    const now = isoDateString ? new Date(isoDateString) : getNow();
     const cancunTimeString = now.toLocaleString("en-CA", {
       timeZone: "America/Cancun",
       year: "numeric",

@@ -9,6 +9,7 @@
 import { getDb, getApp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
+import { getNow } from '../services/DateService.js';
 const require = createRequire(import.meta.url);
 
 // Load service account to get expected project ID
@@ -351,7 +352,7 @@ export const logSecurityEvent = (eventType) => {
     console.log(`🔍 Security Event: ${eventType}`, {
       user: user.email,
       clientId: clientId,
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       userAgent: req.get('User-Agent'),
       ip: req.ip
     });

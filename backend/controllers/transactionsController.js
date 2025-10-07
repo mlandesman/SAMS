@@ -434,35 +434,26 @@ async function createTransaction(clientId, data) {
     });
     
     // Generate document ID using transaction date + current time for uniqueness
-    // ALWAYS use the transaction's date (not today) for the ID prefix
-    // but add current time to ensure uniqueness
-    let transactionDate = mappedData.date || new Date();
+    // Use the date string from the data (already in YYYY-MM-DD format)
+    // and just add current time for uniqueness
+    let dateString = data.date;
     
-    // Convert Firestore Timestamp to Date if needed
-    if (transactionDate && transactionDate.toDate) {
-      transactionDate = transactionDate.toDate();
+    // Validate date string format
+    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      // Fallback to current date if invalid
+      const now = getNow();
+      dateString = now.toLocaleDateString("en-CA", {
+        timeZone: "America/Cancun",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      console.log('🕐 [DEBUG] Invalid date format, using current date:', dateString);
     }
     
-    // For ID generation: combine transaction date with current time for uniqueness
-    // This ensures the ID reflects when the transaction occurred, not when it was entered
-    const now = getNow();
-    const dateForId = new Date(
-      transactionDate.getFullYear(),
-      transactionDate.getMonth(),
-      transactionDate.getDate(),
-      now.getHours(),
-      now.getMinutes(),
-      now.getSeconds(),
-      now.getMilliseconds()
-    );
+    console.log('🕐 [DEBUG] Generating transaction ID with date:', dateString);
     
-    console.log('🕐 [DEBUG] Generating transaction ID:', {
-      transactionDate: transactionDate.toISOString(),
-      dateForId: dateForId.toISOString(),
-      explanation: 'Using transaction date + current time for unique ID'
-    });
-    
-    const txnId = await generateTransactionId(dateForId.toISOString());
+    const txnId = await generateTransactionId(dateString);
     console.log('🕐 [DEBUG] Generated transaction ID:', txnId);
     
     // Use a transaction to ensure consistency between transaction and account balance
@@ -709,7 +700,7 @@ async function deleteTransaction(clientId, txnId) {
   console.log('🔍 BACKEND DELETE: Starting transaction deletion:', {
     clientId,
     transactionId: txnId,
-    timestamp: new Date().toISOString()
+    timestamp: getNow().toISOString()
   });
   
   try {
@@ -1130,7 +1121,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     
     creditBalanceHistory.push({
       id: randomUUID(),
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       transactionId: txnId + '_reversal',
       type: reversalType,
       amount: Math.abs(creditBalanceReversal),  // Store in centavos
@@ -1243,7 +1234,7 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
   // Get current credit balance to calculate reversal
   try {
     const { getUnitDuesData } = await import('./hoaDuesController.js');
-    const currentYear = new Date().getFullYear();
+    const currentYear = getNow().getFullYear();
     const duesData = await getUnitDuesData(clientId, originalData.unitId, currentYear);
     
     if (duesData && duesData.creditBalanceHistory) {
@@ -1448,7 +1439,7 @@ async function addDocumentToTransaction(clientId, transactionId, documentId, doc
       documents: admin.firestore.FieldValue.arrayUnion({
         id: documentId,
         filename: documentInfo.filename || documentInfo.originalName,
-        uploadedAt: documentInfo.uploadedAt || new Date(),
+        uploadedAt: documentInfo.uploadedAt || getNow(),
         type: documentInfo.documentType || 'receipt'
       })
     });

@@ -95,7 +95,7 @@ export function calculateSinglePenalty(baseAmount, dueDate, options = {}) {
     gracePeriodInDays = 10,
     penaltyRate = 0.05,
     compoundPenalty = true,
-    currentDate = new Date()
+    currentDate = getNow()
   } = options;
   
   const result = calculateCurrentPenalties([{

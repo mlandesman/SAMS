@@ -7,6 +7,7 @@ import {
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -40,8 +41,8 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
         uid: uid,
         email: email,
         name: name || email,
-        createdAt: new Date(),
-        lastLogin: new Date(),
+        createdAt: getNow(),
+        lastLogin: getNow(),
         globalRole: "user", // Default role, can be updated by admin
         propertyAccess: {},
         isActive: true,
@@ -58,7 +59,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     
     // Update last login
     await db.collection('users').doc(uid).update({
-      lastLogin: new Date()
+      lastLogin: getNow()
     });
     
     const userData = userDoc.data();
@@ -79,7 +80,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
       createdAt: userData.createdAt,
-      lastLogin: new Date()
+      lastLogin: getNow()
     };
     
     // Use sanitizeUserData properly by passing req.user as requesting user

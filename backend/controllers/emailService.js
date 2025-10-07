@@ -8,6 +8,7 @@ import { getEmailConfig } from './emailConfigController.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
 import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Create Gmail transporter for sending emails
@@ -297,7 +298,7 @@ async function testEmailConfig(clientId, testEmail) {
     receivedFrom: 'Test Owner',
     unitNumber: 'TEST-01',
     amount: 2500.00,
-    date: new Date().toLocaleDateString('es-MX'),
+    date: getNow().toLocaleDateString('es-MX'),
     receiptNumber: 'TEST-' + Date.now(),
     category: 'Test Payment',
     paymentMethod: 'Test Method',

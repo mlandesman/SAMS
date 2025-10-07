@@ -8,6 +8,7 @@
  */
 
 import { getDb } from '../firebase.js';
+import { getNow } from '../services/DateService.js';
 
 async function enableUnitManagementForAllClients() {
   try {
@@ -51,7 +52,7 @@ async function enableUnitManagementForAllClients() {
           // Update configuration to enable units
           await listsConfigRef.update({
             unit: true,
-            updatedAt: new Date(),
+            updatedAt: getNow(),
             updatedBy: 'enable-unit-management-script'
           });
           
@@ -66,7 +67,7 @@ async function enableUnitManagementForAllClients() {
             method: true,
             unit: true,
             exchangerates: true,
-            createdAt: new Date(),
+            createdAt: getNow(),
             createdBy: 'enable-unit-management-script'
           };
           

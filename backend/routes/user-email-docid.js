@@ -8,6 +8,7 @@ import {
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
 import { sanitizeEmailForDocId } from '../utils/emailDocId.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -51,8 +52,8 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
           uid: uid, // Store UID for reference
           email: email,
           name: name || email,
-          createdAt: new Date(),
-          lastLogin: new Date(),
+          createdAt: getNow(),
+          lastLogin: getNow(),
           globalRole: "user", // Default role, can be updated
           clientAccess: {},
           isActive: true,
@@ -76,7 +77,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
           uid: uid, // Ensure UID is stored
           _migrated: {
             from: uid,
-            at: new Date(),
+            at: getNow(),
             method: 'api-auto-migration'
           }
         });
@@ -92,7 +93,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     
     // Update last login
     await db.collection('users').doc(emailDocId).update({
-      lastLogin: new Date(),
+      lastLogin: getNow(),
       uid: uid // Always ensure current UID is stored
     });
     
@@ -114,7 +115,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
       createdAt: userData.createdAt,
-      lastLogin: new Date()
+      lastLogin: getNow()
     };
     
     // Send sanitized user data

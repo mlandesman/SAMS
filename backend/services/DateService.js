@@ -89,7 +89,8 @@ class DateService {
     }
     
     // Convert to UTC for storage
-    return admin.firestore.Timestamp.fromDate(dt.toUTC().toJSDate());
+    const utcDate = dt.toUTC();
+    return admin.firestore.Timestamp.fromDate(utcDate.toJSDate());
   }
 
   /**
@@ -303,9 +304,23 @@ class DateService {
 const defaultDateService = new DateService({ timezone: 'America/Cancun' });
 
 // Standalone function to replace new Date() system-wide
+// Returns current time in Cancun timezone as a JavaScript Date object
 const getNow = () => {
+  // Get current time in Cancun timezone
   const nowInCancun = DateTime.now().setZone('America/Cancun');
-  return nowInCancun.toJSDate();
+  
+  // Convert to JavaScript Date but preserve the Cancun time
+  // We need to create a Date object that represents the local time in Cancun
+  const year = nowInCancun.year;
+  const month = nowInCancun.month - 1; // JavaScript months are 0-based
+  const day = nowInCancun.day;
+  const hour = nowInCancun.hour;
+  const minute = nowInCancun.minute;
+  const second = nowInCancun.second;
+  const millisecond = nowInCancun.millisecond;
+  
+  // Create Date object with Cancun time values
+  return new Date(year, month, day, hour, minute, second, millisecond);
 };
 
 export {

@@ -5,6 +5,7 @@
  */
 
 import { getDbEnterprise, releaseDbConnection, getConnectionPoolStats } from '../firebase-enterprise.js';
+import { getNow } from '../services/DateService.js';
 
 // Performance monitoring configuration
 const PERFORMANCE_CONFIG = {
@@ -243,7 +244,7 @@ class PerformanceMetricsCollector {
       try {
         // Perform a simple health check query
         const testRef = db.collection('health_check').doc('performance_test');
-        await testRef.set({ timestamp: new Date(), test: true });
+        await testRef.set({ timestamp: getNow(), test: true });
 
         const duration = Date.now() - startTime;
         this.recordDatabaseOperation('health_check', duration, true);
@@ -322,7 +323,7 @@ class PerformanceMetricsCollector {
       type: alertType,
       message,
       severity,
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       system: 'performance_monitor'
     };
 
@@ -425,7 +426,7 @@ class PerformanceMetricsCollector {
         const metricsRef = db.collection('performance_metrics').doc();
         await metricsRef.set({
           ...aggregatedMetrics,
-          timestamp: new Date(),
+          timestamp: getNow(),
           aggregationPeriod: PERFORMANCE_CONFIG.aggregationInterval
         });
 
@@ -681,7 +682,7 @@ class PerformanceMetricsCollector {
         system: this.metrics.system.size,
         errors: this.metrics.errors.size
       },
-      lastAggregation: new Date().toISOString()
+      lastAggregation: getNow().toISOString()
     };
   }
 }

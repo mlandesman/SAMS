@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { getDb, initializeFirebase } from './firebase.js'; // Import initializeFirebase
 import express from 'express';
 import cors from 'cors';
+import { getNow } from './services/DateService.js';
 // Transactions routes only available via client domain - see clientRoutes.js:49
 import clientRoutes from './routes/clientRoutes.js'; // Import client routes
 import exchangeRatesRoutes from './routes/exchangeRates.js'; // Import exchange rates routes
@@ -111,7 +112,7 @@ app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues und
 app.get('/system/health', (req, res) => {
   res.json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
+    timestamp: getNow().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
 });

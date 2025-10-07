@@ -6,6 +6,7 @@
 
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
+import { getNow } from './services/DateService.js';
 const require = createRequire(import.meta.url);
 
 // Enhanced configuration for enterprise operations
@@ -59,7 +60,7 @@ class FirebaseConnectionPool {
   recordError(error) {
     this.failedConnections++;
     this.metrics.errors.push({
-      timestamp: new Date(),
+      timestamp: getNow(),
       error: error.message,
       type: error.constructor.name
     });
@@ -82,7 +83,7 @@ class FirebaseConnectionPool {
   }
 
   async healthCheck() {
-    this.metrics.lastHealthCheck = new Date();
+    this.metrics.lastHealthCheck = getNow();
     return {
       healthy: this.activeConnections < ENTERPRISE_CONFIG.maxConnections,
       poolUtilization: (this.activeConnections / ENTERPRISE_CONFIG.maxConnections * 100).toFixed(2) + '%',
@@ -335,7 +336,7 @@ async function performHealthCheck() {
       healthy: duration < 1000 && poolStats.successRate !== '0%',
       responseTime: duration,
       poolStats,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
     
     if (ENTERPRISE_CONFIG.enableMetrics) {
@@ -350,7 +351,7 @@ async function performHealthCheck() {
     return {
       healthy: false,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
   }
 }

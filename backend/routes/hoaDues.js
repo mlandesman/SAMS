@@ -10,6 +10,7 @@ import {
 } from '../controllers/hoaDuesController.js';
 import { checkFirestoreConnection, getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get('/:clientId/debug/connection', async (req, res) => {
         // Try to write to the client path (using valid collection name)
         const testRef = db.collection('clients').doc(clientId).collection('connection_tests').doc('test');
         await testRef.set({ 
-          timestamp: new Date(),
+          timestamp: getNow(),
           message: 'Connection test'
         });
         

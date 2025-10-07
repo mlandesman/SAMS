@@ -9,6 +9,7 @@
 import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Security Test Suite Results
@@ -27,7 +28,7 @@ class SecurityTestResults {
       passed,
       message,
       details,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
     
     this.tests.push(test);
@@ -62,7 +63,7 @@ class SecurityTestResults {
         successRate: `${successRate}%`
       },
       tests: this.tests,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
   }
 }

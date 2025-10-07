@@ -13,6 +13,8 @@
  * - Fiscal Year naming: Named by the ending year (e.g., FY 2025 = July 2024 - June 2025)
  */
 
+import { getNow } from '../services/DateService.js';
+
 const MONTH_NAMES_FULL = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -167,9 +169,9 @@ function getFiscalYearBounds(fiscalYear, fiscalYearStartMonth) {
  * getCurrentFiscalMonth({configuration: {fiscalYearStartMonth: 7}}) => 1  // July is month 1
  * getCurrentFiscalMonth({configuration: {fiscalYearStartMonth: 1}}) => 7  // July is month 7
  */
-function getCurrentFiscalMonth(clientConfig, date = new Date()) {
+function getCurrentFiscalMonth(clientConfig, date = getNow()) {
   if (!date) {
-    date = new Date();
+    date = getNow();
   }
   validateDate(date, 'date');
   

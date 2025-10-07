@@ -1,5 +1,6 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 const db = await getDb();
 const clientsCollection = db.collection('clients');
@@ -10,7 +11,7 @@ async function createClient(data) {
     const docRef = await clientsCollection.add({
       ...data,
       accounts: data.accounts || [], // Initialize accounts array
-      createdAt: new Date(),
+      createdAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -39,7 +40,7 @@ async function updateClient(clientId, newData) {
     const clientRef = clientsCollection.doc(clientId);
     await clientRef.update({
       ...newData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({

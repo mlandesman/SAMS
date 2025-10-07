@@ -3,6 +3,8 @@
  * Attaches user information to req.auditContext for use in controllers
  */
 
+import { getNow } from '../services/DateService.js';
+
 export function captureAuditContext(req, res, next) {
   // Extract user information from the authenticated request
   const user = req.user || {};
@@ -16,7 +18,7 @@ export function captureAuditContext(req, res, next) {
       userAgent: req.get('user-agent'),
       method: req.method,
       path: req.path,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     }
   };
   

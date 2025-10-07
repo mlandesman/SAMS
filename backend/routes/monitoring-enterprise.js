@@ -10,6 +10,7 @@ import { healthDiagnostics } from '../utils/health-diagnostics.js';
 import { SecurityMonitor } from '../middleware/security-enterprise.js';
 import { getConnectionPoolStats } from '../firebase-enterprise.js';
 import { getBatchProcessorStats } from '../utils/batchOperations.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get('/health', async (req, res) => {
 
     res.status(statusCode).json({
       status: overallStatus,
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       uptime: process.uptime(),
       checks: health.quick?.results || [],
       lastUpdate: health.quick?.timestamp
@@ -110,7 +111,7 @@ router.get('/performance', async (req, res) => {
     res.json({
       status: performanceStatus,
       metrics: aggregatedMetrics,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
 
   } catch (error) {
@@ -135,7 +136,7 @@ router.get('/performance/summary', async (req, res) => {
       summary: aggregatedMetrics.summary,
       period: aggregatedMetrics.period,
       recommendations: aggregatedMetrics.summary.recommendations,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
 
   } catch (error) {
@@ -162,7 +163,7 @@ router.get('/security', async (req, res) => {
       metrics: securityMetrics,
       underAttack,
       timeframe: `${timeframe} hours`,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
 
   } catch (error) {
@@ -187,7 +188,7 @@ router.get('/database', async (req, res) => {
     res.json({
       connectionPool: poolStats,
       batchProcessor: batchStats,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
 
   } catch (error) {
@@ -232,7 +233,7 @@ router.get('/system', async (req, res) => {
         arch: process.arch,
         pid: process.pid
       },
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
 
     res.json(systemMetrics);
@@ -276,7 +277,7 @@ router.get('/dashboard', async (req, res) => {
         status: health.status === 'fulfilled' ? health.value.quick?.overallStatus || 'unknown' : 'error',
         healthScore: performanceStatus.status === 'fulfilled' ? performanceStatus.value.healthScore : 0,
         uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+        timestamp: getNow().toISOString()
       },
       health: health.status === 'fulfilled' ? health.value : null,
       performance: performanceStatus.status === 'fulfilled' ? performanceStatus.value : null,
@@ -337,7 +338,7 @@ router.get('/metrics/export', async (req, res) => {
     const timeframe = parseInt(req.query.hours) || 1;
 
     const metrics = {
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       timeframe: `${timeframe} hours`,
       performance: performanceMonitor.getCurrentStatus(),
       health: healthDiagnostics.getCurrentHealth(),

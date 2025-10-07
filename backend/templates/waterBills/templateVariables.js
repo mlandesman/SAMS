@@ -13,6 +13,7 @@
 
 // Import Firebase for previous month data fetching
 import { getDb } from '../../firebase.js';
+import { getNow } from '../../services/DateService.js';
 
 // Backend-compatible utility functions (replicate frontend functionality)
 // Using simplified versions to avoid frontend/backend cross-imports
@@ -24,7 +25,7 @@ import { getDb } from '../../firebase.js';
  */
 function getMexicoDateTime(dateInput) {
   if (!dateInput) {
-    return new Date();
+    return getNow();
   }
   
   if (typeof dateInput === 'string') {

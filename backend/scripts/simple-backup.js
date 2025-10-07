@@ -6,6 +6,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { getNow } from '../services/DateService.js';
 
 async function simpleBackup() {
   console.log('💾 Creating Transaction Backup...');
@@ -17,7 +18,7 @@ async function simpleBackup() {
     console.log(`📊 Found ${snapshot.size} transactions`);
     
     const backup = {
-      backupDate: new Date().toISOString(),
+      backupDate: getNow().toISOString(),
       clientId: 'MTC',
       totalCount: snapshot.size,
       transactions: []

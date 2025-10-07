@@ -9,6 +9,7 @@ import { processBatchOperations, createBalancesBatch } from '../utils/batchOpera
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
 import { EnterpriseDataValidator } from '../utils/dataValidation-enterprise.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Enhanced input validation for balance data
@@ -88,14 +89,14 @@ function validateBalanceData(data) {
 
         const balanceDocument = {
           ...normalizedData,
-          createdAt: new Date(),
-          lastUpdated: new Date(),
+          createdAt: getNow(),
+          lastUpdated: getNow(),
           version: 1,
 
           enterprise: {
             created: true,
             source: 'enterprise-controller',
-            timestamp: new Date().toISOString()
+            timestamp: getNow().toISOString()
           }
         };
 

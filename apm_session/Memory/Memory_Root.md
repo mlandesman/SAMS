@@ -1,86 +1,71 @@
----
-memory_strategy: dynamic-md
-memory_log_format: markdown
----
+# SAMS APM Memory Root
+**Last Updated:** 2025-10-07 by Manager Agent
+**Project:** Sandyland Association Management System (SAMS)
+**Status:** Production Active - Critical Bug Investigation
 
-# SAMS - APM Dynamic Memory Bank Root
+## Session History
 
-Implementation Plan Phase Summaries are to be stored here; detailed Task Memory Logs are stored in Markdown format in the sub-directories.
+### Session: Manager Agent (October 7, 2025)
+**Focus:** Transaction ID Date Generation Bug Analysis
+- Initiated deep analysis of persistent Transaction ID date regression
+- Bug: Transaction IDs generated one day earlier than selected date
+- Previous fixes keep getting undone (fixed in c151978, September 28)
+- Assigned comprehensive root cause analysis task
+- Status: Analysis in progress
 
-## Project Context
+### Session: Manager Agent 12 (October 6, 2025)
+**Focus:** Production Deployment Success
+- Successfully deployed refactored backend to production
+- Completed domain-specific routing architecture
+- Fixed version system display issues
+- Mobile PWA identified as needing backend sync
 
-**Project:** SAMS (Sandy's Accounting Management System)
-**Objective:** Complete critical features to achieve production-ready status for parallel operation with Google Sheets systems
-**Key Focus Areas:**
-- Water Bills module completion with car/boat wash billing
-- API architecture refactoring to domain-specific endpoints
-- PWA recovery and mobile admin functionality
-- Automated reporting with bilingual (English/Spanish) support
+### Previous Sessions
+- Multiple sessions addressing water bills, import system, communications
+- See Archive for detailed history
 
-**Technical Context:**
-- Frontend: React/Vite on localhost:5173
-- Backend: Node.js/Express on localhost:5001
-- PWA: localhost:5174 (broken, needs recovery)
-- Database: Firebase/Firestore
-- Production: sams.sandyland.com.mx
+## Active Priorities
 
-**Critical Constraints:**
-- No backward compatibility needed (fresh system)
-- User approval required for all commits
-- Linear workflow with single Implementation Agent at a time
-- Leverage existing HOA patterns for Water Bills features
-- Bilingual support required throughout
+1. **🚨 URGENT: Transaction ID Date Bug** (in_progress)
+   - Deep analysis without code changes
+   - Understand why fixes keep regressing
+   
+2. **Credit Balance Fixes** (pending)
+   - HOA Dues and Water Bills payment components
+   - Incorrect payment calculations
 
-## Phase Summaries
+3. **Water Bills Fixes** (pending)
+   - Five specific functionality issues
+   - MonthData consumption, due dates, auto-advance
 
-### Phase 12 - Production Deployment Success (COMPLETED - October 6, 2025)
-**Status:** ✅ COMPLETED AND PRODUCTION-READY
-**Duration:** 1 Manager Agent session
-**Key Achievements:**
-- Successfully deployed refactored backend with domain-specific routes to production
-- Fixed backend import path issues (moved data-augmentation-utils.js to backend/utils/)
-- Updated Vercel configuration with proper build commands and dependencies
-- Updated frontend to use new domain-specific routes (/admin/import/preview)
-- Verified Exchange Rates Firebase Functions still running (scheduled daily at 3:00 AM)
-- Cleaned up old sams-ui project from Vercel dashboard
-- All core functionality working - authentication, transactions, CORS properly configured
+4. **HOA Quarterly Collection** (pending)
+   - Data-driven architecture change
+   - Quarterly view implementation
 
-**Technical Impact:**
-- Production backend now running on Vercel with clean domain-specific architecture
-- Frontend successfully communicating with new backend (HTTP 200, proper CORS)
-- Import functionality partially working (file path issue identified for new agent session)
-- Clean deployment configuration with proper environment variables
-- Exchange Rates automated functions verified operational
+5. **Mobile PWA Sync** (pending)
+   - Update to new backend URL
+   - Restore functionality
 
-**Production URLs:**
-- Frontend: `https://sams.sandyland.com.mx`
-- Backend: `https://backend-hla1k6lsj-michael-landesmans-projects.vercel.app`
-- Mobile: `https://mobile.sams.sandyland.com.mx` (pending sync with new backend)
+## Key Technical Context
 
-**Known Issues:**
-- Import functionality has file path issue (MTCdata not accessible on server) - assigned to new agent session
+- **Production URLs:**
+  - Frontend: https://sams.sandyland.com.mx
+  - Backend: https://backend-hla1k6lsj-michael-landesmans-projects.vercel.app
+  - Mobile: https://mobile.sams.sandyland.com.mx (needs sync)
 
-### Phase 01 - ClientSwitchModal Navigation Fix (COMPLETED - January 16, 2025)
-**Status:** ✅ COMPLETED AND ARCHIVED
-**Duration:** 1 Implementation Agent session
-**Key Achievements:**
-- Fixed ClientSwitchModal navigation to Settings page for superAdmin new client onboarding
-- Resolved route protection issues preventing superAdmin access to Settings without client context
-- Fixed MTC paymentMethods import collection name mismatch (paymentTypes → paymentMethods)
-- All 7 payment methods successfully imported to correct collection path
+- **Active Clients:**
+  - MTC: 1,477 documents, $414,234.12 in transactions
+  - AVII: 249 documents, $86,211.73 in transactions
 
-**Technical Impact:**
-- SuperAdmin users can now navigate from "-New Client-" to Settings page
-- Data Management section accessible for new client onboarding
-- MTC paymentMethods collection now properly accessible to application code
-- Maintained security restrictions for non-superAdmin users
+## Dependencies & Blockers
 
-**Files Modified:**
-- `frontend/sams-ui/src/components/ClientSwitchModal.jsx`
-- `frontend/sams-ui/src/App.jsx`
-- `frontend/sams-ui/src/components/security/ClientProtectedRoute.jsx`
-- `frontend/sams-ui/src/views/SettingsView.jsx`
-- `backend/services/importService.js`
+- Transaction ID bug blocks confidence in date handling across system
+- Credit balance fixes needed before payment processing improvements
+- Mobile PWA sync blocked by backend URL update
 
-**Archive Location:** `apm_session/Memory/Archive/Phase_01_ClientSwitchModal_Fix/`
-**Git Commit:** 38ed6f6 - Fix paymentMethods import: Change collection name from paymentTypes to paymentMethods
+## Next Actions
+
+1. Complete Transaction ID date analysis
+2. Review findings and develop permanent fix strategy
+3. Proceed with credit balance fixes
+4. Address water bills functionality issues

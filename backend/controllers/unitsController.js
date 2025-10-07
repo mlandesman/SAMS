@@ -2,6 +2,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
+import { getNow } from '../services/DateService.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -46,7 +47,7 @@ async function createUnit(clientId, unitData, docId = null) {
       unitName: restData.unitName || '',
       
       // Timestamps - only updated, creation metadata in audit log
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     };
     
     let unitRef;
@@ -92,7 +93,7 @@ async function updateUnit(clientId, unitId, newData) {
     
     await unitRef.update({
       ...updates,
-      updated: convertToTimestamp(new Date()),
+      updated: convertToTimestamp(getNow()),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -182,7 +183,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
     
     await unitRef.update({
       managers: managers || [],
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     });
     
     await writeAuditLog({
@@ -211,7 +212,7 @@ async function addUnitEmail(clientId, unitId, email) {
     // Add to emails array
     await unitRef.update({
       emails: admin.firestore.FieldValue.arrayUnion(email),
-      updated: convertToTimestamp(new Date())
+      updated: convertToTimestamp(getNow())
     });
     
     await writeAuditLog({

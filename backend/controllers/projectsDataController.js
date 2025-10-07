@@ -1,6 +1,7 @@
 // controllers/projectsDataController.js
 import ProjectsService from '../services/projectsService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 const projectsService = new ProjectsService();
 
@@ -195,7 +196,7 @@ export const getProjectDataForYear = async (req, res) => {
       clientId,
       projectType,
       year: parseInt(year),
-      dataFetched: new Date().toISOString(),
+      dataFetched: getNow().toISOString(),
       data
     });
   } catch (error) {

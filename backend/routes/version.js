@@ -1,4 +1,5 @@
 import express from 'express';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -12,13 +13,13 @@ router.get('/', async (req, res) => {
     const backendVersion = {
       component: 'backend',
       version: process.env.VITE_APP_VERSION || '0.0.1',
-      buildDate: process.env.VITE_APP_BUILD_DATE || new Date().toISOString(),
+      buildDate: process.env.VITE_APP_BUILD_DATE || getNow().toISOString(),
       git: {
         hash: process.env.VITE_APP_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
         branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown'
       },
       endpoint: '/api/version',
-      deploymentTime: new Date().toISOString(),
+      deploymentTime: getNow().toISOString(),
       nodeVersion: process.version,
       environment: process.env.NODE_ENV || 'development',
       // Add deployment URL info
@@ -39,7 +40,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to retrieve version information',
       component: 'backend',
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
   }
 });
@@ -55,16 +56,16 @@ router.get('/health', async (req, res) => {
       component: 'backend',
       version: process.env.VITE_APP_VERSION || '0.0.1',
       gitCommit: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
-      buildDate: new Date().toISOString(),
+      buildDate: getNow().toISOString(),
       uptime: process.uptime(),
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
   } catch (error) {
     res.status(503).json({
       status: 'unhealthy',
       component: 'backend',
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
   }
 });

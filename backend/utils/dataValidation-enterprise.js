@@ -5,6 +5,7 @@
  */
 
 import { getDbEnterprise, releaseDbConnection } from '../firebase-enterprise.js';
+import { getNow } from '../services/DateService.js';
 
 // Enterprise validation configuration
 const VALIDATION_CONFIG = {
@@ -61,11 +62,11 @@ class ValidationResult {
 
   addError(field, message, severity = 'error') {
     this.valid = false;
-    this.errors.push({ field, message, severity, timestamp: new Date().toISOString() });
+    this.errors.push({ field, message, severity, timestamp: getNow().toISOString() });
   }
 
   addWarning(field, message) {
-    this.warnings.push({ field, message, timestamp: new Date().toISOString() });
+    this.warnings.push({ field, message, timestamp: getNow().toISOString() });
   }
 
   addSecurityIssue(field, issue, severity = 'high') {
@@ -74,7 +75,7 @@ class ValidationResult {
       field,
       issue,
       severity,
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       remoteAddr: process.env.CLIENT_IP || 'unknown'
     });
   }
@@ -443,7 +444,7 @@ class SecurityAuditLogger {
         await auditRef.set({
           ...issue,
           context,
-          timestamp: new Date(),
+          timestamp: getNow(),
           environment: process.env.NODE_ENV || 'development',
           userAgent: context.userAgent || 'unknown',
           ipAddress: context.ipAddress || 'unknown',

@@ -47,7 +47,7 @@ class PenaltyRecalculationService {
    * @param {Date} currentDate - Current date for penalty calculation
    * @returns {Promise<Object>} Summary with success/error structure for UI handling
    */
-  async recalculatePenaltiesForClient(clientId, currentDate = new Date()) {
+  async recalculatePenaltiesForClient(clientId, currentDate = getNow()) {
     try {
       console.log(`Starting penalty recalculation for client: ${clientId}`);
       
@@ -267,7 +267,7 @@ class PenaltyRecalculationService {
   async scheduleMonthlyPenaltyRecalc() {
     try {
       console.log('Starting monthly penalty recalculation for all clients');
-      const currentDate = new Date();
+      const currentDate = getNow();
       
       // Get all clients that have waterBills projects
       const clientsSnapshot = await this.db.collection('clients').get();
@@ -368,7 +368,7 @@ class PenaltyRecalculationService {
         clientId,
         totalPenalties: Math.round(totalPenalties * 100) / 100,
         unpaidBills,
-        lastCalculated: new Date().toISOString()
+        lastCalculated: getNow().toISOString()
       };
 
     } catch (error) {
