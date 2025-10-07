@@ -8,6 +8,9 @@
  * 
  * Key concepts:
  * - Calendar Month: Standard 1-12 (January-December)
+ */
+
+import { getNow } from '../services/DateService.js';
  * - Fiscal Month: Position 1-12 within the fiscal year
  * - Fiscal Year Start Month: The calendar month when fiscal year begins (1-12)
  * - Fiscal Year naming: Named by the ending year (e.g., FY 2025 = July 2024 - June 2025)
@@ -167,9 +170,9 @@ function getFiscalYearBounds(fiscalYear, fiscalYearStartMonth) {
  * getCurrentFiscalMonth({configuration: {fiscalYearStartMonth: 7}}) => 1  // July is month 1
  * getCurrentFiscalMonth({configuration: {fiscalYearStartMonth: 1}}) => 7  // July is month 7
  */
-function getCurrentFiscalMonth(clientConfig, date = new Date()) {
+function getCurrentFiscalMonth(clientConfig, date = getNow()) {
   if (!date) {
-    date = new Date();
+    date = getNow();
   }
   validateDate(date, 'date');
   

@@ -7,6 +7,8 @@
  * while UI-created transactions use JavaScript Date strings.
  */
 
+import { getNow } from '../services/DateService.js';
+
 /**
  * Normalize date fields for consistent Firestore storage
  * Converts various date formats to JavaScript Date objects
@@ -66,7 +68,7 @@ function convertToDate(dateValue) {
   }
   
   console.warn('Unknown date format:', dateValue);
-  return new Date(); // Fallback to current date
+  return getNow(); // Fallback to current date
 }
 
 /**

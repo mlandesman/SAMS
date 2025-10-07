@@ -9,6 +9,7 @@ import { processBatchOperations, processTransactionsBatch } from '../utils/batch
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
 import { EnterpriseDataValidator } from '../utils/dataValidation-enterprise.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Enhanced input validation for transaction data
@@ -109,14 +110,14 @@ function validateTransactionData(data) {
 
         const transactionDocument = {
           ...normalizedData,
-          createdAt: new Date(),
-          lastUpdated: new Date(),
+          createdAt: getNow(),
+          lastUpdated: getNow(),
           version: 1,
 
           enterprise: {
             created: true,
             source: 'enterprise-controller',
-            timestamp: new Date().toISOString()
+            timestamp: getNow().toISOString()
           }
         };
 
@@ -186,14 +187,14 @@ function validateTransactionData(data) {
         const updatedDocument = {
           ...currentData,
           ...normalizedData,
-          lastUpdated: new Date(),
+          lastUpdated: getNow(),
           version: currentVersion + 1,
 
           enterprise: {
             ...currentData.enterprise,
             updated: true,
             lastUpdateSource: 'enterprise-controller',
-            lastUpdateTimestamp: new Date().toISOString()
+            lastUpdateTimestamp: getNow().toISOString()
           }
         };
 
@@ -257,13 +258,13 @@ function validateTransactionData(data) {
           await transactionRef.set({
             ...currentData,
             deleted: true,
-            deletedAt: new Date(),
+            deletedAt: getNow(),
             version: currentVersion + 1,
             enterprise: {
               ...currentData.enterprise,
               softDeleted: true,
               deletedSource: 'enterprise-controller',
-              deletedTimestamp: new Date().toISOString()
+              deletedTimestamp: getNow().toISOString()
             }
           });
         } else {

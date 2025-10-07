@@ -5,6 +5,7 @@
  */
 
 import { retryOperation, executeBatchOperation, getDbEnterprise, releaseDbConnection } from '../firebase-enterprise.js';
+import { getNow } from '../services/DateService.js';
 
 // Batch operation configuration
 const BATCH_CONFIG = {
@@ -163,7 +164,7 @@ class EnterpriseBatchProcessor {
       successRate: parseFloat(successRate),
       throughput: (results.length / (duration / 1000)).toFixed(2),
       results,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     };
 
     if (this.config.logBatchPerformance) {
@@ -199,7 +200,7 @@ class EnterpriseBatchProcessor {
       batchId,
       error: error.message,
       stack: error.stack,
-      timestamp: new Date().toISOString()
+      timestamp: getNow().toISOString()
     });
 
     // Keep only last 50 errors
@@ -269,7 +270,7 @@ export // Performance: Monitor this operation for response time
       const balanceRef = db.doc(`clients/${clientId}/balances/${monthId}`);
       await balanceRef.set({
         ...data,
-        createdAt: new Date(),
+        createdAt: getNow(),
         batchCreated: true
       });
       return { success: true, monthId };
@@ -318,14 +319,14 @@ export async function processTransactionsBatch(clientId, transactionDataArray) {
 
       await transactionRef.set({
         ...data,
-        createdAt: new Date(),
-        processedAt: new Date(),
+        createdAt: getNow(),
+        processedAt: getNow(),
         batchProcessed: true,
         version: 1,
         enterprise: {
           created: true,
           source: 'batch-processor',
-          timestamp: new Date().toISOString()
+          timestamp: getNow().toISOString()
         }
       });
       return { success: true, transactionId };

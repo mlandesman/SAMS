@@ -5,6 +5,7 @@
 
 import databaseFieldMappings from './databaseFieldMappings.js';
 import { getFiscalYear, getCurrentFiscalMonth } from './fiscalYearUtils.js';
+import { getNow } from '../services/DateService.js';
 
 const { centsToDollars, dollarsToCents } = databaseFieldMappings;
 
@@ -25,7 +26,7 @@ function calculateDuesStatus(hoaDuesDoc, clientConfig = null) {
     };
   }
 
-  const currentDate = new Date();
+  const currentDate = getNow();
   const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 1;
   
   // Get current fiscal year and month
@@ -171,7 +172,7 @@ function calculateCreditChange(currentCredit, changeAmount, reason) {
     newBalance,
     historyEntry: {
       amount: changeAmount,
-      date: new Date(),
+      date: getNow(),
       reason,
       balance: newBalance
     }
@@ -186,7 +187,7 @@ function calculateCreditChange(currentCredit, changeAmount, reason) {
 function getYearSummary(hoaDuesDoc) {
   if (!hoaDuesDoc || !hoaDuesDoc.payments) {
     return {
-      year: hoaDuesDoc?.year || new Date().getFullYear(),
+      year: hoaDuesDoc?.year || getNow().getFullYear(),
       totalDue: 0,
       totalPaid: 0,
       balance: 0,
@@ -231,7 +232,7 @@ function getYearSummary(hoaDuesDoc) {
  * @returns {Object} YTD totals including paid amount and months paid
  */
 function calculateYearToDateTotals(hoaDuesDoc, clientConfig = null) {
-  const currentDate = new Date();
+  const currentDate = getNow();
   const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 1;
   const currentFiscalMonth = getCurrentFiscalMonth(clientConfig, currentDate);
   
@@ -287,7 +288,7 @@ function calculateYearToDateTotals(hoaDuesDoc, clientConfig = null) {
  * @returns {Object} Remaining dues information
  */
 function calculateRemainingDues(hoaDuesDoc, clientConfig = null) {
-  const currentDate = new Date();
+  const currentDate = getNow();
   const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 1;
   const currentFiscalMonth = getCurrentFiscalMonth(clientConfig, currentDate);
   
@@ -311,7 +312,7 @@ function calculateRemainingDues(hoaDuesDoc, clientConfig = null) {
  * @returns {Object} Next month due information
  */
 function getNextMonthDue(hoaDuesDoc, clientConfig = null) {
-  const currentDate = new Date();
+  const currentDate = getNow();
   const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 1;
   const currentFiscalMonth = getCurrentFiscalMonth(clientConfig, currentDate);
   

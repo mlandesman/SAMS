@@ -5,6 +5,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * CRUD operations for owners under a client
@@ -16,7 +17,7 @@ async function createOwner(clientId, data) {
     const db = await getDb();
     const ownerRef = await db.collection(`clients/${clientId}/owners`).add({
       ...data,
-      createdAt: new Date(),
+      createdAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -46,7 +47,7 @@ async function updateOwner(clientId, ownerId, newData) {
     const ownerRef = db.doc(`clients/${clientId}/owners/${ownerId}`);
     await ownerRef.update({
       ...newData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({

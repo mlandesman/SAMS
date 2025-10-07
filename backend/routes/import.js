@@ -8,6 +8,7 @@ import {
   getImportProgress 
 } from '../controllers/importController.js';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
+import { getNow } from '../services/DateService.js';
 
 // Get import configuration for a client
 router.get('/:clientId/config', authenticateUserWithProfile, async (req, res) => {
@@ -50,7 +51,7 @@ router.post('/:clientId/purge', authenticateUserWithProfile, async (req, res) =>
       status: 'starting',
       clientId,
       dryRun,
-      startTime: new Date().toISOString()
+      startTime: getNow().toISOString()
     };
     
     // Start purge in background (don't await)
@@ -138,7 +139,7 @@ router.post('/onboard', authenticateUserWithProfile, async (req, res) => {
       dataPath,
       dryRun,
       onboarding: true,
-      startTime: new Date().toISOString()
+      startTime: getNow().toISOString()
     };
     
     // Start import in background (this will create the client)
@@ -185,7 +186,7 @@ router.post('/:clientId/import', authenticateUserWithProfile, async (req, res) =
       clientId,
       dataPath,
       dryRun,
-      startTime: new Date().toISOString()
+      startTime: getNow().toISOString()
     };
     
     // Start import in background (don't await)

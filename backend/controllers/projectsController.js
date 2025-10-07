@@ -5,6 +5,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * CRUD operations for projects under a specific year and status (proposed/current/completed)
@@ -16,7 +17,7 @@ async function createProject(clientId, year, status, data) {
     const db = await getDb();
     const projectRef = await db.collection(`clients/${clientId}/projects/${year}/${status}`).add({
       ...data,
-      createdAt: new Date(),
+      createdAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -46,7 +47,7 @@ async function updateProject(clientId, year, status, projectId, newData) {
     const projectRef = db.doc(`clients/${clientId}/projects/${year}/${status}/${projectId}`);
     await projectRef.update({
       ...newData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({

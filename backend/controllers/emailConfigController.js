@@ -5,6 +5,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Get email configuration for a client using emailTemplates structure
@@ -83,7 +84,7 @@ async function setEmailConfig(clientId, configType = 'receiptEmail', configData)
     
     const dataWithTimestamp = {
       ...configData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
       updatedBy: 'system' // TODO: Add actual user when auth is implemented
     };
     

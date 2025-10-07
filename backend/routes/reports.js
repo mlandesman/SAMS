@@ -7,7 +7,7 @@ import express from 'express';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
-import { DateService } from '../services/DateService.js';
+import { DateService, getNow } from '../services/DateService.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -73,7 +73,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     const managers = (unitData.managers || []).map(managerName => ({ name: managerName }));
 
     // Get HOA dues information using the same approach as desktop UI
-    const currentDate = new Date();
+    const currentDate = getNow();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
 
@@ -106,7 +106,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       // - Any amounts due within the next 30 days
       
       // Calculate date 30 days from now
-      const futureDate = new Date();
+      const futureDate = getNow();
       futureDate.setDate(futureDate.getDate() + 30);
       const futureMonth = futureDate.getMonth() + 1;
       const futureYear = futureDate.getFullYear();

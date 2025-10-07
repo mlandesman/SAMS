@@ -3,6 +3,8 @@
  * Handles user-specific settings including timezone preferences
  */
 
+import { getNow } from '../services/DateService.js';
+
 const DEFAULT_PREFERENCES = {
   timezone: 'America/Cancun',      // Default to Mexico/Cancun timezone
   locale: 'en-US',                 // Default locale
@@ -92,7 +94,7 @@ async function updateUserPreferences(db, userId, newPreferences) {
   const updatedPreferences = {
     ...currentPreferences,
     ...newPreferences,
-    updatedAt: new Date()
+    updatedAt: getNow()
   };
   
   await userRef.update({

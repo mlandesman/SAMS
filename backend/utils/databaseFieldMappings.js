@@ -109,7 +109,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {admin.firestore.Timestamp} Start of day in Cancun time
    */
-  getStartOfDayCancun: (date = new Date()) => {
+  getStartOfDayCancun: (date = getNow()) => {
     const d = new Date(date);
     // Set to midnight Cancun time
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00-05:00`;
@@ -121,7 +121,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {admin.firestore.Timestamp} End of day in Cancun time
    */
-  getEndOfDayCancun: (date = new Date()) => {
+  getEndOfDayCancun: (date = getNow()) => {
     const d = new Date(date);
     // Set to 23:59:59.999 Cancun time
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T23:59:59.999-05:00`;
@@ -224,7 +224,7 @@ export const databaseFieldMappings = {
     }
     
     // If all retries failed, append a random suffix to ensure uniqueness
-    const now = isoDateString ? new Date(isoDateString) : new Date();
+    const now = isoDateString ? new Date(isoDateString) : getNow();
     const cancunTimeString = now.toLocaleString("en-CA", {
       timeZone: "America/Cancun",
       year: "numeric",

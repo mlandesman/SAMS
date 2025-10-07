@@ -8,6 +8,7 @@ import { getDbEnterprise, releaseDbConnection, getConnectionPoolStats, performHe
 import { getBatchProcessorStats } from '../utils/batchOperations.js';
 import { SecurityMonitor } from '../middleware/security-enterprise.js';
 import { performanceMonitor } from './performance-monitor.js';
+import { getNow } from '../services/DateService.js';
 
 // Health check configuration
 const HEALTH_CONFIG = {
@@ -65,7 +66,7 @@ class HealthCheckResult {
     this.message = 'OK';
     this.details = {};
     this.metrics = {};
-    this.timestamp = new Date().toISOString();
+    this.timestamp = getNow().toISOString();
     this.duration = 0;
     this.error = null;
   }
@@ -457,7 +458,7 @@ class HealthDiagnosticsManager {
       );
 
       this.lastQuickCheck = {
-        timestamp: new Date().toISOString(),
+        timestamp: getNow().toISOString(),
         type: 'quick',
         results,
         overallStatus: this.calculateOverallStatus(results)
@@ -497,7 +498,7 @@ class HealthDiagnosticsManager {
       );
 
       this.lastDeepCheck = {
-        timestamp: new Date().toISOString(),
+        timestamp: getNow().toISOString(),
         type: 'deep',
         results,
         overallStatus: this.calculateOverallStatus(results),
@@ -686,7 +687,7 @@ class HealthDiagnosticsManager {
     );
 
     const healthCheck = {
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       type: 'on_demand',
       results,
       overallStatus: this.calculateOverallStatus(results),

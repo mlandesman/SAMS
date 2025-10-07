@@ -8,7 +8,7 @@ import {
 } from '../middleware/clientAuth.js';
 import { getDb } from '../firebase.js';
 import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
-import { DateService } from '../services/DateService.js';
+import { DateService, getNow } from '../services/DateService.js';
 import admin from 'firebase-admin';
 
 // Create date service for formatting API responses
@@ -227,7 +227,7 @@ router.post('/recalculate',
     // Auto-determine startYear if not provided
     if (!startYear) {
       const dateService = new DateService({ timezone: 'America/Cancun' });
-      const today = new Date();
+      const today = getNow();
       const currentYear = today.getFullYear();
       const currentMonth = today.getMonth() + 1;
       

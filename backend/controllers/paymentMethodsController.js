@@ -6,6 +6,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { generatePaymentMethodId, ensureUniqueDocumentId } from '../utils/documentIdGenerator.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * CRUD operations for payment methods under a client
@@ -24,7 +25,7 @@ async function createPaymentMethod(clientId, data) {
     const methodRef = db.doc(`clients/${clientId}/paymentMethods/${methodId}`);
     await methodRef.set({
       ...data,
-      createdAt: new Date(),
+      createdAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -54,7 +55,7 @@ async function updatePaymentMethod(clientId, methodId, newData) {
     const methodRef = db.doc(`clients/${clientId}/paymentMethods/${methodId}`);
     await methodRef.update({
       ...newData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({

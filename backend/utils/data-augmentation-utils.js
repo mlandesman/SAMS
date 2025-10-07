@@ -9,6 +9,7 @@
  */
 
 import { getMTCImportMapping } from './accountMapping.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Link Users to Units using full name matching
@@ -127,7 +128,7 @@ export function augmentMTCUser(userUnitMapping) {
         role: 'unitOwner',
         unitId: unitId,
         permissions: [],
-        addedDate: new Date().toISOString(),
+        addedDate: getNow().toISOString(),
         addedBy: 'system-migration'
       }
     },
@@ -144,7 +145,7 @@ export function augmentMTCUser(userUnitMapping) {
       originalPassword: userData.Password, // Handle securely
       sourceEmail: userData.Email,
       unitOwner: unitData.Owner,
-      migratedAt: new Date().toISOString()
+      migratedAt: getNow().toISOString()
     }
   };
 }
@@ -201,7 +202,7 @@ export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryI
   augmentedData.categoryName = mtcTransaction.Category || '';
   
   // Optional fields with fallbacks
-  augmentedData.date = mtcTransaction.Date || new Date().toISOString();
+  augmentedData.date = mtcTransaction.Date || getNow().toISOString();
   augmentedData.notes = mtcTransaction.Notes || '';
   augmentedData.description = vendorName || mtcTransaction.Vendor || ''; // Use mapped vendor as description
   
@@ -261,13 +262,13 @@ export function augmentMTCUnit(unitData, sizeData = null) {
     managers: [], // Empty by default
     
     // Metadata
-    createdAt: new Date(),
+    createdAt: getNow(),
     
     // Migration metadata
     migrationData: {
       originalData: unitData,
       sizeData: sizeData,
-      migratedAt: new Date().toISOString()
+      migratedAt: getNow().toISOString()
     }
   };
 }
@@ -281,10 +282,10 @@ export function augmentMTCCategory(categoryData) {
     description: categoryData.Categories, // Use same as description
     type: 'expense', // Default type
     clientId: 'MTC',
-    createdAt: new Date(),
+    createdAt: getNow(),
     migrationData: {
       originalData: categoryData,
-      migratedAt: new Date().toISOString()
+      migratedAt: getNow().toISOString()
     }
   };
 }
@@ -297,10 +298,10 @@ export function augmentMTCVendor(vendorData) {
     name: vendorData.Vendors,
     description: vendorData.Vendors,
     clientId: 'MTC',
-    createdAt: new Date(),
+    createdAt: getNow(),
     migrationData: {
       originalData: vendorData,
-      migratedAt: new Date().toISOString()
+      migratedAt: getNow().toISOString()
     }
   };
 }
@@ -329,14 +330,14 @@ export function augmentMTCHOADues(unitId, duesData, transactionLookup) {
         notes: payment.notes,
         transactionId: transactionId,
         sequenceNumber: sequenceNumber,
-        migratedAt: new Date().toISOString()
+        migratedAt: getNow().toISOString()
       });
     });
   }
   
   return {
     unitId: unitId,
-    year: new Date().getFullYear(), // Current year
+    year: getNow().getFullYear(), // Current year
     scheduledAmount: duesData.scheduledAmount || 0,
     creditBalance: duesData.creditBalance || 0,
     totalPaid: duesData.totalPaid || 0,
@@ -344,7 +345,7 @@ export function augmentMTCHOADues(unitId, duesData, transactionLookup) {
     payments: payments,
     migrationData: {
       originalData: duesData,
-      migratedAt: new Date().toISOString()
+      migratedAt: getNow().toISOString()
     }
   };
 }

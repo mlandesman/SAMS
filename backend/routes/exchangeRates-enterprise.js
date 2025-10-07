@@ -12,6 +12,7 @@ import {
 } from '../controllers/exchangeRatesController-enterprise.js';
 import { EnterpriseSecurityMiddleware } from '../middleware/security-enterprise.js';
 import { PerformanceUtils } from '../utils/performance-monitor.js';
+import { getNow } from '../services/DateService.js';
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.get('/health', async (req, res) => {
     const healthStatus = {
       service: 'exchange-rates-enterprise',
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: getNow().toISOString(),
       features: {
         currentRates: 'available',
         apiFetching: 'available',

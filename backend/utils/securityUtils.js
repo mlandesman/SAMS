@@ -6,6 +6,8 @@
  * Implementation Date: June 23, 2025
  */
 
+import { getNow } from '../services/DateService.js';
+
 /**
  * Validate that a user can access a specific client
  */
@@ -218,7 +220,7 @@ export function validateDocumentAccess(user, documentPath, operation = 'view') {
  */
 export function createSecurityAuditLog(user, action, resource, clientId, details = {}) {
   return {
-    timestamp: new Date().toISOString(),
+    timestamp: getNow().toISOString(),
     userId: user.uid,
     userEmail: user.email,
     action: action,

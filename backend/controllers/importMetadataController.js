@@ -1,4 +1,5 @@
 import { getDb } from '../firebase.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * Import Metadata Controller
@@ -41,7 +42,7 @@ export async function createImportMetadata(clientId, metadata) {
       documentId: metadata.documentId,
       documentPath: metadata.documentPath,
       source: metadata.source,
-      importDate: new Date(), // Use Date, not serverTimestamp
+      importDate: getNow(), // Use getNow() for timezone consistency
       originalData: metadata.originalData || {},
       importScript: metadata.importScript
     };

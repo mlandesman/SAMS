@@ -5,6 +5,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getNow } from '../services/DateService.js';
 
 /**
  * CRUD operations for budgets under a specific year and type (income/expense)
@@ -16,7 +17,7 @@ async function createBudget(clientId, year, type, data) {
     const db = await getDb();
     const budgetRef = await db.collection(`clients/${clientId}/budgets/${year}/${type}`).add({
       ...data,
-      createdAt: new Date(),
+      createdAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -46,7 +47,7 @@ async function updateBudget(clientId, year, type, budgetId, newData) {
     const budgetRef = db.doc(`clients/${clientId}/budgets/${year}/${type}/${budgetId}`);
     await budgetRef.update({
       ...newData,
-      updatedAt: new Date(),
+      updatedAt: getNow(),
     });
 
     const auditSuccess = await writeAuditLog({
