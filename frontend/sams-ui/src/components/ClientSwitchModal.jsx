@@ -145,16 +145,21 @@ function ClientSwitchModal({ onClose }) {
     try {
       setIsLoading(true);
       
-      // 1. Delete existing files from /imports/{clientId}/
-      await deleteImportFiles(clientPreview.clientId);
+      // 2. Clean up any existing files before uploading new ones
+      try {
+        await deleteImportFiles(clientPreview.clientId);
+        console.log('✅ Cleaned up existing import files');
+      } catch (error) {
+        console.warn('⚠️ Could not clean up existing files (this is OK for first upload):', error.message);
+      }
       
-      // 2. Upload files to /imports/{clientId}/ with progress
+      // 3. Upload files to /imports/{clientId}/ with progress
       await uploadImportFilesWithProgress(clientPreview.clientId, selectedFiles);
       
-      // 3. Start import process (SAME as current)
+      // 4. Start import process (SAME as current)
       await startImportProcess(clientPreview.clientId);
       
-      // 4. Store onboarding info (SAME as current)
+      // 5. Store onboarding info (SAME as current)
       localStorage.setItem('onboardingClient', JSON.stringify({
         clientId: clientPreview.clientId,
         displayName: clientPreview.displayName,
@@ -162,7 +167,7 @@ function ClientSwitchModal({ onClose }) {
         preview: clientPreview
       }));
       
-      // 5. Create temp client and navigate (SAME as current)
+      // 6. Create temp client and navigate (SAME as current)
       const tempClient = {
         id: clientPreview.clientId,
         basicInfo: {

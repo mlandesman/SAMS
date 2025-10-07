@@ -8,7 +8,7 @@ import path from 'path';
 import admin from 'firebase-admin';
 import { DateService } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
-import { readFileFromFirebaseStorage, deleteImportFiles } from '../api/importStorage.js';
+import { readFileFromFirebaseStorage, deleteImportFiles, findFileCaseInsensitive, writeFileToFirebaseStorage } from '../api/importStorage.js';
 import { 
   augmentMTCTransaction,
   augmentMTCUnit,
@@ -101,14 +101,22 @@ export class ImportService {
 
   /**
    * Load JSON file from data path (file system or Firebase Storage)
+   * Uses dynamic file discovery instead of hardcoded names
    */
   async loadJsonFile(filename) {
     try {
       let data;
       
       if (this.isFirebaseStorage) {
-        // Read from Firebase Storage using the provided clientId
-        const filePath = `imports/${this.clientId}/${filename}`;
+        // Read from Firebase Storage using case-insensitive lookup
+        const directoryPath = `imports/${this.clientId}`;
+        const actualFileName = await findFileCaseInsensitive(directoryPath, filename, this.user);
+        
+        if (!actualFileName) {
+          throw new Error(`File not found: ${filename}`);
+        }
+        
+        const filePath = `${directoryPath}/${actualFileName}`;
         const text = await readFileFromFirebaseStorage(filePath, this.user);
         data = JSON.parse(text);
       } else {
@@ -124,6 +132,7 @@ export class ImportService {
       throw new Error(`Failed to load ${filename}: ${error.message}`);
     }
   }
+
 
   /**
    * Import client document
@@ -735,9 +744,20 @@ export class ImportService {
       
       // Save CrossRef to file if we found any HOA transactions
       if (hoaCrossRef.totalRecords > 0) {
-        const crossRefPath = path.join(this.dataPath, 'HOA_Transaction_CrossRef.json');
-        await fs.writeFile(crossRefPath, JSON.stringify(hoaCrossRef, null, 2));
-        console.log(`💾 Saved HOA CrossRef with ${hoaCrossRef.totalRecords} entries to ${crossRefPath}`);
+        const crossRefContent = JSON.stringify(hoaCrossRef, null, 2);
+        
+        if (this.isFirebaseStorage) {
+          // Write to Firebase Storage
+          const crossRefPath = `imports/${this.clientId}/HOA_Transaction_CrossRef.json`;
+          await writeFileToFirebaseStorage(crossRefPath, crossRefContent, this.user);
+          console.log(`💾 Saved HOA CrossRef with ${hoaCrossRef.totalRecords} entries to Firebase Storage: ${crossRefPath}`);
+        } else {
+          // Write to local filesystem
+          const crossRefPath = path.join(this.dataPath, 'HOA_Transaction_CrossRef.json');
+          await fs.writeFile(crossRefPath, crossRefContent);
+          console.log(`💾 Saved HOA CrossRef with ${hoaCrossRef.totalRecords} entries to ${crossRefPath}`);
+        }
+        
         results.hoaCrossRefGenerated = true;
         results.hoaCrossRefRecords = hoaCrossRef.totalRecords;
       }

@@ -121,6 +121,106 @@ export const listImportClientDirectories = async (user) => {
 };
 
 /**
+ * List all files in a Firebase Storage directory
+ * @param {string} directoryPath - The directory path (e.g., 'imports/clientId')
+ * @param {Object} user - The authenticated user context
+ * @returns {Promise<string[]>} Array of file names
+ */
+export const listFilesInFirebaseStorage = async (directoryPath, user) => {
+  try {
+    console.log(`📁 Listing files in Firebase Storage directory: ${directoryPath}`);
+    
+    // Use the properly initialized Firebase app
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    
+    // List all files in the directory
+    const [files] = await bucket.getFiles({
+      prefix: `${directoryPath}/`
+    });
+    
+    // Extract just the file names (without the directory path)
+    const fileNames = files.map(file => {
+      const pathParts = file.name.split('/');
+      return pathParts[pathParts.length - 1]; // Get the last part (filename)
+    });
+    
+    console.log(`📁 Found ${fileNames.length} files: ${fileNames.join(', ')}`);
+    return fileNames;
+  } catch (error) {
+    console.error(`❌ Failed to list files in ${directoryPath}:`, error);
+    throw new Error(`Failed to list files: ${error.message}`);
+  }
+};
+
+/**
+ * Find a file with case-insensitive matching
+ * @param {string} directoryPath - The directory path (e.g., 'imports/clientId')
+ * @param {string} targetFileName - The target file name (e.g., 'Config.json')
+ * @param {Object} user - The authenticated user context
+ * @returns {Promise<string|null>} The actual file name if found, null otherwise
+ */
+export const findFileCaseInsensitive = async (directoryPath, targetFileName, user) => {
+  try {
+    console.log(`🔍 Looking for file case-insensitively: ${targetFileName} in ${directoryPath}`);
+    
+    const files = await listFilesInFirebaseStorage(directoryPath, user);
+    
+    // Try exact match first
+    if (files.includes(targetFileName)) {
+      console.log(`✅ Found exact match: ${targetFileName}`);
+      return targetFileName;
+    }
+    
+    // Try case-insensitive match
+    const lowerTarget = targetFileName.toLowerCase();
+    const match = files.find(file => file.toLowerCase() === lowerTarget);
+    
+    if (match) {
+      console.log(`✅ Found case-insensitive match: ${match} (looking for ${targetFileName})`);
+      return match;
+    }
+    
+    console.log(`❌ No match found for ${targetFileName} in ${files.join(', ')}`);
+    return null;
+  } catch (error) {
+    console.error(`❌ Error finding file ${targetFileName}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Write a file to Firebase Storage
+ * @param {string} filePath - The storage path (e.g., 'imports/clientId/filename.json')
+ * @param {string} content - The file content to write
+ * @param {Object} user - The authenticated user context
+ * @returns {Promise<void>}
+ */
+export const writeFileToFirebaseStorage = async (filePath, content, user) => {
+  try {
+    console.log(`📝 Writing file to Firebase Storage: ${filePath}`);
+    
+    // Use the properly initialized Firebase app
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const file = bucket.file(filePath);
+    
+    // Write the content
+    await file.save(content, {
+      metadata: {
+        contentType: 'application/json',
+        cacheControl: 'public, max-age=3600'
+      }
+    });
+    
+    console.log(`✅ Successfully wrote file: ${filePath}`);
+  } catch (error) {
+    console.error(`❌ Failed to write file ${filePath}:`, error);
+    throw new Error(`Failed to write file ${filePath}: ${error.message}`);
+  }
+};
+
+/**
  * Check if a file exists in Firebase Storage
  * @param {string} filePath - The storage path
  * @param {Object} user - The authenticated user context

@@ -133,6 +133,9 @@ class VersionManager {
       // Write updated configuration
       fs.writeFileSync(this.versionPath, JSON.stringify(updatedConfig, null, 2));
       
+      // Copy version file to frontend directories
+      this.copyVersionToFrontends(updatedConfig);
+      
       // Log build information
       this.logBuildInfo(updatedConfig);
       
@@ -156,6 +159,32 @@ class VersionManager {
     const minute = date.getMinutes().toString().padStart(2, '0');
     
     return `${year}${month}${day}.${hour}${minute}`;
+  }
+
+  /**
+   * Copy version.json to frontend directories
+   */
+  copyVersionToFrontends(versionConfig) {
+    const frontendPaths = [
+      path.join(__dirname, '../frontend/sams-ui/version.json'),
+      path.join(__dirname, '../frontend/mobile-app/version.json')
+    ];
+
+    frontendPaths.forEach(frontendPath => {
+      try {
+        // Ensure directory exists
+        const dir = path.dirname(frontendPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Copy version file
+        fs.writeFileSync(frontendPath, JSON.stringify(versionConfig, null, 2));
+        console.log(`📋 Copied version.json to ${path.basename(path.dirname(frontendPath))}`);
+      } catch (error) {
+        console.warn(`⚠️  Could not copy version.json to ${frontendPath}:`, error.message);
+      }
+    });
   }
 
   /**

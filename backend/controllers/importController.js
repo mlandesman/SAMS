@@ -162,41 +162,28 @@ async function getImportDataCounts(dataPath, clientId = null, user = null) {
       const importService = new ImportService(clientId, dataPath, user);
       
       const files = {
-        'client': ['Client.json'],
-        'config': ['Config.json', 'config.json'], // Try both capitalizations
-        'paymentTypes': ['paymentMethods.json'],
-        'categories': ['Categories.json'],
-        'vendors': ['Vendors.json'],
-        'units': ['Units.json'], 
-        'transactions': ['Transactions.json'],
-        'hoadues': ['HOADues.json'],
-        'yearEndBalances': ['YearEndBalances.json', 'yearEndBalances.json'] // Try both capitalizations
+        'client': 'Client.json',
+        'config': 'Config.json',
+        'paymentTypes': 'paymentMethods.json',
+        'categories': 'Categories.json',
+        'vendors': 'Vendors.json',
+        'units': 'Units.json', 
+        'transactions': 'Transactions.json',
+        'hoadues': 'HOADues.json',
+        'yearEndBalances': 'YearEndBalances.json'
       };
       
-      for (const [key, fileNames] of Object.entries(files)) {
-        let count = 0;
-        let fileName = '';
-        
-        // Try each possible filename until one works
-        for (const name of fileNames) {
-          try {
-            const data = await importService.loadJsonFile(name);
-            count = Array.isArray(data) ? data.length : Object.keys(data).length;
-            fileName = name;
-            console.log(`📋 ${fileName}: ${count} records`);
-            break; // Found the file, stop trying
-          } catch (error) {
-            // Try next filename
-            continue;
-          }
+      for (const [key, fileName] of Object.entries(files)) {
+        try {
+          const data = await importService.loadJsonFile(fileName);
+          const count = Array.isArray(data) ? data.length : Object.keys(data).length;
+          counts[key] = count;
+          totalRecords += count;
+          console.log(`📋 ${fileName}: ${count} records`);
+        } catch (error) {
+          console.warn(`⚠️ Could not load ${fileName}: ${error.message}`);
+          counts[key] = 0;
         }
-        
-        if (count === 0) {
-          console.warn(`⚠️ Could not find any file for ${key}: tried ${fileNames.join(', ')}`);
-        }
-        
-        counts[key] = count;
-        totalRecords += count;
       }
       
       console.log(`📋 Firebase Storage record counting complete: ${totalRecords} total records`);
