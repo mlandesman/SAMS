@@ -1,0 +1,50 @@
+# SAMS Development Guidelines for Cursor AI
+
+## Project Context
+This is the Sandyland Asset Management System (SAMS), a Firebase-based property management platform for HOA communities in Mexico.
+
+## Critical Constraints
+1. **ES6 Modules Only**: All backend code MUST use ES6 exports. CommonJS breaks the system.
+2. **Timezone**: All dates must be normalized to America/Cancun timezone
+3. **Authentication**: All API calls require proper Firebase Auth headers
+4. **Domain Routing**: Use domain-specific routes (e.g., `/hoadues/${clientId}/*` not `/clients/${clientId}/hoadues/*`)
+
+## Active Issues & Technical Debt
+Before starting any task, review:
+- GitHub Issues (https://github.com/[YOUR_REPO]/issues) for current sprint work
+- `/workspace/PROJECT_TRACKING_MASTER.md` for overall project status
+- `/workspace/TECHNICAL_DEBT.md` for technical debt items (TD-001 through TD-016)
+- `/workspace/docs/issues 2/open/` for detailed issue documentation
+
+## Key Technical Debt to Be Aware Of
+- TD-001: Water Bills payment tracking temporarily disabled (don't rely on it)
+- TD-002: Units List Management has multiple UI issues
+- TD-011: ES6 module compliance is CRITICAL - never use CommonJS
+- TD-012: No TypeScript yet - be extra careful with types
+- TD-013: Test coverage < 40% - expect limited automated testing
+
+## Development Patterns
+1. **API Calls**: Use centralized configuration, no hardcoded URLs
+2. **Error Handling**: Always implement proper error handling with user feedback
+3. **Data Validation**: Validate inputs on both frontend and backend
+4. **Audit Trail**: Maintain comprehensive notes in transactions
+5. **Mobile/Desktop**: Desktop is primary, mobile app needs full refactor (TD-016)
+
+## Before Making Changes
+1. Check if related technical debt exists in TECHNICAL_DEBT.md
+2. Review if issue affects shared components or mobile app
+3. Consider impact on both MTC and AVII clients (multi-tenant system)
+4. Verify changes work with existing data structures
+
+## When Creating New Issues
+Use the issue creation tool or follow the format in `/workspace/docs/issues 2/open/` with:
+- Priority emoji (🔥 HIGH, 🟡 MEDIUM, 🟢 LOW, 🚨 CRITICAL)
+- Module identification
+- Impact assessment
+- Acceptance criteria
+
+## Testing Requirements
+- Manual testing required (low automated test coverage)
+- Test with both MTC and AVII client data
+- Verify timezone handling for date inputs
+- Check mobile app impact if touching shared components
