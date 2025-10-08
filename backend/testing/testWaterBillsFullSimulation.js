@@ -81,9 +81,14 @@ async function runFullSimulation() {
     console.log('\n🔨 STEP 2: Building Chronology');
     console.log('─'.repeat(80));
     
+    // Get fiscal year configuration
+    const clientConfig = await importService.getClientConfig();
+    const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 7;
+    console.log(`✓ Using fiscal year start month: ${fiscalYearStartMonth}`);
+    
     let chronology;
     try {
-      chronology = importService.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef);
+      chronology = importService.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth);
       console.log(`✓ Built chronology with ${chronology.length} month cycles`);
     } catch (error) {
       console.log(`❌ Failed to build chronology: ${error.message}`);

@@ -1575,8 +1575,13 @@ export class ImportService {
       console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
       console.log(`✓ Loaded transaction CrossRef with ${Object.keys(txnCrossRef.byPaymentSeq || {}).length} payments`);
       
+      // Get fiscal year configuration from client config
+      const clientConfig = await this.getClientConfig();
+      const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+      console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
+      
       // Parse readings chronologically
-      const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef);
+      const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth);
       console.log(`📅 Built chronology with ${chronology.length} month cycles`);
       
       // Process each month cycle: readings → bills → payments
@@ -1628,8 +1633,7 @@ export class ImportService {
   /**
    * Build chronology of reading → billing → payment cycles
    */
-  buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef) {
-    const FISCAL_YEAR_START_MONTH = 7; // AVII fiscal year starts in July
+  buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth) {
     
     // Parse readings by month
     const readingsByMonth = {};
@@ -1684,9 +1688,9 @@ export class ImportService {
       const billingMonth = `${billingDate.getFullYear()}-${String(billingDate.getMonth() + 1).padStart(2, '0')}`;
       
       // Get fiscal year/month for billing using imported utility
-      const fiscalYear = getFiscalYear(billingDate, FISCAL_YEAR_START_MONTH);
+      const fiscalYear = getFiscalYear(billingDate, fiscalYearStartMonth);
       const calendarMonth = billingDate.getMonth() + 1;
-      let fiscalMonth = calendarMonth - FISCAL_YEAR_START_MONTH;
+      let fiscalMonth = calendarMonth - fiscalYearStartMonth;
       if (fiscalMonth < 0) fiscalMonth += 12;
       
       chronology.push({
@@ -1799,15 +1803,17 @@ export class ImportService {
    * Find which bills a set of charges applies to
    */
   async findBillsForCharges(charges) {
-    const FISCAL_YEAR_START_MONTH = 7;
+    // Get fiscal year configuration from client config
+    const clientConfig = await this.getClientConfig();
+    const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
     
     const billUpdates = [];
     
     for (const charge of charges) {
       const chargeDate = new Date(charge.ChargeDate);
-      const fiscalYear = getFiscalYear(chargeDate, FISCAL_YEAR_START_MONTH);
+      const fiscalYear = getFiscalYear(chargeDate, fiscalYearStartMonth);
       const calendarMonth = chargeDate.getMonth() + 1;
-      let fiscalMonth = calendarMonth - FISCAL_YEAR_START_MONTH;
+      let fiscalMonth = calendarMonth - fiscalYearStartMonth;
       if (fiscalMonth < 0) fiscalMonth += 12;
       
       // Find existing bill update or create new one
