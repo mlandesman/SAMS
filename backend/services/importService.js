@@ -1618,7 +1618,6 @@ export class ImportService {
    * Build chronology of reading → billing → payment cycles
    */
   buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef) {
-    const { getFiscalYear } = require('./utils/fiscalYearUtils.js');
     const FISCAL_YEAR_START_MONTH = 7; // AVII fiscal year starts in July
     
     // Parse readings by month
@@ -1673,7 +1672,7 @@ export class ImportService {
       const billingDate = new Date(year, month, 1); // Next month
       const billingMonth = `${billingDate.getFullYear()}-${String(billingDate.getMonth() + 1).padStart(2, '0')}`;
       
-      // Get fiscal year/month for billing
+      // Get fiscal year/month for billing using imported utility
       const fiscalYear = getFiscalYear(billingDate, FISCAL_YEAR_START_MONTH);
       const calendarMonth = billingDate.getMonth() + 1;
       let fiscalMonth = calendarMonth - FISCAL_YEAR_START_MONTH;
@@ -1789,7 +1788,6 @@ export class ImportService {
    * Find which bills a set of charges applies to
    */
   async findBillsForCharges(charges) {
-    const { getFiscalYear } = require('./utils/fiscalYearUtils.js');
     const FISCAL_YEAR_START_MONTH = 7;
     
     const billUpdates = [];
