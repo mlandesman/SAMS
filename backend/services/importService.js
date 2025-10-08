@@ -1545,20 +1545,31 @@ export class ImportService {
     };
     
     try {
-      // Check if water bills files exist
-      const hasReadings = await this.fileExists('waterMeterReadings.json');
-      const hasCrossRef = await this.fileExists('waterCrossRef.json');
+      // Try to load water bills files - skip if not found
+      console.log('📥 Loading water bills data files...');
       
-      if (!hasReadings || !hasCrossRef) {
-        console.log('⏭️  Water bills files not found, skipping water bills import');
-        return { skipped: true, reason: 'Required files not found' };
+      let readingsData, waterCrossRef, txnCrossRef;
+      
+      try {
+        readingsData = await this.loadJsonFile('waterMeterReadings.json');
+      } catch (error) {
+        console.log('⏭️  waterMeterReadings.json not found, skipping water bills import');
+        return { skipped: true, reason: 'waterMeterReadings.json not found' };
       }
       
-      // Load all required data files
-      console.log('📥 Loading water bills data files...');
-      const readingsData = await this.loadJsonFile('waterMeterReadings.json');
-      const waterCrossRef = await this.loadJsonFile('waterCrossRef.json');
-      const txnCrossRef = await this.loadJsonFile('Water_Bills_Transaction_CrossRef.json');
+      try {
+        waterCrossRef = await this.loadJsonFile('waterCrossRef.json');
+      } catch (error) {
+        console.log('⏭️  waterCrossRef.json not found, skipping water bills import');
+        return { skipped: true, reason: 'waterCrossRef.json not found' };
+      }
+      
+      try {
+        txnCrossRef = await this.loadJsonFile('Water_Bills_Transaction_CrossRef.json');
+      } catch (error) {
+        console.log('⚠️  Water_Bills_Transaction_CrossRef.json not found - will not link payments to transactions');
+        txnCrossRef = { byPaymentSeq: {}, byUnit: {} };
+      }
       
       console.log(`✓ Loaded ${readingsData.length} units with readings`);
       console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
