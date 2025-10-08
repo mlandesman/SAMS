@@ -1,0 +1,416 @@
+[
+  {
+    "PaymentSeq": "PAY-101 (Zerbarini)-20250717-25",
+    "PaymentDate": "2025-07-17T14:43:24.359Z",
+    "Unit": 101,
+    "ChargeSeq": "CHG-101 (Zerbarini)-20250701-WC-8",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 900
+  },
+  {
+    "PaymentSeq": "PAY-101 (Zerbarini)-20250717-25",
+    "PaymentDate": "2025-07-17T14:43:24.359Z",
+    "Unit": 101,
+    "ChargeSeq": "CHG-101 (Zerbarini)-20250905-WC-56",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 60.27
+  },
+  {
+    "PaymentSeq": "PAY-101 (Zerbarini)-20250717-25",
+    "PaymentDate": "2025-07-17T14:43:24.359Z",
+    "Unit": 101,
+    "ChargeSeq": "CHG-101 (Zerbarini)-20251001-WC-87",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 179.46
+  },
+  {
+    "PaymentSeq": "PAY-101 (Zerbarini)-20250909-61",
+    "PaymentDate": "2025-09-09T05:00:00.000Z",
+    "Unit": 101,
+    "ChargeSeq": "CHG-101 (Zerbarini)-20251001-WC-87",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 60.27
+  },
+  {
+    "PaymentSeq": "PAY-102 (Moguel)-20250712-17",
+    "PaymentDate": "2025-07-12T17:43:39.169Z",
+    "Unit": 102,
+    "ChargeSeq": "CHG-102 (Bagnato)-20250701-WC-10",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 950
+  },
+  {
+    "PaymentSeq": "PAY-102 (Moguel)-20250712-17",
+    "PaymentDate": "2025-07-12T17:43:39.169Z",
+    "Unit": 102,
+    "ChargeSeq": "CHG-102 (Bagnato)-20250801-WC-28",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 200
+  },
+  {
+    "PaymentSeq": "PAY-102 (Moguel)-20250712-17",
+    "PaymentDate": "2025-07-12T17:43:39.169Z",
+    "Unit": 102,
+    "ChargeSeq": "CHG-102 (Bagnato)-20250811-WCP-39",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10
+  },
+  {
+    "PaymentSeq": "PAY-102 (Moguel)-20250712-17",
+    "PaymentDate": "2025-07-12T17:43:39.169Z",
+    "Unit": 102,
+    "ChargeSeq": "CHG-102 (Bagnato)-20250811-WCP-40",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10
+  },
+  {
+    "PaymentSeq": "PAY-102 (Moguel)-20250712-17",
+    "PaymentDate": "2025-07-12T17:43:39.169Z",
+    "Unit": 102,
+    "ChargeSeq": "CHG-102 (Bagnato)-20250905-WC-57",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 19.730000000000018
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250701-WC-14",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 400
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250801-WC-31",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 400
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250811-WCP-44",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 20
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250811-WCP-45",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 20
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250905-WC-59",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 450
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250911-WCP-73",
+    "ChargeDate": "2025-09-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 21
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250911-WCP-74",
+    "ChargeDate": "2025-09-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 21
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20250915-WCP-80",
+    "ChargeDate": "2025-09-15T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 22.5
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250723-26",
+    "PaymentDate": "2025-07-23T05:00:00.000Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20251001-WC-94",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 413.0899999999999
+  },
+  {
+    "PaymentSeq": "PAY-104 (Manuel González)-20250725-29",
+    "PaymentDate": "2025-07-25T21:53:55.764Z",
+    "Unit": 104,
+    "ChargeSeq": "CHG-104 (Manuel González)-20251001-WC-94",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 86.91000000000008
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250701-WC-16",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 800
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250801-WC-32",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 200
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250811-WCP-46",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250811-WCP-47",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250905-WC-60",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 150
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250911-WCP-75",
+    "ChargeDate": "2025-09-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10.5
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250911-WCP-76",
+    "ChargeDate": "2025-09-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 10.5
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20250915-WCP-81",
+    "ChargeDate": "2025-09-15T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 7.5
+  },
+  {
+    "PaymentSeq": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "PaymentDate": "2025-07-25T21:59:40.434Z",
+    "Unit": 105,
+    "ChargeSeq": "CHG-105 (Antonio Manjarrez)-20251001-WC-96",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 80.97000000000003
+  },
+  {
+    "PaymentSeq": "PAY-106 (Terrel)-20250723-27",
+    "PaymentDate": "2025-07-23T21:57:35.748Z",
+    "Unit": 106,
+    "ChargeSeq": "CHG-106 (Nieto)-20250701-WC-18",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 1029.47
+  },
+  {
+    "PaymentSeq": "PAY-106 (Terrel)-20250811-40",
+    "PaymentDate": "2025-08-11T16:34:44.818Z",
+    "Unit": 106,
+    "ChargeSeq": "CHG-106 (Nieto)-20250801-WC-33",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 310.27
+  },
+  {
+    "PaymentSeq": "PAY-106 (Nieto)-20250913-68",
+    "PaymentDate": "2025-09-13T05:00:00.000Z",
+    "Unit": 106,
+    "ChargeSeq": "CHG-106 (Nieto)-20250905-WC-61",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 450
+  },
+  {
+    "PaymentSeq": "PAY-201 (Ische)-20250712-15",
+    "PaymentDate": "2025-07-12T15:22:08.599Z",
+    "Unit": 201,
+    "ChargeSeq": "CHG-201 (Ische)-20250701-WC-20",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 50
+  },
+  {
+    "PaymentSeq": "PAY-201 (Ische)-20250712-15",
+    "PaymentDate": "2025-07-12T15:22:08.599Z",
+    "Unit": 201,
+    "ChargeSeq": "CHG-201 (Ische)-20251001-WC-101",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 50
+  },
+  {
+    "PaymentSeq": "PAY-202 (Violette)-20250704-9",
+    "PaymentDate": "2025-07-04T05:00:00.000Z",
+    "Unit": 202,
+    "ChargeSeq": "CHG-202 (Violette)-20250801-WC-35",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 250
+  },
+  {
+    "PaymentSeq": "PAY-202 (Violette)-20250704-9",
+    "PaymentDate": "2025-07-04T05:00:00.000Z",
+    "Unit": 202,
+    "ChargeSeq": "CHG-202 (Violette)-20250905-WC-63",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 50
+  },
+  {
+    "PaymentSeq": "PAY-202 (Violette)-20250704-9",
+    "PaymentDate": "2025-07-04T05:00:00.000Z",
+    "Unit": 202,
+    "ChargeSeq": "CHG-202 (Violette)-20250915-WCP-83",
+    "ChargeDate": "2025-09-15T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 2.5
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20250813-41",
+    "PaymentDate": "2025-08-13T05:00:00.000Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250701-WC-24",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 2150
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20250813-41",
+    "PaymentDate": "2025-08-13T05:00:00.000Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250801-WC-37",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 1700
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20250813-41",
+    "PaymentDate": "2025-08-13T05:00:00.000Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250811-WCP-49",
+    "ChargeDate": "2025-08-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 85
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20250813-41",
+    "PaymentDate": "2025-08-13T05:00:00.000Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250905-WC-64",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 22.5
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20251002-97",
+    "PaymentDate": "2025-10-02T22:33:40.184Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250905-WC-64",
+    "ChargeDate": "2025-09-05T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 1927.5
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20251002-97",
+    "PaymentDate": "2025-10-02T22:33:40.184Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250911-WCP-77",
+    "ChargeDate": "2025-09-11T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 89.25
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20251002-97",
+    "PaymentDate": "2025-10-02T22:33:40.184Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20250915-WCP-84",
+    "ChargeDate": "2025-09-15T05:00:00.000Z",
+    "Category": "WCP",
+    "AmountApplied": 97.5
+  },
+  {
+    "PaymentSeq": "PAY-203 (Marquez)-20251002-97",
+    "PaymentDate": "2025-10-02T22:33:40.184Z",
+    "Unit": 203,
+    "ChargeSeq": "CHG-203 (Marquez)-20251001-WC-104",
+    "ChargeDate": "2025-10-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 1550
+  },
+  {
+    "PaymentSeq": "PAY-204 (Januj)-20250712-16",
+    "PaymentDate": "2025-07-12T17:34:37.428Z",
+    "Unit": 204,
+    "ChargeSeq": "CHG-204 (Januj)-20250701-WC-26",
+    "ChargeDate": "2025-07-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 50
+  },
+  {
+    "PaymentSeq": "PAY-204 (Januj)-20250712-16",
+    "PaymentDate": "2025-07-12T17:34:37.428Z",
+    "Unit": 204,
+    "ChargeSeq": "CHG-204 (Januj)-20250801-WC-38",
+    "ChargeDate": "2025-08-01T05:00:00.000Z",
+    "Category": "WC",
+    "AmountApplied": 200
+  }
+]

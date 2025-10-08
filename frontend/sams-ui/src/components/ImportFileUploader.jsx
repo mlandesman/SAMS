@@ -30,6 +30,35 @@ const ImportFileUploader = ({
     return true;
   };
 
+  // Validate that all required files are present (case-insensitive)
+  const validateRequiredFiles = (files) => {
+    const requiredFiles = [
+      'Client.json',
+      'Config.json',        // NOTE: Capital C to match backend
+      'Categories.json',
+      'Vendors.json',
+      'Units.json',
+      'Transactions.json',
+      'HOADues.json',
+      'paymentMethods.json',
+      'yearEndBalances.json'
+    ];
+    
+    const fileNames = files.map(f => f.name);
+    const fileNamesLower = fileNames.map(f => f.toLowerCase());
+    
+    // Check case-insensitively
+    const missingFiles = requiredFiles.filter(required => 
+      !fileNamesLower.includes(required.toLowerCase())
+    );
+    
+    if (missingFiles.length > 0) {
+      throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+    }
+    
+    return true;
+  };
+
   // Parse client.json when selected
   const handleFilesSelected = async (files) => {
     try {
@@ -206,6 +235,35 @@ const ImportFileUploader = ({
       )}
     </div>
   );
+};
+
+// Export validation function for use in other components (case-insensitive)
+export const validateRequiredImportFiles = (files) => {
+  const requiredFiles = [
+    'Client.json',
+    'Config.json',        // NOTE: Capital C to match backend
+    'Categories.json',
+    'Vendors.json',
+    'Units.json',
+    'Transactions.json',
+    'HOADues.json',
+    'paymentMethods.json',
+    'yearEndBalances.json'
+  ];
+  
+  const fileNames = files.map(f => f.name);
+  const fileNamesLower = fileNames.map(f => f.toLowerCase());
+  
+  // Check case-insensitively
+  const missingFiles = requiredFiles.filter(required => 
+    !fileNamesLower.includes(required.toLowerCase())
+  );
+  
+  if (missingFiles.length > 0) {
+    throw new Error(`Missing required files: ${missingFiles.join(', ')}`);
+  }
+  
+  return true;
 };
 
 export default ImportFileUploader;

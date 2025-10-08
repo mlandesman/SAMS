@@ -9,7 +9,7 @@ import { getClient } from '../api/client'; // Import getClient
 import { useNavigate } from 'react-router-dom';
 import { config as appConfig } from '../config';
 import { getAuthInstance } from '../firebaseClient';
-import ImportFileUploader from './ImportFileUploader';
+import ImportFileUploader, { validateRequiredImportFiles } from './ImportFileUploader';
 import { uploadImportFilesWithProgress, deleteImportFiles } from '../api/importStorage';
 
 function ClientSwitchModal({ onClose }) {
@@ -136,6 +136,15 @@ function ClientSwitchModal({ onClose }) {
       return;
     }
     
+    // Validate that all required files are present
+    try {
+      validateRequiredImportFiles(selectedFiles);
+    } catch (error) {
+      alert(`Cannot start import: ${error.message}\n\nPlease upload all required files before onboarding.`);
+      setIsLoading(false);
+      return;
+    }
+    
     // Ensure dataCounts are populated before proceeding
     if (!clientPreview.dataCounts) {
       console.log('📊 DataCounts not found, generating preview first...');
@@ -159,12 +168,13 @@ function ClientSwitchModal({ onClose }) {
       // 4. Start import process (SAME as current)
       await startImportProcess(clientPreview.clientId);
       
-      // 5. Store onboarding info (SAME as current)
+      // 5. Store onboarding info with progress polling flag
       localStorage.setItem('onboardingClient', JSON.stringify({
         clientId: clientPreview.clientId,
         displayName: clientPreview.displayName,
         dataPath: 'firebase_storage', // Updated to indicate Firebase Storage
-        preview: clientPreview
+        preview: clientPreview,
+        startProgressPolling: true  // NEW: Signal to start polling immediately
       }));
       
       // 6. Create temp client and navigate (SAME as current)
