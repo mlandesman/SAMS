@@ -667,4 +667,271 @@ frontend/sams-ui/src/views/WaterBillsViewV3.jsx    |  22 ++-
 
 ---
 
+## Critical Code Quality Issues Discovered in waterDataService.js
+
+### Overview
+During the implementation of timestamp support, I discovered several significant code quality and performance issues in `backend/services/waterDataService.js` that require attention for future optimization work.
+
+### 1. **Duplicate monthData Object Definitions**
+   - **Issue**: In `_buildMonthDataFromSourcesWithCarryover`, there are multiple `monthData` object definitions that overwrite each other
+   - **Location**: Lines where `monthData` is defined multiple times within the same function
+   - **Impact**: 
+     - Data loss: Earlier assignments (like `readingDate` and `priorReadingDate`) get wiped out by later object definitions
+     - Confusing code flow: Difficult to track which `monthData` definition is actually returned
+     - Maintenance nightmare: Adding new fields requires finding the "correct" object definition
+   - **Discovery**: This caused the initial bug where timestamps weren't appearing in the API response despite being assigned
+   - **Recommendation**: 
+     - Refactor to have a single `monthData` object definition at the start of the function
+     - Build up the object progressively with property assignments
+     - Consider using object spread syntax to merge data from different sources
+     - Example:
+       ```javascript
+       const monthData = {
+         month,
+         units: [],
+         readingDate: null,
+         priorReadingDate: null
+       };
+       
+       // Build up the object
+       if (currentTimestamp) {
+         monthData.readingDate = this.dateService.formatForFrontend(currentTimestamp).iso;
+       }
+       // ... etc
+       
+       return monthData;
+       ```
+
+### 2. **Excessive Console Logging**
+   - **Issue**: Extremely verbose console logging throughout the service
+   - **Examples**:
+     - `🔍 [FETCH_READINGS]` logs for every reading fetch
+     - `🔧 [BUILD_WITH_CARRYOVER]` logs for every month build
+     - `🔍 [CARRYOVER]` logs for every carryover calculation
+     - `🐛 [AGGREGATOR]` logs for penalty assignments
+     - `📅 [YEAR_BUILD]` logs for year processing
+     - `🚀 [FINAL_RETURN]` logs for final data return
+   - **Impact**:
+     - Performance degradation: String concatenation and console I/O for every operation
+     - Log noise: Difficult to find actual errors in production logs
+     - Memory usage: Large log buffers in production
+     - Debugging confusion: Too much information makes debugging harder, not easier
+   - **Current State**: Logs appear to be from debugging sessions that were never removed
+   - **Recommendation**:
+     - Implement a debug flag/environment variable (e.g., `DEBUG_WATER_AGGREGATOR=true`)
+     - Remove or conditionalize all non-error logs
+     - Keep only critical error logging for production
+     - Consider using a proper logging library with log levels (debug, info, warn, error)
+     - Example:
+       ```javascript
+       if (process.env.DEBUG_WATER_AGGREGATOR) {
+         console.log(`🔍 [FETCH_READINGS] No data for ${clientId} ${year}-${month}`);
+       }
+       ```
+
+### 3. **Highly Inefficient Aggregation Process**
+   - **Issue**: The data aggregation process makes multiple redundant database calls and performs unnecessary recalculations
+   - **Specific Problems**:
+     
+     a. **Redundant fetchReadings Calls**:
+        - `fetchReadings` is called multiple times for the same month/year combination
+        - No caching mechanism between calls
+        - Each call hits Firestore directly
+        - Example: For month 8, the code calls `fetchReadings` for month 8, then month 7, then month 8 again in different contexts
+     
+     b. **Carryover Recalculation for Every Month**:
+        - For each month, the code loops through ALL previous months (0 to current) to calculate carryover
+        - This is O(n²) complexity for a full year build
+        - Month 11 recalculates carryover from months 0-10, even though months 0-9 were already calculated for month 10
+        - Logs show: "Checking month 0 bills", "Checking month 1 bills", etc. for EVERY month
+     
+     c. **No Data Structure Optimization**:
+        - Units array is rebuilt from scratch for each month
+        - No reuse of unit metadata (names, numbers) across months
+        - Penalty calculations repeated unnecessarily
+     
+     d. **Synchronous Processing**:
+        - Months are processed sequentially, not in parallel
+        - Could use `Promise.all()` for independent month fetches
+        - Carryover dependencies could be handled with a dependency graph
+   
+   - **Impact**:
+     - **Performance**: Loading a full year of data is slow, especially for clients with many units
+     - **Firestore Costs**: Excessive read operations increase costs
+     - **Scalability**: Won't scale well as more clients and years are added
+     - **User Experience**: Slow page loads, especially on the History tab
+   
+   - **Evidence from Logs**:
+     ```
+     📅 [YEAR_BUILD] Processing month 0...
+     🔍 [CARRYOVER] Calculating carryover for AVII month 0
+     // ... carryover logic
+     
+     📅 [YEAR_BUILD] Processing month 1...
+     🔍 [CARRYOVER] Calculating carryover for AVII month 1
+     🔍 [CARRYOVER] Checking month 0 bills for unpaid amounts  // REDUNDANT
+     
+     📅 [YEAR_BUILD] Processing month 2...
+     🔍 [CARRYOVER] Calculating carryover for AVII month 2
+     🔍 [CARRYOVER] Checking month 0 bills for unpaid amounts  // REDUNDANT
+     🔍 [CARRYOVER] Checking month 1 bills for unpaid amounts  // REDUNDANT
+     
+     // This pattern continues for all 12 months
+     ```
+   
+   - **Recommendations**:
+     
+     1. **Implement Caching**:
+        ```javascript
+        class WaterDataService {
+          constructor(db) {
+            this.db = db;
+            this.readingsCache = new Map(); // Cache readings by key
+            this.billsCache = new Map();    // Cache bills by key
+          }
+          
+          async fetchReadings(clientId, year, month) {
+            const cacheKey = `${clientId}-${year}-${month}`;
+            if (this.readingsCache.has(cacheKey)) {
+              return this.readingsCache.get(cacheKey);
+            }
+            
+            const data = await this._fetchReadingsFromFirestore(clientId, year, month);
+            this.readingsCache.set(cacheKey, data);
+            return data;
+          }
+        }
+        ```
+     
+     2. **Optimize Carryover Calculation**:
+        - Calculate carryover incrementally: pass previous month's carryover to next month
+        - Only recalculate when a bill is paid or modified
+        - Cache carryover results
+        ```javascript
+        async buildYearData(clientId, year) {
+          let runningCarryover = {}; // Track carryover across months
+          
+          for (let month = 0; month < 12; month++) {
+            const monthData = await this._buildMonthData(
+              clientId, 
+              year, 
+              month, 
+              runningCarryover  // Pass previous carryover
+            );
+            
+            // Update running carryover for next month
+            runningCarryover = this._calculateNewCarryover(monthData);
+            months.push(monthData);
+          }
+        }
+        ```
+     
+     3. **Parallel Fetching**:
+        ```javascript
+        async buildYearData(clientId, year) {
+          // Fetch all readings in parallel
+          const readingsPromises = [];
+          for (let month = 0; month < 12; month++) {
+            readingsPromises.push(this.fetchReadings(clientId, year, month));
+          }
+          const allReadings = await Promise.all(readingsPromises);
+          
+          // Then process sequentially for carryover dependencies
+          const months = [];
+          let runningCarryover = {};
+          for (let month = 0; month < 12; month++) {
+            const monthData = this._buildMonthDataFromReadings(
+              allReadings[month],
+              runningCarryover
+            );
+            runningCarryover = this._calculateNewCarryover(monthData);
+            months.push(monthData);
+          }
+          
+          return { months };
+        }
+        ```
+     
+     4. **Consider Redis/Memory Cache**:
+        - For frequently accessed data (current year, recent months)
+        - Set TTL based on data volatility
+        - Invalidate cache when data is modified
+     
+     5. **Database Query Optimization**:
+        - Fetch all 12 months of readings in a single query using `where` clause
+        - Fetch all bills for a year in a single query
+        - Reduce round trips to Firestore
+
+### 4. **Code Organization and Maintainability**
+   - **Issue**: The service has grown organically without clear separation of concerns
+   - **Problems**:
+     - `_buildMonthDataFromSourcesWithCarryover` is doing too many things
+     - Carryover logic is mixed with data aggregation logic
+     - Timestamp handling is mixed with business logic
+     - Difficult to test individual components
+   - **Recommendation**:
+     - Extract carryover calculation to a separate service/class
+     - Create a `ReadingsAggregator` class for pure data aggregation
+     - Create a `TimestampFormatter` utility for timestamp conversions
+     - Use dependency injection for better testability
+     - Example structure:
+       ```javascript
+       class WaterDataService {
+         constructor(db, carryoverService, readingsAggregator, timestampFormatter) {
+           this.db = db;
+           this.carryoverService = carryoverService;
+           this.readingsAggregator = readingsAggregator;
+           this.timestampFormatter = timestampFormatter;
+         }
+         
+         async buildYearData(clientId, year) {
+           const readings = await this.readingsAggregator.fetchYear(clientId, year);
+           const withCarryover = await this.carryoverService.applyCarryover(readings);
+           const formatted = this.timestampFormatter.formatDates(withCarryover);
+           return formatted;
+         }
+       }
+       ```
+
+### 5. **Missing Error Handling**
+   - **Issue**: Limited error handling for Firestore operations
+   - **Problems**:
+     - No try-catch blocks around Firestore calls
+     - No handling of network failures
+     - No handling of permission errors
+     - Errors bubble up without context
+   - **Recommendation**:
+     - Add comprehensive error handling
+     - Provide meaningful error messages
+     - Implement retry logic for transient failures
+     - Log errors with context (clientId, year, month)
+
+### Priority Recommendations for Future Work
+
+#### High Priority (Performance & Cost Impact)
+1. **Implement caching for Firestore reads** - Will significantly reduce costs and improve performance
+2. **Optimize carryover calculation** - Change from O(n²) to O(n) complexity
+3. **Remove or conditionalize console logging** - Immediate performance improvement
+
+#### Medium Priority (Code Quality)
+4. **Refactor duplicate monthData definitions** - Prevents bugs and improves maintainability
+5. **Add error handling** - Improves reliability and debuggability
+6. **Parallel fetching where possible** - Improves user experience
+
+#### Low Priority (Long-term Maintainability)
+7. **Refactor into smaller, focused services** - Improves testability and maintainability
+8. **Add unit tests** - Prevents regressions
+9. **Document the aggregation algorithm** - Helps future developers
+
+### Estimated Impact of Optimizations
+- **Performance**: 50-70% reduction in page load time for History tab
+- **Cost**: 60-80% reduction in Firestore read operations
+- **Maintainability**: Significantly easier to add new features and fix bugs
+- **Reliability**: Better error handling reduces production issues
+
+### Notes
+These issues were discovered during the timestamp integration work. The current implementation works correctly but is not optimized for production use at scale. The code appears to have evolved from a simpler implementation without refactoring as complexity increased.
+
+---
+
 **Task completed successfully. All features implemented, tested, committed, and merged to main. Ready for Manager review and user testing with corrected Firebase data.**
