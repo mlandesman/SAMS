@@ -239,33 +239,53 @@
 - **Data-Driven:** Same logic as Water Bills, different configuration
 - **Effort:** 4-5 sessions
 
-### Priority 5: Water Bill Payment Request │ Agent_Communications
+### Priority 5: Water Bills UI Improvements │ Agent_Water_UI
+**Status:** Bug fixes and enhancements from user testing
+**Estimated Effort:** 1.5-2.5 Implementation Agent sessions
+**Discovery Date:** October 8, 2025 (user testing feedback)
+
+#### Task 5.1: Fix Auto-Advance on Readings Tab
+- **Issue:** Auto-advance to next unsaved month not working (works on Bills tab)
+- **Impact:** Users must manually select next month for data entry
+- **Priority:** MEDIUM - UX inconvenience
+- **Location:** `WaterBillsViewV3.jsx` - Readings tab logic
+- **Effort:** 0.5-1 session
+
+#### Task 5.2: Add Fiscal Year Wrap-Around for Reading Period
+- **Issue:** Month 0 (July) cannot display reading period from prior fiscal year's June
+- **Enhancement:** Fetch prior year's month 11 when viewing month 0
+- **Impact:** First month of fiscal year shows incomplete reading period
+- **Priority:** LOW - Edge case enhancement
+- **Location:** `WaterReadingEntry.jsx` - Reading period calculation
+- **Effort:** 1-1.5 sessions
+
+### Priority 6: Water Bill Payment Request │ Agent_Communications
 **Status:** Automated email with consumption, past due, penalties, notes
 **Estimated Effort:** 2-3 Implementation Agent sessions
 
-#### Task 5.1: Generate Automated Water Bill Emails
+#### Task 6.1: Generate Automated Water Bill Emails
 - **Scope:** Monthly water consumption amount, past due, penalties, notes
 - **Framework:** Communications Phase 2A foundation ready
 - **Future Integration:** Account statement when Reports module completed
 - **Current Solution:** Formatted email sufficient for now
 - **Effort:** 2-3 sessions
 
-### Priority 6: Digital Receipts Production Integration │ Agent_Receipts
+### Priority 7: Digital Receipts Production Integration │ Agent_Receipts
 **Status:** Code mostly in place, needs fine-tuning and testing
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
-#### Task 6.1: Fine-tune and Test Digital Receipts
+#### Task 7.1: Fine-tune and Test Digital Receipts
 - **Scope:** Attach to all payments received, test templates and sending process
 - **Current Status:** Complete in some modules but demo mode only
 - **Testing Required:** Templates, email addresses, sending process
 - **Integration:** HOA, Water Bills, Expense payments
 - **Effort:** 3-4 sessions
 
-### Priority 7: Budget Module │ Agent_Budget
+### Priority 8: Budget Module │ Agent_Budget
 **Status:** New system required for Budget vs Actual reporting
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
-#### Task 7.1: Create Budget Entry System
+#### Task 8.1: Create Budget Entry System
 - **Scope:** Structure and data entry for budget values per category
 - **Integration:** Required for Report Generator Budget vs Actual analysis
 - **Data Model:** Category-based budget structure matching transaction categories
