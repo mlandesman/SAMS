@@ -6,16 +6,17 @@
 import fs from 'fs/promises';
 import path from 'path';
 import admin from 'firebase-admin';
-import { DateService } from './DateService.js';
-import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { DateTime } from 'luxon';
+import { DateService, getNow } from './DateService.js';
+import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { readFileFromFirebaseStorage, deleteImportFiles, findFileCaseInsensitive, writeFileToFirebaseStorage } from '../api/importStorage.js';
 import { 
-  augmentMTCTransaction,
-  augmentMTCUnit,
-  augmentMTCCategory,
-  augmentMTCVendor,
-  augmentMTCUser,
-  augmentMTCHOADues,
+  augmentTransaction,
+  augmentUnit,
+  augmentCategory,
+  augmentVendor,
+  augmentUser,
+  augmentHOADues,
   linkUsersToUnits,
   validateImportOrder
 } from '../utils/data-augmentation-utils.js';
@@ -44,8 +45,36 @@ export class ImportService {
     this.onProgress = null; // Progress callback
     this.importScriptName = 'web-based-import-system'; // Track which import system created the data
     this.isFirebaseStorage = dataPath === 'firebase_storage'; // Check if using Firebase Storage
+    this.clientConfigCache = null; // Cache client config to avoid repeated DB calls during import
   }
   
+  /**
+   * Get client config with caching and fallback to DB
+   * @returns {Object} Client configuration data
+   */
+  async getClientConfig() {
+    // Return cached config if available
+    if (this.clientConfigCache) {
+      return this.clientConfigCache;
+    }
+    
+    // Fallback: Load from Firestore (for standalone component imports)
+    try {
+      const db = await this.getDb();
+      const clientDoc = await db.doc(`clients/${this.clientId}`).get();
+      if (clientDoc.exists) {
+        this.clientConfigCache = clientDoc.data();
+        console.log(`✅ Loaded client config from DB - Fiscal year starts in month ${this.clientConfigCache?.configuration?.fiscalYearStartMonth || 1}`);
+        return this.clientConfigCache;
+      }
+    } catch (error) {
+      console.warn(`⚠️  Could not load client config: ${error.message}`);
+    }
+    
+    // Return default config if all else fails
+    return { configuration: { fiscalYearStartMonth: 1 } };
+  }
+
   /**
    * Helper to report progress
    */
@@ -255,6 +284,18 @@ export class ImportService {
         this.reportProgress('config', i, results.total, results);
       }
       
+      // Cache the client config for use during import (especially for fiscal year calculations)
+      try {
+        const db = await this.getDb();
+        const clientDoc = await db.doc(`clients/${this.clientId}`).get();
+        if (clientDoc.exists) {
+          this.clientConfigCache = clientDoc.data();
+          console.log(`✅ Cached client config - Fiscal year starts in month ${this.clientConfigCache?.configuration?.fiscalYearStartMonth || 1}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️  Could not cache client config: ${error.message}`);
+      }
+      
     } catch (error) {
       throw new Error(`Config collection import failed: ${error.message}`);
     }
@@ -363,7 +404,7 @@ export class ImportService {
       for (let i = 0; i < categoriesData.length; i++) {
         const category = categoriesData[i];
         try {
-          const augmentedData = augmentMTCCategory(category);
+          const augmentedData = augmentCategory(category, this.clientId);
           
           // Remove createdAt as controller adds it
           delete augmentedData.createdAt;
@@ -424,7 +465,7 @@ export class ImportService {
       for (let i = 0; i < vendorsData.length; i++) {
         const vendor = vendorsData[i];
         try {
-          const augmentedData = augmentMTCVendor(vendor);
+          const augmentedData = augmentVendor(vendor, this.clientId);
           
           // Remove createdAt as controller adds it
           delete augmentedData.createdAt;
@@ -490,7 +531,7 @@ export class ImportService {
         const unit = unitsData[i];
         try {
           const sizeData = sizesMap.get(unit.Unit) || {};
-          const augmentedData = augmentMTCUnit(unit, sizeData);
+          const augmentedData = augmentUnit(unit, sizeData);
           
           // Remove createdAt as controller adds it
           delete augmentedData.createdAt;
@@ -549,7 +590,7 @@ export class ImportService {
       for (const mtcUser of usersData) {
         try {
           const mapping = userUnitMapping.find(m => m.user === mtcUser);
-          const augmentedData = augmentMTCUser(mapping);
+          const augmentedData = augmentUser(mapping, this.clientId);
           
           // Remove createdAt as controller adds it
           delete augmentedData.createdAt;
@@ -645,12 +686,23 @@ export class ImportService {
           const categoryId = categoryMap[transaction.Category] || null;
           const accountId = accountMap[transaction.Account]?.id || null;
           
-          // Debug vendor lookup for first few transactions
+          // Debug logging for first few transactions
           if (i < 5) {
-            console.log(`🔍 Transaction ${i}: Vendor="${transaction.Vendor}", vendorId=${vendorId}, vendorMap has key: ${vendorMap.hasOwnProperty(transaction.Vendor)}`);
+            console.log(`🔍 Transaction ${i}:`);
+            console.log(`   Vendor="${transaction.Vendor}", vendorId=${vendorId}`);
+            console.log(`   Category="${transaction.Category}", categoryId=${categoryId}`);
+            console.log(`   Account="${transaction.Account}", accountId=${accountId}`);
+            console.log(`   Account exists in map: ${accountMap.hasOwnProperty(transaction.Account)}`);
           }
           
-          const augmentedData = augmentMTCTransaction(transaction, vendorId, categoryId, accountId, vendorName);
+          // FAIL FAST: Stop import if account mapping fails
+          if (!accountId) {
+            const error = `❌ CRITICAL: No account mapping found for "${transaction.Account}" in transaction ${i}. Available accounts: ${Object.keys(accountMap).join(', ')}`;
+            console.error(error);
+            throw new Error(error);
+          }
+          
+          const augmentedData = augmentTransaction(transaction, vendorId, categoryId, accountId, vendorName, accountMap, this.clientId);
           
           // Parse date properly - handle ISO format
           // NOTE: createTransaction expects string dates, not Firestore timestamps
@@ -794,7 +846,11 @@ export class ImportService {
     
     try {
       const duesData = await this.loadJsonFile('HOADues.json');
-      const year = getNow().getFullYear();
+      
+      // Get fiscal year configuration
+      const clientConfig = await this.getClientConfig();
+      const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+      const year = getFiscalYear(getNow(), fiscalYearStartMonth);
       
       // Load transaction cross-reference if available
       let crossReference = { bySequence: {} };
@@ -1007,12 +1063,20 @@ export class ImportService {
                 const dateMatch = payment.notes.match(/Posted:.*?on\s+(.+?)\s+GMT/i);
                 if (dateMatch) {
                   try {
-                    // Parse the date string
+                    // Parse the date string "Sat Dec 28 2024 13:56:50" format
                     const dateStr = dateMatch[1].trim();
-                    // Convert "Sat Dec 28 2024 13:56:50" format
-                    extractedDate = new Date(dateStr);
-                    if (isNaN(extractedDate.getTime())) {
-                      extractedDate = null; // Invalid date
+                    // Use DateTime's RFC2822 parser for this format
+                    const parsedDate = DateTime.fromRFC2822(dateStr, { zone: 'America/Cancun' });
+                    if (parsedDate.isValid) {
+                      extractedDate = parsedDate.toJSDate();
+                    } else {
+                      // Fallback: try HTTP format
+                      const httpDate = DateTime.fromHTTP(dateStr, { zone: 'America/Cancun' });
+                      if (httpDate.isValid) {
+                        extractedDate = httpDate.toJSDate();
+                      } else {
+                        extractedDate = null; // Invalid date
+                      }
                     }
                   } catch (e) {
                     console.warn(`⚠️ Could not parse date from notes for unit ${unitId}: ${payment.notes}`);
@@ -1103,9 +1167,12 @@ export class ImportService {
               ? 'from Overpayment' 
               : 'from Credit Balance Usage';
             
+            // Parse date string properly with timezone (tx.date is ISO string like "2024-07-15")
+            const txDate = DateTime.fromISO(tx.date, { zone: 'America/Cancun' }).toJSDate();
+            
             creditBalanceHistory.push({
               id: this.generateId(),
-              timestamp: new Date(tx.date),
+              timestamp: txDate,
               transactionId: tx.transactionId,
               type: type,
               amount: Math.abs(tx.amount), // Store as positive value
@@ -1120,12 +1187,17 @@ export class ImportService {
           const finalCreditBalance = (unitData.creditBalance || 0) * 100;
           const startingBalance = finalCreditBalance - runningBalance;
           
-          // If there was a starting balance (from pre-2025 or manual adjustments), add it as first entry
+          // If there was a starting balance (from prior period or manual adjustments), add it as first entry
           if (startingBalance !== 0) {
+            // Get client config and calculate fiscal year start date
+            const clientConfig = await this.getClientConfig();
+            const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+            const { startDate } = getFiscalYearBounds(year, fiscalYearStartMonth);
+            
             // Insert at beginning of history array
             creditBalanceHistory.unshift({
               id: this.generateId(),
-              timestamp: new Date('2025-01-01'), // Start of 2025
+              timestamp: startDate, // Start of fiscal year
               transactionId: null,
               type: 'starting_balance',
               amount: Math.abs(startingBalance),
@@ -1206,7 +1278,7 @@ export class ImportService {
    * Helper to generate unique IDs
    */
   generateId() {
-    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+    return Math.random().toString(36).substring(2) + getNow().getTime().toString(36);
   }
 
   /**
@@ -1228,20 +1300,30 @@ export class ImportService {
     console.log('🔗 Loading accounts mapping...');
     
     const db = await this.getDb();
-    const accountsRef = db.collection('clients').doc(this.clientId).collection('accounts');
-    const accountsSnapshot = await accountsRef.get();
+    const clientDoc = await db.collection('clients').doc(this.clientId).get();
+    
+    if (!clientDoc.exists) {
+      console.error(`❌ Client document not found: ${this.clientId}`);
+      return {};
+    }
+    
+    const clientData = clientDoc.data();
+    const accountsArray = clientData.accounts || [];
+    
+    console.log(`📋 Found ${accountsArray.length} accounts in client document`);
     
     const accountsMap = {};
-    accountsSnapshot.forEach(doc => {
-      const account = doc.data();
+    accountsArray.forEach(account => {
       accountsMap[account.name] = {
-        id: doc.id,
+        id: account.id,
         name: account.name,
         type: account.type
       };
     });
     
-    console.log(`✅ Loaded ${Object.keys(accountsMap).length} account mappings`);
+    console.log(`✅ Loaded ${Object.keys(accountsMap).length} account mappings for client ${this.clientId}`);
+    console.log('📋 FULL ACCOUNT MAP:', JSON.stringify(accountsMap, null, 2));
+    console.log('🔑 Account names available for matching:', Object.keys(accountsMap));
     return accountsMap;
   }
 
@@ -1376,7 +1458,11 @@ export class ImportService {
    * Create fallback year-end balance with zero amounts
    */
   createFallbackYearEnd(accountsMap, fiscalYear) {
-    const yearEndDate = new Date(`${fiscalYear}-12-31`).toISOString();
+    // Use DateTime to create year-end date in Cancun timezone
+    const yearEndDate = DateTime.fromObject(
+      { year: fiscalYear, month: 12, day: 31 },
+      { zone: 'America/Cancun' }
+    ).toISO();
     
     return {
       year: fiscalYear,
@@ -1507,10 +1593,53 @@ export class ImportService {
   }
 
   /**
+   * Validate that all required files are present before starting import
+   * NOTE: File names must match exactly what the import functions use (case-insensitive lookup handles variations)
+   */
+  async validateRequiredFiles() {
+    const requiredFiles = [
+      'Client.json',        // Used by importClient()
+      'Config.json',        // Used by importConfig() - NOTE: Capital C
+      'Categories.json',    // Used by importCategories()
+      'Vendors.json',       // Used by importVendors()
+      'Units.json',         // Used by importUnits()
+      'Transactions.json',  // Used by importTransactions()
+      'HOADues.json',       // Used by importHOADues()
+      'paymentMethods.json', // Used by importPaymentTypes()
+      'yearEndBalances.json' // Used by importYearEndBalances()
+    ];
+    
+    const missingFiles = [];
+    
+    for (const fileName of requiredFiles) {
+      try {
+        await this.loadJsonFile(fileName);
+      } catch (error) {
+        missingFiles.push(fileName);
+      }
+    }
+    
+    if (missingFiles.length > 0) {
+      throw new Error(`Missing required files: ${missingFiles.join(', ')}. Cannot proceed with import.`);
+    }
+    
+    console.log('✅ All required files validated successfully');
+    return true;
+  }
+
+  /**
    * Execute import for selected components
    */
   async executeImport(user, components = []) {
     console.log(`🚀 Starting import for components: ${components.join(', ')}`);
+    
+    // Validate required files before starting import
+    try {
+      await this.validateRequiredFiles();
+    } catch (error) {
+      console.error('❌ File validation failed:', error.message);
+      throw error; // Stop import if validation fails
+    }
     
     // Define import order
     const importOrder = [

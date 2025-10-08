@@ -1109,7 +1109,8 @@ async function executeImport(user, clientId, options = {}) {
       totalRecords,
       fileSizes,
       totalSizeKB: totalSize,
-      dryRun
+      dryRun,
+      components: {}  // Initialize components object for progress tracking
     };
     
     // Store in global for progress tracking

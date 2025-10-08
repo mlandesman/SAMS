@@ -51,6 +51,46 @@ export function ImportManagement({ clientId }) {
         setOnboardingPath(onboarding.dataPath);
         console.log('📋 Onboarding mode detected for client:', onboarding.clientId);
         
+        // NEW: Check if we should start progress polling immediately
+        if (onboarding.startProgressPolling) {
+          console.log('🔄 Starting progress polling for onboarding import');
+          setIsProcessing(true);
+          setProgress({ status: 'starting', sequence: [], components: {} });
+          
+          // Start polling immediately - inline implementation to avoid closure issues
+          const startPolling = async () => {
+            pollIntervalRef.current = setInterval(async () => {
+              try {
+                const response = await fetch(`${appConfig.api.baseUrl}/admin/import/${clientId}/progress`, {
+                  headers: await getAuthHeaders()
+                });
+                
+                if (!response.ok) {
+                  throw new Error('Failed to fetch progress');
+                }
+                
+                const data = await response.json();
+                console.log('📊 Progress data received:', data);
+                setProgress(data);
+                
+                if (data.status === 'completed' || data.status === 'error') {
+                  console.log('✅ Import completed, stopping polling');
+                  clearInterval(pollIntervalRef.current);
+                  pollIntervalRef.current = null;
+                  setIsProcessing(false);
+                }
+              } catch (error) {
+                console.error('❌ Progress fetch failed:', error);
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+                setIsProcessing(false);
+              }
+            }, 1000);
+          };
+          
+          startPolling();
+        }
+        
         // Clear it so it doesn't persist
         localStorage.removeItem('onboardingClient');
       } catch (e) {
@@ -370,6 +410,15 @@ export function ImportManagement({ clientId }) {
                   {progress?.status || 'PENDING'}
                 </span>
               </div>
+              
+              {/* Show initialization message when starting with no components yet */}
+              {progress?.status === 'starting' && (!progress?.components || Object.keys(progress.components).length === 0) && (
+                <div className="component-progress-list">
+                  <div className="progress-message" style={{ padding: '15px', background: '#f0f9ff', borderRadius: '6px', marginTop: '10px' }}>
+                    🚀 Initializing import process... Preparing to import client data.
+                  </div>
+                </div>
+              )}
               
               {progress?.components && Object.keys(progress.components).length > 0 && (
                 <div className="component-progress-list">
