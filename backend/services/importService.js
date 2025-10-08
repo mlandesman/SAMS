@@ -626,11 +626,18 @@ export class ImportService {
     const { dryRun = false, maxErrors = 3 } = options;
     const results = { success: 0, failed: 0, errors: [], total: 0 };
     
-    // Initialize CrossRef structure
+    // Initialize CrossRef structures
     const hoaCrossRef = {
       generated: getNow().toISOString(),
       totalRecords: 0,
       bySequence: {},
+      byUnit: {}
+    };
+    
+    const waterBillsCrossRef = {
+      generated: getNow().toISOString(),
+      totalRecords: 0,
+      byPaymentSeq: {},  // PAY-* → transaction info
       byUnit: {}
     };
     
@@ -777,6 +784,35 @@ export class ImportService {
               
               console.log(`📝 Recorded HOA CrossRef: Seq ${seqKey} → ${transactionId}`);
             }
+            
+            // Build CrossRef for Water Bills transactions
+            if (transaction.Category === "Water Consumption" && seqNumber) {
+              // Extract unit ID from "Unit (Name)" format → "Unit"
+              const unitMatch = transaction.Unit?.match(/^(\d+)/);
+              const unitId = unitMatch ? unitMatch[1] : transaction.Unit;
+              
+              waterBillsCrossRef.byPaymentSeq[seqNumber] = {
+                transactionId: transactionId,
+                unitId: unitId,
+                amount: transaction.Amount,
+                date: transaction.Date,
+                notes: transaction.Notes || ''
+              };
+              waterBillsCrossRef.totalRecords++;
+              
+              // Also track by unit
+              if (!waterBillsCrossRef.byUnit[unitId]) {
+                waterBillsCrossRef.byUnit[unitId] = [];
+              }
+              waterBillsCrossRef.byUnit[unitId].push({
+                paymentSeq: seqNumber,
+                transactionId: transactionId,
+                amount: transaction.Amount,
+                date: transaction.Date
+              });
+              
+              console.log(`💧 Recorded Water Bills CrossRef: ${seqNumber} → ${transactionId}`);
+            }
           }
           
           // Report progress using helper
@@ -812,6 +848,26 @@ export class ImportService {
         
         results.hoaCrossRefGenerated = true;
         results.hoaCrossRefRecords = hoaCrossRef.totalRecords;
+      }
+      
+      // Save Water Bills CrossRef to file if we found any water bill transactions
+      if (waterBillsCrossRef.totalRecords > 0) {
+        const waterCrossRefContent = JSON.stringify(waterBillsCrossRef, null, 2);
+        
+        if (this.isFirebaseStorage) {
+          // Write to Firebase Storage
+          const waterCrossRefPath = `imports/${this.clientId}/Water_Bills_Transaction_CrossRef.json`;
+          await writeFileToFirebaseStorage(waterCrossRefPath, waterCrossRefContent, this.user);
+          console.log(`💾 Saved Water Bills CrossRef with ${waterBillsCrossRef.totalRecords} entries to Firebase Storage: ${waterCrossRefPath}`);
+        } else {
+          // Write to local filesystem
+          const waterCrossRefPath = path.join(this.dataPath, 'Water_Bills_Transaction_CrossRef.json');
+          await fs.writeFile(waterCrossRefPath, waterCrossRefContent);
+          console.log(`💾 Saved Water Bills CrossRef with ${waterBillsCrossRef.totalRecords} entries to ${waterCrossRefPath}`);
+        }
+        
+        results.waterBillsCrossRefGenerated = true;
+        results.waterBillsCrossRefRecords = waterBillsCrossRef.totalRecords;
       }
       
     } catch (error) {
