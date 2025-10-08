@@ -8,6 +8,9 @@
  * 
  * Key concepts:
  * - Calendar Month: Standard 1-12 (January-December)
+ */
+
+import { getNow } from '../services/DateService.js';
  * - Fiscal Month: Position 1-12 within the fiscal year
  * - Fiscal Year Start Month: The calendar month when fiscal year begins (1-12)
  * - Fiscal Year naming: Named by the ending year (e.g., FY 2025 = July 2024 - June 2025)
