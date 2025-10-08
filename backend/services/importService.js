@@ -1532,6 +1532,353 @@ export class ImportService {
   }
 
   /**
+   * Import Water Bills - Chronological processing of readings, bills, and payments
+   */
+  async importWaterBills(user) {
+    console.log('🌊 Starting Water Bills Import...');
+    const results = {
+      readingsImported: 0,
+      billsGenerated: 0,
+      paymentsApplied: 0,
+      cyclesProcessed: 0,
+      errors: []
+    };
+    
+    try {
+      // Check if water bills files exist
+      const hasReadings = await this.fileExists('waterMeterReadings.json');
+      const hasCrossRef = await this.fileExists('waterCrossRef.json');
+      
+      if (!hasReadings || !hasCrossRef) {
+        console.log('⏭️  Water bills files not found, skipping water bills import');
+        return { skipped: true, reason: 'Required files not found' };
+      }
+      
+      // Load all required data files
+      console.log('📥 Loading water bills data files...');
+      const readingsData = await this.loadJsonFile('waterMeterReadings.json');
+      const waterCrossRef = await this.loadJsonFile('waterCrossRef.json');
+      const txnCrossRef = await this.loadJsonFile('Water_Bills_Transaction_CrossRef.json');
+      
+      console.log(`✓ Loaded ${readingsData.length} units with readings`);
+      console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
+      console.log(`✓ Loaded transaction CrossRef with ${Object.keys(txnCrossRef.byPaymentSeq || {}).length} payments`);
+      
+      // Parse readings chronologically
+      const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef);
+      console.log(`📅 Built chronology with ${chronology.length} month cycles`);
+      
+      // Process each month cycle: readings → bills → payments
+      for (const cycle of chronology) {
+        try {
+          console.log(`\n📅 Processing: ${cycle.readingMonth} readings → ${cycle.billingMonth} billing`);
+          
+          // Step 1: Import readings for this month
+          await this.importMonthReadings(cycle);
+          results.readingsImported++;
+          
+          // Step 2: Generate bills for this month (using existing service)
+          await this.generateMonthBills(cycle);
+          results.billsGenerated++;
+          
+          // Step 3: Process payments made during this billing month
+          if (cycle.payments && cycle.payments.length > 0) {
+            await this.processMonthPayments(cycle);
+            results.paymentsApplied += cycle.payments.length;
+          }
+          
+          results.cyclesProcessed++;
+          console.log(`✅ Completed ${cycle.readingMonth} → ${cycle.billingMonth} cycle`);
+          
+        } catch (error) {
+          console.error(`❌ Error processing cycle ${cycle.readingMonth}:`, error.message);
+          results.errors.push({
+            cycle: cycle.readingMonth,
+            error: error.message
+          });
+          // Continue with next cycle rather than failing entire import
+        }
+      }
+      
+      console.log('\n✅ Water Bills Import Complete');
+      console.log(`   Cycles Processed: ${results.cyclesProcessed}`);
+      console.log(`   Readings Imported: ${results.readingsImported}`);
+      console.log(`   Bills Generated: ${results.billsGenerated}`);
+      console.log(`   Payments Applied: ${results.paymentsApplied}`);
+      
+      return results;
+      
+    } catch (error) {
+      console.error('❌ Water Bills import failed:', error.message);
+      throw new Error(`Water Bills import failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Build chronology of reading → billing → payment cycles
+   */
+  buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef) {
+    const { getFiscalYear } = require('./utils/fiscalYearUtils.js');
+    const FISCAL_YEAR_START_MONTH = 7; // AVII fiscal year starts in July
+    
+    // Parse readings by month
+    const readingsByMonth = {};
+    const firstUnit = readingsData[0];
+    const dateKeys = Object.keys(firstUnit).filter(k => k !== 'Unit');
+    
+    for (const dateKey of dateKeys) {
+      const reading = firstUnit[dateKey];
+      if (reading === '') continue;
+      
+      const date = new Date(dateKey);
+      const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!readingsByMonth[monthStr]) {
+        readingsByMonth[monthStr] = {
+          date: date,
+          readings: {}
+        };
+      }
+      
+      // Extract readings for all units
+      for (const unitData of readingsData) {
+        const unitId = unitData.Unit;
+        const reading = unitData[dateKey];
+        
+        if (reading !== '') {
+          readingsByMonth[monthStr].readings[unitId] = reading;
+        }
+      }
+    }
+    
+    // Group payments by month
+    const paymentsByMonth = {};
+    for (const charge of waterCrossRef) {
+      const paymentDate = new Date(charge.PaymentDate);
+      const monthStr = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!paymentsByMonth[monthStr]) {
+        paymentsByMonth[monthStr] = [];
+      }
+      paymentsByMonth[monthStr].push(charge);
+    }
+    
+    // Build chronology
+    const chronology = [];
+    const sortedMonths = Object.keys(readingsByMonth).sort();
+    
+    for (const readingMonth of sortedMonths) {
+      // Billing month is the month after reading month
+      const [year, month] = readingMonth.split('-').map(Number);
+      const billingDate = new Date(year, month, 1); // Next month
+      const billingMonth = `${billingDate.getFullYear()}-${String(billingDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Get fiscal year/month for billing
+      const fiscalYear = getFiscalYear(billingDate, FISCAL_YEAR_START_MONTH);
+      const calendarMonth = billingDate.getMonth() + 1;
+      let fiscalMonth = calendarMonth - FISCAL_YEAR_START_MONTH;
+      if (fiscalMonth < 0) fiscalMonth += 12;
+      
+      chronology.push({
+        readingMonth,
+        billingMonth,
+        fiscalYear,
+        fiscalMonth,
+        readings: readingsByMonth[readingMonth].readings,
+        payments: paymentsByMonth[billingMonth] || []
+      });
+    }
+    
+    return chronology;
+  }
+  
+  /**
+   * Import readings for a single month
+   */
+  async importMonthReadings(cycle) {
+    const waterReadingsService = (await import('./waterReadingsService.js')).default;
+    
+    const payload = {
+      readings: {},
+      buildingMeter: null,
+      commonArea: null
+    };
+    
+    for (const [unitId, reading] of Object.entries(cycle.readings)) {
+      if (unitId === 'Building') {
+        payload.buildingMeter = reading;
+      } else if (unitId === 'Common') {
+        payload.commonArea = reading;
+      } else {
+        payload.readings[unitId] = reading;
+      }
+    }
+    
+    await waterReadingsService.saveReadings(
+      this.clientId,
+      cycle.fiscalYear,
+      cycle.fiscalMonth,
+      payload
+    );
+    
+    console.log(`  📊 Imported readings for ${cycle.readingMonth}: ${Object.keys(payload.readings).length} units`);
+  }
+  
+  /**
+   * Generate bills for a single month
+   */
+  async generateMonthBills(cycle) {
+    const waterBillsService = (await import('./waterBillsService.js')).default;
+    
+    await waterBillsService.generateBills(
+      this.clientId,
+      cycle.fiscalYear,
+      cycle.fiscalMonth
+    );
+    
+    console.log(`  💵 Generated bills for ${cycle.billingMonth} (fiscal ${cycle.fiscalYear}-${cycle.fiscalMonth})`);
+  }
+  
+  /**
+   * Process payments for a single month
+   */
+  async processMonthPayments(cycle) {
+    // Group charges by payment sequence
+    const paymentGroups = {};
+    
+    for (const charge of cycle.payments) {
+      const paySeq = charge.PaymentSeq;
+      
+      if (!paymentGroups[paySeq]) {
+        paymentGroups[paySeq] = {
+          paymentSeq: paySeq,
+          unit: charge.Unit,
+          paymentDate: charge.PaymentDate,
+          charges: [],
+          totalAmount: 0,
+          baseCharges: 0,
+          penalties: 0
+        };
+      }
+      
+      paymentGroups[paySeq].charges.push(charge);
+      paymentGroups[paySeq].totalAmount += charge.AmountApplied;
+      
+      if (charge.Category === 'WC') {
+        paymentGroups[paySeq].baseCharges += charge.AmountApplied;
+      } else if (charge.Category === 'WCP') {
+        paymentGroups[paySeq].penalties += charge.AmountApplied;
+      }
+    }
+    
+    // Apply each payment to its bills
+    for (const [paySeq, payment] of Object.entries(paymentGroups)) {
+      // Find which bills this payment applies to
+      const billsToUpdate = await this.findBillsForCharges(payment.charges);
+      
+      // Update each bill with payment info
+      for (const billUpdate of billsToUpdate) {
+        await this.applyPaymentToBill(billUpdate);
+      }
+      
+      console.log(`  💰 Applied payment ${paySeq}: $${payment.totalAmount.toFixed(2)} → ${billsToUpdate.length} bill(s)`);
+    }
+  }
+  
+  /**
+   * Find which bills a set of charges applies to
+   */
+  async findBillsForCharges(charges) {
+    const { getFiscalYear } = require('./utils/fiscalYearUtils.js');
+    const FISCAL_YEAR_START_MONTH = 7;
+    
+    const billUpdates = [];
+    
+    for (const charge of charges) {
+      const chargeDate = new Date(charge.ChargeDate);
+      const fiscalYear = getFiscalYear(chargeDate, FISCAL_YEAR_START_MONTH);
+      const calendarMonth = chargeDate.getMonth() + 1;
+      let fiscalMonth = calendarMonth - FISCAL_YEAR_START_MONTH;
+      if (fiscalMonth < 0) fiscalMonth += 12;
+      
+      // Find existing bill update or create new one
+      let billUpdate = billUpdates.find(
+        b => b.fiscalYear === fiscalYear && b.fiscalMonth === fiscalMonth && b.unitId === charge.Unit.toString()
+      );
+      
+      if (!billUpdate) {
+        billUpdate = {
+          fiscalYear,
+          fiscalMonth,
+          unitId: charge.Unit.toString(),
+          amountApplied: 0,
+          basePaid: 0,
+          penaltyPaid: 0
+        };
+        billUpdates.push(billUpdate);
+      }
+      
+      billUpdate.amountApplied += charge.AmountApplied;
+      if (charge.Category === 'WC') {
+        billUpdate.basePaid += charge.AmountApplied;
+      } else if (charge.Category === 'WCP') {
+        billUpdate.penaltyPaid += charge.AmountApplied;
+      }
+    }
+    
+    return billUpdates;
+  }
+  
+  /**
+   * Apply payment to a specific bill
+   */
+  async applyPaymentToBill(billUpdate) {
+    const db = await this.getDb();
+    
+    const monthStr = `${billUpdate.fiscalYear}-${String(billUpdate.fiscalMonth).padStart(2, '0')}`;
+    const billRef = db
+      .collection('clients').doc(this.clientId)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc(monthStr);
+    
+    const billDoc = await billRef.get();
+    if (!billDoc.exists) {
+      console.warn(`⚠️  Bill document ${monthStr} not found for unit ${billUpdate.unitId}`);
+      return;
+    }
+    
+    const billData = billDoc.data();
+    const unitBill = billData.bills?.units?.[billUpdate.unitId];
+    
+    if (!unitBill) {
+      console.warn(`⚠️  No bill for unit ${billUpdate.unitId} in ${monthStr}`);
+      return;
+    }
+    
+    // Update bill with payment info
+    const newPaidAmount = (unitBill.paidAmount || 0) + billUpdate.amountApplied;
+    const newBasePaid = (unitBill.basePaid || 0) + billUpdate.basePaid;
+    const newPenaltyPaid = (unitBill.penaltyPaid || 0) + billUpdate.penaltyPaid;
+    
+    // Determine new status
+    let newStatus = 'unpaid';
+    if (newPaidAmount >= unitBill.totalAmount) {
+      newStatus = 'paid';
+    } else if (newPaidAmount > 0) {
+      newStatus = 'partial';
+    }
+    
+    await billRef.update({
+      [`bills.units.${billUpdate.unitId}.paidAmount`]: newPaidAmount,
+      [`bills.units.${billUpdate.unitId}.basePaid`]: newBasePaid,
+      [`bills.units.${billUpdate.unitId}.penaltyPaid`]: newPenaltyPaid,
+      [`bills.units.${billUpdate.unitId}.status`]: newStatus
+    });
+    
+    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus}`);
+  }
+
+  /**
    * Import year-end balances
    */
   async importYearEndBalances(user) {
@@ -1705,6 +2052,7 @@ export class ImportService {
       'users',
       'transactions',
       'hoadues',
+      'waterbills',
       'yearEndBalances'
     ];
     
@@ -1725,6 +2073,7 @@ export class ImportService {
       'users': this.importUsers.bind(this),
       'transactions': this.importTransactions.bind(this),
       'hoadues': this.importHOADues.bind(this),
+      'waterbills': this.importWaterBills.bind(this),
       'yearEndBalances': this.importYearEndBalances.bind(this)
     };
     

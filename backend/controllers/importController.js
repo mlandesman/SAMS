@@ -1083,7 +1083,8 @@ async function executeImport(user, clientId, options = {}) {
       { id: 'units', name: 'Units', independent: true },
       { id: 'yearEndBalances', name: 'Year End Balances', independent: true },
       { id: 'transactions', name: 'Transactions', independent: false, buildsCrossRef: true },
-      { id: 'hoadues', name: 'HOA Dues', independent: false, requiresCrossRef: true }
+      { id: 'hoadues', name: 'HOA Dues', independent: false, requiresCrossRef: true },
+      { id: 'waterbills', name: 'Water Bills', independent: false, requiresCrossRef: true, optional: true }
     ];
     
     // Generate operation ID for tracking
@@ -1185,19 +1186,33 @@ async function executeImport(user, clientId, options = {}) {
                   case 'hoadues':
                     result = await importService.importHOADues(user, { dryRun, maxErrors });
                     break;
+                  case 'waterbills':
+                    result = await importService.importWaterBills(user, { dryRun, maxErrors });
+                    break;
                   default:
                     throw new Error(`Unknown import component: ${step.id}`);
                 }
         
-        progress.components[step.id] = {
-          ...progress.components[step.id], // Preserve progress values (processed, total, percent)
-          status: 'completed',
-          step: step.name,
-          ...result,
-          percent: 100 // Ensure it shows 100%
-        };
-        
-        console.log(`✅ ${step.name} import completed: ${result.success} success, ${result.failed} failed`);
+        // Handle skipped optional components
+        if (result.skipped) {
+          progress.components[step.id] = {
+            status: 'skipped',
+            step: step.name,
+            reason: result.reason,
+            percent: 100
+          };
+          console.log(`⏭️  ${step.name} skipped: ${result.reason}`);
+        } else {
+          progress.components[step.id] = {
+            ...progress.components[step.id], // Preserve progress values (processed, total, percent)
+            status: 'completed',
+            step: step.name,
+            ...result,
+            percent: 100 // Ensure it shows 100%
+          };
+          
+          console.log(`✅ ${step.name} import completed: ${result.success || result.cyclesProcessed || 0} success, ${result.failed || 0} failed`);
+        }
         
         // If Transactions import fails, stop entire sequence
         if (step.id === 'transactions' && result.failed > 0) {
@@ -1205,14 +1220,25 @@ async function executeImport(user, clientId, options = {}) {
         }
         
       } catch (error) {
-        progress.components[step.id] = {
-          status: 'error',
-          step: step.name,
-          error: error.message
-        };
-        
-        console.error(`❌ ${step.name} import failed:`, error);
-        throw new Error(`Import failed at ${step.name}: ${error.message}`);
+        // Optional components can fail gracefully
+        if (step.optional) {
+          progress.components[step.id] = {
+            status: 'skipped',
+            step: step.name,
+            error: error.message,
+            reason: 'Optional component failed'
+          };
+          console.warn(`⚠️  ${step.name} (optional) failed, continuing: ${error.message}`);
+        } else {
+          progress.components[step.id] = {
+            status: 'error',
+            step: step.name,
+            error: error.message
+          };
+          
+          console.error(`❌ ${step.name} import failed:`, error);
+          throw new Error(`Import failed at ${step.name}: ${error.message}`);
+        }
       }
     }
     
