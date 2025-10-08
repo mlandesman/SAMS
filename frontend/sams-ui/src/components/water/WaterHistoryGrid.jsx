@@ -4,6 +4,13 @@ import waterAPI from '../../api/waterAPI';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faTint } from '@fortawesome/free-solid-svg-icons';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
+import {
+  getFiscalMonthNames,
+  getCurrentFiscalMonth,
+  fiscalToCalendarMonth,
+  getFiscalYear,
+  isFiscalYear
+} from '../../utils/fiscalYearUtils';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
 const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
@@ -12,6 +19,9 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
   const navigate = useNavigate();
+  
+  // Get fiscal year configuration (AVII starts in July = month 7)
+  const fiscalYearStartMonth = 7; // July
 
   useEffect(() => {
     if (clientId) {
@@ -142,7 +152,16 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
           <table className="hoa-dues-table">
             <thead>
               <tr className="unit-header-row">
-                <th className="month-header">Month</th>
+                <th className="month-header">
+                  <div className="year-display-container">
+                    {isFiscalYear(fiscalYearStartMonth) && (
+                      <span className="fiscal-year-indicator">FY</span>
+                    )}
+                    <div className="year-display">
+                      {selectedYear}
+                    </div>
+                  </div>
+                </th>
                 {unitIds.map(unitId => {
                   return (
                     <th key={unitId} className="unit-header">
@@ -193,19 +212,48 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
               </tr>
             </thead>
             <tbody>
-              {yearData.months.map((month, idx) => {
-                const isCurrentMonth = false; // You can add logic to determine current month
-                const isFutureMonth = false; // You can add logic to determine future months
-                // Add idx to month object for use in calculations
-                const monthWithIdx = { ...month, idx };
+              {getFiscalMonthNames(fiscalYearStartMonth, { short: true }).map((monthName, index) => {
+                const fiscalMonth = index + 1; // Fiscal month 1-12
+                const calendarMonth = fiscalToCalendarMonth(fiscalMonth, fiscalYearStartMonth);
+                
+                // Find month data from yearData if it exists
+                const monthData = yearData.months?.find(m => m.month === index) || null;
+                
+                // Format month label with correct year
+                let displayYear = selectedYear;
+                // For fiscal years, if the calendar month is before the start month, it's in the fiscal year
+                if (fiscalYearStartMonth > 1 && calendarMonth < fiscalYearStartMonth) {
+                  displayYear = selectedYear; // For FY named by ending year
+                } else if (fiscalYearStartMonth > 1) {
+                  displayYear = selectedYear - 1; // For FY named by ending year
+                }
+                const monthLabel = `${monthName}-${displayYear}`;
+                
+                // Determine month styling based on selected year and current date
+                const currentFiscalMonth = getCurrentFiscalMonth(new Date(), fiscalYearStartMonth);
+                const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+                
+                let monthClass = 'future-month';
+                // For current fiscal year, compare to current fiscal month
+                if (selectedYear === currentFiscalYear) {
+                  monthClass = fiscalMonth > currentFiscalMonth ? 'future-month' : 'current-month';
+                } 
+                // Past fiscal years should all show as current (past) months
+                else if (selectedYear < currentFiscalYear) {
+                  monthClass = 'current-month';
+                }
+                // Future fiscal years should all show as future months
+                else {
+                  monthClass = 'future-month';
+                }
                 
                 return (
-                  <tr key={idx} className="month-row">
-                    <td className={`row-label ${isCurrentMonth ? 'current-month' : ''} ${isFutureMonth ? 'future-month' : ''}`}>
-                      {month.monthName.toUpperCase().substring(0, 3)}
+                  <tr key={`month-${fiscalMonth}`} className="month-row">
+                    <td className={`row-label ${monthClass}`}>
+                      {monthLabel}
                     </td>
                     {unitIds.map(unitId => {
-                      const unitData = month.units?.[unitId];
+                      const unitData = monthData?.units?.[unitId];
                       const consumption = unitData?.consumption;
                       const amount = unitData?.billAmount;
                       
@@ -234,7 +282,7 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                         if (onBillSelection && unitData) {
                           const billData = {
                             unitId,
-                            period: month.monthName + ' ' + month.calendarYear,
+                            period: monthLabel,
                             consumption: consumption || 0,
                             amount: amount || 0,
                             transactionId: unitData.transactionId || null,
@@ -262,52 +310,47 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                                 className="link-button amount-link"
                                 onClick={handleAmountClick}
                                 title={tooltipText}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right', width: '100%', position: 'relative' }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', width: '100%' }}
                               >
-                                <div style={{ fontSize: '20px', color: '#333' }}>
-                                  {formatNumber(consumption)}
-                                  {hasWashes && (
-                                    <FontAwesomeIcon 
-                                      icon={faTint} 
-                                      style={{ 
-                                        fontSize: '12px', 
-                                        color: '#17a2b8', 
-                                        marginLeft: '4px',
-                                        verticalAlign: 'super'
-                                      }} 
-                                    />
-                                  )}
-                                </div>
-                                <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
+                                <span style={{ color: '#0527ae', fontSize: '16px' }}>
                                   ${formatCurrency(amount)}
-                                </div>
+                                </span>
+                                <span style={{ color: '#333', fontSize: '14px' }}> ({formatNumber(consumption)})</span>
+                                {hasWashes && (
+                                  <FontAwesomeIcon 
+                                    icon={faTint} 
+                                    style={{ 
+                                      fontSize: '10px', 
+                                      color: '#17a2b8', 
+                                      marginLeft: '4px',
+                                      verticalAlign: 'super'
+                                    }} 
+                                  />
+                                )}
                               </button>
                             ) : (
                               <>
-                                <div style={{ fontSize: '20px', color: '#333' }}>
-                                  {formatNumber(consumption)}
-                                  {hasWashes && (
-                                    <FontAwesomeIcon 
-                                      icon={faTint} 
-                                      style={{ 
-                                        fontSize: '12px', 
-                                        color: '#17a2b8', 
-                                        marginLeft: '4px',
-                                        verticalAlign: 'super'
-                                      }} 
-                                    />
-                                  )}
-                                </div>
-                                <div style={{ fontSize: '18px', color: '#0527ae', fontWeight: 'bold' }}>
+                                <span style={{ color: '#0527ae', fontSize: '16px' }}>
                                   ${formatCurrency(amount)}
-                                </div>
+                                </span>
+                                <span style={{ color: '#333', fontSize: '14px' }}> ({formatNumber(consumption)})</span>
+                                {hasWashes && (
+                                  <FontAwesomeIcon 
+                                    icon={faTint} 
+                                    style={{ 
+                                      fontSize: '10px', 
+                                      color: '#17a2b8', 
+                                      marginLeft: '4px',
+                                      verticalAlign: 'super'
+                                    }} 
+                                  />
+                                )}
                               </>
                             )
                           ) : (
                             hasWashes ? (
                               <div style={{ fontSize: '14px', color: '#17a2b8', textAlign: 'center' }}>
                                 <FontAwesomeIcon icon={faTint} />
-                                <div style={{ fontSize: '10px', marginTop: '2px' }}>Washes</div>
                               </div>
                             ) : '-'
                           )}
@@ -322,16 +365,11 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                     <td className="payment-cell" style={{ backgroundColor: '#fff8e1' }}>
                       {(() => {
                         // Get common area consumption from the backend-provided data
-                        const consumption = month.commonArea?.consumption || 0;
+                        const consumption = monthData?.commonArea?.consumption || 0;
                         return consumption > 0 ? (
-                          <>
-                            <div style={{ fontSize: '20px', color: '#856404' }}>
-                              {formatNumber(consumption)}
-                            </div>
-                            <div style={{ fontSize: '18px', color: '#856404', fontWeight: 'bold' }}>
-                              ${formatCurrency(consumption * 50)} {/* $50 per m³ */}
-                            </div>
-                          </>
+                          <span style={{ fontSize: '14px', color: '#856404' }}>
+                            ${formatCurrency(consumption * 50)} ({formatNumber(consumption)})
+                          </span>
                         ) : '-';
                       })()}
                     </td>
@@ -342,24 +380,19 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                         // Calculate total consumption for all units + common area
                         let totalConsumption = 0;
                         let totalAmount = 0;
-                        Object.values(month.units || {}).forEach(unit => {
+                        Object.values(monthData?.units || {}).forEach(unit => {
                           totalConsumption += unit.consumption || 0;
                           totalAmount += unit.billAmount || 0;
                         });
                         // Add common area consumption
-                        const commonConsumption = month.commonArea?.consumption || 0;
+                        const commonConsumption = monthData?.commonArea?.consumption || 0;
                         totalConsumption += commonConsumption;
                         totalAmount += commonConsumption * 50; // $50 per m³
                         
                         return totalConsumption > 0 ? (
-                          <>
-                            <div style={{ fontSize: '20px', color: '#155724', fontWeight: 'bold' }}>
-                              {formatNumber(totalConsumption)}
-                            </div>
-                            <div style={{ fontSize: '18px', color: '#155724', fontWeight: 'bold' }}>
-                              ${formatCurrency(totalAmount)}
-                            </div>
-                          </>
+                          <span style={{ fontSize: '14px', color: '#155724', fontWeight: 'bold' }}>
+                            ${formatCurrency(totalAmount)} ({formatNumber(totalConsumption)})
+                          </span>
                         ) : '-';
                       })()}
                     </td>
@@ -368,16 +401,11 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                     <td className="payment-cell" style={{ backgroundColor: '#e7f0ff' }}>
                       {(() => {
                         // Get building meter consumption from the backend-provided data
-                        const consumption = month.buildingMeter?.consumption || 0;
+                        const consumption = monthData?.buildingMeter?.consumption || 0;
                         return consumption > 0 ? (
-                          <>
-                            <div style={{ fontSize: '20px', color: '#004085' }}>
-                              {formatNumber(consumption)}
-                            </div>
-                            <div style={{ fontSize: '18px', color: '#004085', fontWeight: 'bold' }}>
-                              ${formatCurrency(consumption * 50)} {/* $50 per m³ */}
-                            </div>
-                          </>
+                          <span style={{ fontSize: '14px', color: '#004085' }}>
+                            ${formatCurrency(consumption * 50)} ({formatNumber(consumption)})
+                          </span>
                         ) : '-';
                       })()}
                     </td>

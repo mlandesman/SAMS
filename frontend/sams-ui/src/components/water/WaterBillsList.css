@@ -116,6 +116,11 @@
   gap: 10px;
 }
 
+/* Compact month selector for readings tab */
+.month-selector {
+  max-width: 400px;
+}
+
 .month-selector label,
 .due-date-selector label {
   font-weight: 600;
@@ -123,13 +128,22 @@
 }
 
 .month-dropdown,
-.due-date-input {
+.due-date-input,
+.due-date-display {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
   background-color: white;
   cursor: pointer;
+}
+
+.due-date-display {
+  background-color: #f8f9fa;
+  color: #495057;
+  cursor: default;
+  font-weight: 500;
+  border-color: #ced4da;
 }
 
 .month-dropdown:hover,

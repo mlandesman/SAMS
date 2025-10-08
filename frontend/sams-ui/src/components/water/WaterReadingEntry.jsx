@@ -19,6 +19,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [readingPeriod, setReadingPeriod] = useState('');
   
   // Modal state
   const [washModalOpen, setWashModalOpen] = useState(false);
@@ -81,6 +82,8 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       }
       
       const monthData = response.data.months?.find(m => m.month === month);
+      console.log(`🔍 Month data for month ${month}:`, monthData);
+      console.log(`🔍 Month data readingDate:`, monthData?.readingDate);
       console.log(`🔍 Looking for month ${month} data:`, monthData ? 'found' : 'not found');
       
       let priors = {};
@@ -97,6 +100,41 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       
       // Extract prior readings from the previous month's currentReading data in aggregated response
       const priorMonth = month - 1;
+      
+      // Calculate reading period from timestamps (after priorMonth is defined)
+      const priorMonthData = response.data.months?.find(m => m.month === priorMonth);
+      console.log(`🔍 Reading period calculation:`, { 
+        priorMonth, 
+        priorMonthData: priorMonthData ? 'found' : 'not found',
+        priorReadingDate: priorMonthData?.readingDate,
+        monthData: monthData ? 'found' : 'not found',
+        currentReadingDate: monthData?.readingDate 
+      });
+      
+      if (priorMonthData?.readingDate || monthData?.readingDate) {
+        const startDate = priorMonthData?.readingDate 
+          ? new Date(priorMonthData.readingDate.toDate ? priorMonthData.readingDate.toDate() : priorMonthData.readingDate)
+          : null;
+        const endDate = monthData?.readingDate
+          ? new Date(monthData.readingDate.toDate ? monthData.readingDate.toDate() : monthData.readingDate)
+          : new Date(); // Use today's date if no reading saved yet
+        
+        console.log(`🔍 Date objects:`, { startDate, endDate });
+        
+        if (startDate && endDate) {
+          const formatDate = (date) => {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}/${day}/${year}`;
+          };
+          const periodString = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+          console.log(`🔍 Setting reading period to:`, periodString);
+          setReadingPeriod(periodString);
+        }
+      } else {
+        console.log(`🔍 No reading dates found, keeping fallback`);
+      }
       
       // Handle fiscal year boundary (month -1 should be month 11 of previous fiscal year)
       if (priorMonth < 0) {
@@ -409,7 +447,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       <div className="entry-header">
         <h3>Enter Water Meter Readings</h3>
         <div className="period-display">
-          Reading Period: <strong>{monthNames[calendarMonth]} {calendarYear}</strong>
+          Reading Period: <strong>{readingPeriod || `${monthNames[calendarMonth]} ${calendarYear}`}</strong>
           <span className="fiscal-note">(FY {year} Month {month + 1})</span>
         </div>
       </div>

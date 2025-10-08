@@ -18,6 +18,7 @@ import {
   faExchangeAlt
 } from '@fortawesome/free-solid-svg-icons';
 import './WaterBillsIntegratedView.css';
+import '../components/water/WaterBillsList.css';
 
 function WaterBillsViewV3() {
   console.log('🔍 WaterBillsViewV3 RENDERING - VERSION 3.0 WITH TABS - ' + new Date().toISOString());
@@ -41,10 +42,27 @@ function WaterBillsViewV3() {
   
   useEffect(() => {
     if (selectedClient) {
-      // Fetch initial data to get unit IDs
+      // Fetch initial data to get unit IDs and determine auto-advance month
       waterAPI.getAggregatedData(selectedClient.id, 2026)
         .then(response => {
           setYearData(response.data);
+          
+          // Auto-advance to next unsaved readings month (Task 2.4)
+          if (response.data?.months && response.data.months.length > 0) {
+            // Find the last month that has readings data
+            const monthsWithData = response.data.months
+              .filter(m => m.units && Object.keys(m.units).length > 0)
+              .map(m => m.month)
+              .sort((a, b) => a - b);
+            
+            if (monthsWithData.length > 0) {
+              const lastMonth = monthsWithData[monthsWithData.length - 1];
+              // Set to next month (wrapping to 0 if at end of fiscal year)
+              const nextMonth = lastMonth < 11 ? lastMonth + 1 : 11;
+              console.log(`🔍 Auto-advancing Readings to month ${nextMonth} (last saved: ${lastMonth})`);
+              setSelectedMonth(nextMonth);
+            }
+          }
         })
         .catch(err => console.error('Error fetching initial data:', err));
     }
@@ -133,7 +151,7 @@ function WaterBillsViewV3() {
   
   // Month selector for reading entry
   const MonthSelector = () => (
-    <div className="month-selector-container">
+    <div className="month-selector">
       <label htmlFor="month-select">Select Month:</label>
       <select 
         id="month-select"

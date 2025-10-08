@@ -46,6 +46,28 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       const response = await waterAPI.getAggregatedData(clientId, 2026);
       console.log('Aggregated data received:', response);
       setYearData(response.data);
+      
+      // Auto-advance to most recent bill period (Task 2.5)
+      if (response.data?.months && response.data.months.length > 0) {
+        // Find the last month that has bills (has transaction IDs or bill amounts)
+        const monthsWithBills = response.data.months
+          .filter(m => {
+            if (!m.units) return false;
+            // Check if any unit has a transaction ID or bill amount
+            return Object.values(m.units).some(unit => 
+              unit.transactionId || (unit.billAmount && unit.billAmount > 0)
+            );
+          })
+          .map(m => m.month)
+          .sort((a, b) => a - b);
+        
+        if (monthsWithBills.length > 0) {
+          const lastBillMonth = monthsWithBills[monthsWithBills.length - 1];
+          console.log(`🔍 Auto-advancing Bills to month ${lastBillMonth} (most recent bill)`);
+          setSelectedMonth(lastBillMonth);
+        }
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error fetching water data:', error);
@@ -257,14 +279,26 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         
         <div className="due-date-selector">
           <label htmlFor="due-date-select">Due Date:</label>
-          <input 
-            type="date" 
-            id="due-date-select"
-            value={selectedDueDate}
-            onChange={(e) => setSelectedDueDate(e.target.value)}
-            className="due-date-input"
-            required
-          />
+          {hasBills && monthData?.dueDate ? (
+            // Show read-only date when bills are already generated
+            <div className="due-date-display">
+              {new Date(monthData.dueDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </div>
+          ) : (
+            // Show date picker when bills not yet generated
+            <input 
+              type="date" 
+              id="due-date-select"
+              value={selectedDueDate}
+              onChange={(e) => setSelectedDueDate(e.target.value)}
+              className="due-date-input"
+              required
+            />
+          )}
         </div>
         
         <div className="controls-buttons">

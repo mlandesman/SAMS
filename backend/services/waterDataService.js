@@ -5,7 +5,7 @@ import waterReadingsService from './waterReadingsService.js';
 import waterBillsService from './waterBillsService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
-import { getNow } from '../services/DateService.js';
+import { getNow, DateService } from '../services/DateService.js';
 
 class WaterDataService {
   constructor() {
@@ -13,6 +13,8 @@ class WaterDataService {
     this.cacheTimeout = 3600000; // 1 hour cache
     // AVII fiscal year configuration
     this.fiscalYearStartMonth = 7; // July
+    // Initialize DateService for timestamp formatting
+    this.dateService = new DateService({ timezone: 'America/Cancun' });
   }
 
   /**
@@ -146,18 +148,24 @@ class WaterDataService {
     }
     
     // Fetch only the readings and bills for this specific month
-    const [currentReadings, priorReadings, bills] = await Promise.all([
+    const [currentReadingsData, priorReadingsData, bills] = await Promise.all([
       this.fetchReadings(clientId, year, month),
       this.fetchReadings(clientId, priorYear, priorMonth),
       this.fetchBills(clientId, year, month)
     ]);
+    
+    // Extract readings and timestamps
+    const currentReadings = currentReadingsData.readings;
+    const priorReadings = priorReadingsData.readings;
+    const currentTimestamp = currentReadingsData.timestamp;
+    const priorTimestamp = priorReadingsData.timestamp;
     
     // Convert rate from cents to dollars
     const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
     
     // Build the month data using existing logic (no carryover for single month builds)
     return this._buildMonthDataFromSourcesWithCarryover(
-      year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, {}
+      year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, {}, currentTimestamp, priorTimestamp
     );
   }
 
@@ -439,6 +447,14 @@ class WaterDataService {
       };
     }
     
+    // Add reading timestamps using DateService
+    if (currentTimestamp) {
+      monthData.readingDate = this.dateService.formatForFrontend(currentTimestamp).iso;
+    }
+    if (priorTimestamp) {
+      monthData.priorReadingDate = this.dateService.formatForFrontend(priorTimestamp).iso;
+    }
+    
     return monthData;
   }
 
@@ -471,11 +487,17 @@ class WaterDataService {
     }
     
     // Fetch only the variable data for this month
-    const [currentReadings, priorReadings, bills] = await Promise.all([
+    const [currentReadingsData, priorReadingsData, bills] = await Promise.all([
       this.fetchReadings(clientId, year, month),
       this.fetchReadings(clientId, priorYear, priorMonth),
       this.fetchBills(clientId, year, month)
     ]);
+    
+    // Extract readings and timestamps
+    const currentReadings = currentReadingsData.readings;
+    const priorReadings = priorReadingsData.readings;
+    const currentTimestamp = currentReadingsData.timestamp;
+    const priorTimestamp = priorReadingsData.timestamp;
     
     // Calculate unpaid carryover from previous months for months > 0
     console.log(`🔍 [CARRYOVER] Checking if month ${month} > 0 for carryover calculation`);
@@ -520,7 +542,7 @@ class WaterDataService {
     
     // Build month data using existing logic with carryover data
     return this._buildMonthDataFromSourcesWithCarryover(
-      year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover
+      year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover, currentTimestamp, priorTimestamp
     );
   }
 
@@ -528,7 +550,7 @@ class WaterDataService {
    * Core month data builder that takes all data sources as parameters
    * This allows reuse with different data fetching strategies
    */
-  _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}) {
+  _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}, currentTimestamp = null, priorTimestamp = null) {
     console.log(`🔧 [BUILD_WITH_CARRYOVER] Building month ${month} with carryover data`);
     
     // Build unit data (reuse existing logic from buildMonthData)
@@ -694,6 +716,14 @@ class WaterDataService {
       };
     }
     
+    // Add reading timestamps using DateService
+    if (currentTimestamp) {
+      monthData.readingDate = this.dateService.formatForFrontend(currentTimestamp).iso;
+    }
+    if (priorTimestamp) {
+      monthData.priorReadingDate = this.dateService.formatForFrontend(priorTimestamp).iso;
+    }
+    
     return monthData;
   }
 
@@ -703,18 +733,20 @@ class WaterDataService {
   async fetchReadings(clientId, year, month) {
     try {
       const data = await waterReadingsService.getMonthReadings(clientId, year, month);
-      if (!data) return {};
+      if (!data) return { readings: {}, timestamp: null };
       
-      // Return the entire document data, not just the readings field
-      // This includes commonArea and buildingMeter at the top level
+      // Return readings and timestamp separately
       return {
-        ...data.readings || {},  // Spread unit readings at top level
-        commonArea: data.commonArea,
-        buildingMeter: data.buildingMeter
+        readings: {
+          ...data.readings || {},  // Spread unit readings at top level
+          commonArea: data.commonArea,
+          buildingMeter: data.buildingMeter
+        },
+        timestamp: data.timestamp || null
       };
     } catch (error) {
       console.log(`No readings for ${year}-${month}`);
-      return {};
+      return { readings: {}, timestamp: null };
     }
   }
 
