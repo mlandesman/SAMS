@@ -110,21 +110,21 @@ export function linkUsersToUnits(usersData, unitsData) {
 /**
  * Augment MTC user data for SAMS user creation
  */
-export function augmentMTCUser(userUnitMapping) {
+export function augmentUser(userUnitMapping, clientId = 'MTC') {
   const { userData, unitData, fullName, unitId, email } = userUnitMapping;
   
   return {
     // Required fields for SAMS
     email: email,
     name: fullName, // Use full name from Units.json, not just LastName
-    role: 'unitOwner', // Default role for all MTC users
-    clientId: 'MTC',
+    role: 'unitOwner', // Default role for all users
+    clientId: clientId,
     unitId: unitId,
     
     // Optional fields with defaults
     globalRole: 'user',
     clientAccess: {
-      'MTC': {
+      [clientId]: {
         role: 'unitOwner',
         unitId: unitId,
         permissions: [],
@@ -132,7 +132,7 @@ export function augmentMTCUser(userUnitMapping) {
         addedBy: 'system-migration'
       }
     },
-    preferredClient: 'MTC',
+    preferredClient: clientId,
     isActive: true,
     accountState: 'pending_password_change',
     mustChangePassword: true,
@@ -151,23 +151,30 @@ export function augmentMTCUser(userUnitMapping) {
 }
 
 /**
- * Augment MTC transaction data with proper ID resolution
- * NOTE: This function now requires vendorId, categoryId, and accountId to be resolved
+ * Augment transaction data with proper ID resolution (generic, data-driven)
+ * NOTE: This function now requires vendorId, categoryId, accountId, and accountMap to be resolved
  * by the calling code since it doesn't have access to the database
  */
-export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryId = null, accountId = null, vendorName = null) {
-  const accountMapping = getMTCImportMapping();
+export function augmentTransaction(transactionData, vendorId = null, categoryId = null, accountId = null, vendorName = null, accountMap = null, clientId = 'MTC') {
+  // Get account mapping - use provided accountMap (dynamic) or fall back to hardcoded
+  const accountName = transactionData.Account;
+  let mapping = null;
   
-  // Get account mapping
-  const accountName = mtcTransaction.Account;
-  const mapping = accountMapping[accountName];
-  
-  if (!mapping) {
-    console.warn(`⚠️ No account mapping for: ${accountName}`);
+  if (accountMap && accountMap[accountName]) {
+    // Use dynamic account mapping from client data
+    mapping = accountMap[accountName];
+    console.log(`✅ Mapped account "${accountName}" → id: ${mapping.id}, type: ${mapping.type}`);
+  } else {
+    // Fall back to hardcoded mapping (for backwards compatibility)
+    const hardcodedMapping = getMTCImportMapping();
+    mapping = hardcodedMapping[accountName];
+    if (!mapping) {
+      console.warn(`⚠️ No account mapping for: ${accountName}`);
+    }
   }
   
   // Determine transaction type based on amount
-  const amount = parseFloat(mtcTransaction.Amount);
+  const amount = parseFloat(transactionData.Amount);
   const type = amount >= 0 ? 'income' : 'expense';
   
   const augmentedData = {
@@ -176,56 +183,58 @@ export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryI
     type: type, // 'income' for positive amounts, 'expense' for negative
     
     // Account mapping (critical for balance calculations)
-    accountName: mapping?.account || accountName,
+    // Handle both dynamic mapping (id, name, type) and hardcoded mapping (accountId, account, accountType)
+    accountName: mapping?.name || mapping?.account || accountName,
   };
   
   // Only add accountId if it exists (avoid null values)
-  if (accountId || mapping?.accountId) {
-    augmentedData.accountId = accountId || mapping.accountId;
+  // Handle both dynamic mapping (.id) and hardcoded mapping (.accountId)
+  if (accountId || mapping?.id || mapping?.accountId) {
+    augmentedData.accountId = accountId || mapping?.id || mapping?.accountId;
   }
   
   // Only add accountType if it exists (avoid null values)
-  if (mapping?.accountType) {
-    augmentedData.accountType = mapping.accountType;
+  if (mapping?.type || mapping?.accountType) {
+    augmentedData.accountType = mapping?.type || mapping?.accountType;
   }
   
   // Only add vendorId if it exists (avoid null values)
   if (vendorId) {
     augmentedData.vendorId = vendorId;
   }
-  augmentedData.vendorName = vendorName || mtcTransaction.Vendor || '';
+  augmentedData.vendorName = vendorName || transactionData.Vendor || '';
   
   // Only add categoryId if it exists (avoid null values)
   if (categoryId) {
     augmentedData.categoryId = categoryId;
   }
-  augmentedData.categoryName = mtcTransaction.Category || '';
+  augmentedData.categoryName = transactionData.Category || '';
   
   // Optional fields with fallbacks
-  augmentedData.date = mtcTransaction.Date || getNow().toISOString();
-  augmentedData.notes = mtcTransaction.Notes || '';
-  augmentedData.description = vendorName || mtcTransaction.Vendor || ''; // Use mapped vendor as description
+  augmentedData.date = transactionData.Date || getNow().toISOString();
+  augmentedData.notes = transactionData.Notes || '';
+  augmentedData.description = vendorName || transactionData.Vendor || ''; // Use mapped vendor as description
   
   // Add unitId as top-level field (UI expects this)
-  if (mtcTransaction.Unit) {
-    augmentedData.unitId = mtcTransaction.Unit;
+  if (transactionData.Unit) {
+    augmentedData.unitId = transactionData.Unit;
   }
   
   // Import tracking
-  if (mtcTransaction[''] && typeof mtcTransaction[''] === 'string' && mtcTransaction[''].trim() !== '') {
-    augmentedData.googleId = mtcTransaction['']; // First field is google ID
+  if (transactionData[''] && typeof transactionData[''] === 'string' && transactionData[''].trim() !== '') {
+    augmentedData.googleId = transactionData['']; // First field is google ID
   }
   
   // Metadata
-  augmentedData.clientId = 'MTC';
+  augmentedData.clientId = clientId;
   
   // Migration metadata
   augmentedData.migrationData = {
     originalAccount: accountName,
-    originalAmount: mtcTransaction.Amount,
-    originalDate: mtcTransaction.Date,
-    unit: mtcTransaction.Unit || null,
-    migratedAt: new Date().toISOString()
+    originalAmount: transactionData.Amount,
+    originalDate: transactionData.Date,
+    unit: transactionData.Unit || null,
+    migratedAt: getNow().toISOString()
   };
   
   return augmentedData;
@@ -235,7 +244,7 @@ export function augmentMTCTransaction(mtcTransaction, vendorId = null, categoryI
  * Augment MTC unit data combining Units.json + UnitSizes.json
  * CORRECTED: unitId now comes from UnitID field ("1A", "PH4D", etc.)
  */
-export function augmentMTCUnit(unitData, sizeData = null) {
+export function augmentUnit(unitData, sizeData = null) {
   const unitId = unitData.UnitID;  // Use UnitID field as document ID
   
   return {
@@ -276,12 +285,12 @@ export function augmentMTCUnit(unitData, sizeData = null) {
 /**
  * Process Categories data
  */
-export function augmentMTCCategory(categoryData) {
+export function augmentCategory(categoryData, clientId = 'MTC') {
   return {
     name: categoryData.Categories,
     description: categoryData.Categories, // Use same as description
     type: 'expense', // Default type
-    clientId: 'MTC',
+    clientId: clientId,
     createdAt: getNow(),
     migrationData: {
       originalData: categoryData,
@@ -293,11 +302,11 @@ export function augmentMTCCategory(categoryData) {
 /**
  * Process Vendors data
  */
-export function augmentMTCVendor(vendorData) {
+export function augmentVendor(vendorData, clientId = 'MTC') {
   return {
     name: vendorData.Vendors,
     description: vendorData.Vendors,
-    clientId: 'MTC',
+    clientId: clientId,
     createdAt: getNow(),
     migrationData: {
       originalData: vendorData,
@@ -308,8 +317,9 @@ export function augmentMTCVendor(vendorData) {
 
 /**
  * Process HOA Dues data with transaction linking
+ * NOTE: year parameter should be passed from importService which calculates fiscal year correctly
  */
-export function augmentMTCHOADues(unitId, duesData, transactionLookup) {
+export function augmentHOADues(unitId, duesData, transactionLookup, year = null) {
   const payments = [];
   
   if (duesData.payments && Array.isArray(duesData.payments)) {
@@ -337,7 +347,7 @@ export function augmentMTCHOADues(unitId, duesData, transactionLookup) {
   
   return {
     unitId: unitId,
-    year: getNow().getFullYear(), // Current year
+    year: year, // Use passed fiscal year
     scheduledAmount: duesData.scheduledAmount || 0,
     creditBalance: duesData.creditBalance || 0,
     totalPaid: duesData.totalPaid || 0,
