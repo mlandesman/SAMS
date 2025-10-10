@@ -363,6 +363,23 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               const due = monthlyCharge + washCharges + overdue + penalties;  // Total amount to clear account
               
               
+              // Get most recent payment's transaction ID from payments array
+              const payments = unit.payments || [];
+              const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+              const transactionId = lastPayment?.transactionId || null;
+              
+              // DEBUG: Log transaction ID resolution for Unit 203
+              if (unitId === '203') {
+                console.log(`🐛 [WATER_BILLS_UI] Unit ${unitId} transaction ID resolution:`, {
+                  unitStatus: unit.status,
+                  hasPayments: payments.length > 0,
+                  payments: payments,
+                  lastPayment: lastPayment,
+                  resolvedTransactionId: transactionId,
+                  unitData: unit
+                });
+              }
+              
               // Create bill object for selection/transaction linking
               const billData = {
                 unitId,
@@ -371,7 +388,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                 penalties,
                 due,
                 status: unit.status || 'unpaid',
-                transactionId: unit.transactionId || null, // Transaction ID for linking
+                transactionId: transactionId, // Transaction ID from most recent payment
                 billNotes: unit.billNotes,
                 consumption: unit.consumption || 0
               };
@@ -387,11 +404,27 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               const handleStatusClick = (e) => {
                 e.stopPropagation(); // Prevent row selection
                 
+                // Get transaction ID from payments array
+                const payments = unit.payments || [];
+                const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+                const transactionId = lastPayment?.transactionId || null;
                 
-                if (unit.status === 'paid' && unit.transactionId) {
+                // DEBUG: Log click handling for Unit 203
+                if (unitId === '203') {
+                  console.log(`🐛 [WATER_BILLS_UI] Unit ${unitId} status click:`, {
+                    unitStatus: unit.status,
+                    hasPayments: payments.length > 0,
+                    payments: payments,
+                    lastPayment: lastPayment,
+                    transactionId: transactionId,
+                    willNavigate: unit.status === 'paid' && transactionId
+                  });
+                }
+                
+                if (unit.status === 'paid' && transactionId) {
                   // Navigate to transaction (following HOA Dues pattern exactly)
-                  console.log(`💳 Navigating to transaction ID: ${unit.transactionId}`);
-                  navigate(`/transactions?id=${unit.transactionId}`);
+                  console.log(`💳 Navigating to transaction ID: ${transactionId}`);
+                  navigate(`/transactions?id=${transactionId}`);
                   
                   // Update sidebar activity
                   try {
@@ -402,7 +435,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                   } catch (error) {
                     console.error('Error dispatching activity change event:', error);
                   }
-                } else if (unit.status === 'paid' && !unit.transactionId) {
+                } else if (unit.status === 'paid' && !transactionId) {
                   alert('No Matching Transaction Record');
                 } else if (unit.status === 'unpaid' || unit.status === 'partial') {
                   // Open payment modal for unpaid/partial bills (more intuitive UX)

@@ -32,6 +32,22 @@ router.get('/clients/:clientId/data/:year?', enforceClientAccess, async (req, re
     console.log(`📊 Fetching water data for ${clientId} FY${fiscalYear || 'current'}`);
     const data = await waterDataService.getYearData(clientId, fiscalYear);
     
+    // DEBUG: Log Unit 203 data being sent to frontend
+    if (data && data.months) {
+      Object.keys(data.months).forEach(monthKey => {
+        const monthData = data.months[monthKey];
+        if (monthData.units && monthData.units['203']) {
+          const unit203 = monthData.units['203'];
+          console.log(`🐛 [WATER_API] Unit 203 data for ${monthKey}:`, {
+            status: unit203.status,
+            transactionId: unit203.transactionId,
+            hasPayments: unit203.payments?.length > 0,
+            payments: unit203.payments
+          });
+        }
+      });
+    }
+    
     res.json({
       success: true,
       data

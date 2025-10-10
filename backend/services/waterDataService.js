@@ -643,7 +643,26 @@ class WaterDataService {
         status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
         daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
         // CRITICAL: Include transaction ID for bidirectional linking
-        transactionId: bill?.lastPayment?.transactionId || null,
+        transactionId: (() => {
+          const payments = bill?.payments;
+          const transactionId = payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
+          
+          // DEBUG: Log transaction ID resolution for debugging
+          if (unitId === '203') {
+            console.log(`🐛 [WATER_DATA_SERVICE] Unit ${unitId} transaction ID resolution:`, {
+              hasBill: !!bill,
+              hasPayments: !!payments,
+              paymentsLength: payments?.length || 0,
+              lastPayment: payments?.[payments.length - 1] || null,
+              resolvedTransactionId: transactionId,
+              billStatus: bill?.status
+            });
+          }
+          
+          return transactionId;
+        })(),
+        // CRITICAL: Include payments array for UI transaction navigation
+        payments: bill?.payments || [],
         // Include bill notes for hover tooltips (shows car wash details)
         billNotes: bill?.billNotes || null
       };

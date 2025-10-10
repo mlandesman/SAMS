@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.0.1",
-  "buildDate": "2025-10-09T20:02:01.632Z",
-  "buildTimestamp": 1760040121637,
+  "buildDate": "2025-10-10T03:04:45.569Z",
+  "buildTimestamp": 1760065485571,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "c629aa7",
-    "branch": "main",
-    "lastCommitDate": "2025-10-08 09:30:53 -0500"
+    "hash": "b99bab1",
+    "branch": "fix/water-bills-transaction-linking-and-purge",
+    "lastCommitDate": "2025-10-09 20:33:36 -0500"
   },
   "build": {
-    "timestamp": "2025-10-09T20:02:01.632Z",
+    "timestamp": "2025-10-10T03:04:45.569Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251009.1502"
+    "buildNumber": "251009.2204"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-09T20:02:01.632Z",
+    "date": "2025-10-10T03:04:45.569Z",
     "automated": true
   }
 }

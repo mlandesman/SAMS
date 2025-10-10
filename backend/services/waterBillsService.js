@@ -153,7 +153,8 @@ class WaterBillsService {
       'waterCharge', 'carWashCharge', 'boatWashCharge',
       'currentCharge', 'penaltyAmount', 'totalAmount',
       'status', 'paidAmount', 'penaltyPaid',
-      'billNotes', 'lastPenaltyUpdate', 'lastPayment', 'basePaid'
+      'billNotes', 'lastPenaltyUpdate', 'lastPayment', 'basePaid',
+      'payments' // Array of payment entries with transaction IDs
     ];
 
     // Clean any extra fields that might have been added
@@ -201,6 +202,24 @@ class WaterBillsService {
         penaltiesApplied: false
       }
     };
+    
+    // 8. CRITICAL FIX: Ensure waterBills document has properties to prevent ghost status
+    const waterBillsRef = this.db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills');
+    
+    // Check if waterBills document exists, if not create it with a property
+    const waterBillsDoc = await waterBillsRef.get();
+    if (!waterBillsDoc.exists) {
+      console.log('🔧 Creating waterBills document to prevent ghost status...');
+      await waterBillsRef.set({
+        _purgeMarker: 'DO_NOT_DELETE',
+        _createdBy: 'waterBillsService',
+        _createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        _structure: 'waterBills'
+      });
+      console.log('✅ waterBills document created with properties');
+    }
     
     // 8. Save bills document
     await this.db
