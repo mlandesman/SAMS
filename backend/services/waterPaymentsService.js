@@ -466,21 +466,30 @@ class WaterPaymentsService {
       
       console.log(`💰 Bill ${payment.billId}: isPaymentMonth=${isPaymentMonth}, displayAmount=$${displayPaidAmount}`);
       
+      // Get existing payments array or initialize it
+      const existingPayments = currentBill.payments || [];
+      
+      // Create new payment entry (following HOA Dues pattern)
+      const paymentEntry = {
+        amount: displayPaidAmount, // Full amount in payment month, allocated in others
+        baseChargePaid: payment.baseChargePaid,
+        penaltyPaid: payment.penaltyPaid,
+        date: paymentDate,
+        method: paymentMethod,
+        reference: reference,
+        transactionId: transactionResult || null,
+        recordedAt: getNow().toISOString()
+      };
+      
+      // Append to payments array
+      const updatedPayments = [...existingPayments, paymentEntry];
+      
       batch.update(billRef, {
         [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
         [`bills.units.${unitId}.basePaid`]: newBasePaid,
         [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
         [`bills.units.${unitId}.status`]: payment.newStatus,
-        [`bills.units.${unitId}.lastPayment`]: {
-          amount: displayPaidAmount, // Full amount in payment month, allocated in others
-          baseChargePaid: payment.baseChargePaid,
-          penaltyPaid: payment.penaltyPaid,
-          paymentDate: paymentDate,
-          paymentMethod: paymentMethod,
-          reference: reference,
-          transactionId: transactionResult || null,
-          recordedAt: getNow().toISOString()
-        }
+        [`bills.units.${unitId}.payments`]: updatedPayments
       });
     }
     

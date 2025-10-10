@@ -1,0 +1,318 @@
+{
+  "_id": "2026-00",
+  "billDate": "2025-10-10T02:42:12.072Z",
+  "dueDate": "2025-10-20T02:42:12.072Z",
+  "billingPeriod": "July 2025",
+  "fiscalYear": 2026,
+  "fiscalMonth": 0,
+  "configSnapshot": {
+    "ratePerM3": 5000,
+    "penaltyRate": 0.05,
+    "currency": "MXN",
+    "currencySymbol": "$",
+    "minimumCharge": 0,
+    "compoundPenalty": true
+  },
+  "summary": {
+    "totalUnits": 9,
+    "totalNewCharges": 6200,
+    "totalBilled": 6200,
+    "totalUnpaid": 6200,
+    "totalPaid": 0,
+    "currency": "MXN",
+    "currencySymbol": "$"
+  },
+  "bills": {
+    "units": {
+      "101": {
+        "priorReading": 1749,
+        "currentReading": 1767,
+        "consumption": 18,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 900,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 900,
+        "penaltyAmount": 0,
+        "totalAmount": 900,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0018 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 900,
+            "baseChargePaid": 900,
+            "penaltyPaid": 0,
+            "date": "2025-07-17T14:43:24.359Z",
+            "transactionId": "2025-07-17_214051_663",
+            "reference": "PAY-101 (Zerbarini)-20250717-25",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:12.621Z"
+          }
+        ],
+        "paidAmount": 900,
+        "basePaid": 900,
+        "status": "paid"
+      },
+      "102": {
+        "priorReading": 7,
+        "currentReading": 26,
+        "consumption": 19,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 950,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 950,
+        "penaltyAmount": 0,
+        "totalAmount": 950,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0019 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 950,
+            "baseChargePaid": 950,
+            "penaltyPaid": 0,
+            "date": "2025-07-12T17:43:39.169Z",
+            "transactionId": "2025-07-12_214045_313",
+            "reference": "PAY-102 (Moguel)-20250712-17",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:12.954Z"
+          }
+        ],
+        "paidAmount": 950,
+        "basePaid": 950,
+        "status": "paid"
+      },
+      "103": {
+        "priorReading": 835,
+        "currentReading": 842,
+        "consumption": 7,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 350,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 350,
+        "penaltyAmount": 0,
+        "totalAmount": 350,
+        "status": "unpaid",
+        "paidAmount": 0,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0007 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z"
+      },
+      "104": {
+        "priorReading": 1481,
+        "currentReading": 1489,
+        "consumption": 8,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 400,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 400,
+        "penaltyAmount": 0,
+        "totalAmount": 400,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0008 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 400,
+            "baseChargePaid": 400,
+            "penaltyPaid": 0,
+            "date": "2025-07-23T05:00:00.000Z",
+            "transactionId": "2025-07-23_214052_451",
+            "reference": "PAY-104 (Manuel González)-20250723-26",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:13.298Z"
+          }
+        ],
+        "paidAmount": 400,
+        "basePaid": 400,
+        "status": "paid"
+      },
+      "105": {
+        "priorReading": 830,
+        "currentReading": 846,
+        "consumption": 16,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 800,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 800,
+        "penaltyAmount": 0,
+        "totalAmount": 800,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0016 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 800,
+            "baseChargePaid": 800,
+            "penaltyPaid": 0,
+            "date": "2025-07-25T21:59:40.434Z",
+            "transactionId": "2025-07-25_214055_636",
+            "reference": "PAY-105 (Antonio Manjarrez)-20250725-30",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:13.787Z"
+          }
+        ],
+        "paidAmount": 800,
+        "basePaid": 800,
+        "status": "paid"
+      },
+      "106": {
+        "priorReading": 1340,
+        "currentReading": 1351,
+        "consumption": 11,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 550,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 550,
+        "penaltyAmount": 0,
+        "totalAmount": 550,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0011 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 1029.47,
+            "baseChargePaid": 1029.47,
+            "penaltyPaid": 0,
+            "date": "2025-07-23T21:57:35.748Z",
+            "transactionId": "2025-07-23_214053_252",
+            "reference": "PAY-106 (Terrel)-20250723-27",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:14.212Z"
+          }
+        ],
+        "paidAmount": 1029.47,
+        "basePaid": 1029.47,
+        "status": "paid"
+      },
+      "201": {
+        "priorReading": 1083,
+        "currentReading": 1084,
+        "consumption": 1,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 50,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 50,
+        "penaltyAmount": 0,
+        "totalAmount": 50,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0001 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 50,
+            "baseChargePaid": 50,
+            "penaltyPaid": 0,
+            "date": "2025-07-12T15:22:08.599Z",
+            "transactionId": "2025-07-12_214043_716",
+            "reference": "PAY-201 (Ische)-20250712-15",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:14.385Z"
+          }
+        ],
+        "paidAmount": 50,
+        "basePaid": 50,
+        "status": "paid"
+      },
+      "203": {
+        "priorReading": 1576,
+        "currentReading": 1619,
+        "consumption": 43,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 2150,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 2150,
+        "penaltyAmount": 0,
+        "totalAmount": 2150,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0043 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 2150,
+            "baseChargePaid": 2150,
+            "penaltyPaid": 0,
+            "date": "2025-08-13T05:00:00.000Z",
+            "transactionId": "2025-08-13_214104_427",
+            "reference": "PAY-203 (Marquez)-20250813-41",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:16.331Z"
+          }
+        ],
+        "paidAmount": 2150,
+        "basePaid": 2150,
+        "status": "paid"
+      },
+      "204": {
+        "priorReading": 1819,
+        "currentReading": 1820,
+        "consumption": 1,
+        "carWashCount": 0,
+        "boatWashCount": 0,
+        "washes": [],
+        "waterCharge": 50,
+        "carWashCharge": 0,
+        "boatWashCharge": 0,
+        "currentCharge": 50,
+        "penaltyAmount": 0,
+        "totalAmount": 50,
+        "penaltyPaid": 0,
+        "billNotes": "Water Consumption for July 2025 - 0001 m³",
+        "lastPenaltyUpdate": "2025-10-10T02:42:12.260Z",
+        "payments": [
+          {
+            "amount": 50,
+            "baseChargePaid": 50,
+            "penaltyPaid": 0,
+            "date": "2025-07-12T17:34:37.428Z",
+            "transactionId": "2025-07-12_214044_512",
+            "reference": "PAY-204 (Januj)-20250712-16",
+            "method": "bank_transfer",
+            "recordedAt": "2025-10-10T02:42:14.810Z"
+          }
+        ],
+        "paidAmount": 50,
+        "basePaid": 50,
+        "status": "paid"
+      }
+    }
+  },
+  "metadata": {
+    "generatedBy": "system",
+    "readingsDocId": "2026-00",
+    "penaltiesApplied": false,
+    "generatedAt": {
+      "_seconds": 1760064132,
+      "_nanoseconds": 520000000
+    },
+    "penaltiesAppliedAt": {
+      "_seconds": 1760064139,
+      "_nanoseconds": 216000000
+    },
+    "penaltiesAppliedInMonth": 3
+  }
+}

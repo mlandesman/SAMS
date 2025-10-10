@@ -20,6 +20,24 @@ class WaterReadingsService {
     
     console.log('🔍 Service received payload:', JSON.stringify(payload, null, 2));
     
+    // CRITICAL FIX: Ensure waterBills document has properties to prevent ghost status
+    const waterBillsRef = this.db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills');
+    
+    // Check if waterBills document exists, if not create it with a property
+    const waterBillsDoc = await waterBillsRef.get();
+    if (!waterBillsDoc.exists) {
+      console.log('🔧 Creating waterBills document to prevent ghost status...');
+      await waterBillsRef.set({
+        _purgeMarker: 'DO_NOT_DELETE',
+        _createdBy: 'waterReadingsService',
+        _createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        _structure: 'waterBills'
+      });
+      console.log('✅ waterBills document created with properties');
+    }
+    
     const docId = `${year}-${String(month).padStart(2, '0')}`;
     const docRef = this.db
       .collection('clients').doc(clientId)

@@ -1599,7 +1599,7 @@ export class ImportService {
           
           // Step 3: Process payments made during this billing month
           if (cycle.payments && cycle.payments.length > 0) {
-            await this.processMonthPayments(cycle);
+            await this.processMonthPayments(cycle, txnCrossRef);
             results.paymentsApplied += cycle.payments.length;
           }
           
@@ -1756,7 +1756,7 @@ export class ImportService {
   /**
    * Process payments for a single month
    */
-  async processMonthPayments(cycle) {
+  async processMonthPayments(cycle, txnCrossRef) {
     // Group charges by payment sequence
     const paymentGroups = {};
     
@@ -1787,15 +1787,25 @@ export class ImportService {
     
     // Apply each payment to its bills
     for (const [paySeq, payment] of Object.entries(paymentGroups)) {
+      // Look up transaction ID from CrossRef
+      const transactionId = txnCrossRef?.byPaymentSeq?.[paySeq]?.transactionId || null;
+      
+      if (!transactionId) {
+        console.warn(`⚠️  No transaction ID found in CrossRef for payment ${paySeq}`);
+      }
+      
       // Find which bills this payment applies to
       const billsToUpdate = await this.findBillsForCharges(payment.charges);
       
-      // Update each bill with payment info
+      // Update each bill with payment info including transaction ID
       for (const billUpdate of billsToUpdate) {
+        billUpdate.transactionId = transactionId;
+        billUpdate.paymentDate = payment.paymentDate;
+        billUpdate.paymentSeq = paySeq;
         await this.applyPaymentToBill(billUpdate);
       }
       
-      console.log(`  💰 Applied payment ${paySeq}: $${payment.totalAmount.toFixed(2)} → ${billsToUpdate.length} bill(s)`);
+      console.log(`  💰 Applied payment ${paySeq} (txn: ${transactionId || 'none'}): $${payment.totalAmount.toFixed(2)} → ${billsToUpdate.length} bill(s)`);
     }
   }
   
@@ -1883,14 +1893,33 @@ export class ImportService {
       newStatus = 'partial';
     }
     
+    // Get existing payments array or initialize it
+    const existingPayments = unitBill.payments || [];
+    
+    // Create new payment entry (following HOA Dues pattern)
+    const paymentEntry = {
+      amount: billUpdate.amountApplied,
+      baseChargePaid: billUpdate.basePaid,
+      penaltyPaid: billUpdate.penaltyPaid,
+      date: billUpdate.paymentDate || getNow().toISOString(),
+      transactionId: billUpdate.transactionId || null,
+      reference: billUpdate.paymentSeq || null,
+      method: 'bank_transfer', // Default for imports
+      recordedAt: getNow().toISOString()
+    };
+    
+    // Append to payments array
+    const updatedPayments = [...existingPayments, paymentEntry];
+    
     await billRef.update({
       [`bills.units.${billUpdate.unitId}.paidAmount`]: newPaidAmount,
       [`bills.units.${billUpdate.unitId}.basePaid`]: newBasePaid,
       [`bills.units.${billUpdate.unitId}.penaltyPaid`]: newPenaltyPaid,
-      [`bills.units.${billUpdate.unitId}.status`]: newStatus
+      [`bills.units.${billUpdate.unitId}.status`]: newStatus,
+      [`bills.units.${billUpdate.unitId}.payments`]: updatedPayments
     });
     
-    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus}`);
+    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
   }
 
   /**
