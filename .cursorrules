@@ -1,0 +1,59 @@
+# SAMS Development Guidelines for Cursor AI
+
+## Project Context
+This is the Sandyland Asset Management System (SAMS), a Firebase-based property management platform for HOA communities in Mexico.
+
+## Critical Constraints
+1. **ES6 Modules Only**: All backend code MUST use ES6 exports. CommonJS breaks the system.
+2. **Timezone**: All dates must be normalized to America/Cancun timezone
+3. **Authentication**: All API calls require proper Firebase Auth headers
+4. **Domain Routing**: Use domain-specific routes (e.g., `/hoadues/${clientId}/*` not `/clients/${clientId}/hoadues/*`)
+
+## Active Issues & Critical Work
+Before starting any task, review:
+- **GitHub Issues** (https://github.com/mlandesman/SAMS/issues) for current sprint work
+- **CRITICAL:** Issue #7 - Production Purge/Import System BROKEN (Priority 1)
+- **CRITICAL:** Issue #8 - Water Bills Code Reversion (Priority 2)
+- `/workspace/apm_session/Implementation_Plan.md` for complete Priority 1-15 roadmap
+- `/workspace/PROJECT_TRACKING_MASTER.md` for overall project status
+- `/workspace/docs/issues 2/open/` for detailed issue documentation
+
+## Critical Production Issues (October 9, 2025)
+- **Priority 1:** Production Purge/Import broken - cannot import Client.json (Issue #7)
+- **Priority 2:** Water Bills code reverted - all Sept 29 fixes lost (Issue #8)
+- **Impact:** Production system degraded, requires immediate attention
+
+## Key Constraints to Be Aware Of
+- **ES6 module compliance is CRITICAL** - never use CommonJS (breaks system)
+- **No TypeScript yet** - be extra careful with types
+- **Test coverage < 40%** - expect limited automated testing
+- **Water Bills reverted** - table formatting and features lost (Priority 2)
+- **Backend/API changes breaking PWA** - this is why PWA deferred until desktop stable
+
+## Development Patterns
+1. **API Calls**: Use centralized configuration, no hardcoded URLs
+2. **Error Handling**: Always implement proper error handling with user feedback
+3. **Data Validation**: Validate inputs on both frontend and backend
+4. **Audit Trail**: Maintain comprehensive notes in transactions
+5. **Mobile/Desktop**: Desktop is primary, mobile app needs full refactor (TD-016)
+
+## Before Making Changes
+1. Check GitHub Issues #7 and #8 for critical production blockers
+2. Review if issue affects shared components or mobile app
+3. Consider impact on both MTC and AVII clients (multi-tenant system)
+4. Verify changes work with existing data structures
+5. Check apm_session/Implementation_Plan.md for Priority 1-15 roadmap
+
+## When Creating New Issues
+Use the issue creation tool or follow the format in `/workspace/docs/issues 2/open/` with:
+- Priority emoji (🔥 HIGH, 🟡 MEDIUM, 🟢 LOW, 🚨 CRITICAL)
+- Module identification
+- Impact assessment
+- Acceptance criteria
+
+## Testing Requirements
+- Manual testing required (low automated test coverage)
+- Test with both MTC and AVII client data
+- Verify timezone handling for date inputs
+- Check mobile app impact if touching shared components
+

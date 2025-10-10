@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado de Cuenta de Agua - {{UnitNumber}}</title>
+    <style>
+        /* Mobile-first responsive design */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+            padding: 20px 10px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #10b981 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px 25px;
+            text-align: center;
+            border-bottom: 3px solid {{PrimaryColor}};
+        }
+
+        .logo {
+            max-height: 80px;
+            margin-bottom: 15px;
+        }
+
+        .client-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: {{PrimaryColor}};
+            margin-bottom: 5px;
+            letter-spacing: -0.025em;
+        }
+
+        .bill-title {
+            font-size: 18px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .content {
+            background: white;
+            padding: 0;
+        }
+
+        .status-banner {
+            padding: 25px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-paid {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            color: #166534;
+        }
+
+        .status-unpaid {
+            background: linear-gradient(135deg, #fef3c7, #fed7aa);
+            color: #92400e;
+        }
+
+        .bill-summary {
+            padding: 30px 25px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .total-due {
+            background: {{PrimaryColor}};
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .total-label {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .total-amount {
+            font-size: 36px;
+            font-weight: 800;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .bill-details {
+            padding: 30px 25px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid {{AccentColor}};
+        }
+
+        .consumption-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .consumption-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .consumption-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .consumption-amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: {{PrimaryColor}};
+        }
+
+        .meter-readings {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .reading-item {
+            text-align: center;
+            padding: 15px 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .reading-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .reading-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .services-section {
+            margin-bottom: 25px;
+        }
+
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .service-item:last-child {
+            border-bottom: none;
+        }
+
+        .service-name {
+            font-size: 16px;
+            color: #1e293b;
+        }
+
+        .service-details {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .service-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .totals-section {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .total-line:last-child {
+            border-bottom: 2px solid {{PrimaryColor}};
+            font-weight: 700;
+            font-size: 18px;
+            color: {{PrimaryColor}};
+            margin-top: 10px;
+            padding-top: 20px;
+        }
+
+        .penalty-notice {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            border: 1px solid #fca5a5;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+
+        .penalty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #dc2626;
+            margin-bottom: 10px;
+        }
+
+        .penalty-text {
+            font-size: 14px;
+            color: #7f1d1d;
+            line-height: 1.5;
+        }
+
+        .overdue-breakdown {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            border: 1px solid #fca5a5;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .overdue-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #dc2626;
+            margin-bottom: 15px;
+        }
+
+        .line-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #fca5a5;
+        }
+
+        .line-item.penalty {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .total-line-overdue {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            margin-top: 10px;
+            border-top: 2px solid #dc2626;
+            font-weight: 700;
+            font-size: 18px;
+            color: #dc2626;
+        }
+
+        .payment-info {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .payment-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d4ed8;
+            margin-bottom: 15px;
+        }
+
+        .payment-details {
+            font-size: 14px;
+            color: #1e40af;
+            line-height: 1.6;
+        }
+
+        .footer {
+            padding: 30px 25px;
+            background: #1e293b;
+            color: white;
+            text-align: center;
+        }
+
+        .footer-content {
+            margin-bottom: 20px;
+        }
+
+        .footer-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .footer-contact {
+            font-size: 14px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .footer-address {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 15px;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px 5px;
+            }
+
+            .header {
+                padding: 20px 15px;
+            }
+
+            .client-name {
+                font-size: 24px;
+            }
+
+            .bill-title {
+                font-size: 16px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .total-amount {
+                font-size: 32px;
+            }
+
+            .meter-readings {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .bill-details, .bill-summary, .footer {
+                padding: 20px 15px;
+            }
+        }
+
+        /* High usage warning */
+        .high-usage-warning {
+            background: linear-gradient(135deg, #fef3c7, #fed7aa);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 10px;
+        }
+
+        .warning-text {
+            font-size: 14px;
+            color: #78350f;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            {{#if ClientLogoUrl}}
+            <img src="{{ClientLogoUrl}}" alt="Logo de {{ClientName}}" class="logo">
+            {{/if}}
+            <h1 class="client-name">{{ClientName}}</h1>
+            <p class="bill-title">Estado de Cuenta de Agua • Unidad {{UnitNumber}} • {{BillingPeriod}}</p>
+        </div>
+
+        <div class="content">
+            <!-- Status Banner -->
+            <div class="status-banner {{#if ShowPaidStatus}}status-paid{{else}}status-unpaid{{/if}}">
+                {{StatusMessage}}
+            </div>
+
+            <!-- Bill Summary - Total Amount Due FIRST -->
+            <div class="bill-summary">
+                <!-- PRIORITY 1: Total Amount Due (most prominent) -->
+                <div class="total-due">
+                    <div class="total-label">Monto Total a Pagar</div>
+                    <div class="total-amount">{{TotalAmountDue}}</div>
+                </div>
+
+                <!-- PRIORITY 2: Bill and Due dates below -->
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Fecha de Vencimiento</div>
+                        <div class="summary-value">{{DueDate}}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Fecha de Emisión</div>
+                        <div class="summary-value">{{BillDate}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Water Consumption Details -->
+            <div class="bill-details">
+                <h2 class="section-title">Consumo de Agua</h2>
+
+                <div class="consumption-card">
+                    <div class="consumption-header">
+                        <div class="consumption-title">Uso Mensual</div>
+                        <div class="consumption-amount">{{WaterConsumption}} m³</div>
+                    </div>
+
+                    <div class="meter-readings">
+                        <div class="reading-item">
+                            <div class="reading-label">Anterior</div>
+                            <div class="reading-value">{{PriorReading}}</div>
+                        </div>
+                        <div class="reading-item">
+                            <div class="reading-label">Actual</div>
+                            <div class="reading-value">{{CurrentReading}}</div>
+                        </div>
+                        <div class="reading-item">
+                            <div class="reading-label">Consumo</div>
+                            <div class="reading-value">{{WaterConsumption}} m³</div>
+                        </div>
+                    </div>
+
+                    {{#if ShowComparison}}
+                    <div style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 10px;">
+                        Mes anterior: {{LastMonthUsage}} m³, Este mes: {{WaterConsumption}} m³ ({{UsageChangeDisplay}})
+                    </div>
+                    {{/if}}
+
+                    <div style="text-align: center; color: #64748b; font-size: 14px;">
+                        Lectura tomada el {{ReadingDate}} • Tarifa: {{RatePerM3}} por m³
+                    </div>
+                </div>
+
+                {{#if IsHighUsage}}
+                <div class="high-usage-warning">
+                    <div class="warning-title">Aviso de Consumo Alto</div>
+                    <div class="warning-text">
+                        Su consumo de {{WaterConsumption}} m³ está significativamente por encima del promedio.
+                        Por favor revise posibles fugas o considere medidas de conservación de agua.
+                    </div>
+                </div>
+                {{/if}}
+
+                <!-- Service Charges -->
+                <div class="services-section">
+                    <h3 class="section-title">Cargos por Servicio</h3>
+
+                    <div class="service-item">
+                        <div>
+                            <div class="service-name">Consumo de Agua</div>
+                            <div class="service-details">{{WaterConsumption}} m³ @ {{RatePerM3}} por m³</div>
+                        </div>
+                        <div class="service-amount">{{WaterCharge}}</div>
+                    </div>
+
+                    {{#if ShowCarWash}}
+                    <div class="service-item">
+                        <div>
+                            <div class="service-name">Servicio de Lavado de Auto</div>
+                            <div class="service-details">{{CarWashCount}} lavado(s) @ {{CarWashRate}} cada uno</div>
+                        </div>
+                        <div class="service-amount">{{CarWashCharge}}</div>
+                    </div>
+                    {{/if}}
+
+                    {{#if ShowBoatWash}}
+                    <div class="service-item">
+                        <div>
+                            <div class="service-name">Servicio de Lavado de Lancha</div>
+                            <div class="service-details">{{BoatWashCount}} lavado(s) @ {{BoatWashRate}} cada uno</div>
+                        </div>
+                        <div class="service-amount">{{BoatWashCharge}}</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <!-- Overdue Balance Breakdown (for overdue bills) -->
+                {{#if IsOverdue}}
+                <div class="overdue-breakdown">
+                    <div class="overdue-title">VENCIDO - Desglose de Saldo</div>
+                    <div class="line-item">
+                        <span>Saldo anterior no pagado:</span>
+                        <span>{{PreviousBalance}}</span>
+                    </div>
+                    <div class="line-item">
+                        <span>Cargos del mes actual:</span>
+                        <span>{{CurrentMonthTotal}}</span>
+                    </div>
+                    <div class="line-item penalty">
+                        <span>Recargos por pago tardío ({{PenaltyRate}}):</span>
+                        <span>{{PenaltyAmount}}</span>
+                    </div>
+                    <div class="total-line-overdue">
+                        <span><strong>Monto Total a Pagar:</strong></span>
+                        <span><strong>{{TotalAmountDue}}</strong></span>
+                    </div>
+                </div>
+                {{else}}
+                <!-- Billing Totals (for current bills) -->
+                <div class="totals-section">
+                    <div class="total-line">
+                        <span>Cargos del Mes Actual</span>
+                        <span>{{CurrentMonthTotal}}</span>
+                    </div>
+
+                    {{#if ShowPenalties}}
+                    <div class="total-line">
+                        <span>Recargos por Pago Tardío ({{PenaltyRate}})</span>
+                        <span>{{PenaltyAmount}}</span>
+                    </div>
+                    {{/if}}
+
+                    <div class="total-line">
+                        <span><strong>Monto Total a Pagar</strong></span>
+                        <span><strong>{{TotalAmountDue}}</strong></span>
+                    </div>
+                </div>
+                {{/if}}
+
+                {{#if ShowPenalties}}
+                <div class="penalty-notice">
+                    <div class="penalty-title">Recargo por Pago Tardío Aplicado</div>
+                    <div class="penalty-text">
+                        Se ha aplicado un recargo de {{PenaltyRate}} a su saldo no pagado.
+                        Para evitar recargos futuros, por favor asegúrese de que el pago se reciba antes de la fecha de vencimiento.
+                    </div>
+                </div>
+                {{/if}}
+
+                <!-- Payment Information -->
+                <div class="payment-info">
+                    <div class="payment-title">Información de Pago</div>
+                    <div class="payment-details">
+                        <strong>Métodos de Pago Aceptados:</strong><br>
+                        • Transferencia Bancaria (SPEI)<br>
+                        • Pago en Efectivo en la Oficina de Administración<br>
+                        • Transferencia Electrónica<br><br>
+
+                        {{#if PaymentBankName}}
+                        <strong>Datos Bancarios:</strong><br>
+                        Banco: {{PaymentBankName}}<br>
+                        Cuenta: {{PaymentAccountName}}<br>
+                        CLABE: {{PaymentClabe}}<br>
+                        Referencia: {{PaymentReference}}<br><br>
+                        {{/if}}
+
+                        {{#if PaymentNotes}}
+                        {{PaymentNotes}}<br><br>
+                        {{/if}}
+
+                        <strong>Referencia de Pago:</strong> Unidad {{UnitNumber}} - {{BillingPeriod}}<br><br>
+
+                        Por favor asegúrese de que el pago se reciba antes del <strong>{{DueDate}}</strong> para evitar
+                        recargos de {{PenaltyRate}} después de {{PenaltyDays}} días.
+                    </div>
+                </div>
+
+                {{#if BillNotes}}
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid {{AccentColor}};">
+                    <strong>Notas Adicionales:</strong><br>
+                    {{BillNotes}}
+                </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-title">Sandyland Properties</div>
+                <div class="footer-contact">
+                    {{#if ClientPhone}}{{ClientPhone}}<br>{{/if}}
+                    {{#if ClientEmail}}{{ClientEmail}}<br>{{/if}}
+                </div>
+                <div class="footer-address">{{ClientAddress}}</div>
+            </div>
+            <div style="font-size: 12px; opacity: 0.6; border-top: 1px solid #374151; padding-top: 15px;">
+                Este es un estado de cuenta automatizado. Por favor consérvelo para sus registros.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
