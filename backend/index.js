@@ -19,6 +19,9 @@ import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
+// New comment for testing
+
+
 // Load environment variables
 dotenv.config();
 
