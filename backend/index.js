@@ -77,14 +77,6 @@ const initializeApp = async () => {
   }
 };
 
-// Actually initialize Firebase (with error handling)
-try {
-  await initializeApp();
-} catch (error) {
-  console.error('Failed to initialize app:', error);
-  console.error('⚠️ Server may not function properly');
-}
-
 // PUBLIC ROUTES (NO auth required) - Mount BEFORE authenticated routes
 console.log('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
@@ -175,8 +167,9 @@ app.use((err, req, res, next) => {
 
 // Initialize and start server
 const startServer = async () => {
+  // Initialize Firebase first
   await initializeApp();
-  
+
   app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
   });
