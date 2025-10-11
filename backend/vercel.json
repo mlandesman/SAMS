@@ -7,7 +7,6 @@
       "config": {
         "includeFiles": [
           "serviceAccountKey.json",
-          "sams-production-serviceAccountKey.json",
           "../shared/version.json",
           "version.json"
         ]

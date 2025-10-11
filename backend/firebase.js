@@ -2,19 +2,41 @@ import admin from 'firebase-admin';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-// Determine service account path based on environment
-const getServiceAccountPath = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return './sams-production-serviceAccountKey.json';
-  } else if (process.env.NODE_ENV === 'staging') {
-    return './serviceAccountKey-staging.json';
+// Get Firebase credentials from environment variables or file
+const getServiceAccount = () => {
+  // Check if Firebase credentials are provided as environment variables
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    try {
+      return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    } catch (error) {
+      console.error('❌ Invalid FIREBASE_SERVICE_ACCOUNT_KEY environment variable');
+      throw error;
+    }
   }
-  return './serviceAccountKey.json';
+
+  // Fallback to file-based credentials (for local development)
+  const getServiceAccountPath = () => {
+    if (process.env.NODE_ENV === 'production') {
+      return './sams-prod-credentials.json';
+    } else if (process.env.NODE_ENV === 'staging') {
+      return './serviceAccountKey-staging.json';
+    }
+    return './serviceAccountKey.json';
+  };
+
+  const serviceAccountPath = getServiceAccountPath();
+
+  try {
+    const serviceAccount = require(serviceAccountPath);
+    console.log(`🔑 Using Firebase credentials from file: ${serviceAccountPath}`);
+    return serviceAccount;
+  } catch (error) {
+    console.error(`❌ Cannot find Firebase credentials file: ${serviceAccountPath}`);
+    throw error;
+  }
 };
 
-const serviceAccountPath = getServiceAccountPath();
-
-const serviceAccount = require(serviceAccountPath);
+const serviceAccount = getServiceAccount();
 console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
 
 // Track initialization status and errors
