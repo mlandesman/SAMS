@@ -15,9 +15,10 @@ class DeploymentVerifier {
     this.compatibilityPath = path.join(__dirname, '../shared/version-compatibility.json');
     this.versionPath = path.join(__dirname, '../shared/version.json');
     
-    // Production URLs (update these as needed)
+    // Production URLs (Vercel deployments)
     this.urls = {
-      frontend: 'https://sandyland-management-system.web.app',
+      frontend: 'https://sams.sandyland.com.mx',
+      frontendVercel: 'https://sams-ui-tau.vercel.app',
       backend: 'https://backend-liart-seven.vercel.app'
     };
     
