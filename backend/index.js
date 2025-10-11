@@ -72,11 +72,18 @@ const initializeApp = async () => {
     console.log('Firebase initialized successfully');
   } catch (error) {
     console.error('Firebase initialization failed:', error);
+    console.error('⚠️ Continuing without Firebase - some features may not work');
+    // Don't throw - let server start without Firebase if needed
   }
 };
 
-// Actually initialize Firebase
-await initializeApp();
+// Actually initialize Firebase (with error handling)
+try {
+  await initializeApp();
+} catch (error) {
+  console.error('Failed to initialize app:', error);
+  console.error('⚠️ Server may not function properly');
+}
 
 // PUBLIC ROUTES (NO auth required) - Mount BEFORE authenticated routes
 console.log('Mounting system routes (public)');
