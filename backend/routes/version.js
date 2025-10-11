@@ -9,23 +9,52 @@ const router = express.Router();
  * Get version information from shared version.json file
  */
 function getVersionInfo() {
+  // Try multiple paths for version.json
+  const versionPaths = [
+    path.join(process.cwd(), '../shared/version.json'),  // Vercel includeFiles path
+    path.join(process.cwd(), 'shared/version.json'),     // Alternative path
+    path.join(process.cwd(), 'version.json'),            // Local copy
+    path.join(__dirname, '../shared/version.json'),      // Relative to this file
+    path.join(__dirname, '../../shared/version.json')    // Alternative relative
+  ];
+  
+  for (const versionPath of versionPaths) {
+    try {
+      console.log(`Checking version path: ${versionPath}`);
+      if (fs.existsSync(versionPath)) {
+        console.log(`Found version file at: ${versionPath}`);
+        const versionData = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
+        return {
+          version: versionData.version || '0.0.1',
+          buildDate: versionData.buildDate || versionData.build?.timestamp || getNow().toISOString(),
+          gitHash: versionData.git?.hash || versionData.gitCommit || 'unknown',
+          gitBranch: versionData.git?.branch || versionData.gitBranch || 'unknown'
+        };
+      }
+    } catch (error) {
+      console.warn(`Could not read version file at ${versionPath}:`, error.message);
+    }
+  }
+  
+  // Try to read from package.json as fallback
   try {
-    // Try to read from shared version.json (included in vercel.json)
-    const versionPath = path.join(process.cwd(), '../shared/version.json');
-    if (fs.existsSync(versionPath)) {
-      const versionData = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
+    const packagePath = path.join(process.cwd(), 'package.json');
+    if (fs.existsSync(packagePath)) {
+      console.log(`Reading version from package.json: ${packagePath}`);
+      const packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
       return {
-        version: versionData.version || '0.0.1',
-        buildDate: versionData.buildDate || versionData.build?.timestamp || getNow().toISOString(),
-        gitHash: versionData.git?.hash || versionData.gitCommit || 'unknown',
-        gitBranch: versionData.git?.branch || versionData.gitBranch || 'unknown'
+        version: packageData.version || '0.0.1',
+        buildDate: getNow().toISOString(),
+        gitHash: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
+        gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown'
       };
     }
   } catch (error) {
-    console.warn('Could not read shared version.json:', error.message);
+    console.warn('Could not read package.json:', error.message);
   }
   
-  // Fallback to environment variables or defaults
+  // Final fallback to environment variables or defaults
+  console.log('Using fallback version info');
   return {
     version: process.env.VITE_APP_VERSION || process.env.npm_package_version || '0.0.1',
     buildDate: process.env.VITE_APP_BUILD_DATE || getNow().toISOString(),
