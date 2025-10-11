@@ -9,7 +9,7 @@
     "version:bump:minor": "node ../../scripts/updateVersion.js bump minor",
     "version:bump:major": "node ../../scripts/updateVersion.js bump major",
     "version:validate": "node ../../scripts/updateVersion.js validate",
-    "prebuild": "echo 'Skipping version stamp on Vercel'",
+    "prebuild": "npm run version:stamp",
     "build": "vite build",
     "build:local": "npm run version:stamp && vite build",
     "build:clean": "npm run version:stamp && rm -rf dist && vite build",

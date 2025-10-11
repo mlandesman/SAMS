@@ -167,6 +167,7 @@ class VersionManager {
   copyVersionToFrontends(versionConfig) {
     const frontendPaths = [
       path.join(__dirname, '../frontend/sams-ui/version.json'),
+      path.join(__dirname, '../frontend/sams-ui/public/version.json'), // PUBLIC FOLDER - gets copied to dist!
       path.join(__dirname, '../frontend/mobile-app/version.json')
     ];
 
