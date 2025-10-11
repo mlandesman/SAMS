@@ -1,4 +1,5 @@
 import { config } from '../config';
+import versionConfig from '../version.json' with { type: 'json' };
 
 /**
  * Version checking utilities for deployment mismatch detection
@@ -14,52 +15,47 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  */
 export const getFrontendVersion = () => {
   try {
-    // Try to read from version.json first (preferred)
-    let versionData = null;
-    try {
-      // Import version.json dynamically
-      versionData = JSON.parse(import.meta.env.VITE_VERSION_DATA || '{}');
-    } catch (e) {
-      // Fallback to environment variables
-      const version = import.meta.env.VITE_APP_VERSION || '0.0.1';
-      const buildDate = import.meta.env.VITE_APP_BUILD_DATE || new Date().toISOString();
-      const gitCommit = import.meta.env.VITE_APP_GIT_COMMIT || 'unknown';
-      
+    // Use imported version config directly (same as versionUtils.js)
+    if (versionConfig && versionConfig.version) {
+      return {
+        component: 'frontend-desktop',
+        version: versionConfig.version,
+        buildDate: versionConfig.buildDate || 'unavailable',
+        gitCommit: versionConfig.git?.hash || 'unavailable',
+        environment: import.meta.env.MODE || 'development'
+      };
+    }
+    
+    // Fallback to environment variables if available
+    const version = import.meta.env.VITE_APP_VERSION;
+    const buildDate = import.meta.env.VITE_APP_BUILD_DATE;
+    const gitCommit = import.meta.env.VITE_APP_GIT_COMMIT;
+    
+    if (version) {
       return {
         component: 'frontend-desktop',
         version,
-        buildDate,
-        gitCommit,
+        buildDate: buildDate || 'unavailable',
+        gitCommit: gitCommit || 'unavailable',
         environment: import.meta.env.MODE || 'development'
       };
     }
     
-    // Use version.json data if available
-    if (versionData && versionData.version) {
-      return {
-        component: 'frontend-desktop',
-        version: versionData.version,
-        buildDate: versionData.buildDate || new Date().toISOString(),
-        gitCommit: versionData.git?.hash || 'unknown',
-        environment: import.meta.env.MODE || 'development'
-      };
-    }
-    
-    // Final fallback
+    // Final fallback - indicate data unavailable
     return {
       component: 'frontend-desktop',
-      version: '1.1.0', // Hardcoded fallback to match backend
-      buildDate: new Date().toISOString(),
-      gitCommit: 'unknown',
+      version: 'unavailable',
+      buildDate: 'unavailable',
+      gitCommit: 'unavailable',
       environment: import.meta.env.MODE || 'development'
     };
   } catch (error) {
     console.error('Error getting frontend version:', error);
     return {
       component: 'frontend-desktop',
-      version: '1.1.0', // Hardcoded fallback to match backend
-      buildDate: 'unknown',
-      gitCommit: 'unknown',
+      version: 'unavailable',
+      buildDate: 'unavailable',
+      gitCommit: 'unavailable',
       environment: 'unknown'
     };
   }
