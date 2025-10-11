@@ -38,7 +38,7 @@ function formatDateForDisplay(dateStr) {
   });
 }
 
-module.exports = {
+export {
   isWeekday,
   getBusinessDaysInRange,
   getDateRangeForPeriod,

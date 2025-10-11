@@ -190,7 +190,7 @@ async function fetchBanxicoBulkRates() {
   }
 }
 
-module.exports = {
+export {
   fetchBanxicoRates,
   fetchBanxicoRatesRange,
   fetchBanxicoBulkRates,

@@ -1,5 +1,5 @@
-const admin = require('firebase-admin');
-const { populateHistoricalRates } = require('./exchangeRatesUpdater');
+import admin from 'firebase-admin';
+import { populateHistoricalRates } from './exchangeRatesUpdater.js';
 
 /**
  * Load 2 years of historical exchange rate data in quarters
@@ -113,7 +113,7 @@ async function loadHistoricalDataForYear(year) {
   }
 }
 
-module.exports = {
+export {
   loadTwoYearsHistoricalData,
   loadHistoricalDataForYear
 };

@@ -1,6 +1,6 @@
-const cheerio = require('cheerio');
-const https = require('https');
-const axios = require('axios');
+import cheerio from 'cheerio';
+import https from 'https';
+import axios from 'axios';
 
 /**
  * Fetch DOF (Diario Oficial de la Federación) exchange rates
@@ -105,7 +105,7 @@ async function fetchDOFRate(date) {
   }
 }
 
-module.exports = {
+export {
   fetchDOFRates,
   fetchDOFRate
 };

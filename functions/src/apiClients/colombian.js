@@ -40,6 +40,6 @@ async function fetchColombianRates(dateStr) {
   }
 }
 
-module.exports = {
+export {
   fetchColombianRates
 };

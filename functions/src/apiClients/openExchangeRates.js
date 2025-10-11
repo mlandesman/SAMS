@@ -113,7 +113,7 @@ async function fetchRatesForRange(startDate, endDate) {
   return ratesByDate;
 }
 
-module.exports = {
+export {
   fetchCurrentRates,
   fetchHistoricalRates,
   fetchRatesForRange

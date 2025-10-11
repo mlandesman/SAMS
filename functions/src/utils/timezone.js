@@ -104,7 +104,7 @@ function logMexicoTime() {
   console.log(`📅 Mexico date string: ${getMexicoDateString()}`);
 }
 
-module.exports = {
+export {
   MEXICO_TIMEZONE,
   getMexicoDate,
   getMexicoDateString,

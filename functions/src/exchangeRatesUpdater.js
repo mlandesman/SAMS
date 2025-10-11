@@ -1,7 +1,7 @@
-const admin = require('firebase-admin');
-const { fetchDOFRates } = require('./apiClients/dof');
-const { fetchCurrentRates } = require('./apiClients/openExchangeRates');
-const { getMexicoDateString, getMexicoYesterdayString, logMexicoTime } = require('./utils/timezone');
+import admin from 'firebase-admin';
+import { fetchDOFRates } from './apiClients/dof.js';
+import { fetchCurrentRates } from './apiClients/openExchangeRates.js';
+import { getMexicoDateString, getMexicoYesterdayString, logMexicoTime } from './utils/timezone.js';
 
 /**
  * Update exchange rates using DOF (official Mexican government rates) and Open Exchange Rates
@@ -246,7 +246,7 @@ async function populateHistoricalRates(startDate, endDate, dryRun = false) {
   }
 }
 
-module.exports = {
+export {
   updateExchangeRates,
   populateHistoricalRates
 };

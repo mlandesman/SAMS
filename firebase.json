@@ -43,6 +43,34 @@
     ],
     "rewrites": [
       {
+        "source": "/system/**",
+        "function": "api"
+      },
+      {
+        "source": "/auth/**",
+        "function": "api"
+      },
+      {
+        "source": "/water/**",
+        "function": "api"
+      },
+      {
+        "source": "/comm/**",
+        "function": "api"
+      },
+      {
+        "source": "/admin/**",
+        "function": "api"
+      },
+      {
+        "source": "/hoadues/**",
+        "function": "api"
+      },
+      {
+        "source": "/clients/**",
+        "function": "api"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

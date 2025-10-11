@@ -25,7 +25,7 @@ function formatRate(rate, decimals = 6) {
   return parseFloat(rate.toFixed(decimals));
 }
 
-module.exports = {
+export {
   calculateMxnToCop,
   validateRate,
   formatRate
