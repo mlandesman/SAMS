@@ -75,6 +75,9 @@ const initializeApp = async () => {
   }
 };
 
+// Actually initialize Firebase
+await initializeApp();
+
 // PUBLIC ROUTES (NO auth required) - Mount BEFORE authenticated routes
 console.log('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
