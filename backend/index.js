@@ -36,6 +36,7 @@ const allowedOrigins = [
   'http://localhost:5176',
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://sandyland-management-system.web.app',  // Firebase Hosting
   'https://sams.sandyland.com.mx',
   'https://mobile.sams.sandyland.com.mx'
 ];
