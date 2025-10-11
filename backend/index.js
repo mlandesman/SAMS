@@ -63,8 +63,20 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // for parsing application/json
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // for parsing application/x-www-form-urlencoded
 
-// Initialize Firebase before importing routes
-await initializeFirebase();
+// Initialize Firebase before mounting routes
+// Wrap in async function for Vercel serverless compatibility
+const initializeApp = async () => {
+  try {
+    await initializeFirebase();
+    console.log('✅ Firebase initialized successfully');
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    // Don't throw - let server start anyway for debugging
+  }
+};
+
+// Call initialization (handles async properly)
+initializeApp().catch(console.error);
 
 // PUBLIC ROUTES (NO auth required) - Mount BEFORE authenticated routes
 console.log('Mounting system routes (public)');
@@ -154,6 +166,12 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}
+
+// Export for Vercel serverless
+export default app;
