@@ -1,0 +1,1653 @@
+/**
+ * User Management Controller for SAMS Multi-Tenant System
+ * Phase 8: User Access Control System - Task 8.3
+ * 
+ * Handles secure user creation, client assignment, and profile management
+ * Enforces proper role hierarchy and access control
+ */
+
+import { getDb } from '../firebase.js';
+import admin from 'firebase-admin';
+import { writeAuditLog } from '../utils/auditLogger.js';
+import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
+import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
+
+/**
+ * Generate secure random password
+ */
+function generateSecurePassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+/**
+ * Add person to unit's arrays based on their role
+ * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {string} personName - Person's name
+ * @param {string} personEmail - Person's email
+ * @param {string} role - Role: 'unitOwner' or 'unitManager'
+ */
+async function addPersonToUnit(batch, clientId, unitId, personName, personEmail, role) {
+  
+  const db = await getDb();
+  const unitRef = db.collection('clients').doc(clientId)
+    .collection('units').doc(unitId);
+    
+  const unitDoc = await unitRef.get();
+  if (unitDoc.exists) {
+    const unitData = unitDoc.data();
+    const updateData = {};
+    let hasChanges = false;
+    
+    if (role === 'unitOwner') {
+      // Handle owners array
+      const owners = unitData.owners || [];
+      if (!owners.includes(personName)) {
+        owners.push(personName);
+        updateData.owners = owners;
+        hasChanges = true;
+      }
+      
+      // Handle emails array for owners
+      const emails = unitData.emails || [];
+      if (!emails.includes(personEmail)) {
+        emails.push(personEmail);
+        updateData.emails = emails;
+        hasChanges = true;
+      }
+      
+    } else if (role === 'unitManager') {
+      // Handle managers array
+      const managers = unitData.managers || [];
+      if (!managers.includes(personName)) {
+        managers.push(personName);
+        updateData.managers = managers;
+        hasChanges = true;
+      }
+      
+      // Handle emails array for managers (needed for unit reports and messages)
+      const emails = unitData.emails || [];
+      if (!emails.includes(personEmail)) {
+        emails.push(personEmail);
+        updateData.emails = emails;
+        hasChanges = true;
+      }
+    }
+    
+    if (hasChanges) {
+      updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+      batch.update(unitRef, updateData);
+    }
+  }
+}
+
+/**
+ * Remove person from unit's arrays based on their role
+ * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {string} personName - Person's name
+ * @param {string} personEmail - Person's email
+ * @param {string} role - Role: 'unitOwner' or 'unitManager'
+ */
+async function removePersonFromUnit(batch, clientId, unitId, personName, personEmail, role) {
+  
+  const db = await getDb();
+  const unitRef = db.collection('clients').doc(clientId)
+    .collection('units').doc(unitId);
+    
+  const unitDoc = await unitRef.get();
+  if (unitDoc.exists) {
+    const unitData = unitDoc.data();
+    const updateData = {};
+    let hasChanges = false;
+    
+    if (role === 'unitOwner') {
+      // Handle owners array
+      const oldOwners = unitData.owners || [];
+      const owners = oldOwners.filter(name => name !== personName);
+      
+      if (oldOwners.length !== owners.length) {
+        updateData.owners = owners;
+        hasChanges = true;
+      }
+      
+      // Handle emails array for owners
+      const oldEmails = unitData.emails || [];
+      const emails = oldEmails.filter(email => email !== personEmail);
+      
+      if (oldEmails.length !== emails.length) {
+        updateData.emails = emails;
+        hasChanges = true;
+      }
+      
+    } else if (role === 'unitManager') {
+      // Handle managers array
+      const oldManagers = unitData.managers || [];
+      const managers = oldManagers.filter(name => name !== personName);
+      
+      if (oldManagers.length !== managers.length) {
+        updateData.managers = managers;
+        hasChanges = true;
+      }
+      
+      // Handle emails array for managers
+      // Only remove email if this person is not also an owner
+      const oldEmails = unitData.emails || [];
+      const owners = unitData.owners || [];
+      
+      // Check if this person is also an owner by checking if their name is in owners array
+      const isAlsoOwner = owners.includes(personName);
+      
+      if (!isAlsoOwner) {
+        // Safe to remove email since they're not an owner
+        const emails = oldEmails.filter(email => email !== personEmail);
+        
+        if (oldEmails.length !== emails.length) {
+          updateData.emails = emails;
+          hasChanges = true;
+        }
+      }
+    }
+    
+    if (hasChanges) {
+      updateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+      batch.update(unitRef, updateData);
+    }
+  }
+}
+
+/**
+ * Extract all unit assignments from clientAccess data (both owners and managers)
+ * @param {Object} clientAccess - User's client access data
+ * @param {string} roleFilter - Filter by role: 'unitOwner', 'unitManager', or null for all
+ * @returns {Array} Array of {clientId, unitId, role} objects for all unit assignments
+ */
+function getUnitAssignmentsFromAccess(clientAccess, roleFilter = null) {
+  const unitAssignments = [];
+  
+  if (!clientAccess) return unitAssignments;
+  
+  Object.entries(clientAccess).forEach(([clientId, access]) => {
+    // Handle legacy structure
+    if (access.role && access.unitId && (access.role === 'unitManager' || access.role === 'unitOwner')) {
+      if (!roleFilter || access.role === roleFilter) {
+        unitAssignments.push({ clientId, unitId: access.unitId, role: access.role });
+      }
+    }
+    
+    // Handle additionalAssignments (legacy)
+    if (access.additionalAssignments && Array.isArray(access.additionalAssignments)) {
+      access.additionalAssignments
+        .filter(assignment => 
+          assignment.unitId && 
+          (assignment.role === 'unitManager' || assignment.role === 'unitOwner') &&
+          (!roleFilter || assignment.role === roleFilter)
+        )
+        .forEach(assignment => {
+          unitAssignments.push({ clientId, unitId: assignment.unitId, role: assignment.role });
+        });
+    }
+    
+    // Handle new unitAssignments structure
+    if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
+      access.unitAssignments
+        .filter(assignment => 
+          assignment.unitId && 
+          assignment.role &&
+          (assignment.role === 'unitManager' || assignment.role === 'unitOwner') &&
+          (!roleFilter || assignment.role === roleFilter)
+        )
+        .forEach(assignment => {
+          unitAssignments.push({ clientId, unitId: assignment.unitId, role: assignment.role });
+        });
+    }
+  });
+  
+  return unitAssignments;
+}
+
+/**
+ * Extract manager unit assignments (backward compatibility)
+ */
+function getManagerUnitsFromAccess(clientAccess) {
+  return getUnitAssignmentsFromAccess(clientAccess, 'unitManager');
+}
+
+/**
+ * Extract all unit assignments (any role) from clientAccess data
+ * @param {Object} clientAccess - User's client access data
+ * @returns {Array} Array of {clientId, unitId, role} objects for all unit assignments
+ */
+function getAllUnitAssignmentsFromAccess(clientAccess) {
+  const unitAssignments = [];
+  
+  if (!clientAccess) return unitAssignments;
+  
+  Object.entries(clientAccess).forEach(([clientId, access]) => {
+    // Handle new unitAssignments structure
+    if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
+      access.unitAssignments.forEach(assignment => {
+        if (assignment.unitId && assignment.role) {
+          unitAssignments.push({ 
+            clientId, 
+            unitId: assignment.unitId, 
+            role: assignment.role 
+          });
+        }
+      });
+    } else {
+      // Handle legacy structure for backward compatibility
+      if (access.role && access.unitId) {
+        unitAssignments.push({ 
+          clientId, 
+          unitId: access.unitId, 
+          role: access.role 
+        });
+      }
+      
+      // Handle additionalAssignments
+      if (access.additionalAssignments && Array.isArray(access.additionalAssignments)) {
+        access.additionalAssignments.forEach(assignment => {
+          if (assignment.unitId && assignment.role) {
+            unitAssignments.push({ 
+              clientId, 
+              unitId: assignment.unitId, 
+              role: assignment.role 
+            });
+          }
+        });
+      }
+    }
+  });
+  
+  return unitAssignments;
+}
+
+/**
+ * Synchronize unit assignments (owners and managers) between user roles and unit records
+ * @param {string} userId - User ID
+ * @param {Object} oldClientAccess - Previous client access data
+ * @param {Object} newClientAccess - New client access data
+ * @param {string} userName - User's display name
+ * @param {string} userEmail - User's email address
+ * @param {string} oldUserName - Previous user name (for name changes)
+ */
+async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName = null) {
+  console.log(`🔄 [SYNC] Syncing unit assignments for user ${userId}`);
+  
+  const db = await getDb();
+  const batch = db.batch();
+  let operationCount = 0;
+  
+  // Extract all unit assignments (both owners and managers) from old and new access
+  const oldUnitAssignments = getUnitAssignmentsFromAccess(oldClientAccess);
+  const newUnitAssignments = getUnitAssignmentsFromAccess(newClientAccess);
+  
+  // Create lookup sets for efficient comparison (include role in key for precise matching)
+  const oldUnitsSet = new Set(oldUnitAssignments.map(unit => `${unit.clientId}/${unit.unitId}/${unit.role}`));
+  const newUnitsSet = new Set(newUnitAssignments.map(unit => `${unit.clientId}/${unit.unitId}/${unit.role}`));
+  
+  // Find assignments to remove (in old but not in new)
+  const assignmentsToRemove = oldUnitAssignments.filter(unit => 
+    !newUnitsSet.has(`${unit.clientId}/${unit.unitId}/${unit.role}`)
+  );
+  
+  // Find assignments to add (in new but not in old)
+  const assignmentsToAdd = newUnitAssignments.filter(unit => 
+    !oldUnitsSet.has(`${unit.clientId}/${unit.unitId}/${unit.role}`)
+  );
+  
+  
+  // Remove person from units no longer assigned
+  for (const assignment of assignmentsToRemove) {
+    await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldUserName || userName, userEmail, assignment.role);
+    operationCount++;
+  }
+  
+  // Add person to newly assigned units
+  for (const assignment of assignmentsToAdd) {
+    await addPersonToUnit(batch, assignment.clientId, assignment.unitId, userName, userEmail, assignment.role);
+    operationCount++;
+  }
+  
+  // Handle name changes for existing assignments
+  if (oldUserName && oldUserName !== userName) {
+    // Find assignments that remain unchanged (intersection)
+    const unchangedAssignments = newUnitAssignments.filter(unit => 
+      oldUnitsSet.has(`${unit.clientId}/${unit.unitId}/${unit.role}`)
+    );
+    
+    for (const assignment of unchangedAssignments) {
+      await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldUserName, userEmail, assignment.role);
+      await addPersonToUnit(batch, assignment.clientId, assignment.unitId, userName, userEmail, assignment.role);
+      operationCount += 2;
+    }
+  }
+  
+  // Commit all changes atomically
+  if (operationCount > 0) {
+    await batch.commit();
+    console.log(`✅ [SYNC] Unit synchronization completed for user ${userId}`);
+  }
+}
+
+/**
+ * Backward compatibility wrapper for syncManagerAssignments
+ */
+async function syncManagerAssignments(userId, oldClientAccess, newClientAccess, userName, oldUserName = null) {
+  // Need to get user email for comprehensive sync
+  const db = await getDb();
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userEmail = userDoc.exists ? userDoc.data().email : 'unknown@example.com';
+  
+  return syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName);
+}
+
+/**
+ * Handle name updates across all unit records (owners and managers)
+ * @param {string} userId - User ID
+ * @param {string} oldName - Previous name
+ * @param {string} newName - New name
+ * @param {string} userEmail - User's email
+ * @param {Object} clientAccess - User's client access data
+ */
+async function updateUserNameInUnits(userId, oldName, newName, userEmail, clientAccess) {
+  console.log(`🔄 [NAME_UPDATE] Updating name from ${oldName} to ${newName} for user ${userId}`);
+  
+  const db = await getDb();
+  const batch = db.batch();
+  let operationCount = 0;
+  
+  // Get all unit assignments for this user
+  const unitAssignments = getUnitAssignmentsFromAccess(clientAccess);
+  
+  console.log(`📋 [NAME_UPDATE] Unit assignments to update:`, unitAssignments);
+  
+  // Update name in all assigned units
+  for (const assignment of unitAssignments) {
+    console.log(`🔄 [NAME_UPDATE] Updating ${assignment.role} name in ${assignment.clientId}/${assignment.unitId}`);
+    await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldName, userEmail, assignment.role);
+    await addPersonToUnit(batch, assignment.clientId, assignment.unitId, newName, userEmail, assignment.role);
+    operationCount += 2;
+  }
+  
+  // Commit all changes atomically
+  if (operationCount > 0) {
+    console.log(`💾 [NAME_UPDATE] Committing ${operationCount} name update operations...`);
+    await batch.commit();
+    console.log(`✅ [NAME_UPDATE] Name updated successfully in all units for user ${userId}`);
+  } else {
+    console.log(`ℹ️ [NAME_UPDATE] No name updates needed for user ${userId}`);
+  }
+}
+
+/**
+ * Backward compatibility wrapper for updateManagerNameInUnits
+ */
+async function updateManagerNameInUnits(userId, oldName, newName, clientAccess) {
+  // Need to get user email for comprehensive sync
+  const db = await getDb();
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userEmail = userDoc.exists ? userDoc.data().email : 'unknown@example.com';
+  
+  return updateUserNameInUnits(userId, oldName, newName, userEmail, clientAccess);
+}
+
+/**
+ * Create a new user with proper client assignment
+ */
+export async function createUser(req, res) {
+  try {
+    const { 
+      email, 
+      name, 
+      role, 
+      clientId, 
+      unitId, 
+      customPermissions = [],
+      creationMethod = 'manual' // 'invitation' or 'manual'
+    } = req.body;
+    const creatingUser = req.user;
+
+    // Validate required fields
+    if (!email || !name || !role) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: email, name, role' 
+      });
+    }
+    
+    // ClientId is required for non-SuperAdmin roles
+    if (role !== 'superAdmin' && !clientId) {
+      return res.status(400).json({ 
+        error: 'ClientId is required for all roles except SuperAdmin' 
+      });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'unitOwner', 'unitManager'];
+    
+    // Only SuperAdmin can create other SuperAdmins
+    if (role === 'superAdmin') {
+      if (!creatingUser.isSuperAdmin()) {
+        return res.status(403).json({ 
+          error: 'Only SuperAdmin can create other SuperAdmin users' 
+        });
+      }
+      validRoles.push('superAdmin');
+    }
+    
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ 
+        error: 'Invalid role. Must be one of: admin, unitOwner, unitManager, superAdmin (SuperAdmin only)' 
+      });
+    }
+
+    // SuperAdmin can create users for any client
+    // Admins can only create users for their assigned clients
+    if (!creatingUser.isSuperAdmin()) {
+      const clientAccess = validateClientAccess(creatingUser, clientId);
+      if (!clientAccess.allowed) {
+        return res.status(403).json({ error: clientAccess.reason });
+      }
+
+      // Admins cannot create other admins or escalate privileges
+      const userClientAccess = creatingUser.getClientAccess(clientId);
+      if (userClientAccess.role !== 'admin') {
+        return res.status(403).json({ 
+          error: 'Only admins can create users for their clients' 
+        });
+      }
+
+      if (role === 'admin') {
+        return res.status(403).json({ 
+          error: 'Admins cannot create other admin users' 
+        });
+      }
+    }
+
+    try {
+      let userRecord;
+      let temporaryPassword = null;
+      let accountState = 'active';
+      
+      if (creationMethod === 'invitation') {
+        // Create user with temporary password for invitation flow (more reliable than disabled users)
+        temporaryPassword = generateSecurePassword();
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: temporaryPassword,
+          displayName: name,
+          emailVerified: false,
+          disabled: false
+        });
+        accountState = 'pending_invitation';
+      } else {
+        // Create active user with temporary password for manual flow
+        temporaryPassword = generateSecurePassword();
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: temporaryPassword,
+          displayName: name,
+          emailVerified: false,
+          disabled: false
+        });
+        accountState = 'pending_password_change';
+      }
+
+      // Create SAMS user profile
+      const db = await getDb();
+      
+      // Set globalRole based on role
+      let globalRole = 'user';
+      let clientAccessData = {};
+      
+      if (role === 'superAdmin') {
+        globalRole = 'superAdmin';
+        // SuperAdmins don't need specific client access - they have global access
+        if (clientId && clientId !== 'ALL') {
+          clientAccessData[clientId] = {
+            role: 'admin', // SuperAdmins show as admin in specific clients
+            unitId: null,
+            permissions: customPermissions,
+            addedDate: new Date().toISOString(),
+            addedBy: creatingUser.email
+          };
+        }
+      } else {
+        clientAccessData[clientId] = {
+          role: role,
+          unitId: unitId || null,
+          permissions: customPermissions,
+          addedDate: new Date().toISOString(),
+          addedBy: creatingUser.email
+        };
+      }
+      
+      const userProfile = {
+        email: email,
+        name: name,
+        globalRole: globalRole,
+        clientAccess: clientAccessData,
+        preferredClient: role === 'superAdmin' ? null : clientId,
+        createdDate: new Date().toISOString(),
+        createdBy: creatingUser.email,
+        isActive: true, // Both methods create active users now
+        accountState: accountState,
+        creationMethod: creationMethod,
+        mustChangePassword: true, // Both methods require password change
+        lastLoginDate: null
+      };
+
+      await db.collection('users').doc(userRecord.uid).set(userProfile);
+
+      // Sync manager assignments for newly created user
+      if (role === 'unitManager' && clientId && unitId) {
+        console.log(`🔄 [CREATE] Syncing manager assignment for new user: ${name} → ${clientId}/${unitId}`);
+        // For new users, oldClientAccess is empty
+        await syncManagerAssignments(userRecord.uid, {}, clientAccessData, name);
+      }
+
+      // Send appropriate notification
+      let emailResult = null;
+      if (creationMethod === 'invitation') {
+        // Send invitation email
+        emailResult = await sendUserInvitation({
+          email: email,
+          name: name,
+          clientName: clientId || 'System',
+          role: role,
+          invitedBy: creatingUser.email
+        });
+      } else {
+        // Send password notification email
+        emailResult = await sendPasswordNotification({
+          email: email,
+          name: name,
+          password: temporaryPassword,
+          clientName: clientId || 'System',
+          role: role,
+          createdBy: creatingUser.email
+        });
+      }
+
+      // Log user creation
+      await writeAuditLog({
+        module: 'user_management',
+        action: 'user.created',
+        parentPath: '/users',
+        docId: userRecord.uid,
+        friendlyName: `${name} (${email})`,
+        notes: `Created user with ${creationMethod} method, role ${role} for client ${clientId || 'N/A'} by ${creatingUser.email}`
+      });
+
+      // Return success response
+      const response = {
+        success: true,
+        user: {
+          uid: userRecord.uid,
+          email: email,
+          name: name,
+          role: role,
+          clientId: clientId,
+          unitId: unitId,
+          accountState: accountState,
+          creationMethod: creationMethod
+        },
+        emailSent: emailResult?.success || false
+      };
+
+      if (creationMethod === 'invitation') {
+        response.message = 'User invitation sent successfully. They will receive an email to set up their password.';
+      } else {
+        response.temporaryPassword = temporaryPassword; // Only include for manual method
+        response.message = 'User created successfully with temporary password. Email notification sent.';
+      }
+
+      res.status(201).json(response);
+
+    } catch (firebaseError) {
+      console.error('Firebase user creation failed:', firebaseError);
+      
+      if (firebaseError.code === 'auth/email-already-exists') {
+        return res.status(400).json({ 
+          error: 'A user with this email already exists' 
+        });
+      }
+      
+      throw firebaseError;
+    }
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ 
+      error: 'Failed to create user',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Get list of users (with proper filtering based on access)
+ */
+export async function getUsers(req, res) {
+  try {
+    const requestingUser = req.user;
+    const db = await getDb();
+    // admin is already imported at the top of the file
+
+    let usersQuery = db.collection('users');
+    let users = [];
+
+    if (requestingUser.isSuperAdmin()) {
+      // SuperAdmin can see all users
+      const snapshot = await usersQuery.get();
+      users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else {
+      // Regular users can only see users from their assigned clients
+      const snapshot = await usersQuery.get();
+      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Filter users to only those in shared clients
+      users = allUsers.filter(user => {
+        if (!user.clientAccess) return false;
+        
+        const userClients = Object.keys(user.clientAccess);
+        const requestingUserClients = Object.keys(requestingUser.samsProfile?.clientAccess || {});
+        
+        // Check if there's any overlap in client access
+        return userClients.some(clientId => requestingUserClients.includes(clientId));
+      });
+    }
+
+    // Enhance users with Firebase Auth metadata (including lastSignInTime)
+    const enhancedUsers = await Promise.all(users.map(async (user) => {
+      try {
+        const authUser = await admin.auth().getUser(user.id);
+        return {
+          ...user,
+          firebaseMetadata: {
+            lastSignInTime: authUser.metadata.lastSignInTime,
+            creationTime: authUser.metadata.creationTime,
+            lastRefreshTime: authUser.metadata.lastRefreshTime
+          }
+        };
+      } catch (authError) {
+        // If Firebase Auth user doesn't exist, return user without metadata
+        console.warn(`Firebase Auth user not found for user ID ${user.id}:`, authError.message);
+        return {
+          ...user,
+          firebaseMetadata: {
+            lastSignInTime: null,
+            creationTime: null,
+            lastRefreshTime: null
+          }
+        };
+      }
+    }));
+
+    // Sanitize user data based on requesting user's permissions
+    const sanitizedUsers = enhancedUsers.map(user => sanitizeUserData(user, requestingUser));
+
+    res.json({
+      success: true,
+      users: sanitizedUsers,
+      total: sanitizedUsers.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch users',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Update user profile and permissions
+ */
+export async function updateUser(req, res) {
+  try {
+    const { userId } = req.params;
+    const { name, clientAccess, isActive, globalRole, resetPassword, newPassword, requirePasswordChange } = req.body;
+    const updatingUser = req.user;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentUserData = userDoc.data();
+
+    // Users can update their own basic profile
+    if (userId === updatingUser.uid) {
+      // Allow self-update of basic fields only
+      const allowedUpdates = { 
+        name,
+        isActive
+      };
+      
+      // SuperAdmin can update their own global role
+      if (updatingUser.isSuperAdmin() && globalRole) {
+        allowedUpdates.globalRole = globalRole;
+      }
+      
+      await db.collection('users').doc(userId).update({
+        ...allowedUpdates,
+        lastModifiedDate: new Date().toISOString(),
+        lastModifiedBy: updatingUser.email
+      });
+
+      // Handle password reset for self
+      if (resetPassword) {
+        try {
+          const passwordToSet = newPassword || generateSecurePassword();
+          await admin.auth().updateUser(userId, {
+            password: passwordToSet,
+            disabled: false
+          });
+          
+          // Also update Firestore profile to ensure user is active
+          const selfProfileUpdate = {
+            isActive: true,
+            lastModifiedDate: new Date().toISOString(),
+            lastModifiedBy: updatingUser.email
+          };
+          
+          // Only require password change if password was auto-generated
+          if (!newPassword) {
+            selfProfileUpdate.accountState = 'pending_password_change';
+            selfProfileUpdate.mustChangePassword = true;
+          } else {
+            selfProfileUpdate.accountState = 'active';
+            selfProfileUpdate.mustChangePassword = false;
+          }
+          
+          await db.collection('users').doc(userId).update(selfProfileUpdate);
+          
+          res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            passwordChanged: true,
+            newPassword: newPassword ? undefined : passwordToSet // Only return if auto-generated
+          });
+          return;
+        } catch (passwordError) {
+          console.error('Failed to reset password:', passwordError);
+          res.json({
+            success: true,
+            message: 'Profile updated but password reset failed',
+            passwordError: passwordError.message
+          });
+          return;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Profile updated successfully'
+      });
+      return;
+    }
+
+    // Only SuperAdmin or admins can update other users
+    if (!updatingUser.isSuperAdmin()) {
+      // Check if updating user is admin for any of the target user's clients
+      const targetUserClients = Object.keys(currentUserData.clientAccess || {});
+      const hasAdminRights = targetUserClients.some(clientId => {
+        const access = updatingUser.getClientAccess(clientId);
+        return access?.role === 'admin';
+      });
+
+      if (!hasAdminRights) {
+        return res.status(403).json({ 
+          error: 'Insufficient permissions to update this user' 
+        });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: updatingUser.email
+    };
+
+    // Handle name changes with manager synchronization
+    const nameChanged = name && name !== currentUserData.name;
+    if (name) updateData.name = name;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    
+    // Handle global role updates (SuperAdmin only)
+    if (globalRole && updatingUser.isSuperAdmin()) {
+      updateData.globalRole = globalRole;
+    }
+    
+    // Handle client access updates and sync manager assignments
+    if (clientAccess) {
+      console.log(`🔄 [UPDATE] Processing clientAccess update for user ${userId}`);
+      console.log(`👤 [UPDATE] Updating user: ${updatingUser.email}, isSuperAdmin: ${updatingUser.isSuperAdmin()}`);
+      
+      // Only SuperAdmin can update clientAccess, but we also sync manager assignments
+      if (updatingUser.isSuperAdmin()) {
+        // Synchronize manager assignments if clientAccess is being updated
+        const oldClientAccess = currentUserData.clientAccess;
+        const newClientAccess = clientAccess;
+        const userName = updateData.name || currentUserData.name;
+        const oldUserName = nameChanged ? currentUserData.name : null;
+        
+        console.log(`🔄 [UPDATE] Calling syncManagerAssignments...`);
+        
+        // Sync manager assignments between user roles and unit records
+        await syncManagerAssignments(userId, oldClientAccess, newClientAccess, userName, oldUserName);
+        
+        updateData.clientAccess = clientAccess;
+        console.log(`✅ [UPDATE] ClientAccess updated and synchronized`);
+      } else {
+        console.log(`❌ [UPDATE] Non-SuperAdmin attempted to update clientAccess`);
+        return res.status(403).json({ 
+          error: 'Only SuperAdmin can update client access' 
+        });
+      }
+    }
+    
+    // Handle name changes for existing managers (when only name is updated)
+    if (nameChanged && !clientAccess && currentUserData.clientAccess) {
+      await updateManagerNameInUnits(userId, currentUserData.name, name, currentUserData.clientAccess);
+    }
+
+    // Handle require password change if requested
+    if (requirePasswordChange !== undefined) {
+      updateData.mustChangePassword = requirePasswordChange;
+      updateData.accountState = requirePasswordChange ? 'pending_password_change' : 'active';
+      
+      // Log password change requirement update
+      await writeAuditLog({
+        module: 'user_management',
+        action: 'user.password_change_required',
+        parentPath: '/users',
+        docId: userId,
+        friendlyName: `Password change requirement for ${currentUserData.name || currentUserData.email}`,
+        notes: `Password change requirement ${requirePasswordChange ? 'enabled' : 'disabled'} by ${updatingUser.email}`
+      });
+    }
+
+    await db.collection('users').doc(userId).update(updateData);
+
+    // Handle password reset if requested
+    if (resetPassword) {
+      try {
+        const passwordToSet = newPassword || generateSecurePassword();
+        await admin.auth().updateUser(userId, {
+          password: passwordToSet,
+          disabled: false // Ensure user is enabled when resetting password
+        });
+        
+        // Update Firestore profile to ensure user is active
+        const profileUpdate = {
+          isActive: true,
+          lastModifiedDate: new Date().toISOString(),
+          lastModifiedBy: updatingUser.email
+        };
+        
+        // Only require password change if password was auto-generated
+        if (!newPassword) {
+          profileUpdate.accountState = 'pending_password_change';
+          profileUpdate.mustChangePassword = true;
+        } else {
+          profileUpdate.accountState = 'active';
+          profileUpdate.mustChangePassword = false;
+        }
+        
+        await db.collection('users').doc(userId).update(profileUpdate);
+        
+        // Send email notification for password reset
+        console.log('🔄 Attempting to send password reset notification to:', currentUserData.email);
+        try {
+          const emailResult = await sendPasswordNotification({
+            email: currentUserData.email,
+            name: currentUserData.name || currentUserData.email,
+            password: passwordToSet,
+            clientName: 'System',
+            role: currentUserData.globalRole || 'user',
+            createdBy: updatingUser.email
+          });
+          console.log('✅ Password reset notification result:', emailResult);
+          console.log('✅ Password reset notification sent to:', currentUserData.email);
+        } catch (emailError) {
+          console.error('❌ Failed to send password reset notification:', emailError);
+          console.error('❌ Email error details:', emailError.message);
+          console.error('❌ Email error stack:', emailError.stack);
+          // Don't fail the password reset if email fails
+        }
+
+        // Log password reset
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.password_reset',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: `Password reset for ${currentUserData.name || currentUserData.email}`,
+          notes: `Password reset by ${updatingUser.email}, auto-generated: ${!newPassword}, email sent: ${currentUserData.email}`
+        });
+        
+        res.json({
+          success: true,
+          message: 'User updated successfully. Password reset email sent.',
+          passwordChanged: true,
+          newPassword: newPassword ? undefined : passwordToSet // Only return if auto-generated
+        });
+        return;
+      } catch (passwordError) {
+        console.error('Failed to reset password:', passwordError);
+        // Continue with regular update response even if password failed
+        updateData.passwordResetFailed = true;
+      }
+    }
+
+    // Log the update
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.updated',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `${currentUserData.name || currentUserData.email}`,
+      notes: `Updated fields: ${Object.keys(updateData).join(', ')} by ${updatingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: 'User updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ 
+      error: 'Failed to update user',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Add client access to user
+ */
+export async function addClientAccess(req, res) {
+  try {
+    const { userId } = req.params;
+    const { clientId, role, unitId } = req.body;
+    const assigningUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId || !role) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId, role' 
+      });
+    }
+
+    // Only SuperAdmin or admins can assign client access
+    if (!assigningUser.isSuperAdmin()) {
+      const clientAccess = validateClientAccess(assigningUser, clientId);
+      if (!clientAccess.allowed) {
+        return res.status(403).json({ error: clientAccess.reason });
+      }
+
+      const userClientAccess = assigningUser.getClientAccess(clientId);
+      if (userClientAccess.role !== 'admin') {
+        return res.status(403).json({ 
+          error: 'Only admins can assign client access' 
+        });
+      }
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const updatedClientAccess = {
+      ...userData.clientAccess,
+      [clientId]: {
+        role: role,
+        unitId: unitId || null,
+        permissions: [],
+        addedDate: new Date().toISOString(),
+        addedBy: assigningUser.email
+      }
+    };
+
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: assigningUser.email
+    });
+
+    // Log the access assignment
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.client_access_added',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Client access added for ${userData.name || userData.email}`,
+      notes: `Added ${role} access to ${clientId}${unitId ? ` (unit: ${unitId})` : ''} by ${assigningUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Client access granted for ${clientId}`
+    });
+
+  } catch (error) {
+    console.error('Error adding client access:', error);
+    res.status(500).json({ 
+      error: 'Failed to add client access',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Remove client access from user
+ */
+export async function removeClientAccess(req, res) {
+  try {
+    const { userId, clientId } = req.params;
+    const removingUser = req.user;
+
+    // Only SuperAdmin or admins can remove client access
+    if (!removingUser.isSuperAdmin()) {
+      const clientAccess = validateClientAccess(removingUser, clientId);
+      if (!clientAccess.allowed) {
+        return res.status(403).json({ error: clientAccess.reason });
+      }
+
+      const userClientAccess = removingUser.getClientAccess(clientId);
+      if (userClientAccess.role !== 'admin') {
+        return res.status(403).json({ 
+          error: 'Only admins can remove client access' 
+        });
+      }
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const updatedClientAccess = { ...userData.clientAccess };
+    delete updatedClientAccess[clientId];
+
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: removingUser.email
+    });
+
+    // Log the access removal
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.client_access_removed',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Client access removed for ${userData.name || userData.email}`,
+      notes: `Removed access to ${clientId} by ${removingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Client access removed for ${clientId}`
+    });
+
+  } catch (error) {
+    console.error('Error removing client access:', error);
+    res.status(500).json({ 
+      error: 'Failed to remove client access',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Add unit role assignment to user (supports different roles per unit)
+ */
+export async function addUnitRoleAssignment(req, res) {
+  try {
+    const { userId } = req.params;
+    const { clientId, unitId, role } = req.body;
+    const assigningUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId || !unitId || !role) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId, unitId, role' 
+      });
+    }
+
+    // Validate role
+    const validRoles = ['unitOwner', 'unitManager'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ 
+        error: 'Invalid role. Must be unitOwner or unitManager' 
+      });
+    }
+
+    // Only SuperAdmin can modify unit role assignments
+    if (!assigningUser.isSuperAdmin()) {
+      return res.status(403).json({ 
+        error: 'Only SuperAdmin can modify unit role assignments' 
+      });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const currentClientAccess = userData.clientAccess || {};
+    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+
+    // Initialize client access if it doesn't exist
+    if (!updatedClientAccess[clientId]) {
+      updatedClientAccess[clientId] = {
+        role: 'user', // Default role
+        unitAssignments: [],
+        addedDate: new Date().toISOString(),
+        addedBy: assigningUser.email
+      };
+    }
+
+    // Ensure unitAssignments array exists
+    if (!updatedClientAccess[clientId].unitAssignments) {
+      updatedClientAccess[clientId].unitAssignments = [];
+    }
+
+    // Check if this unit assignment already exists
+    const existingAssignment = updatedClientAccess[clientId].unitAssignments.find(
+      assignment => assignment.unitId === unitId
+    );
+
+    if (existingAssignment) {
+      // Update existing assignment
+      existingAssignment.role = role;
+      existingAssignment.lastModifiedDate = new Date().toISOString();
+      existingAssignment.lastModifiedBy = assigningUser.email;
+    } else {
+      // Add new assignment
+      updatedClientAccess[clientId].unitAssignments.push({
+        unitId: unitId,
+        role: role,
+        addedDate: new Date().toISOString(),
+        addedBy: assigningUser.email
+      });
+    }
+
+    // Update user record
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: assigningUser.email
+    });
+
+    // Sync unit assignments to unit records (for all roles: owners and managers)
+    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, userData.name, userData.email);
+
+    // Log the assignment
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.unit_role_assignment_added',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Unit role assignment added for ${userData.name || userData.email}`,
+      notes: `Added ${role} assignment for ${clientId}/${unitId} by ${assigningUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Unit role assignment added: ${role} for ${clientId}/${unitId}`
+    });
+
+  } catch (error) {
+    console.error('Error adding unit role assignment:', error);
+    res.status(500).json({ 
+      error: 'Failed to add unit role assignment',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Remove unit role assignment from user
+ */
+export async function removeUnitRoleAssignment(req, res) {
+  try {
+    const { userId } = req.params;
+    const { clientId, unitId } = req.body;
+    const removingUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId || !unitId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId, unitId' 
+      });
+    }
+
+    // Only SuperAdmin can modify unit role assignments
+    if (!removingUser.isSuperAdmin()) {
+      return res.status(403).json({ 
+        error: 'Only SuperAdmin can modify unit role assignments' 
+      });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const currentClientAccess = userData.clientAccess || {};
+    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+
+    // Check if user has access to this client
+    if (!updatedClientAccess[clientId]) {
+      return res.status(400).json({ 
+        error: 'User does not have access to this client' 
+      });
+    }
+
+    // Check if unitAssignments exists
+    if (!updatedClientAccess[clientId].unitAssignments) {
+      return res.status(400).json({ 
+        error: 'No unit assignments found for this client' 
+      });
+    }
+
+    // Find and get the role before removing (for manager sync)
+    const assignmentToRemove = updatedClientAccess[clientId].unitAssignments.find(
+      assignment => assignment.unitId === unitId
+    );
+
+    if (!assignmentToRemove) {
+      return res.status(400).json({ 
+        error: 'Unit assignment not found' 
+      });
+    }
+
+    const wasManager = assignmentToRemove.role === 'unitManager';
+
+    // Remove the assignment
+    updatedClientAccess[clientId].unitAssignments = updatedClientAccess[clientId].unitAssignments.filter(
+      assignment => assignment.unitId !== unitId
+    );
+
+    // If no unit assignments left, keep the client access but remove the array
+    if (updatedClientAccess[clientId].unitAssignments.length === 0) {
+      delete updatedClientAccess[clientId].unitAssignments;
+    }
+
+    // Update user record
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: removingUser.email
+    });
+
+    // Sync unit assignments to unit records (for all roles: owners and managers)
+    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, userData.name, userData.email);
+
+    // Log the removal
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.unit_role_assignment_removed',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Unit role assignment removed for ${userData.name || userData.email}`,
+      notes: `Removed ${assignmentToRemove.role} assignment for ${clientId}/${unitId} by ${removingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Unit role assignment removed for ${clientId}/${unitId}`
+    });
+
+  } catch (error) {
+    console.error('Error removing unit role assignment:', error);
+    res.status(500).json({ 
+      error: 'Failed to remove unit role assignment',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Add manager assignment to user (supports multiple units per client) - LEGACY SUPPORT
+ */
+export async function addManagerAssignment(req, res) {
+  try {
+    const { userId } = req.params;
+    const { clientId, unitId } = req.body;
+    const assigningUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId || !unitId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId, unitId' 
+      });
+    }
+
+    // Only SuperAdmin can modify manager assignments
+    if (!assigningUser.isSuperAdmin()) {
+      return res.status(403).json({ 
+        error: 'Only SuperAdmin can modify manager assignments' 
+      });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const currentClientAccess = userData.clientAccess || {};
+    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+
+    // Check if user already has access to this client
+    if (updatedClientAccess[clientId]) {
+      const clientAccess = updatedClientAccess[clientId];
+      
+      // If user is already a manager of this exact unit, no change needed
+      if (clientAccess.role === 'unitManager' && clientAccess.unitId === unitId) {
+        return res.json({
+          success: true,
+          message: 'User is already manager of this unit'
+        });
+      }
+      
+      // If user is already a manager of another unit, add to additionalAssignments
+      if (clientAccess.role === 'unitManager' && clientAccess.unitId !== unitId) {
+        // Initialize additionalAssignments if it doesn't exist
+        if (!clientAccess.additionalAssignments) {
+          clientAccess.additionalAssignments = [];
+        }
+        
+        // Check if this assignment already exists
+        const existingAssignment = clientAccess.additionalAssignments.find(
+          assignment => assignment.role === 'unitManager' && assignment.unitId === unitId
+        );
+        
+        if (!existingAssignment) {
+          clientAccess.additionalAssignments.push({
+            role: 'unitManager',
+            unitId: unitId,
+            addedDate: new Date().toISOString(),
+            addedBy: assigningUser.email
+          });
+        }
+      } else {
+        // User has a different role, convert to unitManager
+        updatedClientAccess[clientId] = {
+          role: 'unitManager',
+          unitId: unitId,
+          permissions: clientAccess.permissions || [],
+          addedDate: clientAccess.addedDate || new Date().toISOString(),
+          addedBy: clientAccess.addedBy || assigningUser.email,
+          lastModifiedDate: new Date().toISOString(),
+          lastModifiedBy: assigningUser.email
+        };
+      }
+    } else {
+      // User doesn't have access to this client, create new access
+      updatedClientAccess[clientId] = {
+        role: 'unitManager',
+        unitId: unitId,
+        permissions: [],
+        addedDate: new Date().toISOString(),
+        addedBy: assigningUser.email
+      };
+    }
+
+    // Update user record
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: assigningUser.email
+    });
+
+    // Sync manager assignments to unit records
+    await syncManagerAssignments(userId, currentClientAccess, updatedClientAccess, userData.name);
+
+    // Log the assignment
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.manager_assignment_added',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Manager assignment added for ${userData.name || userData.email}`,
+      notes: `Added manager assignment for ${clientId}/${unitId} by ${assigningUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Manager assignment added for ${clientId}/${unitId}`
+    });
+
+  } catch (error) {
+    console.error('Error adding manager assignment:', error);
+    res.status(500).json({ 
+      error: 'Failed to add manager assignment',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Remove manager assignment from user (supports multiple units per client)
+ */
+export async function removeManagerAssignment(req, res) {
+  try {
+    const { userId } = req.params;
+    const { clientId, unitId } = req.body;
+    const removingUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId || !unitId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId, unitId' 
+      });
+    }
+
+    // Only SuperAdmin can modify manager assignments
+    if (!removingUser.isSuperAdmin()) {
+      return res.status(403).json({ 
+        error: 'Only SuperAdmin can modify manager assignments' 
+      });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    const currentClientAccess = userData.clientAccess || {};
+    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+
+    // Check if user has access to this client
+    if (!updatedClientAccess[clientId]) {
+      return res.status(400).json({ 
+        error: 'User does not have access to this client' 
+      });
+    }
+
+    const clientAccess = updatedClientAccess[clientId];
+    
+    // If removing the primary assignment
+    if (clientAccess.role === 'unitManager' && clientAccess.unitId === unitId) {
+      // If there are additional assignments, promote one to primary
+      if (clientAccess.additionalAssignments && clientAccess.additionalAssignments.length > 0) {
+        const managerAssignments = clientAccess.additionalAssignments.filter(
+          assignment => assignment.role === 'unitManager'
+        );
+        
+        if (managerAssignments.length > 0) {
+          // Promote first additional assignment to primary
+          const newPrimary = managerAssignments[0];
+          updatedClientAccess[clientId] = {
+            ...clientAccess,
+            unitId: newPrimary.unitId,
+            additionalAssignments: clientAccess.additionalAssignments.filter(
+              assignment => assignment !== newPrimary
+            ),
+            lastModifiedDate: new Date().toISOString(),
+            lastModifiedBy: removingUser.email
+          };
+        } else {
+          // No other manager assignments, remove client access entirely
+          delete updatedClientAccess[clientId];
+        }
+      } else {
+        // No additional assignments, remove client access entirely
+        delete updatedClientAccess[clientId];
+      }
+    } else {
+      // Removing from additional assignments
+      if (clientAccess.additionalAssignments) {
+        clientAccess.additionalAssignments = clientAccess.additionalAssignments.filter(
+          assignment => !(assignment.role === 'unitManager' && assignment.unitId === unitId)
+        );
+        
+        // Clean up empty additionalAssignments array
+        if (clientAccess.additionalAssignments.length === 0) {
+          delete clientAccess.additionalAssignments;
+        }
+        
+        clientAccess.lastModifiedDate = new Date().toISOString();
+        clientAccess.lastModifiedBy = removingUser.email;
+      }
+    }
+
+    // Update user record
+    await db.collection('users').doc(userId).update({
+      clientAccess: updatedClientAccess,
+      lastModifiedDate: new Date().toISOString(),
+      lastModifiedBy: removingUser.email
+    });
+
+    // Sync manager assignments to unit records
+    await syncManagerAssignments(userId, currentClientAccess, updatedClientAccess, userData.name);
+
+    // Log the removal
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.manager_assignment_removed',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Manager assignment removed for ${userData.name || userData.email}`,
+      notes: `Removed manager assignment for ${clientId}/${unitId} by ${removingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Manager assignment removed for ${clientId}/${unitId}`
+    });
+
+  } catch (error) {
+    console.error('Error removing manager assignment:', error);
+    res.status(500).json({ 
+      error: 'Failed to remove manager assignment',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Delete user (SuperAdmin only)
+ */
+export async function deleteUser(req, res) {
+  try {
+    const { userId } = req.params;
+    const deletingUser = req.user;
+
+    // Only SuperAdmin can delete users
+    if (!deletingUser.isSuperAdmin()) {
+      return res.status(403).json({ 
+        error: 'Only SuperAdmin can delete users' 
+      });
+    }
+
+    // Prevent self-deletion
+    if (userId === deletingUser.uid) {
+      return res.status(400).json({ 
+        error: 'Cannot delete your own account' 
+      });
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+
+    // Clean up manager references in unit records if user was a manager
+    if (userData.clientAccess) {
+      await updateManagerNameInUnits(userId, userData.name, '', userData.clientAccess);
+    }
+
+    // Delete from Firebase Auth
+    await admin.auth().deleteUser(userId);
+
+    // Delete from Firestore
+    await db.collection('users').doc(userId).delete();
+
+    // Log the deletion
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.deleted',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `${userData.name || userData.email}`,
+      notes: `User deleted by ${deletingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete user',
+      details: error.message 
+    });
+  }
+}

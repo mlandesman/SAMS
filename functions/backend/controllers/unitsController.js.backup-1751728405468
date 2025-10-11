@@ -1,0 +1,130 @@
+// src/CRUD/units.js
+import { getDb } from '../firebase.js';
+import { writeAuditLog } from '../utils/auditLogger.js';
+
+/**
+ * Create a Unit under a Client
+ * @param {string} clientId 
+ * @param {object} unitData 
+ * @param {string} [docId] Optional document ID (like "2A", "PH4Z")
+ * @returns 
+ */
+async function createUnit(clientId, unitData, docId = null) {
+  try {
+    const db = await getDb();
+    let unitRef;
+    if (docId) {
+      unitRef = db.collection(`clients/${clientId}/units`).doc(docId);
+      await unitRef.set({
+        ...unitData,
+        createdAt: new Date(),
+      });
+    } else {
+      unitRef = await db.collection(`clients/${clientId}/units`).add({
+        ...unitData,
+        createdAt: new Date(),
+      });
+    }
+
+    await writeAuditLog({
+      module: 'units',
+      action: 'create',
+      parentPath: `clients/${clientId}/units`,
+      docId: unitRef.id,
+      friendlyName: unitData.unitName || '',
+      notes: 'Created new unit record',
+    });
+
+    return unitRef.id;
+  } catch (error) {
+    console.error('❌ Error creating unit:', error);
+    throw error;
+  }
+}
+
+// Update a unit
+async function updateUnit(clientId, unitId, newData) {
+  try {
+    const db = await getDb();
+    const unitRef = db.doc(`clients/${clientId}/units/${unitId}`);
+    await unitRef.update({
+      ...newData,
+      updatedAt: new Date(),
+    });
+
+    const auditSuccess = await writeAuditLog({
+      module: 'units',
+      action: 'update',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: newData.unitName || 'Unnamed Unit',
+      notes: 'Updated unit record',
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for updateUnit.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error updating unit:', error);
+    return false;
+  }
+}
+
+// Delete a unit
+async function deleteUnit(clientId, unitId) {
+  try {
+    const db = await getDb();
+    const unitRef = db.doc(`clients/${clientId}/units/${unitId}`);
+    await unitRef.delete();
+
+    const auditSuccess = await writeAuditLog({
+      module: 'units',
+      action: 'delete',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: '',
+      notes: 'Deleted unit record',
+    });
+
+    if (!auditSuccess) {
+      console.error('❌ Failed to write audit log for deleteUnit.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting unit:', error);
+    return false;
+  }
+}
+
+// List all units under a client
+async function listUnits(clientId) {
+  try {
+    const db = await getDb();
+    const snapshot = await db.collection(`clients/${clientId}/units`).get();
+    const units = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      units.push({
+        ...data,
+        id: doc.id, // Always use the document ID
+        unitId: data.unitId || doc.id, // Ensure unitId is available for frontend
+      });
+    });
+
+    return units;
+  } catch (error) {
+    console.error('❌ Error listing units:', error);
+    return [];
+  }
+}
+
+export {
+  createUnit,
+  updateUnit,
+  deleteUnit,
+  listUnits,
+};

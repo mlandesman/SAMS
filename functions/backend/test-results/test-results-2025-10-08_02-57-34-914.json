@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-08T02:57:44.331Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 1,
+    "passedTests": 1,
+    "failedTests": 0,
+    "totalDuration": 9414
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1759892254917-wxdll4rc9",
+      "name": "Check readingDate and priorReadingDate fields",
+      "passed": true,
+      "duration": 9414,
+      "data": {
+        "month0ReadingDate": "2025-10-07T20:06:22.529-05:00",
+        "month1ReadingDate": "2025-10-07T20:06:26.159-05:00",
+        "month1PriorReadingDate": "2025-10-07T20:06:22.529-05:00"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-08T02:57:44.331Z",
+      "message": "Timestamp fields correctly included in aggregated data"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "successRate": 100,
+    "averageDuration": 9414,
+    "startTime": 1759892254917,
+    "endTime": 1759892264331
+  }
+}
