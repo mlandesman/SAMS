@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-07-05T15:16:12.346Z",
+  "summary": {
+    "totalFiles": 20,
+    "criticalIssues": 0,
+    "warnings": 14,
+    "passed": 17
+  },
+  "issues": [],
+  "warnings": [
+    {
+      "file": "auth.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "new Date().toISOString()",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "user.js",
+      "type": "MISSING_FIELD",
+      "message": "propertyAccess used but missing isAdmin field check"
+    },
+    {
+      "file": "user.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "createdAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "clientManagement.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "new Date().toISOString()",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "clientManagement.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "Date.now()",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "clientManagement.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "createdAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "userManagementController.js",
+      "type": "MISSING_FIELD",
+      "message": "propertyAccess used but missing isAdmin field check"
+    },
+    {
+      "file": "transactionsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "new Date().toISOString()",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "transactionsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "createdAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "transactionsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "updatedAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "unitsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "updatedAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "hoaDuesController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "new Date().toISOString()",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "clientsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "createdAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    },
+    {
+      "file": "clientsController.js",
+      "type": "TIMESTAMP_PATTERN",
+      "pattern": "updatedAt:",
+      "message": "Consider using Firestore Timestamps instead of ISO strings"
+    }
+  ],
+  "passed": [
+    {
+      "file": "user.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "user.js",
+      "type": "CORRECT_TIMESTAMP",
+      "message": "Correctly using Firestore server timestamps"
+    },
+    {
+      "file": "user.js",
+      "type": "CORRECT_DOC_ID",
+      "message": "Correctly using UID as user document ID"
+    },
+    {
+      "file": "units.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "hoaDues.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "reports.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "clientManagement.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "userManagementController.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "userManagementController.js",
+      "type": "CORRECT_TIMESTAMP",
+      "message": "Correctly using Firestore server timestamps"
+    },
+    {
+      "file": "userManagementController.js",
+      "type": "CORRECT_DOC_ID",
+      "message": "Correctly using UID as user document ID"
+    },
+    {
+      "file": "unitsController.js",
+      "type": "CORRECT_TIMESTAMP",
+      "message": "Correctly using Firestore server timestamps"
+    },
+    {
+      "file": "clientsController.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "clientAuth.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "clientAuth.js",
+      "type": "CORRECT_PATTERN",
+      "message": "Using new unitAssignments array structure"
+    },
+    {
+      "file": "clientAuth.js",
+      "type": "CORRECT_TIMESTAMP",
+      "message": "Correctly using Firestore server timestamps"
+    },
+    {
+      "file": "unitAuthorization.js",
+      "type": "CORRECT_FIELD",
+      "message": "Correctly using isSuperAdmin field"
+    },
+    {
+      "file": "unitAuthorization.js",
+      "type": "CORRECT_PATTERN",
+      "message": "Using new unitAssignments array structure"
+    }
+  ]
+}

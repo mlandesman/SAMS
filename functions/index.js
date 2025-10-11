@@ -26,7 +26,7 @@ setGlobalOptions({
 let appCache = null;
 async function getApp() {
   if (!appCache) {
-    const module = await import('../backend/index.js');
+    const module = await import('./backend/index.js');
     appCache = module.default;
   }
   return appCache;

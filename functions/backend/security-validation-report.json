@@ -1,0 +1,132 @@
+{
+  "summary": {
+    "total": 13,
+    "passed": 9,
+    "failed": 4,
+    "warnings": 0,
+    "successRate": "69.2%"
+  },
+  "tests": [
+    {
+      "name": "SuperAdmin Client Access",
+      "passed": true,
+      "message": "SuperAdmin can access any client",
+      "details": {
+        "clientId": "ANY_CLIENT"
+      },
+      "timestamp": "2025-06-23T21:32:30.263Z"
+    },
+    {
+      "name": "Admin Assigned Client Access",
+      "passed": true,
+      "message": "Admin can access assigned client",
+      "details": {
+        "clientId": "MTC"
+      },
+      "timestamp": "2025-06-23T21:32:30.263Z"
+    },
+    {
+      "name": "Admin Unassigned Client Block",
+      "passed": true,
+      "message": "Admin blocked from unassigned client",
+      "details": {
+        "clientId": "Villa123"
+      },
+      "timestamp": "2025-06-23T21:32:30.263Z"
+    },
+    {
+      "name": "Unit Owner Cross-Client Block",
+      "passed": true,
+      "message": "Unit owner blocked from different client",
+      "details": {
+        "fromClient": "MTC",
+        "toClient": "Villa123"
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "SuperAdmin Data Access",
+      "passed": true,
+      "message": "SuperAdmin can see sensitive user data",
+      "details": {
+        "fieldsVisible": 10
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "Regular User Data Limitation",
+      "passed": true,
+      "message": "Regular user sees limited data only",
+      "details": {
+        "fieldsVisible": 6
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "Middleware Import",
+      "passed": true,
+      "message": "Security middleware functions are available",
+      "details": {
+        "note": "Actual middleware testing requires Express test setup"
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "Production Rules File",
+      "passed": false,
+      "message": "Production Firestore rules file not found",
+      "details": {
+        "error": "ENOENT: no such file or directory, access './firestore-production.rules'"
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "Storage Rules File",
+      "passed": false,
+      "message": "Storage rules file not found",
+      "details": {
+        "error": "ENOENT: no such file or directory, access './storage.rules'"
+      },
+      "timestamp": "2025-06-23T21:32:30.264Z"
+    },
+    {
+      "name": "Database Connection",
+      "passed": true,
+      "message": "Database connection established",
+      "details": {
+        "connected": true
+      },
+      "timestamp": "2025-06-23T21:32:30.932Z"
+    },
+    {
+      "name": "Admin SDK Auth",
+      "passed": true,
+      "message": "Firebase Admin SDK initialized",
+      "details": {
+        "initialized": true
+      },
+      "timestamp": "2025-06-23T21:32:31.013Z"
+    },
+    {
+      "name": "Environment Variable: NODE_ENV",
+      "passed": false,
+      "message": "Environment variable is missing",
+      "details": {
+        "variable": "NODE_ENV",
+        "hasValue": false
+      },
+      "timestamp": "2025-06-23T21:32:31.013Z"
+    },
+    {
+      "name": "Environment Variable: GOOGLE_APPLICATION_CREDENTIALS",
+      "passed": false,
+      "message": "Environment variable is missing",
+      "details": {
+        "variable": "GOOGLE_APPLICATION_CREDENTIALS",
+        "hasValue": false
+      },
+      "timestamp": "2025-06-23T21:32:31.013Z"
+    }
+  ],
+  "timestamp": "2025-06-23T21:32:31.013Z"
+}
