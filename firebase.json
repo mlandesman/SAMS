@@ -16,7 +16,8 @@
       ],
       "predeploy": [
         "rm -rf \"$RESOURCE_DIR/backend\" 2>/dev/null || true",
-        "cp -r ./backend \"$RESOURCE_DIR/backend\"",
+        "mkdir -p \"$RESOURCE_DIR/backend\"",
+        "cp -r ./backend/* \"$RESOURCE_DIR/backend/\"",
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
@@ -44,6 +45,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/version",
+        "function": "api"
+      },
       {
         "source": "/system/**",
         "function": "api"
