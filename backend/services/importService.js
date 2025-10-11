@@ -1616,11 +1616,18 @@ export class ImportService {
         }
       }
       
+      // Step 4: Enhance transactions with allocations
+      console.log('\n📊 Enhancing water bill transactions with allocations...');
+      const enhancementResults = await this.enhanceWaterBillTransactionsWithAllocations(waterCrossRef, txnCrossRef);
+      results.enhancedTransactions = enhancementResults.enhanced;
+      results.allocationErrors = enhancementResults.errors;
+      
       console.log('\n✅ Water Bills Import Complete');
       console.log(`   Cycles Processed: ${results.cyclesProcessed}`);
       console.log(`   Readings Imported: ${results.readingsImported}`);
       console.log(`   Bills Generated: ${results.billsGenerated}`);
       console.log(`   Payments Applied: ${results.paymentsApplied}`);
+      console.log(`   Transactions Enhanced: ${results.enhancedTransactions}`);
       
       return results;
       
@@ -1920,6 +1927,202 @@ export class ImportService {
     });
     
     console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
+  }
+
+  /**
+   * Enhance water bill transactions with allocations (mirrors HOA Dues pattern)
+   */
+  async enhanceWaterBillTransactionsWithAllocations(waterCrossRef, txnCrossRef) {
+    const results = { enhanced: 0, errors: [] };
+    
+    if (!txnCrossRef || !txnCrossRef.byPaymentSeq) {
+      console.log('⚠️  No transaction CrossRef available - skipping allocation enhancement');
+      return results;
+    }
+    
+    // Group charges by payment sequence
+    const paymentGroups = {};
+    
+    for (const charge of waterCrossRef) {
+      const paySeq = charge.PaymentSeq;
+      
+      if (!paymentGroups[paySeq]) {
+        paymentGroups[paySeq] = {
+          paymentSeq: paySeq,
+          unit: charge.Unit,
+          paymentDate: charge.PaymentDate,
+          charges: [],
+          billPayments: [], // Will store bill-level payments for allocation generation
+          totalAmount: 0,
+          baseCharges: 0,
+          penalties: 0
+        };
+      }
+      
+      paymentGroups[paySeq].charges.push(charge);
+      paymentGroups[paySeq].totalAmount += charge.AmountApplied;
+      
+      if (charge.Category === 'WC') {
+        paymentGroups[paySeq].baseCharges += charge.AmountApplied;
+      } else if (charge.Category === 'WCP') {
+        paymentGroups[paySeq].penalties += charge.AmountApplied;
+      }
+    }
+    
+    console.log(`📊 Found ${Object.keys(paymentGroups).length} water bill payment groups to enhance`);
+    
+    // Get fiscal year configuration
+    const clientConfig = await this.getClientConfig();
+    const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+    
+    // Enhance each payment's transaction with allocations
+    for (const [paySeq, payment] of Object.entries(paymentGroups)) {
+      try {
+        // Look up transaction ID from CrossRef
+        const transactionId = txnCrossRef.byPaymentSeq[paySeq]?.transactionId;
+        
+        if (!transactionId) {
+          console.log(`⚠️  No transaction ID for payment ${paySeq} - skipping`);
+          continue;
+        }
+        
+        // Build bill payments structure (group charges by bill period)
+        const billsMap = {};
+        
+        for (const charge of payment.charges) {
+          const chargeDate = new Date(charge.ChargeDate);
+          const fiscalYear = getFiscalYear(chargeDate, fiscalYearStartMonth);
+          const calendarMonth = chargeDate.getMonth() + 1;
+          let fiscalMonth = calendarMonth - fiscalYearStartMonth;
+          if (fiscalMonth < 0) fiscalMonth += 12;
+          
+          const billId = `${fiscalYear}-${String(fiscalMonth).padStart(2, '0')}`;
+          const billPeriod = this.convertFiscalPeriodToReadable(fiscalYear, fiscalMonth, fiscalYearStartMonth);
+          
+          if (!billsMap[billId]) {
+            billsMap[billId] = {
+              billId: billId,
+              billPeriod: billPeriod,
+              baseChargePaid: 0,
+              penaltyPaid: 0,
+              amountPaid: 0
+            };
+          }
+          
+          if (charge.Category === 'WC') {
+            billsMap[billId].baseChargePaid += charge.AmountApplied;
+          } else if (charge.Category === 'WCP') {
+            billsMap[billId].penaltyPaid += charge.AmountApplied;
+          }
+          
+          billsMap[billId].amountPaid += charge.AmountApplied;
+        }
+        
+        const billPayments = Object.values(billsMap);
+        
+        // Create allocations using the same pattern as waterPaymentsService
+        const allocations = [];
+        let allocationIndex = 0;
+        
+        for (const billPayment of billPayments) {
+          // Add base charge allocation
+          if (billPayment.baseChargePaid > 0) {
+            allocations.push({
+              id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+              type: "water_bill",
+              targetId: `bill_${billPayment.billId}`,
+              targetName: `${billPayment.billPeriod} - Unit ${payment.unit}`,
+              amount: Math.round(billPayment.baseChargePaid * 100), // Convert to cents
+              percentage: null,
+              categoryName: "Water Consumption",
+              categoryId: "water-consumption",
+              data: {
+                unitId: payment.unit.toString(),
+                billId: billPayment.billId,
+                billPeriod: billPayment.billPeriod,
+                billType: "base_charge"
+              },
+              metadata: {
+                processingStrategy: "water_bills",
+                cleanupRequired: true,
+                auditRequired: true,
+                createdAt: getNow().toISOString(),
+                importSource: "waterCrossRef"
+              }
+            });
+          }
+          
+          // Add penalty allocation (only if penalties exist)
+          if (billPayment.penaltyPaid > 0) {
+            allocations.push({
+              id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+              type: "water_penalty",
+              targetId: `penalty_${billPayment.billId}`,
+              targetName: `${billPayment.billPeriod} Penalties - Unit ${payment.unit}`,
+              amount: Math.round(billPayment.penaltyPaid * 100), // Convert to cents
+              percentage: null,
+              categoryName: "Water Penalties",
+              categoryId: "water-penalties",
+              data: {
+                unitId: payment.unit.toString(),
+                billId: billPayment.billId,
+                billPeriod: billPayment.billPeriod,
+                billType: "penalty"
+              },
+              metadata: {
+                processingStrategy: "water_bills",
+                cleanupRequired: true,
+                auditRequired: true,
+                createdAt: getNow().toISOString(),
+                importSource: "waterCrossRef"
+              }
+            });
+          }
+        }
+        
+        // Calculate allocation summary
+        const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+        const allocationSummary = {
+          totalAllocated: totalAllocated,
+          allocationCount: allocations.length,
+          allocationType: "water_bill",
+          hasMultipleTypes: payment.penalties > 0,
+          integrityCheck: {
+            expectedTotal: Math.round(payment.totalAmount * 100),
+            actualTotal: totalAllocated,
+            isValid: Math.abs(Math.round(payment.totalAmount * 100) - totalAllocated) < 100
+          }
+        };
+        
+        // Update the transaction with allocations
+        await updateTransaction(this.clientId, transactionId, {
+          allocations: allocations,
+          allocationSummary: allocationSummary,
+          categoryName: allocations.length > 1 ? '-Split-' : 'Water Consumption'
+        });
+        
+        console.log(`✅ Enhanced transaction ${transactionId} (Payment ${paySeq}) with ${allocations.length} allocations`);
+        results.enhanced++;
+        
+      } catch (error) {
+        console.error(`❌ Failed to enhance water bill transaction for payment ${paySeq}:`, error.message);
+        results.errors.push(`Payment ${paySeq}: ${error.message}`);
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Convert fiscal period to readable format (e.g. "Jul 2025")
+   */
+  convertFiscalPeriodToReadable(fiscalYear, fiscalMonth, fiscalYearStartMonth) {
+    // Convert fiscal month to calendar month
+    const calendarMonth = (fiscalMonth + fiscalYearStartMonth) % 12;
+    const calendarYear = fiscalMonth + fiscalYearStartMonth >= 12 ? fiscalYear : fiscalYear - 1;
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[calendarMonth]} ${calendarYear}`;
   }
 
   /**
