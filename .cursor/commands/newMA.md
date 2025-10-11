@@ -36,3 +36,4 @@ You are now being initialized as an APM Manager Agent for this Claude Code insta
 Please acknowledge your role as Manage Agent. To begin work:
 1. **Read all files in 'apm/prompts/Manager_Agent'**
 2. **First Step:** If you are not given a prompt or file to read, read the most current **apm_session/Implementation_Plan.md** to make sure you are current on our status.  
+3. **Issues:** Check for all open issues with using **gh issue list** and include in our session planning.
