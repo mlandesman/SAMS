@@ -48,7 +48,7 @@ export const getFrontendVersion = () => {
     // Final fallback
     return {
       component: 'frontend-desktop',
-      version: '1.0.1', // Hardcoded fallback to match backend
+      version: '1.1.0', // Hardcoded fallback to match backend
       buildDate: new Date().toISOString(),
       gitCommit: 'unknown',
       environment: import.meta.env.MODE || 'development'
@@ -57,7 +57,7 @@ export const getFrontendVersion = () => {
     console.error('Error getting frontend version:', error);
     return {
       component: 'frontend-desktop',
-      version: '1.0.1', // Hardcoded fallback to match backend
+      version: '1.1.0', // Hardcoded fallback to match backend
       buildDate: 'unknown',
       gitCommit: 'unknown',
       environment: 'unknown'

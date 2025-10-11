@@ -141,7 +141,7 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                       <strong>Platform:</strong> Desktop Web Application
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Port:</strong> 5173 (Development)
+                      <strong>Port:</strong> {versionInfo.environment === 'development' ? '5173 (Development)' : 'Production'}
                     </Typography>
                   </Box>
                 </CardContent>
