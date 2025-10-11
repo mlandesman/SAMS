@@ -3,12 +3,12 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "0.0.1",
-  "buildDate": "2025-08-08T03:04:34.417Z",
-  "buildTimestamp": 1754622274417,
+  "version": "1.1.0",
+  "buildDate": "2025-10-11T04:33:01.717Z",
+  "buildTimestamp": 1760157181718,
   "environment": "production",
   "gitBranch": "main",
-  "gitCommit": "89c1b22",
+  "gitCommit": "0598bad",
   "developers": [
     "Michael Landesman",
     "Claude AI"
@@ -21,15 +21,15 @@
     "Unit Management"
   ],
   "build": {
-    "timestamp": "2025-08-08T03:04:34.417Z",
+    "timestamp": "2025-10-11T04:33:01.717Z",
     "environment": "production",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "20250807.2204"
+    "buildNumber": "251011.0433"
   },
   "deployment": {
     "target": "production",
-    "date": "2025-08-08T03:04:34.417Z",
+    "date": "2025-10-11T04:33:01.717Z",
     "automated": true
   }
 }
