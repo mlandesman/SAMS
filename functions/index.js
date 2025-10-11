@@ -1,19 +1,62 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const { updateExchangeRates, populateHistoricalRates } = require('./src/exchangeRatesUpdater');
-const { syncExchangeRatesToDev } = require('./src/syncToDevDatabase');
+import { onRequest, onCall } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { setGlobalOptions } from 'firebase-functions/v2';
+import admin from 'firebase-admin';
 
-admin.initializeApp();
+// Import existing exchange rate functions
+import { updateExchangeRates, populateHistoricalRates } from './src/exchangeRatesUpdater.js';
+import { syncExchangeRatesToDev } from './src/syncToDevDatabase.js';
+import { loadTwoYearsHistoricalData, loadHistoricalDataForYear } from './src/bulkHistoricalLoader.js';
 
-exports.scheduledExchangeRatesUpdate = functions
-  .runWith({
+// Initialize Firebase Admin (if not already initialized)
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+// Set global options for all functions
+setGlobalOptions({
+  region: 'us-central1',
+  maxInstances: 10,
+});
+
+// ============================================================================
+// API BACKEND - Main Express App as Cloud Function
+// ============================================================================
+// Lazy-load the backend app to avoid top-level await issues during deployment
+let appCache = null;
+async function getApp() {
+  if (!appCache) {
+    const module = await import('./backend/index.js');
+    appCache = module.default;
+  }
+  return appCache;
+}
+
+export const api = onRequest(
+  {
+    timeoutSeconds: 300,
+    memory: '512MiB',
+    cors: true,
+  },
+  async (req, res) => {
+    const app = await getApp();
+    return app(req, res);
+  }
+);
+
+// ============================================================================
+// EXCHANGE RATES FUNCTIONS
+// ============================================================================
+
+// Scheduled daily update at 3 AM Mexico City time
+export const scheduledExchangeRatesUpdate = onSchedule(
+  {
+    schedule: '0 3 * * *',
+    timeZone: 'America/Mexico_City',
     timeoutSeconds: 540,
-    memory: '512MB'
-  })
-  .pubsub
-  .schedule('0 3 * * *')
-  .timeZone('America/Mexico_City')
-  .onRun(async (context) => {
+    memory: '512MiB',
+  },
+  async (event) => {
     console.log('Starting scheduled exchange rates update...');
     
     try {
@@ -24,66 +67,63 @@ exports.scheduledExchangeRatesUpdate = functions
       console.error('Failed to update exchange rates:', error);
       throw error;
     }
-  });
+  }
+);
 
-exports.manualExchangeRatesUpdate = functions
-  .runWith({
+// Manual exchange rates update (callable function)
+export const manualExchangeRatesUpdate = onCall(
+  {
     timeoutSeconds: 540,
-    memory: '512MB'
-  })
-  .https
-  .onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated to trigger manual update'
-      );
+    memory: '512MiB',
+  },
+  async (request) => {
+    // Check authentication
+    if (!request.auth) {
+      throw new Error('User must be authenticated to trigger manual update');
     }
     
-    console.log('Manual exchange rates update triggered by:', context.auth.uid);
+    console.log('Manual exchange rates update triggered by:', request.auth.uid);
     
     try {
       // Check if this is a historical data population request
-      if (data.historical && data.startDate && data.endDate) {
+      if (request.data.historical && request.data.startDate && request.data.endDate) {
         const result = await populateHistoricalRates(
-          data.startDate,
-          data.endDate,
-          data.dryRun || false
+          request.data.startDate,
+          request.data.endDate,
+          request.data.dryRun || false
         );
         console.log('Historical data population completed:', result);
         return result;
       } else {
         // Regular daily update
-        const result = await updateExchangeRates(data.dryRun || false);
+        const result = await updateExchangeRates(request.data.dryRun || false);
         console.log('Manual update completed:', result);
         return result;
       }
     } catch (error) {
       console.error('Manual update failed:', error);
-      throw new functions.https.HttpsError('internal', error.message);
+      throw new Error(error.message);
     }
-  });
+  }
+);
 
-exports.syncExchangeRatesFromProdToDev = functions
-  .runWith({
+// Sync exchange rates from prod to dev
+export const syncExchangeRatesFromProdToDev = onCall(
+  {
     timeoutSeconds: 540,
-    memory: '1GB'
-  })
-  .https
-  .onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated to sync databases'
-      );
+    memory: '1GiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new Error('User must be authenticated to sync databases');
     }
     
-    console.log('Database sync triggered by:', context.auth.uid);
+    console.log('Database sync triggered by:', request.auth.uid);
     
     try {
       const options = {
-        daysToSync: data.daysToSync || 30,
-        overwrite: data.overwrite || false
+        daysToSync: request.data.daysToSync || 30,
+        overwrite: request.data.overwrite || false
       };
       
       const result = await syncExchangeRatesToDev(options);
@@ -91,17 +131,18 @@ exports.syncExchangeRatesFromProdToDev = functions
       return result;
     } catch (error) {
       console.error('Database sync failed:', error);
-      throw new functions.https.HttpsError('internal', error.message);
+      throw new Error(error.message);
     }
-  });
+  }
+);
 
-exports.checkExchangeRatesHealth = functions
-  .runWith({
+// Health check endpoint
+export const checkExchangeRatesHealth = onRequest(
+  {
     timeoutSeconds: 60,
-    memory: '256MB'
-  })
-  .https
-  .onRequest(async (req, res) => {
+    memory: '256MiB',
+  },
+  async (req, res) => {
     try {
       const db = admin.firestore();
       const today = new Date().toISOString().split('T')[0];
@@ -145,30 +186,26 @@ exports.checkExchangeRatesHealth = functions
         message: error.message
       });
     }
-  });
+  }
+);
 
-exports.loadHistoricalExchangeRates = functions
-  .runWith({
+// Load historical exchange rates
+export const loadHistoricalExchangeRates = onCall(
+  {
     timeoutSeconds: 540,
-    memory: '1GB'
-  })
-  .https
-  .onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated to load historical data'
-      );
+    memory: '1GiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new Error('User must be authenticated to load historical data');
     }
     
-    console.log('Historical data load triggered by:', context.auth.uid);
+    console.log('Historical data load triggered by:', request.auth.uid);
     
     try {
-      const { loadTwoYearsHistoricalData, loadHistoricalDataForYear } = require('./src/bulkHistoricalLoader');
-      
-      if (data.year) {
+      if (request.data.year) {
         // Load specific year
-        const result = await loadHistoricalDataForYear(data.year);
+        const result = await loadHistoricalDataForYear(request.data.year);
         return result;
       } else {
         // Load full 2 years in quarters
@@ -177,6 +214,7 @@ exports.loadHistoricalExchangeRates = functions
       }
     } catch (error) {
       console.error('Historical data load failed:', error);
-      throw new functions.https.HttpsError('internal', error.message);
+      throw new Error(error.message);
     }
-  });
+  }
+);

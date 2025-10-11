@@ -15,6 +15,9 @@
         "*.local"
       ],
       "predeploy": [
+        "rm -rf \"$RESOURCE_DIR/backend\" 2>/dev/null || true",
+        "mkdir -p \"$RESOURCE_DIR/backend\"",
+        "cp -r ./backend/* \"$RESOURCE_DIR/backend/\"",
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
@@ -42,6 +45,42 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/version",
+        "function": "api"
+      },
+      {
+        "source": "/system/**",
+        "function": "api"
+      },
+      {
+        "source": "/auth/**",
+        "function": "api"
+      },
+      {
+        "source": "/water/**",
+        "function": "api"
+      },
+      {
+        "source": "/comm/**",
+        "function": "api"
+      },
+      {
+        "source": "/admin/**",
+        "function": "api"
+      },
+      {
+        "source": "/hoadues/**",
+        "function": "api"
+      },
+      {
+        "source": "/clients",
+        "function": "api"
+      },
+      {
+        "source": "/clients/**",
+        "function": "api"
+      },
       {
         "source": "**",
         "destination": "/index.html"

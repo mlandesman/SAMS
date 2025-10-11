@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-07-05T15:12:25.604Z",
+  "backupLocation": "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS/backend/migration/backups/clean-migration-2025-07-05T15-12-25.597Z",
+  "filesModified": [
+    {
+      "file": "middleware/clientAuth.js",
+      "changes": "Complete rewrite"
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "totalModified": 1,
+    "totalErrors": 0,
+    "totalChanges": 1
+  }
+}

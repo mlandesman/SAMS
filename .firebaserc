@@ -1,0 +1,11 @@
+{
+  "projects": {
+    "default": "sandyland-management-system",
+    "development": "sandyland-management-system",
+    "staging": "sams-staging-6cdcd",
+    "production": "sams-sandyland-prod"
+  },
+  "targets": {},
+  "etags": {}
+}
+

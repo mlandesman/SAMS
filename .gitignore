@@ -114,8 +114,6 @@ MTCdata/
 # Service Account Keys (NEVER commit these!)
 serviceAccountKey*.json
 *serviceAccountKey*.json
+*firebase-adminsdk*.json
 firebase-credentials.json
 firebase-admin-*.json
-
-# EXCEPTION: Allow production service account for Vercel deployment
-!backend/sams-production-serviceAccountKey.json

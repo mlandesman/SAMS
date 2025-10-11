@@ -1,227 +1,313 @@
-# SAMS Deployment Procedure (January 2025)
+# SAMS Deployment Procedure (October 2025)
 
 **Status**: ACTIVE  
-**Last Updated**: 2025-01-03  
+**Last Updated**: 2025-10-11  
 **Priority**: CRITICAL - All agents MUST follow this procedure
+
+## ⚠️ IMPORTANT: FIREBASE HOSTING ONLY
+
+**The SAMS production system has been migrated from Vercel to Firebase Hosting and Cloud Functions v2.**
+
+- ❌ **DO NOT USE VERCEL** - The system is no longer deployed to Vercel
+- ✅ **USE FIREBASE ONLY** - All deployments are now through Firebase
+- 🔥 **Single Platform** - Frontend and Backend both on Firebase
 
 ## Current Deployment Status
 
-### ⚠️ Known Issues
-1. **sams-deploy CLI is BROKEN** - TypeScript build issues prevent it from running
-2. **Staging environment is NOT CONFIGURED** - Vercel staging deployments will fail
-3. **Manual deployment is REQUIRED** until sams-deploy is fixed
-
 ### ✅ What's Working
-1. Production deployments via Vercel CLI and Firebase CLI
-2. Environment variables are properly configured
-3. Build processes are stable
+1. Production deployments via Firebase CLI
+2. Firebase Cloud Functions v2 for backend API
+3. Firebase Hosting for frontend
+4. Automatic service account authentication in Cloud Functions
+5. Environment variables properly configured
+6. Build processes are stable
+
+### 🚫 What's Deprecated
+1. ~~Vercel deployment~~ - NO LONGER USED
+2. ~~sams-deploy CLI~~ - Not needed with Firebase
+3. ~~Separate frontend/backend hosts~~ - Now unified on Firebase
+
+## Production Environment
+
+- **Frontend URL**: https://sams-sandyland-prod.web.app (also: https://sams.sandyland.com.mx)
+- **Backend API**: Same domain via Firebase Hosting rewrites
+- **Firebase Project**: `sams-sandyland-prod`
+- **Region**: us-central1
+- **Node Version**: 22
 
 ## Approved Deployment Process
 
 ### Pre-Deployment Checklist
 - [ ] Have you tested your changes locally?
 - [ ] Have you run the build command to verify no errors?
-- [ ] Have you checked that environment variables are correct?
-- [ ] Are you deploying from the main branch?
+- [ ] Are you deploying from the correct branch?
 - [ ] Have you communicated with the team about the deployment?
 
-### Desktop Frontend Deployment (Vercel)
+### Full Stack Deployment (Recommended)
 
 ```bash
-# 1. Navigate to desktop frontend
+# From project root
+# 1. Build frontend
 cd frontend/sams-ui
-
-# 2. Install dependencies (if needed)
-npm install
-
-# 3. Build the project
 npm run build
+cd ../..
 
-# 4. Deploy to production
-vercel --prod
+# 2. Deploy everything to Firebase
+firebase deploy
 
-# 5. Verify deployment
-# - Check https://sams.sandyland.com.mx
-# - Test login functionality
-# - Verify API connections work
+# This deploys:
+# - Frontend (hosting)
+# - Backend API (Cloud Functions)
+# - Firestore rules
+# - Storage rules
 ```
 
-### Mobile Frontend Deployment (Vercel)
+### Frontend Only Deployment
 
 ```bash
-# 1. Navigate to mobile frontend
-cd frontend/mobile-app
-
-# 2. Install dependencies (if needed)
-npm install
-
-# 3. Build the project
+# From project root
+# 1. Build the frontend
+cd frontend/sams-ui
 npm run build
+cd ../..
 
-# 4. Deploy to production
-vercel --prod
-
-# 5. Verify deployment
-# - Check https://mobile.sams.sandyland.com.mx
-# - Test PWA installation
-# - Verify API connections work
+# 2. Deploy hosting only
+firebase deploy --only hosting
 ```
 
-### Backend Deployment (Firebase Functions)
+### Backend Only Deployment
 
 ```bash
-# 1. Navigate to backend
-cd backend
+# From project root
+# Deploy Cloud Functions only
+firebase deploy --only functions:api
 
-# 2. Install dependencies (if needed)
-npm install
-
-# 3. Deploy to Firebase
-npm run deploy
-
-# 4. Verify deployment
-# - Check Firebase console for successful deployment
-# - Test API endpoints
-# - Monitor error logs
+# Note: The predeploy script automatically copies backend files to functions/
 ```
+
+### Firestore Rules Deployment
+
+```bash
+# From project root
+firebase deploy --only firestore:rules
+```
+
+## How It Works
+
+### Backend Architecture
+- Backend code lives in `backend/` directory
+- Firebase predeploy script copies `backend/*` to `functions/backend/`
+- Cloud Function `api` wraps the Express app from `backend/index.js`
+- Uses Firebase default credentials (no service account file in production)
+
+### Frontend Architecture
+- Frontend builds to `frontend/sams-ui/dist/`
+- Firebase Hosting serves static files
+- API calls go to same origin (empty baseUrl in production)
+- Hosting rewrites route API paths to Cloud Function
+
+### Routing Configuration
+Firebase Hosting rewrites handle all API routes:
+- `/system/**` → Cloud Function `api`
+- `/auth/**` → Cloud Function `api`
+- `/clients` and `/clients/**` → Cloud Function `api`
+- `/water/**` → Cloud Function `api`
+- `/hoadues/**` → Cloud Function `api`
+- `/admin/**` → Cloud Function `api`
+- `/comm/**` → Cloud Function `api`
+- Everything else → `/index.html` (SPA)
 
 ## Post-Deployment Verification
 
 ### Required Checks
-1. **Frontend Health**
+1. **Health Check**
+   ```bash
+   curl https://sams-sandyland-prod.web.app/system/health
+   # Should return: {"status":"ok","timestamp":"...","environment":"production"}
+   ```
+
+2. **Version Check**
+   ```bash
+   curl https://sams-sandyland-prod.web.app/system/version
+   # Should return backend version info
+   ```
+
+3. **Frontend Check**
+   - Visit https://sams-sandyland-prod.web.app
    - Can users log in?
    - Do API calls succeed?
-   - Are images/assets loading?
+   - Are clients loading?
 
-2. **Backend Health**
-   - Are all endpoints responding?
-   - Check Firebase Functions logs for errors
-   - Verify database connections
-
-3. **Integration Tests**
-   - Create a test transaction
-   - Generate a report
-   - Send a test email receipt
+4. **Function Logs**
+   ```bash
+   firebase functions:log --only api
+   # Check for errors
+   ```
 
 ### If Deployment Fails
 
 1. **Check build output** for errors
-2. **Verify environment variables** in Vercel/Firebase
-3. **Check deployment logs** in respective dashboards
+2. **Check Firebase Console** for deployment status
+3. **Check function logs** for runtime errors:
+   ```bash
+   firebase functions:log --only api
+   ```
 4. **Roll back if necessary** (see Rollback section)
 
 ## Rollback Procedures
 
-### Vercel Rollback (Frontend)
-1. Go to Vercel Dashboard
-2. Select the project (sams-ui or mobile-app)
-3. Go to "Deployments" tab
-4. Find the last working deployment
-5. Click "..." menu and select "Promote to Production"
+### Firebase Hosting Rollback
+```bash
+# Firebase keeps previous versions
+# View in Firebase Console > Hosting > Release History
+# Click "Rollback" on previous version
+```
 
-### Firebase Rollback (Backend)
-1. Go to Firebase Console
-2. Navigate to Functions
-3. View function version history
-4. Revert to previous version if available
-5. OR: Deploy previous git commit:
-   ```bash
-   git checkout [last-working-commit]
-   cd backend
-   npm run deploy
-   git checkout main
-   ```
+### Firebase Functions Rollback
+```bash
+# Deploy previous working version from git
+git checkout [last-working-commit]
+firebase deploy --only functions:api
+git checkout main
+```
 
 ## Environment Configuration
 
-### Vercel Environment Variables
-Both frontend projects need these variables set in Vercel:
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_BACKEND_URL` (production: https://backend-liart-seven.vercel.app)
+### Frontend Environment Variables
+Configured in `frontend/sams-ui/.env.production`:
+- `VITE_FIREBASE_API_KEY` - Firebase Web API key
+- `VITE_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
+- `VITE_FIREBASE_PROJECT_ID` - Firebase project ID
+- `VITE_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `VITE_FIREBASE_MESSAGING_SENDER_ID` - FCM sender ID
+- `VITE_FIREBASE_APP_ID` - Firebase app ID
+- `VITE_API_BASE_URL` - Empty string (same origin)
+- `VITE_APP_ENV` - production
+- `VITE_APP_URL` - https://sams.sandyland.com.mx
 
-### Firebase Configuration
-Backend needs these in `.env`:
-- Firebase service account credentials
-- CORS configuration for allowed origins
+### Backend Configuration
+- **Production**: Uses Firebase default application credentials automatically
+- **Local Development**: Uses `backend/serviceAccountKey.json` (gitignored)
+- **Staging**: Uses `backend/serviceAccountKey-staging.json` (gitignored)
+
+⚠️ **NEVER commit service account keys to git!** They are in `.gitignore`.
+
+## Local Development
+
+### Running Locally
+```bash
+# Terminal 1 - Backend
+cd backend
+npm install
+npm start
+# Runs on http://localhost:5001
+
+# Terminal 2 - Frontend
+cd frontend/sams-ui
+npm install
+npm run dev
+# Runs on http://localhost:5173
+```
+
+### Testing with Firebase Emulators
+```bash
+# From project root
+firebase emulators:start
+
+# Starts:
+# - Functions emulator (port 8001)
+# - Firestore emulator (port 8080)
+# - UI (port 4000)
+```
+
+## Security Notes
+
+### Service Account Keys
+- ❌ **NEVER commit service account keys to git**
+- ✅ Keep them in local project root (they're gitignored)
+- ✅ Production uses Firebase's built-in authentication
+- ✅ All `*serviceAccountKey*.json` and `*firebase-adminsdk*.json` files are gitignored
+
+### Firebase Console Access
+- Only authorized developers have Firebase Console access
+- Service accounts are managed in Firebase Console > Project Settings > Service Accounts
 
 ## Deployment Schedule
 
 ### Best Practices
-1. **Deploy during low-usage hours** (early morning or late evening)
-2. **Notify users** of planned maintenance if major changes
-3. **Have rollback plan ready** before deploying
-4. **Monitor for 30 minutes** after deployment
+1. **Deploy during low-usage hours** (early morning or late evening Mexico time)
+2. **Monitor for 15-30 minutes** after deployment
+3. **Check logs immediately** after deployment
+4. **Test critical paths** (login, client selection, basic operations)
 
 ### Deployment Windows
-- **Preferred**: 6 AM - 8 AM CST
-- **Acceptable**: 8 PM - 10 PM CST
+- **Preferred**: 6 AM - 8 AM CST (Mexico)
+- **Acceptable**: 8 PM - 10 PM CST (Mexico)
 - **Avoid**: Business hours (9 AM - 6 PM CST)
-
-## Future Improvements
-
-### sams-deploy CLI Fix (Priority: HIGH)
-The TypeScript-based deployment tool needs:
-1. Build configuration fixes
-2. Proper npm link setup
-3. Staging environment configuration
-4. Testing of all deployment paths
-
-### Staging Environment Setup (Priority: HIGH)
-Need to configure:
-1. Vercel staging projects
-2. Staging environment variables
-3. Staging database
-4. Staging subdomain setup
 
 ## Agent Instructions
 
 ### For Implementation Agents
-1. **ALWAYS** follow this exact procedure
-2. **NEVER** attempt to use sams-deploy until fixed
+1. **ALWAYS** use Firebase CLI for deployments
+2. **NEVER** attempt to deploy to Vercel
 3. **DOCUMENT** all deployments in your completion logs
-4. **VERIFY** deployments actually succeeded
+4. **VERIFY** deployments succeeded using the checks above
+5. **MONITOR** logs after deployment
 
 ### For Manager Agents
 1. **ENSURE** all task assignments reference this document
-2. **VERIFY** completion logs show proper deployment
-3. **REJECT** any work using non-approved deployment methods
+2. **VERIFY** completion logs show Firebase deployment
+3. **REJECT** any work attempting Vercel deployment
 
 ### For Debug Agents
-1. **CHECK** deployment logs when debugging issues
-2. **VERIFY** correct deployment method was used
+1. **CHECK** Firebase function logs when debugging issues
+2. **VERIFY** correct Firebase project is selected
 3. **DOCUMENT** any deployment-related problems
 
 ## Common Issues and Solutions
 
-### "Command not found: vercel"
+### "Command not found: firebase"
 ```bash
-npm install -g vercel
-vercel login
+npm install -g firebase-tools
+firebase login
+firebase use sams-sandyland-prod
 ```
 
 ### "Firebase deployment failed"
 1. Check Firebase authentication: `firebase login`
-2. Verify project selection: `firebase use --add`
-3. Check functions configuration
+2. Verify project selection: `firebase projects:list`
+3. Ensure you're on correct project: `firebase use sams-sandyland-prod`
 
 ### "Build failed"
-1. Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-2. Check for TypeScript errors: `npm run build`
-3. Verify all imports are correct
+1. Clear node_modules: `rm -rf node_modules && npm install`
+2. Clear dist: `rm -rf dist && npm run build`
+3. Check for TypeScript/linting errors
 
-## Contact for Help
+### "Function deployment failed"
+1. Check predeploy script output
+2. Verify backend files copied to functions/backend/
+3. Check function logs: `firebase functions:log`
 
-If you encounter deployment issues:
-1. Document the exact error message
-2. Note which step failed
-3. Check relevant dashboard (Vercel/Firebase)
-4. Create an issue in the Memory Bank for team visibility
+### "CORS errors in browser"
+- Frontend should use empty string for `VITE_API_BASE_URL` in production
+- Check `frontend/sams-ui/src/config/index.js` returns `''` for prod
+
+## Migration Notes (October 2025)
+
+### What Changed
+- **Removed**: Vercel hosting for frontend and backend
+- **Added**: Firebase Hosting for frontend
+- **Added**: Firebase Cloud Functions v2 for backend
+- **Changed**: Backend uses default credentials in production
+- **Changed**: Frontend API calls go to same origin
+
+### Why Firebase?
+1. **Simplicity**: Single platform for everything
+2. **Cost**: More cost-effective for our usage
+3. **Integration**: Better integration with Firestore/Storage
+4. **Security**: No service account keys in repository
+5. **Reliability**: Works perfectly in development, now in production
 
 ---
 
-**Remember**: This is a TEMPORARY procedure while we fix the automated deployment system. Once sams-deploy is repaired and staging is configured, we will return to the automated process.
+**Remember**: The development environment still works the same way (localhost). Only production deployment has changed to Firebase.

@@ -1,0 +1,111 @@
+# Critical Field Validation Test Focus
+# Based on actual data corruption risk, not blanket enforcement
+
+HIGH_PRIORITY_ENDPOINTS:
+  # These MUST reject forbidden fields to prevent data corruption
+  
+  Transactions:
+    - POST /api/transactions
+    - PUT /api/transactions/:id
+    - POST /api/transactions/batch
+    Forbidden_Fields:
+      - vendor (use vendorId + vendorName)
+      - category (use categoryId + categoryName)  
+      - account (use accountId + accountName + accountType)
+      - client (use clientId)
+    Risk: CRITICAL - Corrupts financial reporting and balance calculations
+    
+  HOA_Dues:
+    - POST /api/hoa/dues
+    - PUT /api/hoa/dues/:id
+    - POST /api/hoa/collected
+    - PUT /api/hoa/collected/:id
+    Forbidden_Fields:
+      - unit (use unitId)
+      - vendor (use vendorId + vendorName)
+      - account (use accountId + accountName + accountType)
+    Risk: CRITICAL - Breaks unit billing and payment tracking
+    
+  Future_Critical:
+    Projects:
+      - Will need same vendor/category protection
+    Budgets:
+      - Will need same account/category protection
+    Invoices:
+      - Will need vendor field protection
+
+LOW_PRIORITY_ENDPOINTS:
+  # These don't need strict field validation - just bloat prevention
+  
+  Users:
+    - POST /api/admin/users
+    - PUT /api/admin/users/:id
+    Risk: LOW - Extra fields are just database bloat
+    
+  Clients:
+    - POST /api/clients
+    - PUT /api/clients/:id
+    Risk: LOW - No financial data impact
+    
+  Settings:
+    - PUT /api/user/settings
+    - PUT /api/client/settings
+    Risk: MINIMAL - Ignored fields
+
+TESTING_STRATEGY:
+  
+  Phase_1_Critical:
+    # Test these thoroughly - data corruption prevention
+    - All transaction endpoints with ALL forbidden fields
+    - All HOA endpoints with ALL forbidden fields
+    - Nested field attempts on financial data
+    - Batch operations with mixed fields
+    
+  Phase_2_Moderate:
+    # Basic validation to prevent obvious mistakes
+    - User/Client updates with 1-2 forbidden field tests
+    - Not every permutation needed
+    
+  Phase_3_Monitoring:
+    # Watch for new endpoints that handle financial data
+    - Any endpoint touching transactions
+    - Any endpoint touching payments
+    - Any endpoint with vendor/category/account relationships
+
+REGRESSION_FOCUS:
+  # What to monitor during frontend development
+  
+  Critical_Watch:
+    - Frontend modifying transaction submission
+    - Frontend "helping" with HOA dues
+    - Any financial data endpoints
+    
+  Low_Priority_Watch:
+    - User profile updates
+    - Settings changes
+    - Non-financial CRUD
+
+VALIDATION_RULES:
+  
+  Strict_Enforcement:
+    # Return 400 with clear error
+    Endpoints: [transactions/*, hoa/*]
+    Message: "Invalid field '{field}'. Use '{correct_field}' instead"
+    
+  Soft_Warning:
+    # Log but don't reject (future consideration)
+    Endpoints: [users/*, clients/*]
+    Action: Strip unknown fields, log warning
+    
+SUMMARY:
+  The goal is preventing data corruption in financial records,
+  not being pedantic about every field everywhere.
+  
+  Focus testing on:
+  1. Transaction integrity
+  2. HOA dues accuracy  
+  3. Financial reporting consistency
+  
+  Not on:
+  4. User profile field purity
+  5. Settings field validation

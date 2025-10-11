@@ -1,0 +1,45 @@
+{
+  "type": "module",
+  "name": "sams-backend",
+  "version": "0.0.1",
+  "description": "Sandyland Asset Management System Backend API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version:stamp": "node ../scripts/updateVersion.js update",
+    "version:bump": "node ../scripts/updateVersion.js bump patch",
+    "version:bump:minor": "node ../scripts/updateVersion.js bump minor",
+    "version:bump:major": "node ../scripts/updateVersion.js bump major",
+    "version:validate": "node ../scripts/updateVersion.js validate",
+    "prestart": "npm run version:stamp",
+    "deploy:staging": "npm run version:validate",
+    "deploy:production": "npm run version:validate"
+  },
+  "keywords": [
+    "sams",
+    "backend",
+    "api",
+    "property-management"
+  ],
+  "author": "SAMS Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2",
+    "firebase": "^12.0.0",
+    "firebase-admin": "^12.0.0",
+    "js-yaml": "^4.1.0",
+    "luxon": "^3.7.1",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}
