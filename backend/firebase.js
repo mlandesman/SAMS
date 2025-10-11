@@ -2,21 +2,6 @@ import admin from 'firebase-admin';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-// Determine service account path based on environment
-const getServiceAccountPath = () => {
-  if (process.env.NODE_ENV === 'production') {
-    return './sams-production-serviceAccountKey.json';
-  } else if (process.env.NODE_ENV === 'staging') {
-    return './serviceAccountKey-staging.json';
-  }
-  return './serviceAccountKey.json';
-};
-
-const serviceAccountPath = getServiceAccountPath();
-
-const serviceAccount = require(serviceAccountPath);
-console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
-
 // Track initialization status and errors
 let isInitialized = false;
 let initError = null;
@@ -26,6 +11,21 @@ async function initializeFirebase() {
   try {
     if (!admin.apps.length) {
       console.log('🔥 Initializing Firebase Admin SDK...');
+      
+      // Determine service account path based on environment
+      const getServiceAccountPath = () => {
+        if (process.env.NODE_ENV === 'production') {
+          return './sams-production-serviceAccountKey.json';
+        } else if (process.env.NODE_ENV === 'staging') {
+          return './serviceAccountKey-staging.json';
+        }
+        return './serviceAccountKey.json';
+      };
+
+      const serviceAccountPath = getServiceAccountPath();
+      const serviceAccount = require(serviceAccountPath);
+      console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
+      
       const getStorageBucket = () => {
         if (process.env.NODE_ENV === 'production') {
           return 'sams-sandyland-prod.firebasestorage.app';
