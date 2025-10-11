@@ -15,6 +15,162 @@ const api = axios.create({
     : 'http://localhost:5001/api'
 });
 
+/**
+ * Create Water Bills allocations from bill payments (mirrors HOA Dues pattern)
+ * @param {Array} billPayments - Array of bill payment objects
+ * @param {string} unitId - Unit identifier
+ * @param {object} paymentData - Payment data containing credit info
+ * @returns {Array} Array of allocation objects
+ */
+function createWaterBillsAllocations(billPayments, unitId, paymentData) {
+  const allocations = [];
+  let allocationIndex = 0;
+  
+  // Add allocations for each bill payment (base charges and penalties)
+  if (billPayments && billPayments.length > 0) {
+    billPayments.forEach((billPayment) => {
+      // Add base charge allocation
+      if (billPayment.baseChargePaid > 0) {
+        allocations.push({
+          id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+          type: "water_bill",
+          targetId: `bill_${billPayment.billId}`,
+          targetName: `${billPayment.billPeriod} - Unit ${unitId}`,
+          amount: dollarsToCents(billPayment.baseChargePaid),
+          percentage: null,
+          categoryName: "Water Consumption",
+          categoryId: "water-consumption",
+          data: {
+            unitId: unitId,
+            billId: billPayment.billId,
+            billPeriod: billPayment.billPeriod,
+            billType: "base_charge"
+          },
+          metadata: {
+            processingStrategy: "water_bills",
+            cleanupRequired: true,
+            auditRequired: true,
+            createdAt: getNow().toISOString()
+          }
+        });
+      }
+      
+      // Add penalty allocation (only if penalties exist)
+      if (billPayment.penaltyPaid > 0) {
+        allocations.push({
+          id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+          type: "water_penalty",
+          targetId: `penalty_${billPayment.billId}`,
+          targetName: `${billPayment.billPeriod} Penalties - Unit ${unitId}`,
+          amount: dollarsToCents(billPayment.penaltyPaid),
+          percentage: null,
+          categoryName: "Water Penalties",
+          categoryId: "water-penalties",
+          data: {
+            unitId: unitId,
+            billId: billPayment.billId,
+            billPeriod: billPayment.billPeriod,
+            billType: "penalty"
+          },
+          metadata: {
+            processingStrategy: "water_bills",
+            cleanupRequired: true,
+            auditRequired: true,
+            createdAt: getNow().toISOString()
+          }
+        });
+      }
+    });
+  }
+  
+  // Add Credit Balance allocation for overpayments (positive) or usage (negative)
+  if (paymentData && paymentData.overpayment && paymentData.overpayment > 0) {
+    // Overpayment: Credit balance is ADDED (positive allocation)
+    allocations.push({
+      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+      type: "water_credit",
+      targetId: `credit_${unitId}_water`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: dollarsToCents(paymentData.overpayment),
+      percentage: null,
+      categoryName: "Account Credit",
+      categoryId: "account-credit",
+      data: {
+        unitId: unitId,
+        creditType: "water_overpayment"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: getNow().toISOString()
+      }
+    });
+  } else if (paymentData && paymentData.creditUsed && paymentData.creditUsed > 0) {
+    // Credit was used to help pay bills (negative allocation)
+    allocations.push({
+      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+      type: "water_credit",
+      targetId: `credit_${unitId}_water`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: -dollarsToCents(paymentData.creditUsed), // Negative amount for credit usage
+      percentage: null,
+      categoryName: "Account Credit",
+      categoryId: "account-credit",
+      data: {
+        unitId: unitId,
+        creditType: "water_credit_used"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: getNow().toISOString()
+      }
+    });
+  }
+  
+  return allocations;
+}
+
+/**
+ * Create allocation summary for transaction
+ * @param {Array} billPayments - Array of bill payment objects
+ * @param {number} totalAmountCents - Total transaction amount in cents
+ * @returns {Object} Allocation summary object
+ */
+function createWaterBillsAllocationSummary(billPayments, totalAmountCents) {
+  if (!billPayments || billPayments.length === 0) {
+    return {
+      totalAllocated: 0,
+      allocationCount: 0,
+      allocationType: null,
+      hasMultipleTypes: false
+    };
+  }
+  
+  // Calculate total allocated (bills + penalties)
+  const totalAllocated = billPayments.reduce((sum, payment) => {
+    return sum + dollarsToCents(payment.baseChargePaid) + dollarsToCents(payment.penaltyPaid);
+  }, 0);
+  
+  // Check if we have multiple types (bills + penalties)
+  const hasPenalties = billPayments.some(p => p.penaltyPaid > 0);
+  
+  return {
+    totalAllocated: totalAllocated,
+    allocationCount: billPayments.length * (hasPenalties ? 2 : 1), // Count base + penalty as separate
+    allocationType: "water_bill",
+    hasMultipleTypes: hasPenalties, // True if both bills and penalties exist
+    // Verify allocation integrity
+    integrityCheck: {
+      expectedTotal: totalAmountCents,
+      actualTotal: totalAllocated,
+      isValid: Math.abs(totalAmountCents - totalAllocated) < 100 // Allow 1 peso tolerance
+    }
+  };
+}
+
 class WaterPaymentsService {
   constructor() {
     this.db = null;
@@ -82,7 +238,7 @@ class WaterPaymentsService {
       // No bills to pay - entire amount goes to credit (like HOA overpayment)
       const newCreditBalance = currentCreditBalance + amount;
       
-      await this._updateCreditBalance(clientId, unitId, currentYear, {
+      await this._updateCreditBalance(clientId, unitId, fiscalYear, {
         newBalance: newCreditBalance,
         changeAmount: amount,
         changeType: 'water_overpayment',
@@ -90,12 +246,23 @@ class WaterPaymentsService {
         transactionId: null // Will be updated after transaction creation
       });
       
-      // Create transaction for the overpayment
+      // Prepare payment data for allocation generation
+      const paymentDataForAllocations = {
+        creditUsed: 0,
+        overpayment: amount,
+        newCreditBalance: newCreditBalance
+      };
+      
+      // Generate allocations for credit-only payment
+      const allocations = createWaterBillsAllocations([], unitId, paymentDataForAllocations);
+      const allocationSummary = createWaterBillsAllocationSummary([], dollarsToCents(amount));
+      
+      // Create transaction for the overpayment with allocations
       const transactionData = {
         amount: amount,
         type: 'income',
-        categoryId: 'water_payments',
-        categoryName: 'Water Payments',
+        categoryId: 'account-credit',
+        categoryName: 'Account Credit',
         description: `Water bill credit - Unit ${unitId}`,
         unitId: unitId,
         accountId: accountId,
@@ -103,7 +270,11 @@ class WaterPaymentsService {
         paymentMethod: paymentMethod,
         reference: reference,
         notes: this._generateTransactionNotes([], 0, 0, unitId, notes, amount),
-        date: paymentDate
+        date: paymentDate,
+        
+        // Add allocations for credit-only payment
+        allocations: allocations,
+        allocationSummary: allocationSummary
       };
       
       const transactionResult = await createTransaction(clientId, transactionData);
@@ -203,7 +374,7 @@ class WaterPaymentsService {
     console.log(`💰 Credit calculation: Used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
     
     // STEP 6: Update credit balance via HOA module
-    await this._updateCreditBalance(clientId, unitId, currentYear, {
+    await this._updateCreditBalance(clientId, unitId, fiscalYear, {
       newBalance: newCreditBalance,
       changeAmount: overpayment > 0 ? overpayment : -creditUsed,
       changeType: overpayment > 0 ? 'water_overpayment' : 'water_credit_used',
@@ -211,11 +382,24 @@ class WaterPaymentsService {
       transactionId: null // Will be updated after transaction creation
     });
     
-    // STEP 7: Create accounting transaction with rich water bill context
+    // STEP 7: Create accounting transaction with rich water bill context AND allocations
     // Import generateWaterBillNotes function for enhanced transaction descriptions
     const { default: waterBillsService } = await import('./waterBillsService.js');
     
-    // Enhanced transaction data with water bill details using existing generateWaterBillNotes function
+    // Prepare payment data for allocation generation
+    const paymentDataForAllocations = {
+      creditUsed: creditUsed,
+      overpayment: overpayment,
+      newCreditBalance: newCreditBalance
+    };
+    
+    // Generate allocations following HOA Dues pattern
+    const allocations = createWaterBillsAllocations(billPayments, unitId, paymentDataForAllocations);
+    const allocationSummary = createWaterBillsAllocationSummary(billPayments, dollarsToCents(amount));
+    
+    console.log(`📊 Generated ${allocations.length} allocations for water bill payment`);
+    
+    // Enhanced transaction data with water bill details AND allocations
     const transactionData = {
       amount: amount,
       type: 'income',
@@ -231,6 +415,11 @@ class WaterPaymentsService {
       reference: reference,
       notes: await this._generateEnhancedTransactionNotes(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, notes, amount, clientId, waterBillsService),
       date: paymentDate,
+      
+      // NEW: Water Bills allocation pattern (following HOA Dues)
+      allocations: allocations,
+      allocationSummary: allocationSummary,
+      
       // Add metadata for water bills context to support future receipt generation
       metadata: {
         billPayments: billPayments.map(bp => ({
@@ -245,8 +434,15 @@ class WaterPaymentsService {
       }
     };
     
+    // Set category to "-Split-" when multiple allocations exist (following HOA Dues pattern)
+    if (allocations.length > 1) {
+      transactionData.categoryName = "-Split-";
+      transactionData.categoryId = null;
+      console.log(`✂️ Multiple allocations detected - setting category to "-Split-"`);
+    }
+    
     const transactionResult = await createTransaction(clientId, transactionData);
-    console.log(`💳 Transaction created:`, { transactionId: transactionResult, vendorId: transactionData.vendorId });
+    console.log(`💳 Transaction created:`, { transactionId: transactionResult, vendorId: transactionData.vendorId, allocations: allocations.length });
     
     // STEP 8: Update water bills with payment info (now with transaction ID)
     await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, amount);
