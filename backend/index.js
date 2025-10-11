@@ -121,7 +121,7 @@ app.get('/system/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'SAMS Backend API',
-    version: '2.0.0',
+    version: '1.0.1', // Updated to match package.json - will be fixed by version endpoint
     architecture: 'domain-specific-routing',
     domains: [
       '/system/*',     // System services (health, version, exchange rates)
