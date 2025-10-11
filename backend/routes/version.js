@@ -14,8 +14,8 @@ function getVersionInfo() {
     path.join(process.cwd(), '../shared/version.json'),  // Vercel includeFiles path
     path.join(process.cwd(), 'shared/version.json'),     // Alternative path
     path.join(process.cwd(), 'version.json'),            // Local copy
-    path.join(__dirname, '../shared/version.json'),      // Relative to this file
-    path.join(__dirname, '../../shared/version.json')    // Alternative relative
+    path.join(process.cwd(), 'routes/../shared/version.json'),      // Relative to this file
+    path.join(process.cwd(), 'routes/../../shared/version.json')    // Alternative relative
   ];
   
   for (const versionPath of versionPaths) {
