@@ -51,7 +51,7 @@ export const getBackendVersion = async (forceRefresh = false) => {
       }
     }
 
-    const response = await fetch(`${config.api.baseUrl}/version`, {
+    const response = await fetch(`${config.api.baseUrl}/system/version`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

@@ -12,20 +12,7 @@ async function initializeFirebase() {
     if (!admin.apps.length) {
       console.log('🔥 Initializing Firebase Admin SDK...');
       
-      // Determine service account path based on environment
-      const getServiceAccountPath = () => {
-        if (process.env.NODE_ENV === 'production') {
-          return './sams-production-serviceAccountKey.json';
-        } else if (process.env.NODE_ENV === 'staging') {
-          return './serviceAccountKey-staging.json';
-        }
-        return './serviceAccountKey.json';
-      };
-
-      const serviceAccountPath = getServiceAccountPath();
-      const serviceAccount = require(serviceAccountPath);
-      console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
-      
+      // Determine storage bucket based on environment
       const getStorageBucket = () => {
         if (process.env.NODE_ENV === 'production') {
           return 'sams-sandyland-prod.firebasestorage.app';
@@ -37,10 +24,31 @@ async function initializeFirebase() {
       
       const storageBucket = getStorageBucket();
       
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: storageBucket,
-      });
+      // Check if running in Firebase Cloud Functions (production)
+      if (process.env.FUNCTIONS_EMULATOR || process.env.FIREBASE_CONFIG) {
+        // Running in Firebase environment - use default credentials
+        console.log('🔥 Using Firebase default application credentials');
+        firebaseApp = admin.initializeApp({
+          storageBucket: storageBucket,
+        });
+      } else {
+        // Running locally - use service account file
+        const getServiceAccountPath = () => {
+          if (process.env.NODE_ENV === 'staging') {
+            return './serviceAccountKey-staging.json';
+          }
+          return './serviceAccountKey.json'; // Dev environment
+        };
+        
+        const serviceAccountPath = getServiceAccountPath();
+        const serviceAccount = require(serviceAccountPath);
+        console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
+        
+        firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          storageBucket: storageBucket,
+        });
+      }
       
       console.log('✅ Firebase Admin SDK initialized successfully');
       isInitialized = true;
