@@ -74,6 +74,10 @@
         "function": "api"
       },
       {
+        "source": "/clients",
+        "function": "api"
+      },
+      {
         "source": "/clients/**",
         "function": "api"
       },
