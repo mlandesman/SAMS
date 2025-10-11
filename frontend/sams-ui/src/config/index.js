@@ -18,7 +18,7 @@ const getUnifiedApiUrl = () => {
   
   // 2. Production environment auto-detection
   if (import.meta.env.PROD) {
-    return 'https://backend-liart-seven.vercel.app';  // Clean base (no /api suffix)
+    return 'https://backend-kfb20gq8u-michael-landesmans-projects.vercel.app';  // Clean base (no /api suffix)
   }
   
   // 3. Development fallback
