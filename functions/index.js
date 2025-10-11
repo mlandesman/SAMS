@@ -8,9 +8,6 @@ import { updateExchangeRates, populateHistoricalRates } from './src/exchangeRate
 import { syncExchangeRatesToDev } from './src/syncToDevDatabase.js';
 import { loadTwoYearsHistoricalData, loadHistoricalDataForYear } from './src/bulkHistoricalLoader.js';
 
-// Import backend Express app
-import app from '../backend/index.js';
-
 // Initialize Firebase Admin (if not already initialized)
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -25,13 +22,26 @@ setGlobalOptions({
 // ============================================================================
 // API BACKEND - Main Express App as Cloud Function
 // ============================================================================
+// Lazy-load the backend app to avoid top-level await issues during deployment
+let appCache = null;
+async function getApp() {
+  if (!appCache) {
+    const module = await import('../backend/index.js');
+    appCache = module.default;
+  }
+  return appCache;
+}
+
 export const api = onRequest(
   {
     timeoutSeconds: 300,
     memory: '512MiB',
     cors: true,
   },
-  app
+  async (req, res) => {
+    const app = await getApp();
+    return app(req, res);
+  }
 );
 
 // ============================================================================
