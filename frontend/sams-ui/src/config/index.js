@@ -17,8 +17,9 @@ const getUnifiedApiUrl = () => {
   }
   
   // 2. Production environment auto-detection
+  // In production, API is served from same domain via Firebase hosting rewrites
   if (import.meta.env.PROD) {
-    return 'https://backend-liart-seven.vercel.app';  // Clean base (no /api suffix)
+    return '';  // Empty string = same origin (Firebase handles routing)
   }
   
   // 3. Development fallback
