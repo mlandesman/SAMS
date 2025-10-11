@@ -69,25 +69,36 @@ echo "  --region us-central1 \\"
 echo "  --project sams-sandyland-prod"
 echo ""
 
-# Execute the function with verbose output
-if gcloud functions call syncExchangeRatesFromProdToDev \
-  --data "{\"daysToSync\":$DAYS_TO_SYNC,\"overwrite\":$OVERWRITE_BOOL}" \
-  --region us-central1 \
-  --project sams-sandyland-prod \
-  --verbosity=debug; then
+# Get the function URL
+FUNCTION_URL="https://us-central1-sams-sandyland-prod.cloudfunctions.net/syncExchangeRatesFromProdToDev"
+
+echo "🔍 Function URL: $FUNCTION_URL"
+echo ""
+
+# Execute the function with HTTP request
+echo "🚀 Making HTTP request to function..."
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"daysToSync\":$DAYS_TO_SYNC,\"overwrite\":$OVERWRITE_BOOL}" \
+  "$FUNCTION_URL")
+
+# Split response body and status code
+HTTP_BODY=$(echo "$RESPONSE" | sed '$d')
+HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+
+echo "📊 Response Status: $HTTP_STATUS"
+echo "📋 Response Body:"
+echo "$HTTP_BODY" | jq . 2>/dev/null || echo "$HTTP_BODY"
+
+if [ "$HTTP_STATUS" -eq 200 ]; then
     echo ""
     echo "✅ Successfully executed syncExchangeRatesFromProdToDev"
-    echo "📊 Check the output above for sync results"
-    echo ""
-    echo "🔍 Checking function logs for details..."
-    gcloud functions logs read syncExchangeRatesFromProdToDev \
-      --project sams-sandyland-prod \
-      --region us-central1 \
-      --limit 10
+    echo "📊 Sync operation completed successfully"
 else
     echo ""
     echo "❌ Failed to execute cloud function"
-    echo "💡 Make sure you're authenticated with gcloud and have proper permissions"
+    echo "💡 HTTP Status: $HTTP_STATUS"
+    echo "💡 Check the response above for error details"
     exit 1
 fi
 

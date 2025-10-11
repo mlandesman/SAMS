@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "sams-backend",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "description": "Sandyland Asset Management System Backend API",
   "main": "index.js",
   "scripts": {

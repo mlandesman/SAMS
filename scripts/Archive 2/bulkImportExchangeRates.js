@@ -101,11 +101,6 @@ async function fetchBanxicoBulkHistoricalRates() {
     });
     
     if (!response.ok) {
-      // 404 is expected for dates without data (weekends, holidays, etc.)
-      if (response.status === 404) {
-        console.log(`⚠️ No data available for ${dateStr} (404 - likely weekend/holiday)`);
-        return null;
-      }
       throw new Error(`Banxico API error: ${response.status} ${response.statusText}`);
     }
     
@@ -171,11 +166,6 @@ async function fetchBanxicoHistoricalRates(date) {
     });
     
     if (!response.ok) {
-      // 404 is expected for dates without data (weekends, holidays, etc.)
-      if (response.status === 404) {
-        console.log(`⚠️ No data available for ${dateStr} (404 - likely weekend/holiday)`);
-        return null;
-      }
       throw new Error(`Banxico API error: ${response.status} ${response.statusText}`);
     }
     

@@ -152,7 +152,13 @@ export function ImportManagement({ clientId }) {
   };
 
   const handleOnboardClient = async (dryRun = false) => {
+    console.log('🚀 [FRONTEND] Starting onboard client process...');
+    console.log('🚀 [FRONTEND] Dry run:', dryRun);
+    console.log('🚀 [FRONTEND] Client preview:', clientPreview);
+    console.log('🚀 [FRONTEND] Onboarding path:', onboardingPath);
+    
     if (!clientPreview) {
+      console.error('❌ [FRONTEND] No client preview available');
       setError('Please preview the client data first');
       return;
     }
@@ -162,31 +168,47 @@ export function ImportManagement({ clientId }) {
       : `Onboard NEW client:\n\n• Client ID: ${clientPreview.clientId}\n• Name: ${clientPreview.displayName}\n• Type: ${clientPreview.clientType}\n• Units: ${clientPreview.totalUnits}\n\nData to import:\n• Config: ${clientPreview.dataCounts.config} items\n• Payment Methods: ${clientPreview.dataCounts.paymentMethods} items\n• Categories: ${clientPreview.dataCounts.categories} items\n• Vendors: ${clientPreview.dataCounts.vendors} items\n• Units: ${clientPreview.dataCounts.units} items\n• Transactions: ${clientPreview.dataCounts.transactions} items\n• HOA Dues: ${clientPreview.dataCounts.hoadues} items\n\nThis will CREATE a new client in the database.\n\nContinue?`;
     
     if (!window.confirm(confirmMessage)) {
+      console.log('❌ [FRONTEND] User cancelled onboard process');
       return;
     }
     
+    console.log('✅ [FRONTEND] User confirmed, starting import process...');
     setIsProcessing(true);
     setProgress({ status: 'starting', sequence: [], components: {} });
     
     try {
+      const requestBody = {
+        dataPath: onboardingPath,
+        clientId: clientPreview?.clientId, // Pass the clientId from the preview
+        dryRun,
+        maxErrors: 3
+      };
+      
+      console.log('📤 [FRONTEND] Making onboard request to:', `${appConfig.api.baseUrl}/admin/import/onboard`);
+      console.log('📤 [FRONTEND] Request body:', requestBody);
+      console.log('📤 [FRONTEND] API base URL:', appConfig.api.baseUrl);
+      
+      const authHeaders = await getAuthHeaders();
+      console.log('🔐 [FRONTEND] Auth headers prepared:', Object.keys(authHeaders));
+      
       const response = await fetch(`${appConfig.api.baseUrl}/admin/import/onboard`, {
         method: 'POST',
-        headers: await getAuthHeaders(),
-        body: JSON.stringify({
-          dataPath: onboardingPath,
-          clientId: clientPreview?.clientId, // Pass the clientId from the preview
-          dryRun,
-          maxErrors: 3
-        })
+        headers: authHeaders,
+        body: JSON.stringify(requestBody)
       });
       
+      console.log('📥 [FRONTEND] Onboard response status:', response.status);
+      console.log('📥 [FRONTEND] Onboard response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
+        console.error('❌ [FRONTEND] Onboard request failed with status:', response.status);
         const errorData = await response.json();
+        console.error('❌ [FRONTEND] Error response data:', errorData);
         throw new Error(errorData.error || 'Failed to onboard client');
       }
       
       const result = await response.json();
-      console.log('Onboarding started:', result);
+      console.log('✅ [FRONTEND] Onboard request successful:', result);
       setProgress(result);
       
       // Start polling for progress (using the new client ID from preview)
@@ -331,25 +353,50 @@ export function ImportManagement({ clientId }) {
       clearInterval(pollIntervalRef.current);
     }
     
+    console.log('🔄 [FRONTEND] Starting progress polling for clientId:', clientId);
+    
     pollIntervalRef.current = setInterval(async () => {
       try {
+        console.log('📊 [FRONTEND] Polling progress...');
         const response = await fetch(`${appConfig.api.baseUrl}/admin/import/${clientId}/progress`, {
           headers: await getAuthHeaders()
         });
         
+        console.log('📊 [FRONTEND] Progress response status:', response.status);
+        
         if (!response.ok) {
+          console.error('❌ [FRONTEND] Progress fetch failed with status:', response.status);
           throw new Error('Failed to fetch progress');
         }
         
         const data = await response.json();
+        console.log('📊 [FRONTEND] Progress data received:', data);
         setProgress(data);
         
         if (data.status === 'completed' || data.status === 'error') {
+          console.log('✅ [FRONTEND] Import finished with status:', data.status);
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           setIsProcessing(false);
           
-          // No need to clear selections since we don't use them anymore
+          // Show completion alert
+          if (data.status === 'completed') {
+            const summary = data.sequence
+              ?.map(info => {
+                if (info.status === 'completed') {
+                  return `${info.step}: Imported ${info.success || 0} items`;
+                } else if (info.status === 'error') {
+                  return `${info.step}: Error - ${info.error}`;
+                }
+                return `${info.step}: ${info.status}`;
+              })
+              .join('\n');
+            console.log('🎉 [FRONTEND] Import completed successfully!', summary);
+            window.alert(`Import completed!\n\n${summary}`);
+          } else {
+            console.error('❌ [FRONTEND] Import failed:', data.error);
+            window.alert(`Import failed: ${data.error}`);
+          }
         }
       } catch (error) {
         console.error('Progress fetch failed:', error);

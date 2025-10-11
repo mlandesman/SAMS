@@ -1,23 +1,28 @@
 const admin = require('firebase-admin');
+const functions = require('firebase-functions');
 
 async function syncExchangeRatesToDev(options = {}) {
+  // Get config from Firebase Functions config
+  const config = functions.config();
+  
   const {
     daysToSync = 30,
     overwrite = false,
-    devProjectId = process.env.DEV_PROJECT_ID,
-    devServiceAccountPath = process.env.DEV_SERVICE_ACCOUNT_PATH
+    devProjectId = config.dev?.project_id || process.env.DEV_PROJECT_ID
   } = options;
   
-  if (!devProjectId || !devServiceAccountPath) {
-    throw new Error('Development database configuration is missing. Please set DEV_PROJECT_ID and DEV_SERVICE_ACCOUNT_PATH.');
+  if (!devProjectId) {
+    throw new Error('Development project ID is missing. Please set dev.project_id in Firebase config.');
   }
   
   console.log('Starting sync from production to development database...');
   console.log(`Options: ${daysToSync} days, overwrite: ${overwrite}`);
+  console.log(`Target dev project: ${devProjectId}`);
   
   try {
+    // Initialize dev app using application default credentials
+    // This will use the same service account that the production function uses
     const devApp = admin.initializeApp({
-      credential: admin.credential.cert(require(devServiceAccountPath)),
       projectId: devProjectId
     }, 'dev-app');
     

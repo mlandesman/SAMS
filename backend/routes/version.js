@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     // Version info embedded at build time
     const backendVersion = {
       component: 'backend',
-      version: process.env.VITE_APP_VERSION || '0.0.1',
+      version: process.env.VITE_APP_VERSION || process.env.npm_package_version || '0.0.1',
       buildDate: process.env.VITE_APP_BUILD_DATE || getNow().toISOString(),
       git: {
         hash: process.env.VITE_APP_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
@@ -54,7 +54,7 @@ router.get('/health', async (req, res) => {
     res.json({
       status: 'healthy',
       component: 'backend',
-      version: process.env.VITE_APP_VERSION || '0.0.1',
+      version: process.env.VITE_APP_VERSION || process.env.npm_package_version || '0.0.1',
       gitCommit: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
       buildDate: getNow().toISOString(),
       uptime: process.uptime(),

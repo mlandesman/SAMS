@@ -7,14 +7,17 @@ import { clearFeatureCache } from '../utils/clientFeatures';
 const ClientContext = createContext();
 
 export const ClientProvider = ({ children }) => {
-  // Use auth context safely - handle cases where auth might not be ready
+  // Use auth context safely
+  let authContext = null;
   let samsUser = null;
+  
   try {
-    const authContext = useAuth();
+    authContext = useAuth();
     samsUser = authContext?.samsUser;
   } catch (error) {
-    // Auth context not available yet - this is normal during initialization
-    console.log('Auth context not ready yet in ClientProvider');
+    // Auth context not ready yet - this is normal during initialization
+    console.log('Auth context not ready yet in ClientProvider:', error.message);
+    return children; // Return children without processing until auth is ready
   }
   
   // Initialize with null - we'll validate stored client when user loads

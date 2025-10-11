@@ -70,28 +70,48 @@ exports.syncExchangeRatesFromProdToDev = functions
     memory: '1GB'
   })
   .https
-  .onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated to sync databases'
-      );
-    }
-    
-    console.log('Database sync triggered by:', context.auth.uid);
+  .onRequest(async (req, res) => {
+    console.log('Database sync triggered via HTTP request');
     
     try {
-      const options = {
-        daysToSync: data.daysToSync || 30,
-        overwrite: data.overwrite || false
-      };
+      // Parse request body or query parameters
+      let options = {};
+      
+      if (req.method === 'POST' && req.body) {
+        options = {
+          daysToSync: req.body.daysToSync || 30,
+          overwrite: req.body.overwrite || false
+        };
+      } else if (req.method === 'GET' && req.query) {
+        options = {
+          daysToSync: parseInt(req.query.daysToSync) || 30,
+          overwrite: req.query.overwrite === 'true' || false
+        };
+      } else {
+        // Default options
+        options = {
+          daysToSync: 30,
+          overwrite: false
+        };
+      }
+      
+      console.log('Sync options:', options);
       
       const result = await syncExchangeRatesToDev(options);
       console.log('Database sync completed:', result);
-      return result;
+      
+      res.status(200).json({
+        success: true,
+        message: 'Database sync completed successfully',
+        result: result
+      });
     } catch (error) {
       console.error('Database sync failed:', error);
-      throw new functions.https.HttpsError('internal', error.message);
+      res.status(500).json({
+        success: false,
+        message: 'Database sync failed',
+        error: error.message
+      });
     }
   });
 
@@ -178,5 +198,165 @@ exports.loadHistoricalExchangeRates = functions
     } catch (error) {
       console.error('Historical data load failed:', error);
       throw new functions.https.HttpsError('internal', error.message);
+    }
+  });
+
+// New function for dev project to pull data from production
+exports.pullExchangeRatesFromProd = functions
+  .runWith({
+    timeoutSeconds: 540,
+    memory: '1GB'
+  })
+  .https
+  .onRequest(async (req, res) => {
+    console.log('Pulling exchange rates from production database...');
+    
+    try {
+      // Parse request parameters
+      let options = {};
+      
+      if (req.method === 'POST' && req.body) {
+        options = {
+          daysToSync: req.body.daysToSync || 30,
+          overwrite: req.body.overwrite || false
+        };
+      } else if (req.method === 'GET' && req.query) {
+        options = {
+          daysToSync: parseInt(req.query.daysToSync) || 30,
+          overwrite: req.query.overwrite === 'true' || false
+        };
+      } else {
+        options = {
+          daysToSync: 30,
+          overwrite: false
+        };
+      }
+      
+      console.log('Pull options:', options);
+      
+      // Initialize production database connection
+      const prodApp = admin.initializeApp({
+        projectId: 'sams-sandyland-prod'
+      }, 'prod-app');
+      
+      const prodDb = prodApp.firestore();
+      const devDb = admin.firestore(); // Current project (dev)
+      
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - options.daysToSync);
+      
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      console.log(`Pulling exchange rates from ${startDateStr} to ${endDateStr}`);
+      
+      // Query production database
+      const prodSnapshot = await prodDb.collection('exchangeRates')
+        .where('date', '>=', startDateStr)
+        .where('date', '<=', endDateStr)
+        .orderBy('date', 'desc')
+        .get();
+      
+      console.log(`Found ${prodSnapshot.size} documents to pull from production`);
+      
+      const results = {
+        synced: 0,
+        skipped: 0,
+        errors: 0,
+        documents: []
+      };
+      
+      const devBatch = devDb.batch();
+      let batchCount = 0;
+      
+      for (const doc of prodSnapshot.docs) {
+        try {
+          const docRef = devDb.collection('exchangeRates').doc(doc.id);
+          
+          if (!options.overwrite) {
+            const existingDoc = await docRef.get();
+            if (existingDoc.exists) {
+              results.skipped++;
+              console.log(`Skipping existing document: ${doc.id}`);
+              continue;
+            }
+          }
+          
+          const data = {
+            ...doc.data(),
+            pulledFromProd: true,
+            pulledAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          devBatch.set(docRef, data, { merge: !options.overwrite });
+          batchCount++;
+          
+          results.synced++;
+          results.documents.push(doc.id);
+          
+          if (batchCount >= 400) {
+            await devBatch.commit();
+            batchCount = 0;
+          }
+          
+        } catch (error) {
+          console.error(`Error syncing document ${doc.id}:`, error);
+          results.errors++;
+        }
+      }
+      
+      if (batchCount > 0) {
+        await devBatch.commit();
+      }
+      
+      await prodApp.delete();
+      
+      console.log('Pull completed:', results);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Exchange rates pulled from production successfully',
+        result: results
+      });
+      
+    } catch (error) {
+      console.error('Pull failed:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to pull exchange rates from production',
+        error: error.message
+      });
+    }
+  });
+
+// HTTP endpoint for dev project to trigger exchange rate updates
+exports.triggerExchangeRatesUpdate = functions
+  .runWith({
+    timeoutSeconds: 540,
+    memory: '512MB'
+  })
+  .https
+  .onRequest(async (req, res) => {
+    console.log('Manual exchange rates update triggered via HTTP');
+    
+    try {
+      const { updateExchangeRates } = require('./src/exchangeRatesUpdater');
+      
+      const result = await updateExchangeRates(false); // false = not a dry run
+      console.log('Manual update completed:', result);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Exchange rates update completed successfully',
+        result: result
+      });
+    } catch (error) {
+      console.error('Manual update failed:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update exchange rates',
+        error: error.message
+      });
     }
   });

@@ -354,6 +354,26 @@ Mobile app requires complete refactor to match new data structures, endpoints, a
 
 **Business Impact:** High - Mobile platform becoming unusable due to drift
 
+### **TD-017: Client Name Is Not On All Displays
+**Category:** Frontend Desktop
+**Priority:** High
+**Created:** Michael Landesman
+**Context:** Safety
+
+**Description:**
+The Client Name needs to be prominently displayed on all screen to ensure no mistakes are made by an admin with editing ability.  Some screens, notably the Settings screens, do not show the client the admin is changing.  This information is on the Action Bar but not all screens have an action bar yet.  Mandatory to use the Action Bar even if there is no action button.
+
+**Code Locations:**
+- Settings, Projects, etc.
+
+**Cleanup Required:**
+- Layout changes to all screens
+
+**Trigger for Cleanup:** Before production usage
+
+**Estimated Cleanup Effort:** 1-3 Implementation Agent sessions
+
+**Business Impact:** Medium - Only affects Admins
 ---
 
 ---

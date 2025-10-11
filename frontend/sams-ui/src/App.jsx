@@ -11,6 +11,7 @@ import MainLayout from './layout/MainLayout';
 import SplashScreen from './views/SplashScreen';
 import ClientSwitchModal from './components/ClientSwitchModal';
 import ExchangeRateModal from './components/ExchangeRateModal';
+import { VersionInfoModal } from './components/VersionInfoModal';
 import DashboardView from './views/DashboardView';
 import TransactionsView from './views/TransactionsView';
 import ActivityView from './views/ActivityView';
@@ -54,11 +55,50 @@ function AppContent() {
   const { isModalVisible, modalStatus, closeModal, checkAndUpdateWithGapFill } = useExchangeRates();
   const [showClientModal, setShowClientModal] = useState(false);
   const [currentActivity, setCurrentActivity] = useState('dashboard'); // Track current activity
+  const [showVersionModal, setShowVersionModal] = useState(false);
   
-  // Clear client selection from localStorage on app start
+  // Clear client selection from localStorage on app start and show version modal
   useEffect(() => {
     console.log('App initialized. Clearing stored client selection for security.');
     localStorage.removeItem('selectedClient');
+    
+    // Show version modal on startup (but only in production or when explicitly requested)
+    const urlHasVersion = new URLSearchParams(window.location.search).has('version');
+    const localStorageHasVersion = localStorage.getItem('showVersionModal') === 'true';
+    const isProduction = import.meta.env.PROD;
+    
+    const shouldShowVersionModal = isProduction || localStorageHasVersion || urlHasVersion;
+    
+    console.log('🔍 [DEBUG] Version modal trigger check:', {
+      isProduction,
+      localStorageHasVersion,
+      urlHasVersion,
+      shouldShowVersionModal,
+      currentUrl: window.location.href
+    });
+    
+    // Also log to make sure this code is running
+    console.log('🚀 [DEBUG] App.jsx useEffect running - checking version modal trigger');
+    
+    if (shouldShowVersionModal) {
+      console.log('✅ [DEBUG] Showing version modal');
+      setShowVersionModal(true);
+    }
+    
+    // Add keyboard shortcut for development: Ctrl+Shift+V to show version modal
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'V') {
+        event.preventDefault();
+        console.log('🎯 [DEBUG] Version modal keyboard shortcut triggered!');
+        setShowVersionModal(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
   
   // Check authentication on component mount and trigger exchange rate check on login
@@ -234,6 +274,10 @@ function AppContent() {
             isVisible={isModalVisible}
             status={modalStatus}
             onClose={closeModal}
+          />
+          <VersionInfoModal
+            isVisible={showVersionModal}
+            onClose={() => setShowVersionModal(false)}
           />
         </>
       } />

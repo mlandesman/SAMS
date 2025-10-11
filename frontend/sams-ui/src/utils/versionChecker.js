@@ -14,23 +14,50 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  */
 export const getFrontendVersion = () => {
   try {
-    // Import version from build-time generated file
-    const version = import.meta.env.VITE_APP_VERSION || '0.0.1';
-    const buildDate = import.meta.env.VITE_APP_BUILD_DATE || new Date().toISOString();
-    const gitCommit = import.meta.env.VITE_APP_GIT_COMMIT || 'unknown';
+    // Try to read from version.json first (preferred)
+    let versionData = null;
+    try {
+      // Import version.json dynamically
+      versionData = JSON.parse(import.meta.env.VITE_VERSION_DATA || '{}');
+    } catch (e) {
+      // Fallback to environment variables
+      const version = import.meta.env.VITE_APP_VERSION || '0.0.1';
+      const buildDate = import.meta.env.VITE_APP_BUILD_DATE || new Date().toISOString();
+      const gitCommit = import.meta.env.VITE_APP_GIT_COMMIT || 'unknown';
+      
+      return {
+        component: 'frontend-desktop',
+        version,
+        buildDate,
+        gitCommit,
+        environment: import.meta.env.MODE || 'development'
+      };
+    }
     
+    // Use version.json data if available
+    if (versionData && versionData.version) {
+      return {
+        component: 'frontend-desktop',
+        version: versionData.version,
+        buildDate: versionData.buildDate || new Date().toISOString(),
+        gitCommit: versionData.git?.hash || 'unknown',
+        environment: import.meta.env.MODE || 'development'
+      };
+    }
+    
+    // Final fallback
     return {
       component: 'frontend-desktop',
-      version,
-      buildDate,
-      gitCommit,
+      version: '1.0.1', // Hardcoded fallback to match backend
+      buildDate: new Date().toISOString(),
+      gitCommit: 'unknown',
       environment: import.meta.env.MODE || 'development'
     };
   } catch (error) {
     console.error('Error getting frontend version:', error);
     return {
       component: 'frontend-desktop',
-      version: 'unknown',
+      version: '1.0.1', // Hardcoded fallback to match backend
       buildDate: 'unknown',
       gitCommit: 'unknown',
       environment: 'unknown'
@@ -51,7 +78,7 @@ export const getBackendVersion = async (forceRefresh = false) => {
       }
     }
 
-    const response = await fetch(`${config.api.baseUrl}/version`, {
+    const response = await fetch(`${config.api.baseUrl}/system/version`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
