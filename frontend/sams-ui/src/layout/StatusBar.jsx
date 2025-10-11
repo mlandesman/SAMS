@@ -7,14 +7,14 @@ import ListManagementStatusContent from '../components/ListManagementStatusConte
 import { useTransactionsContext } from '../context/TransactionsContext';
 import { useTransactionFilters } from '../hooks/useTransactionFilters';
 import { useStatusBar } from '../context/StatusBarContext';
-import { getVersionInfo, getEnvironmentStyles } from '../utils/versionUtils';
+import { useVersionInfo, getEnvironmentStyles } from '../utils/versionUtils';
 import AboutModal from './AboutModal';
 import './StatusBar.css';
 
 const StatusBar = ({ children }) => {
   const location = useLocation();
   const [aboutOpen, setAboutOpen] = useState(false);
-  const versionInfo = getVersionInfo();
+  const versionInfo = useVersionInfo(); // Use hook for reactive updates
   const envStyles = getEnvironmentStyles();
   
   const { transactionCount } = useTransactionsContext();
