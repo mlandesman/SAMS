@@ -7,10 +7,16 @@
       "config": {
         "includeFiles": [
           "serviceAccountKey.json",
-          "../shared/version.json",
-          "version.json"
+          "sams-production-serviceAccountKey.json",
+          "../shared/version.json"
         ]
       }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "index.js"
     }
   ],
   "env": {

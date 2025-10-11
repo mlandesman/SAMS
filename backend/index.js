@@ -36,7 +36,6 @@ const allowedOrigins = [
   'http://localhost:5176',
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://sandyland-management-system.web.app',  // Firebase Hosting
   'https://sams.sandyland.com.mx',
   'https://mobile.sams.sandyland.com.mx'
 ];
@@ -65,17 +64,7 @@ app.use(express.json({ limit: '50mb' })); // for parsing application/json
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // for parsing application/x-www-form-urlencoded
 
 // Initialize Firebase before importing routes
-// Wrap in async function for Vercel compatibility
-const initializeApp = async () => {
-  try {
-    await initializeFirebase();
-    console.log('Firebase initialized successfully');
-  } catch (error) {
-    console.error('Firebase initialization failed:', error);
-    console.error('⚠️ Continuing without Firebase - some features may not work');
-    // Don't throw - let server start without Firebase if needed
-  }
-};
+await initializeFirebase();
 
 // PUBLIC ROUTES (NO auth required) - Mount BEFORE authenticated routes
 console.log('Mounting system routes (public)');
@@ -165,14 +154,6 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Initialize and start server
-const startServer = async () => {
-  // Initialize Firebase first
-  await initializeApp();
-
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-  });
-};
-
-startServer().catch(console.error);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

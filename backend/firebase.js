@@ -2,54 +2,20 @@ import admin from 'firebase-admin';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-// Get Firebase credentials from environment variables or file
-const getServiceAccount = () => {
-  // Check if Firebase credentials are provided as environment variables
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    try {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-      console.log(`🔑 Using Firebase credentials from environment variable`);
-      return serviceAccount;
-    } catch (error) {
-      console.error('❌ Invalid FIREBASE_SERVICE_ACCOUNT_KEY environment variable');
-      throw error;
-    }
+// Determine service account path based on environment
+const getServiceAccountPath = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return './sams-production-serviceAccountKey.json';
+  } else if (process.env.NODE_ENV === 'staging') {
+    return './serviceAccountKey-staging.json';
   }
-
-  // Fallback to file-based credentials (for local development)
-  const getServiceAccountPath = () => {
-    if (process.env.NODE_ENV === 'production') {
-      return './sams-prod-credentials.json';
-    } else if (process.env.NODE_ENV === 'staging') {
-      return './serviceAccountKey-staging.json';
-    }
-    return './serviceAccountKey.json';
-  };
-
-  const serviceAccountPath = getServiceAccountPath();
-
-  try {
-    const serviceAccount = require(serviceAccountPath);
-    console.log(`🔑 Using Firebase credentials from file: ${serviceAccountPath}`);
-    return serviceAccount;
-  } catch (error) {
-    console.error(`❌ Cannot find Firebase credentials file: ${serviceAccountPath}`);
-    console.error(`💡 For production deployment, set FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Vercel`);
-    throw error;
-  }
+  return './serviceAccountKey.json';
 };
 
-// Initialize service account (with error handling for missing credentials)
-let serviceAccount;
-try {
-  serviceAccount = getServiceAccount();
-  console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
-} catch (error) {
-  console.error(`❌ Firebase credentials not available: ${error.message}`);
-  console.error(`💡 Set FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Vercel dashboard`);
-  // Don't throw here - let Firebase initialization handle the error
-  serviceAccount = null;
-}
+const serviceAccountPath = getServiceAccountPath();
+
+const serviceAccount = require(serviceAccountPath);
+console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
 
 // Track initialization status and errors
 let isInitialized = false;
@@ -58,14 +24,6 @@ let firebaseApp = null;
 
 async function initializeFirebase() {
   try {
-    // Check if we have service account credentials
-    if (!serviceAccount) {
-      const errorMsg = '❌ Cannot initialize Firebase: No service account credentials available';
-      console.error(errorMsg);
-      console.error('💡 Set FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Vercel dashboard');
-      throw new Error(errorMsg);
-    }
-
     if (!admin.apps.length) {
       console.log('🔥 Initializing Firebase Admin SDK...');
       const getStorageBucket = () => {
@@ -76,14 +34,14 @@ async function initializeFirebase() {
         }
         return 'sandyland-management-system.firebasestorage.app';
       };
-
+      
       const storageBucket = getStorageBucket();
-
+      
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         storageBucket: storageBucket,
       });
-
+      
       console.log('✅ Firebase Admin SDK initialized successfully');
       isInitialized = true;
     } else {
