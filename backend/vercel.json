@@ -8,7 +8,8 @@
         "includeFiles": [
           "serviceAccountKey.json",
           "sams-production-serviceAccountKey.json",
-          "../shared/version.json"
+          "../shared/version.json",
+          "version.json"
         ]
       }
     }
