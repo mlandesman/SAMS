@@ -132,17 +132,34 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                   </Typography>
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Deployed:</strong> {versionInfo.buildTimeFormatted}
+                      <strong>Version:</strong> {versionInfo.version}
                     </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Build Date:</strong> {versionInfo.buildTimeFormatted}
+                    </Typography>
+                    {versionInfo.build?.buildNumber && (
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Build Number:</strong> {versionInfo.build.buildNumber}
+                      </Typography>
+                    )}
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Environment:</strong> {versionInfo.displayEnvironment}
                     </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Platform:</strong> Desktop Web Application
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Port:</strong> 5173 (Development)
-                    </Typography>
+                    {versionInfo.git?.hash && versionInfo.git.hash !== 'unknown' && (
+                      <>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          <strong>Git Commit:</strong> <code>{versionInfo.git.hash}</code>
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          <strong>Git Branch:</strong> {versionInfo.git.branch}
+                        </Typography>
+                      </>
+                    )}
+                    {versionInfo.build?.platform && (
+                      <Typography variant="body2">
+                        <strong>Platform:</strong> {versionInfo.build.platform} / Node {versionInfo.build.nodeVersion}
+                      </Typography>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
