@@ -1,0 +1,72 @@
+{
+  "compatibilityMatrix": {
+    "1.2.0": {
+      "backend": "1.2.0",
+      "minFrontend": "1.2.0",
+      "maxFrontend": "1.2.x",
+      "description": "Current stable release",
+      "features": ["Water Bills Split Transactions", "Enhanced Version Control"],
+      "deprecated": false
+    },
+    "1.1.0": {
+      "backend": "1.1.0", 
+      "minFrontend": "1.1.0",
+      "maxFrontend": "1.1.x",
+      "description": "Water Bills Split Transactions release",
+      "features": ["Water Bills Split Transactions", "Import Enhancement"],
+      "deprecated": false
+    },
+    "1.0.0": {
+      "backend": "1.0.0",
+      "minFrontend": "1.0.0", 
+      "maxFrontend": "1.0.x",
+      "description": "Initial production release",
+      "features": ["Core HOA Management", "Water Bills Basic"],
+      "deprecated": true,
+      "deprecationDate": "2025-10-01",
+      "sunsetDate": "2025-12-01"
+    }
+  },
+  "deploymentGuidelines": {
+    "versioning": {
+      "strategy": "semantic",
+      "format": "major.minor.patch",
+      "bumpRules": {
+        "major": "Breaking changes, API changes",
+        "minor": "New features, backward compatible",
+        "patch": "Bug fixes, no new features"
+      }
+    },
+    "compatibility": {
+      "sameMajorVersion": "Always compatible",
+      "differentMajorVersions": "Never compatible without migration",
+      "minorVersionDiff": "Backward compatible if same major",
+      "patchVersionDiff": "Always compatible"
+    },
+    "deployment": {
+      "backendFirst": false,
+      "frontendFirst": true,
+      "maxVersionGap": "1 minor version",
+      "rollbackStrategy": "immediate if compatibility issues"
+    }
+  },
+  "verification": {
+    "requiredChecks": [
+      "versionNumberMatch",
+      "gitCommitMatch", 
+      "environmentMatch",
+      "buildTimeWithinRange"
+    ],
+    "buildTimeRange": "300000",
+    "criticalMismatches": [
+      "differentMajorVersions",
+      "gitCommitMismatchWithSameVersion",
+      "buildTimeDifferenceExceedsRange"
+    ]
+  },
+  "metadata": {
+    "lastUpdated": "2025-10-11T00:00:00Z",
+    "updatedBy": "Implementation Agent",
+    "schemaVersion": "1.0"
+  }
+}

@@ -116,3 +116,4 @@ serviceAccountKey*.json
 *serviceAccountKey*.json
 firebase-credentials.json
 firebase-admin-*.json
+.vercel

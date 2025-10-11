@@ -11,43 +11,31 @@ let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get frontend version info
+ * Get frontend version info from build-time injected constants
  */
 export const getFrontendVersion = () => {
   try {
-    // Use imported version config directly (same as versionUtils.js)
-    if (versionConfig && versionConfig.version) {
-      return {
-        component: 'frontend-desktop',
-        version: versionConfig.version,
-        buildDate: versionConfig.buildDate || 'unavailable',
-        gitCommit: versionConfig.git?.hash || 'unavailable',
-        environment: import.meta.env.MODE || 'development'
-      };
-    }
-    
-    // Fallback to environment variables if available
-    const version = import.meta.env.VITE_APP_VERSION;
-    const buildDate = import.meta.env.VITE_APP_BUILD_DATE;
-    const gitCommit = import.meta.env.VITE_APP_GIT_COMMIT;
-    
-    if (version) {
-      return {
-        component: 'frontend-desktop',
-        version,
-        buildDate: buildDate || 'unavailable',
-        gitCommit: gitCommit || 'unavailable',
-        environment: import.meta.env.MODE || 'development'
-      };
-    }
-    
-    // Final fallback - indicate data unavailable
+    // Get from build-time injected constants (same source as versionUtils.js)
+    const version = import.meta.env.VITE_VERSION || 'unavailable';
+    const buildDate = import.meta.env.VITE_BUILD_DATE || 'unavailable';
+    const gitHash = import.meta.env.VITE_GIT_HASH || 'unavailable';
+    const gitFullHash = import.meta.env.VITE_GIT_FULL_HASH || 'unavailable';
+    const gitBranch = import.meta.env.VITE_GIT_BRANCH || 'unavailable';
+    const environment = import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE || 'development';
+    const buildNumber = import.meta.env.VITE_BUILD_NUMBER || 'unavailable';
+    const deploymentId = import.meta.env.VITE_VERCEL_DEPLOYMENT_ID || null;
+
     return {
       component: 'frontend-desktop',
-      version: 'unavailable',
-      buildDate: 'unavailable',
-      gitCommit: 'unavailable',
-      environment: import.meta.env.MODE || 'development'
+      version,
+      buildDate,
+      gitCommit: gitHash,
+      gitFullHash,
+      gitBranch,
+      environment,
+      buildNumber,
+      deploymentId,
+      buildTimestamp: import.meta.env.VITE_BUILD_TIMESTAMP || Date.now()
     };
   } catch (error) {
     console.error('Error getting frontend version:', error);
@@ -56,7 +44,12 @@ export const getFrontendVersion = () => {
       version: 'unavailable',
       buildDate: 'unavailable',
       gitCommit: 'unavailable',
-      environment: 'unknown'
+      gitFullHash: 'unavailable',
+      gitBranch: 'unavailable',
+      environment: 'unknown',
+      buildNumber: 'unavailable',
+      deploymentId: null,
+      buildTimestamp: Date.now()
     };
   }
 };
@@ -103,7 +96,7 @@ export const getBackendVersion = async (forceRefresh = false) => {
 };
 
 /**
- * Check if frontend and backend versions match
+ * Check if frontend and backend versions match with detailed compatibility analysis
  */
 export const checkVersionCompatibility = async () => {
   try {
@@ -115,39 +108,68 @@ export const checkVersionCompatibility = async () => {
         compatible: 'unknown',
         frontend,
         backend,
-        message: 'Unable to verify backend version'
+        message: 'Unable to verify backend version',
+        details: {
+          versionMatch: false,
+          gitMatch: false,
+          environmentMatch: false,
+          buildTimeDifference: null
+        }
       };
     }
     
-    // Check git commits if available
-    if (frontend.gitCommit !== 'unknown' && backend.git?.hash) {
-      const compatible = frontend.gitCommit === backend.git.hash;
-      return {
-        compatible,
-        frontend,
-        backend,
-        message: compatible 
-          ? 'Frontend and backend versions match' 
-          : `Version mismatch detected: Frontend (${frontend.gitCommit}) != Backend (${backend.git.hash})`
-      };
+    // Detailed compatibility analysis
+    const details = {
+      versionMatch: frontend.version === backend.version,
+      gitMatch: frontend.gitCommit === backend.git?.hash,
+      environmentMatch: frontend.environment === backend.environment,
+      buildTimeDifference: null,
+      deploymentInfo: {
+        frontendDeployment: frontend.deploymentId || 'local',
+        backendDeployment: backend.deployment?.deploymentId || 'local',
+        sameDeployment: frontend.deploymentId === backend.deployment?.deploymentId
+      }
+    };
+
+    // Calculate build time difference
+    if (frontend.buildTimestamp && backend.buildDate) {
+      const frontendTime = new Date(frontend.buildTimestamp).getTime();
+      const backendTime = new Date(backend.buildDate).getTime();
+      details.buildTimeDifference = Math.abs(frontendTime - backendTime);
     }
+
+    // Determine overall compatibility
+    let compatible = true;
+    let message = 'Frontend and backend versions are compatible';
     
-    // Fallback to version number comparison
-    const compatible = frontend.version === backend.version;
+    // Check for critical mismatches
+    if (!details.versionMatch && !details.gitMatch) {
+      compatible = false;
+      message = `Critical version mismatch: Frontend v${frontend.version} (${frontend.gitCommit}) != Backend v${backend.version} (${backend.git?.hash})`;
+    } else if (!details.gitMatch) {
+      compatible = false;
+      message = `Git commit mismatch: Frontend (${frontend.gitCommit}) != Backend (${backend.git?.hash}) - Same version but different code`;
+    } else if (!details.versionMatch) {
+      // Version mismatch but same git commit (shouldn't happen but possible)
+      message = `Version number mismatch: Frontend v${frontend.version} != Backend v${backend.version} but same git commit (${frontend.gitCommit})`;
+    } else if (details.buildTimeDifference > 300000) { // 5 minutes
+      message = `Versions match but build times differ by ${Math.round(details.buildTimeDifference / 60000)} minutes`;
+    }
+
     return {
       compatible,
       frontend,
       backend,
-      message: compatible 
-        ? 'Frontend and backend versions match' 
-        : `Version mismatch detected: Frontend (${frontend.version}) != Backend (${backend.version})`
+      message,
+      details
     };
   } catch (error) {
     console.error('Error checking version compatibility:', error);
     return {
       compatible: 'unknown',
       error: error.message,
-      message: 'Unable to check version compatibility'
+      message: 'Unable to check version compatibility',
+      details: null
     };
   }
 };

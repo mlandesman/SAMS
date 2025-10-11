@@ -12,6 +12,7 @@ import SplashScreen from './views/SplashScreen';
 import ClientSwitchModal from './components/ClientSwitchModal';
 import ExchangeRateModal from './components/ExchangeRateModal';
 import { VersionInfoModal } from './components/VersionInfoModal';
+import VersionDebugPanel from './components/VersionDebugPanel';
 import DashboardView from './views/DashboardView';
 import TransactionsView from './views/TransactionsView';
 import ActivityView from './views/ActivityView';
@@ -46,6 +47,11 @@ if (typeof window !== 'undefined') {
   }).catch(error => {
     console.error('Version check failed:', error);
   });
+  
+  // Log debug shortcuts
+  console.log('🐛 Debug shortcuts available:');
+  console.log('   Shift+Ctrl+V - Version Info Modal');
+  console.log('   Shift+Ctrl+D - Debug Panel');
 }
 
 // This component will contain the main logic after context is available
@@ -56,6 +62,7 @@ function AppContent() {
   const [showClientModal, setShowClientModal] = useState(false);
   const [currentActivity, setCurrentActivity] = useState('dashboard'); // Track current activity
   const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   // Clear client selection from localStorage on app start and show version modal
   useEffect(() => {
@@ -85,12 +92,16 @@ function AppContent() {
       setShowVersionModal(true);
     }
     
-    // Add keyboard shortcut for development: Ctrl+Shift+V to show version modal
+    // Add keyboard shortcuts for debugging
     const handleKeyDown = (event) => {
       if (event.ctrlKey && event.shiftKey && event.key === 'V') {
         event.preventDefault();
         console.log('🎯 [DEBUG] Version modal keyboard shortcut triggered!');
         setShowVersionModal(true);
+      } else if (event.ctrlKey && event.shiftKey && event.key === 'D') {
+        event.preventDefault();
+        console.log('🐛 [DEBUG] Debug panel keyboard shortcut triggered!');
+        setShowDebugPanel(true);
       }
     };
     
@@ -278,6 +289,10 @@ function AppContent() {
           <VersionInfoModal
             isVisible={showVersionModal}
             onClose={() => setShowVersionModal(false)}
+          />
+          <VersionDebugPanel
+            open={showDebugPanel}
+            onClose={() => setShowDebugPanel(false)}
           />
         </>
       } />

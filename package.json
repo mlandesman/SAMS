@@ -1,6 +1,6 @@
 {
   "name": "sams-firebase",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Sandyland Management System Backend",
   "type": "module",
   "main": "scripts/import.js",

@@ -13,8 +13,10 @@ class VersionManager {
   constructor() {
     this.versionPath = path.join(__dirname, '../shared/version.json');
     this.packagePaths = [
-      path.join(__dirname, '../frontend/sams-ui/package.json'),
-      path.join(__dirname, '../frontend/mobile-app/package.json')
+      path.join(__dirname, '../package.json'),                      // Root package.json
+      path.join(__dirname, '../backend/package.json'),              // Backend package.json
+      path.join(__dirname, '../frontend/sams-ui/package.json'),     // Frontend UI package.json
+      path.join(__dirname, '../frontend/mobile-app/package.json')   // Mobile app package.json
     ];
   }
 

@@ -86,8 +86,9 @@ const StatusBar = ({ children }) => {
               backgroundColor: versionInfo.environmentConfig.color,
               color: 'white'
             }}
+            title={`Git: ${versionInfo.git.hash} | Build: ${versionInfo.buildTimeFormatted}`}
           >
-            {versionInfo.versionDisplay}
+            {versionInfo.versionWithHash}
           </span>
           <span className="environment-icon">{versionInfo.environmentConfig.icon}</span>
           <span 

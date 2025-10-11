@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,9 @@ import {
   Grid,
   Card,
   CardContent,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
   Business as BusinessIcon,
@@ -26,10 +28,37 @@ import {
 } from '@mui/icons-material';
 
 const AboutModal = ({ open, onClose, versionInfo }) => {
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  
   const environmentColors = {
     development: '#ff9800',
     staging: '#2196f3', 
     production: '#4caf50'
+  };
+
+  // Copy debug info to clipboard
+  const copyDebugInfo = async () => {
+    const debugInfo = `SAMS Debug Information
+====================
+Version: ${versionInfo.version} (${versionInfo.git.hash})
+Environment: ${versionInfo.displayEnvironment}
+Build Date: ${versionInfo.buildTimeFormatted}
+Build Number: ${versionInfo.build.buildNumber}
+Git Branch: ${versionInfo.git.branch}
+Git Full Hash: ${versionInfo.git.fullHash}
+Node Version: ${versionInfo.build.nodeVersion}
+Platform: ${versionInfo.build.platform}
+Deployment ID: ${versionInfo.deployment.vercelDeploymentId || 'N/A'}
+URL: ${window.location.href}
+User Agent: ${navigator.userAgent}
+Timestamp: ${new Date().toISOString()}`;
+
+    try {
+      await navigator.clipboard.writeText(debugInfo);
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Failed to copy debug info:', error);
+    }
   };
 
   const featureIcons = {
@@ -132,16 +161,25 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                   </Typography>
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Deployed:</strong> {versionInfo.buildTimeFormatted}
+                      <strong>Version:</strong> {versionInfo.version} ({versionInfo.git.hash})
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Build Date:</strong> {versionInfo.buildTimeFormatted}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Build Number:</strong> {versionInfo.build.buildNumber}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Environment:</strong> {versionInfo.displayEnvironment}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Platform:</strong> Desktop Web Application
+                      <strong>Git Branch:</strong> {versionInfo.git.branch}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Node Version:</strong> {versionInfo.build.nodeVersion}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Port:</strong> {versionInfo.environment === 'development' ? '5173 (Development)' : 'Production'}
+                      <strong>Platform:</strong> {versionInfo.build.platform}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -240,6 +278,17 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
       {/* Footer Actions */}
       <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button 
+          onClick={copyDebugInfo} 
+          variant="outlined"
+          sx={{ 
+            px: 3,
+            borderRadius: 2,
+            mr: 2
+          }}
+        >
+          Copy Debug Info
+        </Button>
+        <Button 
           onClick={onClose} 
           variant="contained"
           sx={{ 
@@ -250,6 +299,22 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
           Close
         </Button>
       </DialogActions>
+
+      {/* Snackbar for copy feedback */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          Debug information copied to clipboard!
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 };

@@ -79,21 +79,41 @@ router.get('/', async (req, res) => {
       buildDate: versionInfo.buildDate,
       git: {
         hash: versionInfo.gitHash,
-        branch: versionInfo.gitBranch
+        fullHash: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
+        branch: versionInfo.gitBranch,
+        commitMessage: process.env.VERCEL_GIT_COMMIT_MESSAGE || 'unknown'
       },
       endpoint: '/api/version',
       deploymentTime: getNow().toISOString(),
       nodeVersion: process.version,
-      environment: process.env.NODE_ENV || 'development',
-      // Add deployment URL info
-      deploymentUrl: process.env.VERCEL_URL || 'localhost',
-      region: process.env.VERCEL_REGION || 'local',
-      // Vercel deployment info
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+      platform: process.platform,
+      
+      // Deployment information
+      deployment: {
+        url: process.env.VERCEL_URL || 'localhost',
+        region: process.env.VERCEL_REGION || 'local',
+        deploymentId: process.env.VERCEL_DEPLOYMENT_ID || 'local',
+        target: process.env.VERCEL_ENV || 'development'
+      },
+      
+      // Vercel-specific info
       vercel: {
         env: process.env.VERCEL_ENV || 'development',
         gitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA,
         gitCommitRef: process.env.VERCEL_GIT_COMMIT_REF,
-        gitCommitMessage: process.env.VERCEL_GIT_COMMIT_MESSAGE
+        gitCommitMessage: process.env.VERCEL_GIT_COMMIT_MESSAGE,
+        deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+        teamId: process.env.VERCEL_TEAM_ID,
+        projectId: process.env.VERCEL_PROJECT_ID
+      },
+      
+      // Build metadata
+      build: {
+        timestamp: versionInfo.buildDate,
+        environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+        nodeVersion: process.version,
+        platform: process.platform
       }
     };
     
