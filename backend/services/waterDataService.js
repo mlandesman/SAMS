@@ -248,6 +248,49 @@ class WaterDataService {
       }
     });
     
+    // ============= TASK 1: WRITE AGGREGATED DATA TO FIRESTORE =============
+    // Write aggregated data to Firestore for fast reads
+    try {
+      const { getDb } = await import('../firebase.js');
+      const db = await getDb();
+      const admin = await import('firebase-admin');
+      
+      const aggregatedDataRef = db
+        .collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills')
+        .collection('bills').doc('aggregatedData');
+      
+      const aggregatedDataDoc = {
+        _metadata: {
+          fiscalYear: year,
+          clientId: clientId,
+          lastCalculated: admin.default.firestore.FieldValue.serverTimestamp(),
+          calculationTimestamp: Date.now(),
+          billsProcessed: months.length,
+          unitsProcessed: units?.length || 0,
+          carWashRate: finalResult.carWashRate,
+          boatWashRate: finalResult.boatWashRate
+        },
+        // Full aggregated data structure
+        year: finalResult.year,
+        fiscalYear: finalResult.fiscalYear,
+        months: finalResult.months,
+        summary: finalResult.summary,
+        carWashRate: finalResult.carWashRate,
+        boatWashRate: finalResult.boatWashRate
+      };
+      
+      await aggregatedDataRef.set(aggregatedDataDoc);
+      console.log(`✅ [FIRESTORE_WRITE] Aggregated data written to Firestore for ${clientId} FY${year}`);
+      console.log(`   Document path: clients/${clientId}/projects/waterBills/bills/aggregatedData`);
+      console.log(`   Timestamp: ${Date.now()}`);
+      
+    } catch (error) {
+      console.error(`❌ [FIRESTORE_WRITE] Error writing aggregated data to Firestore:`, error);
+      // Don't fail the whole operation if Firestore write fails
+      // Frontend can still use the returned data
+    }
+    
     return finalResult;
   }
 
