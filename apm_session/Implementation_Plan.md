@@ -40,9 +40,10 @@
 - **Cleanup:** Removed old `sams-ui` project, cleaned up deployment configuration
 - **Import System:** ✅ COMPLETE - Firebase Storage-based import system with drag-and-drop UI (October 6, 2025)
 - **Production URLs:** 
-  - Frontend: `https://sams.sandyland.com.mx`
-  - Backend: `https://backend-hla1k6lsj-michael-landesmans-projects.vercel.app`
+  - Frontend: `https://sams-sandyland-prod.web.app` or `https://sams.sandyland.com.mx`
+  - Backend: Same domain via Firebase Cloud Functions (unified platform)
   - Mobile: `https://mobile.sams.sandyland.com.mx` (pending sync with new backend)
+- **Platform:** Firebase Hosting + Cloud Functions v2 (migrated from Vercel October 2025)
 
 ### Split Transactions Enhancement (COMPLETED - September 2025)
 **Status:** ✅ FULLY IMPLEMENTED AND PRODUCTION-READY
@@ -113,15 +114,19 @@
 
 ### Version System Debug and Fix (COMPLETED - October 6, 2025)
 **Status:** ✅ FULLY IMPLEMENTED AND PRODUCTION-READY
+**Latest Update:** October 12, 2025 - About Modal Build Information Enhancement
 - **Achievement:** Fixed version system that wasn't updating/displaying current version information
+- **Enhancement:** Updated About modal to display current build information for easier testing/debugging
 - **Root Cause:** Missing `version.json` files in frontend directories despite build script updating `/shared/version.json`
 - **Solution:** Enhanced `scripts/updateVersion.js` to automatically copy version files to frontend directories
 - **Key Features:** Automatic synchronization, semantic versioning (patch/minor/major), environment detection
-- **About Screen:** Now displays current version (v1.0.0) with environment badge (🔧 Development, 🧪 Staging, 🚀 Production)
+- **About Screen:** Now displays current version with environment badge and build information (🔧 Development, 🧪 Staging, 🚀 Production)
+- **Deployment:** Migrated from Vercel to Firebase Hosting + Cloud Functions for unified platform
 - **Agent Guide:** Created comprehensive Version System Management Guide with mandatory deployment workflow
 - **Commands:** `npm run version:bump`, `npm run version:bump:minor`, `npm run version:bump:major`
-- **Impact:** Critical debugging infrastructure now functional for production support operations
-- **Duration:** 1 session Implementation Agent direct implementation
+- **Deployment Script:** Interactive `deploySams.sh` with monitoring and health checks
+- **Impact:** Critical debugging infrastructure now functional for production support operations with clear build visibility
+- **Duration:** Multiple sessions including recovery from deployment issues
 
 ### Core SAMS Platform (OPERATIONAL)
 **Status:** ✅ LIVE IN PRODUCTION
