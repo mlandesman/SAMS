@@ -229,6 +229,33 @@ class VersionManager {
   }
 
   /**
+   * Set version to a specific value
+   */
+  setVersion(newVersion) {
+    try {
+      // Validate version format
+      if (!/^\d+\.\d+\.\d+$/.test(newVersion)) {
+        console.error('❌ Invalid version format. Use semantic versioning: X.Y.Z (e.g., 0.0.10)');
+        process.exit(1);
+      }
+
+      // Update package.json files
+      this.updatePackageVersions(newVersion);
+      
+      // Update version config
+      this.updateVersion({ version: newVersion });
+      
+      console.log(`✅ Version manually set to ${newVersion}`);
+      console.log('📝 Remember to commit these changes!\n');
+      return newVersion;
+      
+    } catch (error) {
+      console.error('❌ Error setting version:', error);
+      process.exit(1);
+    }
+  }
+
+  /**
    * Bump version (patch, minor, or major)
    */
   bumpVersion(type = 'patch') {
@@ -342,6 +369,13 @@ switch (command) {
     break;
   case 'bump':
     versionManager.bumpVersion(arg || 'patch');
+    break;
+  case 'set':
+    if (!arg) {
+      console.error('❌ Please provide a version number: node updateVersion.js set X.Y.Z');
+      process.exit(1);
+    }
+    versionManager.setVersion(arg);
     break;
   case 'validate':
     versionManager.validateDeployment();
