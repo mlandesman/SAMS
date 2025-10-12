@@ -294,36 +294,33 @@ class WaterAPI {
 
   /**
    * Get aggregated water data for a fiscal year
+   * TASK 2: Uses new fast-read endpoint with timestamp-based cache validation
    * This endpoint returns everything: readings, bills, payments, status
-   * Uses cache to prevent redundant API calls
+   * Cache is validated by comparing timestamps, not TTL expiration
    */
   async getAggregatedData(clientId, year) {
     const cacheKey = `water_bills_${clientId}_${year}`;
-    const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
     
-    // Check cache first
+    // STEP 1: Check sessionStorage cache
+    let cachedData = null;
+    let cachedTimestamp = null;
+    
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        const isValid = Date.now() - timestamp < CACHE_DURATION;
-        if (isValid) {
-          console.log('💧 WaterAPI cache hit for key:', cacheKey);
-          // Return in the same format as the API response
-          return { data };
-        }
-        console.log('💧 WaterAPI cache expired for key:', cacheKey);
+        const parsed = JSON.parse(cached);
+        cachedData = parsed.data;
+        cachedTimestamp = parsed.calculationTimestamp; // From aggregatedData metadata
+        console.log('💧 WaterAPI found cached data from:', new Date(cachedTimestamp));
       }
     } catch (error) {
       console.error('💧 WaterAPI cache read error:', error);
     }
-
-    // Cache miss - fetch from API
-    console.log('💧 WaterAPI cache miss - fetching from API:', cacheKey);
-    const token = await this.getAuthToken();
     
+    // STEP 2: Read from aggregatedData document (always check for freshness)
+    const token = await this.getAuthToken();
     const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/data/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/aggregatedData?year=${year}`,
       {
         method: 'GET',
         headers: {
@@ -334,13 +331,36 @@ class WaterAPI {
     );
     
     const result = await handleApiResponse(response);
+    const serverTimestamp = result?.metadata?.calculationTimestamp;
     
-    // Cache the result
+    console.log('💧 WaterAPI server response:', {
+      source: result?.source,
+      serverTimestamp,
+      cachedTimestamp,
+      isCacheFresh: cachedTimestamp && serverTimestamp && cachedTimestamp >= serverTimestamp
+    });
+    
+    // STEP 3: Compare timestamps - use cache only if still fresh
+    if (cachedData && cachedTimestamp && serverTimestamp) {
+      if (cachedTimestamp >= serverTimestamp) {
+        // Cache is fresh - use it
+        console.log('✅ WaterAPI cache is fresh, using cached data');
+        return { data: cachedData };
+      } else {
+        console.log('🔄 WaterAPI cache stale, using server data');
+      }
+    }
+    
+    // STEP 4: Cache the fresh server result
     if (result?.data) {
       try {
-        const cacheData = { data: result.data, timestamp: Date.now() };
+        const cacheData = { 
+          data: result.data, 
+          calculationTimestamp: serverTimestamp,
+          cachedAt: Date.now()
+        };
         sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
-        console.log('💧 WaterAPI saved to cache:', cacheKey);
+        console.log('💧 WaterAPI saved fresh data to cache');
       } catch (error) {
         console.error('💧 WaterAPI cache write error:', error);
       }

@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.0.11",
-  "buildDate": "2025-10-12T23:01:09.602Z",
-  "buildTimestamp": 1760310069603,
+  "buildDate": "2025-10-12T23:05:14.930Z",
+  "buildTimestamp": 1760310314931,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "5c47e5f",
-    "branch": "feature/water-bills-aggregated-data",
-    "lastCommitDate": "2025-10-12 18:00:59 -0500"
+    "hash": "0c611cc",
+    "branch": "main",
+    "lastCommitDate": "2025-10-12 18:01:46 -0500"
   },
   "build": {
-    "timestamp": "2025-10-12T23:01:09.602Z",
+    "timestamp": "2025-10-12T23:05:14.930Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251012.1801"
+    "buildNumber": "251012.1805"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-12T23:01:09.602Z",
+    "date": "2025-10-12T23:05:14.930Z",
     "automated": true
   }
 }

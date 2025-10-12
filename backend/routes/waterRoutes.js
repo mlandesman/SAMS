@@ -23,7 +23,69 @@ const router = express.Router();
 router.use(authenticateUserWithProfile);
 
 // ============= DATA AGGREGATION =============
-// GET /water/clients/:clientId/data/:year?
+// GET /water/clients/:clientId/aggregatedData - TASK 2: Fast read from pre-calculated document
+router.get('/clients/:clientId/aggregatedData', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { year } = req.query;
+    const fiscalYear = year ? parseInt(year) : null;
+    
+    console.log(`📊 [FAST_READ] Reading aggregatedData for ${clientId} FY${fiscalYear || 'current'}`);
+    
+    const { getDb } = await import('../firebase.js');
+    const db = await getDb();
+    
+    const aggregatedDataRef = db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc('aggregatedData');
+    
+    const doc = await aggregatedDataRef.get();
+    
+    if (!doc.exists) {
+      // Fallback: Trigger calculation if aggregatedData doesn't exist
+      console.log('⚠️ [FAST_READ] aggregatedData not found, triggering calculation...');
+      const data = await waterDataService.getYearData(clientId, fiscalYear);
+      return res.json({
+        success: true,
+        data,
+        source: 'calculated',
+        metadata: {
+          calculationTimestamp: Date.now(),
+          note: 'Document created on this request'
+        }
+      });
+    }
+    
+    const aggregatedData = doc.data();
+    console.log(`✅ [FAST_READ] Read aggregatedData from Firestore (fast path)`);
+    console.log(`   Fiscal Year: ${aggregatedData._metadata?.fiscalYear}`);
+    console.log(`   Timestamp: ${aggregatedData._metadata?.calculationTimestamp}`);
+    console.log(`   Months: ${aggregatedData.months?.length}`);
+    
+    res.json({
+      success: true,
+      data: {
+        year: aggregatedData.year,
+        fiscalYear: aggregatedData.fiscalYear,
+        months: aggregatedData.months,
+        summary: aggregatedData.summary,
+        carWashRate: aggregatedData.carWashRate,
+        boatWashRate: aggregatedData.boatWashRate
+      },
+      source: 'firestore',
+      metadata: aggregatedData._metadata
+    });
+  } catch (error) {
+    console.error('Error reading aggregatedData:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /water/clients/:clientId/data/:year? - LEGACY: On-demand aggregation (kept for compatibility)
 router.get('/clients/:clientId/data/:year?', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year } = req.params;
