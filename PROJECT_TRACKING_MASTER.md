@@ -279,6 +279,46 @@
 
 ## 📊 TECHNICAL DEBT
 
+### **TD-017: Migrate checkExchangeRatesHealth to 2nd Gen Cloud Function**
+**Category:** Platform Migration  
+**Priority:** Low  
+**Created:** October 12, 2025  
+**Context:** Production Deployment v0.0.11
+
+**Description:**
+The `checkExchangeRatesHealth` function is still deployed as a 1st Gen Cloud Function (v1) while all other functions have been migrated to 2nd Gen. Firebase deployment attempted automatic migration but blocked with error: "Upgrading from 1st Gen to 2nd Gen is not yet supported."
+
+**Current Impact:**
+- **No production impact** - Function still works as 1st Gen
+- Used only by manual trigger HTML page (`trigger-manual-update.html`)
+- Not user-facing functionality
+- Main API and scheduled functions already on 2nd Gen
+
+**Code Locations:**
+- `functions/index.js` - Lines 155-178 (checkExchangeRatesHealth definition)
+- `functions/trigger-manual-update.html` - References old function URL
+
+**Cleanup Required:**
+- Update function definition to use 2nd Gen `onRequest` pattern
+- Test health check endpoint functionality
+- Update any URL references if needed
+- Deploy updated function to production
+- Delete old 1st Gen version from Firebase Console
+
+**Trigger for Cleanup:** 
+- Next Firebase Functions maintenance window
+- Before Google announces 1st Gen deprecation
+- Can be bundled with other functions upgrades
+
+**Estimated Cleanup Effort:** 0.5-1 hour (simple migration)
+
+**Business Impact:** Minimal - maintenance only, no user-facing changes
+
+**Notes:**
+- Discovered during v0.0.11 deployment (testing blockers fixes)
+- All other functions successfully running on 2nd Gen
+- Google will eventually deprecate 1st Gen functions
+
 ### **TD-003: PWA Backend Routes Misalignment**
 **Category:** Architecture  
 **Priority:** High  
