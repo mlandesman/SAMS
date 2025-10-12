@@ -117,3 +117,6 @@ serviceAccountKey*.json
 *firebase-adminsdk*.json
 firebase-credentials.json
 firebase-admin-*.json
+# Editor backup files
+* 2.js
+*.backup-*
