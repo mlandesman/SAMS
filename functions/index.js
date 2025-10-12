@@ -10,7 +10,22 @@ import { loadTwoYearsHistoricalData, loadHistoricalDataForYear } from './src/bul
 
 // Initialize Firebase Admin (if not already initialized)
 if (!admin.apps.length) {
-  admin.initializeApp();
+  // Determine storage bucket based on environment
+  const getStorageBucket = () => {
+    if (process.env.NODE_ENV === 'production') {
+      return 'sams-sandyland-prod.firebasestorage.app';
+    } else if (process.env.NODE_ENV === 'staging') {
+      return 'sams-staging-6cdcd.firebasestorage.app';
+    }
+    return 'sandyland-management-system.firebasestorage.app';
+  };
+  
+  const storageBucket = getStorageBucket();
+  console.log('🔥 Initializing Firebase Admin SDK with storage bucket:', storageBucket);
+  
+  admin.initializeApp({
+    storageBucket: storageBucket,
+  });
 }
 
 // Set global options for all functions
