@@ -93,13 +93,16 @@
 - **Task ID**: ISSUE-20250731_2127
 - **Location**: `issues/open/ISSUE_NEED_TO_CREATE_PROPERTYACCESS_MAP_WHEN_ADDING_A_NEW_CLIENT_AND/OR_USER_UPDATE_20250731_2127.md`
 
-### MEDIUM-003: Add Expense Modal Filter Active Payment Methods
+### MEDIUM-003: Add Expense Modal Filter Active Payment Methods ✅ RESOLVED
 - **Module**: Frontend Desktop - Transaction Entry
-- **Status**: 🔴 OPEN
+- **Status**: ✅ RESOLVED (October 12, 2025)
 - **Description**: Add Expense modal doesn't honor the active/inactive status of payment methods, vendors and categories regardless of status. Should filter for active only (like HOA Dues modal)
-- **Impact**: User confusion, potential selection of inactive payment methods
+- **Resolution**: Implemented active payment method filtering in UnifiedExpenseEntry.jsx
+- **Impact**: User confusion resolved, only active payment methods shown
 - **Task ID**: ISSUE-20250730_1630
-- **Location**: `issues/open/ISSUE_ADD_EXPENSE_FILTER_ACTIVE_PAYMENT_METHODS_20250730_1630.md`
+- **Branch**: `fix/expense-modal-filter-payment-methods` (Commit: 6e26bf8)
+- **PR**: Ready for manual testing and merge
+- **Location**: `issues/resolved/ISSUE_ADD_EXPENSE_FILTER_ACTIVE_PAYMENT_METHODS_20250730_1630.md`
 
 ### (Resolved Medium Priority Issues)
 
