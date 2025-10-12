@@ -82,7 +82,7 @@ class WaterPaymentsService {
       // No bills to pay - entire amount goes to credit (like HOA overpayment)
       const newCreditBalance = currentCreditBalance + amount;
       
-      await this._updateCreditBalance(clientId, unitId, currentYear, {
+      await this._updateCreditBalance(clientId, unitId, fiscalYear, {
         newBalance: newCreditBalance,
         changeAmount: amount,
         changeType: 'water_overpayment',
@@ -203,7 +203,7 @@ class WaterPaymentsService {
     console.log(`💰 Credit calculation: Used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
     
     // STEP 6: Update credit balance via HOA module
-    await this._updateCreditBalance(clientId, unitId, currentYear, {
+    await this._updateCreditBalance(clientId, unitId, fiscalYear, {
       newBalance: newCreditBalance,
       changeAmount: overpayment > 0 ? overpayment : -creditUsed,
       changeType: overpayment > 0 ? 'water_overpayment' : 'water_credit_used',
