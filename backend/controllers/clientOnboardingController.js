@@ -454,6 +454,7 @@ async function initializePaymentMethods(clientId, methodTemplates, customization
     batch.set(methodRef, {
       name: method.name,
       type: method.type,
+      status: "active",  // Set all payment methods to active by default
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
   });

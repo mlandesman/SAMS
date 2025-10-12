@@ -416,6 +416,14 @@ const UnifiedExpenseEntry = ({
             .filter(obj => obj.name && !obj.name.includes('Unknown'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
           paymentMethods: rawPaymentMethods
+            .filter(item => {
+              // Filter to show only active payment methods (matches HOA Dues modal behavior)
+              if (typeof item === 'object' && item !== null) {
+                return item.status === 'active';
+              }
+              // If it's a string format, we can't filter by status, so include it
+              return true;
+            })
             .map(item => extractIdNameObject(item, 'Payment'))
             .filter(obj => obj.name && !obj.name.includes('Unknown'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
