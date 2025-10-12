@@ -347,6 +347,7 @@ export class ImportService {
           // Clean the payment type data
           const cleanPaymentTypeData = {
             ...paymentType,
+            status: "active",  // Set all imported payment methods to active
             updatedAt: getNow().toISOString(),
             updatedBy: 'import-script'
           };
