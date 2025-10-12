@@ -85,6 +85,69 @@ router.get('/clients/:clientId/aggregatedData', enforceClientAccess, async (req,
   }
 });
 
+// ============= CACHE VALIDATION (LIGHTWEIGHT) =============
+// GET /water/clients/:clientId/lastUpdated - Get just the timestamp for cache validation
+router.get('/clients/:clientId/lastUpdated', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { year } = req.query;
+    const fiscalYear = year ? parseInt(year) : null;
+    
+    console.log(`⏰ [CACHE_CHECK] Checking lastUpdated for ${clientId} FY${fiscalYear || 'current'}`);
+    
+    const { getDb } = await import('../firebase.js');
+    const db = await getDb();
+    
+    // Read from lightweight timestamp location (much faster than full aggregatedData)
+    const timestampRef = db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills');
+    
+    const doc = await timestampRef.get();
+    
+    if (!doc.exists) {
+      console.log(`⚠️ [CACHE_CHECK] No timestamp found for ${clientId}`);
+      return res.json({ 
+        success: true,
+        lastUpdated: null,
+        fiscalYear: null,
+        exists: false
+      });
+    }
+    
+    const timestampData = doc.data();
+    const targetYear = fiscalYear || timestampData.fiscalYear;
+    
+    // Check if we have data for the requested year
+    if (timestampData.fiscalYear !== targetYear) {
+      console.log(`⚠️ [CACHE_CHECK] Timestamp for ${clientId} is FY${timestampData.fiscalYear}, but requested FY${targetYear}`);
+      return res.json({ 
+        success: true,
+        lastUpdated: null,
+        fiscalYear: timestampData.fiscalYear,
+        exists: false
+      });
+    }
+    
+    console.log(`✅ [CACHE_CHECK] Lightweight timestamp check: ${timestampData.lastUpdated}`);
+    
+    res.json({ 
+      success: true,
+      lastUpdated: timestampData.lastUpdated,
+      fiscalYear: timestampData.fiscalYear,
+      exists: true
+    });
+    
+  } catch (error) {
+    console.error('❌ [CACHE_CHECK] Error checking lastUpdated:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to check last updated timestamp',
+      details: error.message 
+    });
+  }
+});
+
 // GET /water/clients/:clientId/data/:year? - LEGACY: On-demand aggregation (kept for compatibility)
 router.get('/clients/:clientId/data/:year?', enforceClientAccess, async (req, res) => {
   try {

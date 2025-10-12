@@ -317,8 +317,40 @@ class WaterAPI {
       console.error('💧 WaterAPI cache read error:', error);
     }
     
-    // STEP 2: Read from aggregatedData document (always check for freshness)
+    // STEP 2: Lightweight timestamp check (not full data)
     const token = await this.getAuthToken();
+    const timestampResponse = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/lastUpdated?year=${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const timestampResult = await handleApiResponse(timestampResponse);
+    const serverTimestamp = timestampResult?.lastUpdated;
+    
+    console.log('💧 WaterAPI timestamp check:', {
+      serverTimestamp,
+      cachedTimestamp,
+      isCacheFresh: cachedTimestamp && serverTimestamp && cachedTimestamp >= serverTimestamp
+    });
+    
+    // STEP 3: Compare timestamps - use cache only if still fresh
+    if (cachedData && cachedTimestamp && serverTimestamp) {
+      if (cachedTimestamp >= serverTimestamp) {
+        // Cache is fresh - use it (NO API call for full data!)
+        console.log('✅ WaterAPI cache is fresh, using cached data (no full data fetch)');
+        return { data: cachedData };
+      } else {
+        console.log('🔄 WaterAPI cache stale, fetching fresh data');
+      }
+    }
+    
+    // STEP 4: Cache miss or stale - fetch full data
     const response = await fetch(
       `${this.baseUrl}/water/clients/${clientId}/aggregatedData?year=${year}`,
       {
@@ -331,27 +363,8 @@ class WaterAPI {
     );
     
     const result = await handleApiResponse(response);
-    const serverTimestamp = result?.metadata?.calculationTimestamp;
     
-    console.log('💧 WaterAPI server response:', {
-      source: result?.source,
-      serverTimestamp,
-      cachedTimestamp,
-      isCacheFresh: cachedTimestamp && serverTimestamp && cachedTimestamp >= serverTimestamp
-    });
-    
-    // STEP 3: Compare timestamps - use cache only if still fresh
-    if (cachedData && cachedTimestamp && serverTimestamp) {
-      if (cachedTimestamp >= serverTimestamp) {
-        // Cache is fresh - use it
-        console.log('✅ WaterAPI cache is fresh, using cached data');
-        return { data: cachedData };
-      } else {
-        console.log('🔄 WaterAPI cache stale, using server data');
-      }
-    }
-    
-    // STEP 4: Cache the fresh server result
+    // STEP 5: Cache the fresh server result
     if (result?.data) {
       try {
         const cacheData = { 

@@ -285,6 +285,22 @@ class WaterDataService {
       console.log(`   Document path: clients/${clientId}/projects/waterBills/bills/aggregatedData`);
       console.log(`   Timestamp: ${Date.now()}`);
       
+      // ============= OPTIMIZATION: WRITE LIGHTWEIGHT TIMESTAMP =============
+      // Write timestamp to separate lightweight location for fast cache validation
+      const timestampRef = db
+        .collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills');
+      
+      await timestampRef.update({
+        lastUpdated: aggregatedDataDoc._metadata.calculationTimestamp,
+        fiscalYear: year,
+        lastCalculated: admin.default.firestore.FieldValue.serverTimestamp()
+      });
+      
+      console.log(`✅ [TIMESTAMP_WRITE] Lightweight timestamp written to Firestore for ${clientId} FY${year}`);
+      console.log(`   Document path: clients/${clientId}/projects/waterBills`);
+      console.log(`   Timestamp: ${aggregatedDataDoc._metadata.calculationTimestamp}`);
+      
     } catch (error) {
       console.error(`❌ [FIRESTORE_WRITE] Error writing aggregated data to Firestore:`, error);
       // Don't fail the whole operation if Firestore write fails
