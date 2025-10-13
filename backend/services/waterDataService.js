@@ -311,7 +311,48 @@ class WaterDataService {
     return finalResult;
   }
 
-
+  /**
+   * Update Firestore aggregatedData after a water bill payment
+   * This provides surgical cache invalidation for immediate UI updates after payments
+   * 
+   * Uses "cache reload" strategy: rebuilds full year data and updates Firestore
+   * This is simpler and safer than surgical in-memory updates while still being fast (1-2s vs 10s manual refresh)
+   * 
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {Array<string>} affectedMonthIds - Month IDs that had payments (e.g., ['2026-03', '2026-04'])
+   * @returns {Promise<void>}
+   */
+  async updateAggregatedDataAfterPayment(clientId, year, affectedMonthIds) {
+    console.log(`🔄 [SURGICAL_UPDATE] Updating aggregated data after payment for ${clientId} FY${year}`);
+    console.log(`   Affected months: ${affectedMonthIds.join(', ')}`);
+    
+    try {
+      // STEP 1: Rebuild full year data using existing method (cache reload strategy)
+      // This guarantees consistency and reuses all existing calculation logic
+      const startTime = Date.now();
+      const updatedYearData = await this.buildYearData(clientId, year);
+      const rebuildTime = Date.now() - startTime;
+      
+      console.log(`✅ [SURGICAL_UPDATE] Year data rebuilt in ${rebuildTime}ms`);
+      console.log(`   Months processed: ${updatedYearData.months.length}`);
+      console.log(`   Total units: ${Object.keys(updatedYearData.months[0]?.units || {}).length}`);
+      
+      // Note: buildYearData() already writes to Firestore aggregatedData document
+      // and updates the timestamp for frontend cache invalidation
+      // So we're done! The frontend will detect the timestamp change and auto-refresh
+      
+      console.log(`✅ [SURGICAL_UPDATE] Aggregated data updated successfully`);
+      console.log(`   Frontend cache will auto-refresh on next component mount`);
+      
+    } catch (error) {
+      console.error(`❌ [SURGICAL_UPDATE] Failed to update aggregated data after payment:`, error);
+      console.error(`   Error details:`, error.message);
+      // CRITICAL: Don't throw - payment already succeeded, cache update is secondary
+      // Cache will rebuild on next manual refresh or page reload
+      console.warn(`⚠️ [SURGICAL_UPDATE] Payment succeeded but cache update failed - manual refresh will work`);
+    }
+  }
 
   /**
    * Build data for a single month

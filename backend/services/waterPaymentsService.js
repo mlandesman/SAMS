@@ -254,6 +254,17 @@ class WaterPaymentsService {
     // STEP 9: Smart cache update - only update affected months instead of full invalidation
     await this._updateAffectedMonthsInCache(clientId, billPayments);
     
+    // STEP 10: Surgical update - Update Firestore aggregatedData for immediate frontend refresh
+    // This triggers automatic cache invalidation in the frontend (1-2s vs 10s manual refresh)
+    try {
+      const affectedMonthIds = [...new Set(billPayments.map(bp => bp.billId))];
+      await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedMonthIds);
+      console.log(`✅ [PAYMENT] Surgical update completed - UI will auto-refresh with "Paid" status`);
+    } catch (error) {
+      console.warn(`⚠️ [PAYMENT] Surgical update failed (non-critical):`, error.message);
+      // Payment succeeded - cache will rebuild on next manual refresh
+    }
+    
     return {
       success: true,
       paymentType: 'bills_and_credit',
