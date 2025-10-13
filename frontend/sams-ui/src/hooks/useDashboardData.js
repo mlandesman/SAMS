@@ -593,7 +593,7 @@ export const useDashboardData = () => {
         return;
       }
       
-      console.log('💧 Dashboard: Client has water bills enabled, proceeding with data fetch');
+      console.log('💧 Dashboard: Client has water bills enabled, making lightweight API call');
       
       try {
         setLoading(prev => ({ ...prev, water: true }));
@@ -607,9 +607,9 @@ export const useDashboardData = () => {
         console.log('💧 Dashboard Water Bills calculation:');
         console.log('  Client:', selectedClient.id);
         console.log('  Fiscal Year:', currentYear);
-        console.log('  Has Water Bills:', hasWaterBills);
+        console.log('  Has Water Bills:', clientHasWaterBills);
         
-        // Use the same aggregated data API as all water bills modules (with built-in caching)
+        // Dashboard makes its own API call (with caching) - different data needs than Water Bills modules
         const waterAPI = (await import('../api/waterAPI')).default;
         let waterResponse = null;
         
@@ -635,76 +635,38 @@ export const useDashboardData = () => {
           }
         }
         
-        // Calculate water bills past due information using new data structure
+        // Read pre-calculated summary from aggregatedData (built by nightly routine)
         let totalUnpaid = 0;
         let overdueCount = 0;
         let pastDueDetails = [];
         let totalBilled = 0;
         let totalPaid = 0;
+        let collectionRate = 0;
         
-        if (waterResponse && waterResponse.waterData && waterResponse.waterData.months) {
-          console.log('💧 Dashboard: Processing water bills data with months structure');
-          console.log('💧 Dashboard: Months available:', waterResponse.waterData.months.length);
+        if (waterResponse && waterResponse.waterData && waterResponse.waterData.summary) {
+          const summary = waterResponse.waterData.summary;
           
-          // Get current fiscal month to find the most recent bills
-          const currentFiscalMonth = getCurrentFiscalMonth(currentDate, fiscalYearStartMonth);
+          console.log('💧 Dashboard: Using pre-calculated summary from aggregatedData:');
+          console.log('  Summary data:', summary);
           
-          // Find the most recent month with bills generated (working backwards from current month)
-          let mostRecentMonth = null;
-          for (let monthIndex = currentFiscalMonth - 1; monthIndex >= 0; monthIndex--) {
-            const month = waterResponse.waterData.months[monthIndex];
-            if (month && month.billsGenerated) {
-              mostRecentMonth = month;
-              console.log(`💧 Dashboard: Found most recent bills: ${month.monthName} ${month.calendarYear}`);
-              console.log(`💧 Dashboard: Month has ${Object.keys(month.units || {}).length} units`);
-              break;
-            }
-          }
+          // Use pre-calculated values from nightly routine
+          totalUnpaid = summary.totalUnpaid || 0;
+          totalBilled = summary.totalBilled || 0;
+          totalPaid = summary.totalPaid || 0;
+          collectionRate = summary.collectionRate || 0;
+          overdueCount = summary.overdueDetails?.length || 0;
+          pastDueDetails = summary.overdueDetails || [];
           
-          if (mostRecentMonth && mostRecentMonth.units) {
-            console.log('💧 Dashboard: Processing most recent bills for past due calculation');
-            
-            // Process the most recent bills - the penalty calculator handles grace periods automatically
-            Object.entries(mostRecentMonth.units).forEach(([unitId, unitData]) => {
-              const unpaidAmount = unitData.unpaidAmount || 0;
-              const billAmount = unitData.billAmount || 0;
-              const paidAmount = unitData.paidAmount || 0;
-              
-              console.log(`💧 Dashboard: Unit ${unitId} - Bill: $${billAmount}, Paid: $${paidAmount}, Unpaid: $${unpaidAmount}`);
-              
-              // Add to totals for collection rate
-              totalBilled += billAmount;
-              totalPaid += paidAmount;
-              
-              if (unpaidAmount > 0) {
-                console.log(`💧 Dashboard: Unit ${unitId} has $${unpaidAmount} unpaid`);
-                totalUnpaid += unpaidAmount;
-                overdueCount++;
-                
-                pastDueDetails.push({
-                  unitId: unitId,
-                  owner: unitData.ownerLastName || 'Unknown',
-                  amountDue: unpaidAmount
-                });
-              }
-            });
-          } else {
-            console.log('💧 Dashboard: No bills found with generated status - no past due amounts');
-          }
-          
-          console.log('💧 Dashboard: Water Bills Past Due Results:');
-          console.log(`  - Most Recent Bills Month: ${mostRecentMonth?.monthName || 'None'}`);
+          console.log('💧 Dashboard: Water Bills Summary (pre-calculated):');
           console.log(`  - Total Unpaid: $${totalUnpaid.toLocaleString()}`);
-          console.log(`  - Overdue Units: ${overdueCount}`);
           console.log(`  - Total Billed: $${totalBilled.toLocaleString()}`);
           console.log(`  - Total Paid: $${totalPaid.toLocaleString()}`);
-          console.log(`  - Past Due Details:`, pastDueDetails);
+          console.log(`  - Collection Rate: ${collectionRate}%`);
+          console.log(`  - Overdue Units: ${overdueCount}`);
+          console.log(`  - Overdue Details:`, pastDueDetails);
         } else {
-          console.log('💧 Dashboard: No water data with months structure found');
+          console.log('💧 Dashboard: No summary data found in waterResponse');
         }
-        
-        // Calculate collection rate
-        const collectionRate = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
         
         console.log('💧 Dashboard: Final water bills status being set:', {
           totalUnpaid: Math.round(totalUnpaid),

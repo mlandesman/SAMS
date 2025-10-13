@@ -533,6 +533,32 @@ class WaterAPI {
     
     return handleApiResponse(response);
   }
+
+  /**
+   * Clear aggregatedData document and timestamp to force rebuild
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year (optional)
+   * @param {boolean} rebuild - If true, triggers immediate rebuild after clearing
+   */
+  async clearAggregatedData(clientId, year = null, rebuild = true) {
+    const token = await this.getAuthToken();
+    
+    let url = `${this.baseUrl}/water/clients/${clientId}/aggregatedData/clear`;
+    const params = [];
+    if (year) params.push(`year=${year}`);
+    if (rebuild) params.push(`rebuild=true`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    return handleApiResponse(response);
+  }
 }
 
 export default new WaterAPI();

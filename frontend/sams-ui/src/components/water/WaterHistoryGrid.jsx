@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import waterAPI from '../../api/waterAPI';
+import { useWaterBills } from '../../context/WaterBillsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faTint } from '@fortawesome/free-solid-svg-icons';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
@@ -14,9 +14,8 @@ import {
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
 const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
+  const { waterData, loading: contextLoading, error: contextError } = useWaterBills();
   const [yearData, setYearData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
   const navigate = useNavigate();
   
@@ -24,25 +23,11 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const fiscalYearStartMonth = 7; // July
 
   useEffect(() => {
-    if (clientId) {
-      fetchYearData();
+    if (waterData && Object.keys(waterData).length > 0) {
+      console.log('📊 [WaterHistoryGrid] Using waterData from context (no API call)');
+      setYearData(waterData);
     }
-  }, [clientId, selectedYear]);
-
-  const fetchYearData = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await waterAPI.getAggregatedData(clientId, selectedYear);
-      console.log('📊 Loading water history data for', clientId, selectedYear);
-      setYearData(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching water history:', error);
-      setError('Failed to load water history');
-      setLoading(false);
-    }
-  };
+  }, [waterData]);
 
   const formatNumber = (num) => {
     if (!num && num !== 0) return '';
@@ -54,12 +39,12 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     return amount.toFixed(0);
   };
 
-  if (loading) {
+  if (contextLoading) {
     return <div className="loading-container">Loading water history...</div>;
   }
 
-  if (error) {
-    return <div className="error-message">{error}</div>;
+  if (contextError) {
+    return <div className="error-message">{contextError}</div>;
   }
 
   if (!yearData || !yearData.months) {

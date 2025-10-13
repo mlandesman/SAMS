@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
+import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
 import ActivityActionBar from '../components/common/ActivityActionBar';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
 import WaterBillsList from '../components/water/WaterBillsList';
 import WaterHistoryGrid from '../components/water/WaterHistoryGrid';
@@ -32,6 +34,7 @@ function WaterBillsViewV3() {
   const [selectedYear, setSelectedYear] = useState(2026); // Default to FY 2026
   const [selectedMonth, setSelectedMonth] = useState(0); // Default to July (month 0)
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Transaction linking state (following HOA Dues pattern)
   const [selectedBill, setSelectedBill] = useState(null); // Currently selected bill for transaction viewing
@@ -86,16 +89,52 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // Enhanced refresh function that integrates with WaterBillsList cache clearing
+  // Enhanced refresh function that clears aggregatedData, timestamp, and triggers rebuild
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered');
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - clearing and rebuilding data');
+    console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
+    console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
     
-    // If we're on the Bills tab and the WaterBillsList refresh function is available, use it
-    if (activeTab === 'bills' && window.waterBillsRefresh) {
-      await window.waterBillsRefresh();
-    } else {
-      // Otherwise, just increment refresh key for other tabs
+    // Set loading state (will show Sandyland spinner)
+    setIsRefreshing(true);
+    
+    try {
+      // Step 1: Clear aggregatedData document AND timestamp, then rebuild on backend
+      console.log('📞 [WaterBillsViewV3] Calling waterAPI.clearAggregatedData with rebuild=true...');
+      const clearResult = await waterAPI.clearAggregatedData(selectedClient.id, selectedYear, true);
+      console.log('✅ [WaterBillsViewV3] Backend clear and rebuild response:', clearResult);
+      
+      if (clearResult.rebuilt) {
+        console.log(`✅ [WaterBillsViewV3] Data rebuilt on backend with timestamp: ${clearResult.timestamp}`);
+      }
+      
+      // Step 2: Clear frontend cache to force reload from new backend data
+      console.log('🗑️ [WaterBillsViewV3] Clearing frontend sessionStorage cache...');
+      if (window.waterBillsRefresh) {
+        await window.waterBillsRefresh();
+        console.log('✅ [WaterBillsViewV3] Frontend cache cleared via context');
+      } else {
+        console.warn('⚠️ [WaterBillsViewV3] window.waterBillsRefresh not available, clearing sessionStorage directly');
+        // Fallback: clear sessionStorage cache directly
+        const cacheKey = `waterData-${selectedClient.id}-${selectedYear}`;
+        sessionStorage.removeItem(cacheKey);
+      }
+      
+      // Step 3: Increment refresh key to force all components to reload
       setRefreshKey(prev => prev + 1);
+      
+      console.log('🎉 [WaterBillsViewV3] Refresh complete - data rebuilt and cache cleared!');
+    } catch (error) {
+      console.error('❌ [WaterBillsViewV3] Error during refresh:', error);
+      console.error('❌ [WaterBillsViewV3] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
+      alert(`Error refreshing data: ${error.message}`);
+    } finally {
+      // Clear loading state
+      setIsRefreshing(false);
     }
   };
   
@@ -183,12 +222,29 @@ function WaterBillsViewV3() {
   
   
   return (
-    <div className="water-bills-integrated-view">
-      <ActivityActionBar>
+    <WaterBillsProvider>
+      <div className="water-bills-integrated-view">
+        {/* Sandyland Loading Spinner Overlay */}
+        {isRefreshing && (
+          <LoadingSpinner 
+            fullScreen 
+            variant="logo" 
+            size="large"
+            message="Rebuilding water bills data..."
+            show={true}
+          />
+        )}
+        
+        <ActivityActionBar>
         <YearNavigation />
-        <button className="action-item" onClick={handleRefresh}>
-          <FontAwesomeIcon icon={faSync} />
-          <span>Refresh</span>
+        <button 
+          className="action-item" 
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title={isRefreshing ? 'Rebuilding data...' : 'Clear cache and rebuild data'}
+        >
+          <FontAwesomeIcon icon={faSync} spin={isRefreshing} />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
         </button>
         {/* View Transaction button - follows task assignment pattern */}
         <button 
@@ -277,7 +333,8 @@ function WaterBillsViewV3() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </WaterBillsProvider>
   );
 }
 

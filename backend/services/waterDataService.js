@@ -291,10 +291,11 @@ class WaterDataService {
         .collection('clients').doc(clientId)
         .collection('projects').doc('waterBills');
       
+      // Use update() to only modify specific fields, keeping document lightweight
       await timestampRef.update({
-        lastUpdated: aggregatedDataDoc._metadata.calculationTimestamp,
-        fiscalYear: year,
-        lastCalculated: admin.default.firestore.FieldValue.serverTimestamp()
+        aggregatedDataLastUpdated: aggregatedDataDoc._metadata.calculationTimestamp,
+        aggregatedDataFiscalYear: year,
+        aggregatedDataLastCalculated: admin.default.firestore.FieldValue.serverTimestamp()
       });
       
       console.log(`✅ [TIMESTAMP_WRITE] Lightweight timestamp written to Firestore for ${clientId} FY${year}`);
@@ -923,13 +924,23 @@ class WaterDataService {
     let buildingMeterConsumption = 0;
     const overdueUnits = new Set();
     
+    // Find the most recent month with bills generated (for Dashboard past due calculation)
+    let mostRecentBilledMonth = null;
+    for (let i = months.length - 1; i >= 0; i--) {
+      if (months[i].billsGenerated) {
+        mostRecentBilledMonth = months[i];
+        break;
+      }
+    }
+    
     for (const month of months) {
       // Sum unit consumption and billing
       for (const [unitId, data] of Object.entries(month.units)) {
         totalConsumption += data.consumption;
         totalBilled += data.billAmount;
         totalPaid += data.paidAmount;
-        totalUnpaid += data.unpaidAmount;
+        // Note: Do NOT accumulate unpaidAmount here - it's cumulative per month
+        // We'll calculate the correct totalUnpaid from the most recent month later
         
         if (data.status === 'overdue') {
           overdueUnits.add(unitId);
@@ -947,6 +958,23 @@ class WaterDataService {
       }
     }
     
+    // Build overdueDetails from MOST RECENT month only (unpaidAmount is cumulative)
+    const overdueDetails = [];
+    if (mostRecentBilledMonth && mostRecentBilledMonth.units) {
+      for (const [unitId, data] of Object.entries(mostRecentBilledMonth.units)) {
+        if (data.unpaidAmount > 0) {
+          overdueDetails.push({
+            unitId: unitId,
+            owner: data.ownerLastName || 'Unknown',
+            amountDue: data.unpaidAmount // Already cumulative - no need to sum across months
+          });
+        }
+      }
+      
+      // Update totalUnpaid to match most recent month's actual unpaid (not accumulated)
+      totalUnpaid = overdueDetails.reduce((sum, detail) => sum + detail.amountDue, 0);
+    }
+    
     return {
       totalConsumption,
       commonAreaConsumption,
@@ -955,7 +983,8 @@ class WaterDataService {
       totalPaid,
       totalUnpaid,
       unitsWithOverdue: overdueUnits.size,
-      collectionRate: totalBilled > 0 ? parseFloat((totalPaid / totalBilled * 100).toFixed(1)) : 0
+      collectionRate: totalBilled > 0 ? parseFloat((totalPaid / totalBilled * 100).toFixed(1)) : 0,
+      overdueDetails // Pre-calculated for Dashboard tooltip from most recent month
     };
   }
 

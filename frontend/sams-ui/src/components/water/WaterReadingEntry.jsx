@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useWaterBills } from '../../context/WaterBillsContext';
 import waterAPI from '../../api/waterAPI';
 import WashModal from './WashModal';
 import './WaterReadingEntry.css';
 
 const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
+  const { waterData, loading: contextLoading } = useWaterBills();
   
   const [readings, setReadings] = useState({});
   const [priorReadings, setPriorReadings] = useState({});
@@ -59,29 +61,28 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
   };
 
   useEffect(() => {
-    if (clientId && year && month !== undefined) {
+    if (clientId && year && month !== undefined && waterData && Object.keys(waterData).length > 0) {
       loadPriorReadings();
     }
-  }, [clientId, year, month]);
+  }, [clientId, year, month, waterData]);
 
   const loadPriorReadings = async () => {
     try {
-      setLoading(true);
+      setLoading(contextLoading); // Use context loading state
       setError('');
       
-      // Get the aggregated data to see prior readings and month status
-      const response = await waterAPI.getAggregatedData(clientId, year);
-      console.log('🔍 Raw aggregated data response:', JSON.stringify(response.data, null, 2));
+      // Use data from context instead of making API call
+      console.log('🔍 [WaterReadingEntry] Using waterData from context (no API call):', Object.keys(waterData));
       
-      // Extract wash rates from aggregated data
-      if (response.data.carWashRate !== undefined) {
-        setCarWashRate(response.data.carWashRate);
+      // Extract wash rates from context data
+      if (waterData.carWashRate !== undefined) {
+        setCarWashRate(waterData.carWashRate);
       }
-      if (response.data.boatWashRate !== undefined) {
-        setBoatWashRate(response.data.boatWashRate);
+      if (waterData.boatWashRate !== undefined) {
+        setBoatWashRate(waterData.boatWashRate);
       }
       
-      const monthData = response.data.months?.find(m => m.month === month);
+      const monthData = waterData.months?.find(m => m.month === month);
       console.log(`🔍 Month data for month ${month}:`, monthData);
       console.log(`🔍 Month data readingDate:`, monthData?.readingDate);
       console.log(`🔍 Looking for month ${month} data:`, monthData ? 'found' : 'not found');
@@ -90,7 +91,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       
       // Check if next month has data (meaning this month is locked)
       const nextMonth = month + 1;
-      const nextMonthData = response.data.months?.find(m => m.month === nextMonth);
+      const nextMonthData = waterData.months?.find(m => m.month === nextMonth);
       if (nextMonthData) {
         const nextMonthHasData = Object.values(nextMonthData.units || {}).some(
           unit => unit.currentReading > 0
@@ -102,7 +103,7 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       const priorMonth = month - 1;
       
       // Calculate reading period from timestamps (after priorMonth is defined)
-      const priorMonthData = response.data.months?.find(m => m.month === priorMonth);
+      const priorMonthData = waterData.months?.find(m => m.month === priorMonth);
       console.log(`🔍 Reading period calculation:`, { 
         priorMonth, 
         priorMonthData: priorMonthData ? 'found' : 'not found',
@@ -152,11 +153,11 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
           }
         }
       } else {
-        // Look for the prior month's data in the aggregated response
+        // Look for the prior month's data in the context data
         console.log(`🔍 Looking for prior month ${priorMonth} data for current month ${month}`);
-        console.log('🔍 Available months in aggregated data:', response.data.months?.length, response.data.months?.map(m => m.month));
-        const priorMonthData = response.data.months?.find(m => m.month === priorMonth);
-        console.log('🔍 Prior month data from aggregated:', priorMonthData ? 'found' : 'not found', JSON.stringify(priorMonthData, null, 2));
+        console.log('🔍 Available months in context data:', waterData.months?.length, waterData.months?.map(m => m.month));
+        const priorMonthData = waterData.months?.find(m => m.month === priorMonth);
+        console.log('🔍 Prior month data from context:', priorMonthData ? 'found' : 'not found', JSON.stringify(priorMonthData, null, 2));
         
         if (priorMonthData && priorMonthData.units) {
           // Extract current readings from prior month to use as this month's priors

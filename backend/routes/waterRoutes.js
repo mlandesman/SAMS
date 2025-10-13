@@ -98,7 +98,7 @@ router.get('/clients/:clientId/lastUpdated', enforceClientAccess, async (req, re
     const { getDb } = await import('../firebase.js');
     const db = await getDb();
     
-    // Read from lightweight timestamp location (much faster than full aggregatedData)
+    // Read ONLY the specific timestamp fields (truly lightweight)
     const timestampRef = db
       .collection('clients').doc(clientId)
       .collection('projects').doc('waterBills');
@@ -115,26 +115,29 @@ router.get('/clients/:clientId/lastUpdated', enforceClientAccess, async (req, re
       });
     }
     
+    // Read only the specific aggregatedData timestamp fields
     const timestampData = doc.data();
-    const targetYear = fiscalYear || timestampData.fiscalYear;
+    const lastUpdated = timestampData.aggregatedDataLastUpdated;
+    const docFiscalYear = timestampData.aggregatedDataFiscalYear;
+    const targetYear = fiscalYear || docFiscalYear;
     
     // Check if we have data for the requested year
-    if (timestampData.fiscalYear !== targetYear) {
-      console.log(`⚠️ [CACHE_CHECK] Timestamp for ${clientId} is FY${timestampData.fiscalYear}, but requested FY${targetYear}`);
+    if (docFiscalYear !== targetYear) {
+      console.log(`⚠️ [CACHE_CHECK] Timestamp for ${clientId} is FY${docFiscalYear}, but requested FY${targetYear}`);
       return res.json({ 
         success: true,
         lastUpdated: null,
-        fiscalYear: timestampData.fiscalYear,
+        fiscalYear: docFiscalYear,
         exists: false
       });
     }
     
-    console.log(`✅ [CACHE_CHECK] Lightweight timestamp check: ${timestampData.lastUpdated}`);
+    console.log(`✅ [CACHE_CHECK] Lightweight timestamp check: ${lastUpdated}`);
     
     res.json({ 
       success: true,
-      lastUpdated: timestampData.lastUpdated,
-      fiscalYear: timestampData.fiscalYear,
+      lastUpdated: lastUpdated,
+      fiscalYear: docFiscalYear,
       exists: true
     });
     
@@ -319,6 +322,62 @@ router.post('/clients/:clientId/cache/clear-all', enforceClientAccess, async (re
     });
   } catch (error) {
     console.error('Error clearing all water cache:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /water/clients/:clientId/aggregatedData/clear - Clear aggregatedData document and timestamp to force rebuild
+router.post('/clients/:clientId/aggregatedData/clear', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { year, rebuild } = req.query;
+    const fiscalYear = year ? parseInt(year) : null;
+    
+    console.log(`🗑️ [CLEAR_AGGREGATED] Clearing aggregatedData for ${clientId} FY${fiscalYear || 'current'}`);
+    
+    const { getDb } = await import('../firebase.js');
+    const db = await getDb();
+    
+    // Delete the aggregatedData document
+    const aggregatedDataRef = db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc('aggregatedData');
+    
+    await aggregatedDataRef.delete();
+    console.log(`✅ [CLEAR_AGGREGATED] Deleted aggregatedData document`);
+    
+    // Clear the timestamp to invalidate cache
+    const timestampRef = db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills');
+    
+    await timestampRef.update({
+      aggregatedDataLastUpdated: null,
+      aggregatedDataFiscalYear: null
+    });
+    console.log(`✅ [CLEAR_TIMESTAMP] Cleared aggregatedDataLastUpdated timestamp`);
+    
+    // If rebuild flag is set, trigger immediate rebuild
+    let rebuiltData = null;
+    if (rebuild === 'true') {
+      console.log(`🔄 [REBUILD] Triggering immediate rebuild for ${clientId} FY${fiscalYear}`);
+      rebuiltData = await waterDataService.getYearData(clientId, fiscalYear);
+      console.log(`✅ [REBUILD] Data rebuilt successfully with ${rebuiltData.months.length} months`);
+    }
+    
+    res.json({
+      success: true,
+      message: `AggregatedData and timestamp cleared for ${clientId}${fiscalYear ? ` FY${fiscalYear}` : ''}${rebuild === 'true' ? ' and rebuilt' : ''}`,
+      fiscalYear: fiscalYear,
+      rebuilt: rebuild === 'true',
+      timestamp: rebuiltData?._metadata?.calculationTimestamp || null
+    });
+  } catch (error) {
+    console.error('Error clearing aggregatedData:', error);
     res.status(500).json({
       success: false,
       error: error.message

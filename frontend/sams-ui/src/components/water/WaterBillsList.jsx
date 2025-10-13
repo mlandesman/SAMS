@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
+import { useWaterBills } from '../../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import WaterPaymentModal from './WaterPaymentModal';
@@ -12,14 +13,12 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const ENABLE_AGGREGATION = false;  // Will be enabled in Phase 2
   
   const { selectedClient } = useClient();
+  const { waterData, loading: contextLoading, error: contextError } = useWaterBills();
   const navigate = useNavigate();
-  const [yearData, setYearData] = useState(null);
   const [billingConfig, setBillingConfig] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(0); // Start with July (month 0)
   const [selectedDueDate, setSelectedDueDate] = useState('');
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   
   // Payment modal state
@@ -34,47 +33,32 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
 
   useEffect(() => {
     if (clientId) {
-      fetchYearData();
       fetchBillingConfig();
     }
   }, [clientId, refreshKey]);
 
-  const fetchYearData = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await waterAPI.getAggregatedData(clientId, 2026);
-      console.log('Aggregated data received:', response);
-      setYearData(response.data);
+  // Auto-advance to most recent bill period when data loads
+  useEffect(() => {
+    if (waterData?.months && waterData.months.length > 0) {
+      // Find the last month that has bills (has transaction IDs or bill amounts)
+      const monthsWithBills = waterData.months
+        .filter(m => {
+          if (!m.units) return false;
+          // Check if any unit has a transaction ID or bill amount
+          return Object.values(m.units).some(unit => 
+            unit.transactionId || (unit.billAmount && unit.billAmount > 0)
+          );
+        })
+        .map(m => m.month)
+        .sort((a, b) => a - b);
       
-      // Auto-advance to most recent bill period (Task 2.5)
-      if (response.data?.months && response.data.months.length > 0) {
-        // Find the last month that has bills (has transaction IDs or bill amounts)
-        const monthsWithBills = response.data.months
-          .filter(m => {
-            if (!m.units) return false;
-            // Check if any unit has a transaction ID or bill amount
-            return Object.values(m.units).some(unit => 
-              unit.transactionId || (unit.billAmount && unit.billAmount > 0)
-            );
-          })
-          .map(m => m.month)
-          .sort((a, b) => a - b);
-        
-        if (monthsWithBills.length > 0) {
-          const lastBillMonth = monthsWithBills[monthsWithBills.length - 1];
-          console.log(`🔍 Auto-advancing Bills to month ${lastBillMonth} (most recent bill)`);
-          setSelectedMonth(lastBillMonth);
-        }
+      if (monthsWithBills.length > 0) {
+        const lastBillMonth = monthsWithBills[monthsWithBills.length - 1];
+        console.log(`🔍 Auto-advancing Bills to month ${lastBillMonth} (most recent bill)`);
+        setSelectedMonth(lastBillMonth);
       }
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching water data:', error);
-      setError('Failed to load water bills data');
-      setLoading(false);
     }
-  };
+  }, [waterData]);
 
   const fetchBillingConfig = async () => {
     try {
@@ -111,31 +95,17 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   };
 
-  // Manual refresh function for user-triggered cache clearing
+  // Manual refresh function - delegates to parent's refresh handler
   const handleRefresh = async () => {
-    console.log(`🔄 [WaterBillsList] Manual refresh triggered`);
-    setYearData(null);
-    setError('');
-    setMessage('Clearing cache and refreshing data...');
+    console.log(`🔄 [WaterBillsList] Manual refresh triggered - delegating to parent`);
     
-    try {
-      // Clear the backend cache first to force fresh penalty recalculation
-      await waterAPI.clearCache(clientId);
-      console.log(`✅ [WaterBillsList] Cache cleared for client ${clientId}`);
-    } catch (error) {
-      console.error('Failed to clear cache:', error);
-    }
-    
-    setRefreshKey(prev => prev + 1);
-    
-    // Notify parent component about refresh
+    // Notify parent component to handle the full refresh
     if (onRefresh) {
-      onRefresh();
+      await onRefresh();
     }
     
-    // The useEffect will trigger fetchYearData due to refreshKey change
-    // Clear the message after a short delay
-    setTimeout(() => setMessage(''), 2000);
+    // Increment refresh key to trigger local re-render
+    setRefreshKey(prev => prev + 1);
   };
   
   // Expose refresh function to parent via onRefresh callback
@@ -176,19 +146,19 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   };
 
-  if (loading) {
+  if (contextLoading) {
     return <div className="loading-container">Loading water bills...</div>;
   }
 
-  if (error) {
-    return <div className="error-message">{error}</div>;
+  if (contextError) {
+    return <div className="error-message">{contextError}</div>;
   }
 
-  if (!yearData) {
+  if (!waterData) {
     return <div className="no-data-message">No water billing data available</div>;
   }
 
-  const monthData = yearData.months[selectedMonth];
+  const monthData = waterData.months[selectedMonth];
   const hasBills = hasBillsForMonth(monthData);
   
   // Debug logging for August bills issue
@@ -269,7 +239,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className="month-dropdown"
           >
-            {yearData.months.map((month, idx) => (
+            {waterData.months.map((month, idx) => (
               <option key={idx} value={idx}>
                 {month.monthName} {month.calendarYear}
               </option>
@@ -318,9 +288,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      {error && (
+      {contextError && (
         <div className="error-message">
-          <i className="fas fa-exclamation-triangle"></i> {error}
+          <i className="fas fa-exclamation-triangle"></i> {contextError}
         </div>
       )}
 

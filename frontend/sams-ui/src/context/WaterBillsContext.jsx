@@ -16,13 +16,15 @@ export function WaterBillsProvider({ children }) {
   const [selectedYear, setSelectedYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fetchInProgress, setFetchInProgress] = useState(false);
 
   console.log('🌊 [WaterBillsContext] Component rendered:', {
     hasClient: !!selectedClient,
     clientId: selectedClient?.id,
     selectedYear,
     loading,
-    hasError: !!error
+    hasError: !!error,
+    fetchInProgress
   });
 
   // Set initial year when client is loaded - EXACT PATTERN from HOA
@@ -56,7 +58,8 @@ export function WaterBillsProvider({ children }) {
     console.log('💧 [WaterBillsContext] fetchWaterData called:', {
       hasClient: !!selectedClient,
       clientId: selectedClient?.id,
-      year
+      year,
+      fetchInProgress
     });
     
     if (!selectedClient || !year) {
@@ -68,9 +71,17 @@ export function WaterBillsProvider({ children }) {
       return;
     }
 
+    // Prevent duplicate requests during same render cycle
+    if (fetchInProgress) {
+      console.log('⏸️ [WaterBillsContext] Fetch already in progress, skipping duplicate request');
+      debug.log('WaterBillsContext - Deduplicating concurrent fetch request');
+      return;
+    }
+
     
     // Fetch from API using the same aggregated data endpoint as Dashboard (with built-in caching)
     console.log('🌐 [WaterBillsContext] Fetching aggregated data...');
+    setFetchInProgress(true);
     setLoading(true);
     setError(null);
     
@@ -107,8 +118,9 @@ export function WaterBillsProvider({ children }) {
       }
       setWaterData({});
     } finally {
-      console.log('🏁 [WaterBillsContext] Fetch complete, setting loading to false');
+      console.log('🏁 [WaterBillsContext] Fetch complete, clearing flags');
       setLoading(false);
+      setFetchInProgress(false);
     }
   };
 
@@ -144,6 +156,8 @@ export function WaterBillsProvider({ children }) {
     } catch (error) {
       debug.error('Error clearing cache:', error);
     }
+    // Clear the fetch-in-progress flag to allow fresh fetch
+    setFetchInProgress(false);
     await fetchWaterData(selectedYear); // Fetch fresh data
   };
 

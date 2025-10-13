@@ -66,7 +66,40 @@
 
 ## 🚨 FORMER CRITICAL ISSUES (Now Resolved)
 
-## 🔥 HIGH PRIORITY ISSUES (0 Open - All Reclassified to LOW/DEFERRED)
+## 🔥 HIGH PRIORITY ISSUES (0 Open - All Resolved or Reclassified)
+
+### ✅ RESOLVED: GitHub Issue #22 - Water Bills Cache Invalidation
+- **Module**: Frontend Desktop - Water Bills
+- **Status**: ✅ RESOLVED (October 13, 2025)
+- **Priority**: HIGH - Performance issue
+- **Description**: Water Bills cache not invalidating properly after payments, showing stale data
+- **Resolution**: Implemented complete cache invalidation strategy clearing both aggregatedData document AND timestamp
+- **Implementation**: React Context with dual-layer caching (sessionStorage + Firestore)
+- **Impact**: Manual refresh with immediate rebuild, 93% API call reduction
+- **GitHub Issue**: #22 - CLOSED (October 13, 2025)
+- **Related Issues**: Bundled with Issue #11 (performance optimization)
+
+### ✅ RESOLVED: GitHub Issue #11 - Water Bills Performance Optimization
+- **Module**: Backend - Water Bills
+- **Status**: ✅ RESOLVED (October 13, 2025)
+- **Priority**: HIGH - Performance and scalability
+- **Description**: O(n²) carryover recalculation causing 10+ second load times, excessive API calls
+- **Resolution**: 
+  - Implemented React Context for centralized data management (93% API call reduction)
+  - Pre-aggregated data architecture with backend calculation and storage
+  - Request deduplication prevents concurrent API calls
+  - Dashboard uses pre-calculated summary data (no real-time aggregation)
+- **Performance Results**:
+  - Normal load: Near instant (reads pre-aggregated data)
+  - Tab switches: 0 additional API calls
+  - Full rebuild: ~10 seconds (manual refresh or future nightly cloud function)
+- **Impact**: Production performance issue resolved, foundation for surgical updates
+- **GitHub Issue**: #11 - CLOSED (October 13, 2025)
+- **Related Issues**: Bundled with Issue #22 (cache invalidation)
+- **Phase 2 Planned**: Surgical updates after individual payments (separate task)
+- **Nightly Maintenance Separated**: Original issue scope included nightly cloud function - separated to Issue #24 (lower priority)
+
+## 🔥 HIGH PRIORITY ISSUES (0 Open - All Resolved or Reclassified)
 
 ### FORMER HIGH-001: Units List Management (various) - RECLASSIFIED to LOW
 - **Module**: Frontend Desktop
@@ -135,6 +168,19 @@
 ---
 
 ## 🚀 ENHANCEMENTS
+
+### ENHANCEMENT-024: Nightly Maintenance Cloud Function (GitHub Issue #24)
+- **Module**: Backend - Cloud Functions
+- **Status**: 📋 BACKLOG (Deferred)
+- **Priority**: 🟢 LOW
+- **User Story**: Automated nightly cloud function that recalculates penalties, adjustments, and exchange rates for all clients, keeping pre-aggregated data current without manual intervention.
+- **Business Value**: Data freshness, operational efficiency, foundation for future automation
+- **Effort**: 🟢 Small (4-6 hours total)
+- **Timeline**: After completion of quarterly view, HOA penalties, and Statement of Account report
+- **Rationale**: Manual refresh works well for current operations; this provides efficiency but is not blocking
+- **Related Issues**: #11 (Water Bills Performance - resolved, provided foundation), #22 (Cache Invalidation - resolved)
+- **GitHub Issue**: [#24](https://github.com/mlandesman/SAMS/issues/24)
+- **Created**: October 13, 2025
 
 ### ENHANCEMENT-001: List Management for Accounts
 - **Module**: UI/UX
