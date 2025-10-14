@@ -138,6 +138,7 @@ class WaterPaymentsService {
       if (remainingFunds >= unpaidAmount) {
         // Pay bill in full
         billPayments.push({
+          unitId: unitId,
           billId: bill.id,
           billPeriod: bill.period,
           amountPaid: this._roundCurrency(unpaidAmount),
@@ -168,6 +169,7 @@ class WaterPaymentsService {
         }
         
         billPayments.push({
+          unitId: unitId,
           billId: bill.id,
           billPeriod: bill.period,
           amountPaid: this._roundCurrency(remainingFunds),
@@ -257,8 +259,12 @@ class WaterPaymentsService {
     // STEP 10: Surgical update - Update Firestore aggregatedData for immediate frontend refresh
     // This triggers automatic cache invalidation in the frontend (1-2s vs 10s manual refresh)
     try {
-      const affectedMonthIds = [...new Set(billPayments.map(bp => bp.billId))];
-      await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedMonthIds);
+      // Pass unit-specific data for true surgical updates (only recalculate affected units)
+      const affectedUnitsAndMonths = billPayments.map(bp => ({
+        unitId: bp.unitId,
+        monthId: bp.billId
+      }));
+      await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedUnitsAndMonths);
       console.log(`✅ [PAYMENT] Surgical update completed - UI will auto-refresh with "Paid" status`);
     } catch (error) {
       console.warn(`⚠️ [PAYMENT] Surgical update failed (non-critical):`, error.message);

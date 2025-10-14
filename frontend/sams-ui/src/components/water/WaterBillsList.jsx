@@ -13,7 +13,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const ENABLE_AGGREGATION = false;  // Will be enabled in Phase 2
   
   const { selectedClient } = useClient();
-  const { waterData, loading: contextLoading, error: contextError } = useWaterBills();
+  const { waterData, loading: contextLoading, error: contextError, refreshData } = useWaterBills();
   const navigate = useNavigate();
   const [billingConfig, setBillingConfig] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(0); // Start with July (month 0)
@@ -85,7 +85,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       await waterAPI.generateBillsNew(clientId, 2026, month, { dueDate: selectedDueDate });
       
       // Refresh data to show new bills
-      await fetchYearData();
+      await refreshData();
       setMessage('Bills generated successfully!');
     } catch (error) {
       console.error('Error generating bills:', error);
@@ -546,7 +546,7 @@ ${washCharges.toFixed(2)}
         unitId={selectedUnitForPayment}
         onSuccess={() => {
           // Refresh bills data to show updated payment status
-          fetchYearData();
+          refreshData();
           console.log('✅ Payment recorded - refreshing bill data');
         }}
       />
