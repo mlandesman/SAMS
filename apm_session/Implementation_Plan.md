@@ -154,6 +154,19 @@
 - **HOA Dues:** Monthly billing with transaction linking and cascade deletes
 - **Exchange Rates:** Automated daily updates with manual override capability
 
+### Credit Balance Fixes (COMPLETED - September 25, 2025)
+**Status:** ✅ FULLY IMPLEMENTED AND PRODUCTION-READY
+- **Achievement:** Fixed critical data integrity issue where deleting HOA payments wasn't reversing credit balances
+- **Root Cause:** Credit balance history array storing peso values instead of centavos (unit conversion mismatch)
+- **Solution:** Fixed unit conversion - credit history now stores amounts in centavos consistently
+- **Implementation:** Modified HOA Dues credit balance processing in hoaDues controller
+- **Impact:** Credit balance additions, usage, and deletions now work correctly
+- **Testing:** Verified with $500 overpayment test case
+- **Code Quality:** Clean solution with comprehensive logging for debugging
+- **Commits:** c151978 - Fix credit balance cascading delete
+- **Duration:** 1.5 hours (faster than estimated 2-3 sessions)
+- **Technical Debt:** Listed as TD-005 in implementation tracking
+
 ---
 
 ## 🔥 IMMEDIATE PRIORITIES
@@ -212,64 +225,50 @@
 **Phase 1 Reference:** `/Memory/Task_Completion_Logs/Water_Bills_Performance_Optimization_2025-10-13.md`  
 **Phase 2 Reference:** `/Memory/Task_Completion_Logs/Water_Bills_Surgical_Implementation_COMPLETE_2025-10-14.md`
 
-### Priority 1: Credit Balance Fixes │ Agent_Credit_Balance
-**Status:** Critical foundation issue affecting payment processing
-**Estimated Effort:** 2-3 Implementation Agent sessions
-
-#### Task 1.1: Fix Credit Balance Reading Components
-- **Issue:** HOA Dues and Water Bills payment components not reading credit balances properly
-- **Impact:** Incorrect payment calculations and balance displays
-- **Effort:** 1-2 sessions
-
-#### Task 1.2: Add Credit Balance Editing Interface
-- **Scope:** Create interface to edit credit balance in units documents
-- **Requirements:** Direct credit balance adjustment with audit trail
-- **Effort:** 1 session
-
-### Priority 2: Water Bills Fixes │ Agent_Water_Bills
+### Priority 1: Water Bills Fixes │ Agent_Water_Bills (formerly Priority 2)
 **Status:** Five specific issues affecting Water Bills functionality
 **Estimated Effort:** 1-2 Implementation Agent sessions
 
-#### Task 2.1: Fix MonthData Consumption Display
+#### Task 1.1: Fix MonthData Consumption Display
 - **Issue:** WaterBillsList.jsx:175 shows currentReading/priorReading but not consumption values
 - **Root Cause:** Aggregator function not processing consumption data
 - **Effort:** 0.5 sessions
 
-#### Task 2.2: Change Due Date to Display Value
+#### Task 1.2: Change Due Date to Display Value
 - **Issue:** Due Date shows calendar picker instead of display value after bill generation
 - **Solution:** Switch to read-only display when bill record exists
 - **Effort:** 0.25 sessions
 
-#### Task 2.3: Fix Reading Period to Prior Month
+#### Task 1.3: Fix Reading Period to Prior Month
 - **Issue:** August 2025 readings should show July 2025 period
 - **Solution:** Display prior month for reading period
 - **Effort:** 0.25 sessions
 
-#### Task 2.4: Auto-Advance Readings Screen
+#### Task 1.4: Auto-Advance Readings Screen
 - **Issue:** Should advance to next available reading period
 - **Solution:** Last monthly readings file + 1 (if last bill 2026-01, show 2026-02)
 - **Effort:** 0.5 sessions
 
-#### Task 2.5: Auto-Advance Bills Screen
+#### Task 1.5: Auto-Advance Bills Screen
 - **Issue:** Should advance to last available reading period
 - **Solution:** Highest number monthly bill file (if last bill 2026-01, show 2026-01)
 - **Effort:** 0.5 sessions
 
-### Priority 3: HOA Dues Quarterly Collection Support │ Agent_HOA_Quarterly
+### Priority 2: HOA Dues Quarterly Collection Support │ Agent_HOA_Quarterly (formerly Priority 3)
 **Status:** Data-driven architecture change for client flexibility
 **Estimated Effort:** 4-5 Implementation Agent sessions
 
-#### Task 3.1: Implement Quarterly View Logic
+#### Task 2.1: Implement Quarterly View Logic
 - **Scope:** Change HOA Dues table to quarterly view when config.feeStructure.duesFrequency == "quarterly"
 - **Data Source:** /clients/:clientId/config.feeStructure.duesFrequency
 - **Effort:** 2-3 sessions
 
-#### Task 3.2: Handle Partial Payments and Tracking
+#### Task 2.2: Handle Partial Payments and Tracking
 - **Complexity:** Quarterly amounts with partial payment tracking
 - **Requirements:** Fiscal calendar-based quarters
 - **Effort:** 1-2 sessions
 
-#### Task 3.3: Adjust Penalty Calculations
+#### Task 2.3: Adjust Penalty Calculations
 - **Change:** Penalties affect quarterly amount, not monthly amount
 - **Integration:** Coordinate with fiscal calendar configuration
 - **Effort:** 1 session
@@ -278,30 +277,30 @@
 
 ## 🛠️ MEDIUM PRIORITY ENHANCEMENTS
 
-### Priority 4: HOA Dues Late Fee Penalties │ Agent_Penalties
+### Priority 3: HOA Dues Late Fee Penalties │ Agent_Penalties (formerly Priority 4)
 **Status:** Apply Water Bills penalty logic to HOA Dues with quarterly adjustments
 **Estimated Effort:** 4-5 Implementation Agent sessions
 
-#### Task 4.1: Extend Penalty Calculator to HOA Dues
+#### Task 3.1: Extend Penalty Calculator to HOA Dues
 - **Scope:** Late payment penalties based on grace period, due date, compound percentage
 - **Foundation:** Water Bills penalty system already implemented
-- **Integration:** Must work with quarterly collection periods (Priority 3)
+- **Integration:** Must work with quarterly collection periods (Priority 2)
 - **Data-Driven:** Same logic as Water Bills, different configuration
 - **Effort:** 4-5 sessions
 
-### Priority 5: Water Bills UI Improvements │ Agent_Water_UI
+### Priority 4: Water Bills UI Improvements │ Agent_Water_UI (formerly Priority 5)
 **Status:** Bug fixes and enhancements from user testing
 **Estimated Effort:** 1.5-2.5 Implementation Agent sessions
 **Discovery Date:** October 8, 2025 (user testing feedback)
 
-#### Task 5.1: Fix Auto-Advance on Readings Tab
+#### Task 4.1: Fix Auto-Advance on Readings Tab
 - **Issue:** Auto-advance to next unsaved month not working (works on Bills tab)
 - **Impact:** Users must manually select next month for data entry
 - **Priority:** MEDIUM - UX inconvenience
 - **Location:** `WaterBillsViewV3.jsx` - Readings tab logic
 - **Effort:** 0.5-1 session
 
-#### Task 5.2: Add Fiscal Year Wrap-Around for Reading Period
+#### Task 4.2: Add Fiscal Year Wrap-Around for Reading Period
 - **Issue:** Month 0 (July) cannot display reading period from prior fiscal year's June
 - **Enhancement:** Fetch prior year's month 11 when viewing month 0
 - **Impact:** First month of fiscal year shows incomplete reading period
@@ -309,33 +308,33 @@
 - **Location:** `WaterReadingEntry.jsx` - Reading period calculation
 - **Effort:** 1-1.5 sessions
 
-### Priority 6: Water Bill Payment Request │ Agent_Communications
+### Priority 5: Water Bill Payment Request │ Agent_Communications (formerly Priority 6)
 **Status:** Automated email with consumption, past due, penalties, notes
 **Estimated Effort:** 2-3 Implementation Agent sessions
 
-#### Task 6.1: Generate Automated Water Bill Emails
+#### Task 5.1: Generate Automated Water Bill Emails
 - **Scope:** Monthly water consumption amount, past due, penalties, notes
 - **Framework:** Communications Phase 2A foundation ready
 - **Future Integration:** Account statement when Reports module completed
 - **Current Solution:** Formatted email sufficient for now
 - **Effort:** 2-3 sessions
 
-### Priority 7: Digital Receipts Production Integration │ Agent_Receipts
+### Priority 6: Digital Receipts Production Integration │ Agent_Receipts (formerly Priority 7)
 **Status:** Code mostly in place, needs fine-tuning and testing
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
-#### Task 7.1: Fine-tune and Test Digital Receipts
+#### Task 6.1: Fine-tune and Test Digital Receipts
 - **Scope:** Attach to all payments received, test templates and sending process
 - **Current Status:** Complete in some modules but demo mode only
 - **Testing Required:** Templates, email addresses, sending process
 - **Integration:** HOA, Water Bills, Expense payments
 - **Effort:** 3-4 sessions
 
-### Priority 8: Budget Module │ Agent_Budget
+### Priority 7: Budget Module │ Agent_Budget (formerly Priority 8)
 **Status:** New system required for Budget vs Actual reporting
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
-#### Task 8.1: Create Budget Entry System
+#### Task 7.1: Create Budget Entry System
 - **Scope:** Structure and data entry for budget values per category
 - **Integration:** Required for Report Generator Budget vs Actual analysis
 - **Data Model:** Category-based budget structure matching transaction categories
