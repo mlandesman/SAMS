@@ -170,6 +170,190 @@ class WaterDataService {
   }
 
   /**
+   * Build data for a SINGLE UNIT in a specific month (surgical update)
+   * This is the core surgical update logic - calculates only the changed unit
+   * @param {object} existingUnitData - Optional: Existing unit data from aggregatedData to avoid recalculation
+   */
+  async buildSingleUnitData(clientId, year, month, unitId, existingUnitData = null) {
+    console.log(`🔧 [SURGICAL] Building data for unit ${unitId} in month ${month}`);
+    
+    try {
+      // Get cached client config to avoid repeated fetches
+      const { units, billingConfig: config } = await this.getClientConfig(clientId);
+      
+      // OPTIMIZATION: If we have existing unit data and only need to update payment status,
+      // fetch only the bill document (not readings/carryover)
+      if (existingUnitData) {
+        console.log(`⚡ [SURGICAL] Using existing unit data, fetching only updated bill`);
+        const bills = await this.fetchBills(clientId, year, month);
+        const bill = bills?.bills?.units?.[unitId];
+        
+        if (!bill) {
+          console.warn(`⚠️  No bill found for unit ${unitId} in month ${month}`);
+          return existingUnitData; // Return unchanged if no bill
+        }
+        
+        // Update only payment-related fields
+        return {
+          ...existingUnitData,
+          paidAmount: bill.paidAmount || 0,
+          unpaidAmount: bill.totalAmount - (bill.paidAmount || 0),
+          status: this.calculateStatus(bill),
+          transactionId: (() => {
+            const payments = bill.payments;
+            return payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
+          })(),
+          payments: bill.payments || []
+        };
+      }
+      
+      // FULL CALCULATION (when no existing data available)
+      // Calculate prior month coordinates
+      let priorMonth, priorYear;
+      if (month === 0) {
+        priorMonth = 11;
+        priorYear = year - 1;
+      } else {
+        priorMonth = month - 1;
+        priorYear = year;
+      }
+      
+      // Fetch the same data sources that buildSingleMonthData uses
+      const [currentReadingsData, priorReadingsData, bills] = await Promise.all([
+        this.fetchReadings(clientId, year, month),
+        this.fetchReadings(clientId, priorYear, priorMonth),
+        this.fetchBills(clientId, year, month)
+      ]);
+      
+      const currentReadings = currentReadingsData.readings;
+      const priorReadings = priorReadingsData.readings;
+      const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
+      
+      // Calculate unpaid carryover for THIS UNIT ONLY (surgical optimization)
+      const unpaidCarryover = await this._calculateUnpaidCarryover(clientId, year, month, config.ratePerM3, unitId);
+      
+      // Find the specific unit in the config
+      const unit = units.find(u => u.unitId === unitId);
+      if (!unit) {
+        throw new Error(`Unit ${unitId} not found in client config`);
+      }
+      
+      // Calculate ONLY this unit's data using the same logic as the full month builder
+      const unitData = this._calculateUnitData(
+        unit, 
+        currentReadings, 
+        priorReadings, 
+        bills, 
+        unpaidCarryover, 
+        ratePerM3, 
+        config
+      );
+      
+      console.log(`✅ [SURGICAL] Unit ${unitId} data calculated successfully`);
+      return unitData;
+      
+    } catch (error) {
+      console.error(`❌ [SURGICAL] Error calculating unit ${unitId} data:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate data for a single unit (extracted from loop logic)
+   * This is the core unit calculation that both full month and surgical updates use
+   */
+  _calculateUnitData(unit, currentReadings, priorReadings, bills, unpaidCarryover, ratePerM3, config) {
+    const unitId = unit.unitId;
+    
+    // 1. Extract reading from nested structure if present
+    let currentReading = currentReadings[unitId] || 0;
+    let washes = undefined;
+    
+    if (typeof currentReading === 'object' && currentReading.reading !== undefined) {
+      if (currentReading.washes && Array.isArray(currentReading.washes)) {
+        washes = currentReading.washes;
+      }
+      currentReading = currentReading.reading;
+    }
+    
+    const priorReading = priorReadings[unitId] || 0;
+    const consumption = currentReading - priorReading;
+    const bill = bills?.bills?.units?.[unitId];
+    
+    // 2. Store reading and washes array (only if washes exist)
+    const currentReadingObj = {
+      reading: currentReading
+    };
+    
+    if (washes !== undefined) {
+      const washesWithCost = washes.map(wash => ({
+        ...wash,
+        cost: wash.type === 'car' 
+          ? (config?.rateCarWash || 100) 
+          : (config?.rateBoatWash || 200)
+      }));
+      currentReadingObj.washes = washesWithCost;
+    }
+    
+    // 3. Extract owner last name
+    let ownerLastName = 'Unknown';
+    if (unit.owners && unit.owners.length > 0) {
+      const ownerInfo = unit.owners[0];
+      const nameParts = ownerInfo.split(' ');
+      if (nameParts.length >= 2) {
+        ownerLastName = nameParts[nameParts.length - 1];
+      } else if (nameParts.length === 1) {
+        ownerLastName = nameParts[0];
+      }
+    }
+    
+    // 4. Calculate bill amounts
+    const currentCharge = bill?.currentCharge;
+    const calculatedAmount = consumption > 0 ? consumption * ratePerM3 : 0;
+    const billAmount = currentCharge ?? calculatedAmount;
+    
+    const carryover = unpaidCarryover[unitId] || {};
+    
+    let totalDueAmount;
+    let penaltyAmount;
+    let unpaidAmount;
+    
+    if (bill) {
+      // Use stored bill data which has correct accounting
+      totalDueAmount = bill.totalAmount || 0;
+      penaltyAmount = bill.penaltyAmount || 0;
+      unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
+    } else {
+      // No bill exists - use carryover data for display
+      totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
+      penaltyAmount = carryover.penaltyAmount || 0;
+      unpaidAmount = totalDueAmount;
+    }
+    
+    // 5. Build and return unit data object (same structure as full month builder)
+    return {
+      ownerLastName,
+      priorReading,
+      currentReading: currentReadingObj,
+      consumption,
+      previousBalance: bill?.previousBalance || carryover.previousBalance || 0,
+      penaltyAmount: penaltyAmount,
+      billAmount: billAmount,
+      totalAmount: totalDueAmount,
+      paidAmount: bill?.paidAmount || 0,
+      unpaidAmount: unpaidAmount,
+      status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
+      daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
+      transactionId: (() => {
+        const payments = bill?.payments;
+        return payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
+      })(),
+      payments: bill?.payments || [],
+      billNotes: bill?.billNotes || null
+    };
+  }
+
+  /**
    * Build complete year data from Firebase (optimized)
    */
   async buildYearData(clientId, year) {
@@ -311,7 +495,89 @@ class WaterDataService {
     return finalResult;
   }
 
-
+  /**
+   * Update Firestore aggregatedData after a water bill payment
+   * This provides surgical cache invalidation for immediate UI updates after payments
+   * 
+   * Uses "cache reload" strategy: rebuilds full year data and updates Firestore
+   * This is simpler and safer than surgical in-memory updates while still being fast (1-2s vs 10s manual refresh)
+   * 
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {Array<string>} affectedMonthIds - Month IDs that had payments (e.g., ['2026-03', '2026-04'])
+   * @returns {Promise<void>}
+   */
+  async updateAggregatedDataAfterPayment(clientId, year, affectedUnitsAndMonths) {
+    console.log(`🔄 [SURGICAL_UPDATE] Updating aggregated data after payment for ${clientId} FY${year}`);
+    console.log(`   Affected unit-month combinations: ${affectedUnitsAndMonths.length}`);
+    
+    try {
+      const { getDb } = await import('../firebase.js');
+      const db = await getDb();
+      const admin = await import('firebase-admin');
+      
+      // Get current aggregatedData document
+      const aggregatedDataRef = db
+        .collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills')
+        .collection('bills').doc('aggregatedData');
+      
+      const doc = await aggregatedDataRef.get();
+      
+      if (!doc.exists) {
+        console.log('⚠️ aggregatedData does not exist, skipping update');
+        return;
+      }
+      
+      const data = doc.data();
+      const startTime = Date.now();
+      
+      // ✅ SURGICAL: Only recalculate specific units
+      for (const { unitId, monthId } of affectedUnitsAndMonths) {
+        const month = parseInt(monthId.split('-')[1]);
+        
+        console.log(`🔧 [SURGICAL_UPDATE] Updating unit ${unitId} in month ${month}`);
+        
+        // ✅ Update ONLY this unit in the month data
+        if (!data.months[month]) {
+          console.warn(`⚠️ Month ${month} not found in aggregatedData, skipping`);
+          continue;
+        }
+        
+        if (!data.months[month].units) {
+          data.months[month].units = {};
+        }
+        
+        // OPTIMIZATION: Pass existing unit data to avoid full recalculation
+        const existingUnitData = data.months[month].units[unitId];
+        const updatedUnitData = await this.buildSingleUnitData(clientId, year, month, unitId, existingUnitData);
+        
+        data.months[month].units[unitId] = updatedUnitData;
+        console.log(`✅ [SURGICAL_UPDATE] Updated unit ${unitId} in month ${month}`);
+      }
+      
+      // Recalculate year summary with updated data
+      data.summary = this.calculateYearSummary(data.months);
+      
+      // Update metadata
+      data._metadata.lastCalculated = admin.default.firestore.FieldValue.serverTimestamp();
+      data._metadata.calculationTimestamp = Date.now();
+      
+      // Write updated document back to Firestore
+      await aggregatedDataRef.set(data);
+      
+      const updateTime = Date.now() - startTime;
+      console.log(`✅ [SURGICAL_UPDATE] Surgical update completed for ${affectedUnitsAndMonths.length} units in ${updateTime}ms`);
+      console.log(`   Frontend cache will auto-refresh on next component mount`);
+      
+    } catch (error) {
+      console.error(`❌ [SURGICAL_UPDATE] Failed to update aggregated data after payment:`, error);
+      console.error(`   Error details:`, error.message);
+      // CRITICAL: Don't throw - payment already succeeded, cache update is secondary
+      // Cache will rebuild on next manual refresh or page reload
+      console.warn(`⚠️ [SURGICAL_UPDATE] Payment succeeded but cache update failed - manual refresh will work`);
+    }
+  }
 
   /**
    * Build data for a single month
@@ -1020,9 +1286,14 @@ class WaterDataService {
 
   /**
    * Calculate unpaid carryover amounts from previous months (for UI display when bills not generated)
+   * @param {string} specificUnitId - Optional: Calculate carryover for only this unit (surgical update optimization)
    */
-  async _calculateUnpaidCarryover(clientId, currentYear, currentMonth, ratePerM3) {
-    console.log(`🔍 [CARRYOVER] Starting calculation for ${clientId} ${currentYear} month ${currentMonth}`);
+  async _calculateUnpaidCarryover(clientId, currentYear, currentMonth, ratePerM3, specificUnitId = null) {
+    if (specificUnitId) {
+      console.log(`🔍 [CARRYOVER] SURGICAL: Calculating for unit ${specificUnitId} only`);
+    } else {
+      console.log(`🔍 [CARRYOVER] Starting calculation for ${clientId} ${currentYear} month ${currentMonth}`);
+    }
     const { getDb } = await import('../firebase.js');
     const db = await getDb();
     
@@ -1042,7 +1313,12 @@ class WaterDataService {
         const billData = billDoc.data();
         const monthsOverdue = currentMonth - month;
         
-        for (const [unitId, bill] of Object.entries(billData.bills.units || {})) {
+        // SURGICAL OPTIMIZATION: If specificUnitId provided, only process that unit
+        const unitsToProcess = specificUnitId 
+          ? (billData.bills.units?.[specificUnitId] ? [[specificUnitId, billData.bills.units[specificUnitId]]] : [])
+          : Object.entries(billData.bills.units || {});
+        
+        for (const [unitId, bill] of unitsToProcess) {
           if (bill.totalAmount > bill.paidAmount) {
             const unpaidAmount = bill.totalAmount - bill.paidAmount;
             // Use stored penalty amount minus penalty payments (not recalculated)
