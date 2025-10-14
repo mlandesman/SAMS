@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - Water Bills Surgical Updates Complete (October 14, 2025)
-**Project Overview:** SAMS is a production-ready multi-tenant association management system. Focus on critical production fixes, enhancement completion, and strategic new feature development to replace Google Sheets automation.
+**Last Modification:** Manager Agent - Priority Roadmap Realignment (October 14, 2025)
+**Project Overview:** SAMS is a production-ready multi-tenant association management system. Focus on Statement of Account foundation (split transactions, quarterly view, penalties) followed by reporting system to replace Google Sheets automation.
 
 ## ✅ COMPLETED PROJECTS (Production Ready)
 
@@ -171,6 +171,13 @@
 
 ## 🔥 IMMEDIATE PRIORITIES
 
+### Statement of Account Foundation Strategy
+**Goal:** Build all data structures BEFORE creating the report to avoid immediate rework
+**Sequence:** Split Transactions → Quarterly Display → Penalties → Report
+**Rationale:** Report needs penalty data, quarterly view, and transaction detail from day 1
+
+---
+
 ### Priority 0: Water Bills Performance Optimization │ Agent_Performance ✅ COMPLETE
 **Status:** ✅ COMPLETED (October 13, 2025)
 **Estimated Effort:** 3-4 Implementation Agent sessions
@@ -225,90 +232,181 @@
 **Phase 1 Reference:** `/Memory/Task_Completion_Logs/Water_Bills_Performance_Optimization_2025-10-13.md`  
 **Phase 2 Reference:** `/Memory/Task_Completion_Logs/Water_Bills_Surgical_Implementation_COMPLETE_2025-10-14.md`
 
-### Priority 1: Water Bills Fixes │ Agent_Water_Bills (formerly Priority 2)
-**Status:** Five specific issues affecting Water Bills functionality
-**Estimated Effort:** 1-2 Implementation Agent sessions
+### Priority 1: Water Bills Split Transactions │ Agent_Water_Bills
+**Status:** Split transactions + one remaining UI fix
+**Estimated Effort:** 2.5-3.5 Implementation Agent hours
+**Strategic Value:** Foundation for Statement of Account penalty detail
 
-#### Task 1.1: Fix MonthData Consumption Display
-- **Issue:** WaterBillsList.jsx:175 shows currentReading/priorReading but not consumption values
-- **Root Cause:** Aggregator function not processing consumption data
-- **Effort:** 0.5 sessions
+#### Part A: Split Transactions (2-3 hours) - FOUNDATION CRITICAL
+**Purpose:** Enable penalty breakdown in Statement of Account report
 
-#### Task 1.2: Change Due Date to Display Value
-- **Issue:** Due Date shows calendar picker instead of display value after bill generation
-- **Solution:** Switch to read-only display when bill record exists
-- **Effort:** 0.25 sessions
+**Implementation:**
+- Rename payment document array to `allocations[]`
+- Align field structure with Transactions View expectations
+- Update import service for split transaction support
+- **Pattern:** Apply existing HOA Dues split transaction pattern to Water Bills
+- **Foundation:** HOA Dues already has working splits - minimal new code
 
-#### Task 1.3: Fix Reading Period to Prior Month
-- **Issue:** August 2025 readings should show July 2025 period
-- **Solution:** Display prior month for reading period
-- **Effort:** 0.25 sessions
+**Success Criteria:**
+- ✅ Water Bills payments create `allocations[]` array
+- ✅ Penalties appear as separate line items (not combined with base charge)
+- ✅ Transaction category shows "-Split-" when multiple allocations
+- ✅ Transactions View displays split breakdown automatically
 
-#### Task 1.4: Auto-Advance Readings Screen
-- **Issue:** Should advance to next available reading period
-- **Solution:** Last monthly readings file + 1 (if last bill 2026-01, show 2026-02)
-- **Effort:** 0.5 sessions
+#### Part B: Remaining UI Fix (0.5 hours) - BUNDLE FOR EFFICIENCY
+**Status:** Most UI fixes already complete! Only one remaining:
 
-#### Task 1.5: Auto-Advance Bills Screen
-- **Issue:** Should advance to last available reading period
-- **Solution:** Highest number monthly bill file (if last bill 2026-01, show 2026-01)
-- **Effort:** 0.5 sessions
+**✅ ALREADY COMPLETE (October 8 Water Bills Recovery):**
+1. ✅ Due Date Display - Read-only display when bill record exists
+2. ✅ Month Selector - Compact, appropriately sized pulldown
+3. ✅ Date Range on Bills - Showing reading period properly
+4. ✅ Auto-Advance Bills Screen - Jump to currently open bill working
 
-### Priority 2: HOA Dues Quarterly Collection Support │ Agent_HOA_Quarterly (formerly Priority 3)
-**Status:** Data-driven architecture change for client flexibility
-**Estimated Effort:** 4-5 Implementation Agent sessions
+**❌ REMAINING FIX:**
+- **Auto-Advance Readings Screen** - Should jump to first unsaved reading period
+- **File:** `WaterBillsViewV3.jsx` - Readings tab logic
+- **Fix:** Last monthly readings file + 1 (if last bill 2026-01, show 2026-02)
+- **Effort:** 0.5 hours
 
-#### Task 2.1: Implement Quarterly View Logic
-- **Scope:** Change HOA Dues table to quarterly view when config.feeStructure.duesFrequency == "quarterly"
-- **Data Source:** /clients/:clientId/config.feeStructure.duesFrequency
-- **Effort:** 2-3 sessions
+**Success Criteria:**
+- ✅ Readings tab auto-advances to first unsaved month
+- ✅ Matches Bills tab auto-advance behavior
+- ✅ Better UX for water meter entry
 
-#### Task 2.2: Handle Partial Payments and Tracking
-- **Complexity:** Quarterly amounts with partial payment tracking
-- **Requirements:** Fiscal calendar-based quarters
-- **Effort:** 1-2 sessions
+### Priority 2: HOA Dues Quarterly Collection Display │ Agent_HOA_Quarterly
+**Status:** Display/grouping logic for AVII quarterly billing (data still stored monthly)
+**Estimated Effort:** 4-5 Implementation Agent hours
+**Strategic Value:** Statement of Account needs quarterly view for AVII client reports
 
-#### Task 2.3: Adjust Penalty Calculations
-- **Change:** Penalties affect quarterly amount, not monthly amount
-- **Integration:** Coordinate with fiscal calendar configuration
-- **Effort:** 1 session
+**Key Architecture Decision:**
+- **Display:** Quarterly grouping for AVII when `config.feeStructure.duesFrequency == "quarterly"`
+- **Storage:** Still track monthly (required for penalty calculations)
+- **Scope:** HOA Dues View only (not touching backend data structure)
+
+#### Task 2.1: Implement Quarterly Display Logic
+- **Scope:** HOA Dues table shows quarterly groups for AVII, monthly for MTC
+- **Data Source:** `/clients/:clientId/config.feeStructure.duesFrequency`
+- **Display:** Group months by fiscal quarter (Jul-Sep, Oct-Dec, Jan-Mar, Apr-Jun)
+- **Effort:** 2-3 hours
+
+#### Task 2.2: Partial Payment Tracking
+- **Complexity:** Show partial payments across quarterly groups
+- **Requirements:** Fiscal calendar-based quarter periods
+- **Display:** Running balance within quarter
+- **Effort:** 1-2 hours
+
+#### Task 2.3: Quarterly Display Validation
+- **Testing:** Verify AVII shows quarterly, MTC shows monthly
+- **Validation:** Confirm monthly data still accessible for penalties (Priority 3)
+- **Integration:** Prepare for Statement of Account quarterly display
+- **Effort:** 1 hour
+
+### Priority 3: HOA Dues Late Fee Penalties │ Agent_Penalties
+**Status:** Migrate Water Bills cache architecture, then apply penalty calculator
+**Estimated Effort:** 6-8 Implementation Agent hours
+**Strategic Value:** Statement of Account must show calculated penalties from storage
+
+**Critical Architecture Migration:**
+The Water Bills system was radically updated (Oct 13-14) with:
+- Cache architecture (React Context + dual-layer caching)
+- Pre-aggregated data (backend calculates and stores monthly summaries)
+- Surgical updates (single unit recalculation after payments)
+- Nightly recalculation preparation (vs recalc on client load)
+
+**This architecture MUST be migrated to HOA Dues BEFORE penalties can be integrated.**
+
+#### Task 3.1: Migrate Cache Architecture to HOA Dues (3-4 hours)
+- **Scope:** Apply Water Bills caching pattern to HOA Dues
+- **Components:**
+  - React Context for centralized data management
+  - Pre-aggregated data storage in Firestore
+  - Surgical update capability after individual payments
+  - Backend aggregator service preparation
+- **Foundation:** Pattern proven in Water Bills (93% API call reduction)
+- **Effort:** 3-4 hours
+
+#### Task 3.2: Integrate Penalty Calculator (3-4 hours)
+- **Scope:** Apply Water Bills penalty logic to HOA Dues
+- **Foundation:** Water Bills penalty system already implemented with:
+  - Grace period handling
+  - Due date calculations
+  - Compound percentage logic
+  - Configuration-driven (per-client settings)
+- **Integration:** Works with monthly data (even for quarterly display clients)
+- **Storage:** Pre-calculated penalties stored in aggregated data
+- **Effort:** 3-4 hours
+
+#### Success Criteria
+- ✅ HOA Dues uses cache architecture (matches Water Bills pattern)
+- ✅ Penalties calculated and stored (not real-time calculation)
+- ✅ Surgical updates work after HOA payments
+- ✅ Quarterly display (Priority 2) works with penalty calculations
+- ✅ Statement of Account can read penalty data from storage
+
+### Priority 4: Statement of Account Report │ Agent_Reports
+**Status:** Now ready - all foundations complete (split transactions, quarterly view, penalties)
+**Estimated Effort:** 8-10 Implementation Agent hours
+**Strategic Value:** Foundation for ALL future reports, replaces Google Sheets manual reporting
+
+**Foundation Complete:**
+- ✅ Split Transactions (Priority 1) - Penalty detail available
+- ✅ Quarterly Display (Priority 2) - AVII quarterly view ready
+- ✅ Penalties Calculated (Priority 3) - Stored in aggregated data
+- ✅ Data structures built correctly - No immediate rework needed
+
+**Phase 1 Scope (MTC + AVII):**
+- Reporting system architecture (reusable for all future reports)
+- Client branding infrastructure (logos, colors, styling)
+- PDF generation service
+- Email delivery integration
+- Payment status tracking
+- Transaction history with running balances
+- Penalty visibility (using split allocations from Priority 1)
+- Quarterly display (for AVII using Priority 2)
+- Bilingual template foundation
+
+**"Living Document" Strategy:**
+- Build with current complete data (HOA Dues + Water Bills)
+- Report shows all implemented features
+- Serves as validation tool for data quality
+- Enhances automatically as new features complete
+- Immediate value for both MTC and AVII clients
+
+#### Success Criteria
+- ✅ Professional PDF reports generated
+- ✅ Client branding properly applied (logos, colors)
+- ✅ Penalties shown as separate line items (from Priority 1)
+- ✅ Quarterly view works for AVII (from Priority 2)
+- ✅ Monthly view works for MTC
+- ✅ Email delivery working
+- ✅ Foundation proven for future reports (monthly statements, budget vs actual, etc.)
 
 ---
 
-## 🛠️ MEDIUM PRIORITY ENHANCEMENTS
+## 🛠️ ENHANCEMENT COMPLETION PHASE
 
-### Priority 3: HOA Dues Late Fee Penalties │ Agent_Penalties (formerly Priority 4)
-**Status:** Apply Water Bills penalty logic to HOA Dues with quarterly adjustments
-**Estimated Effort:** 4-5 Implementation Agent sessions
-
-#### Task 3.1: Extend Penalty Calculator to HOA Dues
-- **Scope:** Late payment penalties based on grace period, due date, compound percentage
-- **Foundation:** Water Bills penalty system already implemented
-- **Integration:** Must work with quarterly collection periods (Priority 2)
-- **Data-Driven:** Same logic as Water Bills, different configuration
-- **Effort:** 4-5 sessions
-
-### Priority 4: Water Bills UI Improvements │ Agent_Water_UI (formerly Priority 5)
-**Status:** Bug fixes and enhancements from user testing
-**Estimated Effort:** 1.5-2.5 Implementation Agent sessions
+### Priority 5: Water Bills UI Improvements │ Agent_Water_UI
+**Status:** Edge case enhancements (LOW priority - not blocking)
+**Estimated Effort:** 1.5-2.5 Implementation Agent hours
 **Discovery Date:** October 8, 2025 (user testing feedback)
+**Note:** Priority 1 Part B addresses the main UI fixes; these are edge cases
 
-#### Task 4.1: Fix Auto-Advance on Readings Tab
+#### Task 5.1: Fix Auto-Advance on Readings Tab
 - **Issue:** Auto-advance to next unsaved month not working (works on Bills tab)
 - **Impact:** Users must manually select next month for data entry
-- **Priority:** MEDIUM - UX inconvenience
+- **Priority:** LOW - UX inconvenience, workaround exists
 - **Location:** `WaterBillsViewV3.jsx` - Readings tab logic
-- **Effort:** 0.5-1 session
+- **Effort:** 0.5-1 hour
 
-#### Task 4.2: Add Fiscal Year Wrap-Around for Reading Period
+#### Task 5.2: Add Fiscal Year Wrap-Around for Reading Period
 - **Issue:** Month 0 (July) cannot display reading period from prior fiscal year's June
 - **Enhancement:** Fetch prior year's month 11 when viewing month 0
 - **Impact:** First month of fiscal year shows incomplete reading period
 - **Priority:** LOW - Edge case enhancement
 - **Location:** `WaterReadingEntry.jsx` - Reading period calculation
-- **Effort:** 1-1.5 sessions
+- **Effort:** 1-1.5 hours
 
-### Priority 5: Water Bill Payment Request │ Agent_Communications (formerly Priority 6)
+### Priority 6: Water Bill Payment Request │ Agent_Communications
 **Status:** Automated email with consumption, past due, penalties, notes
 **Estimated Effort:** 2-3 Implementation Agent sessions
 
@@ -319,7 +417,7 @@
 - **Current Solution:** Formatted email sufficient for now
 - **Effort:** 2-3 sessions
 
-### Priority 6: Digital Receipts Production Integration │ Agent_Receipts (formerly Priority 7)
+### Priority 7: Digital Receipts Production Integration │ Agent_Receipts
 **Status:** Code mostly in place, needs fine-tuning and testing
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
@@ -330,7 +428,7 @@
 - **Integration:** HOA, Water Bills, Expense payments
 - **Effort:** 3-4 sessions
 
-### Priority 7: Budget Module │ Agent_Budget (formerly Priority 8)
+### Priority 8: Budget Module │ Agent_Budget
 **Status:** New system required for Budget vs Actual reporting
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
@@ -343,44 +441,34 @@
 
 ---
 
-## 🧑🏻‍💻 ENHANCEMENT COMPLETION PHASE
+## 🇲🇽 ADDITIONAL REPORTING & NEW FEATURES
 
+### Priority 9: Additional Report Types │ Agent_Reports
+**Status:** Build on Statement of Account foundation (Priority 4)
+**Estimated Effort:** 12-15 Implementation Agent hours
+**Foundation:** Report engine and client branding from Priority 4
 
----
-
-## 🇲🇽 NEW FEATURES DEVELOPMENT PHASE
-
-### Priority 8: Report Generator │ Agent_Reports
-**Status:** Key component with many parts - Reports are fixed format (not ad-hoc)
-**Estimated Effort:** 20-25 Implementation Agent sessions
-
-#### Task 8.1: Statement of Account (Individual Units)
-- **Scope:** Individual unit reports for owners
-- **Features:** Transaction history, running balances, payment status
-- **Bilingual:** English/Spanish support from the start
-- **Effort:** 8-10 sessions
-
-#### Task 8.2: Monthly Transaction History Report
+#### Task 9.1: Monthly Transaction History Report
 - **Scope:** Comprehensive monthly transaction reports
 - **Integration:** Budget vs Actual analysis (requires Priority 7 completion)
 - **Effort:** 4-5 sessions
 
-#### Task 8.3: HOA Dues Update Report
+#### Task 9.2: HOA Dues Update Report
 - **Scope:** HOA dues collection and status reports
 - **Integration:** Quarterly collection support (Priority 3)
 - **Effort:** 3-4 sessions
 
-#### Task 8.4: Special Projects Reports
+#### Task 9.3: Special Projects Reports
 - **Scope:** Water Bills, Propane Tanks, other project reporting
 - **Integration:** Depends on Propane Tanks completion (Priority 9)
 - **Effort:** 4-5 sessions
 
-#### Task 8.5: Budget vs Actual Report
+#### Task 9.4: Budget vs Actual Report
 - **Scope:** Budget analysis and variance reporting
-- **Dependency:** Requires Budget Module completion (Priority 7)
-- **Effort:** 3-4 sessions
+- **Dependency:** Requires Budget Module completion (Priority 8)
+- **Effort:** 3-4 hours
 
-### Priority 9: Propane Tanks Module │ Agent_Propane
+### Priority 10: Propane Tanks Module │ Agent_Propane
 **Status:** Similar to Water Bills but simpler - readings only for MTC client
 **Estimated Effort:** 4-5 Implementation Agent sessions
 
@@ -439,7 +527,7 @@
 - **Guidance:** Use sandyland.com.mx domain, implement queue for reliability
 - **Effort:** 4-5 sessions
 
-### Priority 10: PWA/Mobile App for Maintenance Workers │ Agent_Mobile_Workers
+### Priority 11: PWA/Mobile App for Maintenance Workers │ Agent_Mobile_Workers
 **Status:** Water meter reading test code complete, needs PWA integration
 **Estimated Effort:** 6-8 Implementation Agent sessions
 
@@ -455,7 +543,7 @@
 - **Integration:** Similar to water meter readings
 - **Effort:** 3-4 sessions
 
-### Priority 11: PWA/Mobile Refactor │ Agent_Mobile_Refactor
+### Priority 12: PWA/Mobile Refactor │ Agent_Mobile_Refactor
 **Status:** PWA needs complete update to current standards for endpoints, authentication and collection/document structures
 **Estimated Effort:** 20-24 Implementation Agent sessions
 
@@ -500,7 +588,7 @@
 - **Requirements:** Essential for field work with poor connectivity
 - **Effort:** 3-4 sessions
 
-### Priority 12: PWA/Mobile Expense Entry and Payment Receipts │ Agent_Mobile_Payments
+### Priority 13: PWA/Mobile Expense Entry and Payment Receipts │ Agent_Mobile_Payments
 **Status:** Add ability to accept payments or entry expense on mobile app by Admin to post data to backend
 **Estimated Effort:** 8-10 Implementation Agent sessions
 
@@ -522,7 +610,7 @@
 - **Integration:** Complex penalty and credit calculations
 - **Effort:** 3-4 sessions
 
-### Priority 13: Export Functions │ Agent_Export
+### Priority 14: Export Functions │ Agent_Export
 **Status:** Export function to save reports and queries to CSV or Excel files for manual reporting and manipulation
 **Estimated Effort:** 3-4 Implementation Agent sessions
 
@@ -707,25 +795,37 @@
 - **MTC Client:** 1,477 documents, $414,234.12 in transactions
 - **AVII Client:** 249 documents, $86,211.73 in transactions
 
-### Development Pipeline Priorities
-1. **Immediate (0-30 days):** Critical foundation fixes (Credit Balance, Water Bills, HOA Quarterly)
-2. **Short-term (30-60 days):** Core enhancement completion (Penalties, Communications, Digital Receipts, Budget)
-3. **Medium-term (60-120 days):** Report system implementation (Statement of Account priority, then other reports)
-4. **Long-term (120-180 days):** Mobile/PWA completion and export functions
-5. **Extended (180+ days):** Advanced features (WhatsApp, Business features, Technical debt optimization)
+### Development Pipeline Priorities (Updated October 14, 2025)
+1. **Foundation Phase (Priorities 1-3):** Build data structures for Statement of Account
+   - Water Bills Split Transactions + UI Fixes
+   - HOA Quarterly Collection Display
+   - HOA Penalties (with cache architecture migration)
+2. **Reporting Phase (Priority 4):** Statement of Account Report (foundation for all reports)
+3. **Enhancement Phase (Priorities 5-8):** Polish and business logic
+   - Water Bills edge cases, Communications, Digital Receipts, Budget
+4. **Extended Reporting (Priority 9):** Additional report types using Priority 4 foundation
+5. **New Modules (Priority 10):** Propane Tanks for MTC
+6. **Mobile/PWA (Priorities 11-13):** After desktop stable (~26-32 sessions)
+7. **Advanced Features (Priority 14+):** Export, WhatsApp, Task Management, etc.
 
-### Total Estimated Effort
-- **Immediate Priorities (1-3):** 7-10 sessions
-- **Enhancement Completion (4-7):** 12-16 sessions
-- **Report System (8):** 20-25 sessions
-- **Propane Tanks (9):** 4-5 sessions
-- **Mobile/PWA Development (10-12):** 34-42 sessions
-- **Export Functions (13):** 3-4 sessions
-- **Technical Debt Resolution:** 8-12 sessions
+### Total Estimated Effort (Realigned Roadmap)
+- **Foundation Phase (1-3):** 13-18 hours (split transactions, quarterly, penalties)
+- **Statement of Account (4):** 8-10 hours (foundation for all reporting)
+- **Enhancement Phase (5-8):** 12-16 hours (polish and business logic)
+- **Additional Reports (9):** 12-15 hours (builds on Priority 4 foundation)
+- **Propane Tanks (10):** 4-5 hours
+- **Mobile/PWA Development (11-13):** 34-42 hours
+- **Export Functions (14):** 3-4 hours
+- **Technical Debt Resolution:** 8-12 hours (ongoing)
 
-**Grand Total:** 88-114 Implementation Agent sessions
+**Top 4 Priorities Total:** 34-43 hours (Statement of Account ready with foundations)
+**Grand Total (All Priorities):** 94-122 hours
 
 ### Success Metrics
 - ✅ **Core Platform:** Fully operational in production
-- 🎯 **Next Milestone:** Complete Google Sheets replacement capability
+- 🎯 **Next Milestone (Priorities 1-4):** Statement of Account Report with complete foundations
+  - Split transactions for detail
+  - Quarterly display for AVII
+  - Penalties calculated and stored
+  - Professional reports replacing Google Sheets
 - 🚀 **Long-term Goal:** Comprehensive association management platform with mobile worker support
