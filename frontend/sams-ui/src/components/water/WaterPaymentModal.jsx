@@ -51,6 +51,12 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
     setLoadingData(true);
     try {
       const response = await waterAPI.getUnpaidBillsSummary(selectedClient.id, unitId);
+      
+      // DEBUG: Log raw response to see what we're getting
+      console.log('🔍 [DEBUG] Raw API response:', JSON.stringify(response, null, 2));
+      console.log('🔍 [DEBUG] response.data:', JSON.stringify(response.data, null, 2));
+      console.log('🔍 [DEBUG] response.data.currentCreditBalance:', response.data?.currentCreditBalance);
+      
       setUnpaidBills(response.data.unpaidBills || []);
       setCreditBalance(response.data.currentCreditBalance || 0);
       
