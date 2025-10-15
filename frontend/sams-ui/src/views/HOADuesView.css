@@ -214,6 +214,63 @@
   background-color: #f9f9f9;
 }
 
+/* ============================================
+   QUARTERLY VIEW STYLES
+   ============================================ */
+
+/* Quarter summary row */
+.quarter-row {
+  background-color: #e1f0ff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.quarter-row:hover {
+  background-color: #c5e1ff;
+}
+
+.quarter-label {
+  background-color: #e1f0ff !important;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 12px 15px !important;
+}
+
+.expand-icon {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.quarter-cell {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+/* Monthly detail rows (when quarter is expanded) */
+.month-detail-row {
+  background-color: #f9fafb;
+  font-size: 16px;
+}
+
+.month-detail-row:hover {
+  background-color: #f0f4f8;
+}
+
+.month-detail-label {
+  padding-left: 30px !important;
+  font-weight: normal;
+  background-color: #f9fafb !important;
+  font-size: 16px;
+}
+
+.month-detail-label .indent {
+  color: #999;
+  margin-right: 8px;
+}
+
 /* Cell styles */
 .credit-cell.negative-credit {
   background-color: #ffebee !important;

@@ -891,6 +891,54 @@ async function deleteTransaction(clientId, txnId) {
       }
     });
 
+    // 🔄 SURGICAL PENALTY RECALCULATION: Trigger after Firestore transaction commits
+    // This ensures penalties are recalculated after Water Bills payment reversal
+    if (waterCleanupExecuted && waterBillDocs.length > 0) {
+      try {
+        console.log(`🔄 [BACKEND] Starting surgical penalty recalculation for ${waterBillDocs.length} bill(s) after payment reversal`);
+        
+        // Dynamic import of waterDataService
+        const waterDataServiceModule = await import('../services/waterDataService.js');
+        const WaterDataService = waterDataServiceModule.default;
+        const waterDataService = new WaterDataService();
+        
+        // Extract fiscal year from first bill ID (format: "YYYY-MM")
+        const firstBillId = waterBillDocs[0].id;
+        const fiscalYear = parseInt(firstBillId.split('-')[0]);
+        
+        console.log(`🔄 [BACKEND] Fiscal year extracted: ${fiscalYear} from bill ID: ${firstBillId}`);
+        
+        // Build affected units/months array from waterBillDocs
+        // Each billDoc has: { ref, id: "YYYY-MM", data, unitBill }
+        const affectedUnitsAndMonths = waterBillDocs.map(billDoc => ({
+          unitId: originalData.unitId,
+          monthId: billDoc.id // Already in "YYYY-MM" format
+        }));
+        
+        console.log(`🔄 [BACKEND] Affected units/months for surgical update:`, affectedUnitsAndMonths);
+        
+        // Call surgical penalty recalculation (existing proven function)
+        await waterDataService.updateAggregatedDataAfterPayment(
+          clientId,
+          fiscalYear,
+          affectedUnitsAndMonths
+        );
+        
+        console.log(`✅ [BACKEND] Surgical penalty recalculation completed successfully after payment reversal`);
+        console.log(`   Updated ${affectedUnitsAndMonths.length} unit-month combination(s) in aggregatedData`);
+        
+      } catch (recalcError) {
+        console.error('❌ [BACKEND] Error during surgical penalty recalculation:', recalcError);
+        console.error('   Error details:', recalcError.message);
+        console.error('   Stack trace:', recalcError.stack);
+        // Don't fail the delete - transaction already committed successfully
+        // Payment reversal is complete, penalty recalc is a cache optimization
+        console.warn('⚠️ [BACKEND] Payment deleted successfully but penalty recalc failed');
+        console.warn('   Bills returned to unpaid status correctly');
+        console.warn('   Manual refresh or full recalc will fix aggregatedData');
+      }
+    }
+
     // Enhanced audit logging with cleanup details
     let auditNotes = `Deleted transaction record${originalData.account ? ` and adjusted ${originalData.account} balance` : ''}`;
     
