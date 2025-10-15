@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.0.11",
-  "buildDate": "2025-10-15T02:11:33.502Z",
-  "buildTimestamp": 1760494293502,
+  "buildDate": "2025-10-15T03:13:15.473Z",
+  "buildTimestamp": 1760497995475,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "9c04c02",
-    "branch": "feature/hoa-quarterly-display-impl",
-    "lastCommitDate": "2025-10-14 20:35:32 -0500"
+    "hash": "fe7c500",
+    "branch": "main",
+    "lastCommitDate": "2025-10-14 21:22:45 -0500"
   },
   "build": {
-    "timestamp": "2025-10-15T02:11:33.502Z",
+    "timestamp": "2025-10-15T03:13:15.473Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251014.2111"
+    "buildNumber": "251014.2213"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-15T02:11:33.502Z",
+    "date": "2025-10-15T03:13:15.473Z",
     "automated": true
   }
 }
