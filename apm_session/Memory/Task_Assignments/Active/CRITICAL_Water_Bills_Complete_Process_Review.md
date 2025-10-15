@@ -34,9 +34,27 @@ blocks:
 
 ---
 
+## 🔥 **BREAKING DISCOVERY - PENALTIES NOT CALCULATING**
+
+**Product Manager discovered after fresh AVII data reload (October 14, 11:30 PM):**
+- ❌ **NO penalties showing for ANY unit** (all show $0)
+- ❌ **Including units that NEVER paid** (should have penalties)
+- ⚠️ Saw penalty calculation running in logs (but wraps - can't see full output)
+- ⚠️ All bill metadata shows `penaltiesApplied: false`
+- ⚠️ All records show penalties: $0
+
+**CRITICAL IMPLICATION:** The penalty system may not be storing calculated penalties, or not calculating them at all.
+
+**AFFECTS:** Priority 0 Phase 2 (Surgical Updates) approved Oct 13-14 - may not be working!
+
+---
+
 ## Executive Summary
 
-During Priority 1B (cascade delete) testing, 7 critical issues were discovered affecting the ENTIRE Water Bills payment/deletion/penalty process. These issues span:
+During Priority 1B (cascade delete) testing, 7 critical issues were discovered. After fresh AVII data reload, an 8th CRITICAL issue found: **penalties not being calculated or stored at all**. These issues span:
+
+**PENALTY CALCULATION FAILURE (MOST CRITICAL):**
+0. **Penalties not being calculated or stored** - All units show $0 penalties (even never-paid units)
 
 **Payment Process Issues (4 issues):**
 1. Credit balance not updating until reload
@@ -49,7 +67,7 @@ During Priority 1B (cascade delete) testing, 7 critical issues were discovered a
 6. Delete doesn't mark bills unpaid (even after refresh)
 
 **Surgical Update Issues (1 issue):**
-7. lastPenaltyUpdate not updating (surgical recalc not working?)
+7. lastPenaltyUpdate not updating (confirms surgical recalc not working)
 
 **Critical Implication:** Issues 1-4 suggest the surgical updates and split transactions we approved may not be fully working. Issue 7 suggests surgical recalc may not be triggering properly.
 
@@ -89,6 +107,70 @@ During Priority 1B (cascade delete) testing, 7 critical issues were discovered a
 ---
 
 ## 📊 CRITICAL ISSUES DETAILED CATALOG
+
+### ISSUE 0: PENALTIES NOT BEING CALCULATED OR STORED 🔥🔥🔥
+**Severity:** 🚨 MOST CRITICAL - System-Wide Failure
+
+**Discovery:** October 14, 11:30 PM (after fresh AVII data reload)
+
+**Description:**
+After fresh data reload with penalty calculation running:
+- ALL units show $0 penalties (even units that NEVER paid)
+- Saw penalty calculation in logs (but logs wrapped)
+- Only have data through month 3 (FY 2026)
+- Every bill metadata shows `penaltiesApplied: false`
+- Zero penalties stored anywhere
+
+**Current Behavior:**
+1. Fresh AVII data loaded
+2. Bills exist with due dates in the past
+3. Units have never made payments (should have penalties)
+4. Penalty calculation seen running in logs
+5. Check aggregatedData → penalties: $0
+6. Check bill documents → penalties: $0
+7. Check bill metadata → `penaltiesApplied: false`
+
+**Expected Behavior:**
+1. Bills past grace period (due date + 10 days typically)
+2. Penalty calculation runs
+3. Penalties calculated based on config (typically 5% per month)
+4. Penalties stored in bill documents
+5. Penalties stored in aggregatedData
+6. Bill metadata shows `penaltiesApplied: true`
+
+**Critical Questions:**
+1. **Is penalty calculation actually running?** (Logs suggest yes)
+2. **Is it calculating amounts?** (Can't see in wrapped logs)
+3. **Is it storing results?** (Evidence suggests NO)
+4. **What is `penaltiesApplied: false` field?** (Trigger? Result indicator?)
+5. **Where should penalties be stored?** (Bill docs? aggregatedData? Both?)
+6. **Does surgical update calculate penalties?** (Approved Oct 13-14)
+7. **Does full recalc calculate penalties?** (Refresh button)
+
+**Evidence:**
+- Fresh data (no corrupted test data)
+- Multiple units checked
+- Units that should have penalties (never paid, past due)
+- All show `penalties: $0`
+- All show `penaltiesApplied: false`
+
+**Testing With Fresh Data:**
+- Check Unit 203 (or any unit)
+- Verify bills exist with past due dates
+- Check if penalties should apply (past grace period)
+- Verify penalties = $0 (current state)
+- Expected: Penalties > $0 for overdue bills
+
+**Critical Implications:**
+1. **Surgical updates (Oct 13-14) may not be working** for penalties
+2. **Full recalc (Refresh) may not be calculating** penalties
+3. **Penalty system fundamentally broken** or not integrated
+4. **All approved work based on penalty calculations** may be compromised
+5. **Statement of Account foundation** requires working penalties
+
+**This is the ROOT issue** - if penalties aren't being calculated, Issues 1-7 are secondary.
+
+---
 
 ### PAYMENT PROCESS ISSUES
 
@@ -434,6 +516,45 @@ If lastPenaltyUpdate not updating, either:
 
 **DO NOT CODE - DOCUMENT EXISTING BEHAVIOR FIRST**
 
+**PRIMARY FOCUS:** Why aren't penalties being calculated/stored? (Issue 0)
+
+#### Step 1.0: Investigate Penalty Calculation Failure (PRIORITY)
+**This is the ROOT issue - investigate FIRST**
+
+**Analyze:**
+1. **Where is penalty calculation code?**
+   - File: `backend/services/waterDataService.js`
+   - Function: Penalty calculation logic
+   - When called: During full recalc? During surgical update?
+
+2. **What does `penaltiesApplied: false` mean?**
+   - Where is this field set?
+   - Is it a trigger (don't calculate) or result (calculation failed)?
+   - Should it be `true` after penalties calculated?
+
+3. **Where should penalties be stored?**
+   - In bill documents (bills.units.{unitId}.penalties)?
+   - In aggregatedData (monthData[x].penalties)?
+   - Both?
+
+4. **Does surgical update calculate penalties?**
+   - File: `backend/services/waterDataService.js`
+   - Function: `updateAggregatedDataAfterPayment()`
+   - Does it include penalty calculation logic?
+   - Check if it updates penalties field
+
+5. **Does full recalc calculate penalties?**
+   - Function: `calculateYearSummary()` or equivalent
+   - Does it include penalty calculation?
+   - Check logs for penalty calculation output
+
+6. **Why are calculated penalties not stored?**
+   - Is calculation happening but storage failing?
+   - Is calculation not happening at all?
+   - Is there a condition blocking storage?
+
+**Deliverable:** Penalty calculation investigation report BEFORE analyzing other issues
+
 #### Step 1.1: Trace Payment Flow End-to-End
 **Start:** Frontend payment modal (WaterBillsPaymentModal or equivalent)  
 **End:** UI refresh showing updated data
@@ -517,7 +638,9 @@ If lastPenaltyUpdate not updating, either:
 
 ### Phase 2: Root Cause Analysis (2 hours)
 
-**For EACH of the 7 issues:**
+**START WITH ISSUE 0 (Penalties) - This May Explain Other Issues**
+
+**For EACH of the 8 issues (0-7), starting with Issue 0:**
 
 ```markdown
 ## Issue X: [Title]
@@ -613,14 +736,17 @@ If lastPenaltyUpdate not updating, either:
 ## 🎯 CRITICAL SUCCESS CRITERIA
 
 ### Analysis Phase Complete When:
+- ✅ **ISSUE 0 INVESTIGATED FIRST** - Penalty calculation failure root cause found
 - ✅ Complete payment flow documented (every step, every file)
 - ✅ Complete deletion flow documented (every step, every file)
-- ✅ Surgical update integration validated (is it working?)
-- ✅ All 7 issues root cause identified with evidence
+- ✅ Surgical update integration validated (is it calculating penalties?)
+- ✅ Full recalc integration validated (is it calculating penalties?)
+- ✅ All 8 issues (0-7) root cause identified with evidence
 - ✅ Implementation design created and approved by Manager Agent
 - ✅ NO CODING until Manager Agent approves design
 
 ### Implementation Phase Complete When:
+- ✅ **Issue 0: Penalties being calculated AND stored** (MUST FIX FIRST)
 - ✅ Issue 1: Credit balance updates immediately (no reload needed)
 - ✅ Issue 2: Paid bills show $0 amounts or removed from view
 - ✅ Issue 3: Refresh shows correct due amounts ($0 for paid)
@@ -630,7 +756,8 @@ If lastPenaltyUpdate not updating, either:
 - ✅ Issue 7: lastPenaltyUpdate updates during surgical recalc
 
 ### Production Ready When:
-- ✅ All 7 issues resolved and tested
+- ✅ **ISSUE 0 RESOLVED** - Penalties calculating and storing correctly
+- ✅ All 8 issues (0-7) resolved and tested
 - ✅ Payment flow working end-to-end
 - ✅ Deletion flow working end-to-end
 - ✅ Surgical update validated working correctly
