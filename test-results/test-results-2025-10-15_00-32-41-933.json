@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-15T00:32:42.524Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 3,
+    "passedTests": 0,
+    "failedTests": 3,
+    "totalDuration": 590
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760488361934-ga6u0v8ol",
+      "name": "Load Unpaid Bills Summary",
+      "passed": false,
+      "duration": 585,
+      "error": "Request failed with status code 404",
+      "stack": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:7:24)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:137:1",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:32:42.519Z"
+    },
+    {
+      "id": "TEST-1760488362519-272b0scdq",
+      "name": "Record Water Bill Payment with Credit Integration",
+      "passed": false,
+      "duration": 2,
+      "error": "Request failed with status code 404",
+      "stack": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:23:29)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:137:1",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:32:42.522Z"
+    },
+    {
+      "id": "TEST-1760488362522-xhd1fcpb8",
+      "name": "Test Payment Distribution Calculation",
+      "passed": false,
+      "duration": 1,
+      "error": "Request failed with status code 404",
+      "stack": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:104:31)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterPayments.js:137:1",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:32:42.523Z"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3,
+    "successRate": 0,
+    "averageDuration": 196,
+    "startTime": 1760488361934,
+    "endTime": 1760488362524
+  }
+}

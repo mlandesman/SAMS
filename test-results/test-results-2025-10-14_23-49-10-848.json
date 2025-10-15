@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-14T23:49:11.437Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 2,
+    "passedTests": 0,
+    "failedTests": 2,
+    "totalDuration": 588
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760485750849-yy0bsyntv",
+      "name": "Verify Split Transaction with Penalties",
+      "passed": false,
+      "duration": 583,
+      "error": "Request failed with status code 404",
+      "stack": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterBillsSplitTransactions.js:19:29)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterBillsSplitTransactions.js:220:1",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-14T23:49:11.432Z"
+    },
+    {
+      "id": "TEST-1760485751432-qp1pzj20t",
+      "name": "Verify Single Allocation (No Penalties)",
+      "passed": false,
+      "duration": 4,
+      "error": "Request failed with status code 404",
+      "stack": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterBillsSplitTransactions.js:146:29)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testWaterBillsSplitTransactions.js:220:1",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-14T23:49:11.436Z"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 2,
+    "passed": 0,
+    "failed": 2,
+    "successRate": 0,
+    "averageDuration": 294,
+    "startTime": 1760485750849,
+    "endTime": 1760485751437
+  }
+}

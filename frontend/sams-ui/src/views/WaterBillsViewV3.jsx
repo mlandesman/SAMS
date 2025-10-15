@@ -23,7 +23,7 @@ import './WaterBillsIntegratedView.css';
 import '../components/water/WaterBillsList.css';
 
 function WaterBillsViewV3() {
-  console.log('🔍 WaterBillsViewV3 RENDERING - VERSION 3.0 WITH TABS - ' + new Date().toISOString());
+  console.log('🔍 WaterBillsViewV3 RENDERING - VERSION 3.0 WITH TABS');
   
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
@@ -46,30 +46,45 @@ function WaterBillsViewV3() {
   useEffect(() => {
     if (selectedClient) {
       // Fetch initial data to get unit IDs and determine auto-advance month
-      waterAPI.getAggregatedData(selectedClient.id, 2026)
+      waterAPI.getAggregatedData(selectedClient.id, selectedYear)
         .then(response => {
           setYearData(response.data);
           
-          // Auto-advance to next unsaved readings month (Task 2.4)
+          // Auto-advance to next unsaved readings month
+          // Find highest month with readingDate (indicates saved reading file)
           if (response.data?.months && response.data.months.length > 0) {
-            // Find the last month that has readings data
-            const monthsWithData = response.data.months
-              .filter(m => m.units && Object.keys(m.units).length > 0)
-              .map(m => m.month)
-              .sort((a, b) => a - b);
+            const monthsWithReadingsData = response.data.months
+              .filter(m => m.readingDate) // readingDate exists = readings file saved
+              .sort((a, b) => a.month - b.month);
             
-            if (monthsWithData.length > 0) {
-              const lastMonth = monthsWithData[monthsWithData.length - 1];
-              // Set to next month (wrapping to 0 if at end of fiscal year)
-              const nextMonth = lastMonth < 11 ? lastMonth + 1 : 11;
-              console.log(`🔍 Auto-advancing Readings to month ${nextMonth} (last saved: ${lastMonth})`);
+            if (monthsWithReadingsData.length > 0) {
+              const lastMonthData = monthsWithReadingsData[monthsWithReadingsData.length - 1];
+              const highestMonth = lastMonthData.month;
+              const highestFiscalYear = lastMonthData.fiscalYear;
+              
+              // Handle fiscal year wrap: if at month 11 (June), next is month 0 of next FY
+              let nextMonth, nextYear;
+              if (highestMonth === 11) {
+                nextMonth = 0;
+                nextYear = highestFiscalYear + 1;
+                console.log(`🔍 Auto-advancing Readings to month ${nextMonth} FY ${nextYear} (highest saved: month ${highestMonth} FY ${highestFiscalYear})`);
+                // Update year if wrapping to next fiscal year
+                if (nextYear !== selectedYear) {
+                  setSelectedYear(nextYear);
+                }
+              } else {
+                nextMonth = highestMonth + 1;
+                nextYear = highestFiscalYear;
+                console.log(`🔍 Auto-advancing Readings to month ${nextMonth} (highest saved: ${highestMonth})`);
+              }
+              
               setSelectedMonth(nextMonth);
             }
           }
         })
         .catch(err => console.error('Error fetching initial data:', err));
     }
-  }, [selectedClient]);
+  }, [selectedClient, selectedYear]);
   
   // Extract unit IDs from API response and create units array
   const units = React.useMemo(() => {

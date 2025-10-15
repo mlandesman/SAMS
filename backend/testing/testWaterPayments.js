@@ -4,7 +4,7 @@ const tests = [
   {
     name: 'Load Unpaid Bills Summary',
     test: async ({ api }) => {
-      const response = await api.get('/clients/AVII/water/bills/unpaid/102');
+      const response = await api.get('/water/clients/AVII/bills/unpaid/102');
       
       if (!response.data.success) {
         throw new Error('Failed to load unpaid bills summary');
@@ -20,7 +20,7 @@ const tests = [
     name: 'Record Water Bill Payment with Credit Integration',
     test: async ({ api }) => {
       // First get unpaid bills to test with
-      const billsResponse = await api.get('/clients/AVII/water/bills/unpaid/102');
+      const billsResponse = await api.get('/water/clients/AVII/bills/unpaid/102');
       const unpaidBills = billsResponse.data.data.unpaidBills || [];
       const creditBalance = billsResponse.data.data.currentCreditBalance || 0;
       
@@ -28,7 +28,7 @@ const tests = [
         console.log('ℹ️ No unpaid bills - testing credit addition');
         
         // Test payment that goes entirely to credit
-        const paymentResponse = await api.post('/clients/AVII/water/payments/record', {
+        const paymentResponse = await api.post('/water/clients/AVII/payments/record', {
           unitId: '102',
           amount: 100.00,
           paymentDate: '2025-08-30',
@@ -58,7 +58,7 @@ const tests = [
         const testBill = unpaidBills[0];
         const testAmount = testBill.unpaidAmount; // Pay exactly what's due
         
-        const paymentResponse = await api.post('/clients/AVII/water/payments/record', {
+        const paymentResponse = await api.post('/water/clients/AVII/payments/record', {
           unitId: '102',
           amount: testAmount,
           paymentDate: '2025-08-30',
@@ -101,7 +101,7 @@ const tests = [
       for (const testAmount of testAmounts) {
         console.log(`🧮 Testing distribution for $${testAmount}`);
         
-        const billsResponse = await api.get('/clients/AVII/water/bills/unpaid/102');
+        const billsResponse = await api.get('/water/clients/AVII/bills/unpaid/102');
         const unpaidBills = billsResponse.data.data.unpaidBills || [];
         const creditBalance = billsResponse.data.data.currentCreditBalance || 0;
         

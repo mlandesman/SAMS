@@ -1,0 +1,228 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-15T00:33:10.982Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 3,
+    "passedTests": 3,
+    "failedTests": 0,
+    "totalDuration": 4707
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760488386275-nl6ko06kt",
+      "name": "Load Unpaid Bills Summary",
+      "passed": true,
+      "duration": 1142,
+      "data": {
+        "success": true,
+        "data": {
+          "unpaidBills": [],
+          "currentCreditBalance": 0,
+          "creditHistory": [
+            {
+              "id": "ue9uonujblfmglsfq84",
+              "timestamp": {
+                "display": {
+                  "iso": "2025-07-01T00:00:00.000-05:00",
+                  "display": "07/01/2025",
+                  "displayTime": "12:00 AM",
+                  "displayFull": "07/01/2025 12:00 AM",
+                  "relative": "3 months ago",
+                  "dayOfWeek": "Tuesday",
+                  "month": "July",
+                  "year": 2025,
+                  "monthNumber": 7,
+                  "day": 1,
+                  "timestamp": {
+                    "_seconds": 1751346000,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "displayFull": {
+                  "iso": "2025-07-01T00:00:00.000-05:00",
+                  "display": "07/01/2025",
+                  "displayTime": "12:00 AM",
+                  "displayFull": "07/01/2025 12:00 AM",
+                  "relative": "3 months ago",
+                  "dayOfWeek": "Tuesday",
+                  "month": "July",
+                  "year": 2025,
+                  "monthNumber": 7,
+                  "day": 1,
+                  "timestamp": {
+                    "_seconds": 1751346000,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "raw": {
+                  "_seconds": 1751346000,
+                  "_nanoseconds": 0
+                }
+              },
+              "transactionId": null,
+              "type": "starting_balance",
+              "amount": 39.73,
+              "description": "Starting credit balance from prior period",
+              "balanceBefore": 0,
+              "balanceAfter": 39.73,
+              "notes": "Imported from legacy system"
+            },
+            {
+              "id": "d6674d7d-be23-465a-923e-e6b31a8137b4",
+              "timestamp": {
+                "display": {
+                  "iso": "2025-10-12T15:43:23.000-05:00",
+                  "display": "10/12/2025",
+                  "displayTime": "3:43 PM",
+                  "displayFull": "10/12/2025 3:43 PM",
+                  "relative": "2 days ago",
+                  "dayOfWeek": "Sunday",
+                  "month": "October",
+                  "year": 2025,
+                  "monthNumber": 10,
+                  "day": 12,
+                  "timestamp": {
+                    "_seconds": 1760301803,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "displayFull": {
+                  "iso": "2025-10-12T15:43:23.000-05:00",
+                  "display": "10/12/2025",
+                  "displayTime": "3:43 PM",
+                  "displayFull": "10/12/2025 3:43 PM",
+                  "relative": "2 days ago",
+                  "dayOfWeek": "Sunday",
+                  "month": "October",
+                  "year": 2025,
+                  "monthNumber": 10,
+                  "day": 12,
+                  "timestamp": {
+                    "_seconds": 1760301803,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "raw": {
+                  "_seconds": 1760301803,
+                  "_nanoseconds": 0
+                }
+              },
+              "transactionId": null,
+              "type": "manual_adjustment",
+              "amount": -39.73,
+              "description": "MANUAL ADJUSTMENT",
+              "balanceBefore": 39.73,
+              "balanceAfter": 0,
+              "notes": "Updated via API"
+            },
+            {
+              "id": "f3bbe902-e27d-4309-a3b2-39ce49523315",
+              "timestamp": {
+                "display": {
+                  "iso": "2025-10-13T19:08:30.000-05:00",
+                  "display": "10/13/2025",
+                  "displayTime": "7:08 PM",
+                  "displayFull": "10/13/2025 7:08 PM",
+                  "relative": "1 day ago",
+                  "dayOfWeek": "Monday",
+                  "month": "October",
+                  "year": 2025,
+                  "monthNumber": 10,
+                  "day": 13,
+                  "timestamp": {
+                    "_seconds": 1760400510,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "displayFull": {
+                  "iso": "2025-10-13T19:08:30.000-05:00",
+                  "display": "10/13/2025",
+                  "displayTime": "7:08 PM",
+                  "displayFull": "10/13/2025 7:08 PM",
+                  "relative": "1 day ago",
+                  "dayOfWeek": "Monday",
+                  "month": "October",
+                  "year": 2025,
+                  "monthNumber": 10,
+                  "day": 13,
+                  "timestamp": {
+                    "_seconds": 1760400510,
+                    "_nanoseconds": 0
+                  },
+                  "timezone": "America/Cancun"
+                },
+                "raw": {
+                  "_seconds": 1760400510,
+                  "_nanoseconds": 0
+                }
+              },
+              "transactionId": null,
+              "type": "manual_adjustment",
+              "amount": 0,
+              "description": "MANUAL ADJUSTMENT",
+              "balanceBefore": 0,
+              "balanceAfter": 0,
+              "notes": "Updated via API"
+            }
+          ]
+        }
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:33:07.417Z"
+    },
+    {
+      "id": "TEST-1760488387417-cjifh8p2z",
+      "name": "Record Water Bill Payment with Credit Integration",
+      "passed": true,
+      "duration": 1811,
+      "data": {
+        "success": true,
+        "paymentType": "credit_only",
+        "totalFundsAvailable": 100,
+        "billsPaid": [],
+        "newCreditBalance": 100,
+        "creditUsed": 0,
+        "overpayment": 100,
+        "transactionId": null
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:33:09.228Z"
+    },
+    {
+      "id": "TEST-1760488389228-m7flfjp2x",
+      "name": "Test Payment Distribution Calculation",
+      "passed": true,
+      "duration": 1753,
+      "data": {
+        "tested": 4
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T00:33:10.981Z"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "successRate": 100,
+    "averageDuration": 1569,
+    "startTime": 1760488386275,
+    "endTime": 1760488390982
+  }
+}
