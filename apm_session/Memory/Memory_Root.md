@@ -1,211 +1,262 @@
-# SAMS APM Memory Root
-**Last Updated:** 2025-10-14 by Manager Agent (Water Bills Surgical Updates Complete)
-**Project:** Sandyland Association Management System (SAMS)
-**Status:** Production Active - v0.0.11 Deployed
+---
+title: SAMS Project Memory Root
+last_updated: 2025-10-15
+manager_agent: APM Manager Agent
+product_manager: Michael Landesman
+project: Sandyland Asset Management System (SAMS)
+---
 
-## Session History
+# SAMS Project Memory Root
 
-### Session: Manager Agent - Water Bills Surgical Updates (October 14, 2025)
-**Focus:** Water Bills Phase 2 - Surgical Updates Implementation
-- **Achievement**: 94% performance improvement (8000ms → 503-728ms) for post-payment cache updates
-- **Implementation**: Agent_Water_Surgical_Implementation_2 delivered true surgical updates
-- **Critical Fix**: Fixed broken surgical update that was recalculating all units instead of one
-- **Quality**: Fully Approved review - PRODUCTION READY
-- **Performance**: Single month 728ms, multi-month 503ms (vs 8000ms full recalc)
-- **User Experience**: Payment → UI update in 1-2 seconds (vs 10+ seconds manual refresh)
+## 🎯 Current Status: Water Bills Complete Fix - Tasks 1-3 Ready
 
-**Tasks Completed:**
-✅ **Agent_Water_Surgical_Analyst** - Surgical Update Analysis (2 hours)
-   - Analyzed existing recalculation architecture
-   - Confirmed unit calculations are independent
-   - Documented cache reload strategy recommendation
-   - Created comprehensive technical analysis document
-   
-✅ **Agent_Water_Surgical_Implementation_2** - Surgical Updates Implementation (2.5 hours)
-   - Fixed frontend JavaScript error (fetchYearData undefined)
-   - Optimized buildSingleUnitData() with fast-path using existing data
-   - Enhanced _calculateUnpaidCarryover() for unit-specific filtering
-   - Modified updateAggregatedDataAfterPayment() to pass existing unit data
-   - Files: WaterBillsList.jsx (3 lines), waterDataService.js (82 lines across 3 methods)
+**Active Feature Branch:** `feature/water-bills-issues-0-7-complete-fix`
 
-**Technical Achievements:**
-- Performance: 94% improvement over full recalculation (8000ms → 503-728ms)
-- Surgical Precision: Only affected unit recalculated (not all 10 units)
-- Existing Data Reuse: 80% reduction per month (600ms → 126ms)
-- Multi-Month Batching: 4-month payment completes in 503ms (126ms per month)
-- Zero Linter Errors: Clean, maintainable implementation
+### ✅ Completed (October 15, 2025):
+1. **Investigation Phase** (3 parallel investigations)
+   - Phase 1: Penalty Calculation (Agent_Water_Investigation_Phase_1)
+   - Phase 2: Payment Cascade (Agent_Water_Investigation_Phase_2)
+   - Phase 3: Delete Reversal (Agent_Water_Investigation_Phase_3)
 
-**Manager Agent Process:**
-- Identified broken "surgical update" was running full recalc (10x slower than expected)
-- Created FIXED task assignment with clear implementation strategy
-- Reviewed completed work comprehensively
-- Performed automatic archiving of completed tasks
-- Committed and merged to main branch
+2. **Michael Validation** (Manager Agent)
+   - 29 architecture questions answered
+   - Critical corrections incorporated
+   - Credit endpoint architecture finalized
 
-**Commits:** 
-- 78d5947: Phase 2: Water Bills Surgical Updates - Backend Implementation
-- 476888a: feat: Implement Water Bills Surgical Updates with 94% performance improvement
-- 25e6fcc: Merge feature/water-bills-surgical-updates
+3. **Task 0A: Credit Endpoint** (Implementation Agent)
+   - 4 new files created (~1,149 lines)
+   - All 6 tests passing
+   - Foundation for Tasks 1-3
 
-**Priority Completed:** Priority 0 Phase 2 - Water Bills Surgical Updates
-**Review Document:** `/Memory/Reviews/Manager_Review_Water_Bills_Surgical_Implementation_2025-10-14.md`
-**Completion Log:** `/Memory/Task_Completion_Logs/Water_Bills_Surgical_Implementation_COMPLETE_2025-10-14.md`
+4. **Documentation & Onboarding**
+   - Git workflow documented
+   - Task assignments created (1-3)
+   - Implementation Agent START_HERE guide
 
-**Next Priority:** Priority 1 (Credit Balance Fixes) or Priority 2 (Water Bills remaining fixes)
+### 🔄 In Progress:
+- **Tasks 1-3:** Ready for Implementation Agent assignment
+  - Task 1: Penalty Calculation Integration (3-4 hrs)
+  - Task 2: Payment Issues Resolution (4-5 hrs)
+  - Task 3: Delete Reversal Implementation (2-3 hrs)
 
-### Session: Manager Agent - Water Bills Performance Optimization (October 13, 2025)
-**Focus:** Water Bills Cache Architecture and Performance Optimization (Issues #22 + #11)
-- **Achievement**: 93% API call reduction (14 → 1 per render cycle), near instant load times
-- **Implementation**: Agent_Water_Performance delivered React Context with dual-layer caching
-- **Scope Clarity**: Phase 1 (cache architecture) complete, Phase 2 (surgical updates) deferred
-- **Quality**: Fully Approved review with comprehensive pattern documentation
-- **Performance**: Normal load near instant, tab switches 0 additional API calls, dashboard optimized
-- **Documentation**: Created reusable CENTRALIZED_DATA_MANAGEMENT_PATTERN.md for future systems
+---
 
-**Task Completed:**
-✅ **Agent_Water_Performance** - Water Bills Aggregated Data Architecture (8 files modified, 1 doc created)
-   - Implemented React Context for centralized data management
-   - Added request deduplication to prevent concurrent API calls
-   - Refactored 3 major components (WaterReadingEntry, WaterHistoryGrid, WaterBillsList)
-   - Created manual refresh flow with Sandyland branded spinner
-   - Backend pre-calculates monthly summaries with overdueDetails
-   - Cache invalidation clears both aggregatedData document AND timestamp
-   - Files: WaterBillsContext.jsx, 3 components, WaterBillsViewV3.jsx, waterAPI.js, waterDataService.js, waterRoutes.js
+## 📊 Project Overview
 
-**Technical Achievements:**
-- Cache Architecture: Dual-layer (sessionStorage + Firestore timestamp validation)
-- Performance: Near instant initial load, 0 API calls on tab switches
-- Dashboard: Single lightweight call using pre-calculated summary
-- Manual Refresh: ~10 seconds for full year rebuild (acceptable for future nightly cloud function)
-- Pattern Documentation: Reusable guide for HOA Dues and future billing systems
+### What We're Fixing:
+**Water Bills Module** - Issues 0-7 (penalties, payments, deletions)
 
-**Clarifications from Product Manager:**
-- 10s rebuild time is acceptable (for manual refresh or nightly cloud function)
-- Normal load performance is near instant (reading pre-aggregated data)
-- Performance issue was excessive cache checks (14x), not rebuild time
-- Surgical updates properly scoped to Phase 2 (separate future task)
+### Why It Matters:
+Water Bills will be the **reference implementation** for HOA Dues and future modules.
 
-**Process Achievements:**
-- Manager Agent pushed back constructively on initial unclear scope
-- Product Manager clarified Phase 1 vs Phase 2 separation
-- Collaborative dialogue ensured proper understanding before approval
-- Auto-archiving triggered: task moved to Completed/, tracking docs updated
+### Timeline:
+- **Investigation:** Complete ✅
+- **Validation:** Complete ✅
+- **Task 0A:** Complete ✅
+- **Tasks 1-3:** 9-12 hours remaining
+- **Target:** Complete in 2 days
 
-**GitHub Issues Closed:** #22 (Cache Invalidation), #11 (Performance Optimization)
-**Priority Completed:** Priority 0 Phase 1 - Water Bills Performance Optimization
-**Review Document:** `/Memory/Reviews/Manager_Review_Water_Bills_Performance_Optimization_2025-10-13.md`
+---
 
-### Session: Manager Agent - Testing Blockers Resolution (October 12, 2025)
-**Focus:** Resolution of All Testing Blockers (GitHub Issue #15)
-- **Achievement**: 100% resolution rate - all 3 testing blockers fixed, tested, and deployed
-- **Implementation**: Coordinated 3 Implementation Agents on 3 separate tasks with independent branches
-- **Quality**: All 3 tasks received "Fully Approved" Manager reviews
-- **Testing**: 100% user verification rate - all fixes confirmed working in Dev environment
-- **Deployment**: Version v0.0.11 deployed to production with all fixes
-- **Documentation**: 2000+ lines created (3 Memory Logs, 3 Manager Reviews, 1 Technical Doc, 1 Test Suite)
+## 🗂️ Memory Structure
 
-**Tasks Completed:**
-1. ✅ **Agent_Import** - Payment Methods Import Status Field (4 files, commit c92a27c)
-   - Fixed import process to set `status: "active"` for all payment methods
-   - Prevents empty dropdown issue for future client imports
-   - Branch: `fix/payment-methods-import-status`
-   
-2. ✅ **Agent_Expense_Filter** - Expense Entry Modal Active Filter (1 file, PR #18)
-   - Added filtering to show only active payment methods
-   - Achieved UX consistency across transaction entry points
-   - Branch: `fix/expense-modal-filter-payment-methods`
-   
-3. ✅ **Agent_DocumentUpload** - Document Upload 500 Error Fix (1 file + tests + docs, PR #19)
-   - Fixed Firebase Cloud Functions storage bucket initialization
-   - Restored document upload functionality after Vercel→Firebase migration
-   - Created comprehensive test suite (235 lines)
-   - Branch: `fix/document-upload-500-error`
+### Session Summaries:
+- `apm_session/Manager_Session_Summary_2025-10-10_FINAL.md` - Previous session
+- `apm_session/Manager_Session_Summary_2025-10-09.md` - Earlier session
 
-**Technical Findings:**
-- Discovered TD-017: 1st Gen Cloud Function needs migration (low priority, documented)
-- Created test infrastructure for document uploads (prevents regression)
-- Identified migration testing gaps (documented prevention guidelines)
+### Task Completion Logs:
+Located in: `apm_session/Memory/Task_Completion_Logs/`
 
-**Process Achievements:**
-- Clean git workflow: 3 independent branches, 2 PRs, professional commits
-- Comprehensive documentation: Each task fully documented with Memory Logs and reviews
-- Auto-archiving: Resolved issues moved to resolved/ folder automatically
-- GitHub integration: Issue #15 closed with comprehensive completion summary
+**Recent Completions:**
+- Water Bills Surgical Updates (Oct 14) - 94% performance improvement
+- Water Bills Split Transactions (Oct 14) - Aligned with HOA Dues
+- HOA Dues Quarterly Display (Oct 14)
+- Investigation Phase 1, 2, 3 (Oct 15)
+- Task 0A Credit Endpoint (Oct 15)
 
-**Version Deployed:** v0.0.11 (patch release)
-- Status: ✅ Production deployment successful
-- Duration: ~6 hours Manager Agent session
+### Task Assignments:
+Located in: `apm_session/Memory/Task_Assignments/Active/`
 
-### Session: Manager Agent - Document Consolidation (October 9, 2025)
-**Focus:** Comprehensive Document Consolidation and Priority Workshop Preparation
-- Archived obsolete tracking documents (TECHNICAL_DEBT.md, Tasks Order.rtf)
-- Created comprehensive priority workshop with complete work inventory
-- Scanned all non-archived Memory documents for recent work and technical debt
-- Confirmed 8 major completions (Sept-Oct 2025): Credit Balance, Transaction ID, Import/Purge, Water Bills, etc.
-- Confirmed Priority 1 (Credit Balance) and Priority 2 (Water Bills) COMPLETE
-- Identified Statement of Account Report as high priority missing from plans
-- Resolved TD-NEW-001 (Year-End Balance Import) and TD-NEW-002 (Import CrossRef)
-- Created handover document for collaborative priority workshop (Option B)
-- Status: ✅ Phase 1 Complete - Ready for Phase 2 (Collaborative Workshop)
+**Current Assignments:**
+- READY_FOR_ASSIGNMENT_Task_1.md (Penalty Calculation)
+- READY_FOR_ASSIGNMENT_Task_2.md (Payment Issues)
+- READY_FOR_ASSIGNMENT_Task_3.md (Delete Reversal)
+- Detailed task docs: Task_1_*.md, Task_2_*.md, Task_3_*.md
 
-### Session: Manager Agent (October 7, 2025)
-**Focus:** Transaction ID Date Generation Bug Analysis and Fix
-- Completed deep analysis of persistent Transaction ID date regression
-- Bug: Transaction IDs generated one day earlier than selected date
-- Root cause: Date components extracted in local timezone instead of Cancun
-- Solution: Use original date string directly, avoiding timezone conversions
-- Implementation: Modified transactionsController.js to preserve date string
-- Testing note: User was testing on production instead of dev environment
-- Status: ✅ FIXED - Commit ab24b8d
+### Investigation Documents:
+Located in: `docs/investigations/`
 
-### Session: Manager Agent 12 (October 6, 2025)
-**Focus:** Production Deployment Success
-- Successfully deployed refactored backend to production
-- Completed domain-specific routing architecture
-- Fixed version system display issues
-- Mobile PWA identified as needing backend sync
+**6 Documents per Phase (18 total):**
+- Flow Diagrams (Mermaid charts)
+- Data Structure Maps
+- Code References
+- Gap Analyses
+- Integration Points
+- HOA Dues Pattern Comparison (Phase 3)
 
-### Previous Sessions
-- Multiple sessions addressing water bills, import system, communications
-- See Archive for detailed history
+### Validation:
+- `docs/investigations/MICHAEL_VALIDATION_CHECKLIST.md` - Michael's corrections
 
-## Active Priorities
+---
 
-**Note:** Priorities under review - Collaborative workshop scheduled for next session
+## 🔧 Key Technical Decisions
 
-**Recently Completed:**
-1. ✅ **Credit Balance Fixes** (Sept 25, 2025) - COMPLETE
-2. ✅ **Water Bills Fixes** (Sept 29, 2025) - COMPLETE (minor tech debt remains)
+### Architecture:
+1. **Credit Balance Endpoint:** New `/credit` REST API (Task 0A)
+   - Points to current HOA Dues location initially
+   - Future migration path built-in
+   - Clean module separation
 
-**Under Collaborative Review:**
-3. **Statement of Account Report** (Phase 1 - MTC Simple) - 8-10 sessions
-4. **HOA Quarterly Collection** - Data-driven architecture change
-5. **HOA Penalty System** - Extends Water Bills penalty logic
-6. **Water Bill Payment Request Emails** - Automated communications
-7. **Digital Receipts Production Polish** - Fine-tune and test
-8. **Budget Module** - Foundation for Budget vs Actual reports
-9. **Mobile PWA Sync** - Update to new backend URL, restore functionality
-10. **[Additional priorities to be determined in workshop]**
+2. **Penalty Calculation:** Added to existing nightly routine
+   - NOT a new cron job
+   - Included in surgical updates
+   - Grace period: 10 days after due date
 
-## Key Technical Context
+3. **Surgical Updates:** Same code for bulk and single unit
+   - Bulk: Array of all units
+   - Surgical: Array of 1 unit
+   - Atomic operations only
 
-- **Production URLs:**
-  - Frontend: https://sams.sandyland.com.mx
-  - Backend: https://backend-hla1k6lsj-michael-landesmans-projects.vercel.app
-  - Mobile: https://mobile.sams.sandyland.com.mx (needs sync)
+4. **Data Consistency:** Strong consistency model
+   - No temporary inconsistencies
+   - What's on screen = what's in database
+   - aggregatedData is rebuildable cache
 
-- **Active Clients:**
-  - MTC: 1,477 documents, $414,234.12 in transactions
-  - AVII: 249 documents, $86,211.73 in transactions
+5. **Testing Strategy:** 90% backend API testing
+   - Use testHarness
+   - Minimal UI testing
+   - Fresh AVII data for each phase
 
-## Dependencies & Blockers
+---
 
-- Credit balance fixes needed before payment processing improvements
-- Mobile PWA sync blocked by backend URL update
+## 📋 Issues Being Fixed
 
-## Next Actions
+### Issue 0 (ROOT CAUSE - 🚨 CRITICAL):
+Penalties not being calculated ($0 for all units)
 
-1. Proceed with credit balance fixes
-2. Address water bills functionality issues
-3. Implement HOA quarterly collection support
-4. Sync mobile PWA with new backend
+### Issue 1 (🔥 HIGH):
+Credit balance not updating until reload
+
+### Issue 2 (🔥 HIGH):
+Paid bill amounts not cleared in UI
+
+### Issue 3 (🚨 CRITICAL):
+Due amount shows after refresh/recalc
+
+### Issue 4 (🟡 MEDIUM):
+"NOBILL" error blocks overdue payments
+
+### Issue 5 (🔥 HIGH):
+Delete doesn't restore credit balance
+
+### Issue 6 (🔥 HIGH):
+Delete doesn't mark bills unpaid
+
+### Issue 7 (🟡 MEDIUM):
+lastPenaltyUpdate not updating after delete
+
+---
+
+## 🎯 Implementation Roadmap
+
+### Priority Order:
+1. **Task 1:** Fix penalties (root cause)
+2. **Task 2:** Fix payments (depends on penalties)
+3. **Task 3:** Fix deletions (depends on payments)
+
+### All-or-Nothing Merge:
+Single feature branch for all fixes. Merge only when complete and tested.
+
+---
+
+## 📚 Reference Documents
+
+### For Product Manager (Michael):
+- `apm_session/Implementation_Plan.md` - Overall project priorities
+- `PROJECT_TRACKING_MASTER.md` - Complete project status
+- `docs/issues 2/open/` - Detailed issue documentation
+
+### For Manager Agent:
+- `apm/prompts/Manager_Agent/Manager_Agent_Initiation_Prompt.md`
+- `apm/prompts/Manager_Agent/Manager_Agent_Handover_Guide.md`
+
+### For Implementation Agents:
+- `apm_session/IMPLEMENTATION_AGENT_START_HERE.md` - **Start here!**
+- Task assignments in `apm_session/Memory/Task_Assignments/Active/`
+- Investigation docs in `docs/investigations/`
+
+### For Git Workflow:
+- `docs/GIT_WORKFLOW_FOR_WATER_BILLS_FIX.md`
+
+---
+
+## 🔍 Quick Reference
+
+### Current Branch:
+```bash
+feature/water-bills-issues-0-7-complete-fix
+```
+
+### Test Environment:
+- **Client:** AVII
+- **Backend:** Port 5001
+- **Test Unit:** 203 (or any with overdue bills)
+- **Data:** Fresh AVII data in Dev
+
+### Key Files:
+- Penalties: `backend/services/waterDataService.js`
+- Payments: `backend/services/waterPaymentsService.js`
+- Deletions: `backend/services/transactions/transactionsCleanupService.js`
+- Credit: `backend/services/creditService.js` (NEW - Task 0A)
+
+### API Endpoints:
+- `/credit/{clientId}/{unitId}` - Get/update credit balance (NEW)
+- `/water/{clientId}/bills` - Water bills data
+- `/transactions/{clientId}` - Transaction management
+
+---
+
+## 📞 Contact & Escalation
+
+### Implementation Agent Stuck:
+1. Review investigation documents
+2. Check detailed task instructions
+3. Contact Manager Agent
+
+### Manager Agent Needs Guidance:
+1. Review project priorities
+2. Check validation checklist
+3. Consult Product Manager (Michael)
+
+### Critical Issues:
+1. Stop work immediately
+2. Document issue clearly
+3. Escalate to Product Manager
+
+---
+
+## 🎉 Success Metrics
+
+### When All Complete:
+- [ ] All units show correct penalties (> $0 for overdue)
+- [ ] Credit balance updates immediately
+- [ ] Paid bills show $0 due
+- [ ] Can pay overdue without current usage
+- [ ] Delete fully reverses payments
+- [ ] All backend tests passing
+- [ ] No regressions in HOA Dues or other modules
+- [ ] Water Bills is "rock solid"
+
+### Merge Criteria:
+- [ ] All 4 tasks complete (0A, 1, 2, 3)
+- [ ] All 8 issues resolved (0-7)
+- [ ] Complete test coverage
+- [ ] Memory Logs for all tasks
+- [ ] Product Manager approval
+
+---
+
+**Last Updated:** October 15, 2025  
+**Manager Agent:** APM Manager Agent  
+**Status:** Tasks 1-3 ready for assignment  
+**Next:** Implementation Agent assignment

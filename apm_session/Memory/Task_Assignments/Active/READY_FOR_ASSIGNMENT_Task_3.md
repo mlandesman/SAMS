@@ -111,8 +111,16 @@ It contains:
 ## 🧪 Testing Requirements
 
 **Environment:** Dev with fresh AVII data  
-**Method:** Backend API testing (testHarness)  
+**Method:** Backend API testing (testHarness) - **REQUIRED FOR AUTH**  
 **Client:** AVII
+
+### ⚠️ CRITICAL: Use testHarness for ALL API Calls
+All endpoints require Firebase auth tokens. Direct calls (axios/fetch/curl) will fail with 401 errors.
+
+```bash
+cd backend
+node testing/testHarness.js  # Provides authenticated access
+```
 
 ### Required Tests (5):
 

@@ -287,7 +287,25 @@ bill.penalties = 0;
 
 ## 🧪 TESTING REQUIREMENTS
 
-### Use Backend API Testing (testHarness)
+### ⚠️ CRITICAL: You MUST Use testHarness for All API Calls
+
+**WHY testHarness is REQUIRED:**
+- All API endpoints require Firebase authentication tokens
+- Direct calls (axios, fetch, curl) will fail with 401/403 errors
+- testHarness automatically handles authentication for you
+- It provides the auth context needed to call backend endpoints with live data
+
+**HOW to Use testHarness:**
+```bash
+# From backend directory
+cd backend
+
+# Run testHarness (provides authenticated API access)
+node testing/testHarness.js
+
+# Or create task-specific test file
+node testing/testTask1Penalties.js
+```
 
 **Test Setup:**
 ```javascript
@@ -302,6 +320,16 @@ const dueDate = new Date('2025-07-01'); // July 1st
 const gracePeriod = 10; // days
 const today = new Date('2025-10-15'); // Well past grace period
 ```
+
+**DO NOT:**
+- ❌ Try to call endpoints with axios/fetch directly (will fail - no auth token)
+- ❌ Use curl or Postman (no Firebase auth context)
+- ❌ Import service files directly (bypasses authentication layer)
+
+**DO:**
+- ✅ Use testHarness for ALL endpoint testing
+- ✅ Create test files that run through testHarness
+- ✅ Let testHarness handle authentication automatically
 
 ---
 

@@ -80,6 +80,14 @@ git checkout feature/water-bills-issues-0-7-complete-fix
 
 ## 🧪 Step 3: Set Up Testing Environment
 
+### ⚠️ CRITICAL: You MUST Use testHarness for API Testing
+
+**WHY:**
+- All API endpoints require Firebase authentication tokens
+- Direct calls (axios, fetch, curl) will FAIL with 401/403 errors
+- testHarness automatically handles authentication for you
+- It provides the auth context needed for live data access
+
 ### Backend Server:
 ```bash
 cd backend
@@ -87,12 +95,19 @@ npm start
 # Should start on port 5001
 ```
 
-### Test Harness:
+### Test Harness (REQUIRED for API calls):
 ```bash
 # From backend directory
+cd backend
+
+# Use testHarness for ALL API endpoint testing
 node testing/testHarness.js
-# Or specific test file when ready
+
+# Or create task-specific test file
+node testing/testTask1Penalties.js
 ```
+
+**DO NOT try to call endpoints directly - they require auth tokens!**
 
 ### Fresh AVII Data:
 - Already loaded in Dev environment
