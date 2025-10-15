@@ -332,6 +332,10 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               // Backend provides displayDue, displayPenalties, displayOverdue which are 0 for paid bills
               const penalties = unit.displayPenalties !== undefined ? unit.displayPenalties : (unit.penaltyAmount || 0);
               const overdue = unit.displayOverdue !== undefined ? unit.displayOverdue : (unit.previousBalance || 0);
+              
+              // FIX: Show cumulative unpaid amount instead of just current month
+              // Current month only: monthlyCharge + washCharges + overdue + penalties
+              // Cumulative unpaid: Use displayDue if available (Task 2 fix), otherwise calculate current month
               const due = unit.displayDue !== undefined ? unit.displayDue : (monthlyCharge + washCharges + overdue + penalties);
               
               
@@ -536,9 +540,20 @@ ${washCharges.toFixed(2)}
         }}
         unitId={selectedUnitForPayment}
         onSuccess={() => {
-          // Refresh bills data to show updated payment status
+          // Force cache clear and refresh bills data to show updated payment status
+          console.log('✅ Payment recorded - forcing cache clear and refresh');
+          
+          // Clear the aggregated data cache to force fresh fetch
+          const cacheKey = `water_bills_${selectedClient.id}_2026`;
+          try {
+            sessionStorage.removeItem(cacheKey);
+            console.log('🧹 Cleared aggregated data cache:', cacheKey);
+          } catch (error) {
+            console.error('Error clearing cache:', error);
+          }
+          
+          // Refresh data
           refreshData();
-          console.log('✅ Payment recorded - refreshing bill data');
         }}
       />
     </div>
