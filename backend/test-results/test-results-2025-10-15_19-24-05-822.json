@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-15T19:24:06.971Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 7,
+    "passedTests": 0,
+    "failedTests": 7,
+    "totalDuration": 1148
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760556245823-u72uob4jc",
+      "name": "TEST 1: GET /credit/:clientId/:unitId - Should return credit balance from HOA Dues",
+      "passed": false,
+      "duration": 833,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:28:28)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.656Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246656-k8bsk1ror",
+      "name": "TEST 2: GET /credit/:clientId/:unitId - Should return zero for non-existing unit",
+      "passed": false,
+      "duration": 2,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:105:28)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.658Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246658-6wk47gect",
+      "name": "TEST 3: POST /credit/:clientId/:unitId - Should add credit to balance",
+      "passed": false,
+      "duration": 2,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:154:34)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.660Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246660-w8bvk4hqj",
+      "name": "TEST 4: POST /credit/:clientId/:unitId - Should subtract credit from balance",
+      "passed": false,
+      "duration": 2,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:256:34)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.662Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246662-cfy83b22r",
+      "name": "TEST 5: GET /credit/:clientId/:unitId/history - Should return credit history",
+      "passed": false,
+      "duration": 3,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:354:28)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.665Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246665-uvm6ymew1",
+      "name": "TEST 6: Verify HOA Dues endpoint still accessible",
+      "passed": false,
+      "duration": 299,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:456:28)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.964Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556246964-i27r1h5g4",
+      "name": "TEST 7: POST /credit/:clientId/:unitId - Should reject missing required fields",
+      "passed": false,
+      "duration": 6,
+      "data": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot POST /credit/AVII/203</pre>\n</body>\n</html>\n",
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:24:06.970Z",
+      "reason": "Expected 400 error, got 404"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 7,
+    "passed": 0,
+    "failed": 7,
+    "successRate": 0,
+    "averageDuration": 164,
+    "startTime": 1760556245823,
+    "endTime": 1760556246971
+  }
+}
