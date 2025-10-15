@@ -193,9 +193,15 @@ class WaterDataService {
           return existingUnitData; // Return unchanged if no bill
         }
         
-        // Update only payment-related fields
+        // Update payment-related fields AND penalty data from fresh bill
+        // Penalty recalc runs before surgical update, so bill has fresh penalty data
         return {
           ...existingUnitData,
+          // CRITICAL: Include fresh penalty data from recalculated bill
+          penaltyAmount: bill.penaltyAmount || 0,
+          totalAmount: bill.totalAmount,
+          previousBalance: bill.previousBalance || 0,
+          // Payment data
           paidAmount: bill.paidAmount || 0,
           unpaidAmount: bill.totalAmount - (bill.paidAmount || 0),
           status: this.calculateStatus(bill),
@@ -512,6 +518,18 @@ class WaterDataService {
     console.log(`   Affected unit-month combinations: ${affectedUnitsAndMonths.length}`);
     
     try {
+      // CRITICAL: Recalculate penalties BEFORE surgical update
+      // This ensures penalties are current after payment changes
+      console.log(`🔄 [SURGICAL_UPDATE] Running penalty recalculation before surgical update...`);
+      try {
+        await penaltyRecalculationService.recalculatePenaltiesForClient(clientId);
+        console.log(`✅ [SURGICAL_UPDATE] Penalty recalculation completed`);
+      } catch (penaltyError) {
+        console.error(`❌ [SURGICAL_UPDATE] Penalty recalculation failed:`, penaltyError);
+        // Continue with surgical update even if penalty recalc fails
+        // Penalties will be updated on next manual refresh
+      }
+      
       const { getDb } = await import('../firebase.js');
       const db = await getDb();
       const admin = await import('firebase-admin');
