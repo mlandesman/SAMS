@@ -325,7 +325,7 @@ class WaterDataService {
     let unpaidAmount;
     
     if (bill) {
-      // Use stored bill data which has correct accounting
+      // Use stored bill data which has correct accounting (from aggregatedData cache)
       totalDueAmount = bill.totalAmount || 0;
       penaltyAmount = bill.penaltyAmount || 0;
       unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
@@ -337,6 +337,8 @@ class WaterDataService {
     }
     
     // 5. Build and return unit data object (same structure as full month builder)
+    const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+    
     return {
       ownerLastName,
       priorReading,
@@ -348,14 +350,19 @@ class WaterDataService {
       totalAmount: totalDueAmount,
       paidAmount: bill?.paidAmount || 0,
       unpaidAmount: unpaidAmount,
-      status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
+      status: billStatus,
       daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
       transactionId: (() => {
         const payments = bill?.payments;
         return payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
       })(),
       payments: bill?.payments || [],
-      billNotes: bill?.billNotes || null
+      billNotes: bill?.billNotes || null,
+      
+      // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
+      displayDue: billStatus === 'paid' ? 0 : unpaidAmount, // Show $0 for paid bills
+      displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount, // Show $0 penalties for paid bills
+      displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0) // Show $0 overdue for paid bills
     };
   }
 
@@ -706,7 +713,7 @@ class WaterDataService {
       let unpaidAmount;
       
       if (bill) {
-        // Use stored bill data which has correct accounting
+        // Use stored bill data which has correct accounting (from aggregatedData cache)
         totalDueAmount = bill.totalAmount || 0;
         penaltyAmount = bill.penaltyAmount || 0;
         unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
@@ -717,12 +724,16 @@ class WaterDataService {
         console.log(`  Penalty Amount: $${penaltyAmount}`);
         console.log(`  Total Due: $${totalDueAmount}`);
         console.log(`  Paid Amount: $${bill.paidAmount || 0}`);
+        console.log(`  Status: ${this.calculateStatus(bill)}`);
+        console.log(`  Unpaid Amount: $${unpaidAmount}`);
       } else {
         // No bill exists - use carryover data for display
         totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
         penaltyAmount = carryover.penaltyAmount || 0;
         unpaidAmount = totalDueAmount;
       }
+      
+      const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
       
       unitData[unitId] = {
         ownerLastName,
@@ -735,8 +746,13 @@ class WaterDataService {
         totalAmount: totalDueAmount,                 // Total balance to clear account (Total Due column)
         paidAmount: bill?.paidAmount || 0,           // Payment made THIS MONTH ONLY (Paid Amount column)
         unpaidAmount: unpaidAmount,                  // Current unpaid amount
-        status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
-        daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0
+        status: billStatus,
+        daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
+        
+        // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
+        displayDue: billStatus === 'paid' ? 0 : unpaidAmount, // Show $0 for paid bills
+        displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount, // Show $0 penalties for paid bills
+        displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0) // Show $0 overdue for paid bills
       };
     }
     
@@ -1008,7 +1024,21 @@ class WaterDataService {
         // CRITICAL: Include payments array for UI transaction navigation
         payments: bill?.payments || [],
         // Include bill notes for hover tooltips (shows car wash details)
-        billNotes: bill?.billNotes || null
+        billNotes: bill?.billNotes || null,
+        
+        // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
+        displayDue: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : unpaidAmount;
+        })(),
+        displayPenalties: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : penaltyAmount;
+        })(),
+        displayOverdue: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : (carryover.previousBalance || 0);
+        })()
       };
       
       // DEBUG: Log penalty assignment for specific units we're tracking
