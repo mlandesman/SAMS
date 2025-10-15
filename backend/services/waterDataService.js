@@ -364,6 +364,21 @@ class WaterDataService {
       displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount, // Show $0 penalties for paid bills
       displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0) // Show $0 overdue for paid bills
     };
+    
+    // TASK 2: Data consistency validation (after building the unit data)
+    if (billStatus === 'paid' && unpaidAmount > 0) {
+      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+      console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+    }
+    if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
+      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+      console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+    }
+    if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
+      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+    }
+    
+    return unitData;
   }
 
   /**
@@ -735,6 +750,20 @@ class WaterDataService {
       
       const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
       
+      // TASK 2: Data consistency validation
+      // Check for inconsistencies between status and amounts
+      if (billStatus === 'paid' && unpaidAmount > 0) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      }
+      if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      }
+      if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+      }
+      
       unitData[unitId] = {
         ownerLastName,
         priorReading,
@@ -1040,6 +1069,20 @@ class WaterDataService {
           return billStatus === 'paid' ? 0 : (carryover.previousBalance || 0);
         })()
       };
+      
+      // TASK 2: Data consistency validation (after building the unit data)
+      const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+      if (billStatus === 'paid' && unpaidAmount > 0) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      }
+      if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      }
+      if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+      }
       
       // DEBUG: Log penalty assignment for specific units we're tracking
       if (unitId === '106' || unitId === '203') {

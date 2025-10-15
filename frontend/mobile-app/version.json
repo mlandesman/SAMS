@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.0.11",
-  "buildDate": "2025-10-15T21:48:26.213Z",
-  "buildTimestamp": 1760564906214,
+  "buildDate": "2025-10-15T21:54:12.849Z",
+  "buildTimestamp": 1760565252849,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "1f240ce",
+    "hash": "5787b28",
     "branch": "feature/water-bills-issues-0-7-complete-fix",
-    "lastCommitDate": "2025-10-15 15:53:27 -0500"
+    "lastCommitDate": "2025-10-15 16:49:46 -0500"
   },
   "build": {
-    "timestamp": "2025-10-15T21:48:26.213Z",
+    "timestamp": "2025-10-15T21:54:12.849Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251015.1648"
+    "buildNumber": "251015.1654"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-15T21:48:26.213Z",
+    "date": "2025-10-15T21:54:12.849Z",
     "automated": true
   }
 }
