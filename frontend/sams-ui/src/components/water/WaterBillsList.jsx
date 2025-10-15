@@ -340,18 +340,6 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
               const transactionId = lastPayment?.transactionId || null;
               
-              // DEBUG: Log transaction ID resolution for Unit 203
-              if (unitId === '203') {
-                console.log(`🐛 [WATER_BILLS_UI] Unit ${unitId} transaction ID resolution:`, {
-                  unitStatus: unit.status,
-                  hasPayments: payments.length > 0,
-                  payments: payments,
-                  lastPayment: lastPayment,
-                  resolvedTransactionId: transactionId,
-                  unitData: unit
-                });
-              }
-              
               // Create bill object for selection/transaction linking
               const billData = {
                 unitId,

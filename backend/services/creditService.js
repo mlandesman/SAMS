@@ -8,7 +8,7 @@ import { getNow } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import admin from 'firebase-admin';
 
-export class CreditService {
+class CreditService {
   
   /**
    * Get current fiscal year for credit balance operations
@@ -52,13 +52,14 @@ export class CreditService {
       }
       
       const data = doc.data();
-      const creditBalance = data.creditBalance || 0;
+      const creditBalanceInCents = data.creditBalance || 0;
+      const creditBalanceInDollars = creditBalanceInCents / 100;
       
       return {
         clientId,
         unitId,
-        creditBalance,
-        creditBalanceDisplay: this._formatCurrency(creditBalance),
+        creditBalance: creditBalanceInDollars, // Return in dollars for API consumers
+        creditBalanceDisplay: this._formatCurrency(creditBalanceInCents),
         lastUpdated: data.updated ? data.updated.toDate().toISOString() : null
       };
     } catch (error) {
@@ -176,7 +177,8 @@ export class CreditService {
       }
       
       const data = doc.data();
-      const creditBalance = data.creditBalance || 0;
+      const creditBalanceInCents = data.creditBalance || 0;
+      const creditBalanceInDollars = creditBalanceInCents / 100;
       const creditHistory = data.creditBalanceHistory || [];
       
       // Sort by timestamp (most recent first)
@@ -191,12 +193,12 @@ export class CreditService {
       return {
         clientId,
         unitId,
-        currentBalance: creditBalance,
+        currentBalance: creditBalanceInDollars, // Return in dollars
         history: sortedHistory.map(entry => ({
           id: entry.id,
           date: entry.timestamp?.toDate ? entry.timestamp.toDate().toISOString() : null,
-          amount: entry.amount,
-          balance: entry.balance,
+          amount: entry.amount / 100, // Convert to dollars
+          balance: entry.balance / 100, // Convert to dollars
           transactionId: entry.transactionId,
           note: entry.note,
           source: entry.source
@@ -294,4 +296,8 @@ export class CreditService {
     return `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
+
+// Create and export singleton instance
+const creditService = new CreditService();
+export default creditService;
 
