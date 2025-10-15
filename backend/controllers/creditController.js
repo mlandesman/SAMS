@@ -2,11 +2,11 @@
 // Handles HTTP requests for credit balance operations
 // Routes requests to CreditService for business logic
 
-import { CreditService } from '../services/creditService.js';
+import creditService from '../services/creditService.js';
 
 export class CreditController {
   constructor() {
-    this.creditService = new CreditService();
+    this.creditService = creditService;
   }
 
   /**
