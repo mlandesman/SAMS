@@ -409,8 +409,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                   }
                 } else if (unit.status === 'paid' && !transactionId) {
                   alert('No Matching Transaction Record');
-                } else if (unit.status === 'unpaid' || unit.status === 'partial') {
-                  // Open payment modal for unpaid/partial bills (more intuitive UX)
+                } else if (due > 0) {
+                  // TASK 2 ISSUE 4: Allow payment if ANY amount due (includes nobill with overdue)
+                  // Michael: "Only need to check the Due amount... If there is amount Due, let them pay it!"
                   setSelectedUnitForPayment(unitId);
                   setShowPaymentModal(true);
                 }
@@ -482,9 +483,9 @@ ${washCharges.toFixed(2)}
                       <button 
                         className={`link-button status-button ${getStatusClass(unit.status || 'unpaid')}`}
                         onClick={handleStatusClick}
-                        title={unit.status === 'unpaid' || unit.status === 'partial' ? 
+                        title={due > 0 ? 
                           `Click to record payment for Unit ${unitId}` : 
-                          'No action available'
+                          'No payment needed'
                         }
                       >
                         {(unit.status || 'unpaid').toUpperCase()}
