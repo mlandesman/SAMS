@@ -5,6 +5,7 @@ import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import axios from 'axios';
 import { getNow } from '../services/DateService.js';
+import { CreditAPI } from '../api/creditAPI.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 
@@ -491,50 +492,49 @@ class WaterPaymentsService {
   }
   
   /**
-   * Get credit balance using existing HOA dues controller function (CLEAN SEPARATION)
+   * Get credit balance using new /credit endpoint (Task 2 Issue 1 fix)
    */
   async _getCreditBalance(clientId, unitId, year) {
     try {
-      // Import and use the existing HOA controller function directly
-      const { getUnitDuesData } = await import('../controllers/hoaDuesController.js');
+      console.log(`📊 Getting credit balance via /credit endpoint: Unit ${unitId}, Year ${year}`);
       
-      const duesData = await getUnitDuesData(clientId, unitId, year);
+      const creditData = await CreditAPI.getCreditBalance(clientId, unitId);
       
-      if (!duesData) {
-        console.log(`No dues data found for unit ${unitId} year ${year} - returning zero credit balance`);
-        return { creditBalance: 0, creditBalanceHistory: [] };
-      }
-      
-      console.log(`📊 Credit balance accessed by water_bills: Unit ${unitId}, Year ${year}, Balance: $${duesData.creditBalance || 0}`);
+      console.log(`📊 Credit balance accessed by water_bills: Unit ${unitId}, Year ${year}, Balance: $${creditData.creditBalance || 0}`);
       
       return {
-        creditBalance: duesData.creditBalance || 0, // Already in dollars from HOA controller
-        creditBalanceHistory: duesData.creditBalanceHistory || []
+        creditBalance: creditData.creditBalance || 0, // Already in dollars from CreditAPI
+        creditBalanceHistory: creditData.creditBalanceHistory || []
       };
       
     } catch (error) {
-      console.error('Error getting credit balance via HOA controller:', error);
-      // Return zero balance if HOA module unavailable (graceful degradation)
+      console.error('Error getting credit balance via /credit endpoint:', error);
+      // Return zero balance if credit endpoint unavailable (graceful degradation)
       return { creditBalance: 0, creditBalanceHistory: [] };
     }
   }
   
   /**
-   * Update credit balance using existing HOA dues controller function (CLEAN SEPARATION)
+   * Update credit balance using new /credit endpoint (Task 2 Issue 1 fix)
    */
   async _updateCreditBalance(clientId, unitId, year, updateData) {
     try {
-      // Import and use the existing HOA controller function directly
-      const { updateCreditBalance } = await import('../controllers/hoaDuesController.js');
-      
       const { newBalance, changeAmount, changeType, description, transactionId } = updateData;
       
-      console.log(`💰 Updating credit balance via HOA controller: Unit ${unitId}, New balance: $${newBalance}`);
+      console.log(`💰 Updating credit balance via /credit endpoint: Unit ${unitId}, New balance: $${newBalance}`);
       
-      // Use the existing HOA updateCreditBalance function
-      const result = await updateCreditBalance(clientId, unitId, year, newBalance);
+      // Calculate amount change in cents for CreditAPI
+      const amountChangeInCents = dollarsToCents(changeAmount);
       
-      console.log(`✅ Credit balance updated by water_bills via HOA controller: $${newBalance}`);
+      // Use the new CreditAPI
+      const result = await CreditAPI.updateCreditBalance(clientId, unitId, {
+        amount: amountChangeInCents,
+        transactionId: transactionId,
+        note: description || `Water Bills payment - ${changeType}`,
+        source: 'waterBills'
+      });
+      
+      console.log(`✅ Credit balance updated by water_bills via /credit endpoint: $${newBalance}`);
       
       return {
         success: true,
@@ -543,8 +543,8 @@ class WaterPaymentsService {
       };
       
     } catch (error) {
-      console.error('Error updating credit balance via HOA controller:', error);
-      throw new Error('Failed to update credit balance via HOA controller');
+      console.error('Error updating credit balance via /credit endpoint:', error);
+      throw new Error('Failed to update credit balance via /credit endpoint');
     }
   }
   
