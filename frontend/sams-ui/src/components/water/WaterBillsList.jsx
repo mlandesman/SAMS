@@ -328,9 +328,11 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                 washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
               }
               
-              const penalties = unit.penaltyAmount || 0;   // Penalties from previous months
-              const overdue = unit.previousBalance || 0;   // Overdue amounts from previous months
-              const due = monthlyCharge + washCharges + overdue + penalties;  // Total amount to clear account
+              // TASK 2 ISSUE 2: Use display fields for paid bills (show $0 instead of amounts)
+              // Backend provides displayDue, displayPenalties, displayOverdue which are 0 for paid bills
+              const penalties = unit.displayPenalties !== undefined ? unit.displayPenalties : (unit.penaltyAmount || 0);
+              const overdue = unit.displayOverdue !== undefined ? unit.displayOverdue : (unit.previousBalance || 0);
+              const due = unit.displayDue !== undefined ? unit.displayDue : (monthlyCharge + washCharges + overdue + penalties);
               
               
               // Get most recent payment's transaction ID from payments array
