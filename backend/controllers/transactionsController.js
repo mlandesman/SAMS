@@ -29,6 +29,7 @@ import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import creditService from '../services/creditService.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
 
@@ -772,10 +773,87 @@ async function deleteTransaction(clientId, txnId) {
     let hoaCleanupDetails = null;
     let waterCleanupExecuted = false;
     let waterCleanupDetails = null;
+    let creditReversalExecuted = false;
+    let creditReversalAmount = 0;
+    let creditBalanceBefore = 0;
     
-    // Use a transaction to ensure consistency
-    await db.runTransaction(async (transaction) => {
-      // PHASE 1: ALL READS FIRST (as required by Firestore)
+    // ══════════════════════════════════════════════════════════════════════
+    // CREDIT REVERSAL FIRST (Simple → Complex Pattern)
+    // ══════════════════════════════════════════════════════════════════════
+    // For Water Bills transactions, reverse credit changes BEFORE the complex
+    // bill cleanup transaction. If the transaction fails, we can easily rollback
+    // with a single credit update.
+    // ══════════════════════════════════════════════════════════════════════
+    
+    if (isWaterTransaction && originalData.unitId) {
+      try {
+        console.log(`💳 [BACKEND] Step 1: Reversing credit balance changes for transaction ${txnId}`);
+        
+        // Get credit history to find this transaction's entries
+        const creditHistory = await creditService.getCreditHistory(clientId, originalData.unitId, 100);
+        
+        // Find entries for this transaction
+        const transactionEntries = creditHistory.history.filter(entry => 
+          entry.transactionId === txnId
+        );
+        
+        console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
+        
+        if (transactionEntries.length > 0) {
+          // Calculate reversal amount (reverse the effect of each entry)
+          let reversalAmountCentavos = 0;
+          for (const entry of transactionEntries) {
+            // entry.amount is in dollars, need to reverse it
+            // If credit was added (+), we need to subtract (-) to reverse
+            // If credit was used (-), we need to add (+) to restore
+            reversalAmountCentavos -= (entry.amount * 100);
+            console.log(`💳 [BACKEND] Reversing entry: ${entry.amount > 0 ? 'Added' : 'Used'} $${Math.abs(entry.amount)} (${entry.note})`);
+          }
+          
+          console.log(`💳 [BACKEND] Total credit reversal: ${reversalAmountCentavos} centavos (${reversalAmountCentavos / 100} pesos)`);
+          
+          if (reversalAmountCentavos !== 0) {
+            // Store balance before for potential rollback
+            creditBalanceBefore = creditHistory.currentBalance * 100; // Convert to centavos
+            creditReversalAmount = reversalAmountCentavos;
+            
+            // Apply credit reversal using credit service
+            const creditResult = await creditService.updateCreditBalance(
+              clientId,
+              originalData.unitId,
+              reversalAmountCentavos,
+              `${txnId}_reversal`,
+              `Reversal of credit changes from deleted water bills transaction ${txnId}`,
+              'waterBills'
+            );
+            
+            creditReversalExecuted = true;
+            console.log(`✅ [BACKEND] Credit reversal complete: ${creditResult.previousBalance} → ${creditResult.newBalance} centavos`);
+          } else {
+            console.log(`ℹ️ [BACKEND] No credit changes to reverse for transaction ${txnId}`);
+          }
+        } else {
+          console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
+        }
+      } catch (creditError) {
+        console.error(`❌ [BACKEND] Error reversing credit balance:`, creditError);
+        throw new Error(`Failed to reverse credit balance: ${creditError.message}`);
+      }
+    }
+    
+    // ══════════════════════════════════════════════════════════════════════
+    // WATER BILLS TRANSACTION (Complex Operation)
+    // ══════════════════════════════════════════════════════════════════════
+    // Now execute the complex bill cleanup transaction. If this fails, we can
+    // easily rollback the credit reversal above with a single credit update.
+    // ══════════════════════════════════════════════════════════════════════
+    
+    try {
+      console.log(`🔄 [BACKEND] Step 2: Starting complex bill cleanup transaction`);
+      
+      // Use a transaction to ensure consistency
+      await db.runTransaction(async (transaction) => {
+        // PHASE 1: ALL READS FIRST (as required by Firestore)
       
       // Read transaction document (already done above, but we have the data)
       
@@ -899,8 +977,7 @@ async function deleteTransaction(clientId, txnId) {
           waterBillDocs, 
           originalData, 
           txnId,
-          clientId,
-          db  // Pass db instance for credit balance lookup
+          clientId
         );
         waterCleanupExecuted = true;
         console.log(`✅ [BACKEND] Water Bills cleanup prepared for transaction ${txnId}`, waterCleanupDetails);
@@ -911,7 +988,44 @@ async function deleteTransaction(clientId, txnId) {
           transactionId: txnId
         });
       }
-    });
+      });
+      
+      console.log(`✅ [BACKEND] Complex bill cleanup transaction completed successfully`);
+      
+    } catch (transactionError) {
+      // ══════════════════════════════════════════════════════════════════════
+      // ROLLBACK CREDIT REVERSAL (Simple → Complex Pattern)
+      // ══════════════════════════════════════════════════════════════════════
+      // Transaction failed! Rollback the credit reversal we did earlier.
+      // This is a single, simple operation.
+      // ══════════════════════════════════════════════════════════════════════
+      
+      console.error(`❌ [BACKEND] Transaction failed:`, transactionError);
+      
+      if (creditReversalExecuted && creditReversalAmount !== 0) {
+        console.log(`🔄 [BACKEND] Rolling back credit reversal: restoring ${-creditReversalAmount} centavos`);
+        
+        try {
+          // Reverse the reversal (restore original change)
+          await creditService.updateCreditBalance(
+            clientId,
+            originalData.unitId,
+            -creditReversalAmount, // Negative to undo the reversal
+            `${txnId}_rollback`,
+            `Rollback of credit reversal due to transaction deletion failure for ${txnId}`,
+            'waterBills'
+          );
+          
+          console.log(`✅ [BACKEND] Credit balance rolled back successfully`);
+        } catch (rollbackError) {
+          console.error(`❌❌ [BACKEND] CRITICAL: Failed to rollback credit balance:`, rollbackError);
+          console.error(`❌❌ [BACKEND] Manual intervention required! Unit ${originalData.unitId} credit balance may be incorrect.`);
+          // Don't throw - we want to report the original transaction error
+        }
+      }
+      
+      throw transactionError; // Re-throw the original error
+    }
 
     // 🔄 SURGICAL UPDATE: Trigger after Firestore transaction commits
     // This ensures aggregatedData (including lastPenaltyUpdate) is updated after delete
@@ -919,10 +1033,8 @@ async function deleteTransaction(clientId, txnId) {
       try {
         console.log(`🔄 [BACKEND] Starting surgical update for ${waterCleanupDetails.affectedUnits.length} unit(s) after payment reversal`);
         
-        // Dynamic import of waterDataService
-        const waterDataServiceModule = await import('../services/waterDataService.js');
-        const WaterDataService = waterDataServiceModule.default;
-        const waterDataService = new WaterDataService();
+        // Dynamic import of waterDataService (singleton instance)
+        const { waterDataService } = await import('../services/waterDataService.js');
         
         // Group affected units by year for efficient updates
         const updatesByYear = new Map();
@@ -973,7 +1085,10 @@ async function deleteTransaction(clientId, txnId) {
     }
     
     if (waterCleanupExecuted && waterCleanupDetails) {
-      auditNotes += `. Water Bills cleanup: reversed credit balance changes, reset ${waterCleanupDetails.billsReversed || 0} bill(s) payment data`;
+      auditNotes += `. Water Bills cleanup: reset ${waterCleanupDetails.billsReversed || 0} bill(s) payment data`;
+      if (creditReversalExecuted && creditReversalAmount !== 0) {
+        auditNotes += `, reversed credit balance by ${creditReversalAmount / 100} pesos`;
+      }
     }
 
     let auditAction = 'delete';
@@ -1000,7 +1115,8 @@ async function deleteTransaction(clientId, txnId) {
           waterCleanupExecuted: true,
           waterUnitAffected: originalData.unitId,
           billsReversed: waterCleanupDetails?.billsReversed,
-          creditChangesReversed: waterCleanupDetails?.creditChangesReversed
+          creditReversalExecuted: creditReversalExecuted,
+          creditBalanceReversed: creditReversalAmount
         } : {})
       }
     });
@@ -1250,13 +1366,11 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   };
 }
 
-// Water Bills cleanup logic for transaction deletion
-async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId, db) {
+// Water Bills cleanup logic for transaction deletion (bill reversal only - credit handled separately)
+async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId) {
   console.log(`🧹 [BACKEND] Processing Water Bills cleanup write operations for transaction ${txnId}`);
   
   let billsReversed = 0;
-  let creditBalanceReversal = 0;
-  let newCreditBalance = 0;
   const affectedUnits = []; // Track for surgical update
   
   const unitId = originalData.unitId;
@@ -1321,99 +1435,13 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
   }
   
   // ══════════════════════════════════════════════════════════════════════
-  // CREDIT BALANCE REVERSAL - Within Transaction (Atomic)
-  // ══════════════════════════════════════════════════════════════════════
-  
-  // Get fiscal year for credit balance lookup
-  const fiscalYear = getFiscalYear(getNow(), 7); // July start for AVII
-  const duesPath = `clients/${clientId}/units/${unitId}/dues/${fiscalYear}`;
-  const duesRef = db.doc(duesPath);
-  
-  console.log(`💰 [BACKEND] Reading HOA Dues document for credit reversal: ${duesPath}`);
-  
-  // Read HOA Dues document within transaction
-  const duesDoc = await firestoreTransaction.get(duesRef);
-  
-  if (!duesDoc.exists) {
-    console.warn(`⚠️ [BACKEND] HOA Dues document not found: ${duesPath} - skipping credit reversal`);
-  } else {
-    const duesData = duesDoc.data();
-    const currentCreditBalance = duesData.creditBalance || 0;
-    
-    // Find credit history entries for this transaction
-    const creditHistory = duesData.creditBalanceHistory || [];
-    const transactionEntries = creditHistory.filter(entry => 
-      entry.transactionId === txnId && 
-      (entry.type === 'water_overpayment' || entry.type === 'water_credit_used')
-    );
-    
-    console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
-    
-    // Calculate credit reversal amount
-    for (const entry of transactionEntries) {
-      if (entry.type === 'water_overpayment') {
-        creditBalanceReversal -= entry.amount; // Remove added credit
-        console.log(`💳 [BACKEND] Reversing credit addition (overpayment): -${entry.amount} centavos`);
-      } else if (entry.type === 'water_credit_used') {
-        creditBalanceReversal += entry.amount; // Restore used credit
-        console.log(`💳 [BACKEND] Restoring used credit: +${entry.amount} centavos`);
-      }
-    }
-    
-    newCreditBalance = Math.max(0, currentCreditBalance + creditBalanceReversal);
-    console.log(`💳 [BACKEND] Credit balance update: ${currentCreditBalance} → ${newCreditBalance} centavos (${currentCreditBalance / 100} → ${newCreditBalance / 100} pesos)`);
-    
-    // ══════════════════════════════════════════════════════════════════════
-    // UPDATE CREDIT BALANCE HISTORY - Remove old entries, add reversal entry
-    // ══════════════════════════════════════════════════════════════════════
-    
-    let updatedCreditHistory = Array.isArray(creditHistory) ? [...creditHistory] : [];
-    
-    // Remove entries that match the deleted transaction
-    updatedCreditHistory = updatedCreditHistory.filter(entry => entry.transactionId !== txnId);
-    
-    // Add reversal entry if there was a credit balance change
-    if (creditBalanceReversal !== 0) {
-      const reversalType = creditBalanceReversal > 0 ? 'credit_restored' : 'credit_removed';
-      const description = creditBalanceReversal > 0 
-        ? 'Water Bills Transaction Deletion - Credit Restored' 
-        : 'Water Bills Transaction Deletion - Credit Removed';
-      
-      updatedCreditHistory.push({
-        id: randomUUID(),
-        timestamp: getNow().toISOString(),
-        transactionId: txnId + '_reversal',
-        type: reversalType,
-        amount: Math.abs(creditBalanceReversal),
-        description: description,
-        balanceBefore: currentCreditBalance,
-        balanceAfter: newCreditBalance,
-        notes: `Water Bills payment deleted: ${txnId}`
-      });
-      
-      console.log(`📝 [BACKEND] Added credit history reversal entry: ${reversalType}, amount: ${Math.abs(creditBalanceReversal)}`);
-    }
-    
-    // Update HOA Dues document with new credit balance and history
-    const updateData = {
-      creditBalance: newCreditBalance,
-      creditBalanceHistory: updatedCreditHistory
-    };
-    
-    firestoreTransaction.update(duesRef, updateData);
-    console.log(`💾 [BACKEND] Updated HOA Dues document with credit reversal`);
-  }
-  
-  // ══════════════════════════════════════════════════════════════════════
   // Return details for surgical update trigger
   // ══════════════════════════════════════════════════════════════════════
   
-  console.log(`✅ [BACKEND] Water Bills cleanup complete: ${billsReversed} bills reversed, credit reversal: ${creditBalanceReversal} centavos`);
+  console.log(`✅ [BACKEND] Water Bills cleanup complete: ${billsReversed} bills reversed`);
   
   return {
     billsReversed: billsReversed,
-    creditBalanceReversed: creditBalanceReversal,
-    newCreditBalance: newCreditBalance,
     affectedUnits: affectedUnits // Return for surgical update
   };
 }
