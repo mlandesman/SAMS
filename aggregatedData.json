@@ -1,0 +1,3153 @@
+{
+  "_id": "aggregatedData",
+  "year": 2026,
+  "fiscalYear": true,
+  "months": [
+    {
+      "month": 0,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "July",
+      "calendarYear": 2025,
+      "billsGenerated": true,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 1749,
+          "currentReading": {
+            "reading": 1767
+          },
+          "consumption": 18,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 900,
+          "totalAmount": 900,
+          "paidAmount": 900,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-17_221736_064",
+          "payments": [
+            {
+              "amount": 900,
+              "baseChargePaid": 900,
+              "penaltyPaid": 0,
+              "date": "2025-07-17T14:43:24.359Z",
+              "transactionId": "2025-07-17_221736_064",
+              "reference": "PAY-101 (Zerbarini)-20250717-25",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:18:58.694Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0018 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 7,
+          "currentReading": {
+            "reading": 26
+          },
+          "consumption": 19,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 950,
+          "totalAmount": 950,
+          "paidAmount": 950,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-12_221728_978",
+          "payments": [
+            {
+              "amount": 950,
+              "baseChargePaid": 950,
+              "penaltyPaid": 0,
+              "date": "2025-07-12T17:43:39.169Z",
+              "transactionId": "2025-07-12_221728_978",
+              "reference": "PAY-102 (Moguel)-20250712-17",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:18:59.042Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0019 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 835,
+          "currentReading": {
+            "reading": 842
+          },
+          "consumption": 7,
+          "previousBalance": 0,
+          "penaltyAmount": 55.17,
+          "billAmount": 350,
+          "totalAmount": 405.17,
+          "paidAmount": 405.17,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-16_091043_047",
+          "payments": [
+            {
+              "amount": 405.17,
+              "baseChargePaid": 350,
+              "penaltyPaid": 55.17,
+              "date": "2025-10-16",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-16_091043_047",
+              "recordedAt": "2025-10-16T14:10:43.757Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0007 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 1481,
+          "currentReading": {
+            "reading": 1489
+          },
+          "consumption": 8,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 400,
+          "totalAmount": 400,
+          "paidAmount": 400,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-23_221736_975",
+          "payments": [
+            {
+              "amount": 400,
+              "baseChargePaid": 400,
+              "penaltyPaid": 0,
+              "date": "2025-07-23T05:00:00.000Z",
+              "transactionId": "2025-07-23_221736_975",
+              "reference": "PAY-104 (Manuel González)-20250723-26",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:18:59.383Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0008 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 830,
+          "currentReading": {
+            "reading": 846
+          },
+          "consumption": 16,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 800,
+          "totalAmount": 800,
+          "paidAmount": 800,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-25_221740_453",
+          "payments": [
+            {
+              "amount": 800,
+              "baseChargePaid": 800,
+              "penaltyPaid": 0,
+              "date": "2025-07-25T21:59:40.434Z",
+              "transactionId": "2025-07-25_221740_453",
+              "reference": "PAY-105 (Antonio Manjarrez)-20250725-30",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:18:59.888Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0016 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 1340,
+          "currentReading": {
+            "reading": 1351
+          },
+          "consumption": 11,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 550,
+          "totalAmount": 550,
+          "paidAmount": 1029.47,
+          "unpaidAmount": -479.47,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-23_221737_865",
+          "payments": [
+            {
+              "amount": 1029.47,
+              "baseChargePaid": 1029.47,
+              "penaltyPaid": 0,
+              "date": "2025-07-23T21:57:35.748Z",
+              "transactionId": "2025-07-23_221737_865",
+              "reference": "PAY-106 (Terrel)-20250723-27",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:00.321Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0011 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 1083,
+          "currentReading": {
+            "reading": 1084
+          },
+          "consumption": 1,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 50,
+          "totalAmount": 50,
+          "paidAmount": 50,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-12_221727_033",
+          "payments": [
+            {
+              "amount": 50,
+              "baseChargePaid": 50,
+              "penaltyPaid": 0,
+              "date": "2025-07-12T15:22:08.599Z",
+              "transactionId": "2025-07-12_221727_033",
+              "reference": "PAY-201 (Ische)-20250712-15",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:00.502Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0001 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 325,
+          "currentReading": {
+            "reading": 325
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 1576,
+          "currentReading": {
+            "reading": 1619
+          },
+          "consumption": 43,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 2150,
+          "totalAmount": 2150,
+          "paidAmount": 2150,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-08-13_221749_945",
+          "payments": [
+            {
+              "amount": 2150,
+              "baseChargePaid": 2150,
+              "penaltyPaid": 0,
+              "date": "2025-08-13T05:00:00.000Z",
+              "transactionId": "2025-08-13_221749_945",
+              "reference": "PAY-203 (Marquez)-20250813-41",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:02.454Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0043 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 1819,
+          "currentReading": {
+            "reading": 1820
+          },
+          "consumption": 1,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 50,
+          "totalAmount": 50,
+          "paidAmount": 50,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-07-12_221728_016",
+          "payments": [
+            {
+              "amount": 50,
+              "baseChargePaid": 50,
+              "penaltyPaid": 0,
+              "date": "2025-07-12T17:34:37.428Z",
+              "transactionId": "2025-07-12_221728_016",
+              "reference": "PAY-204 (Januj)-20250712-16",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:00.936Z"
+            }
+          ],
+          "billNotes": "Water Consumption for July 2025 - 0001 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        }
+      },
+      "dueDate": "2025-07-20T03:18:58.142Z",
+      "commonArea": {
+        "priorReading": 1664,
+        "currentReading": 1700,
+        "consumption": 36
+      },
+      "readingDate": "2025-10-14T22:18:57.787-05:00",
+      "priorReadingDate": "2025-10-14T22:18:56.301-05:00"
+    },
+    {
+      "month": 1,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "August",
+      "calendarYear": 2025,
+      "billsGenerated": true,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 1767,
+          "currentReading": {
+            "reading": 1774
+          },
+          "consumption": 7,
+          "previousBalance": 0,
+          "penaltyAmount": 35.88,
+          "billAmount": 350,
+          "totalAmount": 385.88,
+          "paidAmount": 385.88,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-15_190205_169",
+          "payments": [
+            {
+              "amount": 385.88,
+              "baseChargePaid": 350,
+              "penaltyPaid": 35.88,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_190205_169",
+              "recordedAt": "2025-10-16T00:02:05.845Z"
+            }
+          ],
+          "billNotes": "Water Consumption for August 2025 - 0007 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 26,
+          "currentReading": {
+            "reading": 30
+          },
+          "consumption": 4,
+          "previousBalance": 0,
+          "penaltyAmount": 20.5,
+          "billAmount": 200,
+          "totalAmount": 220.5,
+          "paidAmount": 220.5,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-15_185009_708",
+          "payments": [
+            {
+              "amount": 220.5,
+              "baseChargePaid": 200,
+              "penaltyPaid": 20.5,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_185009_708",
+              "recordedAt": "2025-10-15T23:50:10.488Z"
+            }
+          ],
+          "billNotes": "Water Consumption for August 2025 - 0004 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 842,
+          "currentReading": {
+            "reading": 850
+          },
+          "consumption": 8,
+          "previousBalance": 0,
+          "penaltyAmount": 41,
+          "billAmount": 400,
+          "totalAmount": 441,
+          "paidAmount": 441,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-16_091043_047",
+          "payments": [
+            {
+              "amount": 441,
+              "baseChargePaid": 400,
+              "penaltyPaid": 41,
+              "date": "2025-10-16",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-16_091043_047",
+              "recordedAt": "2025-10-16T14:10:43.840Z"
+            }
+          ],
+          "billNotes": "Water Consumption for August 2025 - 0008 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 1489,
+          "currentReading": {
+            "reading": 1497
+          },
+          "consumption": 8,
+          "previousBalance": 0,
+          "penaltyAmount": 41,
+          "billAmount": 400,
+          "totalAmount": 441,
+          "paidAmount": 0,
+          "unpaidAmount": 441,
+          "status": "unpaid",
+          "daysPastDue": 67,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for August 2025 - 0008 m³",
+          "displayDue": 441,
+          "displayPenalties": 41,
+          "displayOverdue": 0
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 846,
+          "currentReading": {
+            "reading": 850
+          },
+          "consumption": 4,
+          "previousBalance": 0,
+          "penaltyAmount": 20.5,
+          "billAmount": 200,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "unpaid",
+          "daysPastDue": 67,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for August 2025 - 0004 m³",
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 0
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 1351,
+          "currentReading": {
+            "reading": 1362
+          },
+          "consumption": 11,
+          "previousBalance": 0,
+          "penaltyAmount": 24.57,
+          "billAmount": 550,
+          "totalAmount": 574.57,
+          "paidAmount": 310.27,
+          "unpaidAmount": 264.30000000000007,
+          "status": "unpaid",
+          "daysPastDue": 67,
+          "transactionId": "2025-08-11_221749_137",
+          "payments": [
+            {
+              "amount": 310.27,
+              "baseChargePaid": 310.27,
+              "penaltyPaid": 0,
+              "date": "2025-08-11T16:34:44.818Z",
+              "transactionId": "2025-08-11_221749_137",
+              "reference": "PAY-106 (Terrel)-20250811-40",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:02.283Z"
+            }
+          ],
+          "billNotes": "Water Consumption for August 2025 - 0011 m³",
+          "displayDue": 264.30000000000007,
+          "displayPenalties": 24.57,
+          "displayOverdue": 0
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 1084,
+          "currentReading": {
+            "reading": 1084
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 325,
+          "currentReading": {
+            "reading": 330
+          },
+          "consumption": 5,
+          "previousBalance": 0,
+          "penaltyAmount": 25.63,
+          "billAmount": 250,
+          "totalAmount": 275.63,
+          "paidAmount": 0,
+          "unpaidAmount": 275.63,
+          "status": "unpaid",
+          "daysPastDue": 67,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for August 2025 - 0005 m³",
+          "displayDue": 275.63,
+          "displayPenalties": 25.63,
+          "displayOverdue": 0
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 1619,
+          "currentReading": {
+            "reading": 1653
+          },
+          "consumption": 34,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 1700,
+          "totalAmount": 1700,
+          "paidAmount": 1785,
+          "unpaidAmount": -85,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-08-13_221749_945",
+          "payments": [
+            {
+              "amount": 1785,
+              "baseChargePaid": 1700,
+              "penaltyPaid": 85,
+              "date": "2025-08-13T05:00:00.000Z",
+              "transactionId": "2025-08-13_221749_945",
+              "reference": "PAY-203 (Marquez)-20250813-41",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:02.631Z"
+            }
+          ],
+          "billNotes": "Water Consumption for August 2025 - 0034 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 1820,
+          "currentReading": {
+            "reading": 1824
+          },
+          "consumption": 4,
+          "previousBalance": 0,
+          "penaltyAmount": 20.5,
+          "billAmount": 200,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "unpaid",
+          "daysPastDue": 67,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for August 2025 - 0004 m³",
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 0
+        }
+      },
+      "dueDate": "2025-08-10T03:19:01.740Z",
+      "commonArea": {
+        "priorReading": 1700,
+        "currentReading": 1730,
+        "consumption": 30
+      },
+      "buildingMeter": {
+        "priorReading": 0,
+        "currentReading": 18313,
+        "consumption": 18313
+      },
+      "readingDate": "2025-10-14T22:19:01.397-05:00",
+      "priorReadingDate": "2025-10-14T22:18:57.787-05:00"
+    },
+    {
+      "month": 2,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "September",
+      "calendarYear": 2025,
+      "billsGenerated": true,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 1774,
+          "currentReading": {
+            "reading": 1780
+          },
+          "consumption": 6,
+          "previousBalance": 0,
+          "penaltyAmount": 15,
+          "billAmount": 300,
+          "totalAmount": 315,
+          "paidAmount": 315,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-15_190205_169",
+          "payments": [
+            {
+              "amount": 315,
+              "baseChargePaid": 300,
+              "penaltyPaid": 15,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_190205_169",
+              "recordedAt": "2025-10-16T00:02:05.939Z"
+            }
+          ],
+          "billNotes": "Water Consumption for September 2025 - 0006 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 30,
+          "currentReading": {
+            "reading": 34
+          },
+          "consumption": 4,
+          "previousBalance": 0,
+          "penaltyAmount": 10,
+          "billAmount": 200,
+          "totalAmount": 210,
+          "paidAmount": 210,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-15_185009_708",
+          "payments": [
+            {
+              "amount": 210,
+              "baseChargePaid": 200,
+              "penaltyPaid": 10,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_185009_708",
+              "recordedAt": "2025-10-15T23:50:10.577Z"
+            }
+          ],
+          "billNotes": "Water Consumption for September 2025 - 0004 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 850,
+          "currentReading": {
+            "reading": 874
+          },
+          "consumption": 24,
+          "previousBalance": 0,
+          "penaltyAmount": 60,
+          "billAmount": 1200,
+          "totalAmount": 1260,
+          "paidAmount": 1260,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-16_091043_047",
+          "payments": [
+            {
+              "amount": 1260,
+              "baseChargePaid": 1200,
+              "penaltyPaid": 60,
+              "date": "2025-10-16",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-16_091043_047",
+              "recordedAt": "2025-10-16T14:10:43.929Z"
+            }
+          ],
+          "billNotes": "Water Consumption for September 2025 - 0024 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 1497,
+          "currentReading": {
+            "reading": 1506
+          },
+          "consumption": 9,
+          "previousBalance": 400,
+          "penaltyAmount": 22.5,
+          "billAmount": 450,
+          "totalAmount": 472.5,
+          "paidAmount": 0,
+          "unpaidAmount": 472.5,
+          "status": "unpaid",
+          "daysPastDue": 36,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for September 2025 - 0009 m³",
+          "displayDue": 472.5,
+          "displayPenalties": 22.5,
+          "displayOverdue": 400
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 850,
+          "currentReading": {
+            "reading": 853
+          },
+          "consumption": 3,
+          "previousBalance": 200,
+          "penaltyAmount": 7.5,
+          "billAmount": 150,
+          "totalAmount": 157.5,
+          "paidAmount": 0,
+          "unpaidAmount": 157.5,
+          "status": "unpaid",
+          "daysPastDue": 36,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for September 2025 - 0003 m³",
+          "displayDue": 157.5,
+          "displayPenalties": 7.5,
+          "displayOverdue": 200
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 1362,
+          "currentReading": {
+            "reading": 1371
+          },
+          "consumption": 9,
+          "previousBalance": 239.73000000000008,
+          "penaltyAmount": 0,
+          "billAmount": 450,
+          "totalAmount": 450,
+          "paidAmount": 450,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-09-13_221811_606",
+          "payments": [
+            {
+              "amount": 450,
+              "baseChargePaid": 450,
+              "penaltyPaid": 0,
+              "date": "2025-09-13T05:00:00.000Z",
+              "transactionId": "2025-09-13_221811_606",
+              "reference": "PAY-106 (Nieto)-20250913-68",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:04.072Z"
+            }
+          ],
+          "billNotes": "Water Consumption for September 2025 - 0009 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 1084,
+          "currentReading": {
+            "reading": 1084
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 330,
+          "currentReading": {
+            "reading": 331
+          },
+          "consumption": 1,
+          "previousBalance": 250,
+          "penaltyAmount": 2.5,
+          "billAmount": 50,
+          "totalAmount": 52.5,
+          "paidAmount": 0,
+          "unpaidAmount": 52.5,
+          "status": "unpaid",
+          "daysPastDue": 36,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for September 2025 - 0001 m³",
+          "displayDue": 52.5,
+          "displayPenalties": 2.5,
+          "displayOverdue": 250
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 1653,
+          "currentReading": {
+            "reading": 1692
+          },
+          "consumption": 39,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 1950,
+          "totalAmount": 1950,
+          "paidAmount": 2114.25,
+          "unpaidAmount": -164.25,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-02_221835_190",
+          "payments": [
+            {
+              "amount": 2114.25,
+              "baseChargePaid": 1927.5,
+              "penaltyPaid": 186.75,
+              "date": "2025-10-02T22:33:40.184Z",
+              "transactionId": "2025-10-02_221835_190",
+              "reference": "PAY-203 (Marquez)-20251002-97",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:05.356Z"
+            }
+          ],
+          "billNotes": "Water Consumption for September 2025 - 0039 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 1824,
+          "currentReading": {
+            "reading": 1824
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": "2025-09-10T03:19:03.447Z",
+      "commonArea": {
+        "priorReading": 1730,
+        "currentReading": 1756,
+        "consumption": 26
+      },
+      "buildingMeter": {
+        "priorReading": 18313,
+        "currentReading": 18527,
+        "consumption": 214
+      },
+      "readingDate": "2025-10-14T22:19:03.102-05:00",
+      "priorReadingDate": "2025-10-14T22:19:01.397-05:00"
+    },
+    {
+      "month": 3,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "October",
+      "calendarYear": 2025,
+      "billsGenerated": true,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 1780,
+          "currentReading": {
+            "reading": 1792
+          },
+          "consumption": 12,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 600,
+          "totalAmount": 600,
+          "paidAmount": 1200,
+          "unpaidAmount": -600,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-15_190205_169",
+          "payments": [
+            {
+              "amount": 1200,
+              "baseChargePaid": 600,
+              "penaltyPaid": 0,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_190205_169",
+              "recordedAt": "2025-10-16T00:02:06.029Z"
+            }
+          ],
+          "billNotes": "Water Consumption for October 2025 - 0012 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 34,
+          "currentReading": {
+            "reading": 47
+          },
+          "consumption": 13,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 650,
+          "totalAmount": 650,
+          "paidAmount": 580.5,
+          "unpaidAmount": 69.5,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": "2025-10-15_185009_708",
+          "payments": [
+            {
+              "amount": 580.5,
+              "baseChargePaid": 650,
+              "penaltyPaid": 0,
+              "date": "2025-10-15",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-15_185009_708",
+              "recordedAt": "2025-10-15T23:50:10.669Z"
+            }
+          ],
+          "billNotes": "Water Consumption for October 2025 - 0013 m³",
+          "displayDue": 69.5,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 874,
+          "currentReading": {
+            "reading": 877
+          },
+          "consumption": 3,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 150,
+          "totalAmount": 150,
+          "paidAmount": 100,
+          "unpaidAmount": 50,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": "2025-10-16_091043_047",
+          "payments": [
+            {
+              "amount": 100,
+              "baseChargePaid": 150,
+              "penaltyPaid": 0,
+              "date": "2025-10-16",
+              "method": "eTransfer",
+              "reference": "",
+              "transactionId": "2025-10-16_091043_047",
+              "recordedAt": "2025-10-16T14:10:44.010Z"
+            }
+          ],
+          "billNotes": "Water Consumption for October 2025 - 0003 m³",
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 1506,
+          "currentReading": {
+            "reading": 1516
+          },
+          "consumption": 10,
+          "previousBalance": 850,
+          "penaltyAmount": 0,
+          "billAmount": 500,
+          "totalAmount": 500,
+          "paidAmount": 0,
+          "unpaidAmount": 500,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for October 2025 - 0010 m³",
+          "displayDue": 500,
+          "displayPenalties": 0,
+          "displayOverdue": 850
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 853,
+          "currentReading": {
+            "reading": 855
+          },
+          "consumption": 2,
+          "previousBalance": 350,
+          "penaltyAmount": 0,
+          "billAmount": 100,
+          "totalAmount": 100,
+          "paidAmount": 0,
+          "unpaidAmount": 100,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for October 2025 - 0002 m³",
+          "displayDue": 100,
+          "displayPenalties": 0,
+          "displayOverdue": 350
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 1371,
+          "currentReading": {
+            "reading": 1384
+          },
+          "consumption": 13,
+          "previousBalance": 239.73000000000008,
+          "penaltyAmount": 0,
+          "billAmount": 650,
+          "totalAmount": 650,
+          "paidAmount": 0,
+          "unpaidAmount": 650,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for October 2025 - 0013 m³",
+          "displayDue": 650,
+          "displayPenalties": 0,
+          "displayOverdue": 239.73000000000008
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 1084,
+          "currentReading": {
+            "reading": 1085
+          },
+          "consumption": 1,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 50,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "unpaid",
+          "daysPastDue": 3,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": "Water Consumption for October 2025 - 0001 m³",
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 331,
+          "currentReading": {
+            "reading": 331
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 1692,
+          "currentReading": {
+            "reading": 1723
+          },
+          "consumption": 31,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 1550,
+          "totalAmount": 1550,
+          "paidAmount": 1550,
+          "unpaidAmount": 0,
+          "status": "paid",
+          "daysPastDue": 0,
+          "transactionId": "2025-10-02_221835_190",
+          "payments": [
+            {
+              "amount": 1550,
+              "baseChargePaid": 1550,
+              "penaltyPaid": 0,
+              "date": "2025-10-02T22:33:40.184Z",
+              "transactionId": "2025-10-02_221835_190",
+              "reference": "PAY-203 (Marquez)-20251002-97",
+              "method": "bank_transfer",
+              "recordedAt": "2025-10-15T03:19:05.535Z"
+            }
+          ],
+          "billNotes": "Water Consumption for October 2025 - 0031 m³",
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 1824,
+          "currentReading": {
+            "reading": 1824
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": "2025-10-13T03:19:04.802Z",
+      "commonArea": {
+        "priorReading": 1756,
+        "currentReading": 1775,
+        "consumption": 19
+      },
+      "buildingMeter": {
+        "priorReading": 18527,
+        "currentReading": 18724,
+        "consumption": 197
+      },
+      "readingDate": "2025-10-14T22:19:04.460-05:00",
+      "priorReadingDate": "2025-10-14T22:19:03.102-05:00"
+    },
+    {
+      "month": 4,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "November",
+      "calendarYear": 2025,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 1792,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1792,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 47,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -47,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 877,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -877,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 1516,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1516,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 855,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -855,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 1384,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1384,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 1085,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1085,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 331,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -331,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 1723,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1723,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 1824,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": -1824,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null,
+      "commonArea": {
+        "priorReading": 1775,
+        "currentReading": null,
+        "consumption": null
+      },
+      "buildingMeter": {
+        "priorReading": 18724,
+        "currentReading": null,
+        "consumption": null
+      },
+      "priorReadingDate": "2025-10-14T22:19:04.460-05:00"
+    },
+    {
+      "month": 5,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "December",
+      "calendarYear": 2025,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 6,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "January",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 7,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "February",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 8,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "March",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 9,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "April",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 10,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "May",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    },
+    {
+      "month": 11,
+      "year": 2026,
+      "fiscalYear": 2026,
+      "monthName": "June",
+      "calendarYear": 2026,
+      "billsGenerated": false,
+      "units": {
+        "101": {
+          "ownerLastName": "Zerbarini",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "102": {
+          "ownerLastName": "Bagnato",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "103": {
+          "ownerLastName": "Fernández",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "104": {
+          "ownerLastName": "González",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 1350,
+          "penaltyAmount": 63.5,
+          "billAmount": 0,
+          "totalAmount": 1413.5,
+          "paidAmount": 0,
+          "unpaidAmount": 1413.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 1413.5,
+          "displayPenalties": 63.5,
+          "displayOverdue": 1350
+        },
+        "105": {
+          "ownerLastName": "Manjarrez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 450,
+          "penaltyAmount": 28,
+          "billAmount": 0,
+          "totalAmount": 478,
+          "paidAmount": 0,
+          "unpaidAmount": 478,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 478,
+          "displayPenalties": 28,
+          "displayOverdue": 450
+        },
+        "106": {
+          "ownerLastName": "Nieto",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 889.73,
+          "penaltyAmount": 24.57,
+          "billAmount": 0,
+          "totalAmount": 914.3000000000001,
+          "paidAmount": 0,
+          "unpaidAmount": 914.3000000000001,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 914.3000000000001,
+          "displayPenalties": 24.57,
+          "displayOverdue": 889.73
+        },
+        "201": {
+          "ownerLastName": "Ische",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 50,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 50,
+          "paidAmount": 0,
+          "unpaidAmount": 50,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 50,
+          "displayPenalties": 0,
+          "displayOverdue": 50
+        },
+        "202": {
+          "ownerLastName": "Violette",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 300,
+          "penaltyAmount": 28.13,
+          "billAmount": 0,
+          "totalAmount": 328.13,
+          "paidAmount": 0,
+          "unpaidAmount": 328.13,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 328.13,
+          "displayPenalties": 28.13,
+          "displayOverdue": 300
+        },
+        "203": {
+          "ownerLastName": "Marquez",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 0,
+          "penaltyAmount": 0,
+          "billAmount": 0,
+          "totalAmount": 0,
+          "paidAmount": 0,
+          "unpaidAmount": 0,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 0,
+          "displayPenalties": 0,
+          "displayOverdue": 0
+        },
+        "204": {
+          "ownerLastName": "Januj",
+          "priorReading": 0,
+          "currentReading": {
+            "reading": 0
+          },
+          "consumption": 0,
+          "previousBalance": 200,
+          "penaltyAmount": 20.5,
+          "billAmount": 0,
+          "totalAmount": 220.5,
+          "paidAmount": 0,
+          "unpaidAmount": 220.5,
+          "status": "nobill",
+          "daysPastDue": 0,
+          "transactionId": null,
+          "payments": [],
+          "billNotes": null,
+          "displayDue": 220.5,
+          "displayPenalties": 20.5,
+          "displayOverdue": 200
+        }
+      },
+      "dueDate": null
+    }
+  ],
+  "summary": {
+    "totalConsumption": -11045,
+    "commonAreaConsumption": 111,
+    "buildingMeterConsumption": 18724,
+    "totalBilled": 19450,
+    "totalPaid": 17657.04,
+    "totalUnpaid": 1968.13,
+    "unitsWithOverdue": 0,
+    "collectionRate": 90.8,
+    "overdueDetails": [
+      {
+        "unitId": "102",
+        "owner": "Bagnato",
+        "amountDue": 69.5
+      },
+      {
+        "unitId": "103",
+        "owner": "Fernández",
+        "amountDue": 50
+      },
+      {
+        "unitId": "104",
+        "owner": "González",
+        "amountDue": 500
+      },
+      {
+        "unitId": "105",
+        "owner": "Manjarrez",
+        "amountDue": 100
+      },
+      {
+        "unitId": "106",
+        "owner": "Nieto",
+        "amountDue": 650
+      },
+      {
+        "unitId": "201",
+        "owner": "Ische",
+        "amountDue": 50
+      },
+      {
+        "unitId": "202",
+        "owner": "Violette",
+        "amountDue": 328.13
+      },
+      {
+        "unitId": "204",
+        "owner": "Januj",
+        "amountDue": 220.5
+      }
+    ]
+  },
+  "carWashRate": 100,
+  "boatWashRate": 200,
+  "_metadata": {
+    "fiscalYear": 2026,
+    "clientId": "AVII",
+    "calculationTimestamp": 1760631741239,
+    "billsProcessed": 12,
+    "unitsProcessed": 10,
+    "carWashRate": 100,
+    "boatWashRate": 200,
+    "lastCalculated": {
+      "_seconds": 1760631741,
+      "_nanoseconds": 439000000
+    }
+  }
+}

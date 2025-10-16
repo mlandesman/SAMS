@@ -195,16 +195,25 @@ class WaterDataService {
         
         // Update payment-related fields AND penalty data from fresh bill
         // Penalty recalc runs before surgical update, so bill has fresh penalty data
+        const calculatedStatus = this.calculateStatus(bill);
+        
+        // Calculate unpaid amount accounting for credit usage
+        // basePaid includes both cash (paidAmount) and credit
+        const basePaidTotal = (bill.basePaid || 0);
+        const penaltyPaidTotal = (bill.penaltyPaid || 0);
+        const totalPaid = basePaidTotal + penaltyPaidTotal;
+        const unpaid = Math.max(0, (bill.totalAmount || 0) - totalPaid);
+        
         return {
           ...existingUnitData,
           // CRITICAL: Include fresh penalty data from recalculated bill
           penaltyAmount: bill.penaltyAmount || 0,
           totalAmount: bill.totalAmount,
           previousBalance: bill.previousBalance || 0,
-          // Payment data
+          // Payment data (paidAmount is cash only, unpaidAmount accounts for credit)
           paidAmount: bill.paidAmount || 0,
-          unpaidAmount: bill.totalAmount - (bill.paidAmount || 0),
-          status: this.calculateStatus(bill),
+          unpaidAmount: unpaid,
+          status: calculatedStatus,
           transactionId: (() => {
             const payments = bill.payments;
             return payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
@@ -325,10 +334,16 @@ class WaterDataService {
     let unpaidAmount;
     
     if (bill) {
-      // Use stored bill data which has correct accounting (from aggregatedData cache)
+      // Use stored bill data which has correct accounting
       totalDueAmount = bill.totalAmount || 0;
       penaltyAmount = bill.penaltyAmount || 0;
-      unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
+      
+      // Calculate unpaid amount accounting for credit usage
+      // basePaid includes both cash (paidAmount) and credit
+      const basePaidTotal = (bill.basePaid || 0);
+      const penaltyPaidTotal = (bill.penaltyPaid || 0);
+      const totalPaid = basePaidTotal + penaltyPaidTotal;
+      unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
     } else {
       // No bill exists - use carryover data for display
       totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
@@ -1010,7 +1025,13 @@ class WaterDataService {
         // Use stored bill data which has correct accounting
         totalDueAmount = bill.totalAmount || 0;
         penaltyAmount = bill.penaltyAmount || 0;
-        unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
+        
+        // Calculate unpaid amount accounting for credit usage
+        // basePaid includes both cash (paidAmount) and credit
+        const basePaidTotal = (bill.basePaid || 0);
+        const penaltyPaidTotal = (bill.penaltyPaid || 0);
+        const totalPaid = basePaidTotal + penaltyPaidTotal;
+        unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
       } else {
         // No bill exists - use carryover data for display
         totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
@@ -1243,10 +1264,18 @@ class WaterDataService {
 
   /**
    * Calculate status for a unit
+   * CRITICAL: Must account for credit usage (basePaid) not just cash (paidAmount)
    */
   calculateStatus(bill) {
     if (!bill) return 'nobill';
-    if (bill.paidAmount >= bill.totalAmount) return 'paid';
+    
+    // Check if bill is fully paid (including credit usage)
+    // basePaid includes both cash (paidAmount) and credit usage
+    const baseFullyPaid = (bill.basePaid || 0) >= (bill.currentCharge || 0);
+    const penaltiesFullyPaid = (bill.penaltyPaid || 0) >= (bill.penaltyAmount || 0);
+    
+    // Bill is paid if both base charges and penalties are fully paid
+    if (baseFullyPaid && penaltiesFullyPaid) return 'paid';
     
     const dueDate = bill.dueDate ? new Date(bill.dueDate) : null;
     if (dueDate && dueDate < getNow()) return 'overdue';

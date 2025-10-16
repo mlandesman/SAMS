@@ -741,7 +741,10 @@ async function deleteTransaction(clientId, txnId) {
       alloc.categoryId === 'water_bills' || 
       alloc.categoryId === 'water-consumption' ||
       alloc.categoryName === 'Water Consumption' ||
-      alloc.type === 'water_bill'
+      alloc.type === 'water_bill' ||
+      alloc.type === 'water_penalty' ||
+      alloc.type === 'water_credit' ||
+      alloc.metadata?.processingStrategy === 'water_bills'
     ) || false;
     
     const isWaterTransaction = originalData.categoryId === 'water_payments' || 
