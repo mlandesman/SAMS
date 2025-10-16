@@ -1,9 +1,12 @@
-import axios from 'axios';
+import creditService from '../services/creditService.js';
 
 /**
  * Credit API Helper
- * Provides clean interface to the /credit endpoint for cross-module usage
+ * Provides clean interface to credit balance operations for cross-module usage
  * Used by Water Bills, Special Billings, and other modules that need credit balance access
+ * 
+ * NOTE: This is an INTERNAL helper that directly calls creditService
+ * For external HTTP calls, use the REST endpoints at /api/credit/...
  */
 
 export class CreditAPI {
@@ -16,9 +19,7 @@ export class CreditAPI {
    */
   static async getCreditBalance(clientId, unitId) {
     try {
-      // Use internal API call to /credit endpoint
-      const response = await axios.get(`/credit/${clientId}/${unitId}`);
-      return response.data;
+      return await creditService.getCreditBalance(clientId, unitId);
     } catch (error) {
       console.error('Error getting credit balance via CreditAPI:', error);
       throw error;
@@ -38,8 +39,7 @@ export class CreditAPI {
    */
   static async updateCreditBalance(clientId, unitId, data) {
     try {
-      const response = await axios.post(`/credit/${clientId}/${unitId}`, data);
-      return response.data;
+      return await creditService.updateCreditBalance(clientId, unitId, data.amount, data.transactionId, data.note, data.source);
     } catch (error) {
       console.error('Error updating credit balance via CreditAPI:', error);
       throw error;
@@ -55,8 +55,7 @@ export class CreditAPI {
    */
   static async getCreditHistory(clientId, unitId, limit = 50) {
     try {
-      const response = await axios.get(`/credit/${clientId}/${unitId}/history?limit=${limit}`);
-      return response.data;
+      return await creditService.getCreditHistory(clientId, unitId, limit);
     } catch (error) {
       console.error('Error getting credit history via CreditAPI:', error);
       throw error;

@@ -77,7 +77,7 @@ async function test1_CreditUsedRestored() {
       }
     });
     
-    const transactionId = paymentResult.data?.transactionId;
+    const transactionId = paymentResult.transactionId; // At root level, not in data
     console.log(`   Payment created: ${transactionId}`);
     
     // Step 3: Check credit after payment
@@ -184,7 +184,7 @@ async function test2_CreditCreatedRemoved() {
       }
     });
     
-    const transactionId = paymentResult.data?.transactionId;
+    const transactionId = paymentResult.transactionId; // At root level, not in data
     console.log(`   Payment created: ${transactionId}`);
     
     // Step 3: Check credit was created
@@ -310,7 +310,7 @@ async function test3_BillsMarkedUnpaid() {
       }
     });
     
-    const transactionId = paymentResult.data?.transactionId;
+    const transactionId = paymentResult.transactionId; // At root level, not in data
     console.log(`   Payment created: ${transactionId}`);
     
     // Step 3: Verify bill is now paid
@@ -427,7 +427,7 @@ async function test4_SurgicalUpdateRuns() {
       }
     });
     
-    const transactionId = paymentResult.data?.transactionId;
+    const transactionId = paymentResult.transactionId; // At root level, not in data
     console.log(`   Payment created: ${transactionId}`);
     
     // Wait a moment for surgical update
@@ -538,7 +538,7 @@ async function test5_CompleteReversal() {
       }
     });
     
-    const transactionId = paymentResult.data?.transactionId;
+    const transactionId = paymentResult.transactionId; // At root level, not in data
     console.log(`   Payment created: ${transactionId}`);
     
     // Wait for surgical update

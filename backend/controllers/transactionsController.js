@@ -736,8 +736,20 @@ async function deleteTransaction(clientId, txnId) {
     });
                             
     // Check if this is a Water Bills transaction requiring special cleanup
+    // For split transactions, check allocations array for water bills allocations
+    const hasWaterAllocations = originalData.allocations?.some(alloc => 
+      alloc.categoryId === 'water_bills' || 
+      alloc.categoryId === 'water-consumption' ||
+      alloc.categoryName === 'Water Consumption' ||
+      alloc.type === 'water_bill'
+    ) || false;
+    
     const isWaterTransaction = originalData.categoryId === 'water_payments' || 
-                              originalData.categoryName === 'Water Payments';
+                              originalData.categoryName === 'Water Payments' ||
+                              originalData.categoryId === 'water-consumption' ||
+                              originalData.categoryName === 'Water Consumption' ||
+                              originalData.category === 'water_bills' ||
+                              hasWaterAllocations; // Check allocations for split transactions
                             
     console.log(`🏠 [BACKEND] HOA Transaction check: ${isHOATransaction}`);
     console.log(`💧 [BACKEND] Water Transaction check: ${isWaterTransaction}`);
