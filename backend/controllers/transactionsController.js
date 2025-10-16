@@ -28,6 +28,7 @@ import { validateDocument } from '../utils/validateDocument.js';
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
+import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
 
@@ -818,8 +819,13 @@ async function deleteTransaction(clientId, txnId) {
             const billData = billDocData.data();
             const unitBill = billData.bills?.units?.[originalData.unitId];
             
-            // Check if this bill has a payment from our transaction
-            if (unitBill?.lastPayment?.transactionId === txnId) {
+            // Check if this bill has ANY payment from our transaction
+            // Bills have a payments array, not a lastPayment object
+            const hasPaymentFromTransaction = unitBill?.payments?.some(
+              payment => payment.transactionId === txnId
+            );
+            
+            if (hasPaymentFromTransaction) {
               console.log(`💧 [BACKEND] Found water bill ${billDoc.id} paid by transaction ${txnId}`);
               waterBillDocs.push({
                 ref: billDoc.ref,
@@ -893,7 +899,8 @@ async function deleteTransaction(clientId, txnId) {
           waterBillDocs, 
           originalData, 
           txnId,
-          clientId
+          clientId,
+          db  // Pass db instance for credit balance lookup
         );
         waterCleanupExecuted = true;
         console.log(`✅ [BACKEND] Water Bills cleanup prepared for transaction ${txnId}`, waterCleanupDetails);
@@ -1244,7 +1251,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
 }
 
 // Water Bills cleanup logic for transaction deletion
-async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId) {
+async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId, db) {
   console.log(`🧹 [BACKEND] Processing Water Bills cleanup write operations for transaction ${txnId}`);
   
   let billsReversed = 0;
@@ -1260,22 +1267,27 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
     
     console.log(`💧 [BACKEND] Reversing payment for water bill ${billId} Unit ${unitId}`);
     
-    // Get payment info from lastPayment
-    const lastPayment = unitBill.lastPayment;
-    if (!lastPayment || lastPayment.transactionId !== txnId) {
-      console.warn(`⚠️ [BACKEND] Skipping bill ${billId} - payment transaction ID mismatch`);
+    // Find the payment in the payments array that matches our transaction
+    const payments = unitBill.payments || [];
+    const paymentToReverse = payments.find(p => p.transactionId === txnId);
+    
+    if (!paymentToReverse) {
+      console.warn(`⚠️ [BACKEND] Skipping bill ${billId} - no payment found with transaction ID ${txnId}`);
       continue;
     }
     
     // Calculate reversed amounts
-    const paidAmountToReverse = lastPayment.amount || 0;
-    const basePaidToReverse = lastPayment.baseChargePaid || 0;
-    const penaltyPaidToReverse = lastPayment.penaltyPaid || 0;
+    const paidAmountToReverse = paymentToReverse.amount || 0;
+    const basePaidToReverse = paymentToReverse.baseChargePaid || 0;
+    const penaltyPaidToReverse = paymentToReverse.penaltyPaid || 0;
     
     // Calculate new totals after reversal
     const newPaidAmount = Math.max(0, (unitBill.paidAmount || 0) - paidAmountToReverse);
     const newBasePaid = Math.max(0, (unitBill.basePaid || 0) - basePaidToReverse);
     const newPenaltyPaid = Math.max(0, (unitBill.penaltyPaid || 0) - penaltyPaidToReverse);
+    
+    // Remove this payment from the payments array
+    const updatedPayments = payments.filter(p => p.transactionId !== txnId);
     
     // Determine new status
     const totalAmount = unitBill.totalAmount || 0;
@@ -1294,7 +1306,7 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
       [`bills.units.${unitId}.basePaid`]: newBasePaid,
       [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
       [`bills.units.${unitId}.status`]: newStatus,
-      [`bills.units.${unitId}.lastPayment`]: null // Clear the payment record
+      [`bills.units.${unitId}.payments`]: updatedPayments // Remove the payment from the array
     });
     
     billsReversed++;

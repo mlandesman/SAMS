@@ -201,11 +201,19 @@ export class CreditController {
         });
       }
 
-      // Validate date format
-      const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) {
+      // Validate date format (ISO string expected)
+      // Using basic Date parsing for validation - actual timezone handling in service layer
+      try {
+        const testDate = Date.parse(date);
+        if (isNaN(testDate)) {
+          return res.status(400).json({ 
+            error: 'date must be a valid ISO date string' 
+          });
+        }
+      } catch (dateError) {
         return res.status(400).json({ 
-          error: 'date must be a valid ISO date string' 
+          error: 'date must be a valid ISO date string',
+          details: dateError.message
         });
       }
 

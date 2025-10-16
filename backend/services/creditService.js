@@ -6,6 +6,8 @@
 import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { formatCurrency } from '../utils/currencyUtils.js';
+import { writeAuditLog } from '../utils/auditLogger.js';
 import admin from 'firebase-admin';
 
 class CreditService {
@@ -59,7 +61,7 @@ class CreditService {
         clientId,
         unitId,
         creditBalance: creditBalanceInDollars, // Return in dollars for API consumers
-        creditBalanceDisplay: this._formatCurrency(creditBalanceInCents),
+        creditBalanceDisplay: formatCurrency(creditBalanceInCents, 'MXN', true),
         lastUpdated: data.updated ? data.updated.toDate().toISOString() : null
       };
     } catch (error) {
@@ -105,13 +107,14 @@ class CreditService {
       
       // Validation: Credit balance cannot be negative (optional - check config)
       if (newBalance < 0) {
-        throw new Error(`Insufficient credit balance. Current: ${this._formatCurrency(currentBalance)}, Requested: ${this._formatCurrency(amount)}`);
+        throw new Error(`Insufficient credit balance. Current: ${formatCurrency(currentBalance, 'MXN', true)}, Requested: ${formatCurrency(amount, 'MXN', true)}`);
       }
       
       // Add history entry
+      const now = getNow();
       const historyEntry = {
         id: this._generateId(),
-        timestamp: admin.firestore.Timestamp.now(),
+        timestamp: admin.firestore.Timestamp.fromDate(now),
         amount,
         balance: newBalance,
         transactionId,
@@ -125,10 +128,20 @@ class CreditService {
       await duesRef.set({
         creditBalance: newBalance,
         creditBalanceHistory: creditHistory,
-        updated: admin.firestore.Timestamp.now()
+        updated: admin.firestore.Timestamp.fromDate(now)
       }, { merge: true });
       
-      console.log(`✅ [CREDIT] Updated credit balance for ${clientId}/${unitId}: ${currentBalance} → ${newBalance}`);
+      console.log(`✅ [CREDIT] Updated credit balance for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
+      
+      // Write audit log
+      await writeAuditLog({
+        module: 'credit',
+        action: 'update_balance',
+        parentPath: `clients/${clientId}/units/${unitId}/dues/${fiscalYear}`,
+        docId: fiscalYear.toString(),
+        friendlyName: `Unit ${unitId} Credit Balance`,
+        notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${source} | Transaction: ${transactionId}`
+      });
       
       return {
         success: true,
@@ -247,9 +260,15 @@ class CreditService {
       const newBalance = currentBalance + amount;
       
       // Add history entry
+      // Parse the provided ISO date string
+      const dateMillis = Date.parse(date);
+      if (isNaN(dateMillis)) {
+        throw new Error(`Invalid date format: ${date}`);
+      }
+      
       const historyEntry = {
         id: this._generateId(),
-        timestamp: admin.firestore.Timestamp.fromDate(new Date(date)),
+        timestamp: admin.firestore.Timestamp.fromMillis(dateMillis),
         amount,
         balance: newBalance,
         transactionId,
@@ -260,13 +279,24 @@ class CreditService {
       creditHistory.push(historyEntry);
       
       // Update Firestore
+      const now = getNow();
       await duesRef.set({
         creditBalance: newBalance,
         creditBalanceHistory: creditHistory,
-        updated: admin.firestore.Timestamp.now()
+        updated: admin.firestore.Timestamp.fromDate(now)
       }, { merge: true });
       
-      console.log(`✅ [CREDIT] Added history entry for ${clientId}/${unitId}: ${currentBalance} → ${newBalance}`);
+      console.log(`✅ [CREDIT] Added history entry for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
+      
+      // Write audit log
+      await writeAuditLog({
+        module: 'credit',
+        action: 'add_history',
+        parentPath: `clients/${clientId}/units/${unitId}/dues/${fiscalYear}`,
+        docId: fiscalYear.toString(),
+        friendlyName: `Unit ${unitId} Credit Balance History`,
+        notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId} | Source: ${source}`
+      });
       
       return {
         success: true,
@@ -280,20 +310,13 @@ class CreditService {
   }
 
   /**
-   * Helper: Format currency from cents to display string
-   * @private
-   */
-  _formatCurrency(cents) {
-    const dollars = cents / 100;
-    return `$${dollars.toFixed(2)}`;
-  }
-
-  /**
    * Helper: Generate unique ID for history entries
    * @private
    */
   _generateId() {
-    return `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = getNow();
+    const timestamp = now.getTime();
+    return `credit_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 
