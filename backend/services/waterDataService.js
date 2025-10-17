@@ -6,6 +6,7 @@ import waterBillsService from './waterBillsService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import { getNow, DateService } from '../services/DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 
 class WaterDataService {
   constructor() {
@@ -160,8 +161,8 @@ class WaterDataService {
     const currentTimestamp = currentReadingsData.timestamp;
     const priorTimestamp = priorReadingsData.timestamp;
     
-    // Convert rate from cents to dollars
-    const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
+    // Rate already in centavos from config
+    const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
     // Build the month data using existing logic (no carryover for single month builds)
     return this._buildMonthDataFromSourcesWithCarryover(
@@ -242,7 +243,7 @@ class WaterDataService {
       
       const currentReadings = currentReadingsData.readings;
       const priorReadings = priorReadingsData.readings;
-      const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
+      const ratePerM3 = config?.ratePerM3 || 5000; // Already in centavos from config
       
       // Calculate unpaid carryover for THIS UNIT ONLY (surgical optimization)
       const unpaidCarryover = await this._calculateUnpaidCarryover(clientId, year, month, config.ratePerM3, unitId);
@@ -322,9 +323,9 @@ class WaterDataService {
       }
     }
     
-    // 4. Calculate bill amounts
-    const currentCharge = bill?.currentCharge;
-    const calculatedAmount = consumption > 0 ? consumption * ratePerM3 : 0;
+    // 4. Calculate bill amounts (ALL IN CENTAVOS - integers)
+    const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
+    const calculatedAmount = consumption > 0 ? Math.round(consumption * ratePerM3) : 0; // ratePerM3 is in centavos
     const billAmount = currentCharge ?? calculatedAmount;
     
     const carryover = unpaidCarryover[unitId] || {};
@@ -334,18 +335,18 @@ class WaterDataService {
     let unpaidAmount;
     
     if (bill) {
-      // Use stored bill data which has correct accounting
+      // Use stored bill data which has correct accounting (all in centavos)
       totalDueAmount = bill.totalAmount || 0;
       penaltyAmount = bill.penaltyAmount || 0;
       
-      // Calculate unpaid amount accounting for credit usage
+      // Calculate unpaid amount accounting for credit usage (all in centavos)
       // basePaid includes both cash (paidAmount) and credit
       const basePaidTotal = (bill.basePaid || 0);
       const penaltyPaidTotal = (bill.penaltyPaid || 0);
       const totalPaid = basePaidTotal + penaltyPaidTotal;
       unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
     } else {
-      // No bill exists - use carryover data for display
+      // No bill exists - use carryover data for display (all in centavos)
       totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
       penaltyAmount = carryover.penaltyAmount || 0;
       unpaidAmount = totalDueAmount;
@@ -359,12 +360,13 @@ class WaterDataService {
       priorReading,
       currentReading: currentReadingObj,
       consumption,
-      previousBalance: bill?.previousBalance || carryover.previousBalance || 0,
-      penaltyAmount: penaltyAmount,
-      billAmount: billAmount,
-      totalAmount: totalDueAmount,
-      paidAmount: bill?.paidAmount || 0,
-      unpaidAmount: unpaidAmount,
+      // ALL AMOUNTS BELOW ARE IN CENTAVOS (integers) - frontend must convert to pesos for display
+      previousBalance: bill?.previousBalance || carryover.previousBalance || 0,  // In centavos
+      penaltyAmount: penaltyAmount,                                              // In centavos
+      billAmount: billAmount,                                                    // In centavos
+      totalAmount: totalDueAmount,                                               // In centavos
+      paidAmount: bill?.paidAmount || 0,                                         // In centavos
+      unpaidAmount: unpaidAmount,                                                // In centavos
       status: billStatus,
       daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
       transactionId: (() => {
@@ -374,10 +376,10 @@ class WaterDataService {
       payments: bill?.payments || [],
       billNotes: bill?.billNotes || null,
       
-      // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
-      displayDue: billStatus === 'paid' ? 0 : unpaidAmount, // Show $0 for paid bills
-      displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount, // Show $0 penalties for paid bills
-      displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0) // Show $0 overdue for paid bills
+      // Display fields for frontend (all in centavos - frontend converts to pesos for display)
+      displayDue: billStatus === 'paid' ? 0 : unpaidAmount,                     // In centavos
+      displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount,              // In centavos
+      displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0)  // In centavos
     };
     
     // TASK 2: Data consistency validation (after building the unit data)
@@ -417,8 +419,8 @@ class WaterDataService {
     console.log(`📋 [CONFIG] Fetching client config for ${clientId}`);
     const { units, billingConfig: config } = await this.getClientConfig(clientId);
     console.log(`📋 [CONFIG] Got ${units?.length} units, config:`, !!config);
-    const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
-    console.log(`📋 [CONFIG] Rate per m3: $${ratePerM3}`);
+    const ratePerM3 = config?.ratePerM3 || 5000; // Already in centavos from config
+    console.log(`📋 [CONFIG] Rate per m3: ${ratePerM3} centavos (${ratePerM3/100} pesos)`);
     
     console.log(`📅 [YEAR_BUILD] Initializing months array`);
     
@@ -456,8 +458,8 @@ class WaterDataService {
       fiscalYear: true,
       months,
       summary,
-      carWashRate: (config?.rateCarWash || 10000) / 100,
-      boatWashRate: (config?.rateBoatWash || 20000) / 100
+      carWashRate: config?.rateCarWash || 10000,  // In centavos
+      boatWashRate: config?.rateBoatWash || 20000  // In centavos
     };
     
     // DEBUG: Log what's actually being returned to frontend
@@ -662,8 +664,8 @@ class WaterDataService {
       this.fetchWaterBillingConfig(clientId)
     ]);
     
-    // Convert rate from cents to dollars
-    const ratePerM3 = (config?.ratePerM3 || 5000) / 100;
+    // Rate already in centavos from config
+    const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
     // Calculate unpaid amounts from previous months for ALL months (not just unbilled)
     // This gives us Penalties column (all unpaid penalties) and Overdue column (all unpaid balances)
@@ -726,9 +728,9 @@ class WaterDataService {
         }
       }
       
-      // Calculate billAmount with debugging
-      const currentCharge = bill?.currentCharge;
-      const calculatedAmount = consumption > 0 ? consumption * ratePerM3 : 0;
+      // Calculate billAmount (ALL IN CENTAVOS - integers)
+      const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
+      const calculatedAmount = consumption > 0 ? Math.round(consumption * ratePerM3) : 0; // ratePerM3 is in centavos
       const billAmount = currentCharge ?? calculatedAmount;
       
       // Removed Unit 203 debug logging to prevent confusion
@@ -736,28 +738,28 @@ class WaterDataService {
       // Use carryover data if no bills exist for this month
       const carryover = unpaidCarryover[unitId] || {};
       
-      // Calculate Total Due = Monthly Amount + Previous Balance + Penalties
+      // Calculate Total Due = Monthly Amount + Previous Balance + Penalties (all in centavos)
       // Don't use dynamic penalty calculation - use stored bill data for correct accounting
       let totalDueAmount;
       let penaltyAmount;
       let unpaidAmount;
       
       if (bill) {
-        // Use stored bill data which has correct accounting (from aggregatedData cache)
+        // Use stored bill data which has correct accounting (all in centavos)
         totalDueAmount = bill.totalAmount || 0;
         penaltyAmount = bill.penaltyAmount || 0;
         unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
         
-        console.log(`💰 Unit ${unitId} bill data:`);
-        console.log(`  Monthly Amount: $${billAmount}`);
-        console.log(`  Previous Balance: $${bill.previousBalance || 0}`);
-        console.log(`  Penalty Amount: $${penaltyAmount}`);
-        console.log(`  Total Due: $${totalDueAmount}`);
-        console.log(`  Paid Amount: $${bill.paidAmount || 0}`);
+        console.log(`💰 Unit ${unitId} bill data (centavos):`);
+        console.log(`  Monthly Amount: ${billAmount} (${centavosToPesos(billAmount)} pesos)`);
+        console.log(`  Previous Balance: ${bill.previousBalance || 0} (${centavosToPesos(bill.previousBalance || 0)} pesos)`);
+        console.log(`  Penalty Amount: ${penaltyAmount} (${centavosToPesos(penaltyAmount)} pesos)`);
+        console.log(`  Total Due: ${totalDueAmount} (${centavosToPesos(totalDueAmount)} pesos)`);
+        console.log(`  Paid Amount: ${bill.paidAmount || 0} (${centavosToPesos(bill.paidAmount || 0)} pesos)`);
         console.log(`  Status: ${this.calculateStatus(bill)}`);
-        console.log(`  Unpaid Amount: $${unpaidAmount}`);
+        console.log(`  Unpaid Amount: ${unpaidAmount} (${centavosToPesos(unpaidAmount)} pesos)`);
       } else {
-        // No bill exists - use carryover data for display
+        // No bill exists - use carryover data for display (all in centavos)
         totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
         penaltyAmount = carryover.penaltyAmount || 0;
         unpaidAmount = totalDueAmount;
@@ -784,19 +786,20 @@ class WaterDataService {
         priorReading,
         currentReading: currentReadingObj,
         consumption,
-        previousBalance: bill?.previousBalance || carryover.previousBalance || 0,  // Unpaid from previous months
-        penaltyAmount: penaltyAmount,                // Penalty amount from bill data
-        billAmount: billAmount,                      // This month's charge only (Monthly Amount column)
-        totalAmount: totalDueAmount,                 // Total balance to clear account (Total Due column)
-        paidAmount: bill?.paidAmount || 0,           // Payment made THIS MONTH ONLY (Paid Amount column)
-        unpaidAmount: unpaidAmount,                  // Current unpaid amount
+        // ALL AMOUNTS BELOW ARE IN CENTAVOS (integers) - frontend must convert to pesos for display
+        previousBalance: bill?.previousBalance || carryover.previousBalance || 0,  // In centavos
+        penaltyAmount: penaltyAmount,                // In centavos
+        billAmount: billAmount,                      // In centavos
+        totalAmount: totalDueAmount,                 // In centavos
+        paidAmount: bill?.paidAmount || 0,           // In centavos
+        unpaidAmount: unpaidAmount,                  // In centavos
         status: billStatus,
         daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
         
-        // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
-        displayDue: billStatus === 'paid' ? 0 : unpaidAmount, // Show $0 for paid bills
-        displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount, // Show $0 penalties for paid bills
-        displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0) // Show $0 overdue for paid bills
+        // Display fields for frontend (all in centavos - frontend converts to pesos for display)
+        displayDue: billStatus === 'paid' ? 0 : unpaidAmount,                     // In centavos
+        displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount,              // In centavos
+        displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0)  // In centavos
       };
     }
     
@@ -1008,32 +1011,32 @@ class WaterDataService {
         }
       }
       
-      // Calculate billAmount with debugging
-      const currentCharge = bill?.currentCharge;
-      const calculatedAmount = consumption > 0 ? consumption * ratePerM3 : 0;
+      // Calculate billAmount (ALL IN CENTAVOS - integers)
+      const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
+      const calculatedAmount = consumption > 0 ? Math.round(consumption * ratePerM3) : 0; // ratePerM3 is in centavos
       const billAmount = currentCharge ?? calculatedAmount;
       
       // Use carryover data if no bills exist for this month
       const carryover = unpaidCarryover[unitId] || {};
       
-      // Calculate Total Due = Monthly Amount + Previous Balance + Penalties
+      // Calculate Total Due = Monthly Amount + Previous Balance + Penalties (all in centavos)
       let totalDueAmount;
       let penaltyAmount;
       let unpaidAmount;
       
       if (bill) {
-        // Use stored bill data which has correct accounting
+        // Use stored bill data which has correct accounting (all in centavos)
         totalDueAmount = bill.totalAmount || 0;
         penaltyAmount = bill.penaltyAmount || 0;
         
-        // Calculate unpaid amount accounting for credit usage
+        // Calculate unpaid amount accounting for credit usage (all in centavos)
         // basePaid includes both cash (paidAmount) and credit
         const basePaidTotal = (bill.basePaid || 0);
         const penaltyPaidTotal = (bill.penaltyPaid || 0);
         const totalPaid = basePaidTotal + penaltyPaidTotal;
         unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
       } else {
-        // No bill exists - use carryover data for display
+        // No bill exists - use carryover data for display (all in centavos)
         totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
         penaltyAmount = carryover.penaltyAmount || 0;
         unpaidAmount = totalDueAmount;
@@ -1044,12 +1047,13 @@ class WaterDataService {
         priorReading,
         currentReading: currentReadingObj,
         consumption,
-        previousBalance: bill?.previousBalance || carryover.previousBalance || 0,
-        penaltyAmount: penaltyAmount,
-        billAmount: billAmount,
-        totalAmount: totalDueAmount,
-        paidAmount: bill?.paidAmount || 0,
-        unpaidAmount: unpaidAmount,
+        // ALL AMOUNTS BELOW ARE IN CENTAVOS (integers) - frontend must convert to pesos for display
+        previousBalance: bill?.previousBalance || carryover.previousBalance || 0,  // In centavos
+        penaltyAmount: penaltyAmount,                                              // In centavos
+        billAmount: billAmount,                                                    // In centavos
+        totalAmount: totalDueAmount,                                               // In centavos
+        paidAmount: bill?.paidAmount || 0,                                         // In centavos
+        unpaidAmount: unpaidAmount,                                                // In centavos
         status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
         daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
         // CRITICAL: Include transaction ID for bidirectional linking
@@ -1076,18 +1080,18 @@ class WaterDataService {
         // Include bill notes for hover tooltips (shows car wash details)
         billNotes: bill?.billNotes || null,
         
-        // TASK 2 ISSUE 2: Add display fields for frontend (use cached aggregatedData values)
+        // Display fields for frontend (all in centavos - frontend converts to pesos for display)
         displayDue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : unpaidAmount;
+          return billStatus === 'paid' ? 0 : unpaidAmount;                        // In centavos
         })(),
         displayPenalties: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : penaltyAmount;
+          return billStatus === 'paid' ? 0 : penaltyAmount;                       // In centavos
         })(),
         displayOverdue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : (carryover.previousBalance || 0);
+          return billStatus === 'paid' ? 0 : (carryover.previousBalance || 0);    // In centavos
         })()
       };
       

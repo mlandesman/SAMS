@@ -5,6 +5,7 @@ import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/
 import { waterDataService } from '../services/waterDataService.js';
 import waterBillsService from '../services/waterBillsService.js';
 import waterReadingsService from '../services/waterReadingsService.js';
+import { centavosToPesos } from '../utils/currencyUtils.js';
 import { 
   recordWaterPayment, 
   getWaterPaymentHistory, 
@@ -21,6 +22,64 @@ const router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateUserWithProfile);
+
+/**
+ * Convert aggregatedData from centavos (backend storage) to pesos (frontend display)
+ * This maintains backward compatibility with existing frontend while backend uses centavos
+ */
+function convertAggregatedDataToPesos(data) {
+  if (!data || !data.months) return data;
+  
+  // Currency fields that need conversion from centavos to pesos
+  const currencyFields = [
+    'previousBalance', 'penaltyAmount', 'billAmount', 'totalAmount',
+    'paidAmount', 'unpaidAmount', 'displayDue', 'displayPenalties', 'displayOverdue'
+  ];
+  
+  // Convert months array
+  const convertedMonths = data.months.map(month => {
+    if (!month || !month.units) return month;
+    
+    // Convert each unit's currency fields
+    const convertedUnits = {};
+    for (const [unitId, unitData] of Object.entries(month.units)) {
+      convertedUnits[unitId] = { ...unitData };
+      
+      // Convert each currency field from centavos to pesos
+      for (const field of currencyFields) {
+        if (typeof unitData[field] === 'number') {
+          convertedUnits[unitId][field] = centavosToPesos(unitData[field]);
+        }
+      }
+      
+      // Convert payments array amounts
+      if (unitData.payments && Array.isArray(unitData.payments)) {
+        convertedUnits[unitId].payments = unitData.payments.map(payment => ({
+          ...payment,
+          amount: typeof payment.amount === 'number' ? centavosToPesos(payment.amount) : payment.amount,
+          baseChargePaid: typeof payment.baseChargePaid === 'number' ? centavosToPesos(payment.baseChargePaid) : payment.baseChargePaid,
+          penaltyPaid: typeof payment.penaltyPaid === 'number' ? centavosToPesos(payment.penaltyPaid) : payment.penaltyPaid
+        }));
+      }
+    }
+    
+    return {
+      ...month,
+      units: convertedUnits
+    };
+  });
+  
+  // Convert wash rates
+  const carWashRate = typeof data.carWashRate === 'number' ? centavosToPesos(data.carWashRate) : data.carWashRate;
+  const boatWashRate = typeof data.boatWashRate === 'number' ? centavosToPesos(data.boatWashRate) : data.boatWashRate;
+  
+  return {
+    ...data,
+    months: convertedMonths,
+    carWashRate,
+    boatWashRate
+  };
+}
 
 // ============= DATA AGGREGATION =============
 // GET /water/clients/:clientId/aggregatedData - TASK 2: Fast read from pre-calculated document
@@ -46,9 +105,13 @@ router.get('/clients/:clientId/aggregatedData', enforceClientAccess, async (req,
       // Fallback: Trigger calculation if aggregatedData doesn't exist
       console.log('⚠️ [FAST_READ] aggregatedData not found, triggering calculation...');
       const data = await waterDataService.getYearData(clientId, fiscalYear);
+      
+      // Convert from centavos to pesos for frontend compatibility
+      const convertedData = convertAggregatedDataToPesos(data);
+      
       return res.json({
         success: true,
-        data,
+        data: convertedData,
         source: 'calculated',
         metadata: {
           calculationTimestamp: Date.now(),
@@ -63,16 +126,20 @@ router.get('/clients/:clientId/aggregatedData', enforceClientAccess, async (req,
     console.log(`   Timestamp: ${aggregatedData._metadata?.calculationTimestamp}`);
     console.log(`   Months: ${aggregatedData.months?.length}`);
     
+    // Convert from centavos to pesos for frontend compatibility
+    const dataForFrontend = {
+      year: aggregatedData.year,
+      fiscalYear: aggregatedData.fiscalYear,
+      months: aggregatedData.months,
+      summary: aggregatedData.summary,
+      carWashRate: aggregatedData.carWashRate,
+      boatWashRate: aggregatedData.boatWashRate
+    };
+    const convertedData = convertAggregatedDataToPesos(dataForFrontend);
+    
     res.json({
       success: true,
-      data: {
-        year: aggregatedData.year,
-        fiscalYear: aggregatedData.fiscalYear,
-        months: aggregatedData.months,
-        summary: aggregatedData.summary,
-        carWashRate: aggregatedData.carWashRate,
-        boatWashRate: aggregatedData.boatWashRate
-      },
+      data: convertedData,
       source: 'firestore',
       metadata: aggregatedData._metadata
     });

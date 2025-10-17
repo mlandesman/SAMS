@@ -3,6 +3,59 @@ import waterBillsService from '../services/waterBillsService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
 import { getNow } from '../services/DateService.js';
+import { centavosToPesos } from '../utils/currencyUtils.js';
+
+/**
+ * Convert bills from centavos (backend storage) to pesos (frontend display)
+ */
+function convertBillsToPesos(billsData) {
+  if (!billsData || !billsData.bills || !billsData.bills.units) return billsData;
+  
+  const currencyFields = [
+    'waterCharge', 'carWashCharge', 'boatWashCharge',
+    'currentCharge', 'penaltyAmount', 'totalAmount',
+    'paidAmount', 'penaltyPaid', 'basePaid', 'previousBalance'
+  ];
+  
+  const convertedUnits = {};
+  for (const [unitId, unitBill] of Object.entries(billsData.bills.units)) {
+    convertedUnits[unitId] = { ...unitBill };
+    
+    // Convert each currency field
+    for (const field of currencyFields) {
+      if (typeof unitBill[field] === 'number') {
+        convertedUnits[unitId][field] = centavosToPesos(unitBill[field]);
+      }
+    }
+    
+    // Convert payments array if present
+    if (unitBill.payments && Array.isArray(unitBill.payments)) {
+      convertedUnits[unitId].payments = unitBill.payments.map(payment => ({
+        ...payment,
+        amount: typeof payment.amount === 'number' ? centavosToPesos(payment.amount) : payment.amount,
+        baseChargePaid: typeof payment.baseChargePaid === 'number' ? centavosToPesos(payment.baseChargePaid) : payment.baseChargePaid,
+        penaltyPaid: typeof payment.penaltyPaid === 'number' ? centavosToPesos(payment.penaltyPaid) : payment.penaltyPaid
+      }));
+    }
+  }
+  
+  // Convert summary amounts if present
+  const convertedSummary = billsData.summary ? {
+    ...billsData.summary,
+    totalNewCharges: centavosToPesos(billsData.summary.totalNewCharges || 0),
+    totalBilled: centavosToPesos(billsData.summary.totalBilled || 0),
+    totalUnpaid: centavosToPesos(billsData.summary.totalUnpaid || 0),
+    totalPaid: centavosToPesos(billsData.summary.totalPaid || 0)
+  } : billsData.summary;
+  
+  return {
+    ...billsData,
+    bills: {
+      units: convertedUnits
+    },
+    summary: convertedSummary
+  };
+}
 
 /**
  * Get billing configuration for a client
@@ -50,22 +103,25 @@ export const generateBills = async (req, res) => {
       dueDate ? { dueDate } : undefined
     );
     
-    // Audit log
+    // Convert bills from centavos to pesos for frontend compatibility
+    const convertedResult = convertBillsToPesos(result);
+    
+    // Audit log (convert amounts for audit display)
     await writeAuditLog({
       module: 'waterBills',
       action: 'generateBills',
       parentPath: `clients/${clientId}/projects/waterBills/bills`,
       docId: `${year}-${String(month).padStart(2, '0')}`,
-      friendlyName: `Water bills for ${result.billingPeriod}`,
-      notes: `Generated bills for ${result.summary.totalUnits} units, total: ${result.summary.currencySymbol}${result.summary.totalBilled}`,
+      friendlyName: `Water bills for ${convertedResult.billingPeriod}`,
+      notes: `Generated bills for ${convertedResult.summary.totalUnits} units, total: ${convertedResult.summary.currencySymbol}${convertedResult.summary.totalBilled}`,
       clientId
     });
     
-    // Return only unpaid bills as per requirement
+    // Return converted bills (in pesos) as per requirement
     res.json({
       success: true,
-      message: `Generated bills for ${result.summary.totalUnits} units`,
-      data: result
+      message: `Generated bills for ${convertedResult.summary.totalUnits} units`,
+      data: convertedResult
     });
   } catch (error) {
     console.error('Error generating bills:', error);
@@ -99,9 +155,12 @@ export const getBills = async (req, res) => {
       });
     }
     
+    // Convert bills from centavos to pesos for frontend compatibility
+    const convertedBills = convertBillsToPesos(bills);
+    
     res.json({
       success: true,
-      data: bills
+      data: convertedBills
     });
   } catch (error) {
     console.error('Error getting bills:', error);

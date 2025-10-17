@@ -1,5 +1,6 @@
 import admin from 'firebase-admin';
 import { getNow } from './DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 
 class PenaltyRecalculationService {
   constructor() {
@@ -204,44 +205,45 @@ class PenaltyRecalculationService {
     const pastGracePeriod = currentDate > gracePeriodEnd;
     console.log(`📅 Date Check - Current: ${currentDate.toISOString()}, Bill Due: ${billDueDateObj.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past Grace: ${pastGracePeriod}`);
     
-    // Calculate overdue amount (unpaid principal without penalties)
+    // Calculate overdue amount (unpaid principal without penalties) - NOW IN CENTAVOS
     const overdueAmount = Math.max(0, (billData.currentCharge || 0) - (billData.paidAmount || 0));
     
     console.log(`🔍 [PENALTY_DEBUG] Bill data: charge=${billData.currentCharge}, paid=${billData.paidAmount}, currentPenalty=${billData.penaltyAmount}`);
-    console.log(`🔍 [PENALTY_DEBUG] Calculated overdue amount: $${overdueAmount}`);
+    console.log(`🔍 [PENALTY_DEBUG] Calculated overdue amount: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
     
     if (pastGracePeriod && overdueAmount > 0) {
       // Calculate how many complete penalty periods have passed since grace period ended
       const monthsSinceGracePeriod = this.getMonthsDifference(gracePeriodEnd, currentDate);
       console.log(`🔢 Months since grace period ended: ${monthsSinceGracePeriod}`);
-      console.log(`💰 Overdue amount for penalty calculation: $${overdueAmount}`);
+      console.log(`💰 Overdue amount for penalty calculation: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
       
       // COMPOUNDING PENALTY LOGIC: Each month, penalty is calculated on (principal + previous penalties)
-      // Start with overdue principal amount
+      // Start with overdue principal amount (in centavos)
       let runningTotal = overdueAmount;
       let totalPenalty = 0;
       
       console.log(`🧮 [COMPOUND_CALC] Starting compounding calculation:`);
-      console.log(`🧮 [COMPOUND_CALC] Initial overdue principal: $${overdueAmount}`);
+      console.log(`🧮 [COMPOUND_CALC] Initial overdue principal: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
       
       for (let month = 1; month <= monthsSinceGracePeriod; month++) {
         const monthlyPenalty = runningTotal * result.details.penaltyRate;
         totalPenalty += monthlyPenalty;
         runningTotal += monthlyPenalty;
         
-        console.log(`🧮 [COMPOUND_CALC] Month ${month}: $${runningTotal.toFixed(2)} × ${result.details.penaltyRate} = $${monthlyPenalty.toFixed(2)} penalty (total penalty: $${totalPenalty.toFixed(2)})`);
+        console.log(`🧮 [COMPOUND_CALC] Month ${month}: ${Math.round(runningTotal)} centavos ($${centavosToPesos(Math.round(runningTotal))}) × ${result.details.penaltyRate} = ${Math.round(monthlyPenalty)} centavos penalty (total penalty: ${Math.round(totalPenalty)} centavos)`);
       }
       
-      const expectedPenalty = Math.round(totalPenalty * 100) / 100;
+      const expectedPenalty = Math.round(totalPenalty); // Already in centavos, just round to integer
       
       // Update if penalty amounts are different (switching to compounding logic)
-      if (Math.abs(result.penaltyAmount - expectedPenalty) > 0.01) {
-        console.log(`💰 Updating penalty: Current $${result.penaltyAmount} -> Expected $${expectedPenalty} (compounding logic)`);
+      // Allow 1 centavo tolerance for rounding
+      if (Math.abs(result.penaltyAmount - expectedPenalty) > 1) {
+        console.log(`💰 Updating penalty: Current ${result.penaltyAmount} centavos -> Expected ${expectedPenalty} centavos (compounding logic)`);
         result.penaltyAmount = expectedPenalty;
         result.updated = true;
         result.details.lastUpdate = currentDate.toISOString();
       } else {
-        console.log(`✅ Penalty already up-to-date: $${result.penaltyAmount} (expected $${expectedPenalty})`);
+        console.log(`✅ Penalty already up-to-date: ${result.penaltyAmount} centavos (expected ${expectedPenalty} centavos)`);
       }
     }
     

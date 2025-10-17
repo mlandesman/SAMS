@@ -6,6 +6,7 @@ import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
 import axios from 'axios';
 import { getNow } from '../services/DateService.js';
 import { CreditAPI } from '../api/creditAPI.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 
@@ -219,19 +220,21 @@ class WaterPaymentsService {
       throw new Error('Account ID and account type are required for transaction creation');
     }
     
-    console.log(`💧 Recording water payment: Unit ${unitId}, Amount $${amount}`);
+    console.log(`💧 Recording water payment: Unit ${unitId}, Amount $${amount} (${pesosToCentavos(amount)} centavos)`);
     
-    // STEP 1: Get current credit balance from HOA Dues module
+    // STEP 1: Get current credit balance from HOA Dues module (in pesos)
     const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
     const fiscalYear = getFiscalYear(getNow(), 7); // AVII uses July start
     const creditResponse = await this._getCreditBalance(clientId, unitId, fiscalYear);
-    const currentCreditBalance = creditResponse.creditBalance || 0;
+    const currentCreditBalance = creditResponse.creditBalance || 0; // In pesos (HOA module uses pesos)
     
     console.log(`💰 Current credit balance: $${currentCreditBalance}`);
     
-    // STEP 2: Calculate total available funds (IDENTICAL TO HOA LOGIC)
-    const totalAvailableFunds = this._roundCurrency(amount + currentCreditBalance);
-    console.log(`💵 Total available funds: $${amount} + $${currentCreditBalance} = $${totalAvailableFunds}`);
+    // STEP 2: Calculate total available funds in PESOS (for transaction) and CENTAVOS (for bills)
+    // Keep pesos for transaction system, but convert to centavos for bill distribution
+    const totalAvailableFundsPesos = this._roundCurrency(amount + currentCreditBalance);
+    const totalAvailableFundsCentavos = pesosToCentavos(totalAvailableFundsPesos);
+    console.log(`💵 Total available funds: $${amount} + $${currentCreditBalance} = $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
     
     // STEP 3: Get unpaid water bills (oldest first)
     const unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
@@ -239,7 +242,7 @@ class WaterPaymentsService {
     
     if (unpaidBills.length === 0) {
       // No bills to pay - entire amount goes to credit (like HOA overpayment)
-      const newCreditBalance = currentCreditBalance + amount;
+      const newCreditBalance = currentCreditBalance + amount; // Keep in pesos for credit system
       
       await this._updateCreditBalance(clientId, unitId, fiscalYear, {
         newBalance: newCreditBalance,
@@ -249,7 +252,7 @@ class WaterPaymentsService {
         transactionId: null // Will be updated after transaction creation
       });
       
-      // Prepare payment data for allocation generation
+      // Prepare payment data for allocation generation (in pesos for transaction system)
       const paymentDataForAllocations = {
         creditUsed: 0,
         overpayment: amount,
@@ -260,9 +263,9 @@ class WaterPaymentsService {
       const allocations = createWaterBillsAllocations([], unitId, paymentDataForAllocations);
       const allocationSummary = createWaterBillsAllocationSummary([], dollarsToCents(amount));
       
-      // Create transaction for the overpayment with allocations
+      // Create transaction for the overpayment with allocations (amount in pesos, transaction will convert)
       const transactionData = {
-        amount: amount,
+        amount: amount, // In pesos - transactionController converts to centavos
         type: 'income',
         categoryId: 'account-credit',
         categoryName: 'Account Credit',
@@ -285,7 +288,7 @@ class WaterPaymentsService {
       return {
         success: true,
         paymentType: 'credit_only',
-        totalFundsAvailable: totalAvailableFunds,
+        totalFundsAvailable: totalAvailableFundsPesos,
         billsPaid: [],
         newCreditBalance: newCreditBalance,
         creditUsed: 0,
@@ -295,48 +298,50 @@ class WaterPaymentsService {
     }
     
     // STEP 4: Apply funds to bills (priority: oldest first, base charges before penalties)
-    let remainingFunds = totalAvailableFunds;
+    // Work with CENTAVOS for bill distribution since bills are now in centavos
+    let remainingFundsCentavos = totalAvailableFundsCentavos;
     const billPayments = [];
-    let totalBaseChargesPaid = 0;
-    let totalPenaltiesPaid = 0;
+    let totalBaseChargesPaidCentavos = 0;
+    let totalPenaltiesPaidCentavos = 0;
     
     for (const bill of unpaidBills) {
-      if (remainingFunds <= 0) break;
+      if (remainingFundsCentavos <= 0) break;
       
+      // Bills are now in centavos, so all these amounts are in centavos
       const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
       const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
       const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
       
-      console.log(`📄 Bill ${bill.period}: Total due $${unpaidAmount} (Base: $${baseUnpaid}, Penalties: $${penaltyUnpaid})`);
+      console.log(`📄 Bill ${bill.period}: Total due ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)}) (Base: ${baseUnpaid}, Penalties: ${penaltyUnpaid})`);
       
-      if (remainingFunds >= unpaidAmount) {
+      if (remainingFundsCentavos >= unpaidAmount) {
         // Pay bill in full
         billPayments.push({
           unitId: unitId,
           billId: bill.id,
           billPeriod: bill.period,
-          amountPaid: this._roundCurrency(unpaidAmount),
-          baseChargePaid: this._roundCurrency(baseUnpaid),
-          penaltyPaid: this._roundCurrency(penaltyUnpaid),
+          amountPaid: unpaidAmount,           // In centavos
+          baseChargePaid: baseUnpaid,         // In centavos
+          penaltyPaid: penaltyUnpaid,         // In centavos
           newStatus: 'paid'
         });
         
         console.log(`💳 Bill payment created:`, {
           billId: bill.id,
-          baseChargePaid: this._roundCurrency(baseUnpaid),
-          penaltyPaid: this._roundCurrency(penaltyUnpaid),
-          amountPaid: this._roundCurrency(unpaidAmount)
+          baseChargePaid: baseUnpaid,
+          penaltyPaid: penaltyUnpaid,
+          amountPaid: unpaidAmount
         });
         
-        totalBaseChargesPaid = this._roundCurrency(totalBaseChargesPaid + baseUnpaid);
-        totalPenaltiesPaid = this._roundCurrency(totalPenaltiesPaid + penaltyUnpaid);
-        remainingFunds = this._roundCurrency(remainingFunds - unpaidAmount);
+        totalBaseChargesPaidCentavos += baseUnpaid;
+        totalPenaltiesPaidCentavos += penaltyUnpaid;
+        remainingFundsCentavos -= unpaidAmount;
         
-        console.log(`✅ Bill ${bill.period} paid in full: $${unpaidAmount}`);
+        console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
         
-      } else if (remainingFunds > 0) {
+      } else if (remainingFundsCentavos > 0) {
         // Partial payment - prioritize base charges over penalties
-        let amountToApply = remainingFunds;
+        let amountToApply = remainingFundsCentavos;
         let basePortionPaid = 0;
         let penaltyPortionPaid = 0;
         
@@ -353,24 +358,26 @@ class WaterPaymentsService {
           unitId: unitId,
           billId: bill.id,
           billPeriod: bill.period,
-          amountPaid: this._roundCurrency(remainingFunds),
-          baseChargePaid: this._roundCurrency(basePortionPaid),
-          penaltyPaid: this._roundCurrency(penaltyPortionPaid),
+          amountPaid: remainingFundsCentavos,  // In centavos
+          baseChargePaid: basePortionPaid,     // In centavos
+          penaltyPaid: penaltyPortionPaid,     // In centavos
           newStatus: 'partial'
         });
         
-        totalBaseChargesPaid = this._roundCurrency(totalBaseChargesPaid + basePortionPaid);
-        totalPenaltiesPaid = this._roundCurrency(totalPenaltiesPaid + penaltyPortionPaid);
+        totalBaseChargesPaidCentavos += basePortionPaid;
+        totalPenaltiesPaidCentavos += penaltyPortionPaid;
         
-        console.log(`🔸 Bill ${bill.period} partial payment: $${remainingFunds} (Base: $${basePortionPaid}, Penalties: $${penaltyPortionPaid})`);
+        console.log(`🔸 Bill ${bill.period} partial payment: ${remainingFundsCentavos} centavos (Base: ${basePortionPaid}, Penalties: ${penaltyPortionPaid})`);
         
-        remainingFunds = 0;
+        remainingFundsCentavos = 0;
       }
     }
     
-    // STEP 5: Calculate credit usage vs overpayment (IDENTICAL TO HOA LOGIC)
-    const newCreditBalance = this._roundCurrency(remainingFunds);
-    const totalUsedForBills = this._roundCurrency(totalAvailableFunds - remainingFunds);
+    // STEP 5: Calculate credit usage vs overpayment (convert back to pesos for credit system)
+    const remainingFundsPesos = centavosToPesos(remainingFundsCentavos);
+    const totalUsedForBillsPesos = centavosToPesos(totalAvailableFundsCentavos - remainingFundsCentavos);
+    const newCreditBalance = this._roundCurrency(remainingFundsPesos);
+    const totalUsedForBills = this._roundCurrency(totalUsedForBillsPesos);
     
     let creditUsed = 0;
     let overpayment = 0;
@@ -406,26 +413,34 @@ class WaterPaymentsService {
     };
     
     // Generate allocations following HOA Dues pattern
-    const allocations = createWaterBillsAllocations(billPayments, unitId, paymentDataForAllocations);
-    const allocationSummary = createWaterBillsAllocationSummary(billPayments, dollarsToCents(amount));
+    // Convert billPayments from centavos to pesos for allocations (transaction system expects pesos)
+    const billPaymentsForAllocations = billPayments.map(bp => ({
+      ...bp,
+      amountPaid: centavosToPesos(bp.amountPaid),
+      baseChargePaid: centavosToPesos(bp.baseChargePaid),
+      penaltyPaid: centavosToPesos(bp.penaltyPaid)
+    }));
+    
+    const allocations = createWaterBillsAllocations(billPaymentsForAllocations, unitId, paymentDataForAllocations);
+    const allocationSummary = createWaterBillsAllocationSummary(billPaymentsForAllocations, dollarsToCents(amount));
     
     console.log(`📊 Generated ${allocations.length} allocations for water bill payment`);
     
     // Enhanced transaction data with water bill details AND allocations
     const transactionData = {
-      amount: amount,
+      amount: amount, // In pesos - transactionController converts to centavos
       type: 'income',
       categoryId: 'water-consumption',
       categoryName: 'Water Consumption',
       vendorId: 'deposit',
-      description: await this._generateEnhancedTransactionDescription(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, clientId, waterBillsService),
+      description: await this._generateEnhancedTransactionDescription(billPaymentsForAllocations, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos), unitId, clientId, waterBillsService),
       unitId: unitId,
       accountId: accountId,
       accountType: accountType,
       paymentMethod: paymentMethod,
       paymentMethodId: paymentMethodId,
       reference: reference,
-      notes: await this._generateEnhancedTransactionNotes(billPayments, totalBaseChargesPaid, totalPenaltiesPaid, unitId, notes, amount, clientId, waterBillsService),
+      notes: await this._generateEnhancedTransactionNotes(billPaymentsForAllocations, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos), unitId, notes, amount, clientId, waterBillsService),
       date: paymentDate,
       
       // NEW: Water Bills allocation pattern (following HOA Dues)
@@ -434,14 +449,14 @@ class WaterPaymentsService {
       
       // Add metadata for water bills context to support future receipt generation
       metadata: {
-        billPayments: billPayments.map(bp => ({
+        billPayments: billPaymentsForAllocations.map(bp => ({
           period: bp.billPeriod,
           amountPaid: bp.amountPaid,
           baseChargePaid: bp.baseChargePaid,
           penaltyPaid: bp.penaltyPaid
         })),
-        totalBaseCharges: totalBaseChargesPaid,
-        totalPenalties: totalPenaltiesPaid,
+        totalBaseCharges: centavosToPesos(totalBaseChargesPaidCentavos),
+        totalPenalties: centavosToPesos(totalPenaltiesPaidCentavos),
         paymentType: billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
       }
     };
@@ -456,7 +471,7 @@ class WaterPaymentsService {
     const transactionResult = await createTransaction(clientId, transactionData);
     console.log(`💳 Transaction created:`, { transactionId: transactionResult, vendorId: transactionData.vendorId });
     
-    // STEP 8: Update water bills with payment info (now with transaction ID)
+    // STEP 8: Update water bills with payment info (billPayments are in centavos)
     await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, amount);
     
     // STEP 9: Smart cache update - only update affected months instead of full invalidation
@@ -480,13 +495,13 @@ class WaterPaymentsService {
     return {
       success: true,
       paymentType: 'bills_and_credit',
-      totalFundsAvailable: totalAvailableFunds,
-      billsPaid: billPayments,
-      newCreditBalance: newCreditBalance,
-      creditUsed: creditUsed,
-      overpayment: overpayment,
-      totalBaseChargesPaid: totalBaseChargesPaid,
-      totalPenaltiesPaid: totalPenaltiesPaid,
+      totalFundsAvailable: totalAvailableFundsPesos,
+      billsPaid: billPayments, // In centavos
+      newCreditBalance: newCreditBalance, // In pesos
+      creditUsed: creditUsed, // In pesos
+      overpayment: overpayment, // In pesos
+      totalBaseChargesPaid: centavosToPesos(totalBaseChargesPaidCentavos), // Convert to pesos for response
+      totalPenaltiesPaid: centavosToPesos(totalPenaltiesPaidCentavos), // Convert to pesos for response
       transactionId: transactionResult
     };
   }
@@ -655,6 +670,9 @@ class WaterPaymentsService {
   async _updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, paymentAmount) {
     const batch = this.db.batch();
     
+    // Convert paymentAmount from pesos to centavos for bill storage
+    const paymentAmountCentavos = pesosToCentavos(paymentAmount);
+    
     // Determine which month to record the FULL payment amount in
     // Use current fiscal month based on payment date
     const currentDate = new Date(paymentDate);
@@ -662,7 +680,7 @@ class WaterPaymentsService {
     const currentFiscalMonth = Math.max(0, currentDate.getMonth() - 6); // July = 0, Aug = 1, etc.
     const paymentMonthId = `${currentFiscalYear}-${String(currentFiscalMonth).padStart(2, '0')}`;
     
-    console.log(`💳 Recording FULL payment amount $${transactionResult.amount} in month ${paymentMonthId} for display`);
+    console.log(`💳 Recording FULL payment amount ${paymentAmountCentavos} centavos ($${paymentAmount}) in month ${paymentMonthId} for display`);
     
     for (const payment of billPayments) {
       const billRef = this.db.collection('clients').doc(clientId)
@@ -678,25 +696,25 @@ class WaterPaymentsService {
         continue;
       }
       
-      // Calculate new payment totals for allocation tracking
+      // Calculate new payment totals (ALL IN CENTAVOS - integers)
       const newBasePaid = (currentBill.basePaid || 0) + payment.baseChargePaid;
       const newPenaltyPaid = (currentBill.penaltyPaid || 0) + payment.penaltyPaid;
       
-      // For paidAmount display: Show FULL payment in the payment month, allocated amounts in other months
+      // For paidAmount display: Show FULL payment in the payment month, allocated amounts in other months (ALL IN CENTAVOS)
       const isPaymentMonth = payment.billId === paymentMonthId;
-      const displayPaidAmount = isPaymentMonth ? paymentAmount : payment.amountPaid;
+      const displayPaidAmount = isPaymentMonth ? paymentAmountCentavos : payment.amountPaid;
       const newPaidAmount = (currentBill.paidAmount || 0) + displayPaidAmount;
       
-      console.log(`💰 Bill ${payment.billId}: isPaymentMonth=${isPaymentMonth}, displayAmount=$${displayPaidAmount}`);
+      console.log(`💰 Bill ${payment.billId}: isPaymentMonth=${isPaymentMonth}, displayAmount=${displayPaidAmount} centavos`);
       
       // Get existing payments array or initialize it
       const existingPayments = currentBill.payments || [];
       
-      // Create new payment entry (following HOA Dues pattern)
+      // Create new payment entry (following HOA Dues pattern, ALL IN CENTAVOS)
       const paymentEntry = {
-        amount: displayPaidAmount, // Full amount in payment month, allocated in others
-        baseChargePaid: payment.baseChargePaid,
-        penaltyPaid: payment.penaltyPaid,
+        amount: displayPaidAmount,           // In centavos
+        baseChargePaid: payment.baseChargePaid,  // In centavos
+        penaltyPaid: payment.penaltyPaid,        // In centavos
         date: paymentDate,
         method: paymentMethod,
         reference: reference,
@@ -708,9 +726,9 @@ class WaterPaymentsService {
       const updatedPayments = [...existingPayments, paymentEntry];
       
       batch.update(billRef, {
-        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
-        [`bills.units.${unitId}.basePaid`]: newBasePaid,
-        [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
+        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,       // In centavos
+        [`bills.units.${unitId}.basePaid`]: newBasePaid,           // In centavos
+        [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,     // In centavos
         [`bills.units.${unitId}.status`]: payment.newStatus,
         [`bills.units.${unitId}.payments`]: updatedPayments
       });
@@ -961,9 +979,21 @@ class WaterPaymentsService {
       const creditData = await this._getCreditBalance(clientId, unitId, fiscalYear);
       console.log(`💰 Credit balance: $${creditData?.creditBalance || 0}`);
       
+      // Convert unpaid bills from centavos to pesos for frontend
+      const unpaidBillsInPesos = (unpaidBills || []).map(bill => ({
+        ...bill,
+        penaltyAmount: centavosToPesos(bill.penaltyAmount || 0),
+        totalAmount: centavosToPesos(bill.totalAmount || 0),
+        currentCharge: centavosToPesos(bill.currentCharge || 0),
+        paidAmount: centavosToPesos(bill.paidAmount || 0),
+        basePaid: centavosToPesos(bill.basePaid || 0),
+        penaltyPaid: centavosToPesos(bill.penaltyPaid || 0),
+        unpaidAmount: centavosToPesos(bill.unpaidAmount || 0)
+      }));
+      
       const result = {
-        unpaidBills: unpaidBills || [],
-        currentCreditBalance: creditData?.creditBalance || 0,
+        unpaidBills: unpaidBillsInPesos,
+        currentCreditBalance: creditData?.creditBalance || 0, // Already in pesos from credit system
         creditHistory: creditData?.creditBalanceHistory || []
       };
       
