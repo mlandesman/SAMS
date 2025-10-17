@@ -48,9 +48,10 @@ class WaterBillsService {
     const rateInCentavos = config.ratePerM3; // Already in centavos from config
     const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
     
-    // 4. Calculate or use provided due date (MOVE EARLIER)
-    const billDate = getNow();
-    const dueDate = options.dueDate ? new Date(options.dueDate).toISOString() : this._calculateDueDate(billDate, config);
+    // 4. Calculate or use provided billDate and dueDate (MOVE EARLIER)
+    // During import, billDate should be the actual bill month date (not current date)
+    const billDate = options.billDate ? new Date(options.billDate) : getNow();
+    const dueDate = options.dueDate ? (typeof options.dueDate === 'string' ? options.dueDate : new Date(options.dueDate).toISOString()) : this._calculateDueDate(billDate, config);
     
     // 5. CRITICAL: Run penalty recalculation before generating new bills
     console.log(`Running penalty recalculation for client ${clientId} before bill generation...`);
