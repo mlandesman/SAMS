@@ -201,10 +201,13 @@ export const getConfig = async (req, res) => {
 export const recalculatePenalties = async (req, res) => {
   try {
     const { clientId } = req.params;
+    const { unitIds } = req.body; // Optional: unit IDs for surgical updates
     
-    console.log(`Manual penalty recalculation requested for client: ${clientId}`);
+    const scopeDescription = unitIds ? ` (scoped to ${unitIds.length} unit(s))` : '';
+    console.log(`Manual penalty recalculation requested for client: ${clientId}${scopeDescription}`);
     
-    const result = await penaltyRecalculationService.recalculatePenaltiesForClient(clientId);
+    // Pass unitIds to service (undefined if not provided - backward compatible)
+    const result = await penaltyRecalculationService.recalculatePenaltiesForClient(clientId, undefined, unitIds);
     
     // Handle the new success/error structure from penalty service
     if (!result.success) {
@@ -244,12 +247,7 @@ export const recalculatePenalties = async (req, res) => {
     res.json({
       success: true,
       message: `Penalty recalculation completed for ${data.processedBills} bills`,
-      data: {
-        processedBills: data.processedBills,
-        updatedBills: data.updatedBills,
-        totalPenaltiesUpdated: data.totalPenaltiesUpdated,
-        clientId: data.clientId
-      }
+      data: data // Return ALL metrics including performance data
     });
   } catch (error) {
     console.error('Error recalculating penalties:', error);

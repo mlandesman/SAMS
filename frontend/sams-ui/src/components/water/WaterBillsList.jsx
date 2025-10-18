@@ -20,6 +20,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -198,8 +199,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
         }
         
+        // Backend pre-calculates these values (WB1) - no fallback calculation needed
         const penalties = unit.penaltyAmount || 0;
-        const total = unit.totalAmount || (monthlyCharge + washCharges + penalties);
+        const total = unit.totalAmount || 0;  // Pre-calculated by backend
         const paid = unit.paidAmount || 0;
         
         monthConsumption += unit.consumption || 0;
@@ -288,6 +290,12 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
+      {error && (
+        <div className="error-message">
+          <i className="fas fa-exclamation-triangle"></i> {error}
+        </div>
+      )}
+
       {contextError && (
         <div className="error-message">
           <i className="fas fa-exclamation-triangle"></i> {contextError}
@@ -328,15 +336,12 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                 washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
               }
               
-              // TASK 2 ISSUE 2: Use display fields for paid bills (show $0 instead of amounts)
-              // Backend provides displayDue, displayPenalties, displayOverdue which are 0 for paid bills
-              const penalties = unit.displayPenalties !== undefined ? unit.displayPenalties : (unit.penaltyAmount || 0);
-              const overdue = unit.displayOverdue !== undefined ? unit.displayOverdue : (unit.previousBalance || 0);
-              
-              // FIX: Show cumulative unpaid amount instead of just current month
-              // Current month only: monthlyCharge + washCharges + overdue + penalties
-              // Cumulative unpaid: Use displayDue if available (Task 2 fix), otherwise calculate current month
-              const due = unit.displayDue !== undefined ? unit.displayDue : (monthlyCharge + washCharges + overdue + penalties);
+              // Backend pre-calculates all display values in aggregatedData (WB1)
+              // Values already converted from centavos to pesos by API layer (WB1A)
+              // For paid bills, backend sets these to 0 automatically
+              const penalties = unit.displayTotalPenalties || 0;  // Use cumulative penalties
+              const overdue = unit.displayOverdue || 0;
+              const due = unit.displayTotalDue || 0;  // Use total due amount
               
               
               // Get most recent payment's transaction ID from payments array

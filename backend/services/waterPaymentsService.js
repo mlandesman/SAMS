@@ -194,6 +194,183 @@ class WaterPaymentsService {
   }
   
   /**
+   * Calculate payment distribution for preview or actual payment
+   * This is the single source of truth for payment calculations
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {number} paymentAmount - Payment amount in PESOS
+   * @param {number} currentCreditBalance - Current credit balance in PESOS
+   * @returns {object} Distribution breakdown with allocations (all amounts in PESOS)
+   */
+  async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0) {
+    await this._initializeDb();
+    
+    console.log(`💧 Calculating payment distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
+    
+    // Calculate total available funds in PESOS and CENTAVOS
+    const totalAvailableFundsPesos = this._roundCurrency(paymentAmount + currentCreditBalance);
+    const totalAvailableFundsCentavos = pesosToCentavos(totalAvailableFundsPesos);
+    
+    console.log(`💰 Available funds calculation: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
+    
+    // Get unpaid water bills (oldest first)
+    const unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
+    console.log(`📋 Found ${unpaidBills.length} unpaid bills for distribution calculation`);
+    
+    // Calculate total bills due in centavos
+    const totalBillsDueCentavos = unpaidBills.reduce((sum, bill) => {
+      const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
+      return sum + unpaidAmount;
+    }, 0);
+    
+    const paymentAmountCentavos = pesosToCentavos(paymentAmount);
+    
+    // Apply funds to bills (in CENTAVOS for precision)
+    let remainingFundsCentavos = totalAvailableFundsCentavos;
+    const billPayments = [];
+    let totalBaseChargesPaidCentavos = 0;
+    let totalPenaltiesPaidCentavos = 0;
+    
+    // Initialize all unpaid bills with zero payments
+    for (const bill of unpaidBills) {
+      const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
+      const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
+      const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+      
+      billPayments.push({
+        unitId: unitId,
+        billId: bill.id,
+        billPeriod: bill.period,
+        amountPaid: 0,                    // Start with zero payment
+        baseChargePaid: 0,                // Start with zero payment
+        penaltyPaid: 0,                   // Start with zero payment
+        newStatus: 'unpaid'               // Start as unpaid
+      });
+    }
+    
+    // Now apply funds to bills (in CENTAVOS for precision)
+    for (let i = 0; i < unpaidBills.length; i++) {
+      const bill = unpaidBills[i];
+      const billPayment = billPayments[i];
+      
+      if (remainingFundsCentavos <= 0) break;
+      
+      // Bills are in centavos
+      const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
+      const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
+      const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+      
+      console.log(`📄 Bill ${bill.period}: Total due ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)}) (Base: ${baseUnpaid}, Penalties: ${penaltyUnpaid})`);
+      
+      if (remainingFundsCentavos >= unpaidAmount) {
+        // Pay bill in full
+        billPayment.amountPaid = unpaidAmount;
+        billPayment.baseChargePaid = baseUnpaid;
+        billPayment.penaltyPaid = penaltyUnpaid;
+        billPayment.newStatus = 'paid';
+        
+        totalBaseChargesPaidCentavos += baseUnpaid;
+        totalPenaltiesPaidCentavos += penaltyUnpaid;
+        remainingFundsCentavos -= unpaidAmount;
+        
+        console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
+        
+      } else if (remainingFundsCentavos > 0) {
+        // Partial payment - prioritize base charges over penalties
+        let amountToApply = remainingFundsCentavos;
+        let basePortionPaid = 0;
+        let penaltyPortionPaid = 0;
+        
+        if (baseUnpaid > 0) {
+          basePortionPaid = Math.min(amountToApply, baseUnpaid);
+          amountToApply -= basePortionPaid;
+        }
+        
+        if (amountToApply > 0 && penaltyUnpaid > 0) {
+          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
+        }
+        
+        billPayment.amountPaid = remainingFundsCentavos;
+        billPayment.baseChargePaid = basePortionPaid;
+        billPayment.penaltyPaid = penaltyPortionPaid;
+        billPayment.newStatus = 'partial';
+        
+        totalBaseChargesPaidCentavos += basePortionPaid;
+        totalPenaltiesPaidCentavos += penaltyPortionPaid;
+        
+        console.log(`🔸 Bill ${bill.period} partial payment: ${remainingFundsCentavos} centavos (Base: ${basePortionPaid}, Penalties: ${penaltyPortionPaid})`);
+        
+        remainingFundsCentavos = 0;
+      }
+    }
+    
+    // Calculate credit usage vs overpayment (in PESOS for return)
+    const remainingFundsPesos = centavosToPesos(remainingFundsCentavos);
+    
+    let creditUsed = 0;
+    let overpayment = 0;
+    let newCreditBalance = 0;
+    
+    // Calculate how much credit was actually used
+    if (paymentAmountCentavos < totalBillsDueCentavos) {
+      // Underpayment scenario - credit was used to cover shortfall
+      const shortfallCentavos = totalBillsDueCentavos - paymentAmountCentavos;
+      const shortfallPesos = centavosToPesos(shortfallCentavos);
+      
+      // Credit used is the minimum of shortfall and available credit (can't go negative)
+      creditUsed = this._roundCurrency(Math.min(shortfallPesos, currentCreditBalance));
+      newCreditBalance = this._roundCurrency(currentCreditBalance - creditUsed);
+      overpayment = 0;
+    } else {
+      // Overpayment scenario - excess payment goes to credit balance
+      const excessPaymentCentavos = paymentAmountCentavos - totalBillsDueCentavos;
+      overpayment = this._roundCurrency(centavosToPesos(excessPaymentCentavos));
+      newCreditBalance = this._roundCurrency(currentCreditBalance + overpayment);
+      creditUsed = 0;
+    }
+    
+    console.log(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
+    console.log(`🔍 DEBUG: paymentAmountCentavos=${paymentAmountCentavos}, totalBillsDueCentavos=${totalBillsDueCentavos}, remainingFundsCentavos=${remainingFundsCentavos}`);
+    console.log(`🔍 DEBUG: Payment $${paymentAmount} vs Bills $${centavosToPesos(totalBillsDueCentavos)} = ${paymentAmountCentavos < totalBillsDueCentavos ? 'UNDERPAYMENT' : 'OVERPAYMENT'}`);
+    if (paymentAmountCentavos >= totalBillsDueCentavos) {
+      const excessPaymentCentavos = paymentAmountCentavos - totalBillsDueCentavos;
+      console.log(`🔍 OVERPAYMENT DEBUG: excessPaymentCentavos=${excessPaymentCentavos}, excessPaymentPesos=$${centavosToPesos(excessPaymentCentavos)}`);
+    }
+    
+    // Convert billPayments to PESOS for return to frontend
+    const billPaymentsForAllocations = billPayments.map(bp => ({
+      ...bp,
+      amountPaid: centavosToPesos(bp.amountPaid),
+      baseChargePaid: centavosToPesos(bp.baseChargePaid),
+      penaltyPaid: centavosToPesos(bp.penaltyPaid)
+    }));
+    
+    // Generate allocations using existing function
+    const paymentDataForAllocations = {
+      creditUsed: creditUsed,
+      overpayment: overpayment,
+      newCreditBalance: newCreditBalance
+    };
+    
+    const allocations = createWaterBillsAllocations(billPaymentsForAllocations, unitId, paymentDataForAllocations);
+    const allocationSummary = createWaterBillsAllocationSummary(billPaymentsForAllocations, dollarsToCents(paymentAmount));
+    
+    // Return everything in PESOS for frontend display
+    return {
+      totalAvailableFunds: totalAvailableFundsPesos,
+      billPayments: billPaymentsForAllocations, // In pesos
+      allocations: allocations,
+      allocationSummary: allocationSummary,
+      totalBaseCharges: centavosToPesos(totalBaseChargesPaidCentavos),
+      totalPenalties: centavosToPesos(totalPenaltiesPaidCentavos),
+      creditUsed: creditUsed,
+      overpayment: overpayment,
+      currentCreditBalance: currentCreditBalance, // Add this for frontend
+      newCreditBalance: newCreditBalance
+    };
+  }
+  
+  /**
    * Record a payment against water bills using credit balance integration
    * Follows identical logic to HOA Dues payment system
    */
@@ -230,40 +407,22 @@ class WaterPaymentsService {
     
     console.log(`💰 Current credit balance: $${currentCreditBalance}`);
     
-    // STEP 2: Calculate total available funds in PESOS (for transaction) and CENTAVOS (for bills)
-    // Keep pesos for transaction system, but convert to centavos for bill distribution
-    const totalAvailableFundsPesos = this._roundCurrency(amount + currentCreditBalance);
-    const totalAvailableFundsCentavos = pesosToCentavos(totalAvailableFundsPesos);
-    console.log(`💵 Total available funds: $${amount} + $${currentCreditBalance} = $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
+    // STEP 2: Use centralized calculation method (single source of truth)
+    const distribution = await this.calculatePaymentDistribution(clientId, unitId, amount, currentCreditBalance);
     
-    // STEP 3: Get unpaid water bills (oldest first)
-    const unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
-    console.log(`📋 Found ${unpaidBills.length} unpaid bills`);
+    console.log(`📊 Distribution calculated: ${distribution.billPayments.length} bills, Credit used: $${distribution.creditUsed}, Overpayment: $${distribution.overpayment}`);
     
-    if (unpaidBills.length === 0) {
-      // No bills to pay - entire amount goes to credit (like HOA overpayment)
-      const newCreditBalance = currentCreditBalance + amount; // Keep in pesos for credit system
-      
+    // STEP 3: Handle no-bills case (entire amount goes to credit)
+    if (distribution.billPayments.length === 0) {
       await this._updateCreditBalance(clientId, unitId, fiscalYear, {
-        newBalance: newCreditBalance,
+        newBalance: distribution.newCreditBalance,
         changeAmount: amount,
         changeType: 'water_overpayment',
         description: `Water bill overpayment - no bills due`,
         transactionId: null // Will be updated after transaction creation
       });
       
-      // Prepare payment data for allocation generation (in pesos for transaction system)
-      const paymentDataForAllocations = {
-        creditUsed: 0,
-        overpayment: amount,
-        newCreditBalance: newCreditBalance
-      };
-      
-      // Generate allocations for credit-only payment
-      const allocations = createWaterBillsAllocations([], unitId, paymentDataForAllocations);
-      const allocationSummary = createWaterBillsAllocationSummary([], dollarsToCents(amount));
-      
-      // Create transaction for the overpayment with allocations (amount in pesos, transaction will convert)
+      // Create transaction for the overpayment with allocations
       const transactionData = {
         amount: amount, // In pesos - transactionController converts to centavos
         type: 'income',
@@ -274,13 +433,12 @@ class WaterPaymentsService {
         accountId: accountId,
         accountType: accountType,
         paymentMethod: paymentMethod,
+        paymentMethodId: paymentMethodId,
         reference: reference,
-        notes: this._generateTransactionNotes([], 0, 0, unitId, notes, amount),
+        notes: notes || `Water bill overpayment - no bills due`,
         date: paymentDate,
-        
-        // Add allocations for credit-only payment
-        allocations: allocations,
-        allocationSummary: allocationSummary
+        allocations: distribution.allocations,
+        allocationSummary: distribution.allocationSummary
       };
       
       const transactionResult = await createTransaction(clientId, transactionData);
@@ -288,143 +446,43 @@ class WaterPaymentsService {
       return {
         success: true,
         paymentType: 'credit_only',
-        totalFundsAvailable: totalAvailableFundsPesos,
+        totalFundsAvailable: distribution.totalAvailableFunds,
         billsPaid: [],
-        newCreditBalance: newCreditBalance,
+        newCreditBalance: distribution.newCreditBalance,
         creditUsed: 0,
         overpayment: amount,
         transactionId: transactionResult
       };
     }
     
-    // STEP 4: Apply funds to bills (priority: oldest first, base charges before penalties)
-    // Work with CENTAVOS for bill distribution since bills are now in centavos
-    let remainingFundsCentavos = totalAvailableFundsCentavos;
-    const billPayments = [];
-    let totalBaseChargesPaidCentavos = 0;
-    let totalPenaltiesPaidCentavos = 0;
+    // STEP 4: Use distribution data (from centralized calculation)
+    // Convert billPayments back to centavos for bill updates
+    const billPayments = distribution.billPayments.map(bp => ({
+      ...bp,
+      amountPaid: pesosToCentavos(bp.amountPaid),
+      baseChargePaid: pesosToCentavos(bp.baseChargePaid),
+      penaltyPaid: pesosToCentavos(bp.penaltyPaid)
+    }));
     
-    for (const bill of unpaidBills) {
-      if (remainingFundsCentavos <= 0) break;
-      
-      // Bills are now in centavos, so all these amounts are in centavos
-      const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
-      const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
-      const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
-      
-      console.log(`📄 Bill ${bill.period}: Total due ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)}) (Base: ${baseUnpaid}, Penalties: ${penaltyUnpaid})`);
-      
-      if (remainingFundsCentavos >= unpaidAmount) {
-        // Pay bill in full
-        billPayments.push({
-          unitId: unitId,
-          billId: bill.id,
-          billPeriod: bill.period,
-          amountPaid: unpaidAmount,           // In centavos
-          baseChargePaid: baseUnpaid,         // In centavos
-          penaltyPaid: penaltyUnpaid,         // In centavos
-          newStatus: 'paid'
-        });
-        
-        console.log(`💳 Bill payment created:`, {
-          billId: bill.id,
-          baseChargePaid: baseUnpaid,
-          penaltyPaid: penaltyUnpaid,
-          amountPaid: unpaidAmount
-        });
-        
-        totalBaseChargesPaidCentavos += baseUnpaid;
-        totalPenaltiesPaidCentavos += penaltyUnpaid;
-        remainingFundsCentavos -= unpaidAmount;
-        
-        console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
-        
-      } else if (remainingFundsCentavos > 0) {
-        // Partial payment - prioritize base charges over penalties
-        let amountToApply = remainingFundsCentavos;
-        let basePortionPaid = 0;
-        let penaltyPortionPaid = 0;
-        
-        if (baseUnpaid > 0) {
-          basePortionPaid = Math.min(amountToApply, baseUnpaid);
-          amountToApply -= basePortionPaid;
-        }
-        
-        if (amountToApply > 0 && penaltyUnpaid > 0) {
-          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
-        }
-        
-        billPayments.push({
-          unitId: unitId,
-          billId: bill.id,
-          billPeriod: bill.period,
-          amountPaid: remainingFundsCentavos,  // In centavos
-          baseChargePaid: basePortionPaid,     // In centavos
-          penaltyPaid: penaltyPortionPaid,     // In centavos
-          newStatus: 'partial'
-        });
-        
-        totalBaseChargesPaidCentavos += basePortionPaid;
-        totalPenaltiesPaidCentavos += penaltyPortionPaid;
-        
-        console.log(`🔸 Bill ${bill.period} partial payment: ${remainingFundsCentavos} centavos (Base: ${basePortionPaid}, Penalties: ${penaltyPortionPaid})`);
-        
-        remainingFundsCentavos = 0;
-      }
-    }
+    const totalBaseChargesPaidCentavos = pesosToCentavos(distribution.totalBaseCharges);
+    const totalPenaltiesPaidCentavos = pesosToCentavos(distribution.totalPenalties);
+    const newCreditBalance = distribution.newCreditBalance;
+    const creditUsed = distribution.creditUsed;
+    const overpayment = distribution.overpayment;
     
-    // STEP 5: Calculate credit usage vs overpayment (convert back to pesos for credit system)
-    const remainingFundsPesos = centavosToPesos(remainingFundsCentavos);
-    const totalUsedForBillsPesos = centavosToPesos(totalAvailableFundsCentavos - remainingFundsCentavos);
-    const newCreditBalance = this._roundCurrency(remainingFundsPesos);
-    const totalUsedForBills = this._roundCurrency(totalUsedForBillsPesos);
-    
-    let creditUsed = 0;
-    let overpayment = 0;
-    
-    if (newCreditBalance >= currentCreditBalance) {
-      // Overpayment scenario: Payment had extra beyond bills
-      overpayment = this._roundCurrency(newCreditBalance - currentCreditBalance);
-    } else {
-      // Credit was used to help pay bills
-      creditUsed = this._roundCurrency(currentCreditBalance - newCreditBalance);
-    }
-    
-    console.log(`💰 Credit calculation: Used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
-    
-    // STEP 6: Update credit balance via HOA module
+    // STEP 5: Update credit balance via HOA module
     await this._updateCreditBalance(clientId, unitId, fiscalYear, {
       newBalance: newCreditBalance,
       changeAmount: overpayment > 0 ? overpayment : -creditUsed,
       changeType: overpayment > 0 ? 'water_overpayment' : 'water_credit_used',
-      description: this._generateCreditDescription(billPayments, totalBaseChargesPaid, totalPenaltiesPaid),
+      description: this._generateCreditDescription(billPayments, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos)),
       transactionId: null // Will be updated after transaction creation
     });
     
-    // STEP 7: Create accounting transaction with rich water bill context AND allocations
-    // Import generateWaterBillNotes function for enhanced transaction descriptions
+    // STEP 6: Use allocations from distribution (already generated by calculatePaymentDistribution)
     const { default: waterBillsService } = await import('./waterBillsService.js');
     
-    // Prepare payment data for allocation generation
-    const paymentDataForAllocations = {
-      creditUsed: creditUsed,
-      overpayment: overpayment,
-      newCreditBalance: newCreditBalance
-    };
-    
-    // Generate allocations following HOA Dues pattern
-    // Convert billPayments from centavos to pesos for allocations (transaction system expects pesos)
-    const billPaymentsForAllocations = billPayments.map(bp => ({
-      ...bp,
-      amountPaid: centavosToPesos(bp.amountPaid),
-      baseChargePaid: centavosToPesos(bp.baseChargePaid),
-      penaltyPaid: centavosToPesos(bp.penaltyPaid)
-    }));
-    
-    const allocations = createWaterBillsAllocations(billPaymentsForAllocations, unitId, paymentDataForAllocations);
-    const allocationSummary = createWaterBillsAllocationSummary(billPaymentsForAllocations, dollarsToCents(amount));
-    
-    console.log(`📊 Generated ${allocations.length} allocations for water bill payment`);
+    console.log(`📊 Using ${distribution.allocations.length} allocations from distribution calculation`);
     
     // Enhanced transaction data with water bill details AND allocations
     const transactionData = {
@@ -433,36 +491,36 @@ class WaterPaymentsService {
       categoryId: 'water-consumption',
       categoryName: 'Water Consumption',
       vendorId: 'deposit',
-      description: await this._generateEnhancedTransactionDescription(billPaymentsForAllocations, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos), unitId, clientId, waterBillsService),
+      description: await this._generateEnhancedTransactionDescription(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, clientId, waterBillsService),
       unitId: unitId,
       accountId: accountId,
       accountType: accountType,
       paymentMethod: paymentMethod,
       paymentMethodId: paymentMethodId,
       reference: reference,
-      notes: await this._generateEnhancedTransactionNotes(billPaymentsForAllocations, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos), unitId, notes, amount, clientId, waterBillsService),
+      notes: await this._generateEnhancedTransactionNotes(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, notes, amount, clientId, waterBillsService),
       date: paymentDate,
       
-      // NEW: Water Bills allocation pattern (following HOA Dues)
-      allocations: allocations,
-      allocationSummary: allocationSummary,
+      // Use allocations from distribution calculation
+      allocations: distribution.allocations,
+      allocationSummary: distribution.allocationSummary,
       
       // Add metadata for water bills context to support future receipt generation
       metadata: {
-        billPayments: billPaymentsForAllocations.map(bp => ({
+        billPayments: distribution.billPayments.map(bp => ({
           period: bp.billPeriod,
           amountPaid: bp.amountPaid,
           baseChargePaid: bp.baseChargePaid,
           penaltyPaid: bp.penaltyPaid
         })),
-        totalBaseCharges: centavosToPesos(totalBaseChargesPaidCentavos),
-        totalPenalties: centavosToPesos(totalPenaltiesPaidCentavos),
-        paymentType: billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
+        totalBaseCharges: distribution.totalBaseCharges,
+        totalPenalties: distribution.totalPenalties,
+        paymentType: distribution.billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
       }
     };
     
     // Set category to "-Split-" when multiple allocations exist (following HOA Dues pattern)
-    if (allocations.length > 1) {
+    if (distribution.allocations.length > 1) {
       transactionData.categoryName = "-Split-";
       transactionData.categoryId = "-split-";
       console.log(`✂️ Multiple allocations detected - setting category to "-Split-"`);

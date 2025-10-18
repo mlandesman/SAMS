@@ -8,70 +8,73 @@ project: Sandyland Asset Management System (SAMS)
 
 # SAMS Project Memory Root
 
-## 🎯 Current Status: Water Bills Critical Fixes Complete - Task 3 In Progress
+## 🎯 Current Status: Water Bills Critical Fixes - WB2 In Progress
 
 **Active Feature Branch:** `feature/water-bills-issues-0-7-complete-fix`
 
-### ✅ Completed (October 16, 2025):
-1. **Investigation Phase** (3 parallel investigations) ✅
-   - Phase 1: Penalty Calculation (Agent_Water_Investigation_Phase_1)
-   - Phase 2: Payment Cascade (Agent_Water_Investigation_Phase_2)
-   - Phase 3: Delete Reversal (Agent_Water_Investigation_Phase_3)
+### ✅ Completed (October 16-17, 2025):
+1. **WB1: Backend Data Structure + Floating Point Storage** ✅
+   - Converted entire Water Bills backend from floating point pesos to integer centavos
+   - Eliminated floating point precision bug ($914.3000000001 → $914.30)
+   - Added API compatibility layer (backend stores centavos, API sends pesos)
+   - Enhanced aggregatedData with new fields (totalUnpaidAmount, totalPenalties, etc.)
+   - Performance: 100x efficiency improvement validated
 
-2. **Michael Validation** (Manager Agent) ✅
-   - 29 architecture questions answered
-   - Critical corrections incorporated
-   - Credit endpoint architecture finalized
+2. **WB1A: Architecture Validation** ✅
+   - Comprehensive analysis of all 4 API endpoints
+   - Confirmed 100% pesos delivery to frontend
+   - Validated optimal architecture decision
+   - Production readiness confirmed
 
-3. **Task 0A: Credit Endpoint** (Implementation Agent) ✅
-   - 4 new files created (~1,149 lines)
-   - All 6 tests passing
-   - Foundation for Tasks 1-3
+3. **WB2: Penalty Calc Optimization** ✅
+   - Added unit scoping to penalty recalculation (surgical updates)
+   - Implemented paid bills skipping for efficiency
+   - **Performance: 6x-9x speedup achieved** (2000-3000ms → 319ms)
+   - 83.3% reduction in bills processed
+   - Backward compatible, tested with real AVII data
+   - Integration with surgical updates and delete reversals complete
 
-4. **Task 1: AggregatedData Status Fix** (Implementation Agent) ✅
-   - Fixed surgical update not updating status from 'unpaid' to 'paid'
-   - Root cause: calculateStatus() checking paidAmount instead of basePaid
-   - Impact: UI now shows correct "PAID" status after payments
-   - Duration: 2 hours (matched estimate)
+4. **WB1B: Frontend Use Pre-Calculated Values** ✅
+   - Removed fallback calculations for displayDue, displayPenalties, displayOverdue
+   - Frontend now trusts backend pre-calculated values
+   - Code simplified with clear comments
+   - **Discovered:** Backend displayDue calculation bug (WB1B-Followup created)
+   - **Bonus:** Documented 4 areas where backend doesn't provide pre-calculated values
 
-5. **Credit Balance CRUD API** (Implementation Agent) ✅
-   - Fixed 4 critical coding guideline violations in existing API
-   - Added comprehensive audit logging and test suite
-   - Eliminated direct Firestore access violations
-   - Unblocked Task 3 delete reversal implementation
-   - Duration: 2-3 hours (matched estimate)
-
-6. **Documentation & Onboarding** ✅
-   - Git workflow documented
-   - Task assignments created (1-3)
-   - Implementation Agent START_HERE guide
-
-### 🔄 In Progress:
-- **Task 3: Delete Reversal** (Implementation Agent working)
-  - Delete Transaction cascading cleanup implementation
-  - Now unblocked with Credit CRUD API available
-  - Duration: 2-3 hours remaining
+5. **WB5: Import Due Dates + Centavos** ✅
+   - Fixed due date calculation (bill month day 10, not import date + 10)
+   - Implemented currency conversion (pesos → centavos during import)
+   - Backward compatible with optional parameters
+   - 4/4 test suites passing (100%)
+   - Production ready for historical data re-import
 
 ### ⏳ Pending:
-- **Currency Compliance Fix** (CRITICAL - blocks delete reversal matching)
-- **Payment Amount Calculation Fix** (UI improvement)
+- **WB1B-Followup: Fix displayDue Calculation Bug** (HIGH - 1 hour)
+  - Backend displayDue missing overdue + penalties
+  - Unit 105 shows $1.00, should show $202.50
+  - Simple fix in waterDataService.js
+- **WB3: Surgical Update Full Verification** (map touchpoints + test)
+- **WB4: Delete Transaction Analysis & Fix** (credit history + all touchpoints)
 
 ---
 
 ## 📊 Project Overview
 
 ### What We're Fixing:
-**Water Bills Module** - Issues 0-7 (penalties, payments, deletions)
+**Water Bills Module** - Critical architecture and performance issues
 
 ### Why It Matters:
-Water Bills will be the **reference implementation** for HOA Dues and future modules.
+Water Bills is the **reference implementation** for HOA Dues and future modules. The backend architecture (centavos storage + API conversion) will be the standard for all financial modules.
 
 ### Timeline:
-- **Investigation:** Complete ✅
-- **Validation:** Complete ✅
-- **Task 0A:** Complete ✅
-- **Tasks 1-3:** 9-12 hours remaining
-- **Target:** Complete in 2 days
+- **WB1 (Backend Architecture):** Complete ✅
+- **WB1A (Architecture Validation):** Complete ✅
+- **WB2 (Penalty Optimization):** Complete ✅
+- **WB1B (Frontend Pre-Calculated Values):** Complete ✅
+- **WB5 (Import Due Dates + Centavos):** Complete ✅
+- **WB1B-Followup (Fix displayDue Bug):** Pending ⏳ (HIGH - 1 hr)
+- **WB3-WB4:** 4-6 hours remaining
+- **Target:** Complete Water Bills "rock solid" foundation
 
 ---
 
@@ -85,20 +88,24 @@ Water Bills will be the **reference implementation** for HOA Dues and future mod
 Located in: `apm_session/Memory/Task_Completion_Logs/`
 
 **Recent Completions:**
+- WB1 Backend Centavos Conversion (Oct 16-17) - Floating point bug eliminated
+- WB1A Architecture Validation (Oct 17) - Optimal design confirmed
 - Water Bills Surgical Updates (Oct 14) - 94% performance improvement
 - Water Bills Split Transactions (Oct 14) - Aligned with HOA Dues
 - HOA Dues Quarterly Display (Oct 14)
-- Investigation Phase 1, 2, 3 (Oct 15)
-- Task 0A Credit Endpoint (Oct 15)
 
 ### Task Assignments:
 Located in: `apm_session/Memory/Task_Assignments/Active/`
 
 **Current Assignments:**
-- READY_FOR_ASSIGNMENT_Task_1.md (Penalty Calculation)
-- READY_FOR_ASSIGNMENT_Task_2.md (Payment Issues)
-- READY_FOR_ASSIGNMENT_Task_3.md (Delete Reversal)
-- Detailed task docs: Task_1_*.md, Task_2_*.md, Task_3_*.md
+- WB1B-Followup: Fix displayDue Bug (READY - HIGH PRIORITY, 1 hr)
+- WB3: Surgical Update Verification (READY)
+- WB4: Delete Transaction Fix (READY)
+
+**Recently Completed:**
+- WB5: Import Due Dates + Centavos (COMPLETE - Oct 17)
+- WB1B: Frontend Pre-Calculated Values (COMPLETE - Oct 17)
+- WB2: Penalty Calc Optimization (COMPLETE - Oct 17)
 
 ### Investigation Documents:
 Located in: `docs/investigations/`
@@ -119,67 +126,71 @@ Located in: `docs/investigations/`
 ## 🔧 Key Technical Decisions
 
 ### Architecture:
-1. **Credit Balance Endpoint:** New `/credit` REST API (Task 0A)
-   - Points to current HOA Dues location initially
-   - Future migration path built-in
-   - Clean module separation
+1. **Backend Currency Storage:** All amounts stored as integer centavos
+   - Eliminates floating point precision errors
+   - Exact financial calculations
+   - Consistent with HOA Dues and Transactions modules
 
-2. **Penalty Calculation:** Added to existing nightly routine
-   - NOT a new cron job
-   - Included in surgical updates
-   - Grace period: 10 days after due date
+2. **API Conversion Layer:** Backend centavos → API pesos
+   - Single conversion per request (optimal efficiency)
+   - Frontend receives familiar peso values
+   - 100x performance improvement over frontend conversion
 
-3. **Surgical Updates:** Same code for bulk and single unit
-   - Bulk: Array of all units
-   - Surgical: Array of 1 unit
-   - Atomic operations only
+3. **Penalty Calculation:** Unit-scoped optimization
+   - Skip paid bills for efficiency
+   - Target <100ms vs 2000ms full recalculation
+   - Integration with surgical updates
 
 4. **Data Consistency:** Strong consistency model
    - No temporary inconsistencies
    - What's on screen = what's in database
    - aggregatedData is rebuildable cache
 
-5. **Testing Strategy:** 90% backend API testing
-   - Use testHarness
-   - Minimal UI testing
+5. **Testing Strategy:** Backend API testing focus
+   - Use testHarness for verification
+   - Minimal UI testing required
    - Fresh AVII data for each phase
 
 ---
 
 ## 📋 Issues Being Fixed
 
-### Issue 0 (ROOT CAUSE - 🚨 CRITICAL):
-Penalties not being calculated ($0 for all units)
+### Issue 0 (ROOT CAUSE - ✅ RESOLVED):
+Floating point precision errors ($914.3000000001 instead of $914.30)
 
-### Issue 1 (🔥 HIGH):
-Credit balance not updating until reload
+### Issue 1 (🔥 HIGH - ✅ RESOLVED):
+Backend currency storage inconsistency (mix of centavos and pesos)
 
-### Issue 2 (🔥 HIGH):
-Paid bill amounts not cleared in UI
+### Issue 2 (🔥 HIGH - ✅ RESOLVED):
+API architecture inefficiency (frontend doing manual calculations)
 
-### Issue 3 (🚨 CRITICAL):
-Due amount shows after refresh/recalc
+### Issue 3 (🚨 CRITICAL - 🔄 IN PROGRESS):
+Penalty calculation over-processing (all units instead of affected units)
 
-### Issue 4 (🟡 MEDIUM):
-"NOBILL" error blocks overdue payments
+### Issue 4 (🟡 MEDIUM - ⏳ PENDING):
+Surgical update verification (ensure all touchpoints updated)
 
-### Issue 5 (🔥 HIGH):
-Delete doesn't restore credit balance
+### Issue 5 (🔥 HIGH - ⏳ PENDING):
+Delete transaction credit balance restoration
 
-### Issue 6 (🔥 HIGH):
-Delete doesn't mark bills unpaid
+### Issue 6 (🔥 HIGH - ⏳ PENDING):
+Delete transaction bill status reversal
 
-### Issue 7 (🟡 MEDIUM):
-lastPenaltyUpdate not updating after delete
+### Issue 7 (🟡 MEDIUM - ⏳ PENDING):
+Import routine due date logic (set to bill month, not import date)
 
 ---
 
 ## 🎯 Implementation Roadmap
 
 ### Priority Order:
-1. **Task 1:** Fix penalties (root cause)
-2. **Task 2:** Fix payments (depends on penalties)
-3. **Task 3:** Fix deletions (depends on payments)
+1. **WB1B:** Frontend Use Pre-Calculated Values (READY)
+2. **WB3:** Surgical Update Verification (READY)
+3. **WB4:** Delete Transaction Fix (READY)
+4. **WB5:** Import Due Dates + Centavos (READY)
+
+**Completed:**
+- WB1, WB1A, WB2 ✅
 
 ### All-or-Nothing Merge:
 Single feature branch for all fixes. Merge only when complete and tested.
@@ -221,10 +232,11 @@ feature/water-bills-issues-0-7-complete-fix
 - **Data:** Fresh AVII data in Dev
 
 ### Key Files:
-- Penalties: `backend/services/waterDataService.js`
+- Penalties: `backend/services/penaltyRecalculationService.js`
 - Payments: `backend/services/waterPaymentsService.js`
 - Deletions: `backend/services/transactions/transactionsCleanupService.js`
-- Credit: `backend/services/creditService.js` (NEW - Task 0A)
+- Credit: `backend/services/creditService.js`
+- Currency: `backend/utils/currencyUtils.js` (NEW - WB1)
 
 ### API Endpoints:
 - `/credit/{clientId}/{unitId}` - Get/update credit balance (NEW)
@@ -255,25 +267,34 @@ feature/water-bills-issues-0-7-complete-fix
 ## 🎉 Success Metrics
 
 ### When All Complete:
-- [ ] All units show correct penalties (> $0 for overdue)
-- [ ] Credit balance updates immediately
-- [ ] Paid bills show $0 due
-- [ ] Can pay overdue without current usage
-- [ ] Delete fully reverses payments
+- [x] All amounts stored as exact integers (centavos)
+- [x] API converts centavos to pesos efficiently
+- [x] Frontend receives consistent peso values
+- [x] Floating point precision errors eliminated
+- [ ] Penalty calculation optimized (unit-scoped)
+- [ ] Surgical updates verified (all touchpoints)
+- [ ] Delete transactions fully reverse payments
+- [ ] Import routine sets correct due dates
 - [ ] All backend tests passing
 - [ ] No regressions in HOA Dues or other modules
 - [ ] Water Bills is "rock solid"
 
 ### Merge Criteria:
-- [ ] All 4 tasks complete (0A, 1, 2, 3)
-- [ ] All 8 issues resolved (0-7)
+- [x] WB1 (Backend Architecture) complete
+- [x] WB1A (Architecture Validation) complete
+- [x] WB2 (Penalty Optimization) complete
+- [x] WB1B (Frontend Pre-Calculated Values) complete
+- [x] WB5 (Import Due Dates + Centavos) complete
+- [ ] WB1B-Followup (Fix displayDue Bug) complete
+- [ ] WB3 (Surgical Update Verification) complete
+- [ ] WB4 (Delete Transaction Fix) complete
 - [ ] Complete test coverage
 - [ ] Memory Logs for all tasks
 - [ ] Product Manager approval
 
 ---
 
-**Last Updated:** October 15, 2025  
+**Last Updated:** October 17, 2025  
 **Manager Agent:** APM Manager Agent  
-**Status:** Tasks 1-3 ready for assignment  
-**Next:** Implementation Agent assignment
+**Status:** 5 of 8 tasks complete (62.5%), WB1B-Followup HIGH priority, WB3-WB4 ready  
+**Next:** Fix displayDue bug (1 hr) or continue with WB3-WB4 (4-6 hrs)

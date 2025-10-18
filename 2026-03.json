@@ -1,5 +1,7 @@
 {
   "_id": "2026-03",
+  "billDate": "2025-10-17T20:51:13.160Z",
+  "dueDate": "2025-10-01",
   "billingPeriod": "October 2025",
   "fiscalYear": 2026,
   "fiscalMonth": 3,
@@ -11,26 +13,6 @@
     "minimumCharge": 0,
     "compoundPenalty": true
   },
-  "summary": {
-    "totalUnits": 8,
-    "totalNewCharges": 4250,
-    "totalBilled": 4250,
-    "totalUnpaid": 4250,
-    "totalPaid": 0,
-    "currency": "MXN",
-    "currencySymbol": "$"
-  },
-  "metadata": {
-    "generatedBy": "system",
-    "readingsDocId": "2026-03",
-    "penaltiesApplied": false,
-    "generatedAt": {
-      "_seconds": 1760498345,
-      "_nanoseconds": 269000000
-    }
-  },
-  "billDate": "2025-10-03T03:19:04.802Z",
-  "dueDate": "2025-10-13T03:19:04.802Z",
   "bills": {
     "units": {
       "101": {
@@ -40,30 +22,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 600,
+        "waterCharge": 60000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 600,
+        "currentCharge": 60000,
         "penaltyAmount": 0,
-        "totalAmount": 600,
+        "totalAmount": 60000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0012 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z",
-        "payments": [
-          {
-            "amount": 1200,
-            "baseChargePaid": 600,
-            "penaltyPaid": 0,
-            "date": "2025-10-15",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-10-15_190205_169",
-            "recordedAt": "2025-10-16T00:02:06.029Z"
-          }
-        ],
-        "paidAmount": 1200,
-        "basePaid": 600,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "102": {
         "priorReading": 34,
@@ -72,30 +42,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 650,
+        "waterCharge": 65000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 650,
+        "currentCharge": 65000,
         "penaltyAmount": 0,
-        "totalAmount": 650,
+        "totalAmount": 65000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0013 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z",
-        "payments": [
-          {
-            "amount": 580.5,
-            "baseChargePaid": 650,
-            "penaltyPaid": 0,
-            "date": "2025-10-15",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-10-15_185009_708",
-            "recordedAt": "2025-10-15T23:50:10.669Z"
-          }
-        ],
-        "paidAmount": 580.5,
-        "basePaid": 650,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "103": {
         "priorReading": 874,
@@ -104,30 +62,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 150,
+        "waterCharge": 15000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 150,
+        "currentCharge": 15000,
         "penaltyAmount": 0,
-        "totalAmount": 150,
+        "totalAmount": 15000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0003 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z",
-        "payments": [
-          {
-            "amount": 100,
-            "baseChargePaid": 150,
-            "penaltyPaid": 0,
-            "date": "2025-10-16",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-10-16_091043_047",
-            "recordedAt": "2025-10-16T14:10:44.010Z"
-          }
-        ],
-        "paidAmount": 100,
-        "basePaid": 150,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "104": {
         "priorReading": 1506,
@@ -136,17 +82,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 500,
+        "waterCharge": 50000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 500,
+        "currentCharge": 50000,
         "penaltyAmount": 0,
-        "totalAmount": 500,
+        "totalAmount": 50000,
         "status": "unpaid",
         "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0010 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "105": {
         "priorReading": 853,
@@ -155,17 +102,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 100,
+        "waterCharge": 10000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 100,
+        "currentCharge": 10000,
         "penaltyAmount": 0,
-        "totalAmount": 100,
+        "totalAmount": 10000,
         "status": "unpaid",
         "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0002 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "106": {
         "priorReading": 1371,
@@ -174,17 +122,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 650,
+        "waterCharge": 65000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 650,
+        "currentCharge": 65000,
         "penaltyAmount": 0,
-        "totalAmount": 650,
+        "totalAmount": 65000,
         "status": "unpaid",
         "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0013 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "201": {
         "priorReading": 1084,
@@ -193,17 +142,18 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 50,
+        "waterCharge": 5000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 50,
+        "currentCharge": 5000,
         "penaltyAmount": 0,
-        "totalAmount": 50,
+        "totalAmount": 5000,
         "status": "unpaid",
         "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0001 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       },
       "203": {
         "priorReading": 1692,
@@ -212,31 +162,37 @@
         "carWashCount": 0,
         "boatWashCount": 0,
         "washes": [],
-        "waterCharge": 1550,
+        "waterCharge": 155000,
         "carWashCharge": 0,
         "boatWashCharge": 0,
-        "currentCharge": 1550,
+        "currentCharge": 155000,
         "penaltyAmount": 0,
-        "totalAmount": 1550,
+        "totalAmount": 155000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0031 m³",
-        "lastPenaltyUpdate": "2025-10-15T03:19:04.977Z",
-        "payments": [
-          {
-            "amount": 1550,
-            "baseChargePaid": 1550,
-            "penaltyPaid": 0,
-            "date": "2025-10-02T22:33:40.184Z",
-            "transactionId": "2025-10-02_221835_190",
-            "reference": "PAY-203 (Marquez)-20251002-97",
-            "method": "bank_transfer",
-            "recordedAt": "2025-10-15T03:19:05.535Z"
-          }
-        ],
-        "paidAmount": 1550,
-        "basePaid": 1550,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-17T20:51:13.614Z"
       }
+    }
+  },
+  "summary": {
+    "totalUnits": 8,
+    "totalNewCharges": 425000,
+    "totalBilled": 425000,
+    "totalUnpaid": 425000,
+    "totalPaid": 0,
+    "currency": "MXN",
+    "currencySymbol": "$"
+  },
+  "metadata": {
+    "generatedBy": "system",
+    "readingsDocId": "2026-03",
+    "penaltiesApplied": false,
+    "generatedAt": {
+      "_seconds": 1760734273,
+      "_nanoseconds": 896000000
     }
   }
 }

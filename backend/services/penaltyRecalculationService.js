@@ -47,11 +47,14 @@ class PenaltyRecalculationService {
    * Recalculate penalties for all unpaid bills for a specific client
    * @param {string} clientId - The client ID to recalculate penalties for
    * @param {Date} currentDate - Current date for penalty calculation
+   * @param {Array<string>} unitIds - Optional: Array of unit IDs to recalculate (for surgical updates)
    * @returns {Promise<Object>} Summary with success/error structure for UI handling
    */
-  async recalculatePenaltiesForClient(clientId, currentDate = getNow()) {
+  async recalculatePenaltiesForClient(clientId, currentDate = getNow(), unitIds = null) {
     try {
-      console.log(`Starting penalty recalculation for client: ${clientId}`);
+      const startTime = Date.now();
+      const scopeDescription = unitIds ? `units: [${unitIds.join(', ')}]` : 'all units';
+      console.log(`🔄 [PENALTY_RECALC] Starting penalty recalculation for client ${clientId} (${scopeDescription})`);
       
       // Load and validate configuration first
       let config;
@@ -76,6 +79,8 @@ class PenaltyRecalculationService {
         clientId,
         processedBills: 0,
         updatedBills: 0,
+        skippedPaidBills: 0,
+        skippedOutOfScopeBills: 0,
         totalPenaltiesUpdated: 0,
         errors: []
       };
@@ -89,14 +94,15 @@ class PenaltyRecalculationService {
       const billsSnapshot = await billsCollectionRef.get();
 
       if (billsSnapshot.empty) {
-        console.warn(`No water bills found for client: ${clientId}`);
+        console.warn(`⚠️  [PENALTY_RECALC] No water bills found for client: ${clientId}`);
+        const elapsedTime = Date.now() - startTime;
         return {
           success: true,
-          data: results
+          data: { ...results, processingTimeMs: elapsedTime }
         };
       }
 
-      console.log(`📊 Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
+      console.log(`📊 [PENALTY_RECALC] Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
 
       // Process each month's bills
       for (const billDoc of billsSnapshot.docs) {
@@ -104,16 +110,26 @@ class PenaltyRecalculationService {
         let hasUpdates = false;
 
         if (!billData.bills || !billData.bills.units) {
-          console.log(`⚠️ Skipping ${billDoc.id} - no bills.units structure`);
+          console.log(`⚠️  [PENALTY_RECALC] Skipping ${billDoc.id} - no bills.units structure`);
           continue;
         }
 
         const unitCount = Object.keys(billData.bills.units).length;
-        console.log(`🏠 Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
+        console.log(`🏠 [PENALTY_RECALC] Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
 
         // Process each unit's bills in this month
         for (const [unitId, unitData] of Object.entries(billData.bills.units)) {
-          if (unitData.status === 'paid') continue;
+          // OPTIMIZATION 1: Skip out-of-scope units (surgical update optimization)
+          if (unitIds && !unitIds.includes(unitId)) {
+            results.skippedOutOfScopeBills++;
+            continue;
+          }
+          
+          // OPTIMIZATION 2: Skip paid bills early (they can't accumulate penalties)
+          if (unitData.status === 'paid') {
+            results.skippedPaidBills++;
+            continue;
+          }
 
           results.processedBills++;
 
@@ -141,10 +157,31 @@ class PenaltyRecalculationService {
         }
       }
 
-      console.log(`Penalty recalculation completed for client ${clientId}. Updated ${results.updatedBills} bills.`);
+      // Performance metrics and summary
+      const elapsedTime = Date.now() - startTime;
+      const performanceMetrics = {
+        processingTimeMs: elapsedTime,
+        billsProcessed: results.processedBills,
+        billsUpdated: results.updatedBills,
+        billsSkippedPaid: results.skippedPaidBills,
+        billsSkippedOutOfScope: results.skippedOutOfScopeBills,
+        efficiencyGain: unitIds ? `${results.skippedOutOfScopeBills + results.skippedPaidBills} bills skipped (surgical mode)` : `${results.skippedPaidBills} paid bills skipped`
+      };
+      
+      console.log(`✅ [PENALTY_RECALC] Penalty recalculation completed for client ${clientId}`);
+      console.log(`📊 [PENALTY_RECALC] Performance Metrics:`, performanceMetrics);
+      console.log(`   - Processing time: ${elapsedTime}ms`);
+      console.log(`   - Bills processed: ${results.processedBills}`);
+      console.log(`   - Bills updated: ${results.updatedBills}`);
+      console.log(`   - Paid bills skipped: ${results.skippedPaidBills}`);
+      if (unitIds) {
+        console.log(`   - Out-of-scope bills skipped: ${results.skippedOutOfScopeBills}`);
+        console.log(`   - Unit scope: [${unitIds.join(', ')}]`);
+      }
+      
       return {
         success: true,
-        data: results
+        data: { ...results, ...performanceMetrics }
       };
 
     } catch (error) {
@@ -330,6 +367,22 @@ class PenaltyRecalculationService {
       console.error('Manual penalty recalculation failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Recalculate penalties for specific units only (convenience method for surgical updates)
+   * @param {string} clientId - The client ID
+   * @param {Array<string>} unitIds - Array of unit IDs to recalculate
+   * @param {Date} currentDate - Current date for penalty calculation
+   * @returns {Promise<Object>} Summary with success/error structure
+   */
+  async recalculatePenaltiesForUnits(clientId, unitIds, currentDate = getNow()) {
+    if (!Array.isArray(unitIds) || unitIds.length === 0) {
+      throw new Error('unitIds must be a non-empty array');
+    }
+    
+    console.log(`🎯 [PENALTY_RECALC] Surgical update: recalculating penalties for ${unitIds.length} unit(s)`);
+    return await this.recalculatePenaltiesForClient(clientId, currentDate, unitIds);
   }
 
   /**

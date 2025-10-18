@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-10-17T03:21:56.958Z",
+  "clientId": "AVII",
+  "testUnits": [
+    "203",
+    "104"
+  ],
+  "fullRecalculation": {
+    "clientId": "AVII",
+    "processedBills": 24,
+    "updatedBills": 0,
+    "skippedPaidBills": 20,
+    "skippedOutOfScopeBills": 0,
+    "totalPenaltiesUpdated": 0,
+    "errors": [],
+    "processingTimeMs": 387,
+    "billsProcessed": 24,
+    "billsUpdated": 0,
+    "billsSkippedPaid": 20,
+    "billsSkippedOutOfScope": 0,
+    "efficiencyGain": "20 paid bills skipped",
+    "totalTime": 1089
+  },
+  "scopedRecalculation": {
+    "clientId": "AVII",
+    "processedBills": 4,
+    "updatedBills": 0,
+    "skippedPaidBills": 6,
+    "skippedOutOfScopeBills": 34,
+    "totalPenaltiesUpdated": 0,
+    "errors": [],
+    "processingTimeMs": 319,
+    "billsProcessed": 4,
+    "billsUpdated": 0,
+    "billsSkippedPaid": 6,
+    "billsSkippedOutOfScope": 34,
+    "efficiencyGain": "40 bills skipped (surgical mode)",
+    "totalTime": 768
+  },
+  "performance": {
+    "speedupFactor": 1.213166144200627,
+    "timeSaved": 68,
+    "billReduction": "83.3",
+    "targetMet": false
+  }
+}

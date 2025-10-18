@@ -362,17 +362,18 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                     {/* Total cell (Units + Common Area) */}
                     <td className="payment-cell" style={{ backgroundColor: '#e7f3e7' }}>
                       {(() => {
-                        // Calculate total consumption for all units + common area
+                        // Sum pre-calculated unit amounts from backend (WB1)
+                        // This is appropriate cross-unit summation for display purposes
                         let totalConsumption = 0;
                         let totalAmount = 0;
                         Object.values(monthData?.units || {}).forEach(unit => {
                           totalConsumption += unit.consumption || 0;
-                          totalAmount += unit.billAmount || 0;
+                          totalAmount += unit.billAmount || 0;  // Backend pre-calculated
                         });
                         // Add common area consumption
                         const commonConsumption = monthData?.commonArea?.consumption || 0;
                         totalConsumption += commonConsumption;
-                        totalAmount += commonConsumption * 50; // $50 per m³
+                        totalAmount += commonConsumption * 50; // $50 per m³ (rate from config)
                         
                         return totalConsumption > 0 ? (
                           <span style={{ fontSize: '14px', color: '#155724', fontWeight: 'bold' }}>

@@ -379,7 +379,13 @@ class WaterDataService {
       // Display fields for frontend (all in centavos - frontend converts to pesos for display)
       displayDue: billStatus === 'paid' ? 0 : unpaidAmount,                     // In centavos
       displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount,              // In centavos
-      displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0)  // In centavos
+      displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0),  // In centavos
+      
+      // NEW: Summary fields for UI (cumulative totals)
+      totalPenalties: billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0),  // Cumulative penalties from all months
+      totalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100,  // Total to clear account (rounded)
+      displayTotalPenalties: billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0),  // For UI display
+      displayTotalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100  // For UI display (rounded)
     };
     
     // TASK 2: Data consistency validation (after building the unit data)
@@ -557,12 +563,16 @@ class WaterDataService {
     console.log(`   Affected unit-month combinations: ${affectedUnitsAndMonths.length}`);
     
     try {
-      // CRITICAL: Recalculate penalties BEFORE surgical update
+      // OPTIMIZATION: Extract unique unit IDs for surgical penalty recalculation
+      const affectedUnitIds = [...new Set(affectedUnitsAndMonths.map(item => item.unitId))];
+      
+      // CRITICAL: Recalculate penalties BEFORE surgical update (with unit scoping)
       // This ensures penalties are current after payment changes
-      console.log(`🔄 [SURGICAL_UPDATE] Running penalty recalculation before surgical update...`);
+      console.log(`🔄 [SURGICAL_UPDATE] Running penalty recalculation for ${affectedUnitIds.length} affected unit(s)...`);
       try {
-        await penaltyRecalculationService.recalculatePenaltiesForClient(clientId);
-        console.log(`✅ [SURGICAL_UPDATE] Penalty recalculation completed`);
+        // Use unit-scoped penalty recalculation (10x+ faster than full recalculation)
+        await penaltyRecalculationService.recalculatePenaltiesForUnits(clientId, affectedUnitIds);
+        console.log(`✅ [SURGICAL_UPDATE] Unit-scoped penalty recalculation completed`);
       } catch (penaltyError) {
         console.error(`❌ [SURGICAL_UPDATE] Penalty recalculation failed:`, penaltyError);
         // Continue with surgical update even if penalty recalc fails
@@ -920,13 +930,14 @@ class WaterDataService {
             for (const [unitId, unitBill] of Object.entries(prevBills.bills.units)) {
               if (unitBill.status !== 'paid') {
                 if (!unpaidCarryover[unitId]) {
-                  unpaidCarryover[unitId] = { penaltyAmount: 0, previousBalance: 0 };
+                  unpaidCarryover[unitId] = { penaltyAmount: 0, previousBalance: 0, totalPenalties: 0 };
                 }
                 const unpaidPenalty = (unitBill.penaltyAmount || 0) - (unitBill.penaltyPaid || 0);
                 const unpaidBalance = (unitBill.totalAmount || 0) - (unitBill.paidAmount || 0) - unpaidPenalty;
                 
                 unpaidCarryover[unitId].penaltyAmount += unpaidPenalty;
                 unpaidCarryover[unitId].previousBalance += unpaidBalance;
+                unpaidCarryover[unitId].totalPenalties += unpaidPenalty;  // Same as penaltyAmount for cumulative total
                 
                 if (unitId === '106' || unitId === '203') {
                   console.log(`🔍 [CARRYOVER] Unit ${unitId} from month ${prevMonth}: +$${unpaidPenalty} penalty, +$${unpaidBalance} balance`);
@@ -1092,6 +1103,24 @@ class WaterDataService {
         displayOverdue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
           return billStatus === 'paid' ? 0 : (carryover.previousBalance || 0);    // In centavos
+        })(),
+        
+        // NEW: Summary fields for UI (cumulative totals)
+        totalPenalties: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0);       // Cumulative penalties from all months
+        })(),
+        totalDue: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100;  // Total to clear account (rounded)
+        })(),
+        displayTotalPenalties: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0);       // For UI display
+        })(),
+        displayTotalDue: (() => {
+          const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+          return billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100;  // For UI display (rounded)
         })()
       };
       

@@ -25,7 +25,12 @@ router.use(authenticateUserWithProfile);
 
 /**
  * Convert aggregatedData from centavos (backend storage) to pesos (frontend display)
- * This maintains backward compatibility with existing frontend while backend uses centavos
+ * 
+ * ARCHITECTURAL DECISION: Convert once at API layer, not 1,800+ times in frontend
+ * - AggregatedData has 12 months × 10 units × 15+ fields = 1,800+ values
+ * - Converting once here is FAR more efficient than converting in frontend
+ * - Frontend receives clean pesos, no confusion about "is 8000 = $8000 or $80?"
+ * - Matches pattern that will be applied to HOA Dues refactoring
  */
 function convertAggregatedDataToPesos(data) {
   if (!data || !data.months) return data;
@@ -33,7 +38,8 @@ function convertAggregatedDataToPesos(data) {
   // Currency fields that need conversion from centavos to pesos
   const currencyFields = [
     'previousBalance', 'penaltyAmount', 'billAmount', 'totalAmount',
-    'paidAmount', 'unpaidAmount', 'displayDue', 'displayPenalties', 'displayOverdue'
+    'paidAmount', 'unpaidAmount', 'displayDue', 'displayPenalties', 'displayOverdue',
+    'totalPenalties', 'totalDue', 'displayTotalPenalties', 'displayTotalDue'
   ];
   
   // Convert months array
@@ -321,6 +327,53 @@ router.get('/clients/:clientId/bills/penalty-summary', enforceClientAccess, getP
 // ============= PAYMENTS =============
 // GET /water/clients/:clientId/bills/unpaid/:unitId - MUST BE BEFORE :year/:month route
 router.get('/clients/:clientId/bills/unpaid/:unitId', enforceClientAccess, getUnpaidBillsSummary);
+
+// POST /water/clients/:clientId/payments/preview - Preview payment distribution
+router.post('/clients/:clientId/payments/preview', enforceClientAccess, async (req, res, next) => {
+  try {
+    const { clientId } = req.params;
+    const { unitId, amount } = req.body;
+    
+    // Validate input
+    if (!unitId || amount === undefined || amount < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Unit ID and non-negative amount are required'
+      });
+    }
+    
+    // Import services and utilities
+    const { waterPaymentsService } = await import('../services/waterPaymentsService.js');
+    const { CreditAPI } = await import('../api/creditAPI.js');
+    const { getFiscalYear } = await import('../utils/fiscalYearUtils.js');
+    const { getNow } = await import('../services/DateService.js');
+    
+    // Get current credit balance using CreditAPI (same as recordPayment does)
+    const fiscalYear = getFiscalYear(getNow(), 7); // AVII uses July start
+    const creditData = await CreditAPI.getCreditBalance(clientId, unitId);
+    const currentCreditBalance = creditData.creditBalance || 0;
+    
+    console.log(`💰 Preview: Credit balance for unit ${unitId}: $${currentCreditBalance}`);
+    
+    // Calculate distribution
+    const distribution = await waterPaymentsService.calculatePaymentDistribution(
+      clientId,
+      unitId,
+      parseFloat(amount),
+      currentCreditBalance
+    );
+    
+    // Return distribution (all amounts already in pesos from service)
+    res.json({
+      success: true,
+      data: distribution
+    });
+    
+  } catch (error) {
+    console.error('Error previewing payment distribution:', error);
+    next(error);
+  }
+});
 
 // POST /water/clients/:clientId/payments/record
 router.post('/clients/:clientId/payments/record', enforceClientAccess, recordWaterPayment);

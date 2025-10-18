@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useClient } from '../../context/ClientContext';
+import { useWaterBills } from '../../context/WaterBillsContext';
 import { getPaymentMethods } from '../../api/paymentMethods';
 import { getAuthInstance } from '../../firebaseClient';
 import waterAPI from '../../api/waterAPI';
 import { formatAsMXN } from '../../utils/hoaDuesUtils';
-import { convertPeriodToReadableDate } from '../../utils/fiscalYearUtils';
 import './WaterPaymentModal.css';
 
 function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   const { selectedClient } = useClient();
+  const { waterData } = useWaterBills();
   
   // Form state
   const [amount, setAmount] = useState('');
@@ -22,9 +23,12 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   // Data state  
   const [unpaidBills, setUnpaidBills] = useState([]);
   const [currentCreditBalance, setCreditBalance] = useState(0);
-  const [paymentDistribution, setPaymentDistribution] = useState(null);
   const [clientPaymentMethods, setClientPaymentMethods] = useState([]);
   const [clientAccounts, setClientAccounts] = useState([]);
+  
+  // Payment calculation state
+  const [creditUsed, setCreditUsed] = useState(0);
+  const [creditRemaining, setCreditRemaining] = useState(0);
   
   // UI state
   const [loading, setLoading] = useState(false);
@@ -33,44 +37,81 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   
   // Load unpaid bills and credit balance when modal opens
   useEffect(() => {
-    if (isOpen && unitId && selectedClient) {
+    if (isOpen && unitId && selectedClient && waterData && Object.keys(waterData).length > 0) {
       loadUnpaidBillsData();
       loadPaymentMethods();
       loadClientAccounts();
     }
-  }, [isOpen, unitId, selectedClient]);
+  }, [isOpen, unitId, selectedClient, waterData]);
   
-  // Calculate payment distribution when amount changes (FOLLOWS HOA LOGIC)
-  useEffect(() => {
-    if (amount && unpaidBills.length >= 0) { // Allow calculation even with 0 bills
-      calculatePaymentDistribution();
-    }
-  }, [amount, unpaidBills, currentCreditBalance]);
+  // Payment distribution calculation (only on blur)
   
   const loadUnpaidBillsData = async () => {
     setLoadingData(true);
     try {
-      const response = await waterAPI.getUnpaidBillsSummary(selectedClient.id, unitId);
-      
-      // DEBUG: Log raw response to see what we're getting
-      console.log('🔍 [DEBUG] Raw API response:', JSON.stringify(response, null, 2));
-      console.log('🔍 [DEBUG] response.data:', JSON.stringify(response.data, null, 2));
-      console.log('🔍 [DEBUG] response.data.currentCreditBalance:', response.data?.currentCreditBalance);
-      
-      setUnpaidBills(response.data.unpaidBills || []);
-      setCreditBalance(response.data.currentCreditBalance || 0);
-      
-      // Auto-set payment amount to total due for faster testing
-      const totalDue = (response.data.unpaidBills || []).reduce((sum, bill) => sum + bill.unpaidAmount, 0);
-      if (totalDue > 0) {
-        setAmount(totalDue.toString());
+      // Get total due from aggregatedData (which we already have)
+      let totalDue = 0;
+      if (waterData.months && Array.isArray(waterData.months)) {
+        for (const monthData of waterData.months) {
+          if (monthData.billsGenerated === true && monthData.units && monthData.units[unitId]) {
+            const unitData = monthData.units[unitId];
+            // Use the last month's total due (most recent bill)
+            totalDue = unitData.displayTotalDue || 0;
+          }
+        }
       }
       
-      console.log(`💧 Loaded ${response.data.unpaidBills?.length || 0} unpaid bills, credit balance: $${response.data.currentCreditBalance || 0}, auto-set amount: $${totalDue}`);
+      console.log(`🔍 [WaterPaymentModal] Loading unpaid bills via preview API with total due: $${totalDue}`);
+      
+      // Call preview API with total due amount to show all bills as "Will be paid in full"
+      const response = await waterAPI.previewPayment(selectedClient.id, { unitId, amount: totalDue });
+      
+      if (response.success && response.data) {
+        const previewData = response.data;
+        
+        // DEBUG: Log the full preview API response
+        console.log(`🔍 [DEBUG] Preview API Response:`, {
+          currentCreditBalance: previewData.currentCreditBalance,
+          newCreditBalance: previewData.newCreditBalance,
+          creditUsed: previewData.creditUsed,
+          overpayment: previewData.overpayment,
+          totalAvailableFunds: previewData.totalAvailableFunds,
+          billPayments: previewData.billPayments,
+          fullResponse: previewData
+        });
+        
+        // Build unpaid bills table from preview data
+        const unpaidBills = previewData.billPayments.map(billPayment => ({
+          unitId: unitId,
+          period: billPayment.billPeriod,
+          baseChargeDue: billPayment.baseChargePaid, // Amount that would be paid
+          penaltiesDue: billPayment.penaltyPaid,      // Amount that would be paid
+          unpaidAmount: billPayment.amountPaid,       // Total amount that would be paid
+          status: billPayment.newStatus === 'paid' ? 'Will be paid in full' : 'Partial payment',
+          statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
+                      billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
+        }));
+        
+        // Get credit balance from preview data
+        const creditBalance = previewData.currentCreditBalance || 0;
+        
+        setUnpaidBills(unpaidBills);
+        setCreditBalance(creditBalance);
+        setAmount(totalDue.toString());
+        
+        // Initialize credit usage data for full payment scenario
+        setCreditUsed(0); // No credit used for full payment
+        setCreditRemaining(creditBalance); // All credit remains
+        
+        console.log(`💧 [WaterPaymentModal] Loaded ${unpaidBills.length} unpaid bills via preview API, total due: $${totalDue}`);
+      } else {
+        console.error('Failed to get preview data:', response);
+        setError('Failed to load unpaid bills data');
+      }
       
     } catch (error) {
-      console.error('Error loading unpaid bills:', error);
-      setError('Failed to load bill information');
+      console.error('Error loading unpaid bills data:', error);
+      setError('Failed to load unpaid bills data');
     } finally {
       setLoadingData(false);
     }
@@ -120,87 +161,93 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
     }
   };
   
-  const calculatePaymentDistribution = () => {
+  // Payment distribution calculation (only on blur)
+  const isCalculating = useRef(false);
+  
+  const calculatePaymentDistribution = async () => {
+    // Prevent duplicate calls
+    if (isCalculating.current) {
+      console.log('🔍 Debug: Calculation already in progress, skipping...');
+      return;
+    }
+    
     const paymentAmount = parseFloat(amount) || 0;
     
-    // IDENTICAL TO HOA LOGIC: Payment + Credit = Total Available Funds
-    const totalAvailableFunds = paymentAmount + currentCreditBalance;
+    if (paymentAmount <= 0) {
+      return;
+    }
     
-    console.log(`💰 Payment distribution: $${paymentAmount} + $${currentCreditBalance} credit = $${totalAvailableFunds} total`);
+    isCalculating.current = true;
     
-    let remainingFunds = totalAvailableFunds;
-    const distribution = [];
-    let totalBaseToApply = 0;
-    let totalPenaltiesToApply = 0;
-    
-    // Apply funds to bills (oldest first)
-    for (const bill of unpaidBills) {
-      if (remainingFunds <= 0) break;
+    try {
+      console.log(`💰 Fetching payment distribution from backend: $${paymentAmount}`);
       
-      const unpaidAmount = bill.unpaidAmount;
-      // Use currentCharge only (baseAmount field will be removed)
-      const baseUnpaid = (bill.currentCharge || 0) - (bill.basePaid || 0);
-      const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+      // Call backend preview API (single source of truth)
+      const response = await waterAPI.previewPayment(selectedClient.id, {
+        unitId,
+        amount: paymentAmount
+      });
       
-      if (remainingFunds >= unpaidAmount) {
-        // Pay bill in full
-        distribution.push({
-          period: bill.period,
-          amountApplied: unpaidAmount,
-          baseChargePaid: baseUnpaid,
-          penaltyPaid: penaltyUnpaid,
-          status: 'Will be paid in full'
+      if (response.success && response.data) {
+        const dist = response.data;
+        
+        // DEBUG: Log the full preview API response during calculation
+        console.log(`🔍 [DEBUG] Payment Distribution Response:`, {
+          paymentAmount: paymentAmount,
+          currentCreditBalance: dist.currentCreditBalance,
+          newCreditBalance: dist.newCreditBalance,
+          creditUsed: dist.creditUsed,
+          overpayment: dist.overpayment,
+          totalAvailableFunds: dist.totalAvailableFunds,
+          billPayments: dist.billPayments,
+          fullResponse: dist
         });
         
-        totalBaseToApply += baseUnpaid;
-        totalPenaltiesToApply += penaltyUnpaid;
-        remainingFunds -= unpaidAmount;
+        // Update the status column in existing unpaid bills based on preview results
+        setUnpaidBills(prevBills => 
+          prevBills.map(bill => {
+            // Find matching bill payment from preview
+            const billPayment = dist.billPayments.find(bp => bp.billPeriod === bill.period);
+            
+            if (billPayment) {
+              // Determine status based on payment amount
+              let status = 'UNPAID';
+              if (billPayment.amountPaid > 0) {
+                if (billPayment.newStatus === 'paid') {
+                  status = 'Will be paid in full';
+                } else {
+                  status = 'Partial payment';
+                }
+              }
+              
+              return {
+                ...bill,
+                status: status,
+                statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
+                            billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
+              };
+            }
+            
+            // This should never happen now since backend returns all bills
+            return bill;
+          })
+        );
         
-      } else if (remainingFunds > 0) {
-        // Partial payment - base charges first
-        let toApply = remainingFunds;
-        let basePortionPaid = Math.min(toApply, baseUnpaid);
-        let penaltyPortionPaid = Math.max(0, toApply - basePortionPaid);
+        // Don't update credit balance during payment calculation - only update status
+        // Credit balance should remain at the initial value throughout the modal session
         
-        distribution.push({
-          period: bill.period,
-          amountApplied: remainingFunds,
-          baseChargePaid: basePortionPaid,
-          penaltyPaid: penaltyPortionPaid,
-          status: 'Partial payment'
-        });
+        // Store credit usage data for display
+        setCreditUsed(dist.creditUsed || 0);
+        setCreditRemaining(dist.newCreditBalance || 0);
         
-        totalBaseToApply += basePortionPaid;
-        totalPenaltiesToApply += penaltyPortionPaid;
-        remainingFunds = 0;
+        console.log(`✅ Status updated for ${dist.billPayments.length} bills, Credit used: $${dist.creditUsed}, Overpayment: $${dist.overpayment}`);
       }
+    } catch (error) {
+      console.error('Error calculating payment distribution:', error);
+      setError('Failed to calculate payment distribution. Please try again.');
+    } finally {
+      isCalculating.current = false;
     }
-    
-    // Calculate credit changes (IDENTICAL TO HOA LOGIC)
-    const newCreditBalance = remainingFunds;
-    const totalUsedForBills = totalAvailableFunds - remainingFunds;
-    
-    let creditUsed = 0;
-    let overpayment = 0;
-    
-    if (newCreditBalance >= currentCreditBalance) {
-      // Overpayment scenario
-      overpayment = newCreditBalance - currentCreditBalance;
-    } else {
-      // Credit was used
-      creditUsed = currentCreditBalance - newCreditBalance;
-    }
-    
-    setPaymentDistribution({
-      totalAvailableFunds,
-      billsToUpdate: distribution,
-      totalBaseCharges: totalBaseToApply,
-      totalPenalties: totalPenaltiesToApply,
-      totalAppliedToBills: totalUsedForBills,
-      newCreditBalance,
-      creditUsed,
-      overpayment
-    });
   };
   
   const handleSubmit = async (e) => {
@@ -230,6 +277,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         notes,
         accountId: selectedAccount.id,
         accountType: selectedAccount.type
+        // Backend will recalculate distribution using same logic as preview
       });
       
       console.log('💳 Full payment API response:', response.data);
@@ -282,6 +330,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
               {/* Total Due and Credit Balance Display */}
               <div className="credit-balance-info">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Cross-bill summation: each bill.unpaidAmount is pre-calculated by backend (WB1) */}
                   <h3 style={{ color: '#dc3545' }}>
                     Total Due: {formatAsMXN(unpaidBills.reduce((sum, bill) => sum + bill.unpaidAmount, 0))}
                   </h3>
@@ -303,19 +352,19 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                       <tr>
                         <th>Period</th>
                         <th>Base Charge Due</th>
-                        <th>Penalties Due</th>
+                        <th>Penalties</th>
                         <th>Total Due</th>
-                        <th>Months Overdue</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {unpaidBills.map(bill => (
                         <tr key={bill.period}>
-                          <td>{convertPeriodToReadableDate(bill.period)}</td>
-                          <td>{formatAsMXN((bill.currentCharge || 0) - (bill.basePaid || 0))}</td>
-                          <td>{formatAsMXN(bill.penaltyAmount - (bill.penaltyPaid || 0))}</td>
+                          <td>{bill.period}</td>
+                          <td>{formatAsMXN(bill.baseChargeDue)}</td>
+                          <td>{formatAsMXN(bill.penaltiesDue)}</td>
                           <td><strong>{formatAsMXN(bill.unpaidAmount)}</strong></td>
-                          <td>{bill.monthsOverdue > 0 ? `${bill.monthsOverdue} months` : 'Current'}</td>
+                          <td className={bill.statusClass}>{bill.status}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -334,6 +383,12 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                       step="0.01"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
+                      onBlur={() => {
+                        // Trigger calculation immediately when field loses focus
+                        if (amount && unpaidBills.length >= 0) {
+                          calculatePaymentDistribution();
+                        }
+                      }}
                       required
                       disabled={loading}
                       autoFocus
@@ -344,74 +399,9 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                 {/* Show Available Funds Calculation */}
                 {amount && (
                   <div className="funds-calculation">
-                    <p><strong>Payment Amount:</strong> {formatAsMXN(parseFloat(amount) || 0)}</p>
-                    <p><strong>Plus Credit Balance:</strong> {formatAsMXN(currentCreditBalance)}</p>
                     <p><strong>Total Available Funds:</strong> <span className="total-funds">{formatAsMXN((parseFloat(amount) || 0) + currentCreditBalance)}</span></p>
-                  </div>
-                )}
-                
-                {/* Payment Distribution Display */}
-                {paymentDistribution && (
-                  <div className="payment-distribution">
-                    <h3>Payment Distribution</h3>
-                    
-                    {paymentDistribution.billsToUpdate.length > 0 ? (
-                      <>
-                        <table className="distribution-table">
-                          <thead>
-                            <tr>
-                              <th>Bill Period</th>
-                              <th>Base Charges</th>
-                              <th>Penalties</th>
-                              <th>Total Applied</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paymentDistribution.billsToUpdate.map((bill, index) => (
-                              <tr key={index}>
-                                <td>{convertPeriodToReadableDate(bill.period)}</td>
-                                <td>{formatAsMXN(bill.baseChargePaid)}</td>
-                                <td>{formatAsMXN(bill.penaltyPaid)}</td>
-                                <td><strong>{formatAsMXN(bill.amountApplied)}</strong></td>
-                                <td><span className={`status-${bill.status.includes('full') ? 'paid' : 'partial'}`}>
-                                  {bill.status}
-                                </span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        
-                        <div className="distribution-summary">
-                          <p><strong>Total Base Charges Paid:</strong> {formatAsMXN(paymentDistribution.totalBaseCharges)}</p>
-                          <p><strong>Total Penalties Paid:</strong> {formatAsMXN(paymentDistribution.totalPenalties)}</p>
-                          <p><strong>Total Applied to Bills:</strong> {formatAsMXN(paymentDistribution.totalAppliedToBills)}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="no-bills-payment">✨ No bills to pay - entire amount will go to credit balance.</p>
-                    )}
-                    
-                    {/* Credit Balance Changes */}
-                    <div className="credit-changes">
-                      <p><strong>Credit Balance After Payment:</strong> 
-                        <span className={`new-balance ${paymentDistribution.newCreditBalance >= 0 ? 'positive' : 'negative'}`}>
-                          {formatAsMXN(paymentDistribution.newCreditBalance)}
-                        </span>
-                      </p>
-                      
-                      {paymentDistribution.creditUsed > 0 && (
-                        <p className="credit-used">
-                          💸 Used {formatAsMXN(paymentDistribution.creditUsed)} from existing credit to help pay bills
-                        </p>
-                      )}
-                      
-                      {paymentDistribution.overpayment > 0 && (
-                        <p className="credit-added">
-                          💰 Added {formatAsMXN(paymentDistribution.overpayment)} to credit balance
-                        </p>
-                      )}
-                    </div>
+                    <p><strong>Credit Balance Used:</strong> {formatAsMXN(creditUsed)}</p>
+                    <p><strong>Credit Balance Remaining:</strong> {formatAsMXN(creditRemaining)}</p>
                   </div>
                 )}
                 
