@@ -1,0 +1,197 @@
+{
+  "_id": "2025-10-19_090201_697",
+  "amount": 100000,
+  "type": "income",
+  "categoryId": null,
+  "categoryName": "-Split-",
+  "vendorId": "deposit",
+  "unitId": "103",
+  "accountId": "bank-001",
+  "accountType": "bank",
+  "paymentMethod": "eTransfer",
+  "paymentMethodId": "eTransfer",
+  "reference": "",
+  "notes": "Water bill payment for Unit 103 - Water Consumption for July 2025 - 0007 m³, Water Consumption for September 2025 - 0024 m³, Water Consumption for October 2025 - 0003 m³ - $1700.00 charges + $115.17 penalties",
+  "date": {
+    "_seconds": 1760850000,
+    "_nanoseconds": 0
+  },
+  "allocations": [
+    {
+      "id": "alloc_001",
+      "type": "water_bill",
+      "targetId": "bill_2026-00",
+      "targetName": "2026-00 - Unit 103",
+      "amount": 35000,
+      "percentage": null,
+      "categoryName": "Water Consumption",
+      "categoryId": "water-consumption",
+      "data": {
+        "unitId": "103",
+        "billId": "2026-00",
+        "billPeriod": "2026-00",
+        "billType": "base_charge"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.064Z"
+      }
+    },
+    {
+      "id": "alloc_002",
+      "type": "water_penalty",
+      "targetId": "penalty_2026-00",
+      "targetName": "2026-00 Penalties - Unit 103",
+      "amount": 5517,
+      "percentage": null,
+      "categoryName": "Water Penalties",
+      "categoryId": "water-penalties",
+      "data": {
+        "unitId": "103",
+        "billId": "2026-00",
+        "billPeriod": "2026-00",
+        "billType": "penalty"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.064Z"
+      }
+    },
+    {
+      "id": "alloc_003",
+      "type": "water_bill",
+      "targetId": "bill_2026-02",
+      "targetName": "2026-02 - Unit 103",
+      "amount": 120000,
+      "percentage": null,
+      "categoryName": "Water Consumption",
+      "categoryId": "water-consumption",
+      "data": {
+        "unitId": "103",
+        "billId": "2026-02",
+        "billPeriod": "2026-02",
+        "billType": "base_charge"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.065Z"
+      }
+    },
+    {
+      "id": "alloc_004",
+      "type": "water_penalty",
+      "targetId": "penalty_2026-02",
+      "targetName": "2026-02 Penalties - Unit 103",
+      "amount": 6000,
+      "percentage": null,
+      "categoryName": "Water Penalties",
+      "categoryId": "water-penalties",
+      "data": {
+        "unitId": "103",
+        "billId": "2026-02",
+        "billPeriod": "2026-02",
+        "billType": "penalty"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.065Z"
+      }
+    },
+    {
+      "id": "alloc_005",
+      "type": "water_bill",
+      "targetId": "bill_2026-03",
+      "targetName": "2026-03 - Unit 103",
+      "amount": 15000,
+      "percentage": null,
+      "categoryName": "Water Consumption",
+      "categoryId": "water-consumption",
+      "data": {
+        "unitId": "103",
+        "billId": "2026-03",
+        "billPeriod": "2026-03",
+        "billType": "base_charge"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.067Z"
+      }
+    },
+    {
+      "id": "alloc_006",
+      "type": "water_credit",
+      "targetId": "credit_103_water",
+      "targetName": "Account Credit - Unit 103",
+      "amount": -81517,
+      "percentage": null,
+      "categoryName": "Account Credit",
+      "categoryId": "account-credit",
+      "data": {
+        "unitId": "103",
+        "creditType": "water_credit_used"
+      },
+      "metadata": {
+        "processingStrategy": "account_credit",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-19T14:02:00.067Z"
+      }
+    }
+  ],
+  "allocationSummary": {
+    "totalAllocated": 181517,
+    "allocationCount": 6,
+    "allocationType": "water_bill",
+    "hasMultipleTypes": true,
+    "integrityCheck": {
+      "expectedTotal": 100000,
+      "actualTotal": 181517,
+      "isValid": false
+    }
+  },
+  "metadata": {
+    "billPayments": [
+      {
+        "period": "2026-00",
+        "amountPaid": 405.17,
+        "baseChargePaid": 350,
+        "penaltyPaid": 55.17
+      },
+      {
+        "period": "2026-02",
+        "amountPaid": 1260,
+        "baseChargePaid": 1200,
+        "penaltyPaid": 60
+      },
+      {
+        "period": "2026-03",
+        "amountPaid": 150,
+        "baseChargePaid": 150,
+        "penaltyPaid": 0
+      }
+    ],
+    "totalBaseCharges": 1700,
+    "totalPenalties": 115.17,
+    "paymentType": "bills_and_credit"
+  },
+  "clientId": "AVII",
+  "propertyId": "AVII",
+  "enteredBy": "system",
+  "updated": {
+    "_seconds": 1760882521,
+    "_nanoseconds": 186000000
+  },
+  "vendorName": "Deposit",
+  "accountName": "Scotiabank",
+  "documents": []
+}

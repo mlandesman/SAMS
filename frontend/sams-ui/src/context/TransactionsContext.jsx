@@ -344,6 +344,8 @@ export const TransactionsProvider = ({ children }) => {
       triggerBalanceUpdate();
       
       // Trigger a UI refresh
+      // TODO: System-wide cache sync issue - credit balance updates not propagating to all contexts
+      // See Phase_1_Validation_Complete_With_Fixes_2025-10-19.md for architectural discussion
       setIsRefreshing(true);
       setTimeout(() => setIsRefreshing(false), 100);
       

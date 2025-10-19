@@ -236,5 +236,36 @@ export class CreditController {
       });
     }
   };
+
+  /**
+   * DELETE /credit/:clientId/:unitId/history/:transactionId
+   * Delete credit history entries by transaction ID (for transaction deletion/reversal)
+   */
+  deleteCreditHistoryEntry = async (req, res) => {
+    try {
+      const { clientId, unitId, transactionId } = req.params;
+      
+      // Input validation
+      if (!clientId || !unitId || !transactionId) {
+        return res.status(400).json({ 
+          error: 'clientId, unitId, and transactionId are required' 
+        });
+      }
+
+      const result = await this.creditService.deleteCreditHistoryEntry(
+        clientId, 
+        unitId, 
+        transactionId
+      );
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error deleting credit history entry:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete credit history entry',
+        message: error.message 
+      });
+    }
+  };
 }
 
