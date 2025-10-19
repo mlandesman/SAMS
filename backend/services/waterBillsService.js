@@ -5,6 +5,7 @@ import { waterDataService } from './waterDataService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
 import { getNow } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { validateCentavos } from '../utils/centavosValidation.js';
 
 class WaterBillsService {
   constructor() {
@@ -79,22 +80,22 @@ class WaterBillsService {
       }
       
       // Calculate water consumption charges (in centavos)
+      // CRITICAL: Validate all calculations to prevent floating point contamination
       let waterCharge = 0;
       if (data.consumption > 0 || config.minimumCharge > 0) {
-        waterCharge = Math.max(
-          data.consumption * rateInCentavos,
-          config.minimumCharge || 0
-        );
+        const consumptionCharge = validateCentavos(data.consumption * rateInCentavos, 'consumptionCharge');
+        const minimumCharge = validateCentavos(config.minimumCharge || 0, 'minimumCharge');
+        waterCharge = Math.max(consumptionCharge, minimumCharge);
       }
       
       // Calculate car wash charges (config values already in centavos)
-      const carWashCharge = carWashCount * (config.rateCarWash || 0);
+      const carWashCharge = validateCentavos(carWashCount * (config.rateCarWash || 0), 'carWashCharge');
       
       // Calculate boat wash charges (config values already in centavos)
-      const boatWashCharge = boatWashCount * (config.rateBoatWash || 0);
+      const boatWashCharge = validateCentavos(boatWashCount * (config.rateBoatWash || 0), 'boatWashCharge');
       
       // Total charge for this month (in centavos)
-      const newCharge = Math.round(waterCharge + carWashCharge + boatWashCharge);
+      const newCharge = validateCentavos(waterCharge + carWashCharge + boatWashCharge, 'newCharge');
       
       // Removed Unit 203 debug logging to prevent confusion
       
@@ -122,12 +123,13 @@ class WaterBillsService {
           washes: data.currentReading?.washes || [],
           
           // Detailed charges breakdown (ALL IN CENTAVOS - integers)
-          waterCharge: Math.round(waterCharge),
-          carWashCharge: Math.round(carWashCharge),
-          boatWashCharge: Math.round(boatWashCharge),
+          // CRITICAL: Final validation before Firestore write
+          waterCharge: validateCentavos(waterCharge, 'waterCharge'),
+          carWashCharge: validateCentavos(carWashCharge, 'carWashCharge'),
+          boatWashCharge: validateCentavos(boatWashCharge, 'boatWashCharge'),
           
           // Core financial fields (ALL IN CENTAVOS - integers, clean - no previousBalance/previousPenalty)
-          currentCharge: newCharge,            // In centavos
+          currentCharge: newCharge,            // In centavos (already validated above)
           penaltyAmount: 0,                    // New bills start with no penalty
           totalAmount: newCharge,              // currentCharge + penaltyAmount (0 for new), in centavos
           status: 'unpaid',
