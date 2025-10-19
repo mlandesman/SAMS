@@ -117,7 +117,7 @@ function WaterBillsViewV3() {
     try {
       // STEP 1: Clear and rebuild aggregatedData on backend
       console.log('🗑️ [WaterBillsViewV3] Clearing and rebuilding aggregatedData...');
-      const clearResponse = await fetch(`/api/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
+      const clearResponse = await fetch(`/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
