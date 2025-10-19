@@ -49,15 +49,18 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   const loadUnpaidBillsData = async () => {
     setLoadingData(true);
     try {
-      // Get total due from aggregatedData (which we already have)
+      // Get total due from aggregatedData for the CURRENT month (same as table)
       let totalDue = 0;
       if (waterData.months && Array.isArray(waterData.months)) {
-        for (const monthData of waterData.months) {
-          if (monthData.billsGenerated === true && monthData.units && monthData.units[unitId]) {
-            const unitData = monthData.units[unitId];
-            // Use the last month's total due (most recent bill)
-            totalDue = unitData.displayTotalDue || 0;
-          }
+        // Find the current month's data (same logic as WaterBillsList)
+        const currentMonthData = waterData.months.find(month => 
+          month.billsGenerated === true && month.units && month.units[unitId]
+        );
+        
+        if (currentMonthData && currentMonthData.units[unitId]) {
+          const unitData = currentMonthData.units[unitId];
+          totalDue = unitData.displayTotalDue || 0;
+          console.log(`🔍 [WaterPaymentModal] Using current month data: ${currentMonthData.monthName} ${currentMonthData.calendarYear}, displayTotalDue: $${totalDue}`);
         }
       }
       

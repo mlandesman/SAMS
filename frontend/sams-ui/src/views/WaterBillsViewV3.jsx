@@ -3,6 +3,7 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
+import { getAuthInstance } from '../firebaseClient';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
@@ -104,9 +105,9 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // PHASE 2: Simplified refresh function - no cache to clear, just refetch data
+  // PHASE 2: Refresh function that rebuilds aggregatedData on backend
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - fetching fresh data');
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - rebuilding aggregatedData');
     console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
     console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
     
@@ -114,8 +115,25 @@ function WaterBillsViewV3() {
     setIsRefreshing(true);
     
     try {
-      // Trigger context refresh - will fetch fresh data from API
-      console.log('📞 [WaterBillsViewV3] Triggering context refresh (no cache)...');
+      // STEP 1: Clear and rebuild aggregatedData on backend
+      console.log('🗑️ [WaterBillsViewV3] Clearing and rebuilding aggregatedData...');
+      const clearResponse = await fetch(`/api/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getAuthInstance().currentUser.getIdToken()}`
+        }
+      });
+      
+      if (!clearResponse.ok) {
+        throw new Error(`Failed to rebuild aggregatedData: ${clearResponse.statusText}`);
+      }
+      
+      const clearResult = await clearResponse.json();
+      console.log('✅ [WaterBillsViewV3] AggregatedData rebuilt:', clearResult);
+      
+      // STEP 2: Refresh frontend data from rebuilt aggregatedData
+      console.log('📞 [WaterBillsViewV3] Refreshing frontend data...');
       if (window.waterBillsRefresh) {
         await window.waterBillsRefresh();
         console.log('✅ [WaterBillsViewV3] Fresh data loaded via context');
@@ -124,7 +142,7 @@ function WaterBillsViewV3() {
       // Increment refresh key to force all components to reload
       setRefreshKey(prev => prev + 1);
       
-      console.log('🎉 [WaterBillsViewV3] Refresh complete - fresh data loaded!');
+      console.log('🎉 [WaterBillsViewV3] Refresh complete - aggregatedData rebuilt and fresh data loaded!');
     } catch (error) {
       console.error('❌ [WaterBillsViewV3] Error during refresh:', error);
       console.error('❌ [WaterBillsViewV3] Error details:', {
