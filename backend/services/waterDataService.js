@@ -205,16 +205,6 @@ class WaterDataService {
         const totalPaid = basePaidTotal + penaltyPaidTotal;
         const unpaid = Math.max(0, (bill.totalAmount || 0) - totalPaid);
         
-        // CRITICAL: Recalculate display fields based on updated payment status
-        const displayDue = calculatedStatus === 'paid' ? 0 : unpaid;
-        const displayPenalties = calculatedStatus === 'paid' ? 0 : (bill.penaltyAmount || 0);
-        const displayOverdue = calculatedStatus === 'paid' ? 0 : (bill.previousBalance || 0);
-        
-        // For surgical updates, we need to preserve carryover data from existing unit data
-        const carryoverData = existingUnitData || {};
-        const totalPenalties = calculatedStatus === 'paid' ? 0 : (carryoverData.totalPenalties || bill.penaltyAmount || 0);
-        const totalDue = calculatedStatus === 'paid' ? 0 : Math.round((bill.billAmount + (bill.previousBalance || 0) + totalPenalties) * 100) / 100;
-        
         return {
           ...existingUnitData,
           // CRITICAL: Include fresh penalty data from recalculated bill
@@ -229,16 +219,7 @@ class WaterDataService {
             const payments = bill.payments;
             return payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
           })(),
-          payments: bill.payments || [],
-          
-          // CRITICAL: Update display fields based on payment status
-          displayDue: displayDue,
-          displayPenalties: displayPenalties,
-          displayOverdue: displayOverdue,
-          totalPenalties: totalPenalties,
-          totalDue: totalDue,
-          displayTotalPenalties: totalPenalties,
-          displayTotalDue: totalDue
+          payments: bill.payments || []
         };
       }
       
@@ -634,9 +615,9 @@ class WaterDataService {
           data.months[month].units = {};
         }
         
-        // OPTIMIZATION: Pass existing unit data to avoid full recalculation
-        const existingUnitData = data.months[month].units[unitId];
-        const updatedUnitData = await this.buildSingleUnitData(clientId, year, month, unitId, existingUnitData);
+        // CRITICAL: Use full calculation to ensure display fields are properly calculated
+        // The surgical method doesn't have access to payment distribution data
+        const updatedUnitData = await this.buildSingleUnitData(clientId, year, month, unitId);
         
         data.months[month].units[unitId] = updatedUnitData;
         console.log(`✅ [SURGICAL_UPDATE] Updated unit ${unitId} in month ${month}`);

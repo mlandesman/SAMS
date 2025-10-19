@@ -541,10 +541,16 @@ class WaterPaymentsService {
     // STEP 10: Surgical update - Update Firestore aggregatedData for immediate frontend refresh
     // This triggers automatic cache invalidation in the frontend (1-2s vs 10s manual refresh)
     try {
-      // Pass unit-specific data for true surgical updates (only recalculate affected units)
+      // Pass unit-specific data AND payment distribution for true surgical updates
       const affectedUnitsAndMonths = billPayments.map(bp => ({
         unitId: bp.unitId,
-        monthId: bp.billId
+        monthId: bp.billId,
+        paymentData: {
+          amountPaid: bp.amountPaid,
+          baseChargePaid: bp.baseChargePaid,
+          penaltyPaid: bp.penaltyPaid,
+          billPeriod: bp.billPeriod
+        }
       }));
       await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedUnitsAndMonths);
       console.log(`✅ [PAYMENT] Surgical update completed - UI will auto-refresh with "Paid" status`);
