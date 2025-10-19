@@ -15,6 +15,7 @@ router.post('/:clientId/:unitId', creditController.updateCreditBalance);
 // Credit history operations
 router.get('/:clientId/:unitId/history', creditController.getCreditHistory);
 router.post('/:clientId/:unitId/history', creditController.addCreditHistoryEntry);
+router.delete('/:clientId/:unitId/history/:transactionId', creditController.deleteCreditHistoryEntry);
 
 export default router;
 

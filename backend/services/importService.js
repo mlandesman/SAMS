@@ -1241,22 +1241,28 @@ export class ImportService {
             // Parse date string properly with timezone (tx.date is ISO string like "2024-07-15")
             const txDate = DateTime.fromISO(tx.date, { zone: 'America/Cancun' }).toJSDate();
             
+            // CRITICAL: Validate all centavos amounts in history
+            const validatedAmount = validateCentavos(Math.abs(tx.amount), 'tx.amount');
+            const validatedBalanceBefore = validateCentavos(runningBalance - tx.amount, 'balanceBefore');
+            const validatedBalanceAfter = validateCentavos(runningBalance, 'balanceAfter');
+            
             creditBalanceHistory.push({
               id: this.generateId(),
               timestamp: txDate,
               transactionId: tx.transactionId,
               type: type,
-              amount: Math.abs(tx.amount), // Store as positive value
+              amount: validatedAmount, // Store as positive value (validated)
               description: description,
-              balanceBefore: runningBalance - tx.amount,
-              balanceAfter: runningBalance,
+              balanceBefore: validatedBalanceBefore,
+              balanceAfter: validatedBalanceAfter,
               notes: tx.notes || ''
             });
           }
           
           // Calculate final balance and add starting balance if needed
-          const finalCreditBalance = (unitData.creditBalance || 0) * 100;
-          const startingBalance = finalCreditBalance - runningBalance;
+          // CRITICAL: Validate all centavos calculations
+          const finalCreditBalance = validateCentavos((unitData.creditBalance || 0) * 100, 'unitData.creditBalance');
+          const startingBalance = validateCentavos(finalCreditBalance - runningBalance, 'startingBalance');
           
           // If there was a starting balance (from prior period or manual adjustments), add it as first entry
           if (startingBalance !== 0) {
@@ -1266,31 +1272,39 @@ export class ImportService {
             const { startDate } = getFiscalYearBounds(year, fiscalYearStartMonth);
             
             // Insert at beginning of history array
+            // CRITICAL: Validate all centavos amounts in starting balance entry
+            const validatedStartingAmount = validateCentavos(Math.abs(startingBalance), 'startingBalance');
+            
             creditBalanceHistory.unshift({
               id: this.generateId(),
               timestamp: startDate, // Start of fiscal year
               transactionId: null,
               type: 'starting_balance',
-              amount: Math.abs(startingBalance),
+              amount: validatedStartingAmount,
               description: startingBalance > 0 ? 'Starting credit balance from prior period' : 'Starting debit balance from prior period',
               balanceBefore: 0,
-              balanceAfter: startingBalance,
+              balanceAfter: startingBalance, // Already validated above
               notes: 'Imported from legacy system'
             });
             
             // Adjust all subsequent balanceBefore/balanceAfter to include starting balance
-            let cumulativeBalance = startingBalance;
+            let cumulativeBalance = startingBalance; // Already validated
             for (let i = 1; i < creditBalanceHistory.length; i++) {
               const entry = creditBalanceHistory[i];
               const changeAmount = entry.type === 'credit_used' ? -entry.amount : entry.amount;
-              entry.balanceBefore = cumulativeBalance;
-              cumulativeBalance += changeAmount;
-              entry.balanceAfter = cumulativeBalance;
+              // CRITICAL: Validate cumulative balance calculations
+              entry.balanceBefore = validateCentavos(cumulativeBalance, `history[${i}].balanceBefore`);
+              cumulativeBalance = validateCentavos(cumulativeBalance + changeAmount, `cumulativeBalance[${i}]`);
+              entry.balanceAfter = validateCentavos(cumulativeBalance, `history[${i}].balanceAfter`);
             }
           }
           
           // Calculate totalPaid from payments array
+<<<<<<< HEAD
           // CRITICAL: Validate all centavos conversions
+=======
+          // CRITICAL: Validate centavos conversion
+>>>>>>> feature/task-1c-credit-import-fix
           const totalPaid = unitData.payments 
             ? validateCentavos(
                 unitData.payments.reduce((sum, p) => sum + (p.paid || 0), 0) * 100,
@@ -1298,16 +1312,53 @@ export class ImportService {
               )
             : 0;
           
-          // Update dues document with scheduled amount, totals, credit balance and history
+          // CRITICAL: Validate final credit balance before write
+          const validatedCreditBalance = validateCentavos(finalCreditBalance, 'finalCreditBalance');
+          const validatedScheduledAmount = validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount');
+          
+          // Update dues document with scheduled amount, totals, and credit balance history
+          // NOTE: creditBalance is deprecated in dues document - use new structure instead
           await duesRef.update({
+<<<<<<< HEAD
             scheduledAmount: validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount'),
             totalPaid: totalPaid, // Already validated above
             creditBalance: validateCentavos(finalCreditBalance, 'creditBalance'),
             creditBalanceHistory: creditBalanceHistory
+=======
+            scheduledAmount: validatedScheduledAmount,
+            totalPaid: totalPaid,
+            creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
+>>>>>>> feature/task-1c-credit-import-fix
           });
           
+          // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances
+          // This is the single source of truth for current credit balances
+          const creditBalancesRef = db.collection('clients').doc(this.clientId)
+            .collection('units').doc('creditBalances');
+          
+          // Get existing creditBalances document
+          const creditBalancesDoc = await creditBalancesRef.get();
+          const allCreditBalances = creditBalancesDoc.exists ? creditBalancesDoc.data() : {};
+          
+          // Update this unit's credit balance in the new structure
+          allCreditBalances[unitId] = {
+            creditBalance: validatedCreditBalance,
+            lastChange: {
+              year: year.toString(),
+              historyIndex: creditBalanceHistory.length - 1,
+              timestamp: getNow().toISOString()
+            },
+            history: creditBalanceHistory
+          };
+          
+          // Write to new structure
+          await creditBalancesRef.set(allCreditBalances);
+          
           results.success++;
-          console.log(`✅ Processed HOA dues for unit ${unitId}: ${unitData.payments?.length || 0} payments, ${finalCreditBalance/100} credit balance`);
+          console.log(`✅ Processed HOA dues for unit ${unitId}:`);
+          console.log(`   - Payments: ${unitData.payments?.length || 0}`);
+          console.log(`   - Credit Balance: ${validatedCreditBalance/100} pesos (${validatedCreditBalance} centavos)`);
+          console.log(`   - Written to NEW structure: clients/${this.clientId}/units/creditBalances`);
           
           // Create metadata record for the HOA dues year document
           await this.createMetadataRecord(

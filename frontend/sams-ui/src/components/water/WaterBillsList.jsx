@@ -558,6 +558,8 @@ ${washCharges.toFixed(2)}
           }
           
           // Refresh data
+          // TODO: System-wide cache sync issue - credit balance updates not propagating to all contexts
+          // See Phase_1_Validation_Complete_With_Fixes_2025-10-19.md for architectural discussion
           refreshData();
         }}
       />

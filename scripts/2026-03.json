@@ -110,24 +110,12 @@
         "currentCharge": 15000,
         "penaltyAmount": 0,
         "totalAmount": 15000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0003 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
-        "payments": [
-          {
-            "amount": 100000,
-            "baseChargePaid": 15000,
-            "penaltyPaid": 0,
-            "date": "2025-10-19",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-10-19_090201_697",
-            "recordedAt": "2025-10-19T14:02:02.924Z"
-          }
-        ],
-        "paidAmount": 100000,
-        "basePaid": 15000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z"
       },
       "104": {
         "priorReading": 1506,

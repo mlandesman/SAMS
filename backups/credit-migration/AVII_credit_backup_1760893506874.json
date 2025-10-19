@@ -1,0 +1,799 @@
+{
+  "clientId": "AVII",
+  "timestamp": "2025-10-19T17:05:05.684Z",
+  "units": {
+    "101": {
+      "2026": {
+        "creditBalance": 100000,
+        "creditBalanceHistory": [
+          {
+            "id": "uluslqla898mgrf91mp",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 23973,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 23973,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "n0ofic6xbumgrf91mp",
+            "timestamp": {
+              "_seconds": 1759177269,
+              "_nanoseconds": 824000000
+            },
+            "transactionId": "2025-09-29_221822_612",
+            "type": "credit_used",
+            "amount": 23973,
+            "description": "from Credit Balance Usage",
+            "balanceBefore": 23973,
+            "balanceAfter": 0,
+            "notes": "Oct, Nov, Dec 2025 using MXN 239.73 Credit "
+          },
+          {
+            "id": "eb363efa-8fab-4a9a-8dc6-7443f395db4f",
+            "timestamp": {
+              "_seconds": 1760569984,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "manual_adjustment",
+            "amount": 100000,
+            "description": "MANUAL ADJUSTMENT: Setting initial credit to 1000 for testing",
+            "balanceBefore": 0,
+            "balanceAfter": 100000,
+            "notes": "Setting initial credit to 1000 for testing"
+          },
+          {
+            "id": "credit_1760572924145_ktlxly61o",
+            "timestamp": {
+              "_seconds": 1760572924,
+              "_nanoseconds": 145000000
+            },
+            "amount": -10088,
+            "balance": 89912,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-02, 2026-03 (Base: $1250.00, Penalties: $50.88)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760834531643_9a2aeicmu",
+            "timestamp": {
+              "_seconds": 1760834531,
+              "_nanoseconds": 643000000
+            },
+            "amount": -81713,
+            "balance": 8199,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1800.00, Penalties: $156.86)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760834692451_2bbaupyqn",
+            "timestamp": {
+              "_seconds": 1760834692,
+              "_nanoseconds": 451000000
+            },
+            "amount": 113973,
+            "balance": 122172,
+            "transactionId": null,
+            "note": "Water bill overpayment - no bills due",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760834891244_9dux6xvqj",
+            "timestamp": {
+              "_seconds": 1760834891,
+              "_nanoseconds": 244000000
+            },
+            "amount": -81713,
+            "balance": 40459,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1800.00, Penalties: $156.86)",
+            "source": "waterBills"
+          },
+          {
+            "id": "d5975e7e-5dac-46e4-b313-a66f0f56085a",
+            "timestamp": {
+              "_seconds": 1760886088,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "manual_adjustment",
+            "amount": 59541,
+            "description": "MANUAL ADJUSTMENT: Testing Water Bills Use and Return",
+            "balanceBefore": 40459,
+            "balanceAfter": 100000,
+            "notes": "Testing Water Bills Use and Return"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760886088,
+          "_nanoseconds": 0
+        }
+      }
+    },
+    "102": {
+      "2026": {
+        "creditBalance": 0,
+        "creditBalanceHistory": [
+          {
+            "id": "cn534cv7fammgrf91x4",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 3972.9999999999995,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 3972.9999999999995,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "5fa58d5e-36ab-43d7-b377-828981feb473",
+            "timestamp": {
+              "_seconds": 1760570190,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "manual_adjustment",
+            "amount": 96027,
+            "description": "MANUAL ADJUSTMENT: Testing unit 102 Payments",
+            "balanceBefore": 3972.9999999999995,
+            "balanceAfter": 100000,
+            "notes": "Testing unit 102 Payments"
+          },
+          {
+            "id": "credit_1760572208721_oy4tnh0or",
+            "timestamp": {
+              "_seconds": 1760572208,
+              "_nanoseconds": 722000000
+            },
+            "amount": -50000,
+            "balance": 50000,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-02, 2026-03 (Base: $1050.00, Penalties: $30.50)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760834775291_6d9gh1pah",
+            "timestamp": {
+              "_seconds": 1760834775,
+              "_nanoseconds": 291000000
+            },
+            "amount": -50000,
+            "balance": 0,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1529.99, Penalties: $159.74)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760834775,
+          "_nanoseconds": 291000000
+        }
+      }
+    },
+    "103": {
+      "2026": {
+        "creditBalance": 189978.00000000023,
+        "creditBalanceHistory": [
+          {
+            "id": "vhdh1qvmnomgrf929q",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 432499.99999999977,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 432499.99999999977,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "6gq8x7imowpmgrf929q",
+            "timestamp": {
+              "_seconds": 1754024400,
+              "_nanoseconds": 0
+            },
+            "transactionId": "2025-08-01_221747_553",
+            "type": "credit_added",
+            "amount": 27306.000000000233,
+            "description": "from Overpayment",
+            "balanceBefore": 432499.99999999977,
+            "balanceAfter": 459806,
+            "notes": "Jul, Aug, Sep plus Jun, Jul Water Bill"
+          },
+          {
+            "id": "4vzdi8o0djmgrf929q",
+            "timestamp": {
+              "_seconds": 1759762327,
+              "_nanoseconds": 667000000
+            },
+            "transactionId": "2025-10-06_221840_541",
+            "type": "credit_added",
+            "amount": 27306.000000000233,
+            "description": "from Overpayment",
+            "balanceBefore": 459806,
+            "balanceAfter": 487112.00000000023,
+            "notes": "Oct, Nov, Dec 2025 + MXN 273.06 Credit "
+          },
+          {
+            "id": "credit_1760623841896_3f6e2zw0g",
+            "timestamp": {
+              "_seconds": 1760623841,
+              "_nanoseconds": 896000000
+            },
+            "amount": -215617,
+            "balance": 271495.00000000023,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-01, 2026-02, 2026-03 (Base: $2100.00, Penalties: $156.17)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760882520301_pw2cuvz43",
+            "timestamp": {
+              "_seconds": 1760882520,
+              "_nanoseconds": 301000000
+            },
+            "amount": -81517,
+            "balance": 189978.00000000023,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1700.00, Penalties: $115.17)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760882520,
+          "_nanoseconds": 301000000
+        }
+      }
+    },
+    "104": {
+      "2026": {
+        "creditBalance": 97513.9999999999,
+        "creditBalanceHistory": [
+          {
+            "id": "c5ashz5u93lmgrf92mu",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 1.0186340659856796e-10,
+            "description": "Starting debit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": -1.0186340659856796e-10,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "w4c39o91b5amgrf92mt",
+            "timestamp": {
+              "_seconds": 1752123600,
+              "_nanoseconds": 0
+            },
+            "transactionId": "2025-07-10_221724_289",
+            "type": "credit_added",
+            "amount": 1687,
+            "description": "from Overpayment",
+            "balanceBefore": -1.0186340659856796e-10,
+            "balanceAfter": 1686.9999999998981,
+            "notes": "Jul, Aug, Sep 2025 + MXN 16.87 Credit Efectivo"
+          },
+          {
+            "id": "credit_1760634342896_k9c0yw5y8",
+            "timestamp": {
+              "_seconds": 1760634342,
+              "_nanoseconds": 896000000
+            },
+            "amount": -1350,
+            "balance": 336.99999999989814,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-02, 2026-03 (Base: $1350.00, Penalties: $63.50)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760834974478_bbcl1rw6o",
+            "timestamp": {
+              "_seconds": 1760834974,
+              "_nanoseconds": 478000000
+            },
+            "amount": 33204,
+            "balance": 33540.9999999999,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1350.00, Penalties: $85.55)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760835125370_ewla3wm3w",
+            "timestamp": {
+              "_seconds": 1760835125,
+              "_nanoseconds": 370000000
+            },
+            "amount": 63973,
+            "balance": 97513.9999999999,
+            "transactionId": null,
+            "note": "Water bill overpayment - no bills due",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760835125,
+          "_nanoseconds": 370000000
+        }
+      }
+    },
+    "105": {
+      "2026": {
+        "creditBalance": 129723.00000000006,
+        "creditBalanceHistory": [
+          {
+            "id": "jhctnprqwpbmgrf92zi",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 5.820766091346741e-11,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 5.820766091346741e-11,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "jekk61ty7wmgrf92zi",
+            "timestamp": {
+              "_seconds": 1759381200,
+              "_nanoseconds": 0
+            },
+            "transactionId": "2025-10-02_221833_578",
+            "type": "credit_added",
+            "amount": 127936,
+            "description": "from Overpayment",
+            "balanceBefore": 5.820766091346741e-11,
+            "balanceAfter": 127936.00000000006,
+            "notes": "Oct, Nov, Dec 2025 + MXN 1,279.36 Credit BBVA"
+          },
+          {
+            "id": "credit_1760644392074_bnosh2vhl",
+            "timestamp": {
+              "_seconds": 1760644392,
+              "_nanoseconds": 73000000
+            },
+            "amount": -7800,
+            "balance": 120136.00000000006,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-02, 2026-03 (Base: $450.00, Penalties: $28.00)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760835012500_eavd1d6po",
+            "timestamp": {
+              "_seconds": 1760835012,
+              "_nanoseconds": 500000000
+            },
+            "amount": 9587,
+            "balance": 129723.00000000006,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1050.00, Penalties: $133.60)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760835012,
+          "_nanoseconds": 500000000
+        }
+      }
+    },
+    "106": {
+      "2026": {
+        "creditBalance": 0,
+        "creditBalanceHistory": [
+          {
+            "id": "m3ty23pgd4fmgrf93cs",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 1,
+            "description": "Starting debit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": -1,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "r0vxg5zcd3mgrf93cs",
+            "timestamp": {
+              "_seconds": 1752264516,
+              "_nanoseconds": 740000000
+            },
+            "transactionId": "2025-07-11_221725_180",
+            "type": "credit_added",
+            "amount": 1,
+            "description": "from Overpayment",
+            "balanceBefore": -1,
+            "balanceAfter": 0,
+            "notes": "Covering 2 months before new owners take over"
+          },
+          {
+            "id": "credit_1760638938126_fwblqgry7",
+            "timestamp": {
+              "_seconds": 1760638938,
+              "_nanoseconds": 127000000
+            },
+            "amount": 0,
+            "balance": 0,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-03 (Base: $889.73, Penalties: $24.57)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760645403207_dcqf72dba",
+            "timestamp": {
+              "_seconds": 1760645403,
+              "_nanoseconds": 207000000
+            },
+            "amount": 70,
+            "balance": 70,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-03 (Base: $889.73, Penalties: $24.57)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760835204995_s2pn1wbvv",
+            "timestamp": {
+              "_seconds": 1760835204,
+              "_nanoseconds": 995000000
+            },
+            "amount": -70,
+            "balance": 0,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $450.70, Penalties: $0.00)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760837603622_cxsak2qxn",
+            "timestamp": {
+              "_seconds": 1760837603,
+              "_nanoseconds": 622000000
+            },
+            "amount": 0,
+            "balance": 0,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $1199.30, Penalties: $38.15)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760837603,
+          "_nanoseconds": 622000000
+        }
+      }
+    },
+    "201": {
+      "2026": {
+        "creditBalance": 18185,
+        "creditBalanceHistory": [
+          {
+            "id": "f72ybmfkq94mgrf93ot",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 23973,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 23973,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "3xe74vrruhfmgrf93os",
+            "timestamp": {
+              "_seconds": 1752332483,
+              "_nanoseconds": 459000000
+            },
+            "transactionId": "2025-07-12_221726_105",
+            "type": "credit_added",
+            "amount": 1,
+            "description": "from Overpayment",
+            "balanceBefore": 23973,
+            "balanceAfter": 23974,
+            "notes": "Jul, Aug, Sep 2025 + MXN 0.01 Credit BBVA Verbeek"
+          },
+          {
+            "id": "a4e4e5wfk4nmgrf93os",
+            "timestamp": {
+              "_seconds": 1758379821,
+              "_nanoseconds": 896000000
+            },
+            "transactionId": "2025-09-20_221819_498",
+            "type": "credit_used",
+            "amount": 23974,
+            "description": "from Credit Balance Usage",
+            "balanceBefore": 23974,
+            "balanceAfter": 0,
+            "notes": "Oct, Nov, Dec 2025 Verbeck BBVA"
+          },
+          {
+            "id": "credit_1760835040611_jrb194jtz",
+            "timestamp": {
+              "_seconds": 1760835040,
+              "_nanoseconds": 610000000
+            },
+            "amount": 18185,
+            "balance": 18185,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-03 (Base: $100.00, Penalties: $7.88)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760835040,
+          "_nanoseconds": 610000000
+        }
+      }
+    },
+    "202": {
+      "2026": {
+        "creditBalance": 27641,
+        "creditBalanceHistory": [
+          {
+            "id": "credit_1760644866243_a8ymsx5dg",
+            "timestamp": {
+              "_seconds": 1760644866,
+              "_nanoseconds": 242000000
+            },
+            "amount": 2187,
+            "balance": 2187,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-01, 2026-02 (Base: $300.00, Penalties: $28.13)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760835063634_m34qr3b4s",
+            "timestamp": {
+              "_seconds": 1760835063,
+              "_nanoseconds": 634000000
+            },
+            "amount": 25454,
+            "balance": 27641,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-02 (Base: $50.00, Penalties: $2.50)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760835063,
+          "_nanoseconds": 634000000
+        }
+      }
+    },
+    "203": {
+      "2026": {
+        "creditBalance": 0,
+        "creditBalanceHistory": [
+          {
+            "id": "cih5d3q67vfmgrf94dg",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 3575,
+            "description": "Starting credit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": 3575,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "credit_1760556277093_e160mu9y5",
+            "timestamp": {
+              "_seconds": 1760556277,
+              "_nanoseconds": 93000000
+            },
+            "amount": 10000,
+            "balance": 13575,
+            "transactionId": "TEST_ADD_1760556276719",
+            "note": "Test credit addition",
+            "source": "test"
+          },
+          {
+            "id": "credit_1760556278392_cs266u3lv",
+            "timestamp": {
+              "_seconds": 1760556278,
+              "_nanoseconds": 392000000
+            },
+            "amount": -5000,
+            "balance": 8575,
+            "transactionId": "TEST_SUB_1760556278032",
+            "note": "Test credit deduction",
+            "source": "test"
+          },
+          {
+            "id": "credit_1760556360902_o0ot6cdj4",
+            "timestamp": {
+              "_seconds": 1760556360,
+              "_nanoseconds": 902000000
+            },
+            "amount": 10000,
+            "balance": 18575,
+            "transactionId": "TEST_ADD_1760556360550",
+            "note": "Test credit addition",
+            "source": "test"
+          },
+          {
+            "id": "credit_1760556362123_7weaijooc",
+            "timestamp": {
+              "_seconds": 1760556362,
+              "_nanoseconds": 123000000
+            },
+            "amount": -5000,
+            "balance": 13575,
+            "transactionId": "TEST_SUB_1760556361758",
+            "note": "Test credit deduction",
+            "source": "test"
+          },
+          {
+            "id": "efcbd7fb-dfb5-4564-8f0e-54f56fc21179",
+            "timestamp": {
+              "_seconds": 1760561584,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "manual_adjustment",
+            "amount": -13575,
+            "description": "MANUAL ADJUSTMENT",
+            "balanceBefore": 13575,
+            "balanceAfter": 0,
+            "notes": "Updated via API"
+          },
+          {
+            "id": "credit_1760568354871_p0oz3x6ob",
+            "timestamp": {
+              "_seconds": 1760568354,
+              "_nanoseconds": 871000000
+            },
+            "amount": 5000,
+            "balance": 5000,
+            "transactionId": "TEST_SETUP_CREDIT",
+            "note": "Test setup credit",
+            "source": "test"
+          },
+          {
+            "id": "credit_1760835167883_tn0lhlglz",
+            "timestamp": {
+              "_seconds": 1760835167,
+              "_nanoseconds": 883000000
+            },
+            "amount": -5000,
+            "balance": 0,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00, 2026-02, 2026-03 (Base: $3668.61, Penalties: $338.89)",
+            "source": "waterBills"
+          },
+          {
+            "id": "20ad8df5-9eb0-4c6a-afb7-4411869df29c",
+            "timestamp": {
+              "_seconds": 1760886251,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "manual_adjustment",
+            "amount": 100000,
+            "description": "MANUAL ADJUSTMENT: Testing water bill with 1000 credit added manually",
+            "balanceBefore": 0,
+            "balanceAfter": 100000,
+            "notes": "Testing water bill with 1000 credit added manually"
+          },
+          {
+            "id": "credit_1760886322955_c7xl88p8i",
+            "timestamp": {
+              "_seconds": 1760886322,
+              "_nanoseconds": 954000000
+            },
+            "amount": -50000,
+            "balance": 50000,
+            "transactionId": "2025-10-19_100521_980",
+            "note": "Water bills paid: 2026-02, 2026-03 (Base: $1981.39, Penalties: $21.57)",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760886381805_ba0cp3fzx",
+            "timestamp": {
+              "_seconds": 1760886381,
+              "_nanoseconds": 804000000
+            },
+            "amount": 50000,
+            "balance": 100000,
+            "transactionId": "2025-10-19_100521_980_reversal",
+            "note": "Reversal of credit changes from deleted water bills transaction 2025-10-19_100521_980",
+            "source": "waterBills"
+          },
+          {
+            "id": "credit_1760886629602_cnuhrn8lh",
+            "timestamp": {
+              "_seconds": 1760886629,
+              "_nanoseconds": 601000000
+            },
+            "amount": -100000,
+            "balance": 0,
+            "transactionId": "2025-10-19_101028_647",
+            "note": "Water bills paid: 2026-02, 2026-03 (Base: $1478.43, Penalties: $21.57)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760886629,
+          "_nanoseconds": 601000000
+        }
+      }
+    },
+    "204": {
+      "2026": {
+        "creditBalance": 23185,
+        "creditBalanceHistory": [
+          {
+            "id": "6cn7f704u3xmgrf94q9",
+            "timestamp": {
+              "_seconds": 1751346000,
+              "_nanoseconds": 0
+            },
+            "transactionId": null,
+            "type": "starting_balance",
+            "amount": 592791,
+            "description": "Starting debit balance from prior period",
+            "balanceBefore": 0,
+            "balanceAfter": -592791,
+            "notes": "Imported from legacy system"
+          },
+          {
+            "id": "g3vwovxks0imgrf94q8",
+            "timestamp": {
+              "_seconds": 1756184400,
+              "_nanoseconds": 0
+            },
+            "transactionId": "2025-08-26_221754_976",
+            "type": "credit_added",
+            "amount": 592791,
+            "description": "from Overpayment",
+            "balanceBefore": -592791,
+            "balanceAfter": 0,
+            "notes": "Jul, Aug, Sep 2025"
+          },
+          {
+            "id": "credit_1760835095390_0sy7107uj",
+            "timestamp": {
+              "_seconds": 1760835095,
+              "_nanoseconds": 390000000
+            },
+            "amount": 23185,
+            "balance": 23185,
+            "transactionId": null,
+            "note": "Water bills paid: 2026-00 (Base: $50.00, Penalties: $7.88)",
+            "source": "waterBills"
+          }
+        ],
+        "updated": {
+          "_seconds": 1760835095,
+          "_nanoseconds": 390000000
+        }
+      }
+    },
+    "creditBalances": {}
+  }
+}
