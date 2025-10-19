@@ -1,5 +1,6 @@
 // controllers/waterBillsController.js
 import waterBillsService from '../services/waterBillsService.js';
+import { waterDataService } from '../services/waterDataService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
 import { getNow } from '../services/DateService.js';
@@ -102,6 +103,16 @@ export const generateBills = async (req, res) => {
       parseInt(month),
       dueDate ? { dueDate } : undefined
     );
+    
+    // CRITICAL: Update aggregatedData after bill generation
+    console.log(`🔄 [GENERATE_BILLS] Updating aggregatedData after bill generation...`);
+    try {
+      await waterDataService.getYearData(clientId, parseInt(year));
+      console.log(`✅ [GENERATE_BILLS] AggregatedData updated successfully`);
+    } catch (aggregatedError) {
+      console.warn(`⚠️ [GENERATE_BILLS] Failed to update aggregatedData (non-critical):`, aggregatedError.message);
+      // Continue with response - bills were generated successfully
+    }
     
     // Convert bills from centavos to pesos for frontend compatibility
     const convertedResult = convertBillsToPesos(result);
