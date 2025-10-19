@@ -1300,11 +1300,7 @@ export class ImportService {
           }
           
           // Calculate totalPaid from payments array
-<<<<<<< HEAD
           // CRITICAL: Validate all centavos conversions
-=======
-          // CRITICAL: Validate centavos conversion
->>>>>>> feature/task-1c-credit-import-fix
           const totalPaid = unitData.payments 
             ? validateCentavos(
                 unitData.payments.reduce((sum, p) => sum + (p.paid || 0), 0) * 100,
@@ -1319,16 +1315,9 @@ export class ImportService {
           // Update dues document with scheduled amount, totals, and credit balance history
           // NOTE: creditBalance is deprecated in dues document - use new structure instead
           await duesRef.update({
-<<<<<<< HEAD
-            scheduledAmount: validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount'),
-            totalPaid: totalPaid, // Already validated above
-            creditBalance: validateCentavos(finalCreditBalance, 'creditBalance'),
-            creditBalanceHistory: creditBalanceHistory
-=======
             scheduledAmount: validatedScheduledAmount,
             totalPaid: totalPaid,
             creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
->>>>>>> feature/task-1c-credit-import-fix
           });
           
           // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances
