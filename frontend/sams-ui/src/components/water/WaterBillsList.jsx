@@ -545,21 +545,10 @@ ${washCharges.toFixed(2)}
         }}
         unitId={selectedUnitForPayment}
         onSuccess={() => {
-          // Force cache clear and refresh bills data to show updated payment status
-          console.log('✅ Payment recorded - forcing cache clear and refresh');
+          // Refresh bills data to show updated payment status (no cache to clear)
+          console.log('✅ Payment recorded - refreshing data');
           
-          // Clear the aggregated data cache to force fresh fetch
-          const cacheKey = `water_bills_${selectedClient.id}_2026`;
-          try {
-            sessionStorage.removeItem(cacheKey);
-            console.log('🧹 Cleared aggregated data cache:', cacheKey);
-          } catch (error) {
-            console.error('Error clearing cache:', error);
-          }
-          
-          // Refresh data
-          // TODO: System-wide cache sync issue - credit balance updates not propagating to all contexts
-          // See Phase_1_Validation_Complete_With_Fixes_2025-10-19.md for architectural discussion
+          // Direct refresh - no cache invalidation needed
           refreshData();
         }}
       />

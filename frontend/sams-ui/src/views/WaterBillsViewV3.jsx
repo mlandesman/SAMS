@@ -104,9 +104,9 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // Enhanced refresh function that clears aggregatedData, timestamp, and triggers rebuild
+  // PHASE 2: Simplified refresh function - no cache to clear, just refetch data
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - clearing and rebuilding data');
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - fetching fresh data');
     console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
     console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
     
@@ -114,31 +114,17 @@ function WaterBillsViewV3() {
     setIsRefreshing(true);
     
     try {
-      // Step 1: Clear aggregatedData document AND timestamp, then rebuild on backend
-      console.log('📞 [WaterBillsViewV3] Calling waterAPI.clearAggregatedData with rebuild=true...');
-      const clearResult = await waterAPI.clearAggregatedData(selectedClient.id, selectedYear, true);
-      console.log('✅ [WaterBillsViewV3] Backend clear and rebuild response:', clearResult);
-      
-      if (clearResult.rebuilt) {
-        console.log(`✅ [WaterBillsViewV3] Data rebuilt on backend with timestamp: ${clearResult.timestamp}`);
-      }
-      
-      // Step 2: Clear frontend cache to force reload from new backend data
-      console.log('🗑️ [WaterBillsViewV3] Clearing frontend sessionStorage cache...');
+      // Trigger context refresh - will fetch fresh data from API
+      console.log('📞 [WaterBillsViewV3] Triggering context refresh (no cache)...');
       if (window.waterBillsRefresh) {
         await window.waterBillsRefresh();
-        console.log('✅ [WaterBillsViewV3] Frontend cache cleared via context');
-      } else {
-        console.warn('⚠️ [WaterBillsViewV3] window.waterBillsRefresh not available, clearing sessionStorage directly');
-        // Fallback: clear sessionStorage cache directly
-        const cacheKey = `waterData-${selectedClient.id}-${selectedYear}`;
-        sessionStorage.removeItem(cacheKey);
+        console.log('✅ [WaterBillsViewV3] Fresh data loaded via context');
       }
       
-      // Step 3: Increment refresh key to force all components to reload
+      // Increment refresh key to force all components to reload
       setRefreshKey(prev => prev + 1);
       
-      console.log('🎉 [WaterBillsViewV3] Refresh complete - data rebuilt and cache cleared!');
+      console.log('🎉 [WaterBillsViewV3] Refresh complete - fresh data loaded!');
     } catch (error) {
       console.error('❌ [WaterBillsViewV3] Error during refresh:', error);
       console.error('❌ [WaterBillsViewV3] Error details:', {

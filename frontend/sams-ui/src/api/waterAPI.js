@@ -294,63 +294,15 @@ class WaterAPI {
 
   /**
    * Get aggregated water data for a fiscal year
-   * TASK 2: Uses new fast-read endpoint with timestamp-based cache validation
+   * PHASE 2: Direct API calls with NO caching layer
    * This endpoint returns everything: readings, bills, payments, status
-   * Cache is validated by comparing timestamps, not TTL expiration
+   * Backend aggregatedData is optimized for fast single reads
    */
   async getAggregatedData(clientId, year) {
-    const cacheKey = `water_bills_${clientId}_${year}`;
-    
-    // STEP 1: Check sessionStorage cache
-    let cachedData = null;
-    let cachedTimestamp = null;
-    
-    try {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        cachedData = parsed.data;
-        cachedTimestamp = parsed.calculationTimestamp; // From aggregatedData metadata
-        console.log('💧 WaterAPI found cached data from:', new Date(cachedTimestamp));
-      }
-    } catch (error) {
-      console.error('💧 WaterAPI cache read error:', error);
-    }
-    
-    // STEP 2: Lightweight timestamp check (not full data)
     const token = await this.getAuthToken();
-    const timestampResponse = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/lastUpdated?year=${year}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
     
-    const timestampResult = await handleApiResponse(timestampResponse);
-    const serverTimestamp = timestampResult?.lastUpdated;
+    console.log(`💧 WaterAPI fetching fresh aggregated data for ${clientId} year ${year}`);
     
-    console.log('💧 WaterAPI timestamp check:', {
-      serverTimestamp,
-      cachedTimestamp,
-      isCacheFresh: cachedTimestamp && serverTimestamp && cachedTimestamp >= serverTimestamp
-    });
-    
-    // STEP 3: Compare timestamps - use cache only if still fresh
-    if (cachedData && cachedTimestamp && serverTimestamp) {
-      if (cachedTimestamp >= serverTimestamp) {
-        // Cache is fresh - use it (NO API call for full data!)
-        console.log('✅ WaterAPI cache is fresh, using cached data (no full data fetch)');
-        return { data: cachedData };
-      } else {
-        console.log('🔄 WaterAPI cache stale, fetching fresh data');
-      }
-    }
-    
-    // STEP 4: Cache miss or stale - fetch full data
     const response = await fetch(
       `${this.baseUrl}/water/clients/${clientId}/aggregatedData?year=${year}`,
       {
@@ -363,21 +315,7 @@ class WaterAPI {
     );
     
     const result = await handleApiResponse(response);
-    
-    // STEP 5: Cache the fresh server result
-    if (result?.data) {
-      try {
-        const cacheData = { 
-          data: result.data, 
-          calculationTimestamp: serverTimestamp,
-          cachedAt: Date.now()
-        };
-        sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
-        console.log('💧 WaterAPI saved fresh data to cache');
-      } catch (error) {
-        console.error('💧 WaterAPI cache write error:', error);
-      }
-    }
+    console.log(`✅ WaterAPI received fresh data (no cache)`);
     
     return result;
   }
@@ -536,49 +474,26 @@ class WaterAPI {
   }
 
   /**
+   * @deprecated PHASE 2: Cache system removed - this method is no longer needed
    * Clear water data cache for a client
+   * Kept for backwards compatibility but does nothing
    */
   async clearCache(clientId) {
-    const token = await this.getAuthToken();
-    
-    const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/cache/clear`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
-    
-    return handleApiResponse(response);
+    console.warn('⚠️ waterAPI.clearCache() is deprecated - cache system removed in Phase 2');
+    return { success: true, message: 'Cache system removed - no action needed' };
   }
 
   /**
+   * @deprecated PHASE 2: Cache system removed - this method is no longer needed
    * Clear aggregatedData document and timestamp to force rebuild
+   * Kept for backwards compatibility but does nothing
    * @param {string} clientId - Client ID
    * @param {number} year - Fiscal year (optional)
    * @param {boolean} rebuild - If true, triggers immediate rebuild after clearing
    */
   async clearAggregatedData(clientId, year = null, rebuild = true) {
-    const token = await this.getAuthToken();
-    
-    let url = `${this.baseUrl}/water/clients/${clientId}/aggregatedData/clear`;
-    const params = [];
-    if (year) params.push(`year=${year}`);
-    if (rebuild) params.push(`rebuild=true`);
-    if (params.length > 0) url += `?${params.join('&')}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    return handleApiResponse(response);
+    console.warn('⚠️ waterAPI.clearAggregatedData() is deprecated - cache system removed in Phase 2');
+    return { success: true, message: 'Cache system removed - no action needed', rebuilt: false };
   }
 }
 

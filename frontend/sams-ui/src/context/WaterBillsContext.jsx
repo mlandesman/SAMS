@@ -8,7 +8,7 @@ console.log('📁 [WaterBillsContext] Module loaded');
 
 const WaterBillsContext = createContext();
 
-// Cache is now handled by waterAPI.getAggregatedData() internally
+// PHASE 2: No caching - all data fetched fresh from aggregatedData API
 
 export function WaterBillsProvider({ children }) {
   const { selectedClient } = useClient();
@@ -143,22 +143,14 @@ export function WaterBillsProvider({ children }) {
     }
   }, [selectedClient, selectedYear]);
 
-  // CRUD operations with cache invalidation
-  const clearCacheAndRefresh = async () => {
+  // CRUD operations - refresh data after changes (no cache to clear)
+  const refreshAfterChange = async () => {
     if (!selectedClient || !selectedYear) return;
     
-    debug.log('WaterBillsContext - Clearing cache and refreshing data');
-    // Clear the aggregated data cache
-    const cacheKey = `water_bills_${selectedClient.id}_${selectedYear}`;
-    try {
-      sessionStorage.removeItem(cacheKey);
-      debug.log('Cleared aggregated data cache:', cacheKey);
-    } catch (error) {
-      debug.error('Error clearing cache:', error);
-    }
+    debug.log('WaterBillsContext - Refreshing data after change');
     // Clear the fetch-in-progress flag to allow fresh fetch
     setFetchInProgress(false);
-    await fetchWaterData(selectedYear); // Fetch fresh data
+    await fetchWaterData(selectedYear); // Fetch fresh data directly
   };
 
   const submitBatchReadings = async (readings, readingDate) => {
@@ -171,8 +163,8 @@ export function WaterBillsProvider({ children }) {
         readingDate
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -191,8 +183,8 @@ export function WaterBillsProvider({ children }) {
         readingDate
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -212,8 +204,8 @@ export function WaterBillsProvider({ children }) {
         options
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -232,8 +224,8 @@ export function WaterBillsProvider({ children }) {
         paymentData
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -342,7 +334,7 @@ export function WaterBillsProvider({ children }) {
         setSelectedYear,
         
         // Data fetching
-        refreshData: clearCacheAndRefresh,
+        refreshData: refreshAfterChange,
         
         // CRUD operations with cache invalidation
         submitBatchReadings,
