@@ -28,6 +28,7 @@ import { validateDocument } from '../utils/validateDocument.js';
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
+import { validateCentavos } from '../utils/centavosValidation.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import creditService from '../services/creditService.js';
 
@@ -361,7 +362,8 @@ async function createTransaction(clientId, data) {
           throw new Error(`Invalid allocation at index ${i}: must have categoryName and non-zero amount`);
         }
         // Convert allocation amount from dollars to cents for consistency
-        allocation.amount = dollarsToCents(allocation.amount);
+        // CRITICAL: Validate centavos conversion to ensure integer
+        allocation.amount = validateCentavos(dollarsToCents(allocation.amount), `allocation[${i}].amount`);
       }
       
       // Validate that allocations sum equals transaction amount
@@ -539,7 +541,8 @@ async function updateTransaction(clientId, txnId, newData) {
     
     // Convert amount to cents if provided
     if (validation.data.amount !== undefined) {
-      normalizedData.amount = dollarsToCents(validation.data.amount);
+      // CRITICAL: Validate centavos conversion to ensure integer
+      normalizedData.amount = validateCentavos(dollarsToCents(validation.data.amount), 'amount');
     }
     
     // Convert dates to timestamps
@@ -789,49 +792,22 @@ async function deleteTransaction(clientId, txnId) {
       try {
         console.log(`💳 [BACKEND] Step 1: Reversing credit balance changes for transaction ${txnId}`);
         
-        // Get credit history to find this transaction's entries
-        const creditHistory = await creditService.getCreditHistory(clientId, originalData.unitId, 100);
-        
-        // Find entries for this transaction
-        const transactionEntries = creditHistory.history.filter(entry => 
-          entry.transactionId === txnId
+        // FIX: Use new delete method instead of adding reversal entries
+        // This will delete the history entries and recalculate the balance properly
+        const deleteResult = await creditService.deleteCreditHistoryEntry(
+          clientId,
+          originalData.unitId,
+          txnId
         );
         
-        console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
+        console.log(`💳 [BACKEND] Deleted ${deleteResult.entriesDeleted} credit history entries for transaction ${txnId}`);
         
-        if (transactionEntries.length > 0) {
-          // Calculate reversal amount (reverse the effect of each entry)
-          let reversalAmountCentavos = 0;
-          for (const entry of transactionEntries) {
-            // entry.amount is in dollars, need to reverse it
-            // If credit was added (+), we need to subtract (-) to reverse
-            // If credit was used (-), we need to add (+) to restore
-            reversalAmountCentavos -= (entry.amount * 100);
-            console.log(`💳 [BACKEND] Reversing entry: ${entry.amount > 0 ? 'Added' : 'Used'} $${Math.abs(entry.amount)} (${entry.note})`);
-          }
+        if (deleteResult.entriesDeleted > 0) {
+          creditBalanceBefore = deleteResult.previousBalance;
+          creditReversalAmount = deleteResult.newBalance - deleteResult.previousBalance;
+          creditReversalExecuted = true;
           
-          console.log(`💳 [BACKEND] Total credit reversal: ${reversalAmountCentavos} centavos (${reversalAmountCentavos / 100} pesos)`);
-          
-          if (reversalAmountCentavos !== 0) {
-            // Store balance before for potential rollback
-            creditBalanceBefore = creditHistory.currentBalance * 100; // Convert to centavos
-            creditReversalAmount = reversalAmountCentavos;
-            
-            // Apply credit reversal using credit service
-            const creditResult = await creditService.updateCreditBalance(
-              clientId,
-              originalData.unitId,
-              reversalAmountCentavos,
-              `${txnId}_reversal`,
-              `Reversal of credit changes from deleted water bills transaction ${txnId}`,
-              'waterBills'
-            );
-            
-            creditReversalExecuted = true;
-            console.log(`✅ [BACKEND] Credit reversal complete: ${creditResult.previousBalance} → ${creditResult.newBalance} centavos`);
-          } else {
-            console.log(`ℹ️ [BACKEND] No credit changes to reverse for transaction ${txnId}`);
-          }
+          console.log(`✅ [BACKEND] Credit reversal complete: ${deleteResult.previousBalance} → ${deleteResult.newBalance} centavos`);
         } else {
           console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
         }
