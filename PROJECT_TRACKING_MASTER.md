@@ -1,6 +1,6 @@
 # SAMS Project Tracking Master Document
 
-**Last Updated**: October 14, 2025 (Water Bills Surgical Updates Complete)  
+**Last Updated**: October 18, 2025 (v0.1.0 - Water Bills Architecture Foundation Complete)  
 **Project**: Sandyland Association Management System (SAMS)  
 **Product Manager**: Michael  
 **Development Team**: Cursor APM Framework  
@@ -70,7 +70,7 @@
 - Resolves Issue #7 (import routine date logic)
 - Manager review: ⭐⭐⭐⭐⭐ Excellent - APPROVED
 
-**Current Status:** 6 of 8 tasks complete (75%), WB_DATA_MODEL_FIX ready (2-3 hrs), HOA Dues migration ready
+**Current Status:** Water Bills foundation complete (v0.1.0), HOA Dues refactor roadmap created, ready to begin validation phase
 
 ### ✅ SAMS v0.0.11 DEPLOYED - Testing Blockers Resolved (October 12, 2025)
 - **Version**: v0.0.11 deployed to production (October 12, 2025)
@@ -87,6 +87,48 @@
 - Expense entry working correctly (active methods only)
 - Document uploads restored (receipts/bills attachable)
 - Future client imports will work automatically
+
+---
+
+## 🎯 ACTIVE ROADMAP: HOA DUES REFACTOR
+
+### Overview
+**Status:** 🔄 READY TO BEGIN (October 18, 2025)  
+**Foundation:** Water Bills Architecture v0.1.0  
+**Total Effort:** 70-99 hours  
+**Documentation:** `apm_session/HOA_DUES_REFACTOR_ROADMAP.md`
+
+### Phase 1: Validation & Cleanup (4-6 hours)
+**Status:** READY TO BEGIN  
+**Tasks:**
+1. Surgical update & recalculation review (2-3 hrs)
+2. Deletion reversal review (2-3 hrs)
+
+**Purpose:** Ensure Water Bills foundation is solid before applying to HOA Dues
+
+### Phase 2: Credit Balance Migration (6-9 hours)
+**Status:** PENDING Phase 1  
+**Tasks:**
+1. Credit balance architecture analysis (2-3 hrs)
+2. Credit balance migration implementation (4-6 hrs)
+
+**Purpose:** Move credit balance to simpler, higher-level structure shared by all modules
+
+### Phase 3: Gap Analysis & Planning (12-16 hours)
+**Status:** PENDING Phase 2  
+**Tasks:**
+1. Comprehensive gap analysis (8-10 hrs)
+2. Refactor plan document (4-6 hrs)
+
+**Purpose:** Complete understanding before starting the huge refactor
+
+### Phase 4: HOA Dues Refactor Implementation (48-68 hours)
+**Status:** PENDING Phase 3 completion  
+**Tasks:** 10 major implementation tasks  
+**Purpose:** Apply Water Bills architecture to HOA Dues
+
+**Pre-Refactor Work:** 22-31 hours (Phases 1-3)  
+**Actual Refactor:** 48-68 hours (Phase 4)
 
 ---
 

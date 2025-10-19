@@ -396,10 +396,11 @@
 - **Integration:** Prepare for Statement of Account quarterly display
 - **Effort:** 1 hour
 
-### Priority 3: HOA Dues Late Fee Penalties │ Agent_Penalties
-**Status:** Ready to begin - Water Bills architecture foundation complete
-**Estimated Effort:** 6-8 Implementation Agent hours
-**Strategic Value:** Statement of Account must show calculated penalties from storage
+### Priority 0B: HOA Dues Refactor Preparation │ Agent_HOA_Preparation
+**Status:** 🔄 READY TO BEGIN (October 18, 2025)
+**Estimated Effort:** 22-31 hours (pre-refactor validation and planning)
+**Strategic Value:** Validate foundation and plan comprehensive HOA Dues refactor
+**Roadmap:** `apm_session/HOA_DUES_REFACTOR_ROADMAP.md`
 
 **Architecture Foundation Complete (October 18, 2025):**
 The Water Bills system now provides the complete architectural foundation:
@@ -410,36 +411,56 @@ The Water Bills system now provides the complete architectural foundation:
 - ✅ **Penalty Calculations** - Unit-scoped optimization with paid bill skipping
 - ✅ **Currency Architecture** - Centavos storage + API conversion layer
 
+**Pre-Refactor Work (22-31 hours):**
+
+#### Phase 1: Validation & Cleanup (4-6 hours)
+- **Task 1.1:** Surgical update & recalculation review (2-3 hrs)
+- **Task 1.2:** Deletion reversal review (2-3 hrs)
+- **Purpose:** Ensure Water Bills foundation is solid before applying to HOA Dues
+
+#### Phase 2: Credit Balance Migration (6-9 hours)
+- **Task 2.1:** Credit balance architecture analysis (2-3 hrs)
+- **Task 2.2:** Credit balance migration implementation (4-6 hrs)
+- **Purpose:** Move credit balance to simpler, higher-level structure shared by all modules
+
+#### Phase 3: Gap Analysis & Planning (12-16 hours)
+- **Task 3.1:** Comprehensive gap analysis (8-10 hrs)
+  - Data structure comparison
+  - API architecture comparison
+  - Frontend component analysis
+  - Penalty calculation analysis
+  - Payment processing analysis
+- **Task 3.2:** Refactor plan document (4-6 hrs)
+  - Architecture design
+  - Migration strategy
+  - Implementation phases
+  - Effort estimation
+  - Success criteria
+
+### Priority 3: HOA Dues Refactor Implementation │ Agent_HOA_Refactor
+**Status:** BLOCKED - Awaiting Priority 0B completion
+**Estimated Effort:** 48-68 hours (the huge project)
+**Strategic Value:** Apply Water Bills architecture to HOA Dues for same performance and quality
+**Dependencies:** Priority 0B (Phases 1-3) must complete first
+
+**Implementation Phases (10 tasks):**
+1. Backend data structure - centavos conversion (8-10 hrs)
+2. AggregatedData document creation (6-8 hrs)
+3. API layer with conversion (4-6 hrs)
+4. Frontend context provider (4-6 hrs)
+5. Component refactoring (8-10 hrs)
+6. Penalty calculation integration (4-6 hrs)
+7. Payment modal with preview API (4-6 hrs)
+8. Surgical updates implementation (4-6 hrs)
+9. Quarterly display support (2-3 hrs)
+10. Testing & validation (4-6 hrs)
+
+**Total Effort: Priority 0B + Priority 3 = 70-99 hours**
+
 **HOA Dues Migration Ready:**
-All Water Bills architectural patterns are now production-ready and can be migrated to HOA Dues.
+All Water Bills architectural patterns are now production-ready and can be migrated to HOA Dues once validation and planning complete.
 
-#### Task 3.1: Migrate Cache Architecture to HOA Dues (3-4 hours)
-- **Scope:** Apply Water Bills caching pattern to HOA Dues
-- **Components:**
-  - React Context for centralized data management
-  - Pre-aggregated data storage in Firestore
-  - Surgical update capability after individual payments
-  - Backend aggregator service preparation
-- **Foundation:** Pattern proven in Water Bills (93% API call reduction)
-- **Effort:** 3-4 hours
-
-#### Task 3.2: Integrate Penalty Calculator (3-4 hours)
-- **Scope:** Apply Water Bills penalty logic to HOA Dues
-- **Foundation:** Water Bills penalty system already implemented with:
-  - Grace period handling
-  - Due date calculations
-  - Compound percentage logic
-  - Configuration-driven (per-client settings)
-- **Integration:** Works with monthly data (even for quarterly display clients)
-- **Storage:** Pre-calculated penalties stored in aggregated data
-- **Effort:** 3-4 hours
-
-#### Success Criteria
-- ✅ HOA Dues uses cache architecture (matches Water Bills pattern)
-- ✅ Penalties calculated and stored (not real-time calculation)
-- ✅ Surgical updates work after HOA payments
-- ✅ Quarterly display (Priority 2) works with penalty calculations
-- ✅ Statement of Account can read penalty data from storage
+**See Priority 3 above for complete implementation breakdown.**
 
 ### Priority 4: Statement of Account Report │ Agent_Reports
 **Status:** Now ready - all foundations complete (split transactions, quarterly view, penalties)
