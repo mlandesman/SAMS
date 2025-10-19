@@ -194,15 +194,93 @@ class WaterPaymentsService {
   }
   
   /**
+   * Get billing configuration for a client
+   * @param {string} clientId - Client ID
+   * @returns {object} Billing configuration
+   */
+  async _getBillingConfig(clientId) {
+    const configDoc = await this.db
+      .collection('clients')
+      .doc(clientId)
+      .collection('projects')
+      .doc('waterBills')
+      .collection('config')
+      .doc('billing')
+      .get();
+    
+    if (!configDoc.exists) {
+      // Return default config
+      return {
+        penaltyRate: 0.05,
+        gracePeriodDays: 7,
+        ratePerM3: 5000
+      };
+    }
+    
+    return configDoc.data();
+  }
+  
+  /**
+   * Recalculate penalties for bills as of a specific date (for backdated payments)
+   * @param {string} clientId - Client ID
+   * @param {Array} bills - Array of bill objects
+   * @param {Date} asOfDate - Date to calculate penalties as of
+   * @returns {Array} Bills with recalculated penalties
+   */
+  async _recalculatePenaltiesAsOfDate(clientId, bills, asOfDate) {
+    console.log(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
+    
+    // Get billing config for penalty rate
+    const config = await this._getBillingConfig(clientId);
+    const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
+    const gracePeriodDays = config.gracePeriodDays || 7; // 7 days grace period default
+    
+    const recalculatedBills = [];
+    
+    for (const bill of bills) {
+      const billDate = new Date(bill.billDate || bill.createdAt);
+      const dueDate = new Date(bill.dueDate);
+      
+      // Calculate days past due as of the payment date
+      const daysPastDue = Math.max(0, Math.floor((asOfDate - dueDate) / (1000 * 60 * 60 * 24)));
+      
+      let recalculatedPenaltyAmount = 0;
+      
+      if (daysPastDue > gracePeriodDays) {
+        // Calculate penalty based on days past due
+        const monthsPastDue = Math.ceil(daysPastDue / 30); // Round up to nearest month
+        recalculatedPenaltyAmount = Math.round(bill.currentCharge * penaltyRate * monthsPastDue);
+      }
+      
+      const recalculatedTotalAmount = bill.currentCharge + recalculatedPenaltyAmount;
+      
+      console.log(`   Bill ${bill.billId}: ${daysPastDue} days past due, penalty: ${bill.penaltyAmount} → ${recalculatedPenaltyAmount}`);
+      
+      recalculatedBills.push({
+        ...bill,
+        penaltyAmount: recalculatedPenaltyAmount,
+        totalAmount: recalculatedTotalAmount,
+        // Reset paid amounts since we're recalculating
+        paidAmount: 0,
+        penaltyPaid: 0,
+        basePaid: 0
+      });
+    }
+    
+    return recalculatedBills;
+  }
+  
+  /**
    * Calculate payment distribution for preview or actual payment
    * This is the single source of truth for payment calculations
    * @param {string} clientId - Client ID
    * @param {string} unitId - Unit ID
    * @param {number} paymentAmount - Payment amount in PESOS
    * @param {number} currentCreditBalance - Current credit balance in PESOS
+   * @param {Date|string} payOnDate - Optional payment date for backdated payments (defaults to current date)
    * @returns {object} Distribution breakdown with allocations (all amounts in PESOS)
    */
-  async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0) {
+  async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0, payOnDate = null) {
     await this._initializeDb();
     
     console.log(`💧 Calculating payment distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
@@ -214,8 +292,16 @@ class WaterPaymentsService {
     console.log(`💰 Available funds calculation: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
     
     // Get unpaid water bills (oldest first)
-    const unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
+    let unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
     console.log(`📋 Found ${unpaidBills.length} unpaid bills for distribution calculation`);
+    
+    // Handle backdated payments by recalculating penalties as of payment date
+    if (payOnDate) {
+      const paymentDate = typeof payOnDate === 'string' ? new Date(payOnDate) : payOnDate;
+      console.log(`📅 Recalculating penalties as of payment date: ${paymentDate.toISOString()}`);
+      
+      unpaidBills = await this._recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate);
+    }
     
     // Calculate total bills due in centavos
     const totalBillsDueCentavos = unpaidBills.reduce((sum, bill) => {
@@ -408,7 +494,8 @@ class WaterPaymentsService {
     console.log(`💰 Current credit balance: $${currentCreditBalance}`);
     
     // STEP 2: Use centralized calculation method (single source of truth)
-    const distribution = await this.calculatePaymentDistribution(clientId, unitId, amount, currentCreditBalance);
+    // Pass payment date for backdated payment penalty recalculation
+    const distribution = await this.calculatePaymentDistribution(clientId, unitId, amount, currentCreditBalance, paymentDate);
     
     console.log(`📊 Distribution calculated: ${distribution.billPayments.length} bills, Credit used: $${distribution.creditUsed}, Overpayment: $${distribution.overpayment}`);
     

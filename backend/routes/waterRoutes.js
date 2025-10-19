@@ -353,7 +353,7 @@ router.get('/clients/:clientId/bills/unpaid/:unitId', enforceClientAccess, getUn
 router.post('/clients/:clientId/payments/preview', enforceClientAccess, async (req, res, next) => {
   try {
     const { clientId } = req.params;
-    const { unitId, amount } = req.body;
+    const { unitId, amount, payOnDate } = req.body;
     
     // Validate input
     if (!unitId || amount === undefined || amount < 0) {
@@ -376,12 +376,13 @@ router.post('/clients/:clientId/payments/preview', enforceClientAccess, async (r
     
     console.log(`💰 Preview: Credit balance for unit ${unitId}: $${currentCreditBalance}`);
     
-    // Calculate distribution
+    // Calculate distribution with optional payment date for backdated payments
     const distribution = await waterPaymentsService.calculatePaymentDistribution(
       clientId,
       unitId,
       parseFloat(amount),
-      currentCreditBalance
+      currentCreditBalance,
+      payOnDate // Pass payment date for penalty recalculation
     );
     
     // Return distribution (all amounts already in pesos from service)
