@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
 import { getAuthInstance } from '../firebaseClient';
+import { config } from '../config/index.js';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
@@ -117,7 +118,8 @@ function WaterBillsViewV3() {
     try {
       // STEP 1: Clear and rebuild aggregatedData on backend
       console.log('🗑️ [WaterBillsViewV3] Clearing and rebuilding aggregatedData...');
-      const clearResponse = await fetch(`/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
+      const API_BASE_URL = config.api.baseUrl;
+      const clearResponse = await fetch(`${API_BASE_URL}/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
