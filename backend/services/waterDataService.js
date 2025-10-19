@@ -1377,20 +1377,22 @@ class WaterDataService {
       }
     }
     
-    // Build overdueDetails from MOST RECENT month only (unpaidAmount is cumulative)
+    // Build overdueDetails from MOST RECENT month only (displayTotalDue is cumulative)
     const overdueDetails = [];
     if (mostRecentBilledMonth && mostRecentBilledMonth.units) {
       for (const [unitId, data] of Object.entries(mostRecentBilledMonth.units)) {
-        if (data.unpaidAmount > 0) {
+        // Use displayTotalDue which includes cumulative amounts across all months
+        const cumulativeDue = data.displayTotalDue || 0;
+        if (cumulativeDue > 0) {
           overdueDetails.push({
             unitId: unitId,
             owner: data.ownerLastName || 'Unknown',
-            amountDue: data.unpaidAmount // Already cumulative - no need to sum across months
+            amountDue: cumulativeDue // This is the cumulative amount due across all months
           });
         }
       }
       
-      // Update totalUnpaid to match most recent month's actual unpaid (not accumulated)
+      // Update totalUnpaid to match cumulative amounts from most recent month
       totalUnpaid = overdueDetails.reduce((sum, detail) => sum + detail.amountDue, 0);
     }
     

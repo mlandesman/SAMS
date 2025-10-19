@@ -553,7 +553,7 @@ class WaterPaymentsService {
     return {
       success: true,
       paymentType: 'bills_and_credit',
-      totalFundsAvailable: totalAvailableFundsPesos,
+      totalFundsAvailable: distribution.totalAvailableFunds,
       billsPaid: billPayments, // In centavos
       newCreditBalance: newCreditBalance, // In pesos
       creditUsed: creditUsed, // In pesos

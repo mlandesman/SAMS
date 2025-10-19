@@ -40,7 +40,8 @@ function DashboardView() {
     hoaDuesStatus, 
     waterBillsStatus,
     loading, 
-    error 
+    error,
+    refresh 
   } = useDashboardData();
   
   // Get enhanced exchange rates with multi-currency support
@@ -343,9 +344,24 @@ function DashboardView() {
               }}
             >
               <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <WaterIcon sx={{ color: '#0891b2', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Water Bills Past Due</Typography>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center">
+                    <WaterIcon sx={{ color: '#0891b2', mr: 1, fontSize: 28 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>Water Bills Past Due</Typography>
+                  </Box>
+                  <Tooltip title="Refresh water bills data">
+                    <IconButton 
+                      size="small" 
+                      onClick={refresh.water}
+                      disabled={loading.water}
+                      sx={{ 
+                        color: '#0891b2',
+                        '&:hover': { backgroundColor: '#0891b220' }
+                      }}
+                    >
+                      <TrendingUpIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
                 {loading.water ? (
                   <Box display="flex" justifyContent="center" py={2}>

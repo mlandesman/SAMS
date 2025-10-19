@@ -79,11 +79,32 @@ function convertAggregatedDataToPesos(data) {
   const carWashRate = typeof data.carWashRate === 'number' ? centavosToPesos(data.carWashRate) : data.carWashRate;
   const boatWashRate = typeof data.boatWashRate === 'number' ? centavosToPesos(data.boatWashRate) : data.boatWashRate;
   
+  // Convert summary fields from centavos to pesos
+  let convertedSummary = data.summary;
+  if (data.summary && typeof data.summary === 'object') {
+    convertedSummary = {
+      ...data.summary,
+      totalBilled: typeof data.summary.totalBilled === 'number' ? centavosToPesos(data.summary.totalBilled) : data.summary.totalBilled,
+      totalPaid: typeof data.summary.totalPaid === 'number' ? centavosToPesos(data.summary.totalPaid) : data.summary.totalPaid,
+      totalUnpaid: typeof data.summary.totalUnpaid === 'number' ? centavosToPesos(data.summary.totalUnpaid) : data.summary.totalUnpaid,
+      totalNewCharges: typeof data.summary.totalNewCharges === 'number' ? centavosToPesos(data.summary.totalNewCharges) : data.summary.totalNewCharges
+    };
+    
+    // Convert overdueDetails amounts if present
+    if (data.summary.overdueDetails && Array.isArray(data.summary.overdueDetails)) {
+      convertedSummary.overdueDetails = data.summary.overdueDetails.map(detail => ({
+        ...detail,
+        amountDue: typeof detail.amountDue === 'number' ? centavosToPesos(detail.amountDue) : detail.amountDue
+      }));
+    }
+  }
+  
   return {
     ...data,
     months: convertedMonths,
     carWashRate,
-    boatWashRate
+    boatWashRate,
+    summary: convertedSummary
   };
 }
 
