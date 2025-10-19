@@ -151,6 +151,13 @@ async function listUnits(clientId) {
     const units = [];
 
     snapshot.forEach(doc => {
+      // CRITICAL FIX: Exclude 'creditBalances' document from units list
+      // This document is used for credit balance storage, not a unit
+      if (doc.id === 'creditBalances') {
+        console.log('⚠️ Skipping creditBalances document from units list');
+        return;
+      }
+      
       const data = doc.data();
       
       // Add the document ID as unitId for API response

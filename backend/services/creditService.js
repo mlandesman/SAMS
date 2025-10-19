@@ -359,7 +359,10 @@ class CreditService {
       // Recalculate balance by replaying history
       let recalculatedBalance = 0;
       newHistory.forEach(entry => {
-        recalculatedBalance = entry.balance; // Each entry already has the balance at that point
+        // Ensure balance is a valid number
+        if (typeof entry.balance === 'number' && !isNaN(entry.balance)) {
+          recalculatedBalance = entry.balance;
+        }
       });
       
       // If no history left, balance should be 0
@@ -367,19 +370,30 @@ class CreditService {
         recalculatedBalance = 0;
       }
       
+      // CRITICAL FIX: Ensure recalculatedBalance is never undefined
+      if (typeof recalculatedBalance !== 'number' || isNaN(recalculatedBalance)) {
+        console.warn(`⚠️ [CREDIT] Invalid balance calculated: ${recalculatedBalance}, defaulting to 0`);
+        recalculatedBalance = 0;
+      }
+      
       console.log(`🗑️ [CREDIT] Deleting ${entriesDeleted} history entries for transaction ${transactionId}`);
       console.log(`💰 [CREDIT] Balance: ${unitData.creditBalance} → ${recalculatedBalance} centavos`);
       
-      // Update unit data
+      // Update unit data with validation
       allData[unitId] = {
-        creditBalance: recalculatedBalance,
+        creditBalance: recalculatedBalance, // Already validated above
         lastChange: {
           year: fiscalYear.toString(),
-          historyIndex: newHistory.length - 1,
+          historyIndex: Math.max(0, newHistory.length - 1), // Ensure non-negative
           timestamp: getNow().toISOString()
         },
         history: newHistory
       };
+      
+      // CRITICAL FIX: Validate all data before writing to Firestore
+      if (typeof allData[unitId].creditBalance !== 'number' || isNaN(allData[unitId].creditBalance)) {
+        throw new Error(`Invalid creditBalance: ${allData[unitId].creditBalance}`);
+      }
       
       // Write back to Firestore
       await creditBalancesRef.set(allData);
