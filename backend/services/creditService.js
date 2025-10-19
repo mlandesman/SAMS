@@ -1,13 +1,13 @@
 // Credit Balance Service
 // Provides clean API for credit balance operations across modules
-// CURRENT: Points to HOA Dues storage location
-// FUTURE: Will point to new storage location when migrated
+// NEW STRUCTURE: /clients/{clientId}/units/creditBalances (migrated)
 
 import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { formatCurrency } from '../utils/currencyUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { validateCentavos } from '../utils/centavosValidation.js';
 import admin from 'firebase-admin';
 
 class CreditService {
@@ -24,8 +24,7 @@ class CreditService {
 
   /**
    * Get current credit balance for a unit
-   * CURRENT: Reads from HOA Dues location
-   * FUTURE: Will read from new storage location
+   * NEW IMPLEMENTATION: Reads from simplified storage location
    * 
    * @param {string} clientId - Client identifier
    * @param {string} unitId - Unit identifier
@@ -34,16 +33,14 @@ class CreditService {
   async getCreditBalance(clientId, unitId) {
     try {
       const db = await getDb();
-      const fiscalYear = this._getCurrentFiscalYear();
       
-      // CURRENT IMPLEMENTATION: Read from HOA Dues
-      const duesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc(unitId)
-        .collection('dues').doc(fiscalYear.toString());
+      // NEW IMPLEMENTATION: Read from simplified structure
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
       
-      const doc = await duesRef.get();
+      const doc = await creditBalancesRef.get();
       
-      if (!doc.exists) {
+      if (!doc.exists || !doc.data()[unitId]) {
         return {
           clientId,
           unitId,
@@ -53,8 +50,8 @@ class CreditService {
         };
       }
       
-      const data = doc.data();
-      const creditBalanceInCents = data.creditBalance || 0;
+      const unitData = doc.data()[unitId];
+      const creditBalanceInCents = unitData.creditBalance || 0;
       const creditBalanceInDollars = creditBalanceInCents / 100;
       
       return {
@@ -62,7 +59,7 @@ class CreditService {
         unitId,
         creditBalance: creditBalanceInDollars, // Return in dollars for API consumers
         creditBalanceDisplay: formatCurrency(creditBalanceInCents, 'MXN', true),
-        lastUpdated: data.updated ? data.updated.toDate().toISOString() : null
+        lastUpdated: unitData.lastChange?.timestamp || null
       };
     } catch (error) {
       console.error(`Error getting credit balance for ${clientId}/${unitId}:`, error);
@@ -72,8 +69,7 @@ class CreditService {
 
   /**
    * Update credit balance (add or subtract)
-   * CURRENT: Updates HOA Dues location
-   * FUTURE: Will update new storage location
+   * NEW IMPLEMENTATION: Updates simplified storage location
    * 
    * @param {string} clientId - Client identifier
    * @param {string} unitId - Unit identifier
@@ -88,48 +84,53 @@ class CreditService {
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
-      // CURRENT IMPLEMENTATION: Update HOA Dues
-      const duesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc(unitId)
-        .collection('dues').doc(fiscalYear.toString());
+      // NEW IMPLEMENTATION: Update simplified structure
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
       
-      const doc = await duesRef.get();
-      let currentBalance = 0;
-      let creditHistory = [];
+      const doc = await creditBalancesRef.get();
+      const allData = doc.exists ? doc.data() : {};
+      const unitData = allData[unitId] || { creditBalance: 0, history: [] };
       
-      if (doc.exists) {
-        const data = doc.data();
-        currentBalance = data.creditBalance || 0;
-        creditHistory = data.creditBalanceHistory || [];
-      }
-      
-      const newBalance = currentBalance + amount;
+      // CRITICAL: Validate all centavos values are integers before calculation
+      const currentBalance = validateCentavos(unitData.creditBalance || 0, 'currentBalance');
+      const validAmount = validateCentavos(amount, 'amount');
+      const newBalance = validateCentavos(currentBalance + validAmount, 'newBalance');
       
       // Validation: Credit balance cannot be negative (optional - check config)
       if (newBalance < 0) {
-        throw new Error(`Insufficient credit balance. Current: ${formatCurrency(currentBalance, 'MXN', true)}, Requested: ${formatCurrency(amount, 'MXN', true)}`);
+        throw new Error(`Insufficient credit balance. Current: ${formatCurrency(currentBalance, 'MXN', true)}, Requested: ${formatCurrency(validAmount, 'MXN', true)}`);
       }
       
-      // Add history entry
+      // Add history entry with proper date serialization (FIX: [object Object] bug)
       const now = getNow();
       const historyEntry = {
         id: this._generateId(),
-        timestamp: admin.firestore.Timestamp.fromDate(now),
-        amount,
-        balance: newBalance,
+        timestamp: now.toISOString(), // FIX: Use toISOString() instead of Timestamp object
+        amount: validAmount, // Use validated amount
+        balance: newBalance, // Already validated above
         transactionId,
         note,
         source
       };
       
-      creditHistory.push(historyEntry);
+      // Initialize or update history array
+      const history = unitData.history || [];
+      history.push(historyEntry);
       
-      // Update Firestore
-      await duesRef.set({
+      // Update unit data
+      allData[unitId] = {
         creditBalance: newBalance,
-        creditBalanceHistory: creditHistory,
-        updated: admin.firestore.Timestamp.fromDate(now)
-      }, { merge: true });
+        lastChange: {
+          year: fiscalYear.toString(),
+          historyIndex: history.length - 1,
+          timestamp: now.toISOString()
+        },
+        history: history
+      };
+      
+      // Write back to Firestore
+      await creditBalancesRef.set(allData);
       
       console.log(`✅ [CREDIT] Updated credit balance for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
       
@@ -137,8 +138,8 @@ class CreditService {
       await writeAuditLog({
         module: 'credit',
         action: 'update_balance',
-        parentPath: `clients/${clientId}/units/${unitId}/dues/${fiscalYear}`,
-        docId: fiscalYear.toString(),
+        parentPath: `clients/${clientId}/units`,
+        docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance`,
         notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${source} | Transaction: ${transactionId}`
       });
@@ -160,8 +161,7 @@ class CreditService {
 
   /**
    * Get credit history
-   * CURRENT: Reads from HOA Dues location
-   * FUTURE: Will read from new storage location
+   * NEW IMPLEMENTATION: Reads from simplified storage location
    * 
    * @param {string} clientId - Client identifier
    * @param {string} unitId - Unit identifier
@@ -171,16 +171,14 @@ class CreditService {
   async getCreditHistory(clientId, unitId, limit = 50) {
     try {
       const db = await getDb();
-      const fiscalYear = this._getCurrentFiscalYear();
       
-      // CURRENT IMPLEMENTATION: Read from HOA Dues
-      const duesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc(unitId)
-        .collection('dues').doc(fiscalYear.toString());
+      // NEW IMPLEMENTATION: Read from simplified structure
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
       
-      const doc = await duesRef.get();
+      const doc = await creditBalancesRef.get();
       
-      if (!doc.exists) {
+      if (!doc.exists || !doc.data()[unitId]) {
         return {
           clientId,
           unitId,
@@ -189,16 +187,16 @@ class CreditService {
         };
       }
       
-      const data = doc.data();
-      const creditBalanceInCents = data.creditBalance || 0;
+      const unitData = doc.data()[unitId];
+      const creditBalanceInCents = unitData.creditBalance || 0;
       const creditBalanceInDollars = creditBalanceInCents / 100;
-      const creditHistory = data.creditBalanceHistory || [];
+      const creditHistory = unitData.history || [];
       
-      // Sort by timestamp (most recent first)
+      // Sort by timestamp (most recent first) - timestamps are now ISO strings
       const sortedHistory = creditHistory
         .sort((a, b) => {
-          const aTime = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-          const bTime = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+          const aTime = new Date(a.timestamp).getTime();
+          const bTime = new Date(b.timestamp).getTime();
           return bTime - aTime;
         })
         .slice(0, limit);
@@ -209,7 +207,7 @@ class CreditService {
         currentBalance: creditBalanceInDollars, // Return in dollars
         history: sortedHistory.map(entry => ({
           id: entry.id,
-          date: entry.timestamp?.toDate ? entry.timestamp.toDate().toISOString() : null,
+          date: entry.timestamp, // Already ISO string - no conversion needed
           amount: entry.amount / 100, // Convert to dollars
           balance: entry.balance / 100, // Convert to dollars
           transactionId: entry.transactionId,
@@ -225,8 +223,7 @@ class CreditService {
 
   /**
    * Add credit history entry (for historical records or corrections)
-   * CURRENT: Updates HOA Dues location
-   * FUTURE: Will update new storage location
+   * NEW IMPLEMENTATION: Updates simplified storage location
    * 
    * @param {string} clientId - Client identifier
    * @param {string} unitId - Unit identifier
@@ -242,33 +239,27 @@ class CreditService {
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
       
-      // CURRENT IMPLEMENTATION: Update HOA Dues
-      const duesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc(unitId)
-        .collection('dues').doc(fiscalYear.toString());
-      
-      const doc = await duesRef.get();
-      let currentBalance = 0;
-      let creditHistory = [];
-      
-      if (doc.exists) {
-        const data = doc.data();
-        currentBalance = data.creditBalance || 0;
-        creditHistory = data.creditBalanceHistory || [];
-      }
-      
-      const newBalance = currentBalance + amount;
-      
-      // Add history entry
-      // Parse the provided ISO date string
+      // Validate date format
       const dateMillis = Date.parse(date);
       if (isNaN(dateMillis)) {
         throw new Error(`Invalid date format: ${date}`);
       }
       
+      // NEW IMPLEMENTATION: Update simplified structure
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      
+      const doc = await creditBalancesRef.get();
+      const allData = doc.exists ? doc.data() : {};
+      const unitData = allData[unitId] || { creditBalance: 0, history: [] };
+      
+      const currentBalance = unitData.creditBalance || 0;
+      const newBalance = currentBalance + amount;
+      
+      // Add history entry with proper date serialization
       const historyEntry = {
         id: this._generateId(),
-        timestamp: admin.firestore.Timestamp.fromMillis(dateMillis),
+        timestamp: new Date(dateMillis).toISOString(), // Use provided date
         amount,
         balance: newBalance,
         transactionId,
@@ -276,15 +267,23 @@ class CreditService {
         source
       };
       
-      creditHistory.push(historyEntry);
+      // Initialize or update history array
+      const history = unitData.history || [];
+      history.push(historyEntry);
       
-      // Update Firestore
-      const now = getNow();
-      await duesRef.set({
+      // Update unit data
+      allData[unitId] = {
         creditBalance: newBalance,
-        creditBalanceHistory: creditHistory,
-        updated: admin.firestore.Timestamp.fromDate(now)
-      }, { merge: true });
+        lastChange: {
+          year: fiscalYear.toString(),
+          historyIndex: history.length - 1,
+          timestamp: getNow().toISOString()
+        },
+        history: history
+      };
+      
+      // Write back to Firestore
+      await creditBalancesRef.set(allData);
       
       console.log(`✅ [CREDIT] Added history entry for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
       
@@ -292,8 +291,8 @@ class CreditService {
       await writeAuditLog({
         module: 'credit',
         action: 'add_history',
-        parentPath: `clients/${clientId}/units/${unitId}/dues/${fiscalYear}`,
-        docId: fiscalYear.toString(),
+        parentPath: `clients/${clientId}/units`,
+        docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance History`,
         notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId} | Source: ${source}`
       });
@@ -305,6 +304,106 @@ class CreditService {
       };
     } catch (error) {
       console.error(`Error adding credit history entry for ${clientId}/${unitId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete credit history entry by transaction ID
+   * FIX: Implements proper delete reversal logic (delete entry instead of adding reversal)
+   * 
+   * @param {string} clientId - Client identifier
+   * @param {string} unitId - Unit identifier
+   * @param {string} transactionId - Transaction identifier to delete
+   * @returns {Promise<Object>} Operation result
+   */
+  async deleteCreditHistoryEntry(clientId, unitId, transactionId) {
+    try {
+      const db = await getDb();
+      const fiscalYear = this._getCurrentFiscalYear();
+      
+      // Read current data
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      
+      const doc = await creditBalancesRef.get();
+      if (!doc.exists || !doc.data()[unitId]) {
+        console.log(`⚠️ [CREDIT] No credit data found for ${clientId}/${unitId}`);
+        return {
+          success: true,
+          entriesDeleted: 0,
+          newBalance: 0
+        };
+      }
+      
+      const allData = doc.data();
+      const unitData = allData[unitId];
+      const history = unitData.history || [];
+      
+      // Find and remove entries with matching transaction ID
+      const entriesToDelete = history.filter(entry => entry.transactionId === transactionId);
+      const entriesDeleted = entriesToDelete.length;
+      
+      if (entriesDeleted === 0) {
+        console.log(`ℹ️ [CREDIT] No history entries found for transaction ${transactionId}`);
+        return {
+          success: true,
+          entriesDeleted: 0,
+          newBalance: unitData.creditBalance
+        };
+      }
+      
+      // Remove entries
+      const newHistory = history.filter(entry => entry.transactionId !== transactionId);
+      
+      // Recalculate balance by replaying history
+      let recalculatedBalance = 0;
+      newHistory.forEach(entry => {
+        recalculatedBalance = entry.balance; // Each entry already has the balance at that point
+      });
+      
+      // If no history left, balance should be 0
+      if (newHistory.length === 0) {
+        recalculatedBalance = 0;
+      }
+      
+      console.log(`🗑️ [CREDIT] Deleting ${entriesDeleted} history entries for transaction ${transactionId}`);
+      console.log(`💰 [CREDIT] Balance: ${unitData.creditBalance} → ${recalculatedBalance} centavos`);
+      
+      // Update unit data
+      allData[unitId] = {
+        creditBalance: recalculatedBalance,
+        lastChange: {
+          year: fiscalYear.toString(),
+          historyIndex: newHistory.length - 1,
+          timestamp: getNow().toISOString()
+        },
+        history: newHistory
+      };
+      
+      // Write back to Firestore
+      await creditBalancesRef.set(allData);
+      
+      console.log(`✅ [CREDIT] Deleted credit history entries for ${clientId}/${unitId}, transaction ${transactionId}`);
+      
+      // Write audit log
+      await writeAuditLog({
+        module: 'credit',
+        action: 'delete_history',
+        parentPath: `clients/${clientId}/units`,
+        docId: 'creditBalances',
+        friendlyName: `Unit ${unitId} Credit Balance History`,
+        notes: `Deleted ${entriesDeleted} history entries for transaction ${transactionId} | Balance: ${unitData.creditBalance} → ${recalculatedBalance} centavos`
+      });
+      
+      return {
+        success: true,
+        entriesDeleted,
+        newBalance: recalculatedBalance,
+        previousBalance: unitData.creditBalance
+      };
+    } catch (error) {
+      console.error(`Error deleting credit history entry for ${clientId}/${unitId}:`, error);
       throw error;
     }
   }
