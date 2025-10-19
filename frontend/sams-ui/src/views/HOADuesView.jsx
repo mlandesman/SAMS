@@ -517,7 +517,7 @@ function HOADuesView() {
                           // Handle Firestore timestamp objects
                           const timestamp = entry.timestamp;
                           const dateStr = timestamp?.display || timestamp?.displayFull || 'Unknown Date';
-                          const typeLabel = entry.type.replace(/_/g, ' ').toUpperCase();
+                          const typeLabel = (entry.type || 'UNKNOWN').replace(/_/g, ' ').toUpperCase();
                           tooltip += `${typeLabel}: ${entry.amount} on ${dateStr}`;
                           if (entry.description) tooltip += ` ${entry.description}`;
                           tooltip += '\n';

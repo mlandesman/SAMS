@@ -609,33 +609,30 @@ export const useDashboardData = () => {
         console.log('  Fiscal Year:', currentYear);
         console.log('  Has Water Bills:', clientHasWaterBills);
         
-        // Dashboard makes its own API call (with caching) - different data needs than Water Bills modules
+        // Use the new preview API to get real-time water bills summary
         const waterAPI = (await import('../api/waterAPI')).default;
-        let waterResponse = null;
+        let previewResponse = null;
         
         try {
-          waterResponse = await waterAPI.getAggregatedData(selectedClient.id, currentYear);
-          console.log('💧 Dashboard: Water API response received:', {
-            hasResponse: !!waterResponse,
-            hasData: !!waterResponse?.data,
-            dataKeys: waterResponse?.data ? Object.keys(waterResponse.data) : 'none'
+          // Get water bills summary using the aggregated data API (which includes summary)
+          previewResponse = await waterAPI.getAggregatedData(selectedClient.id, currentYear);
+          console.log('💧 Dashboard: Water aggregated data response received:', {
+            hasResponse: !!previewResponse,
+            hasData: !!previewResponse?.data,
+            hasSummary: !!previewResponse?.data?.summary,
+            summaryKeys: previewResponse?.data?.summary ? Object.keys(previewResponse.data.summary) : 'none'
           });
-          
-          // Normalize response structure for dashboard processing
-          if (waterResponse?.data) {
-            waterResponse = { waterData: waterResponse.data };
-          }
-        } catch (waterError) {
-          console.log('💧 Dashboard: Water API error:', waterError.message);
-          if (waterError.status === 404) {
+        } catch (previewError) {
+          console.log('💧 Dashboard: Water aggregated data API error:', previewError.message);
+          if (previewError.status === 404) {
             console.log('💧 Dashboard: No water data found for this client/year (normal)');
-            waterResponse = null;
+            previewResponse = null;
           } else {
-            throw waterError;
+            throw previewError;
           }
         }
         
-        // Read pre-calculated summary from aggregatedData (built by nightly routine)
+        // Extract summary data from the new preview API response
         let totalUnpaid = 0;
         let overdueCount = 0;
         let pastDueDetails = [];
@@ -643,13 +640,13 @@ export const useDashboardData = () => {
         let totalPaid = 0;
         let collectionRate = 0;
         
-        if (waterResponse && waterResponse.waterData && waterResponse.waterData.summary) {
-          const summary = waterResponse.waterData.summary;
+        if (previewResponse && previewResponse.data && previewResponse.data.summary) {
+          const summary = previewResponse.data.summary;
           
-          console.log('💧 Dashboard: Using pre-calculated summary from aggregatedData:');
+          console.log('💧 Dashboard: Using summary from aggregated data API:');
           console.log('  Summary data:', summary);
           
-          // Use pre-calculated values from nightly routine
+          // Use calculated values from aggregated data API
           totalUnpaid = summary.totalUnpaid || 0;
           totalBilled = summary.totalBilled || 0;
           totalPaid = summary.totalPaid || 0;
@@ -657,7 +654,7 @@ export const useDashboardData = () => {
           overdueCount = summary.overdueDetails?.length || 0;
           pastDueDetails = summary.overdueDetails || [];
           
-          console.log('💧 Dashboard: Water Bills Summary (pre-calculated):');
+          console.log('💧 Dashboard: Water Bills Summary (from aggregated data):');
           console.log(`  - Total Unpaid: $${totalUnpaid.toLocaleString()}`);
           console.log(`  - Total Billed: $${totalBilled.toLocaleString()}`);
           console.log(`  - Total Paid: $${totalPaid.toLocaleString()}`);
@@ -665,7 +662,7 @@ export const useDashboardData = () => {
           console.log(`  - Overdue Units: ${overdueCount}`);
           console.log(`  - Overdue Details:`, pastDueDetails);
         } else {
-          console.log('💧 Dashboard: No summary data found in waterResponse');
+          console.log('💧 Dashboard: No summary data found in aggregated data response');
         }
         
         console.log('💧 Dashboard: Final water bills status being set:', {
@@ -767,7 +764,8 @@ export const useDashboardData = () => {
     error,
     refresh: {
       accounts: () => fetchAccountBalances(),
-      dues: () => fetchHOADuesStatus()
+      dues: () => fetchHOADuesStatus(),
+      water: () => fetchWaterBillsStatus()
     }
   };
 };

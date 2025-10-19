@@ -432,6 +432,27 @@ class WaterAPI {
   }
 
   /**
+   * Preview payment distribution before recording
+   */
+  async previewPayment(clientId, paymentData) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/payments/preview`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(paymentData)
+      }
+    );
+    
+    return handleApiResponse(response);
+  }
+
+  /**
    * Record a water bill payment
    */
   async recordPayment(clientId, paymentData) {

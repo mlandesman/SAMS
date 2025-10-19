@@ -9,6 +9,7 @@ import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
 import { DateService, getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { readFileFromFirebaseStorage, deleteImportFiles, findFileCaseInsensitive, writeFileToFirebaseStorage } from '../api/importStorage.js';
 import { 
   augmentTransaction,
@@ -1576,10 +1577,13 @@ export class ImportService {
       console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
       console.log(`✓ Loaded transaction CrossRef with ${Object.keys(txnCrossRef.byPaymentSeq || {}).length} payments`);
       
-      // Get fiscal year configuration from client config
+      // Load client config to get fiscal year and water bills configuration
       const clientConfig = await this.getClientConfig();
       const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+      const waterBillsConfig = clientConfig.config?.waterBills || clientConfig.waterBills || {};
+      const paymentDueDay = waterBillsConfig.paymentDueDate || 10; // Day of month when payment is due
       console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
+      console.log(`📅 Water bills due date: Day ${paymentDueDay} of bill month`);
       
       // Parse readings chronologically
       const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth);
@@ -1595,7 +1599,7 @@ export class ImportService {
           results.readingsImported++;
           
           // Step 2: Generate bills for this month (using existing service)
-          await this.generateMonthBills(cycle);
+          await this.generateMonthBills(cycle, paymentDueDay);
           results.billsGenerated++;
           
           // Step 3: Process payments made during this billing month
@@ -1741,14 +1745,35 @@ export class ImportService {
   
   /**
    * Generate bills for a single month
+   * Now calculates proper bill date and due date based on fiscal year/month
    */
-  async generateMonthBills(cycle) {
+  async generateMonthBills(cycle, paymentDueDay = 10) {
     const waterBillsService = (await import('./waterBillsService.js')).default;
     
+    // Calculate bill date: First day of the billing month in Cancun timezone
+    const [yearNum, monthNum] = cycle.billingMonth.split('-').map(Number);
+    const billDate = DateTime.fromObject(
+      { year: yearNum, month: monthNum, day: 1, hour: 0, minute: 0, second: 0 },
+      { zone: 'America/Cancun' }
+    ).toJSDate();
+    
+    // Calculate due date: paymentDueDay of the billing month
+    const dueDate = DateTime.fromObject(
+      { year: yearNum, month: monthNum, day: paymentDueDay, hour: 23, minute: 59, second: 59 },
+      { zone: 'America/Cancun' }
+    ).toISO();
+    
+    console.log(`  📅 Bill date: ${billDate.toISOString()}, Due date: ${dueDate}`);
+    
+    // Pass billDate and dueDate as options to bill generation
     await waterBillsService.generateBills(
       this.clientId,
       cycle.fiscalYear,
-      cycle.fiscalMonth
+      cycle.fiscalMonth,
+      { 
+        billDate: billDate,
+        dueDate: dueDate 
+      }
     );
     
     console.log(`  💵 Generated bills for ${cycle.billingMonth} (fiscal ${cycle.fiscalYear}-${cycle.fiscalMonth})`);
@@ -1756,6 +1781,7 @@ export class ImportService {
   
   /**
    * Process payments for a single month
+   * CRITICAL: Converts payment amounts from pesos to centavos (WB1 requirement)
    */
   async processMonthPayments(cycle, txnCrossRef) {
     // Group charges by payment sequence
@@ -1763,6 +1789,9 @@ export class ImportService {
     
     for (const charge of cycle.payments) {
       const paySeq = charge.PaymentSeq;
+      
+      // CRITICAL: Convert amount from pesos to centavos (import files are in pesos)
+      const amountInCentavos = pesosToCentavos(charge.AmountApplied);
       
       if (!paymentGroups[paySeq]) {
         paymentGroups[paySeq] = {
@@ -1776,13 +1805,17 @@ export class ImportService {
         };
       }
       
-      paymentGroups[paySeq].charges.push(charge);
-      paymentGroups[paySeq].totalAmount += charge.AmountApplied;
+      // Store converted charge with centavos
+      paymentGroups[paySeq].charges.push({
+        ...charge,
+        AmountAppliedCentavos: amountInCentavos // Add centavos version
+      });
+      paymentGroups[paySeq].totalAmount += amountInCentavos;
       
       if (charge.Category === 'WC') {
-        paymentGroups[paySeq].baseCharges += charge.AmountApplied;
+        paymentGroups[paySeq].baseCharges += amountInCentavos;
       } else if (charge.Category === 'WCP') {
-        paymentGroups[paySeq].penalties += charge.AmountApplied;
+        paymentGroups[paySeq].penalties += amountInCentavos;
       }
     }
     
@@ -1806,12 +1839,15 @@ export class ImportService {
         await this.applyPaymentToBill(billUpdate);
       }
       
-      console.log(`  💰 Applied payment ${paySeq} (txn: ${transactionId || 'none'}): $${payment.totalAmount.toFixed(2)} → ${billsToUpdate.length} bill(s)`);
+      // Convert centavos to pesos for logging
+      const totalAmountPesos = centavosToPesos(payment.totalAmount);
+      console.log(`  💰 Applied payment ${paySeq} (txn: ${transactionId || 'none'}): $${totalAmountPesos.toFixed(2)} (${payment.totalAmount} centavos) → ${billsToUpdate.length} bill(s)`);
     }
   }
   
   /**
    * Find which bills a set of charges applies to
+   * CRITICAL: Now uses AmountAppliedCentavos (already converted in processMonthPayments)
    */
   async findBillsForCharges(charges) {
     // Get fiscal year configuration from client config
@@ -1844,11 +1880,13 @@ export class ImportService {
         billUpdates.push(billUpdate);
       }
       
-      billUpdate.amountApplied += charge.AmountApplied;
+      // Use centavos version (already converted in processMonthPayments)
+      const amountCentavos = charge.AmountAppliedCentavos;
+      billUpdate.amountApplied += amountCentavos;
       if (charge.Category === 'WC') {
-        billUpdate.basePaid += charge.AmountApplied;
+        billUpdate.basePaid += amountCentavos;
       } else if (charge.Category === 'WCP') {
-        billUpdate.penaltyPaid += charge.AmountApplied;
+        billUpdate.penaltyPaid += amountCentavos;
       }
     }
     
@@ -1920,7 +1958,9 @@ export class ImportService {
       [`bills.units.${billUpdate.unitId}.payments`]: updatedPayments
     });
     
-    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
+    // Convert centavos to pesos for logging
+    const amountPesos = centavosToPesos(billUpdate.amountApplied);
+    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${amountPesos.toFixed(2)} (${billUpdate.amountApplied} centavos) → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
   }
 
   /**

@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-15T19:26:03.507Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 7,
+    "passedTests": 6,
+    "failedTests": 1,
+    "totalDuration": 4616
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760556358891-ns79ry8w0",
+      "name": "TEST 1: GET /credit/:clientId/:unitId - Should return credit balance from HOA Dues",
+      "passed": true,
+      "duration": 870,
+      "data": {
+        "clientId": "AVII",
+        "unitId": "203",
+        "creditBalance": 8575,
+        "creditBalanceDisplay": "$85.75"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:25:59.761Z",
+      "message": "Successfully retrieved credit balance: $85.75"
+    },
+    {
+      "id": "TEST-1760556359762-f6hm05po9",
+      "name": "TEST 2: GET /credit/:clientId/:unitId - Should return zero for non-existing unit",
+      "passed": true,
+      "duration": 415,
+      "data": {
+        "clientId": "AVII",
+        "unitId": "999",
+        "creditBalance": 0,
+        "creditBalanceDisplay": "$0.00",
+        "lastUpdated": null
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:00.177Z",
+      "message": "Successfully returned zero balance for non-existing unit"
+    },
+    {
+      "id": "TEST-1760556360177-vgpebwp0b",
+      "name": "TEST 3: POST /credit/:clientId/:unitId - Should add credit to balance",
+      "passed": true,
+      "duration": 1202,
+      "data": {
+        "balanceBefore": 8575,
+        "amountAdded": 10000,
+        "balanceAfter": 18575,
+        "transactionId": "TEST_ADD_1760556360550"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:01.379Z",
+      "message": "Successfully added 10000 cents. Balance: 8575 → 18575"
+    },
+    {
+      "id": "TEST-1760556361379-rqbyz9ox3",
+      "name": "TEST 4: POST /credit/:clientId/:unitId - Should subtract credit from balance",
+      "passed": true,
+      "duration": 1202,
+      "data": {
+        "balanceBefore": 18575,
+        "amountSubtracted": -5000,
+        "balanceAfter": 13575,
+        "transactionId": "TEST_SUB_1760556361758"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:02.581Z",
+      "message": "Successfully subtracted 5000 cents. Balance: 18575 → 13575"
+    },
+    {
+      "id": "TEST-1760556362581-jeza159fm",
+      "name": "TEST 5: GET /credit/:clientId/:unitId/history - Should return credit history",
+      "passed": true,
+      "duration": 388,
+      "data": {
+        "clientId": "AVII",
+        "unitId": "203",
+        "currentBalance": 13575,
+        "historyCount": 5,
+        "latestEntry": {
+          "id": "credit_1760556362123_7weaijooc",
+          "date": "2025-10-15T19:26:02.123Z",
+          "amount": -5000,
+          "balance": 13575,
+          "transactionId": "TEST_SUB_1760556361758",
+          "note": "Test credit deduction",
+          "source": "test"
+        }
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:02.969Z",
+      "message": "Successfully retrieved 5 history entries"
+    },
+    {
+      "id": "TEST-1760556362969-j0t2rc6od",
+      "name": "TEST 6: Verify HOA Dues endpoint still accessible",
+      "passed": false,
+      "duration": 347,
+      "data": null,
+      "error": "AxiosError: Request failed with status code 404\n    at settle (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/settle.js:19:12)\n    at IncomingMessage.handleStreamEnd (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/adapters/http.js:599:11)\n    at IncomingMessage.emit (node:events:530:35)\n    at endReadableNT (node:internal/streams/readable:1698:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\n    at Axios.request (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/node_modules/axios/lib/core/Axios.js:45:41)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:456:28)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:224:22)\n    at async TestHarness.runTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:303:22)\n    at async file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testCreditEndpoint.js:573:3",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:03.316Z",
+      "reason": "Test failed with error: Request failed with status code 404"
+    },
+    {
+      "id": "TEST-1760556363317-fxkob1mer",
+      "name": "TEST 7: POST /credit/:clientId/:unitId - Should reject missing required fields",
+      "passed": true,
+      "duration": 189,
+      "data": {
+        "expectedError": true,
+        "status": 400,
+        "errorMessage": "transactionId is required"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-15T19:26:03.506Z",
+      "message": "Successfully rejected request with missing required fields"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 7,
+    "passed": 6,
+    "failed": 1,
+    "successRate": 86,
+    "averageDuration": 659,
+    "startTime": 1760556358891,
+    "endTime": 1760556363507
+  }
+}

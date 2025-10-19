@@ -1,5 +1,6 @@
 import admin from 'firebase-admin';
 import { getNow } from './DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 
 class PenaltyRecalculationService {
   constructor() {
@@ -46,11 +47,14 @@ class PenaltyRecalculationService {
    * Recalculate penalties for all unpaid bills for a specific client
    * @param {string} clientId - The client ID to recalculate penalties for
    * @param {Date} currentDate - Current date for penalty calculation
+   * @param {Array<string>} unitIds - Optional: Array of unit IDs to recalculate (for surgical updates)
    * @returns {Promise<Object>} Summary with success/error structure for UI handling
    */
-  async recalculatePenaltiesForClient(clientId, currentDate = getNow()) {
+  async recalculatePenaltiesForClient(clientId, currentDate = getNow(), unitIds = null) {
     try {
-      console.log(`Starting penalty recalculation for client: ${clientId}`);
+      const startTime = Date.now();
+      const scopeDescription = unitIds ? `units: [${unitIds.join(', ')}]` : 'all units';
+      console.log(`🔄 [PENALTY_RECALC] Starting penalty recalculation for client ${clientId} (${scopeDescription})`);
       
       // Load and validate configuration first
       let config;
@@ -75,6 +79,8 @@ class PenaltyRecalculationService {
         clientId,
         processedBills: 0,
         updatedBills: 0,
+        skippedPaidBills: 0,
+        skippedOutOfScopeBills: 0,
         totalPenaltiesUpdated: 0,
         errors: []
       };
@@ -88,14 +94,15 @@ class PenaltyRecalculationService {
       const billsSnapshot = await billsCollectionRef.get();
 
       if (billsSnapshot.empty) {
-        console.warn(`No water bills found for client: ${clientId}`);
+        console.warn(`⚠️  [PENALTY_RECALC] No water bills found for client: ${clientId}`);
+        const elapsedTime = Date.now() - startTime;
         return {
           success: true,
-          data: results
+          data: { ...results, processingTimeMs: elapsedTime }
         };
       }
 
-      console.log(`📊 Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
+      console.log(`📊 [PENALTY_RECALC] Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
 
       // Process each month's bills
       for (const billDoc of billsSnapshot.docs) {
@@ -103,16 +110,26 @@ class PenaltyRecalculationService {
         let hasUpdates = false;
 
         if (!billData.bills || !billData.bills.units) {
-          console.log(`⚠️ Skipping ${billDoc.id} - no bills.units structure`);
+          console.log(`⚠️  [PENALTY_RECALC] Skipping ${billDoc.id} - no bills.units structure`);
           continue;
         }
 
         const unitCount = Object.keys(billData.bills.units).length;
-        console.log(`🏠 Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
+        console.log(`🏠 [PENALTY_RECALC] Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
 
         // Process each unit's bills in this month
         for (const [unitId, unitData] of Object.entries(billData.bills.units)) {
-          if (unitData.status === 'paid') continue;
+          // OPTIMIZATION 1: Skip out-of-scope units (surgical update optimization)
+          if (unitIds && !unitIds.includes(unitId)) {
+            results.skippedOutOfScopeBills++;
+            continue;
+          }
+          
+          // OPTIMIZATION 2: Skip paid bills early (they can't accumulate penalties)
+          if (unitData.status === 'paid') {
+            results.skippedPaidBills++;
+            continue;
+          }
 
           results.processedBills++;
 
@@ -140,10 +157,31 @@ class PenaltyRecalculationService {
         }
       }
 
-      console.log(`Penalty recalculation completed for client ${clientId}. Updated ${results.updatedBills} bills.`);
+      // Performance metrics and summary
+      const elapsedTime = Date.now() - startTime;
+      const performanceMetrics = {
+        processingTimeMs: elapsedTime,
+        billsProcessed: results.processedBills,
+        billsUpdated: results.updatedBills,
+        billsSkippedPaid: results.skippedPaidBills,
+        billsSkippedOutOfScope: results.skippedOutOfScopeBills,
+        efficiencyGain: unitIds ? `${results.skippedOutOfScopeBills + results.skippedPaidBills} bills skipped (surgical mode)` : `${results.skippedPaidBills} paid bills skipped`
+      };
+      
+      console.log(`✅ [PENALTY_RECALC] Penalty recalculation completed for client ${clientId}`);
+      console.log(`📊 [PENALTY_RECALC] Performance Metrics:`, performanceMetrics);
+      console.log(`   - Processing time: ${elapsedTime}ms`);
+      console.log(`   - Bills processed: ${results.processedBills}`);
+      console.log(`   - Bills updated: ${results.updatedBills}`);
+      console.log(`   - Paid bills skipped: ${results.skippedPaidBills}`);
+      if (unitIds) {
+        console.log(`   - Out-of-scope bills skipped: ${results.skippedOutOfScopeBills}`);
+        console.log(`   - Unit scope: [${unitIds.join(', ')}]`);
+      }
+      
       return {
         success: true,
-        data: results
+        data: { ...results, ...performanceMetrics }
       };
 
     } catch (error) {
@@ -204,44 +242,45 @@ class PenaltyRecalculationService {
     const pastGracePeriod = currentDate > gracePeriodEnd;
     console.log(`📅 Date Check - Current: ${currentDate.toISOString()}, Bill Due: ${billDueDateObj.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past Grace: ${pastGracePeriod}`);
     
-    // Calculate overdue amount (unpaid principal without penalties)
+    // Calculate overdue amount (unpaid principal without penalties) - NOW IN CENTAVOS
     const overdueAmount = Math.max(0, (billData.currentCharge || 0) - (billData.paidAmount || 0));
     
     console.log(`🔍 [PENALTY_DEBUG] Bill data: charge=${billData.currentCharge}, paid=${billData.paidAmount}, currentPenalty=${billData.penaltyAmount}`);
-    console.log(`🔍 [PENALTY_DEBUG] Calculated overdue amount: $${overdueAmount}`);
+    console.log(`🔍 [PENALTY_DEBUG] Calculated overdue amount: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
     
     if (pastGracePeriod && overdueAmount > 0) {
       // Calculate how many complete penalty periods have passed since grace period ended
       const monthsSinceGracePeriod = this.getMonthsDifference(gracePeriodEnd, currentDate);
       console.log(`🔢 Months since grace period ended: ${monthsSinceGracePeriod}`);
-      console.log(`💰 Overdue amount for penalty calculation: $${overdueAmount}`);
+      console.log(`💰 Overdue amount for penalty calculation: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
       
       // COMPOUNDING PENALTY LOGIC: Each month, penalty is calculated on (principal + previous penalties)
-      // Start with overdue principal amount
+      // Start with overdue principal amount (in centavos)
       let runningTotal = overdueAmount;
       let totalPenalty = 0;
       
       console.log(`🧮 [COMPOUND_CALC] Starting compounding calculation:`);
-      console.log(`🧮 [COMPOUND_CALC] Initial overdue principal: $${overdueAmount}`);
+      console.log(`🧮 [COMPOUND_CALC] Initial overdue principal: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
       
       for (let month = 1; month <= monthsSinceGracePeriod; month++) {
         const monthlyPenalty = runningTotal * result.details.penaltyRate;
         totalPenalty += monthlyPenalty;
         runningTotal += monthlyPenalty;
         
-        console.log(`🧮 [COMPOUND_CALC] Month ${month}: $${runningTotal.toFixed(2)} × ${result.details.penaltyRate} = $${monthlyPenalty.toFixed(2)} penalty (total penalty: $${totalPenalty.toFixed(2)})`);
+        console.log(`🧮 [COMPOUND_CALC] Month ${month}: ${Math.round(runningTotal)} centavos ($${centavosToPesos(Math.round(runningTotal))}) × ${result.details.penaltyRate} = ${Math.round(monthlyPenalty)} centavos penalty (total penalty: ${Math.round(totalPenalty)} centavos)`);
       }
       
-      const expectedPenalty = Math.round(totalPenalty * 100) / 100;
+      const expectedPenalty = Math.round(totalPenalty); // Already in centavos, just round to integer
       
       // Update if penalty amounts are different (switching to compounding logic)
-      if (Math.abs(result.penaltyAmount - expectedPenalty) > 0.01) {
-        console.log(`💰 Updating penalty: Current $${result.penaltyAmount} -> Expected $${expectedPenalty} (compounding logic)`);
+      // Allow 1 centavo tolerance for rounding
+      if (Math.abs(result.penaltyAmount - expectedPenalty) > 1) {
+        console.log(`💰 Updating penalty: Current ${result.penaltyAmount} centavos -> Expected ${expectedPenalty} centavos (compounding logic)`);
         result.penaltyAmount = expectedPenalty;
         result.updated = true;
         result.details.lastUpdate = currentDate.toISOString();
       } else {
-        console.log(`✅ Penalty already up-to-date: $${result.penaltyAmount} (expected $${expectedPenalty})`);
+        console.log(`✅ Penalty already up-to-date: ${result.penaltyAmount} centavos (expected ${expectedPenalty} centavos)`);
       }
     }
     
@@ -328,6 +367,22 @@ class PenaltyRecalculationService {
       console.error('Manual penalty recalculation failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Recalculate penalties for specific units only (convenience method for surgical updates)
+   * @param {string} clientId - The client ID
+   * @param {Array<string>} unitIds - Array of unit IDs to recalculate
+   * @param {Date} currentDate - Current date for penalty calculation
+   * @returns {Promise<Object>} Summary with success/error structure
+   */
+  async recalculatePenaltiesForUnits(clientId, unitIds, currentDate = getNow()) {
+    if (!Array.isArray(unitIds) || unitIds.length === 0) {
+      throw new Error('unitIds must be a non-empty array');
+    }
+    
+    console.log(`🎯 [PENALTY_RECALC] Surgical update: recalculating penalties for ${unitIds.length} unit(s)`);
+    return await this.recalculatePenaltiesForClient(clientId, currentDate, unitIds);
   }
 
   /**

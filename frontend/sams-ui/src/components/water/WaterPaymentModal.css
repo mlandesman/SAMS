@@ -20,13 +20,13 @@
 }
 
 .unpaid-bills-summary {
-  margin: 20px 0;
+  margin: 12px 0;
 }
 
 .bills-table, .distribution-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 12px 0;
+  margin: 8px 0;
 }
 
 .bills-table th, .bills-table td,
@@ -45,8 +45,12 @@
   background-color: #e8f4fd;
   border: 1px solid #b3d9ff;
   border-radius: 6px;
-  padding: 12px;
-  margin: 15px 0;
+  padding: 8px;
+  margin: 8px 0;
+}
+
+.funds-calculation p {
+  margin: 2px 0;
 }
 
 .funds-calculation .total-funds {
@@ -107,6 +111,11 @@
   font-weight: bold;
 }
 
+.status-unpaid {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
 .no-bills {
   color: #7f8c8d;
   font-style: italic;
@@ -129,7 +138,7 @@
 .form-row {
   display: flex;
   gap: 15px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .form-group {

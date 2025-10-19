@@ -20,6 +20,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -198,8 +199,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
         }
         
+        // Backend pre-calculates these values (WB1) - no fallback calculation needed
         const penalties = unit.penaltyAmount || 0;
-        const total = unit.totalAmount || (monthlyCharge + washCharges + penalties);
+        const total = unit.totalAmount || 0;  // Pre-calculated by backend
         const paid = unit.paidAmount || 0;
         
         monthConsumption += unit.consumption || 0;
@@ -288,6 +290,12 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
+      {error && (
+        <div className="error-message">
+          <i className="fas fa-exclamation-triangle"></i> {error}
+        </div>
+      )}
+
       {contextError && (
         <div className="error-message">
           <i className="fas fa-exclamation-triangle"></i> {contextError}
@@ -328,27 +336,18 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                 washCharges = databaseFieldMappings.centsToDollars(totalWashCents);
               }
               
-              const penalties = unit.penaltyAmount || 0;   // Penalties from previous months
-              const overdue = unit.previousBalance || 0;   // Overdue amounts from previous months
-              const due = monthlyCharge + washCharges + overdue + penalties;  // Total amount to clear account
+              // Backend pre-calculates all display values in aggregatedData (WB1)
+              // Values already converted from centavos to pesos by API layer (WB1A)
+              // For paid bills, backend sets these to 0 automatically
+              const penalties = unit.displayTotalPenalties || 0;  // Use cumulative penalties
+              const overdue = unit.displayOverdue || 0;
+              const due = unit.displayTotalDue || 0;  // Use total due amount
               
               
               // Get most recent payment's transaction ID from payments array
               const payments = unit.payments || [];
               const lastPayment = payments.length > 0 ? payments[payments.length - 1] : null;
               const transactionId = lastPayment?.transactionId || null;
-              
-              // DEBUG: Log transaction ID resolution for Unit 203
-              if (unitId === '203') {
-                console.log(`🐛 [WATER_BILLS_UI] Unit ${unitId} transaction ID resolution:`, {
-                  unitStatus: unit.status,
-                  hasPayments: payments.length > 0,
-                  payments: payments,
-                  lastPayment: lastPayment,
-                  resolvedTransactionId: transactionId,
-                  unitData: unit
-                });
-              }
               
               // Create bill object for selection/transaction linking
               const billData = {
@@ -407,8 +406,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                   }
                 } else if (unit.status === 'paid' && !transactionId) {
                   alert('No Matching Transaction Record');
-                } else if (unit.status === 'unpaid' || unit.status === 'partial') {
-                  // Open payment modal for unpaid/partial bills (more intuitive UX)
+                } else if (due > 0) {
+                  // TASK 2 ISSUE 4: Allow payment if ANY amount due (includes nobill with overdue)
+                  // Michael: "Only need to check the Due amount... If there is amount Due, let them pay it!"
                   setSelectedUnitForPayment(unitId);
                   setShowPaymentModal(true);
                 }
@@ -480,9 +480,9 @@ ${washCharges.toFixed(2)}
                       <button 
                         className={`link-button status-button ${getStatusClass(unit.status || 'unpaid')}`}
                         onClick={handleStatusClick}
-                        title={unit.status === 'unpaid' || unit.status === 'partial' ? 
+                        title={due > 0 ? 
                           `Click to record payment for Unit ${unitId}` : 
-                          'No action available'
+                          'No payment needed'
                         }
                       >
                         {(unit.status || 'unpaid').toUpperCase()}
@@ -545,9 +545,20 @@ ${washCharges.toFixed(2)}
         }}
         unitId={selectedUnitForPayment}
         onSuccess={() => {
-          // Refresh bills data to show updated payment status
+          // Force cache clear and refresh bills data to show updated payment status
+          console.log('✅ Payment recorded - forcing cache clear and refresh');
+          
+          // Clear the aggregated data cache to force fresh fetch
+          const cacheKey = `water_bills_${selectedClient.id}_2026`;
+          try {
+            sessionStorage.removeItem(cacheKey);
+            console.log('🧹 Cleared aggregated data cache:', cacheKey);
+          } catch (error) {
+            console.error('Error clearing cache:', error);
+          }
+          
+          // Refresh data
           refreshData();
-          console.log('✅ Payment recorded - refreshing bill data');
         }}
       />
     </div>
