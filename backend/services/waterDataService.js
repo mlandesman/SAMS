@@ -18,66 +18,7 @@ class WaterDataService {
     this.dateService = new DateService({ timezone: 'America/Cancun' });
   }
 
-  /**
-   * Get complete year data with caching
-   */
-  async getYearData(clientId, year = null) {
-    // Default to current FY if not specified
-    if (!year) {
-      year = getFiscalYear(getNow(), this.fiscalYearStartMonth);
-    }
-    
-    const cacheKey = `${clientId}-${year}`;
-    
-    // Check cache - TEMPORARILY DISABLED FOR PENALTY DEBUGGING
-    // const cached = this.cache.get(cacheKey);
-    // if (cached && cached.timestamp > Date.now() - this.cacheTimeout) {
-    //   console.log(`📦 Returning cached data for ${clientId} FY${year}`);
-    //   return cached.data;
-    // }
-    
-    // Build fresh data
-    console.log(`🔄 Building fresh data for ${clientId} FY${year}`);
-    const yearData = await this.buildYearData(clientId, year);
-    
-    // Cache it
-    this.cache.set(cacheKey, {
-      data: yearData,
-      timestamp: Date.now()
-    });
-    
-    return yearData;
-  }
 
-  /**
-   * Update a specific month in the cached year data without full invalidation
-   * This is used after payments to keep cache warm while updating payment data
-   */
-  async updateMonthInCache(clientId, year, month, newBillData = null) {
-    const cacheKey = `${clientId}-${year}`;
-    const cached = this.cache.get(cacheKey);
-    
-    if (!cached || !cached.data) {
-      console.log(`🚫 No cached data found for ${clientId} FY${year} - skipping cache update`);
-      return;
-    }
-    
-    console.log(`🔄 Updating cached month ${month} data for ${clientId} FY${year}`);
-    
-    // Rebuild just this month's data
-    const updatedMonthData = await this.buildSingleMonthData(clientId, year, month);
-    
-    // Update the specific month in cached data
-    cached.data.months[month] = updatedMonthData;
-    
-    // Recalculate year summary with new month data
-    cached.data.summary = this.calculateYearSummary(cached.data.months);
-    
-    // Update timestamp to keep cache fresh
-    cached.timestamp = Date.now();
-    
-    console.log(`✅ Updated cached data for ${clientId} FY${year} month ${month}`);
-  }
 
   /**
    * Clear cache for a specific client and year (use sparingly)
