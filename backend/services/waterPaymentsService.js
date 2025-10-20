@@ -365,11 +365,26 @@ class WaterPaymentsService {
     if (payOnDate) {
       const paymentDate = typeof payOnDate === 'string' ? new Date(payOnDate) : payOnDate;
       console.log(`📅 Recalculating penalties as of payment date: ${paymentDate.toISOString()}`);
+      console.log(`📅 BEFORE recalculation - sample bill:`, unpaidBills[0] ? {
+        billId: unpaidBills[0].billId,
+        billPeriod: unpaidBills[0].billPeriod,
+        dueDate: unpaidBills[0].dueDate,
+        currentCharge: unpaidBills[0].currentCharge,
+        penaltyAmount: unpaidBills[0].penaltyAmount,
+        totalAmount: unpaidBills[0].totalAmount
+      } : 'No bills found');
       
       // For backdated payments, ALWAYS recalculate penalties based on the payment date
       // This overrides any stored penalty data to ensure accurate backdated calculations
       console.log(`📅 Recalculating penalties for all ${unpaidBills.length} bills based on payment date`);
       const recalculatedBills = await this._recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate);
+      
+      console.log(`📅 AFTER recalculation - sample bill:`, recalculatedBills[0] ? {
+        billId: recalculatedBills[0].billId,
+        penaltyAmount: recalculatedBills[0].penaltyAmount,
+        totalAmount: recalculatedBills[0].totalAmount
+      } : 'No bills found');
+      
       unpaidBills = recalculatedBills;
     }
     
