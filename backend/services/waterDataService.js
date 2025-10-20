@@ -18,7 +18,45 @@ class WaterDataService {
     this.dateService = new DateService({ timezone: 'America/Cancun' });
   }
 
-
+  /**
+   * Build year data with calculations (does NOT write to aggregatedData)
+   * This is the same calculation logic but returns directly instead of caching
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {object} Calculated year data with all fields UI expects
+   */
+  async buildYearDataForDisplay(clientId, year) {
+    console.log(`📊 Building calculated year data for ${clientId} FY${year} (no caching)`);
+    
+    const months = [];
+    
+    // Get client config
+    const { units, billingConfig: config } = await this.getClientConfig(clientId);
+    const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
+    
+    // Build data for each month using existing calculation methods
+    for (let month = 0; month < 12; month++) {
+      const monthExists = await this._checkMonthExists(clientId, year, month);
+      if (!monthExists && month > 0) {
+        break; // No more months with data
+      }
+      
+      const monthData = await this.buildSingleMonthData(clientId, year, month);
+      months.push(monthData);
+    }
+    
+    // Calculate year summary
+    const summary = this.calculateYearSummary(months);
+    
+    return {
+      year,
+      fiscalYear: true,
+      months,
+      summary,
+      carWashRate: config?.rateCarWash || 10000,
+      boatWashRate: config?.rateBoatWash || 20000
+    };
+  }
 
   /**
    * Clear cache for a specific client and year (use sparingly)
