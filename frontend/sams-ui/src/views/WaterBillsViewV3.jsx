@@ -48,7 +48,7 @@ function WaterBillsViewV3() {
   useEffect(() => {
     if (selectedClient) {
       // Fetch initial data to get unit IDs and determine auto-advance month
-      waterAPI.getAggregatedData(selectedClient.id, selectedYear)
+      waterAPI.getBillsForYear(selectedClient.id, selectedYear)
         .then(response => {
           setYearData(response.data);
           
@@ -106,9 +106,9 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // PHASE 2: Refresh function that rebuilds aggregatedData on backend
+  // SIMPLIFIED: Refresh function that re-fetches fresh bill data
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - rebuilding aggregatedData');
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - refetching bills');
     console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
     console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
     
