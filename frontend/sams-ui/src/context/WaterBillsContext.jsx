@@ -8,7 +8,7 @@ console.log('📁 [WaterBillsContext] Module loaded');
 
 const WaterBillsContext = createContext();
 
-// PHASE 2: No caching - all data fetched fresh from aggregatedData API
+// SIMPLIFIED: No caching - all data fetched fresh from bill documents
 
 export function WaterBillsProvider({ children }) {
   const { selectedClient } = useClient();
@@ -53,7 +53,7 @@ export function WaterBillsProvider({ children }) {
     }
   }, [selectedClient, selectedYear]);
 
-  // Fetch water data using aggregated data API
+  // Fetch water data directly from bill documents
   const fetchWaterData = async (year) => {
     console.log('💧 [WaterBillsContext] fetchWaterData called:', {
       hasClient: !!selectedClient,
@@ -79,15 +79,15 @@ export function WaterBillsProvider({ children }) {
     }
 
     
-    // Fetch from API using the same aggregated data endpoint as Dashboard (with built-in caching)
-    console.log('🌐 [WaterBillsContext] Fetching aggregated data...');
+    // Fetch from API - gets all 12 months of bill documents
+    console.log('🌐 [WaterBillsContext] Fetching bills for year...');
     setFetchInProgress(true);
     setLoading(true);
     setError(null);
     
     try {
-      debug.log('WaterBillsContext - Fetching water data from API for year:', year);
-      const response = await waterAPI.getAggregatedData(selectedClient.id, year);
+      debug.log('WaterBillsContext - Fetching water bills from API for year:', year);
+      const response = await waterAPI.getBillsForYear(selectedClient.id, year);
       
       console.log('📦 [WaterBillsContext] API Response received:', {
         hasResponse: !!response,
@@ -95,7 +95,7 @@ export function WaterBillsProvider({ children }) {
         dataKeys: response?.data ? Object.keys(response.data) : 'none'
       });
       
-      // The response.data contains the aggregated data (already cached by waterAPI)
+      // The response.data contains all 12 months of bills (direct from Firestore)
       // Update state
       const dataToSet = response?.data || {};
       console.log('📊 [WaterBillsContext] Setting water data state:', {
