@@ -694,29 +694,8 @@ class WaterPaymentsService {
     // STEP 8: Update water bills with payment info (billPayments are in centavos)
     await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, amount);
     
-    // STEP 9: Smart cache update - only update affected months instead of full invalidation
-    await this._updateAffectedMonthsInCache(clientId, billPayments);
-    
-    // STEP 10: Surgical update - Update Firestore aggregatedData for immediate frontend refresh
-    // This triggers automatic cache invalidation in the frontend (1-2s vs 10s manual refresh)
-    try {
-      // Pass unit-specific data AND payment distribution for true surgical updates
-      const affectedUnitsAndMonths = billPayments.map(bp => ({
-        unitId: bp.unitId,
-        monthId: bp.billId,
-        paymentData: {
-          amountPaid: bp.amountPaid,
-          baseChargePaid: bp.baseChargePaid,
-          penaltyPaid: bp.penaltyPaid,
-          billPeriod: bp.billPeriod
-        }
-      }));
-      await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedUnitsAndMonths);
-      console.log(`✅ [PAYMENT] Surgical update completed - UI will auto-refresh with "Paid" status`);
-    } catch (error) {
-      console.warn(`⚠️ [PAYMENT] Surgical update failed (non-critical):`, error.message);
-      // Payment succeeded - cache will rebuild on next manual refresh
-    }
+    // Payment complete - frontend will fetch fresh data on next read
+    console.log(`✅ [PAYMENT] Payment recorded successfully - bill documents updated`);
     
     return {
       success: true,
@@ -1265,42 +1244,6 @@ class WaterPaymentsService {
     }
   }
 
-  /**
-   * Smart cache update - only refresh affected months instead of full cache invalidation
-   */
-  async _updateAffectedMonthsInCache(clientId, billPayments) {
-    if (!billPayments || billPayments.length === 0) {
-      console.log(`⏭️ No bill payments to update cache for`);
-      return;
-    }
-
-    // Extract unique year/month combinations from billPayments
-    const affectedMonths = new Set();
-    for (const payment of billPayments) {
-      // payment.billId format is "YYYY-MM" 
-      const [yearStr, monthStr] = payment.billId.split('-');
-      const year = parseInt(yearStr);
-      const month = parseInt(monthStr);
-      affectedMonths.add(`${year}-${month}`);
-    }
-
-    console.log(`🔄 Smart cache update for ${affectedMonths.size} affected months:`, Array.from(affectedMonths));
-
-    // Update each affected month in cache
-    for (const monthKey of affectedMonths) {
-      const [year, month] = monthKey.split('-').map(Number);
-      try {
-        await waterDataService.updateMonthInCache(clientId, year, month);
-        console.log(`✅ Updated cache for ${clientId} FY${year} month ${month}`);
-      } catch (error) {
-        console.error(`❌ Failed to update cache for ${clientId} FY${year} month ${month}:`, error);
-        // Fallback to full cache clear if individual month update fails
-        console.log(`🔄 Falling back to full cache invalidation for ${clientId}`);
-        waterDataService.clearCache(clientId);
-        break;
-      }
-    }
-  }
 }
 
 export const waterPaymentsService = new WaterPaymentsService();
