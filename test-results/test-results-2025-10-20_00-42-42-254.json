@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-20T00:42:43.469Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 1,
+    "passedTests": 0,
+    "failedTests": 1,
+    "totalDuration": 0
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760920962952-dhrilx2wy",
+      "name": "Get Live Unpaid Bills",
+      "passed": false,
+      "duration": 516,
+      "error": "Backend not healthy: ",
+      "stack": "Error: Backend not healthy: \n    at TestHarness.ensureBackendHealth (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:345:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TestHarness.runTest (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/backend/testing/testHarness.js:206:7)\n    at async runLiveTests (file:///Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My%20Drive/Sandyland/SAMS/tests/water-payment-live-test.js:402:20)",
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:42:43.469Z"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "successRate": 0,
+    "averageDuration": 516,
+    "startTime": null,
+    "endTime": 1760920963469
+  }
+}

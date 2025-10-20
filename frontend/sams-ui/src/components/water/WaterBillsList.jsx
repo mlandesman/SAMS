@@ -544,6 +544,7 @@ ${washCharges.toFixed(2)}
           setSelectedUnitForPayment(null);
         }}
         unitId={selectedUnitForPayment}
+        selectedMonth={selectedMonth}
         onSuccess={() => {
           // Refresh bills data to show updated payment status (no cache to clear)
           console.log('✅ Payment recorded - refreshing data');

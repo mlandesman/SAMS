@@ -262,7 +262,8 @@ class WaterDataService {
         bills, 
         unpaidCarryover, 
         ratePerM3, 
-        config
+        config,
+        month
       );
       
       console.log(`✅ [SURGICAL] Unit ${unitId} data calculated successfully`);
@@ -278,7 +279,7 @@ class WaterDataService {
    * Calculate data for a single unit (extracted from loop logic)
    * This is the core unit calculation that both full month and surgical updates use
    */
-  _calculateUnitData(unit, currentReadings, priorReadings, bills, unpaidCarryover, ratePerM3, config) {
+  _calculateUnitData(unit, currentReadings, priorReadings, bills, unpaidCarryover, ratePerM3, config, month) {
     const unitId = unit.unitId;
     
     // 1. Extract reading from nested structure if present
@@ -382,10 +383,10 @@ class WaterDataService {
       displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0),  // In centavos
       
       // NEW: Summary fields for UI (cumulative totals)
-      totalPenalties: billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0),  // Cumulative penalties from all months
-      totalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100,  // Total to clear account (rounded)
-      displayTotalPenalties: billStatus === 'paid' ? 0 : (carryover.totalPenalties || 0),  // For UI display
-      displayTotalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100  // For UI display (rounded)
+      totalPenalties: billStatus === 'paid' ? 0 : (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0)),  // Current month penalty OR cumulative penalties from previous months
+      totalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0))) * 100) / 100,  // Total to clear account (rounded)
+      displayTotalPenalties: billStatus === 'paid' ? 0 : (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0)),  // For UI display
+      displayTotalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0))) * 100) / 100  // For UI display (rounded)
     };
     
     // TASK 2: Data consistency validation (after building the unit data)

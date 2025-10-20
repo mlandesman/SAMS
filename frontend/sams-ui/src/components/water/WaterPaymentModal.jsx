@@ -7,7 +7,7 @@ import waterAPI from '../../api/waterAPI';
 import { formatAsMXN } from '../../utils/hoaDuesUtils';
 import './WaterPaymentModal.css';
 
-function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
+function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }) {
   const { selectedClient } = useClient();
   const { waterData } = useWaterBills();
   
@@ -37,37 +37,48 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   
   // Load unpaid bills and credit balance when modal opens
   useEffect(() => {
-    if (isOpen && unitId && selectedClient && waterData && Object.keys(waterData).length > 0) {
+    if (isOpen && unitId && selectedClient && waterData && Object.keys(waterData).length > 0 && selectedMonth !== undefined) {
       loadUnpaidBillsData();
       loadPaymentMethods();
       loadClientAccounts();
     }
-  }, [isOpen, unitId, selectedClient, waterData]);
+  }, [isOpen, unitId, selectedClient, waterData, selectedMonth]);
   
   // Payment distribution calculation (only on blur)
   
   const loadUnpaidBillsData = async () => {
     setLoadingData(true);
     try {
-      // Get total due from aggregatedData for the CURRENT month (same as table)
+      // Get total due from aggregatedData for the SELECTED month (same as table)
       let totalDue = 0;
-      if (waterData.months && Array.isArray(waterData.months)) {
-        // Find the current month's data (same logic as WaterBillsList)
-        const currentMonthData = waterData.months.find(month => 
-          month.billsGenerated === true && month.units && month.units[unitId]
-        );
+      if (waterData.months && Array.isArray(waterData.months) && selectedMonth !== undefined) {
+        // Use the SAME month that the table is displaying
+        const monthData = waterData.months[selectedMonth];
         
-        if (currentMonthData && currentMonthData.units[unitId]) {
-          const unitData = currentMonthData.units[unitId];
+        if (monthData && monthData.units && monthData.units[unitId]) {
+          const unitData = monthData.units[unitId];
           totalDue = unitData.displayTotalDue || 0;
-          console.log(`🔍 [WaterPaymentModal] Using current month data: ${currentMonthData.monthName} ${currentMonthData.calendarYear}, displayTotalDue: $${totalDue}`);
+          console.log(`🔍 [WaterPaymentModal] Using selected month ${selectedMonth} (${monthData.monthName} ${monthData.calendarYear}), displayTotalDue: $${totalDue}`);
+        } else {
+          console.warn(`⚠️ [WaterPaymentModal] No unit data found for unit ${unitId} in month ${selectedMonth}`);
         }
       }
       
       console.log(`🔍 [WaterPaymentModal] Loading unpaid bills via preview API with total due: $${totalDue}`);
       
-      // Call preview API with total due amount to show all bills as "Will be paid in full"
-      const response = await waterAPI.previewPayment(selectedClient.id, { unitId, amount: totalDue });
+      // Get the due date from the selected month for backdated payment calculation
+      const selectedMonthData = waterData.months[selectedMonth];
+      const payOnDate = selectedMonthData?.dueDate;
+      
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (due date for selected month)`);
+      
+      // Call preview API with total due amount and payment date
+      const response = await waterAPI.previewPayment(selectedClient.id, { 
+        unitId, 
+        amount: totalDue,
+        payOnDate: payOnDate,
+        selectedMonth: selectedMonth
+      });
       
       if (response.success && response.data) {
         const previewData = response.data;
@@ -84,7 +95,30 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         });
         
         // Build unpaid bills table from preview data
-        const unpaidBills = previewData.billPayments.map(billPayment => ({
+        // Filter to only show bills up to and including the selected month
+        const selectedMonthData = waterData.months[selectedMonth];
+        const selectedFiscalYear = selectedMonthData?.fiscalYear;
+        const selectedMonthNum = selectedMonthData?.month;
+        
+        console.log(`🔍 [WaterPaymentModal] Filtering bills to show only up to fiscal year ${selectedFiscalYear}, month ${selectedMonthNum}`);
+        
+        const filteredBillPayments = previewData.billPayments.filter(billPayment => {
+          // Parse the bill period (e.g., "2026-00", "2026-01", etc.)
+          const [billFiscalYear, billMonth] = billPayment.billPeriod.split('-');
+          const billFiscalYearNum = parseInt(billFiscalYear);
+          const billMonthNum = parseInt(billMonth);
+          
+          // Include bill if it's in the same fiscal year and month <= selected month
+          // OR if it's in a previous fiscal year
+          const isIncluded = (billFiscalYearNum < selectedFiscalYear) || 
+                           (billFiscalYearNum === selectedFiscalYear && billMonthNum <= selectedMonthNum);
+          
+          console.log(`🔍 Bill ${billPayment.billPeriod}: fiscal year ${billFiscalYearNum}, month ${billMonthNum} vs selected ${selectedFiscalYear}, ${selectedMonthNum} -> ${isIncluded ? 'INCLUDED' : 'EXCLUDED'}`);
+          
+          return isIncluded;
+        });
+        
+        const unpaidBills = filteredBillPayments.map(billPayment => ({
           unitId: unitId,
           period: billPayment.billPeriod,
           baseChargeDue: billPayment.baseChargePaid, // Amount that would be paid
@@ -185,10 +219,18 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
     try {
       console.log(`💰 Fetching payment distribution from backend: $${paymentAmount}`);
       
+      // Get the due date from the selected month for backdated payment calculation
+      const selectedMonthData = waterData.months[selectedMonth];
+      const payOnDate = selectedMonthData?.dueDate;
+      
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (due date for selected month)`);
+      
       // Call backend preview API (single source of truth)
       const response = await waterAPI.previewPayment(selectedClient.id, {
         unitId,
-        amount: paymentAmount
+        amount: paymentAmount,
+        payOnDate: payOnDate,
+        selectedMonth: selectedMonth
       });
       
       if (response.success && response.data) {
@@ -279,8 +321,8 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         reference,
         notes,
         accountId: selectedAccount.id,
-        accountType: selectedAccount.type
-        // Backend will recalculate distribution using same logic as preview
+        accountType: selectedAccount.type,
+        selectedMonth: selectedMonth  // FIX #3: Pass selectedMonth to match preview behavior
       });
       
       console.log('💳 Full payment API response:', response.data);

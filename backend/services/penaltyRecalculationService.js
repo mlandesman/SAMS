@@ -233,6 +233,12 @@ class PenaltyRecalculationService {
       }
     };
 
+    // If billDueDate is undefined, return early with no penalty update
+    if (!billDueDate) {
+      console.log(`⚠️  [PENALTY_RECALC] Bill has no due date - skipping penalty calculation`);
+      return result;
+    }
+
     // Parse the bill's due date and calculate grace period end from that date
     const billDueDateObj = new Date(billDueDate);
     const gracePeriodEnd = new Date(billDueDateObj);

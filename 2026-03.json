@@ -1,6 +1,6 @@
 {
   "_id": "2026-03",
-  "billDate": "2025-10-17T21:29:22.232Z",
+  "billDate": "2025-10-19T20:23:42.064Z",
   "dueDate": "2025-10-01",
   "billingPeriod": "October 2025",
   "fiscalYear": 2026,
@@ -27,8 +27,8 @@
     "readingsDocId": "2026-03",
     "penaltiesApplied": false,
     "generatedAt": {
-      "_seconds": 1760736563,
-      "_nanoseconds": 51000000
+      "_seconds": 1760905422,
+      "_nanoseconds": 744000000
     }
   },
   "bills": {
@@ -46,24 +46,24 @@
         "currentCharge": 60000,
         "penaltyAmount": 0,
         "totalAmount": 60000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0012 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z",
         "payments": [
           {
-            "amount": 60000,
-            "baseChargePaid": 60000,
+            "amount": 0,
+            "baseChargePaid": 0,
             "penaltyPaid": 0,
-            "date": "2025-07-04",
+            "date": "2025-07-16",
             "method": "eTransfer",
             "reference": "",
-            "transactionId": "2025-07-04_194812_222",
-            "recordedAt": "2025-10-19T00:48:13.099Z"
+            "transactionId": "2025-07-16_152609_895",
+            "recordedAt": "2025-10-19T20:26:11.424Z"
           }
-        ],
-        "paidAmount": 60000,
-        "basePaid": 60000,
-        "status": "paid"
+        ]
       },
       "102": {
         "priorReading": 34,
@@ -78,24 +78,12 @@
         "currentCharge": 65000,
         "penaltyAmount": 0,
         "totalAmount": 65000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0013 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
-        "payments": [
-          {
-            "amount": 37999,
-            "baseChargePaid": 37999,
-            "penaltyPaid": 0,
-            "date": "2025-07-04",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-07-04_194616_271",
-            "recordedAt": "2025-10-19T00:46:17.063Z"
-          }
-        ],
-        "paidAmount": 37999,
-        "basePaid": 37999,
-        "status": "partial"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "103": {
         "priorReading": 874,
@@ -110,24 +98,12 @@
         "currentCharge": 15000,
         "penaltyAmount": 0,
         "totalAmount": 15000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0003 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
-        "payments": [
-          {
-            "amount": 100000,
-            "baseChargePaid": 15000,
-            "penaltyPaid": 0,
-            "date": "2025-10-19",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-10-19_090201_697",
-            "recordedAt": "2025-10-19T14:02:02.924Z"
-          }
-        ],
-        "paidAmount": 100000,
-        "basePaid": 15000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "104": {
         "priorReading": 1506,
@@ -142,24 +118,12 @@
         "currentCharge": 50000,
         "penaltyAmount": 0,
         "totalAmount": 50000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0010 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
-        "payments": [
-          {
-            "amount": 50000,
-            "baseChargePaid": 50000,
-            "penaltyPaid": 0,
-            "date": "2025-07-23",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-07-23_194935_430",
-            "recordedAt": "2025-10-19T00:49:36.219Z"
-          }
-        ],
-        "paidAmount": 50000,
-        "basePaid": 50000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "105": {
         "priorReading": 853,
@@ -174,24 +138,12 @@
         "currentCharge": 10000,
         "penaltyAmount": 0,
         "totalAmount": 10000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0002 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.754Z",
-        "payments": [
-          {
-            "amount": 10000,
-            "baseChargePaid": 10000,
-            "penaltyPaid": 0,
-            "date": "2025-07-25",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-07-25_195013_474",
-            "recordedAt": "2025-10-19T00:50:14.258Z"
-          }
-        ],
-        "paidAmount": 10000,
-        "basePaid": 10000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "106": {
         "priorReading": 1371,
@@ -206,34 +158,12 @@
         "currentCharge": 65000,
         "penaltyAmount": 0,
         "totalAmount": 65000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0013 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.755Z",
-        "payments": [
-          {
-            "amount": 0,
-            "baseChargePaid": 0,
-            "penaltyPaid": 0,
-            "date": "2025-09-13",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-09-13_195325_977",
-            "recordedAt": "2025-10-19T00:53:26.780Z"
-          },
-          {
-            "amount": 78745,
-            "baseChargePaid": 65000,
-            "penaltyPaid": 0,
-            "date": "2025-10-19",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": null,
-            "recordedAt": "2025-10-19T01:33:25.275Z"
-          }
-        ],
-        "paidAmount": 78745,
-        "basePaid": 65000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "201": {
         "priorReading": 1084,
@@ -248,24 +178,12 @@
         "currentCharge": 5000,
         "penaltyAmount": 0,
         "totalAmount": 5000,
+        "status": "unpaid",
+        "paidAmount": 0,
         "penaltyPaid": 0,
+        "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0001 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.755Z",
-        "payments": [
-          {
-            "amount": 5000,
-            "baseChargePaid": 5000,
-            "penaltyPaid": 0,
-            "date": "2025-07-04",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-07-04_195041_480",
-            "recordedAt": "2025-10-19T00:50:42.182Z"
-          }
-        ],
-        "paidAmount": 5000,
-        "basePaid": 5000,
-        "status": "paid"
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       },
       "203": {
         "priorReading": 1692,
@@ -285,19 +203,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for October 2025 - 0031 m³",
-        "lastPenaltyUpdate": "2025-10-17T21:29:22.755Z",
-        "payments": [
-          {
-            "amount": 0,
-            "baseChargePaid": 0,
-            "penaltyPaid": 0,
-            "date": "2025-08-13",
-            "method": "eTransfer",
-            "reference": "",
-            "transactionId": "2025-08-13_195248_877",
-            "recordedAt": "2025-10-19T00:52:49.681Z"
-          }
-        ]
+        "lastPenaltyUpdate": "2025-10-19T20:23:42.591Z"
       }
     }
   }

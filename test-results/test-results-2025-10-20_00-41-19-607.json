@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-20T00:41:24.086Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 5,
+    "passedTests": 5,
+    "failedTests": 0,
+    "totalDuration": 0
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760920880692-iuqf2jw0h",
+      "name": "Get Live Unpaid Bills",
+      "passed": true,
+      "duration": 1409,
+      "data": {
+        "unpaidBills": [],
+        "count": 0
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:41:22.101Z",
+      "message": "Found 0 unpaid bills"
+    },
+    {
+      "id": "TEST-1760920882101-3c93fgg7c",
+      "name": "Preview Payment WITH selectedMonth (Month 0 = July)",
+      "passed": true,
+      "duration": 850,
+      "data": {
+        "preview": {
+          "totalAvailableFunds": 950,
+          "billPayments": [],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_credit",
+              "targetId": "credit_101_water",
+              "targetName": "Account Credit - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Account Credit",
+              "categoryId": "account-credit",
+              "data": {
+                "unitId": "101",
+                "creditType": "water_overpayment"
+              },
+              "metadata": {
+                "processingStrategy": "account_credit",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:41:22.923Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 0,
+            "allocationCount": 0,
+            "allocationType": null,
+            "hasMultipleTypes": false
+          },
+          "totalBaseCharges": 0,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 950,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 950,
+          "totalBillsDue": 0
+        },
+        "billsProcessed": 0,
+        "totalBillsDue": 0
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:41:22.951Z",
+      "message": "Preview processed 0 bills"
+    },
+    {
+      "id": "TEST-1760920882951-9xp7b356c",
+      "name": "Preview Payment WITHOUT selectedMonth (All Bills)",
+      "passed": true,
+      "duration": 687,
+      "data": {
+        "preview": {
+          "totalAvailableFunds": 950,
+          "billPayments": [],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_credit",
+              "targetId": "credit_101_water",
+              "targetName": "Account Credit - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Account Credit",
+              "categoryId": "account-credit",
+              "data": {
+                "unitId": "101",
+                "creditType": "water_overpayment"
+              },
+              "metadata": {
+                "processingStrategy": "account_credit",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:41:23.637Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 0,
+            "allocationCount": 0,
+            "allocationType": null,
+            "hasMultipleTypes": false
+          },
+          "totalBaseCharges": 0,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 950,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 950,
+          "totalBillsDue": 0
+        },
+        "billsProcessed": 0,
+        "totalBillsDue": 0
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:41:23.638Z",
+      "message": "Preview processed 0 bills"
+    },
+    {
+      "id": "TEST-1760920883638-w164k1n27",
+      "name": "Compare Preview WITH vs WITHOUT selectedMonth",
+      "passed": true,
+      "duration": 1,
+      "data": {
+        "billsMatch": true,
+        "chargesMatch": true,
+        "penaltiesMatch": true,
+        "totalsMatch": true,
+        "with_data": {
+          "totalAvailableFunds": 950,
+          "billPayments": [],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_credit",
+              "targetId": "credit_101_water",
+              "targetName": "Account Credit - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Account Credit",
+              "categoryId": "account-credit",
+              "data": {
+                "unitId": "101",
+                "creditType": "water_overpayment"
+              },
+              "metadata": {
+                "processingStrategy": "account_credit",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:41:22.923Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 0,
+            "allocationCount": 0,
+            "allocationType": null,
+            "hasMultipleTypes": false
+          },
+          "totalBaseCharges": 0,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 950,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 950,
+          "totalBillsDue": 0
+        },
+        "without_data": {
+          "totalAvailableFunds": 950,
+          "billPayments": [],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_credit",
+              "targetId": "credit_101_water",
+              "targetName": "Account Credit - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Account Credit",
+              "categoryId": "account-credit",
+              "data": {
+                "unitId": "101",
+                "creditType": "water_overpayment"
+              },
+              "metadata": {
+                "processingStrategy": "account_credit",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:41:23.637Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 0,
+            "allocationCount": 0,
+            "allocationType": null,
+            "hasMultipleTypes": false
+          },
+          "totalBaseCharges": 0,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 950,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 950,
+          "totalBillsDue": 0
+        }
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:41:23.639Z",
+      "message": "Results match",
+      "reason": null
+    },
+    {
+      "id": "TEST-1760920883639-xetkjuv26",
+      "name": "Check AggregatedData Status",
+      "passed": true,
+      "duration": 447,
+      "data": {
+        "exists": true,
+        "fiscalYear": true,
+        "monthsCount": 12,
+        "unitFound": true,
+        "unitStatus": "unpaid"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:41:24.086Z",
+      "message": "aggregatedData exists, unit found"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "successRate": 100,
+    "averageDuration": 679,
+    "startTime": null,
+    "endTime": 1760920884086
+  }
+}
