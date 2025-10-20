@@ -34,16 +34,23 @@ class WaterDataService {
     const { units, billingConfig: config } = await this.getClientConfig(clientId);
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
-    // Build data for each month using existing calculation methods
+    // Build data for each month - stop when no more bills exist
     for (let month = 0; month < 12; month++) {
-      const monthExists = await this._checkMonthExists(clientId, year, month);
-      if (!monthExists && month > 0) {
-        break; // No more months with data
+      // Check if bills exist for this month (more accurate than checking readings)
+      const hasBills = await this._checkBillsExist(clientId, year, month);
+      
+      // Stop if no bills and not the first month
+      // (Month 0 might not have bills yet in a new fiscal year)
+      if (!hasBills && month > 0) {
+        console.log(`📊 Stopping at month ${month} - no bills generated yet`);
+        break;
       }
       
       const monthData = await this.buildSingleMonthData(clientId, year, month);
       months.push(monthData);
     }
+    
+    console.log(`📊 Built ${months.length} months of data`);
     
     // Calculate year summary
     const summary = this.calculateYearSummary(months);
@@ -622,6 +629,18 @@ class WaterDataService {
     try {
       const readings = await this.fetchReadings(clientId, year, month);
       return readings && Object.keys(readings).length > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Check if bills exist for a month (used to avoid calculating future months)
+   */
+  async _checkBillsExist(clientId, year, month) {
+    try {
+      const bills = await this.fetchBills(clientId, year, month);
+      return bills && bills.bills && Object.keys(bills.bills.units || {}).length > 0;
     } catch (error) {
       return false;
     }
