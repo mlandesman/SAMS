@@ -293,18 +293,17 @@ class WaterAPI {
   }
 
   /**
-   * Get aggregated water data for a fiscal year
-   * PHASE 2: Direct API calls with NO caching layer
-   * This endpoint returns everything: readings, bills, payments, status
-   * Backend aggregatedData is optimized for fast single reads
+   * Get all bills for a fiscal year (12 months)
+   * SIMPLIFIED: Direct reads from bill documents (no aggregatedData caching)
+   * This fetches all 12 monthly bill documents in one request
    */
-  async getAggregatedData(clientId, year) {
+  async getBillsForYear(clientId, year) {
     const token = await this.getAuthToken();
     
-    console.log(`💧 WaterAPI fetching fresh aggregated data for ${clientId} year ${year}`);
+    console.log(`💧 WaterAPI fetching bills for ${clientId} year ${year}`);
     
     const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/aggregatedData?year=${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/${year}`,
       {
         method: 'GET',
         headers: {
@@ -315,7 +314,7 @@ class WaterAPI {
     );
     
     const result = await handleApiResponse(response);
-    console.log(`✅ WaterAPI received fresh data (no cache)`);
+    console.log(`✅ WaterAPI received ${Object.keys(result.data || {}).length} months of bills`);
     
     return result;
   }
