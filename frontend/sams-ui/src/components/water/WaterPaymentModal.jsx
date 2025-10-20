@@ -219,11 +219,10 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
     try {
       console.log(`💰 Fetching payment distribution from backend: $${paymentAmount}`);
       
-      // Get the due date from the selected month for backdated payment calculation
-      const selectedMonthData = waterData.months[selectedMonth];
-      const payOnDate = selectedMonthData?.dueDate;
+      // Use the payment date from the form for backdated payment calculation
+      const payOnDate = paymentDate;
       
-      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (due date for selected month)`);
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (from form input)`);
       
       // Call backend preview API (single source of truth)
       const response = await waterAPI.previewPayment(selectedClient.id, {
@@ -427,11 +426,12 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                       type="number"
                       step="0.01"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onBlur={() => {
-                        // Trigger calculation immediately when field loses focus
-                        if (amount && unpaidBills.length >= 0) {
-                          calculatePaymentDistribution();
+                      onChange={(e) => {
+                        const newAmount = e.target.value;
+                        setAmount(newAmount);
+                        // Trigger recalculation immediately when amount changes
+                        if (newAmount && parseFloat(newAmount) > 0) {
+                          calculatePaymentDistribution(parseFloat(newAmount));
                         }
                       }}
                       required
@@ -501,7 +501,14 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                   <input
                     type="date"
                     value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
+                    onChange={(e) => {
+                      const newPaymentDate = e.target.value;
+                      setPaymentDate(newPaymentDate);
+                      // Trigger recalculation immediately when payment date changes
+                      if (amount && parseFloat(amount) > 0) {
+                        calculatePaymentDistribution(parseFloat(amount));
+                      }
+                    }}
                     required
                     disabled={loading}
                   />

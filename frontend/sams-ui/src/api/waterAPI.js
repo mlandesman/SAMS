@@ -473,6 +473,26 @@ class WaterAPI {
   }
 
   /**
+   * Get all readings for a year (for reading months dropdown)
+   */
+  async getReadingsForYear(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    return handleApiResponse(response);
+  }
+
+  /**
    * @deprecated PHASE 2: Cache system removed - this method is no longer needed
    * Clear water data cache for a client
    * Kept for backwards compatibility but does nothing

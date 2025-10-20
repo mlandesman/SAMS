@@ -21,6 +21,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [availableReadingMonths, setAvailableReadingMonths] = useState([]);
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -35,8 +36,51 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   useEffect(() => {
     if (clientId) {
       fetchBillingConfig();
+      fetchAvailableReadingMonths();
     }
-  }, [clientId, refreshKey]);
+}, [clientId, refreshKey]);
+
+  const fetchAvailableReadingMonths = async () => {
+    try {
+      // Fetch reading months from the readings API
+      const response = await waterAPI.getReadingsForYear(clientId, 2026);
+      if (response.success && response.data?.months) {
+        const readingMonths = [];
+        
+        // Convert reading months to dropdown format
+        for (let i = 0; i < 12; i++) {
+          const monthData = response.data.months[i];
+          if (monthData && Object.keys(monthData).length > 0) {
+            // This month has readings
+            const calendarYear = i < 6 ? 2025 : 2026; // Fiscal year adjustment
+            const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
+            
+            readingMonths.push({
+              month: i,
+              monthName,
+              calendarYear,
+              hasReadings: true
+            });
+          }
+        }
+        
+        setAvailableReadingMonths(readingMonths);
+        console.log(`📖 Found ${readingMonths.length} months with readings for bill generation`);
+      }
+    } catch (error) {
+      console.error('Error fetching reading months:', error);
+      // Fallback to showing bill months if readings fetch fails
+      if (waterData?.months) {
+        const billMonths = waterData.months.map((month, idx) => ({
+          month: idx,
+          monthName: month.monthName,
+          calendarYear: month.calendarYear,
+          hasReadings: false
+        }));
+        setAvailableReadingMonths(billMonths);
+      }
+    }
+  };
 
   // Auto-advance to most recent bill period when data loads
   useEffect(() => {
@@ -241,9 +285,10 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className="month-dropdown"
           >
-            {waterData.months.map((month, idx) => (
-              <option key={idx} value={idx}>
+            {availableReadingMonths.map((month) => (
+              <option key={month.month} value={month.month}>
                 {month.monthName} {month.calendarYear}
+                {!month.hasReadings ? ' (No readings)' : ''}
               </option>
             ))}
           </select>
