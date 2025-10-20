@@ -709,7 +709,7 @@ class WaterDataService {
    * This allows reuse with different data fetching strategies
    */
   _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}, currentTimestamp = null, priorTimestamp = null) {
-    console.log(`🔧 [BUILD_WITH_CARRYOVER] Building month ${month} with carryover data`);
+    // Building month data with carryover calculations
     
     // Build unit data (reuse existing logic from buildMonthData)
     const unitData = {};
@@ -812,18 +812,6 @@ class WaterDataService {
           const payments = bill?.payments;
           const transactionId = payments && payments.length > 0 ? payments[payments.length - 1].transactionId : null;
           
-          // DEBUG: Log transaction ID resolution for debugging
-          if (unitId === '203') {
-            console.log(`🐛 [WATER_DATA_SERVICE] Unit ${unitId} transaction ID resolution:`, {
-              hasBill: !!bill,
-              hasPayments: !!payments,
-              paymentsLength: payments?.length || 0,
-              lastPayment: payments?.[payments.length - 1] || null,
-              resolvedTransactionId: transactionId,
-              billStatus: bill?.status
-            });
-          }
-          
           return transactionId;
         })(),
         // CRITICAL: Include payments array for UI transaction navigation
@@ -877,20 +865,7 @@ class WaterDataService {
       if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
         console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
       }
-      
-      // DEBUG: Log penalty assignment for specific units we're tracking
-      if (unitId === '106' || unitId === '203') {
-        console.log(`🐛 [AGGREGATOR] Unit ${unitId} penalty assignment: penalty=${penaltyAmount}, fromBill=${!!bill}, billPenalty=${bill?.penaltyAmount}, carryoverPenalty=${carryover.penaltyAmount}`);
-      }
     }
-    
-    // DEBUG: Log penalty amounts being returned for month
-    console.log(`🐛 [AGGREGATOR] Month ${month} penalty summary:`);
-    Object.entries(unitData).forEach(([unitId, data]) => {
-      if (data.penaltyAmount > 0 || unitId === '106' || unitId === '203') {
-        console.log(`  Unit ${unitId}: penalty=${data.penaltyAmount}, fromBill=${!!bills?.bills?.units?.[unitId]}`);
-      }
-    });
     
     // Build response object
     const monthData = {
