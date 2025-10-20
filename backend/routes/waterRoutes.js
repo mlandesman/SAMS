@@ -22,93 +22,8 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(authenticateUserWithProfile);
 
-/**
- * Convert aggregatedData from centavos (backend storage) to pesos (frontend display)
- * 
- * ARCHITECTURAL DECISION: Convert once at API layer, not 1,800+ times in frontend
- * - AggregatedData has 12 months × 10 units × 15+ fields = 1,800+ values
- * - Converting once here is FAR more efficient than converting in frontend
- * - Frontend receives clean pesos, no confusion about "is 8000 = $8000 or $80?"
- * - Matches pattern that will be applied to HOA Dues refactoring
- */
-function convertAggregatedDataToPesos(data) {
-  if (!data || !data.months) return data;
-  
-  // Currency fields that need conversion from centavos to pesos
-  const currencyFields = [
-    'previousBalance', 'penaltyAmount', 'billAmount', 'totalAmount',
-    'paidAmount', 'unpaidAmount', 'displayDue', 'displayPenalties', 'displayOverdue',
-    'totalPenalties', 'totalDue', 'displayTotalPenalties', 'displayTotalDue'
-  ];
-  
-  // Convert months array
-  const convertedMonths = data.months.map(month => {
-    if (!month || !month.units) return month;
-    
-    // Convert each unit's currency fields
-    const convertedUnits = {};
-    for (const [unitId, unitData] of Object.entries(month.units)) {
-      convertedUnits[unitId] = { ...unitData };
-      
-      // Convert each currency field from centavos to pesos
-      for (const field of currencyFields) {
-        if (typeof unitData[field] === 'number') {
-          convertedUnits[unitId][field] = centavosToPesos(unitData[field]);
-        }
-      }
-      
-      // Convert payments array amounts
-      if (unitData.payments && Array.isArray(unitData.payments)) {
-        convertedUnits[unitId].payments = unitData.payments.map(payment => ({
-          ...payment,
-          amount: typeof payment.amount === 'number' ? centavosToPesos(payment.amount) : payment.amount,
-          baseChargePaid: typeof payment.baseChargePaid === 'number' ? centavosToPesos(payment.baseChargePaid) : payment.baseChargePaid,
-          penaltyPaid: typeof payment.penaltyPaid === 'number' ? centavosToPesos(payment.penaltyPaid) : payment.penaltyPaid
-        }));
-      }
-    }
-    
-    return {
-      ...month,
-      units: convertedUnits
-    };
-  });
-  
-  // Convert wash rates
-  const carWashRate = typeof data.carWashRate === 'number' ? centavosToPesos(data.carWashRate) : data.carWashRate;
-  const boatWashRate = typeof data.boatWashRate === 'number' ? centavosToPesos(data.boatWashRate) : data.boatWashRate;
-  
-  // Convert summary fields from centavos to pesos
-  let convertedSummary = data.summary;
-  if (data.summary && typeof data.summary === 'object') {
-    convertedSummary = {
-      ...data.summary,
-      totalBilled: typeof data.summary.totalBilled === 'number' ? centavosToPesos(data.summary.totalBilled) : data.summary.totalBilled,
-      totalPaid: typeof data.summary.totalPaid === 'number' ? centavosToPesos(data.summary.totalPaid) : data.summary.totalPaid,
-      totalUnpaid: typeof data.summary.totalUnpaid === 'number' ? centavosToPesos(data.summary.totalUnpaid) : data.summary.totalUnpaid,
-      totalNewCharges: typeof data.summary.totalNewCharges === 'number' ? centavosToPesos(data.summary.totalNewCharges) : data.summary.totalNewCharges
-    };
-    
-    // Convert overdueDetails amounts if present
-    if (data.summary.overdueDetails && Array.isArray(data.summary.overdueDetails)) {
-      convertedSummary.overdueDetails = data.summary.overdueDetails.map(detail => ({
-        ...detail,
-        amountDue: typeof detail.amountDue === 'number' ? centavosToPesos(detail.amountDue) : detail.amountDue
-      }));
-    }
-  }
-  
-  return {
-    ...data,
-    months: convertedMonths,
-    carWashRate,
-    boatWashRate,
-    summary: convertedSummary
-  };
-}
-
 // ============= DATA AGGREGATION ============= 
-// (Removed aggregatedData endpoints - using direct bill reads instead)
+// AggregatedData endpoints removed - using direct bill document reads instead
 
 
 // ============= READINGS =============
@@ -259,11 +174,47 @@ router.get('/clients/:clientId/bills/:year/:month', enforceClientAccess, async (
   }
 });
 
+// GET /water/clients/:clientId/bills/:year - Get all 12 months for a year
+router.get('/clients/:clientId/bills/:year', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    
+    console.log(`📖 Fetching all bills for ${clientId} year ${year}`);
+    
+    // Fetch all 12 months in parallel
+    const months = Array.from({ length: 12 }, (_, i) => i);
+    const billPromises = months.map(month =>
+      waterBillsService.getBills(clientId, parseInt(year), month, false)
+    );
+    
+    const billsArray = await Promise.all(billPromises);
+    
+    // Convert array to object keyed by month ID
+    const bills = {};
+    billsArray.forEach((monthBills, idx) => {
+      if (monthBills && monthBills.bills) {
+        const monthId = `${year}-${String(idx).padStart(2, '0')}`;
+        bills[monthId] = monthBills;
+      }
+    });
+    
+    console.log(`✅ Fetched ${Object.keys(bills).length} months of bills`);
+    
+    res.json({
+      success: true,
+      data: bills
+    });
+  } catch (error) {
+    console.error('Error fetching year bills:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // ============= CONFIGURATION =============
 // GET /water/clients/:clientId/config
 router.get('/clients/:clientId/config', enforceClientAccess, getBillingConfig);
-
-// ============= CACHE MANAGEMENT ============= 
-// (Removed - no caching layer)
 
 export default router;
