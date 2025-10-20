@@ -1024,32 +1024,13 @@ async function deleteTransaction(clientId, txnId) {
           });
         }
         
-        console.log(`🔄 [BACKEND] Affected years for surgical update:`, Array.from(updatesByYear.keys()));
-        
-        // Trigger surgical updates per year
-        for (const [year, affectedUnitsAndMonths] of updatesByYear) {
-          console.log(`🔄 [BACKEND] Surgical update for year ${year} with ${affectedUnitsAndMonths.length} unit-month combination(s)`);
-          
-          await waterDataService.updateAggregatedDataAfterPayment(
-            clientId,
-            year,
-            affectedUnitsAndMonths
-          );
-          
-          console.log(`✅ [BACKEND] Surgical update completed for year ${year}`);
-        }
-        
-        console.log(`✅ [BACKEND] All surgical updates completed successfully after payment reversal`);
+        console.log(`✅ [BACKEND] Water bills payment reversal completed successfully`);
+        console.log(`   Bills returned to unpaid status - frontend will fetch fresh data`);
         
       } catch (recalcError) {
-        console.error('❌ [BACKEND] Error during surgical update:', recalcError);
+        console.error('❌ [BACKEND] Error during water bills cleanup:', recalcError);
         console.error('   Error details:', recalcError.message);
         console.error('   Stack trace:', recalcError.stack);
-        // Don't fail the delete - transaction already committed successfully
-        // Payment reversal is complete, surgical update is a cache optimization
-        console.warn('⚠️ [BACKEND] Payment deleted successfully but surgical update failed');
-        console.warn('   Bills returned to unpaid status correctly');
-        console.warn('   Manual refresh or full recalc will fix aggregatedData');
       }
     }
 
@@ -1113,17 +1094,9 @@ async function deleteTransaction(clientId, txnId) {
       }
     }
     
-    // Invalidate water data cache for water transactions to reflect payment reversals
+    // Water bills updated - frontend will fetch fresh data on next read
     if (waterCleanupExecuted) {
-      console.log(`🔄 [BACKEND] Invalidating water data cache after water transaction deletion`);
-      try {
-        const { waterDataService } = await import('../services/waterDataService.js');
-        waterDataService.invalidate(clientId);
-        console.log(`✅ [BACKEND] Water data cache invalidated after water transaction deletion`);
-      } catch (cacheError) {
-        console.error(`❌ [BACKEND] Error invalidating water cache after water transaction deletion:`, cacheError);
-        // Don't fail the deletion if cache invalidation fails, just log the error
-      }
+      console.log(`✅ [BACKEND] Water bills updated - frontend will refresh automatically`);
     }
 
     return true;

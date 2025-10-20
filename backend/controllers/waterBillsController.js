@@ -104,15 +104,8 @@ export const generateBills = async (req, res) => {
       dueDate ? { dueDate } : undefined
     );
     
-    // CRITICAL: Update aggregatedData after bill generation
-    console.log(`🔄 [GENERATE_BILLS] Updating aggregatedData after bill generation...`);
-    try {
-      await waterDataService.getYearData(clientId, parseInt(year));
-      console.log(`✅ [GENERATE_BILLS] AggregatedData updated successfully`);
-    } catch (aggregatedError) {
-      console.warn(`⚠️ [GENERATE_BILLS] Failed to update aggregatedData (non-critical):`, aggregatedError.message);
-      // Continue with response - bills were generated successfully
-    }
+    // Bills generated successfully - frontend will fetch fresh data
+    console.log(`✅ [GENERATE_BILLS] Bills generated successfully`);
     
     // Convert bills from centavos to pesos for frontend compatibility
     const convertedResult = convertBillsToPesos(result);
