@@ -202,17 +202,15 @@ class WaterPaymentsService {
     const configDoc = await this.db
       .collection('clients')
       .doc(clientId)
-      .collection('projects')
-      .doc('waterBills')
       .collection('config')
-      .doc('billing')
+      .doc('waterBills')
       .get();
     
     if (!configDoc.exists) {
       // Return default config
       return {
         penaltyRate: 0.05,
-        gracePeriodDays: 10,
+        penaltyDays: 10,
         ratePerM3: 5000
       };
     }
@@ -233,7 +231,7 @@ class WaterPaymentsService {
     // Get billing config for penalty rate
     const config = await this._getBillingConfig(clientId);
     const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
-    const gracePeriodDays = config.gracePeriodDays || 10; // 10 days grace period default
+    const gracePeriodDays = config.penaltyDays || 10; // 10 days grace period default (penaltyDays is the grace period)
     
     const recalculatedBills = [];
     
