@@ -121,9 +121,10 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
           unitId: unitId,
           period: billPayment.billPeriod,
           // Display total amounts due (not payment amounts)
-          baseChargeDue: billPayment.totalBaseDue || billPayment.baseChargePaid, // Total base charge due
-          penaltiesDue: billPayment.totalPenaltyDue || billPayment.penaltyPaid,  // Total penalty due
-          unpaidAmount: billPayment.totalDue || billPayment.amountPaid,          // Total amount due
+          // CRITICAL: Use explicit undefined check because 0 is a valid value for partial payments!
+          baseChargeDue: billPayment.totalBaseDue !== undefined ? billPayment.totalBaseDue : billPayment.baseChargePaid,
+          penaltiesDue: billPayment.totalPenaltyDue !== undefined ? billPayment.totalPenaltyDue : billPayment.penaltyPaid,
+          unpaidAmount: billPayment.totalDue !== undefined ? billPayment.totalDue : billPayment.amountPaid,
           // Store payment amounts for reference
           baseChargePaid: billPayment.baseChargePaid, // Amount that would be paid to base charges
           penaltyPaid: billPayment.penaltyPaid,      // Amount that would be paid to penalties

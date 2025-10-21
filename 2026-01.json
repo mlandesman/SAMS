@@ -118,12 +118,24 @@
         "currentCharge": 40000,
         "penaltyAmount": 0,
         "totalAmount": 40000,
-        "status": "unpaid",
-        "paidAmount": 0,
         "penaltyPaid": 0,
-        "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0008 m³",
-        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z"
+        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z",
+        "payments": [
+          {
+            "amount": 40000,
+            "baseChargePaid": 40000,
+            "penaltyPaid": 0,
+            "date": "2025-08-09",
+            "method": "eTransfer",
+            "reference": "",
+            "transactionId": "2025-08-09_144244_483",
+            "recordedAt": "2025-10-21T19:42:46.911Z"
+          }
+        ],
+        "paidAmount": 40000,
+        "basePaid": 40000,
+        "status": "paid"
       },
       "105": {
         "priorReading": 846,
@@ -163,14 +175,14 @@
         "penaltyPaid": 5500,
         "payments": [
           {
-            "amount": 150000,
+            "amount": 123750,
             "baseChargePaid": 55000,
             "penaltyPaid": 5500,
             "date": "2025-09-21",
             "method": "eTransfer",
             "reference": "",
-            "transactionId": "2025-09-21_133352_123",
-            "recordedAt": "2025-10-21T18:33:55.409Z"
+            "transactionId": "2025-09-21_140315_474",
+            "recordedAt": "2025-10-21T19:03:19.255Z"
           }
         ],
         "paidAmount": 60500,
