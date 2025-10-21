@@ -212,7 +212,7 @@ class WaterPaymentsService {
       // Return default config
       return {
         penaltyRate: 0.05,
-        gracePeriodDays: 7,
+        gracePeriodDays: 10,
         ratePerM3: 5000
       };
     }
@@ -233,7 +233,7 @@ class WaterPaymentsService {
     // Get billing config for penalty rate
     const config = await this._getBillingConfig(clientId);
     const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
-    const gracePeriodDays = config.gracePeriodDays || 7; // 7 days grace period default
+    const gracePeriodDays = config.gracePeriodDays || 10; // 10 days grace period default
     
     const recalculatedBills = [];
     
@@ -264,7 +264,7 @@ class WaterPaymentsService {
       
       let recalculatedPenaltyAmount = 0;
       
-      if (daysPastDue > 0) {
+      if (daysPastDue > gracePeriodDays) {
         // Calculate penalty based on actual calendar months past due
         const dueDateObj = new Date(dueDate);
         const paymentDateObj = new Date(asOfDate);
