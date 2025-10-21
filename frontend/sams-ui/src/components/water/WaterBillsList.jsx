@@ -47,25 +47,34 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       if (response.success && response.data?.months) {
         const readingMonths = [];
         
-        // Show ALL months that have readings data (these can have bills generated)
+        // Find highest month with readings data
+        let highestMonthWithReadings = -1;
         for (let i = 0; i < 12; i++) {
           const monthData = response.data.months[i];
           if (monthData && Object.keys(monthData).length > 0) {
-            // This month has readings - can generate bills for it
-            const calendarYear = i < 6 ? 2025 : 2026; // Fiscal year adjustment
-            const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
-            
-            readingMonths.push({
-              month: i,
-              monthName,
-              calendarYear,
-              hasReadings: true
-            });
+            highestMonthWithReadings = i;
           }
         }
         
+        // Show months up to highest + 1 (for bill generation)
+        const maxMonth = Math.min(highestMonthWithReadings + 2, 12);
+        
+        for (let i = 0; i < maxMonth; i++) {
+          const monthData = response.data.months[i];
+          const hasReadings = monthData && Object.keys(monthData).length > 0;
+          const calendarYear = i < 6 ? 2025 : 2026;
+          const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
+          
+          readingMonths.push({
+            month: i,
+            monthName,
+            calendarYear,
+            hasReadings
+          });
+        }
+        
         setAvailableReadingMonths(readingMonths);
-        console.log(`📖 Found ${readingMonths.length} months with readings data for bill generation`);
+        console.log(`📖 Found ${readingMonths.length} months for bill generation (highest readings: ${highestMonthWithReadings}, showing up to: ${maxMonth-1})`);
       }
     } catch (error) {
       console.error('Error fetching reading months:', error);
