@@ -55,9 +55,19 @@ class WaterDataService {
         break;
       }
       
+      // CRITICAL: Calculate dynamic carryover from all prior months (0 to month-1)
+      // This ensures displayOverdue always reflects current payment status
+      const unpaidCarryover = month === 0 
+        ? {} // First month has no prior months
+        : await this._calculateUnpaidCarryover(clientId, year, month, config?.ratePerM3 || 5000);
+      
+      console.log(`📊 Month ${month} carryover:`, Object.keys(unpaidCarryover).length > 0 
+        ? `${Object.keys(unpaidCarryover).length} units with overdue` 
+        : 'no overdue amounts');
+      
       // Pass pre-fetched data to month builder (avoids individual fetches)
       const monthData = await this.buildSingleMonthDataWithCache(
-        clientId, year, month, allReadings, allBills, config
+        clientId, year, month, allReadings, allBills, config, unpaidCarryover
       );
       months.push(monthData);
     }
@@ -414,7 +424,7 @@ class WaterDataService {
    * Build data for a single month using pre-fetched data (for batch operations)
    * This version uses cached data passed from buildYearDataForDisplay
    */
-  async buildSingleMonthDataWithCache(clientId, year, month, allReadings, allBills, config) {
+  async buildSingleMonthDataWithCache(clientId, year, month, allReadings, allBills, config, unpaidCarryover = {}) {
     // Get readings for current and prior month from cache
     const priorMonth = month === 0 ? 'prior-11' : (month - 1);
     const currentReadingsData = allReadings[month] || { readings: {}, timestamp: null };
@@ -433,11 +443,11 @@ class WaterDataService {
     // Get rate from config
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
-    // Build month data using the fetched data
+    // Build month data using the fetched data with calculated carryover
     return this._buildMonthDataFromSourcesWithCarryover(
       year, month, 
       currentReadings, priorReadings, bills,
-      units, config, ratePerM3, {}, 
+      units, config, ratePerM3, unpaidCarryover, 
       currentTimestamp, priorTimestamp
     );
   }
