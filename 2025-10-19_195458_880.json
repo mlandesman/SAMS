@@ -1,0 +1,97 @@
+{
+  "_id": "2025-10-19_195458_880",
+  "amount": 95000,
+  "type": "income",
+  "categoryId": null,
+  "categoryName": "-Split-",
+  "vendorId": "deposit",
+  "unitId": "203",
+  "accountId": "acc_test",
+  "accountType": "bank",
+  "paymentMethod": "eTransfer",
+  "paymentMethodId": "method_test",
+  "reference": "E2E-TEST-001",
+  "notes": "Water bill payment for Unit 203 - Water Consumption for July 2025 - 0043 m³ - End-to-end test payment - $1900.00 charges",
+  "date": {
+    "_seconds": 1760850000,
+    "_nanoseconds": 0
+  },
+  "allocations": [
+    {
+      "id": "alloc_001",
+      "type": "water_bill",
+      "targetId": "bill_2026-00",
+      "targetName": "2026-00 - Unit 203",
+      "amount": 190000,
+      "percentage": null,
+      "categoryName": "Water Consumption",
+      "categoryId": "water-consumption",
+      "data": {
+        "unitId": "203",
+        "billId": "2026-00",
+        "billPeriod": "2026-00",
+        "billType": "base_charge"
+      },
+      "metadata": {
+        "processingStrategy": "water_bills",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-20T00:54:58.237Z"
+      }
+    },
+    {
+      "id": "alloc_002",
+      "type": "water_credit",
+      "targetId": "credit_203_water",
+      "targetName": "Account Credit - Unit 203",
+      "amount": -95000,
+      "percentage": null,
+      "categoryName": "Account Credit",
+      "categoryId": "account-credit",
+      "data": {
+        "unitId": "203",
+        "creditType": "water_credit_used"
+      },
+      "metadata": {
+        "processingStrategy": "account_credit",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-10-20T00:54:58.237Z"
+      }
+    }
+  ],
+  "allocationSummary": {
+    "totalAllocated": 190000,
+    "allocationCount": 1,
+    "allocationType": "water_bill",
+    "hasMultipleTypes": false,
+    "integrityCheck": {
+      "expectedTotal": 95000,
+      "actualTotal": 190000,
+      "isValid": false
+    }
+  },
+  "metadata": {
+    "billPayments": [
+      {
+        "period": "2026-00",
+        "amountPaid": 1900,
+        "baseChargePaid": 1900,
+        "penaltyPaid": 0
+      }
+    ],
+    "totalBaseCharges": 1900,
+    "totalPenalties": 0,
+    "paymentType": "bills_and_credit"
+  },
+  "clientId": "AVII",
+  "propertyId": "AVII",
+  "enteredBy": "system",
+  "updated": {
+    "_seconds": 1760921698,
+    "_nanoseconds": 513000000
+  },
+  "vendorName": "Deposit",
+  "accountName": "",
+  "documents": []
+}

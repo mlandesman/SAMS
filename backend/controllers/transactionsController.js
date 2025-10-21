@@ -366,10 +366,20 @@ async function createTransaction(clientId, data) {
         allocation.amount = validateCentavos(dollarsToCents(allocation.amount), `allocation[${i}].amount`);
       }
       
-      // Validate that allocations sum equals transaction amount
+      // Validate that allocations NET equals transaction amount
+      // NET = sum of all allocations (positive and negative)
+      // This allows for credit allocations (negative) to offset bill allocations (positive)
+      // Example: $1900 bill - $950 credit = $950 net (matches $950 cash payment)
       const allocationsTotal = normalizedData.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-      if (allocationsTotal !== normalizedData.amount) {
-        throw new Error(`Allocations total (${allocationsTotal} cents) does not equal transaction amount (${normalizedData.amount} cents)`);
+      const tolerance = 100; // Allow 1 peso tolerance for rounding
+      if (Math.abs(allocationsTotal - normalizedData.amount) > tolerance) {
+        console.error(`❌ Allocation mismatch:`, {
+          allocations: normalizedData.allocations.map(a => ({ category: a.categoryName, amount: a.amount })),
+          allocationsTotal,
+          transactionAmount: normalizedData.amount,
+          difference: allocationsTotal - normalizedData.amount
+        });
+        throw new Error(`Allocations total (${allocationsTotal} cents / $${(allocationsTotal/100).toFixed(2)}) does not equal transaction amount (${normalizedData.amount} cents / $${(normalizedData.amount/100).toFixed(2)})`);
       }
       
       // Resolve category relationships for all allocations (ID→name priority)

@@ -87,16 +87,52 @@ function createWaterBillsAllocations(billPayments, unitId, paymentData) {
     });
   }
   
-  // FIX: DO NOT include credit balance in transaction allocations
-  // Credit balance changes are tracked separately via the /credit API
-  // The transaction amount is ONLY the cash payment, not the credit used
-  // 
-  // Example: User pays $950 + uses $50 credit
-  // - Transaction amount: $950 (cash only)
-  // - Transaction allocations: $950 to bills
-  // - Credit balance: Separate update via creditAPI (-$50)
-  //
-  // This prevents "allocations don't match transaction amount" errors
+  // Add Credit Balance allocation for overpayments (positive) or usage (negative)
+  if (paymentData && paymentData.overpayment && paymentData.overpayment > 0) {
+    // Overpayment: Credit balance is ADDED (positive allocation)
+    allocations.push({
+      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+      type: "water_credit",
+      targetId: `credit_${unitId}_water`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: paymentData.overpayment, // Keep in dollars - transactionController will convert to cents
+      percentage: null,
+      categoryName: "Account Credit",
+      categoryId: "account-credit",
+      data: {
+        unitId: unitId,
+        creditType: "water_overpayment"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: getNow().toISOString()
+      }
+    });
+  } else if (paymentData && paymentData.creditUsed && paymentData.creditUsed > 0) {
+    // Credit was used to help pay bills (negative allocation)
+    allocations.push({
+      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
+      type: "water_credit",
+      targetId: `credit_${unitId}_water`,
+      targetName: `Account Credit - Unit ${unitId}`,
+      amount: -paymentData.creditUsed, // Keep in dollars (negative for credit usage) - transactionController will convert to cents
+      percentage: null,
+      categoryName: "Account Credit",
+      categoryId: "account-credit",
+      data: {
+        unitId: unitId,
+        creditType: "water_credit_used"
+      },
+      metadata: {
+        processingStrategy: "account_credit",
+        cleanupRequired: true,
+        auditRequired: true,
+        createdAt: getNow().toISOString()
+      }
+    });
+  }
   
   return allocations;
 }
