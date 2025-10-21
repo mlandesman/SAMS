@@ -424,11 +424,21 @@ class WaterDataService {
     // Get units
     const units = await this.fetchUnits(clientId);
     
+    // Extract readings and timestamps from the data objects
+    const currentReadings = currentReadingsData.readings;
+    const priorReadings = priorReadingsData.readings;
+    const currentTimestamp = currentReadingsData.timestamp;
+    const priorTimestamp = priorReadingsData.timestamp;
+    
+    // Get rate from config
+    const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
+    
     // Build month data using the fetched data
     return this._buildMonthDataFromSourcesWithCarryover(
-      clientId, year, month, 
-      currentReadingsData, priorReadingsData, bills,
-      units, config
+      year, month, 
+      currentReadings, priorReadings, bills,
+      units, config, ratePerM3, {}, 
+      currentTimestamp, priorTimestamp
     );
   }
 
@@ -1007,6 +1017,8 @@ class WaterDataService {
    */
   async fetchAllReadingsForYear(clientId, year) {
     try {
+      // Initialize database connection
+      await waterReadingsService._initializeDb();
       const db = waterReadingsService.db;
       
       // Build document references for all 12 months + prior year's last month
@@ -1070,6 +1082,8 @@ class WaterDataService {
    */
   async fetchAllBillsForYear(clientId, year) {
     try {
+      // Initialize database connection
+      await waterBillsService._initializeDb();
       const db = waterBillsService.db;
       
       // Build document references for all 12 months

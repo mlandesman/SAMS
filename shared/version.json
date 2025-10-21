@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.1.0",
-  "buildDate": "2025-10-21T19:15:03.973Z",
-  "buildTimestamp": 1761074103975,
+  "buildDate": "2025-10-21T19:54:41.411Z",
+  "buildTimestamp": 1761076481415,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "67df013",
+    "hash": "c9fcf09",
     "branch": "simplify-water-bills",
-    "lastCommitDate": "2025-10-21 14:09:02 -0500"
+    "lastCommitDate": "2025-10-21 14:52:28 -0500"
   },
   "build": {
-    "timestamp": "2025-10-21T19:15:03.973Z",
+    "timestamp": "2025-10-21T19:54:41.411Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251021.1415"
+    "buildNumber": "251021.1454"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-21T19:15:03.973Z",
+    "date": "2025-10-21T19:54:41.411Z",
     "automated": true
   }
 }
