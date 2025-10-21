@@ -247,7 +247,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
           fullResponse: dist
         });
         
-        // Update the status column in existing unpaid bills based on preview results
+        // Update the unpaid bills with recalculated penalty amounts and status
         setUnpaidBills(prevBills => 
           prevBills.map(bill => {
             // Find matching bill payment from preview
@@ -266,6 +266,10 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
               
               return {
                 ...bill,
+                // Update penalty amounts with recalculated values
+                penaltiesDue: billPayment.penaltyPaid, // Show recalculated penalty amount
+                baseChargeDue: billPayment.baseChargePaid, // Show recalculated base amount
+                unpaidAmount: billPayment.amountPaid, // Show total amount that would be paid
                 status: status,
                 statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
                             billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
