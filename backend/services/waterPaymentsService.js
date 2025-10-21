@@ -508,12 +508,21 @@ class WaterPaymentsService {
     }
     
     // Convert billPayments to PESOS for return to frontend
-    const billPaymentsForAllocations = billPayments.map(bp => ({
-      ...bp,
-      amountPaid: centavosToPesos(bp.amountPaid),
-      baseChargePaid: centavosToPesos(bp.baseChargePaid),
-      penaltyPaid: centavosToPesos(bp.penaltyPaid)
-    }));
+    const billPaymentsForAllocations = billPayments.map(bp => {
+      // Find the original bill to get total amounts due
+      const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
+      
+      return {
+        ...bp,
+        amountPaid: centavosToPesos(bp.amountPaid),
+        baseChargePaid: centavosToPesos(bp.baseChargePaid),
+        penaltyPaid: centavosToPesos(bp.penaltyPaid),
+        // Add total amounts due for frontend display
+        totalBaseDue: originalBill ? centavosToPesos(originalBill.currentCharge) : centavosToPesos(bp.baseChargePaid),
+        totalPenaltyDue: originalBill ? centavosToPesos(originalBill.penaltyAmount) : centavosToPesos(bp.penaltyPaid),
+        totalDue: originalBill ? centavosToPesos(originalBill.totalAmount) : centavosToPesos(bp.amountPaid)
+      };
+    });
     
     // Generate allocations using existing function
     const paymentDataForAllocations = {

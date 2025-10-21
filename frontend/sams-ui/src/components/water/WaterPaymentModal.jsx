@@ -121,24 +121,32 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
         const unpaidBills = filteredBillPayments.map(billPayment => ({
           unitId: unitId,
           period: billPayment.billPeriod,
-          baseChargeDue: billPayment.baseChargePaid, // Amount that would be paid
-          penaltiesDue: billPayment.penaltyPaid,      // Amount that would be paid
-          unpaidAmount: billPayment.amountPaid,       // Total amount that would be paid
-          status: billPayment.newStatus === 'paid' ? 'Will be paid in full' : 'Partial payment',
+          // Display total amounts due (not payment amounts)
+          baseChargeDue: billPayment.totalBaseDue || billPayment.baseChargePaid, // Total base charge due
+          penaltiesDue: billPayment.totalPenaltyDue || billPayment.penaltyPaid,  // Total penalty due
+          unpaidAmount: billPayment.totalDue || billPayment.amountPaid,          // Total amount due
+          // Store payment amounts for reference
+          baseChargePaid: billPayment.baseChargePaid, // Amount that would be paid to base charges
+          penaltyPaid: billPayment.penaltyPaid,      // Amount that would be paid to penalties
+          amountPaid: billPayment.amountPaid,         // Total amount that would be paid
+          status: billPayment.newStatus === 'paid' ? 'Will be paid in full' : 
+                  billPayment.newStatus === 'partial' ? 'Partial payment' : 'UNPAID',
           statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
                       billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
         }));
         
-        // Get credit balance from preview data
+        // Get credit balance and usage from preview data
         const creditBalance = previewData.currentCreditBalance || 0;
+        const creditUsed = previewData.creditUsed || 0;
+        const creditRemaining = previewData.newCreditBalance || creditBalance;
         
         setUnpaidBills(unpaidBills);
         setCreditBalance(creditBalance);
         setAmount(totalDue.toString());
         
-        // Initialize credit usage data for full payment scenario
-        setCreditUsed(0); // No credit used for full payment
-        setCreditRemaining(creditBalance); // All credit remains
+        // Set credit usage data from backend response
+        setCreditUsed(creditUsed);
+        setCreditRemaining(creditRemaining);
         
         console.log(`💧 [WaterPaymentModal] Loaded ${unpaidBills.length} unpaid bills via preview API, total due: $${totalDue}`);
       } else {
