@@ -46,13 +46,12 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       const response = await waterAPI.getReadingsForYear(clientId, 2026);
       if (response.success && response.data?.months) {
         const readingMonths = [];
-        let highestMonthWithReadings = -1;
         
-        // First pass: find months with readings and track the highest month
+        // Show ALL months that have readings data (these can have bills generated)
         for (let i = 0; i < 12; i++) {
           const monthData = response.data.months[i];
           if (monthData && Object.keys(monthData).length > 0) {
-            // This month has readings
+            // This month has readings - can generate bills for it
             const calendarYear = i < 6 ? 2025 : 2026; // Fiscal year adjustment
             const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
             
@@ -62,27 +61,11 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               calendarYear,
               hasReadings: true
             });
-            
-            highestMonthWithReadings = i;
           }
         }
         
-        // Second pass: add the next sequential month for bill generation
-        if (highestMonthWithReadings >= 0 && highestMonthWithReadings < 11) {
-          const nextMonth = highestMonthWithReadings + 1;
-          const calendarYear = nextMonth < 6 ? 2025 : 2026;
-          const monthName = new Date(calendarYear, nextMonth, 1).toLocaleDateString('en-US', { month: 'long' });
-          
-          readingMonths.push({
-            month: nextMonth,
-            monthName,
-            calendarYear,
-            hasReadings: false
-          });
-        }
-        
         setAvailableReadingMonths(readingMonths);
-        console.log(`📖 Found ${readingMonths.length} months for bill generation (including next month for generation)`);
+        console.log(`📖 Found ${readingMonths.length} months with readings data for bill generation`);
       }
     } catch (error) {
       console.error('Error fetching reading months:', error);
