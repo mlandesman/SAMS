@@ -648,19 +648,19 @@ ${washCharges.toFixed(2)}
           <tfoot>
             <tr className="totals-row">
               <td colSpan="2" className="text-right"><strong>Total</strong></td>
-              <td className="text-right"><strong>{formatNumber(monthTotals.consumption)}</strong></td>
-              <td className="text-right"><strong>${formatCurrency(monthTotals.billAmount)}</strong></td>
-              <td className="text-right"><strong>${monthTotals.washes.toFixed(2)}</strong></td>
+              <td className="text-right"><strong>{formatNumber(monthTotals.consumption || 0)}</strong></td>
+              <td className="text-right"><strong>${formatCurrency(monthTotals.billAmount || 0)}</strong></td>
+              <td className="text-right"><strong>${(monthTotals.washes || 0).toFixed(2)}</strong></td>
               <td className="text-right">
-                {monthTotals.penalties > 0 ? (
-                  <strong>${formatCurrency(monthTotals.penalties)}</strong>
+                {(monthTotals.penalties || 0) > 0 ? (
+                  <strong>${formatCurrency(monthTotals.penalties || 0)}</strong>
                 ) : (
                   <strong>$0.00</strong>
                 )}
               </td>
-              <td className="text-right"><strong>${formatCurrency(monthTotals.total)}</strong></td>
-              <td className="text-right"><strong>${formatCurrency(monthTotals.paid)}</strong></td>
-              <td className="text-right"><strong>${formatCurrency(monthTotals.due)}</strong></td>
+              <td className="text-right"><strong>${formatCurrency(monthTotals.total || 0)}</strong></td>
+              <td className="text-right"><strong>${formatCurrency(monthTotals.paid || 0)}</strong></td>
+              <td className="text-right"><strong>${formatCurrency(monthTotals.due || 0)}</strong></td>
               <td className="text-center">-</td>
             </tr>
           </tfoot>
@@ -680,20 +680,20 @@ ${washCharges.toFixed(2)}
             <>
               <div className="summary-item">
                 <span className="summary-label">Month Billed:</span>
-                <span className="summary-value">${formatCurrency(monthTotals.billAmount)}</span>
+                <span className="summary-value">${formatCurrency(monthTotals.billAmount || 0)}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Month Paid:</span>
-                <span className="summary-value paid">${formatCurrency(monthTotals.paid)}</span>
+                <span className="summary-value paid">${formatCurrency(monthTotals.paid || 0)}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Month Due:</span>
-                <span className="summary-value unpaid">${formatCurrency(monthTotals.due)}</span>
+                <span className="summary-value unpaid">${formatCurrency(monthTotals.due || 0)}</span>
               </div>
-              {monthTotals.penalties > 0 && (
+              {(monthTotals.penalties || 0) > 0 && (
                 <div className="summary-item">
                   <span className="summary-label">Month Penalties:</span>
-                  <span className="summary-value overdue">${formatCurrency(monthTotals.penalties)}</span>
+                  <span className="summary-value overdue">${formatCurrency(monthTotals.penalties || 0)}</span>
                 </div>
               )}
             </>
