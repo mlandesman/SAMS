@@ -34,12 +34,19 @@ class WaterDataService {
     const { units, billingConfig: config } = await this.getClientConfig(clientId);
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
+    // PERFORMANCE: Batch fetch all readings and bills for the year at once
+    // This replaces multiple individual Firestore reads with 2 batch operations
+    console.log(`📚 [BATCH] Pre-fetching all readings and bills for year ${year}`);
+    const [allReadings, allBills] = await Promise.all([
+      this.fetchAllReadingsForYear(clientId, year),
+      this.fetchAllBillsForYear(clientId, year)
+    ]);
+    
     // Build data for each month - stop when no more data exists
     for (let month = 0; month < 12; month++) {
       // Check if bills OR readings exist for this month
-      // This allows UI to show readings preview before bills are generated
-      const hasBills = await this._checkBillsExist(clientId, year, month);
-      const hasReadings = await this._checkMonthExists(clientId, year, month);
+      const hasBills = allBills[month] !== null && allBills[month] !== undefined;
+      const hasReadings = allReadings[month] && Object.keys(allReadings[month].readings).length > 0;
       
       // Stop if no bills AND no readings for months after the first month
       // (Month 0 might not have bills yet in a new fiscal year)
@@ -48,7 +55,10 @@ class WaterDataService {
         break;
       }
       
-      const monthData = await this.buildSingleMonthData(clientId, year, month);
+      // Pass pre-fetched data to month builder (avoids individual fetches)
+      const monthData = await this.buildSingleMonthDataWithCache(
+        clientId, year, month, allReadings, allBills, config
+      );
       months.push(monthData);
     }
     
@@ -399,6 +409,28 @@ class WaterDataService {
   }
 
 
+
+  /**
+   * Build data for a single month using pre-fetched data (for batch operations)
+   * This version uses cached data passed from buildYearDataForDisplay
+   */
+  async buildSingleMonthDataWithCache(clientId, year, month, allReadings, allBills, config) {
+    // Get readings for current and prior month from cache
+    const priorMonth = month === 0 ? 'prior-11' : (month - 1);
+    const currentReadingsData = allReadings[month] || { readings: {}, timestamp: null };
+    const priorReadingsData = allReadings[priorMonth] || { readings: {}, timestamp: null };
+    const bills = allBills[month] || null;
+    
+    // Get units
+    const units = await this.fetchUnits(clientId);
+    
+    // Build month data using the fetched data
+    return this._buildMonthDataFromSourcesWithCarryover(
+      clientId, year, month, 
+      currentReadingsData, priorReadingsData, bills,
+      units, config
+    );
+  }
 
   /**
    * Build data for a single month
@@ -968,7 +1000,112 @@ class WaterDataService {
   }
 
   /**
+   * BATCH FETCH: Fetch all readings for entire year at once
+   * Reduces multiple Firestore reads to a single batch operation
+   */
+  async fetchAllReadingsForYear(clientId, year) {
+    try {
+      const db = waterReadingsService.db;
+      
+      // Build document references for all 12 months + prior year's last month
+      const docRefs = [];
+      const monthKeys = [];
+      
+      // Get June of prior year (needed for July calculation)
+      const priorYearDocId = `${year - 1}-11`;
+      docRefs.push(
+        db.collection('clients').doc(clientId)
+          .collection('projects').doc('waterBills')
+          .collection('readings').doc(priorYearDocId)
+      );
+      monthKeys.push('prior-11');
+      
+      // Get all 12 months of current year
+      for (let month = 0; month < 12; month++) {
+        const docId = `${year}-${String(month).padStart(2, '0')}`;
+        docRefs.push(
+          db.collection('clients').doc(clientId)
+            .collection('projects').doc('waterBills')
+            .collection('readings').doc(docId)
+        );
+        monthKeys.push(month);
+      }
+      
+      // Batch fetch all documents
+      console.log(`📚 [BATCH] Fetching ${docRefs.length} reading documents in one call`);
+      const snapshots = await db.getAll(...docRefs);
+      
+      // Build results map
+      const results = {};
+      snapshots.forEach((snapshot, index) => {
+        const key = monthKeys[index];
+        if (snapshot.exists) {
+          const data = snapshot.data();
+          results[key] = {
+            readings: {
+              ...data.readings || {},
+              commonArea: data.commonArea,
+              buildingMeter: data.buildingMeter
+            },
+            timestamp: data.timestamp || null
+          };
+        } else {
+          results[key] = { readings: {}, timestamp: null };
+        }
+      });
+      
+      console.log(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => Object.keys(results[k].readings).length > 0).length} months with readings`);
+      return results;
+    } catch (error) {
+      console.error('Error batch fetching readings:', error);
+      return {};
+    }
+  }
+
+  /**
+   * BATCH FETCH: Fetch all bills for entire year at once
+   * Reduces multiple Firestore reads to a single batch operation
+   */
+  async fetchAllBillsForYear(clientId, year) {
+    try {
+      const db = waterBillsService.db;
+      
+      // Build document references for all 12 months
+      const docRefs = [];
+      const monthKeys = [];
+      
+      for (let month = 0; month < 12; month++) {
+        const docId = `${year}-${String(month).padStart(2, '0')}`;
+        docRefs.push(
+          db.collection('clients').doc(clientId)
+            .collection('projects').doc('waterBills')
+            .collection('bills').doc(docId)
+        );
+        monthKeys.push(month);
+      }
+      
+      // Batch fetch all documents
+      console.log(`📚 [BATCH] Fetching ${docRefs.length} bill documents in one call`);
+      const snapshots = await db.getAll(...docRefs);
+      
+      // Build results map
+      const results = {};
+      snapshots.forEach((snapshot, index) => {
+        const key = monthKeys[index];
+        results[key] = snapshot.exists ? snapshot.data() : null;
+      });
+      
+      console.log(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => results[k] !== null).length} months with bills`);
+      return results;
+    } catch (error) {
+      console.error('Error batch fetching bills:', error);
+      return {};
+    }
+  }
+
+  /**
    * Fetch readings for a month using existing service
+   * NOTE: Prefer fetchAllReadingsForYear() for better performance
    */
   async fetchReadings(clientId, year, month) {
     try {
