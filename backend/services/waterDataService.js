@@ -342,7 +342,9 @@ class WaterDataService {
     }
     
     // 5. Build and return unit data object (same structure as full month builder)
-    const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+    // CRITICAL: Use status from Firestore if it exists (set by payment service)
+    // Only calculate status if bill doesn't have one (legacy data)
+    const billStatus = bill?.status || this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
     
     return {
       ownerLastName,
@@ -527,7 +529,9 @@ class WaterDataService {
         unpaidAmount = totalDueAmount;
       }
       
-      const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+      // CRITICAL: Use status from Firestore if it exists (set by payment service)
+      // Only calculate status if bill doesn't have one (legacy data)
+      const billStatus = bill?.status || this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
       
       // TASK 2: Data consistency validation
       // Use basePaid + penaltyPaid for validation (not paidAmount which may include overflow from prior payment)
@@ -832,7 +836,8 @@ class WaterDataService {
         totalAmount: totalDueAmount,                                               // In centavos
         paidAmount: bill?.paidAmount || 0,                                         // In centavos
         unpaidAmount: unpaidAmount,                                                // In centavos
-        status: this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
+        // CRITICAL: Use status from Firestore if it exists (set by payment service)
+        status: bill?.status || this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill'),
         daysPastDue: this.calculateDaysPastDue(bill, bills?.dueDate) || carryover.daysOverdue || 0,
         // CRITICAL: Include transaction ID for bidirectional linking
         transactionId: (() => {
