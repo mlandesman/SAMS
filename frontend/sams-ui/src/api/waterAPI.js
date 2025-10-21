@@ -302,13 +302,17 @@ class WaterAPI {
     
     console.log(`💧 WaterAPI fetching bills for ${clientId} year ${year}`);
     
+    // Add cache-busting parameter to ensure fresh data after payments
+    const cacheBuster = `_t=${Date.now()}`;
     const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/bills/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/${year}?${cacheBuster}`,
       {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       }
     );

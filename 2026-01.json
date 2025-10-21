@@ -61,9 +61,9 @@
             "recordedAt": "2025-10-21T16:43:53.518Z"
           }
         ],
-        "paidAmount": 120000,
         "basePaid": 25500,
-        "status": "partial"
+        "status": "partial",
+        "paidAmount": 25500
       },
       "102": {
         "priorReading": 26,
@@ -158,12 +158,24 @@
         "currentCharge": 55000,
         "penaltyAmount": 0,
         "totalAmount": 55000,
-        "status": "unpaid",
-        "paidAmount": 0,
-        "penaltyPaid": 0,
-        "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0011 m³",
-        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z"
+        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z",
+        "penaltyPaid": 5500,
+        "payments": [
+          {
+            "amount": 150000,
+            "baseChargePaid": 55000,
+            "penaltyPaid": 5500,
+            "date": "2025-09-21",
+            "method": "eTransfer",
+            "reference": "",
+            "transactionId": "2025-09-21_133352_123",
+            "recordedAt": "2025-10-21T18:33:55.409Z"
+          }
+        ],
+        "paidAmount": 60500,
+        "basePaid": 55000,
+        "status": "paid"
       },
       "202": {
         "priorReading": 325,
@@ -198,12 +210,24 @@
         "currentCharge": 170000,
         "penaltyAmount": 0,
         "totalAmount": 170000,
-        "status": "unpaid",
-        "paidAmount": 0,
-        "penaltyPaid": 0,
-        "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0034 m³",
-        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z"
+        "lastPenaltyUpdate": "2025-10-21T04:22:32.714Z",
+        "penaltyPaid": 8500,
+        "payments": [
+          {
+            "amount": 450000,
+            "baseChargePaid": 170000,
+            "penaltyPaid": 8500,
+            "date": "2025-08-21",
+            "method": "eTransfer",
+            "reference": "",
+            "transactionId": "2025-08-21_134722_541",
+            "recordedAt": "2025-10-21T18:47:24.189Z"
+          }
+        ],
+        "paidAmount": 178500,
+        "basePaid": 170000,
+        "status": "paid"
       },
       "204": {
         "priorReading": 1820,
