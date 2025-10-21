@@ -209,27 +209,42 @@ function WaterBillsViewV3() {
     </div>
   );
   
-  // Month selector for reading entry
-  const MonthSelector = () => (
-    <div className="month-selector">
-      <label htmlFor="month-select">Select Month:</label>
-      <select 
-        id="month-select"
-        value={selectedMonth} 
-        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-        className="month-dropdown"
-      >
-        {fiscalMonthNames.map((month, idx) => {
-          const calendarYear = idx < 6 ? selectedYear - 1 : selectedYear;
-          return (
-            <option key={idx} value={idx}>
-              {month} {calendarYear}
-            </option>
-          );
-        })}
-      </select>
-    </div>
-  );
+  // Month selector for reading entry - show only up to current + 1
+  const MonthSelector = () => {
+    // Find the highest month with readings data
+    let highestMonthWithReadings = -1;
+    if (yearData?.months) {
+      yearData.months.forEach(monthData => {
+        if (monthData.readingDate) {
+          highestMonthWithReadings = Math.max(highestMonthWithReadings, monthData.month);
+        }
+      });
+    }
+    
+    // Show months up to current + 1 (but not more than 12)
+    const maxMonth = Math.min(highestMonthWithReadings + 2, 12);
+    
+    return (
+      <div className="month-selector">
+        <label htmlFor="month-select">Select Month:</label>
+        <select 
+          id="month-select"
+          value={selectedMonth} 
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          className="month-dropdown"
+        >
+          {fiscalMonthNames.slice(0, maxMonth).map((month, idx) => {
+            const calendarYear = idx < 6 ? selectedYear - 1 : selectedYear;
+            return (
+              <option key={idx} value={idx}>
+                {month} {calendarYear}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  };
   
   if (!selectedClient) {
     return (
