@@ -264,7 +264,7 @@ class WaterPaymentsService {
       
       let recalculatedPenaltyAmount = 0;
       
-      if (daysPastDue > gracePeriodDays) {
+      if (daysPastDue > 0) {
         // Calculate penalty based on actual calendar months past due
         const dueDateObj = new Date(dueDate);
         const paymentDateObj = new Date(asOfDate);

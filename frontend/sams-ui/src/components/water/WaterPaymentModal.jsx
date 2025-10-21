@@ -438,14 +438,18 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                       type="number"
                       step="0.01"
                       value={amount}
-                    onChange={(e) => {
-                      const newAmount = e.target.value;
-                      setAmount(newAmount);
-                      // Trigger recalculation immediately when amount changes
-                      if (newAmount && parseFloat(newAmount) > 0) {
-                        calculatePaymentDistribution();
-                      }
-                    }}
+                      onChange={(e) => {
+                        const newAmount = e.target.value;
+                        setAmount(newAmount);
+                        // Don't recalculate on every keystroke - wait for blur
+                      }}
+                      onBlur={(e) => {
+                        // Trigger recalculation when user finishes entering amount
+                        const newAmount = e.target.value;
+                        if (newAmount && parseFloat(newAmount) > 0) {
+                          calculatePaymentDistribution();
+                        }
+                      }}
                       required
                       disabled={loading}
                       autoFocus
@@ -516,9 +520,12 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                     onChange={(e) => {
                       const newPaymentDate = e.target.value;
                       setPaymentDate(newPaymentDate);
-                      // Trigger recalculation immediately when payment date changes
-                      // Pass new date directly to avoid async state timing issue
-                      if (amount && parseFloat(amount) > 0) {
+                      // Don't recalculate on every keystroke - wait for blur
+                    }}
+                    onBlur={(e) => {
+                      // Trigger recalculation when user finishes entering date
+                      const newPaymentDate = e.target.value;
+                      if (amount && parseFloat(amount) > 0 && newPaymentDate) {
                         calculatePaymentDistribution(newPaymentDate);
                       }
                     }}
