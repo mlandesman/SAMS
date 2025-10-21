@@ -448,18 +448,18 @@ class WaterPaymentsService {
         console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
         
       } else if (remainingFundsCentavos > 0) {
-        // Partial payment - prioritize base charges over penalties
+        // Partial payment - prioritize penalties over base charges (accounting convention)
         let amountToApply = remainingFundsCentavos;
         let basePortionPaid = 0;
         let penaltyPortionPaid = 0;
         
-        if (baseUnpaid > 0) {
-          basePortionPaid = Math.min(amountToApply, baseUnpaid);
-          amountToApply -= basePortionPaid;
+        if (penaltyUnpaid > 0) {
+          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
+          amountToApply -= penaltyPortionPaid;
         }
         
-        if (amountToApply > 0 && penaltyUnpaid > 0) {
-          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
+        if (amountToApply > 0 && baseUnpaid > 0) {
+          basePortionPaid = Math.min(amountToApply, baseUnpaid);
         }
         
         billPayment.amountPaid = remainingFundsCentavos;
