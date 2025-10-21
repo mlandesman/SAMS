@@ -860,6 +860,7 @@ class WaterPaymentsService {
             id: doc.id,
             period: doc.id,
             originalData: unitBill,
+            billData: billData, // Store bill document data for dueDate access
             paidAmount,
             basePaid,
             penaltyPaid: unitBill.penaltyPaid || 0,
@@ -876,6 +877,7 @@ class WaterPaymentsService {
     // No dynamic calculation needed - penalties are pre-calculated and stored
     for (const metadata of billsMetadata) {
       const unitBill = metadata.originalData;
+      const billData = metadata.billData; // Get bill document data
       
       // Use stored penalty amounts from the bill document
       const storedPenaltyAmount = unitBill.penaltyAmount || 0;
@@ -899,7 +901,7 @@ class WaterPaymentsService {
           status: metadata.status,
           monthsOverdue: 0, // Will be calculated during penalty recalc
           daysOverdue: 0,   // Will be calculated during penalty recalc
-          dueDate: unitBill.dueDate,
+          dueDate: billData.dueDate, // Use actual due date from bill document
           lastPenaltyUpdate: unitBill.lastPenaltyUpdate || null,
           // Debug info
           _dynamicCalculation: false,
