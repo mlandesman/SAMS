@@ -104,9 +104,13 @@ function convertYearDataToPesos(data) {
 router.get('/clients/:clientId/readings/:year', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year } = req.params;
+    console.log('🔍 [Backend] getReadingsForYear called:', { clientId, year });
+    
     const readings = await waterReadingsService.getYearReadings(
       clientId, parseInt(year)
     );
+    
+    console.log('📊 [Backend] getYearReadings result:', readings ? 'data found' : 'no data');
     
     // Create 12-month array for display
     const months = [];

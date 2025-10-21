@@ -477,19 +477,24 @@ class WaterAPI {
    */
   async getReadingsForYear(clientId, year) {
     const token = await this.getAuthToken();
+    const url = `${this.baseUrl}/water/clients/${clientId}/readings/${year}`;
     
-    const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/readings/${year}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+    console.log('🌐 [waterAPI] getReadingsForYear called:', { clientId, year, url });
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       }
-    );
+    });
     
-    return handleApiResponse(response);
+    console.log('📡 [waterAPI] getReadingsForYear response status:', response.status);
+    
+    const result = handleApiResponse(response);
+    console.log('📦 [waterAPI] getReadingsForYear result:', result);
+    
+    return result;
   }
 
   /**
