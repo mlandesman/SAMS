@@ -5,6 +5,7 @@ import { getPaymentMethods } from '../../api/paymentMethods';
 import { getAuthInstance } from '../../firebaseClient';
 import waterAPI from '../../api/waterAPI';
 import { formatAsMXN } from '../../utils/hoaDuesUtils';
+import { getMexicoDateString } from '../../utils/timezone';
 import './WaterPaymentModal.css';
 
 function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }) {
@@ -18,7 +19,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentDate, setPaymentDate] = useState(getMexicoDateString());
   
   // Data state  
   const [unpaidBills, setUnpaidBills] = useState([]);
@@ -66,17 +67,15 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
       
       console.log(`🔍 [WaterPaymentModal] Loading unpaid bills via preview API with total due: $${totalDue}`);
       
-      // Get the due date from the selected month for backdated payment calculation
-      const selectedMonthData = waterData.months[selectedMonth];
-      const payOnDate = selectedMonthData?.dueDate;
-      
-      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (due date for selected month)`);
+      // Use today's date (from state) for initial payment preview
+      // User can backdate the payment using the payment date input field
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${paymentDate} (today's date from state)`);
       
       // Call preview API with total due amount and payment date
       const response = await waterAPI.previewPayment(selectedClient.id, { 
         unitId, 
         amount: totalDue,
-        payOnDate: payOnDate,
+        payOnDate: paymentDate,
         selectedMonth: selectedMonth
       });
       
