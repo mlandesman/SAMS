@@ -83,14 +83,22 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         for (let i = 0; i < maxMonth; i++) {
           const monthData = monthsData[i];
           const hasReadings = monthData && Object.keys(monthData).length > 0;
-          const calendarYear = i < 6 ? 2025 : 2026;
-          const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
           
-          console.log(`📅 [WaterBillsList] Adding month ${i}: ${monthName} ${calendarYear} (hasReadings: ${hasReadings})`);
+          // Map fiscal year months to calendar months
+          // Fiscal year 2026: July 2025 (month 0), August 2025 (month 1), ..., June 2026 (month 11)
+          const fiscalMonthIndex = i;
+          const calendarMonthIndex = (i + 6) % 12; // July (6) becomes month 0, August (7) becomes month 1, etc.
+          const calendarYear = i < 6 ? 2025 : 2026; // First 6 months (July-Dec) are 2025, next 6 months (Jan-Jun) are 2026
+          
+          const monthName = new Date(calendarYear, calendarMonthIndex, 1).toLocaleDateString('en-US', { month: 'long' });
+          const fiscalYearDisplay = `2026-${fiscalMonthIndex.toString().padStart(2, '0')}`;
+          
+          console.log(`📅 [WaterBillsList] Adding fiscal month ${fiscalMonthIndex}: ${monthName} ${calendarYear} (${fiscalYearDisplay}) (hasReadings: ${hasReadings})`);
           
           readingMonths.push({
-            month: i,
-            monthName,
+            month: fiscalMonthIndex,
+            monthName: `${monthName} ${calendarYear}`,
+            fiscalYearDisplay,
             calendarYear,
             hasReadings
           });
@@ -319,7 +327,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           >
             {availableReadingMonths.map((month) => (
               <option key={month.month} value={month.month}>
-                {month.monthName} {month.calendarYear}
+                {month.fiscalYearDisplay} - {month.monthName}
                 {!month.hasReadings ? ' (No readings)' : ''}
               </option>
             ))}
