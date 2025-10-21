@@ -24,7 +24,6 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [availableReadingMonths, setAvailableReadingMonths] = useState([]);
-  const [selectedMonthData, setSelectedMonthData] = useState(null);
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -101,8 +100,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             monthName: `${monthName} ${calendarYear}`,
             fiscalYearDisplay,
             calendarYear,
-            hasReadings,
-            readingsData: monthData // Store the actual readings data
+            hasReadings
           });
         }
         
@@ -148,13 +146,6 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   }, [waterData]);
 
   // Fetch bills data when selected month changes
-  useEffect(() => {
-    if (clientId && selectedMonth !== null) {
-      console.log(`🔄 [WaterBillsList] Selected month changed to: ${selectedMonth}`);
-      fetchBillsForMonth(selectedMonth);
-    }
-  }, [clientId, selectedMonth]);
-
   const fetchBillingConfig = async () => {
     try {
       const response = await waterAPI.getConfig(clientId);
@@ -166,24 +157,6 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   };
 
-  const fetchBillsForMonth = async (month) => {
-    try {
-      console.log(`🔍 [WaterBillsList] Fetching bills for fiscal month ${month} (${month < 6 ? 2025 : 2026})`);
-      const response = await waterAPI.getBillsForYear(clientId, 2026);
-      
-      if (response.success && response.data?.months) {
-        const monthData = response.data.months[month];
-        console.log(`📊 [WaterBillsList] Bills data for month ${month}:`, monthData);
-        setSelectedMonthData(monthData);
-      } else {
-        console.log(`❌ [WaterBillsList] No bills data found for month ${month}`);
-        setSelectedMonthData(null);
-      }
-    } catch (error) {
-      console.error(`Error fetching bills for month ${month}:`, error);
-      setSelectedMonthData(null);
-    }
-  };
 
   const generateBills = async (month) => {
     try {
@@ -272,7 +245,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     return <div className="no-data-message">No water billing data available</div>;
   }
 
-  const monthData = selectedMonthData;
+  const monthData = waterData.months[selectedMonth];
   const hasBills = hasBillsForMonth(monthData);
   
   // Debug logging for August bills issue
@@ -429,7 +402,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
+      {monthData && monthData.units ? (
         <div className="bills-table-container">
           <table className="bills-table">
             <thead>
@@ -446,9 +419,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               </tr>
             </thead>
             <tbody>
-              {monthData?.units ? (
-                // Show bills data if it exists
-                Object.entries(monthData.units).map(([unitId, unit]) => {
+              {Object.entries(monthData.units).map(([unitId, unit]) => {
               // Find unit to get owner name - will come from backend eventually
               const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
               const ownerName = unitConfig?.ownerLastName || unitConfig?.ownerName || 
@@ -622,53 +593,6 @@ ${washCharges.toFixed(2)}
                 </tr>
               );
             })
-              ) : (
-                // Show readings data in table format when bills don't exist yet
-                availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings ? (
-                  // Show readings data in table format
-                  units.map((unit) => {
-                    const unitId = unit.unitId || unit.id;
-                    const ownerName = unit.ownerLastName || unit.ownerName || 'No Name Available';
-                    
-                    // Get readings data for this unit from the readings response
-                    const readingsData = availableReadingMonths.find(m => m.month === selectedMonth)?.readingsData;
-                    const unitReading = readingsData?.units?.[unitId];
-                    
-                    if (!unitReading) {
-                      return null; // Skip units without readings
-                    }
-                    
-                    const consumption = unitReading.consumption || 0;
-                    const ratePerM3 = billingConfig?.ratePerM3 || 5000; // In centavos
-                    const monthlyCharge = (consumption * ratePerM3) / 100; // Convert to pesos
-                    
-                    return (
-                      <tr key={unitId}>
-                        <td className="unit-id text-left">{unitId}</td>
-                        <td className="owner-name text-left">{ownerName}</td>
-                        <td className="consumption text-right">{formatNumber(consumption)}</td>
-                        <td className="monthly-charge text-right">${formatCurrency(monthlyCharge)}</td>
-                        <td className="washes text-right">$0.00</td>
-                        <td className="overdue text-right">$0.00</td>
-                        <td className="penalties text-right">$0.00</td>
-                        <td className="due text-right">${formatCurrency(monthlyCharge)}</td>
-                        <td className="status text-center">
-                          <span className="status-nobill">NOBILL</span>
-                        </td>
-                      </tr>
-                    );
-                  }).filter(Boolean)
-                ) : (
-                  <tr>
-                    <td colSpan="9" className="text-center">
-                      <div className="no-readings-message">
-                        <p>No readings data available for this month.</p>
-                        <p>Please enter readings first before generating bills.</p>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              )}
           </tbody>
           <tfoot>
             <tr className="totals-row">
@@ -698,39 +622,26 @@ ${washCharges.toFixed(2)}
         </div>
       )}
 
-      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
-        <div className="bills-summary">
-          {monthData && monthData.units ? (
-            // Show bill totals when bills exist
-            <>
-              <div className="summary-item">
-                <span className="summary-label">Month Billed:</span>
-                <span className="summary-value">${formatCurrency(monthTotals.billAmount || 0)}</span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Month Paid:</span>
-                <span className="summary-value paid">${formatCurrency(monthTotals.paid || 0)}</span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Month Due:</span>
-                <span className="summary-value unpaid">${formatCurrency(monthTotals.due || 0)}</span>
-              </div>
-              {(monthTotals.penalties || 0) > 0 && (
-                <div className="summary-item">
-                  <span className="summary-label">Month Penalties:</span>
-                  <span className="summary-value overdue">${formatCurrency(monthTotals.penalties || 0)}</span>
-                </div>
-              )}
-            </>
-          ) : (
-            // Show readings preview when bills don't exist yet
-            <div className="summary-item">
-              <span className="summary-label">Status:</span>
-              <span className="summary-value">Ready to generate bills from readings</span>
-            </div>
-          )}
+      <div className="bills-summary">
+        <div className="summary-item">
+          <span className="summary-label">Month Billed:</span>
+          <span className="summary-value">${formatCurrency(monthTotals.billAmount || 0)}</span>
         </div>
-      ) : null}
+        <div className="summary-item">
+          <span className="summary-label">Month Paid:</span>
+          <span className="summary-value paid">${formatCurrency(monthTotals.paid || 0)}</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-label">Month Due:</span>
+          <span className="summary-value unpaid">${formatCurrency(monthTotals.due || 0)}</span>
+        </div>
+        {(monthTotals.penalties || 0) > 0 && (
+          <div className="summary-item">
+            <span className="summary-label">Month Penalties:</span>
+            <span className="summary-value overdue">${formatCurrency(monthTotals.penalties || 0)}</span>
+          </div>
+        )}
+      </div>
 
       {/* Water Payment Modal */}
       <WaterPaymentModal
