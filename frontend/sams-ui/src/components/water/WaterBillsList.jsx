@@ -594,7 +594,7 @@ ${washCharges.toFixed(2)}
                   </td>
                 </tr>
               );
-                })}
+                })
               ) : (
                 // Show readings data when bills don't exist yet
                 availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings ? (

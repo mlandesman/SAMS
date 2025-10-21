@@ -34,15 +34,17 @@ class WaterDataService {
     const { units, billingConfig: config } = await this.getClientConfig(clientId);
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
-    // Build data for each month - stop when no more bills exist
+    // Build data for each month - stop when no more data exists
     for (let month = 0; month < 12; month++) {
-      // Check if bills exist for this month (more accurate than checking readings)
+      // Check if bills OR readings exist for this month
+      // This allows UI to show readings preview before bills are generated
       const hasBills = await this._checkBillsExist(clientId, year, month);
+      const hasReadings = await this._checkMonthExists(clientId, year, month);
       
-      // Stop if no bills and not the first month
+      // Stop if no bills AND no readings for months after the first month
       // (Month 0 might not have bills yet in a new fiscal year)
-      if (!hasBills && month > 0) {
-        console.log(`📊 Stopping at month ${month} - no bills generated yet`);
+      if (!hasBills && !hasReadings && month > 0) {
+        console.log(`📊 Stopping at month ${month} - no bills or readings found`);
         break;
       }
       
