@@ -24,6 +24,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [availableReadingMonths, setAvailableReadingMonths] = useState([]);
+  const [selectedMonthData, setSelectedMonthData] = useState(null);
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -145,6 +146,14 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   }, [waterData]);
 
+  // Fetch bills data when selected month changes
+  useEffect(() => {
+    if (clientId && selectedMonth !== null) {
+      console.log(`🔄 [WaterBillsList] Selected month changed to: ${selectedMonth}`);
+      fetchBillsForMonth(selectedMonth);
+    }
+  }, [clientId, selectedMonth]);
+
   const fetchBillingConfig = async () => {
     try {
       const response = await waterAPI.getConfig(clientId);
@@ -153,6 +162,25 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     } catch (error) {
       console.error('Error fetching billing config:', error);
       // Don't show error to user, just log it
+    }
+  };
+
+  const fetchBillsForMonth = async (month) => {
+    try {
+      console.log(`🔍 [WaterBillsList] Fetching bills for fiscal month ${month} (${month < 6 ? 2025 : 2026})`);
+      const response = await waterAPI.getBillsForYear(clientId, 2026);
+      
+      if (response.success && response.data?.months) {
+        const monthData = response.data.months[month];
+        console.log(`📊 [WaterBillsList] Bills data for month ${month}:`, monthData);
+        setSelectedMonthData(monthData);
+      } else {
+        console.log(`❌ [WaterBillsList] No bills data found for month ${month}`);
+        setSelectedMonthData(null);
+      }
+    } catch (error) {
+      console.error(`Error fetching bills for month ${month}:`, error);
+      setSelectedMonthData(null);
     }
   };
 
@@ -243,7 +271,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     return <div className="no-data-message">No water billing data available</div>;
   }
 
-  const monthData = waterData.months[selectedMonth];
+  const monthData = selectedMonthData;
   const hasBills = hasBillsForMonth(monthData);
   
   // Debug logging for August bills issue
@@ -271,7 +299,20 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       let monthWashes = 0;
       let monthPenalties = 0;
       
-      Object.values(monthData.units || {}).forEach(unit => {
+      // Safety check for monthData
+      if (!monthData || !monthData.units) {
+        console.log('⚠️ [WaterBillsList] No month data available for summary calculation');
+        return {
+          monthTotal: 0,
+          monthPaid: 0,
+          monthConsumption: 0,
+          monthCharges: 0,
+          monthWashes: 0,
+          monthPenalties: 0
+        };
+      }
+      
+      Object.values(monthData.units).forEach(unit => {
         const monthlyCharge = unit.billAmount || 0;
         
         // Calculate wash charges from currentReading.washes array
