@@ -1,6 +1,6 @@
 {
   "_id": "2026-01",
-  "billDate": "2025-10-21T20:27:32.459Z",
+  "billDate": "2025-10-21T20:53:45.990Z",
   "dueDate": "2025-08-01",
   "billingPeriod": "August 2025",
   "fiscalYear": 2026,
@@ -12,6 +12,24 @@
     "currencySymbol": "$",
     "minimumCharge": 0,
     "compoundPenalty": true
+  },
+  "summary": {
+    "totalUnits": 9,
+    "totalNewCharges": 425000,
+    "totalBilled": 425000,
+    "totalUnpaid": 425000,
+    "totalPaid": 0,
+    "currency": "MXN",
+    "currencySymbol": "$"
+  },
+  "metadata": {
+    "generatedBy": "system",
+    "readingsDocId": "2026-01",
+    "penaltiesApplied": false,
+    "generatedAt": {
+      "_seconds": 1761080026,
+      "_nanoseconds": 738000000
+    }
   },
   "bills": {
     "units": {
@@ -33,7 +51,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0007 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.723Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "102": {
         "priorReading": 26,
@@ -48,12 +66,24 @@
         "currentCharge": 20000,
         "penaltyAmount": 0,
         "totalAmount": 20000,
-        "status": "unpaid",
-        "paidAmount": 0,
         "penaltyPaid": 0,
-        "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0004 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z",
+        "payments": [
+          {
+            "amount": 25250,
+            "baseChargePaid": 20000,
+            "penaltyPaid": 0,
+            "date": "2025-08-07",
+            "method": "eTransfer",
+            "reference": "",
+            "transactionId": "2025-08-07_161428_313",
+            "recordedAt": "2025-10-21T21:14:30.117Z"
+          }
+        ],
+        "paidAmount": 20000,
+        "basePaid": 20000,
+        "status": "paid"
       },
       "103": {
         "priorReading": 842,
@@ -73,7 +103,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0008 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "104": {
         "priorReading": 1489,
@@ -93,7 +123,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0008 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "105": {
         "priorReading": 846,
@@ -113,7 +143,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0004 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "106": {
         "priorReading": 1351,
@@ -133,7 +163,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0011 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "202": {
         "priorReading": 325,
@@ -153,7 +183,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0005 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "203": {
         "priorReading": 1619,
@@ -173,7 +203,7 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0034 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.724Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       },
       "204": {
         "priorReading": 1820,
@@ -193,26 +223,8 @@
         "penaltyPaid": 0,
         "basePaid": 0,
         "billNotes": "Water Consumption for August 2025 - 0004 m³",
-        "lastPenaltyUpdate": "2025-10-21T20:27:32.725Z"
+        "lastPenaltyUpdate": "2025-10-21T20:53:46.473Z"
       }
-    }
-  },
-  "summary": {
-    "totalUnits": 9,
-    "totalNewCharges": 425000,
-    "totalBilled": 425000,
-    "totalUnpaid": 425000,
-    "totalPaid": 0,
-    "currency": "MXN",
-    "currencySymbol": "$"
-  },
-  "metadata": {
-    "generatedBy": "system",
-    "readingsDocId": "2026-01",
-    "penaltiesApplied": false,
-    "generatedAt": {
-      "_seconds": 1761078453,
-      "_nanoseconds": 79000000
     }
   }
 }

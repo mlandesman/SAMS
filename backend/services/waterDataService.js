@@ -398,20 +398,21 @@ class WaterDataService {
         // These are already included in displayOverdue, so show 0 here to avoid double-counting
         if (!bill) return 0;
         
-        // If bill exists but no dueDate, fallback to stored penalty
-        if (!bill.dueDate) return penaltyAmount;
+        // Get dueDate from document level (bills.dueDate), not unit level (bill.dueDate doesn't exist)
+        const dueDate = bills?.dueDate;
+        if (!dueDate) return penaltyAmount; // Fallback to stored if no due date
         
-        const dueDate = new Date(bill.dueDate);
+        const dueDateObj = new Date(dueDate);
         const today = new Date();
         const gracePeriodDays = config?.penaltyDays || 10;
-        const daysPastDue = Math.max(0, Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)));
+        const daysPastDue = Math.max(0, Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24)));
         
         if (daysPastDue <= gracePeriodDays) return 0; // Within grace period
         
         // Calculate months past due
-        let monthsPastDue = (today.getFullYear() - dueDate.getFullYear()) * 12;
-        monthsPastDue += today.getMonth() - dueDate.getMonth();
-        if (today.getDate() >= dueDate.getDate()) monthsPastDue += 1;
+        let monthsPastDue = (today.getFullYear() - dueDateObj.getFullYear()) * 12;
+        monthsPastDue += today.getMonth() - dueDateObj.getMonth();
+        if (today.getDate() >= dueDateObj.getDate()) monthsPastDue += 1;
         monthsPastDue = Math.max(1, monthsPastDue);
         
         // Calculate penalty on UNPAID base amount (current bill only)
