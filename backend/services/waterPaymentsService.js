@@ -291,11 +291,10 @@ class WaterPaymentsService {
       recalculatedBills.push({
         ...bill,
         penaltyAmount: recalculatedPenaltyAmount,
-        totalAmount: recalculatedTotalAmount,
-        // Reset paid amounts since we're recalculating
-        paidAmount: 0,
-        penaltyPaid: 0,
-        basePaid: 0
+        totalAmount: recalculatedTotalAmount
+        // CRITICAL: DO NOT reset paidAmount/basePaid/penaltyPaid!
+        // These track actual payments made and are needed for unpaid calculation
+        // The spread operator (...bill) preserves these fields
       });
     }
     
