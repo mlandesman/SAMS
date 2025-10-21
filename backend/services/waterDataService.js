@@ -389,7 +389,30 @@ class WaterDataService {
       
       // Display fields for frontend (all in centavos - frontend converts to pesos for display)
       displayDue: billStatus === 'paid' ? 0 : unpaidAmount,                     // In centavos
-      displayPenalties: billStatus === 'paid' ? 0 : penaltyAmount,              // In centavos
+      displayPenalties: (() => {
+        // CRITICAL: Calculate penalties dynamically as of TODAY, not stored value
+        // This ensures UI always shows current penalties based on current date
+        if (billStatus === 'paid') return 0;
+        if (!bill || !bill.dueDate) return penaltyAmount; // Fallback to stored if no due date
+        
+        const dueDate = new Date(bill.dueDate);
+        const today = new Date();
+        const gracePeriodDays = config?.penaltyDays || 10;
+        const daysPastDue = Math.max(0, Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)));
+        
+        if (daysPastDue <= gracePeriodDays) return 0; // Within grace period
+        
+        // Calculate months past due
+        let monthsPastDue = (today.getFullYear() - dueDate.getFullYear()) * 12;
+        monthsPastDue += today.getMonth() - dueDate.getMonth();
+        if (today.getDate() >= dueDate.getDate()) monthsPastDue += 1;
+        monthsPastDue = Math.max(1, monthsPastDue);
+        
+        // Calculate penalty on UNPAID base amount
+        const unpaidBaseAmount = billAmount - (bill.basePaid || 0);
+        const penaltyRate = config?.penaltyRate || 0.05;
+        return Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+      })(),                                                                      // In centavos
       displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0),  // In centavos
       
       // NEW: Summary fields for UI (cumulative totals)
