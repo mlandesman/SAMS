@@ -1377,8 +1377,11 @@ class WaterDataService {
           : Object.entries(billData.bills.units || {});
         
         for (const [unitId, bill] of unitsToProcess) {
-          if (bill.totalAmount > bill.paidAmount) {
-            const unpaidAmount = bill.totalAmount - bill.paidAmount;
+          // CRITICAL: Use basePaid + penaltyPaid, NOT paidAmount (which may include overflow)
+          const totalPaid = (bill.basePaid || 0) + (bill.penaltyPaid || 0);
+          const unpaidAmount = Math.max(0, bill.totalAmount - totalPaid);
+          
+          if (unpaidAmount > 0) {
             // Use stored penalty amount minus penalty payments (not recalculated)
             const unpaidPenalty = (bill.penaltyAmount || 0) - (bill.penaltyPaid || 0);
             
