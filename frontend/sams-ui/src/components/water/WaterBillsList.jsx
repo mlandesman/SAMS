@@ -442,9 +442,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               // Backend pre-calculates all display values in aggregatedData (WB1)
               // Values already converted from centavos to pesos by API layer (WB1A)
               // For paid bills, backend sets these to 0 automatically
-              const penalties = unit.displayTotalPenalties || 0;  // Use cumulative penalties
-              const overdue = unit.displayOverdue || 0;
-              const due = unit.displayTotalDue || 0;  // Use total due amount
+              const penalties = unit.displayPenalties || 0;  // Current month penalties only
+              const overdue = unit.displayOverdue || 0;      // Prior months unpaid + their penalties
+              const due = unit.displayTotalDue || 0;         // Total due (overdue + current + penalties)
               
               
               // Get most recent payment's transaction ID from payments array
