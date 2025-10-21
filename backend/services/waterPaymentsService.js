@@ -445,20 +445,25 @@ class WaterPaymentsService {
     let overpayment = 0;
     let newCreditBalance = 0;
     
-    // Calculate based on TOTAL AVAILABLE FUNDS (payment + credit) vs total bills due
-    const totalFundsCentavos = paymentAmountCentavos + pesosToCentavos(currentCreditBalance);
+    // FIX: Compare PAYMENT AMOUNT to bills due, not total funds
+    // Logic:
+    // 1. If payment >= bills → No credit needed, payment covers everything
+    // 2. If payment < bills → Need credit to make up difference
     
-    if (totalFundsCentavos < totalBillsDueCentavos) {
-      // Underpayment scenario - use all available credit
-      creditUsed = this._roundCurrency(currentCreditBalance);
-      newCreditBalance = 0;
-      overpayment = 0;
-    } else {
-      // Overpayment scenario - excess funds go to credit balance
-      const excessFundsCentavos = totalFundsCentavos - totalBillsDueCentavos;
-      overpayment = this._roundCurrency(centavosToPesos(excessFundsCentavos));
-      newCreditBalance = this._roundCurrency(currentCreditBalance + overpayment);
+    if (paymentAmountCentavos >= totalBillsDueCentavos) {
+      // Payment covers all bills - no credit needed
       creditUsed = 0;
+      // Excess payment goes to credit balance
+      const excessPaymentCentavos = paymentAmountCentavos - totalBillsDueCentavos;
+      overpayment = this._roundCurrency(centavosToPesos(excessPaymentCentavos));
+      newCreditBalance = this._roundCurrency(currentCreditBalance + overpayment);
+    } else {
+      // Payment doesn't cover bills - use credit to make up difference
+      const shortfallCentavos = totalBillsDueCentavos - paymentAmountCentavos;
+      const creditNeededCentavos = Math.min(shortfallCentavos, pesosToCentavos(currentCreditBalance));
+      creditUsed = this._roundCurrency(centavosToPesos(creditNeededCentavos));
+      newCreditBalance = this._roundCurrency(currentCreditBalance - creditUsed);
+      overpayment = 0;
     }
     
     console.log(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
