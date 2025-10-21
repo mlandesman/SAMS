@@ -579,10 +579,10 @@ ${washCharges.toFixed(2)}
                       </button>
                     ) : (
                       <button 
-                        className={`link-button status-button ${getStatusClass(unit.status || 'unpaid')}`}
+                        className={'link-button status-button ' + getStatusClass(unit.status || 'unpaid')}
                         onClick={handleStatusClick}
                         title={due > 0 ? 
-                          `Click to record payment for Unit ${unitId}` : 
+                          'Click to record payment for Unit ' + unitId : 
                           'No payment needed'
                         }
                       >
