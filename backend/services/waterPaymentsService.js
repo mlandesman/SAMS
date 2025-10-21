@@ -507,18 +507,24 @@ class WaterPaymentsService {
     
     // Convert billPayments to PESOS for return to frontend
     const billPaymentsForAllocations = billPayments.map(bp => {
-      // Find the original bill to get total amounts due
+      // Find the original bill to get UNPAID amounts due (for frontend display)
       const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
+      
+      // Calculate UNPAID portions (what's still owed after previous payments)
+      const unpaidBaseDue = originalBill ? originalBill.currentCharge - (originalBill.basePaid || 0) : bp.baseChargePaid;
+      const unpaidPenaltyDue = originalBill ? originalBill.penaltyAmount - (originalBill.penaltyPaid || 0) : bp.penaltyPaid;
+      const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
       
       return {
         ...bp,
         amountPaid: centavosToPesos(bp.amountPaid),
         baseChargePaid: centavosToPesos(bp.baseChargePaid),
         penaltyPaid: centavosToPesos(bp.penaltyPaid),
-        // Add total amounts due for frontend display
-        totalBaseDue: originalBill ? centavosToPesos(originalBill.currentCharge) : centavosToPesos(bp.baseChargePaid),
-        totalPenaltyDue: originalBill ? centavosToPesos(originalBill.penaltyAmount) : centavosToPesos(bp.penaltyPaid),
-        totalDue: originalBill ? centavosToPesos(originalBill.totalAmount) : centavosToPesos(bp.amountPaid)
+        // Return UNPAID amounts (what's still owed) for frontend display
+        // This ensures the modal shows correct "Total Due" that doesn't change when payment amount changes
+        totalBaseDue: centavosToPesos(unpaidBaseDue),
+        totalPenaltyDue: centavosToPesos(unpaidPenaltyDue),
+        totalDue: centavosToPesos(totalUnpaidDue)
       };
     });
     
@@ -920,17 +926,10 @@ class WaterPaymentsService {
   async _updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, paymentAmount) {
     const batch = this.db.batch();
     
-    // Convert paymentAmount from pesos to centavos for bill storage
+    // Convert paymentAmount from pesos to centavos for audit trail
     const paymentAmountCentavos = pesosToCentavos(paymentAmount);
     
-    // Determine which month to record the FULL payment amount in
-    // Use current fiscal month based on payment date
-    const currentDate = new Date(paymentDate);
-    const currentFiscalYear = getNow().getFullYear() + 1; // AVII uses FY 2026 for 2025 calendar year
-    const currentFiscalMonth = Math.max(0, currentDate.getMonth() - 6); // July = 0, Aug = 1, etc.
-    const paymentMonthId = `${currentFiscalYear}-${String(currentFiscalMonth).padStart(2, '0')}`;
-    
-    console.log(`💳 Recording FULL payment amount ${paymentAmountCentavos} centavos ($${paymentAmount}) in month ${paymentMonthId} for display`);
+    console.log(`💳 Recording payment distribution for ${billPayments.length} bills (Total: $${paymentAmount})`);
     
     for (const payment of billPayments) {
       const billRef = this.db.collection('clients').doc(clientId)
@@ -950,21 +949,21 @@ class WaterPaymentsService {
       const newBasePaid = (currentBill.basePaid || 0) + payment.baseChargePaid;
       const newPenaltyPaid = (currentBill.penaltyPaid || 0) + payment.penaltyPaid;
       
-      // For paidAmount display: Show FULL payment in the payment month, allocated amounts in other months (ALL IN CENTAVOS)
-      const isPaymentMonth = payment.billId === paymentMonthId;
-      const displayPaidAmount = isPaymentMonth ? paymentAmountCentavos : payment.amountPaid;
-      const newPaidAmount = (currentBill.paidAmount || 0) + displayPaidAmount;
+      // FIX: paidAmount should ONLY reflect the actual amount paid to THIS bill
+      // This ensures UI calculations (currentCharge - basePaid) work correctly
+      const newPaidAmount = newBasePaid + newPenaltyPaid;
       
-      console.log(`💰 Bill ${payment.billId}: isPaymentMonth=${isPaymentMonth}, displayAmount=${displayPaidAmount} centavos`);
+      console.log(`💰 Bill ${payment.billId}: basePaid=${newBasePaid}, penaltyPaid=${newPenaltyPaid}, paidAmount=${newPaidAmount} centavos`);
       
       // Get existing payments array or initialize it
       const existingPayments = currentBill.payments || [];
       
       // Create new payment entry (following HOA Dues pattern, ALL IN CENTAVOS)
+      // Store the FULL transaction amount in the payments array entry for audit trail
       const paymentEntry = {
-        amount: displayPaidAmount,           // In centavos
-        baseChargePaid: payment.baseChargePaid,  // In centavos
-        penaltyPaid: payment.penaltyPaid,        // In centavos
+        amount: paymentAmountCentavos,           // Full transaction amount for audit trail
+        baseChargePaid: payment.baseChargePaid,  // Portion allocated to this bill's base
+        penaltyPaid: payment.penaltyPaid,        // Portion allocated to this bill's penalty
         date: paymentDate,
         method: paymentMethod,
         reference: reference,
@@ -976,7 +975,7 @@ class WaterPaymentsService {
       const updatedPayments = [...existingPayments, paymentEntry];
       
       batch.update(billRef, {
-        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,       // In centavos
+        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,       // In centavos - sum of base + penalty
         [`bills.units.${unitId}.basePaid`]: newBasePaid,           // In centavos
         [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,     // In centavos
         [`bills.units.${unitId}.status`]: payment.newStatus,

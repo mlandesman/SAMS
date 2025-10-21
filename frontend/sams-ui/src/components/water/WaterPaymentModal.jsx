@@ -256,6 +256,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
         });
         
         // Update the unpaid bills with recalculated penalty amounts and status
+        // FIX: Keep the TOTAL DUE amounts fixed, only update the STATUS based on payment
         setUnpaidBills(prevBills => 
           prevBills.map(bill => {
             // Find matching bill payment from preview
@@ -274,10 +275,16 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
               
               return {
                 ...bill,
-                // Update penalty amounts with recalculated values
-                penaltiesDue: billPayment.penaltyPaid, // Show recalculated penalty amount
-                baseChargeDue: billPayment.baseChargePaid, // Show recalculated base amount
-                unpaidAmount: billPayment.amountPaid, // Show total amount that would be paid
+                // FIX: Use totalDue amounts (what's owed), NOT payment amounts
+                // These should NOT change when user changes payment amount
+                penaltiesDue: billPayment.totalPenaltyDue || bill.penaltiesDue,
+                baseChargeDue: billPayment.totalBaseDue || bill.baseChargeDue,
+                unpaidAmount: billPayment.totalDue || bill.unpaidAmount,
+                // Store payment allocations for reference
+                baseChargePaid: billPayment.baseChargePaid,
+                penaltyPaid: billPayment.penaltyPaid,
+                amountPaid: billPayment.amountPaid,
+                // Update status to show what WILL happen with this payment
                 status: status,
                 statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
                             billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'

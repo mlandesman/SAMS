@@ -378,16 +378,19 @@ class WaterDataService {
     };
     
     // TASK 2: Data consistency validation (after building the unit data)
+    // Use basePaid + penaltyPaid for validation (not paidAmount which may include overflow from prior payment)
+    const actualAmountPaidToThisBill = (bill?.basePaid || 0) + (bill?.penaltyPaid || 0);
+    
     if (billStatus === 'paid' && unpaidAmount > 0) {
       console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-      console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
     }
     if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
       console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-      console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+      console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
     }
-    if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
-      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+    if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
+      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
     }
     
     return unitData;
@@ -527,17 +530,20 @@ class WaterDataService {
       const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
       
       // TASK 2: Data consistency validation
+      // Use basePaid + penaltyPaid for validation (not paidAmount which may include overflow from prior payment)
+      const actualAmountPaidToThisBill = (bill?.basePaid || 0) + (bill?.penaltyPaid || 0);
+      
       // Check for inconsistencies between status and amounts
       if (billStatus === 'paid' && unpaidAmount > 0) {
         console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
         console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
-      if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+      if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
       }
       
       unitData[unitId] = {
@@ -875,16 +881,19 @@ class WaterDataService {
       
       // TASK 2: Data consistency validation (after building the unit data)
       const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
+      // Use basePaid + penaltyPaid for validation (not paidAmount which may include overflow from prior payment)
+      const actualAmountPaidToThisBill = (bill?.basePaid || 0) + (bill?.penaltyPaid || 0);
+      
       if (billStatus === 'paid' && unpaidAmount > 0) {
         console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
         console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-        console.warn(`   totalAmount: $${totalDueAmount}, paidAmount: $${bill?.paidAmount || 0}`);
+        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
-      if (billStatus === 'paid' && (bill?.paidAmount || 0) < totalDueAmount) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but paidAmount ($${bill?.paidAmount || 0}) < totalAmount ($${totalDueAmount})`);
+      if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
+        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
       }
     }
     

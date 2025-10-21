@@ -1,0 +1,100 @@
+            "displayDue": 0,
+            "displayPenalties": 0,
+            "displayOverdue": 0,
+            "totalPenalties": 0,
+            "totalDue": 0,
+            "displayTotalPenalties": 0,
+            "displayTotalDue": 0
+          },
+          "204": {
+            "ownerLastName": "Januj",
+            "priorReading": 0,
+            "currentReading": {
+              "reading": 0
+            },
+            "consumption": 0,
+            "previousBalance": 0,
+            "penaltyAmount": 0,
+            "billAmount": 0,
+            "totalAmount": 0,
+            "paidAmount": 0,
+            "unpaidAmount": 0,
+            "status": "nobill",
+            "daysPastDue": 0,
+            "transactionId": null,
+            "payments": [],
+            "billNotes": null,
+            "displayDue": 0,
+            "displayPenalties": 0,
+            "displayOverdue": 0,
+            "totalPenalties": 0,
+            "totalDue": 0,
+            "displayTotalPenalties": 0,
+            "displayTotalDue": 0
+          }
+        },
+        "dueDate": null
+      }
+    ],
+    "summary": {
+      "totalConsumption": -11045,
+      "commonAreaConsumption": 111,
+      "buildingMeterConsumption": 18724,
+      "totalBilled": 19450,
+      "totalPaid": 0,
+      "totalUnpaid": 4250,
+      "unitsWithOverdue": 0,
+      "collectionRate": 0,
+      "overdueDetails": [
+        {
+          "unitId": "101",
+          "owner": "Zerbarini",
+          "amountDue": 350
+        },
+        {
+          "unitId": "102",
+          "owner": "Bagnato",
+          "amountDue": 200
+        },
+        {
+          "unitId": "103",
+          "owner": "Fernández",
+          "amountDue": 400
+        },
+        {
+          "unitId": "104",
+          "owner": "González",
+          "amountDue": 400
+        },
+        {
+          "unitId": "105",
+          "owner": "Manjarrez",
+          "amountDue": 200
+        },
+        {
+          "unitId": "106",
+          "owner": "Nieto",
+          "amountDue": 550
+        },
+        {
+          "unitId": "202",
+          "owner": "Violette",
+          "amountDue": 250
+        },
+        {
+          "unitId": "203",
+          "owner": "Marquez",
+          "amountDue": 1700
+        },
+        {
+          "unitId": "204",
+          "owner": "Januj",
+          "amountDue": 200
+        }
+      ]
+    },
+    "carWashRate": 100,
+    "boatWashRate": 200
+  }
+}
+✅ API call successful
