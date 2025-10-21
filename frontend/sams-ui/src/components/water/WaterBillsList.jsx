@@ -402,7 +402,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      {monthData && monthData.units ? (
+      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
         <div className="bills-table-container">
           <table className="bills-table">
             <thead>
@@ -419,7 +419,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               </tr>
             </thead>
             <tbody>
-              {Object.entries(monthData.units).map(([unitId, unit]) => {
+              {monthData?.units ? (
+                // Show bills data if it exists
+                Object.entries(monthData.units).map(([unitId, unit]) => {
               // Find unit to get owner name - will come from backend eventually
               const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
               const ownerName = unitConfig?.ownerLastName || unitConfig?.ownerName || 
@@ -592,7 +594,47 @@ ${washCharges.toFixed(2)}
                   </td>
                 </tr>
               );
-            })}
+                })}
+              ) : (
+                // Show readings data when bills don't exist yet
+                availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings ? (
+                  // Show readings data in table format
+                  units.map((unit) => {
+                    const unitId = unit.unitId || unit.id;
+                    const ownerName = unit.ownerLastName || unit.ownerName || 'No Name Available';
+                    
+                    // For now, show placeholder data - we need to fetch readings data
+                    const consumption = 0; // TODO: Get from readings data
+                    const ratePerM3 = billingConfig?.ratePerM3 || 5000; // In centavos
+                    const monthlyCharge = (consumption * ratePerM3) / 100; // Convert to pesos
+                    
+                    return (
+                      <tr key={unitId}>
+                        <td className="unit-id text-left">{unitId}</td>
+                        <td className="owner-name text-left">{ownerName}</td>
+                        <td className="consumption text-right">{formatNumber(consumption)}</td>
+                        <td className="monthly-charge text-right">${formatCurrency(monthlyCharge)}</td>
+                        <td className="washes text-right">$0.00</td>
+                        <td className="overdue text-right">$0.00</td>
+                        <td className="penalties text-right">$0.00</td>
+                        <td className="due text-right">${formatCurrency(monthlyCharge)}</td>
+                        <td className="status text-center">
+                          <span className="status-nobill">NOBILL</span>
+                        </td>
+                      </tr>
+                    );
+                  }).filter(Boolean)
+                ) : (
+                  <tr>
+                    <td colSpan="9" className="text-center">
+                      <div className="no-readings-message">
+                        <p>No readings data available for this month.</p>
+                        <p>Please enter readings first before generating bills.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )}
           </tbody>
           <tfoot>
             <tr className="totals-row">
