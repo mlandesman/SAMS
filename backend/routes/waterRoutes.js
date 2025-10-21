@@ -100,6 +100,46 @@ function convertYearDataToPesos(data) {
 
 
 // ============= READINGS =============
+// GET /water/clients/:clientId/readings/:year - Get all readings for a year
+router.get('/clients/:clientId/readings/:year', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    const readings = await waterReadingsService.getYearReadings(
+      clientId, parseInt(year)
+    );
+    
+    // Create 12-month array for display
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+      const monthData = readings[i] || {};
+      const simplifiedMonth = {};
+      
+      // Convert from {reading, consumption} to just the reading value
+      for (const unitId in monthData) {
+        // If it's an object with reading property, extract it
+        if (typeof monthData[unitId] === 'object' && monthData[unitId].reading !== undefined) {
+          simplifiedMonth[unitId] = monthData[unitId].reading;
+        } else {
+          // Fallback for any direct values
+          simplifiedMonth[unitId] = monthData[unitId];
+        }
+      }
+      
+      months.push(simplifiedMonth);
+    }
+    
+    res.json({ 
+      success: true, 
+      year: parseInt(year),
+      months,
+      detailedData: readings
+    });
+  } catch (error) {
+    console.error('Error getting year readings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /water/clients/:clientId/readings/:year/:month
 router.get('/clients/:clientId/readings/:year/:month', enforceClientAccess, async (req, res) => {
   try {
