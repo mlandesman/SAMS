@@ -347,6 +347,7 @@ function WaterBillsViewV3() {
           
           {activeTab === 'bills' && (
             <div className="tab-panel">
+              {console.log('🎯 [WaterBillsViewV3] Rendering WaterBillsList with clientId:', selectedClient.id)}
               <WaterBillsList 
                 key={`bills-${refreshKey}`}
                 clientId={selectedClient.id}

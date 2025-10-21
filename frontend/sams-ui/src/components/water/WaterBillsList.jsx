@@ -8,6 +8,8 @@ import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
 import './WaterBillsList.css';
 
 const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) => {
+  console.log('🚀 [WaterBillsList] Component mounted with clientId:', clientId);
+  
   // TEMPORARY: Phase 1 - Single month display only
   // TODO: Phase 2 will add cross-month aggregation
   const ENABLE_AGGREGATION = false;  // Will be enabled in Phase 2
@@ -34,9 +36,13 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const units = selectedClient?.configuration?.units || [];
 
   useEffect(() => {
+    console.log('🔄 [WaterBillsList] useEffect triggered:', { clientId, refreshKey });
     if (clientId) {
+      console.log('✅ [WaterBillsList] clientId exists, calling functions');
       fetchBillingConfig();
       fetchAvailableReadingMonths();
+    } else {
+      console.log('❌ [WaterBillsList] No clientId, skipping functions');
     }
 }, [clientId, refreshKey]);
 
