@@ -592,7 +592,7 @@ ${washCharges.toFixed(2)}
                   </td>
                 </tr>
               );
-            })
+            })}
           </tbody>
           <tfoot>
             <tr className="totals-row">
