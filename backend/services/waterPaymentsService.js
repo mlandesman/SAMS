@@ -520,6 +520,8 @@ class WaterPaymentsService {
       const unpaidPenaltyDue = originalBill ? originalBill.penaltyAmount - (originalBill.penaltyPaid || 0) : bp.penaltyPaid;
       const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
       
+      console.log(`🔍 [MODAL DATA] Bill ${bp.billPeriod}: currentCharge=${originalBill?.currentCharge}, basePaid=${originalBill?.basePaid}, unpaidBaseDue=${unpaidBaseDue} centavos ($${centavosToPesos(unpaidBaseDue)})`);
+      
       return {
         ...bp,
         amountPaid: centavosToPesos(bp.amountPaid),
