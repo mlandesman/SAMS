@@ -428,7 +428,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      {monthData && monthData.units ? (
+      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
         <div className="bills-table-container">
           <table className="bills-table">
             <thead>
@@ -445,7 +445,9 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               </tr>
             </thead>
             <tbody>
-              {Object.entries(monthData.units).map(([unitId, unit]) => {
+              {monthData?.units ? (
+                // Show bills data if it exists
+                Object.entries(monthData.units).map(([unitId, unit]) => {
               // Find unit to get owner name - will come from backend eventually
               const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
               const ownerName = unitConfig?.ownerLastName || unitConfig?.ownerName || 
@@ -618,7 +620,30 @@ ${washCharges.toFixed(2)}
                   </td>
                 </tr>
               );
-            })}
+            })
+              ) : (
+                // Show readings data when bills don't exist yet
+                availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings ? (
+                  <tr>
+                    <td colSpan="9" className="text-center">
+                      <div className="readings-preview">
+                        <h4>📊 Readings Data Available for {availableReadingMonths.find(m => m.month === selectedMonth)?.monthName}</h4>
+                        <p>Readings data exists for this month. You can generate bills after setting the due date.</p>
+                        <p><strong>Note:</strong> Bill amounts will be calculated from readings when you click "Generate Bills".</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td colSpan="9" className="text-center">
+                      <div className="no-readings-message">
+                        <p>No readings data available for this month.</p>
+                        <p>Please enter readings first before generating bills.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )}
           </tbody>
           <tfoot>
             <tr className="totals-row">
@@ -648,28 +673,39 @@ ${washCharges.toFixed(2)}
         </div>
       )}
 
-      {monthData && (
+      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
         <div className="bills-summary">
-        <div className="summary-item">
-          <span className="summary-label">Month Billed:</span>
-          <span className="summary-value">${formatCurrency(monthTotals.billAmount)}</span>
+          {monthData && monthData.units ? (
+            // Show bill totals when bills exist
+            <>
+              <div className="summary-item">
+                <span className="summary-label">Month Billed:</span>
+                <span className="summary-value">${formatCurrency(monthTotals.billAmount)}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Month Paid:</span>
+                <span className="summary-value paid">${formatCurrency(monthTotals.paid)}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Month Due:</span>
+                <span className="summary-value unpaid">${formatCurrency(monthTotals.due)}</span>
+              </div>
+              {monthTotals.penalties > 0 && (
+                <div className="summary-item">
+                  <span className="summary-label">Month Penalties:</span>
+                  <span className="summary-value overdue">${formatCurrency(monthTotals.penalties)}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            // Show readings preview when bills don't exist yet
+            <div className="summary-item">
+              <span className="summary-label">Status:</span>
+              <span className="summary-value">Ready to generate bills from readings</span>
+            </div>
+          )}
         </div>
-        <div className="summary-item">
-          <span className="summary-label">Month Paid:</span>
-          <span className="summary-value paid">${formatCurrency(monthTotals.paid)}</span>
-        </div>
-        <div className="summary-item">
-          <span className="summary-label">Month Due:</span>
-          <span className="summary-value unpaid">${formatCurrency(monthTotals.due)}</span>
-        </div>
-        {monthTotals.penalties > 0 && (
-          <div className="summary-item">
-            <span className="summary-label">Month Penalties:</span>
-            <span className="summary-value overdue">${formatCurrency(monthTotals.penalties)}</span>
-          </div>
-        )}
-        </div>
-      )}
+      ) : null}
 
       {/* Water Payment Modal */}
       <WaterPaymentModal
