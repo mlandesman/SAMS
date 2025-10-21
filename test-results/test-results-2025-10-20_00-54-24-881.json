@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-20T00:54:27.959Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 1,
+    "passedTests": 0,
+    "failedTests": 1,
+    "totalDuration": 0
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760921664882-nutamrp9j",
+      "name": "End-to-End Payment Flow",
+      "passed": false,
+      "duration": 3077,
+      "data": {
+        "billGeneration": null,
+        "aggregatedDataBefore": null,
+        "previewPayment": null,
+        "recordPayment": null,
+        "billAfterPayment": null,
+        "aggregatedDataAfter": null
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:54:27.959Z",
+      "reason": "Request failed with status code 500"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "successRate": 0,
+    "averageDuration": 3077,
+    "startTime": null,
+    "endTime": 1760921667959
+  }
+}

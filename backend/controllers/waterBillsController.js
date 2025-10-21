@@ -1,5 +1,6 @@
 // controllers/waterBillsController.js
 import waterBillsService from '../services/waterBillsService.js';
+import { waterDataService } from '../services/waterDataService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
 import { getNow } from '../services/DateService.js';
@@ -102,6 +103,9 @@ export const generateBills = async (req, res) => {
       parseInt(month),
       dueDate ? { dueDate } : undefined
     );
+    
+    // Bills generated successfully - frontend will fetch fresh data
+    console.log(`✅ [GENERATE_BILLS] Bills generated successfully`);
     
     // Convert bills from centavos to pesos for frontend compatibility
     const convertedResult = convertBillsToPesos(result);

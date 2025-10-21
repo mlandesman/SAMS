@@ -1,0 +1,366 @@
+{
+  "metadata": {
+    "timestamp": "2025-10-20T00:45:44.592Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 5,
+    "passedTests": 4,
+    "failedTests": 1,
+    "totalDuration": 0
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1760921142252-w4bplupyj",
+      "name": "Get Live Unpaid Bills",
+      "passed": true,
+      "duration": 1049,
+      "data": {
+        "unpaidBills": [
+          {
+            "period": "2026-00",
+            "status": "unpaid",
+            "currentCharge": 950,
+            "penaltyAmount": 0,
+            "totalAmount": 950,
+            "paidAmount": 0,
+            "unpaidAmount": 950
+          },
+          {
+            "period": "2026-01",
+            "status": "unpaid",
+            "currentCharge": 900,
+            "penaltyAmount": 0,
+            "totalAmount": 900,
+            "paidAmount": 0,
+            "unpaidAmount": 900
+          }
+        ],
+        "count": 2
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:45:43.301Z",
+      "message": "Found 2 unpaid bills"
+    },
+    {
+      "id": "TEST-1760921143301-nbofdmwrr",
+      "name": "Preview Payment WITH selectedMonth (Month 0 = July)",
+      "passed": true,
+      "duration": 511,
+      "data": {
+        "preview": {
+          "totalAvailableFunds": 950,
+          "billPayments": [
+            {
+              "unitId": "101",
+              "billId": "2026-00",
+              "billPeriod": "2026-00",
+              "amountPaid": 950,
+              "baseChargePaid": 950,
+              "penaltyPaid": 0,
+              "newStatus": "partial"
+            }
+          ],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_bill",
+              "targetId": "bill_2026-00",
+              "targetName": "2026-00 - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Water Consumption",
+              "categoryId": "water-consumption",
+              "data": {
+                "unitId": "101",
+                "billId": "2026-00",
+                "billPeriod": "2026-00",
+                "billType": "base_charge"
+              },
+              "metadata": {
+                "processingStrategy": "water_bills",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:45:43.797Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 95000,
+            "allocationCount": 1,
+            "allocationType": "water_bill",
+            "hasMultipleTypes": false,
+            "integrityCheck": {
+              "expectedTotal": 95000,
+              "actualTotal": 95000,
+              "isValid": true
+            }
+          },
+          "totalBaseCharges": 950,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 0,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 0,
+          "totalBillsDue": 950
+        },
+        "billsProcessed": 1,
+        "totalBillsDue": 950
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:45:43.812Z",
+      "message": "Preview processed 1 bills"
+    },
+    {
+      "id": "TEST-1760921143812-qgw4cl2up",
+      "name": "Preview Payment WITHOUT selectedMonth (All Bills)",
+      "passed": true,
+      "duration": 440,
+      "data": {
+        "preview": {
+          "totalAvailableFunds": 950,
+          "billPayments": [
+            {
+              "unitId": "101",
+              "billId": "2026-00",
+              "billPeriod": "2026-00",
+              "amountPaid": 950,
+              "baseChargePaid": 950,
+              "penaltyPaid": 0,
+              "newStatus": "partial"
+            },
+            {
+              "unitId": "101",
+              "billId": "2026-01",
+              "billPeriod": "2026-01",
+              "amountPaid": 0,
+              "baseChargePaid": 0,
+              "penaltyPaid": 0,
+              "newStatus": "unpaid"
+            }
+          ],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_bill",
+              "targetId": "bill_2026-00",
+              "targetName": "2026-00 - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Water Consumption",
+              "categoryId": "water-consumption",
+              "data": {
+                "unitId": "101",
+                "billId": "2026-00",
+                "billPeriod": "2026-00",
+                "billType": "base_charge"
+              },
+              "metadata": {
+                "processingStrategy": "water_bills",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:45:44.252Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 95000,
+            "allocationCount": 2,
+            "allocationType": "water_bill",
+            "hasMultipleTypes": false,
+            "integrityCheck": {
+              "expectedTotal": 95000,
+              "actualTotal": 95000,
+              "isValid": true
+            }
+          },
+          "totalBaseCharges": 950,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 0,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 0,
+          "totalBillsDue": 1850
+        },
+        "billsProcessed": 2,
+        "totalBillsDue": 1850
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:45:44.252Z",
+      "message": "Preview processed 2 bills"
+    },
+    {
+      "id": "TEST-1760921144253-8v5zvr8mt",
+      "name": "Compare Preview WITH vs WITHOUT selectedMonth",
+      "passed": false,
+      "duration": 1,
+      "data": {
+        "billsMatch": false,
+        "chargesMatch": true,
+        "penaltiesMatch": true,
+        "totalsMatch": false,
+        "with_data": {
+          "totalAvailableFunds": 950,
+          "billPayments": [
+            {
+              "unitId": "101",
+              "billId": "2026-00",
+              "billPeriod": "2026-00",
+              "amountPaid": 950,
+              "baseChargePaid": 950,
+              "penaltyPaid": 0,
+              "newStatus": "partial"
+            }
+          ],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_bill",
+              "targetId": "bill_2026-00",
+              "targetName": "2026-00 - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Water Consumption",
+              "categoryId": "water-consumption",
+              "data": {
+                "unitId": "101",
+                "billId": "2026-00",
+                "billPeriod": "2026-00",
+                "billType": "base_charge"
+              },
+              "metadata": {
+                "processingStrategy": "water_bills",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:45:43.797Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 95000,
+            "allocationCount": 1,
+            "allocationType": "water_bill",
+            "hasMultipleTypes": false,
+            "integrityCheck": {
+              "expectedTotal": 95000,
+              "actualTotal": 95000,
+              "isValid": true
+            }
+          },
+          "totalBaseCharges": 950,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 0,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 0,
+          "totalBillsDue": 950
+        },
+        "without_data": {
+          "totalAvailableFunds": 950,
+          "billPayments": [
+            {
+              "unitId": "101",
+              "billId": "2026-00",
+              "billPeriod": "2026-00",
+              "amountPaid": 950,
+              "baseChargePaid": 950,
+              "penaltyPaid": 0,
+              "newStatus": "partial"
+            },
+            {
+              "unitId": "101",
+              "billId": "2026-01",
+              "billPeriod": "2026-01",
+              "amountPaid": 0,
+              "baseChargePaid": 0,
+              "penaltyPaid": 0,
+              "newStatus": "unpaid"
+            }
+          ],
+          "allocations": [
+            {
+              "id": "alloc_001",
+              "type": "water_bill",
+              "targetId": "bill_2026-00",
+              "targetName": "2026-00 - Unit 101",
+              "amount": 950,
+              "percentage": null,
+              "categoryName": "Water Consumption",
+              "categoryId": "water-consumption",
+              "data": {
+                "unitId": "101",
+                "billId": "2026-00",
+                "billPeriod": "2026-00",
+                "billType": "base_charge"
+              },
+              "metadata": {
+                "processingStrategy": "water_bills",
+                "cleanupRequired": true,
+                "auditRequired": true,
+                "createdAt": "2025-10-20T00:45:44.252Z"
+              }
+            }
+          ],
+          "allocationSummary": {
+            "totalAllocated": 95000,
+            "allocationCount": 2,
+            "allocationType": "water_bill",
+            "hasMultipleTypes": false,
+            "integrityCheck": {
+              "expectedTotal": 95000,
+              "actualTotal": 95000,
+              "isValid": true
+            }
+          },
+          "totalBaseCharges": 950,
+          "totalPenalties": 0,
+          "creditUsed": 0,
+          "overpayment": 0,
+          "currentCreditBalance": 0,
+          "newCreditBalance": 0,
+          "totalBillsDue": 1850
+        }
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:45:44.254Z",
+      "message": "Results differ - bug confirmed",
+      "reason": "selectedMonth parameter causes different calculations"
+    },
+    {
+      "id": "TEST-1760921144254-vxu0q3rik",
+      "name": "Check AggregatedData Status",
+      "passed": true,
+      "duration": 338,
+      "data": {
+        "exists": true,
+        "fiscalYear": true,
+        "monthsCount": 12,
+        "unitFound": true,
+        "unitStatus": "unpaid"
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-10-20T00:45:44.592Z",
+      "message": "aggregatedData exists, unit found"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 5,
+    "passed": 4,
+    "failed": 1,
+    "successRate": 80,
+    "averageDuration": 468,
+    "startTime": null,
+    "endTime": 1760921144592
+  }
+}

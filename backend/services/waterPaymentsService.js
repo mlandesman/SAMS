@@ -194,18 +194,134 @@ class WaterPaymentsService {
   }
   
   /**
+   * Get billing configuration for a client
+   * @param {string} clientId - Client ID
+   * @returns {object} Billing configuration
+   */
+  async _getBillingConfig(clientId) {
+    const configDoc = await this.db
+      .collection('clients')
+      .doc(clientId)
+      .collection('config')
+      .doc('waterBills')
+      .get();
+    
+    if (!configDoc.exists) {
+      // Return default config
+      return {
+        penaltyRate: 0.05,
+        penaltyDays: 10,
+        ratePerM3: 5000
+      };
+    }
+    
+    return configDoc.data();
+  }
+  
+  /**
+   * Recalculate penalties for bills as of a specific date (for backdated payments)
+   * @param {string} clientId - Client ID
+   * @param {Array} bills - Array of bill objects
+   * @param {Date} asOfDate - Date to calculate penalties as of
+   * @returns {Array} Bills with recalculated penalties
+   */
+  async _recalculatePenaltiesAsOfDate(clientId, bills, asOfDate) {
+    console.log(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
+    
+    // Get billing config for penalty rate
+    const config = await this._getBillingConfig(clientId);
+    const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
+    const gracePeriodDays = config.penaltyDays || 10; // 10 days grace period default (penaltyDays is the grace period)
+    
+    const recalculatedBills = [];
+    
+    for (const bill of bills) {
+      const billDate = new Date(bill.billDate || bill.createdAt);
+      
+      // Get due date from bill period or use default grace period
+      let dueDate;
+      if (bill.dueDate) {
+        dueDate = new Date(bill.dueDate);
+      } else {
+        // Calculate due date based on bill period (e.g., "2026-00" = July 2025)
+        // Default: 15th of the month + 7 days grace period = 22nd
+        const billPeriod = bill.billPeriod || bill.period;
+        if (billPeriod) {
+          const [fiscalYear, month] = billPeriod.split('-');
+          const calendarYear = fiscalYear === '2026' ? 2025 : parseInt(fiscalYear);
+          const monthIndex = parseInt(month) + 6; // Convert fiscal year months to calendar year months (July = 0 in fiscal, 6 in calendar)
+          dueDate = new Date(calendarYear, monthIndex, 15 + gracePeriodDays); // 15th + grace period
+        } else {
+          // Fallback: use bill date + grace period
+          dueDate = new Date(billDate.getTime() + (gracePeriodDays * 24 * 60 * 60 * 1000));
+        }
+      }
+      
+      // Calculate days past due as of the payment date
+      const daysPastDue = Math.max(0, Math.floor((asOfDate - dueDate) / (1000 * 60 * 60 * 24)));
+      
+      let recalculatedPenaltyAmount = 0;
+      
+      if (daysPastDue > gracePeriodDays) {
+        // Calculate penalty based on actual calendar months past due
+        const dueDateObj = new Date(dueDate);
+        const paymentDateObj = new Date(asOfDate);
+        
+        // Calculate actual calendar months between dates
+        let monthsPastDue = (paymentDateObj.getFullYear() - dueDateObj.getFullYear()) * 12;
+        monthsPastDue += paymentDateObj.getMonth() - dueDateObj.getMonth();
+        
+        // If payment date is on or after the same day of the month as due date, add 1 month
+        if (paymentDateObj.getDate() >= dueDateObj.getDate()) {
+          monthsPastDue += 1;
+        }
+        
+        // Ensure minimum of 1 month if past grace period
+        monthsPastDue = Math.max(1, monthsPastDue);
+        
+        console.log(`   Calendar months calculation: ${dueDateObj.toDateString()} to ${paymentDateObj.toDateString()} = ${monthsPastDue} months`);
+        
+        // CRITICAL: Calculate penalty on UNPAID base amount, not full original charge
+        // For partial payments, only charge penalty on the remaining unpaid balance
+        const unpaidBaseAmount = bill.currentCharge - (bill.basePaid || 0);
+        recalculatedPenaltyAmount = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+        
+        console.log(`   Penalty calculation: unpaidBase=$${unpaidBaseAmount/100} × ${penaltyRate} × ${monthsPastDue} months = $${recalculatedPenaltyAmount/100}`);
+      }
+      
+      const recalculatedTotalAmount = bill.currentCharge + recalculatedPenaltyAmount;
+      
+      console.log(`   Bill ${bill.billId}: ${daysPastDue} days past due, penalty: ${bill.penaltyAmount} → ${recalculatedPenaltyAmount}`);
+      
+      recalculatedBills.push({
+        ...bill,
+        penaltyAmount: recalculatedPenaltyAmount,
+        totalAmount: recalculatedTotalAmount
+        // CRITICAL: DO NOT reset paidAmount/basePaid/penaltyPaid!
+        // These track actual payments made and are needed for unpaid calculation
+        // The spread operator (...bill) preserves these fields
+      });
+    }
+    
+    return recalculatedBills;
+  }
+  
+  /**
    * Calculate payment distribution for preview or actual payment
    * This is the single source of truth for payment calculations
    * @param {string} clientId - Client ID
    * @param {string} unitId - Unit ID
    * @param {number} paymentAmount - Payment amount in PESOS
    * @param {number} currentCreditBalance - Current credit balance in PESOS
+   * @param {Date|string} payOnDate - Optional payment date for backdated payments (defaults to current date)
+   * @param {number} selectedMonth - Optional month index to filter bills (only consider bills up to this month)
    * @returns {object} Distribution breakdown with allocations (all amounts in PESOS)
    */
-  async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0) {
+  async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0, payOnDate = null, selectedMonth = null) {
     await this._initializeDb();
     
     console.log(`💧 Calculating payment distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
+    console.log(`🔍 [PARAMETERS] payOnDate: ${payOnDate}, selectedMonth: ${selectedMonth}`);
     
     // Calculate total available funds in PESOS and CENTAVOS
     const totalAvailableFundsPesos = this._roundCurrency(paymentAmount + currentCreditBalance);
@@ -214,11 +330,69 @@ class WaterPaymentsService {
     console.log(`💰 Available funds calculation: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
     
     // Get unpaid water bills (oldest first)
-    const unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
+    let unpaidBills = await this._getUnpaidBillsForUnit(clientId, unitId);
+    console.log(`🔍 [MONTH FILTERING] Raw unpaidBills from _getUnpaidBillsForUnit:`, unpaidBills.map(b => ({ id: b.id, billId: b.billId, billPeriod: b.billPeriod, unpaidAmount: b.unpaidAmount })));
+    
+    // Filter bills to only include those up to and including the selected month
+    if (selectedMonth !== null && selectedMonth !== undefined) {
+      console.log(`🔍 [MONTH FILTERING] Starting with ${unpaidBills.length} unpaid bills`);
+      console.log(`🔍 [MONTH FILTERING] Filtering to only include months up to index ${selectedMonth}`);
+      
+      const originalCount = unpaidBills.length;
+      unpaidBills = unpaidBills.filter(bill => {
+        // Extract month index from bill period (e.g., "2026-01" -> 1)
+        // The bills have a 'period' property that contains the fiscal period like "2026-00"
+        const billPeriod = bill.period || bill.billId || bill.billPeriod;
+        const billMonthMatch = billPeriod?.match(/\d{4}-(\d{2})/);
+        if (billMonthMatch) {
+          const billMonthIndex = parseInt(billMonthMatch[1]);
+          const isIncluded = billMonthIndex <= selectedMonth;
+          console.log(`🔍 [MONTH FILTERING] Bill ${billPeriod}: month index ${billMonthIndex} vs selected ${selectedMonth} -> ${isIncluded ? 'INCLUDED' : 'EXCLUDED'}`);
+          return isIncluded;
+        } else {
+          console.log(`🔍 [MONTH FILTERING] Bill ${billPeriod}: no period format found -> INCLUDED`);
+          return true; // Include bills without period format
+        }
+      });
+      
+      console.log(`🔍 [MONTH FILTERING] Filtered from ${originalCount} to ${unpaidBills.length} bills`);
+      console.log(`🔍 [MONTH FILTERING] Remaining bills:`, unpaidBills.map(b => `${b.period || b.billId || b.billPeriod} ($${b.unpaidAmount})`).join(', '));
+    } else {
+      console.log(`🔍 [MONTH FILTERING] No selectedMonth provided - using all ${unpaidBills.length} bills`);
+    }
+    
     console.log(`📋 Found ${unpaidBills.length} unpaid bills for distribution calculation`);
+    
+    // Handle backdated payments by recalculating penalties as of payment date
+    if (payOnDate) {
+      const paymentDate = typeof payOnDate === 'string' ? new Date(payOnDate) : payOnDate;
+      console.log(`📅 Recalculating penalties as of payment date: ${paymentDate.toISOString()}`);
+      console.log(`📅 BEFORE recalculation - sample bill:`, unpaidBills[0] ? {
+        billId: unpaidBills[0].billId,
+        billPeriod: unpaidBills[0].billPeriod,
+        dueDate: unpaidBills[0].dueDate,
+        currentCharge: unpaidBills[0].currentCharge,
+        penaltyAmount: unpaidBills[0].penaltyAmount,
+        totalAmount: unpaidBills[0].totalAmount
+      } : 'No bills found');
+      
+      // For backdated payments, ALWAYS recalculate penalties based on the payment date
+      // This overrides any stored penalty data to ensure accurate backdated calculations
+      console.log(`📅 Recalculating penalties for all ${unpaidBills.length} bills based on payment date`);
+      const recalculatedBills = await this._recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate);
+      
+      console.log(`📅 AFTER recalculation - sample bill:`, recalculatedBills[0] ? {
+        billId: recalculatedBills[0].billId,
+        penaltyAmount: recalculatedBills[0].penaltyAmount,
+        totalAmount: recalculatedBills[0].totalAmount
+      } : 'No bills found');
+      
+      unpaidBills = recalculatedBills;
+    }
     
     // Calculate total bills due in centavos
     const totalBillsDueCentavos = unpaidBills.reduce((sum, bill) => {
+      // Use the recalculated totalAmount (includes penalty adjustments)
       const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
       return sum + unpaidAmount;
     }, 0);
@@ -276,18 +450,18 @@ class WaterPaymentsService {
         console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
         
       } else if (remainingFundsCentavos > 0) {
-        // Partial payment - prioritize base charges over penalties
+        // Partial payment - prioritize penalties over base charges (accounting convention)
         let amountToApply = remainingFundsCentavos;
         let basePortionPaid = 0;
         let penaltyPortionPaid = 0;
         
-        if (baseUnpaid > 0) {
-          basePortionPaid = Math.min(amountToApply, baseUnpaid);
-          amountToApply -= basePortionPaid;
+        if (penaltyUnpaid > 0) {
+          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
+          amountToApply -= penaltyPortionPaid;
         }
         
-        if (amountToApply > 0 && penaltyUnpaid > 0) {
-          penaltyPortionPaid = Math.min(amountToApply, penaltyUnpaid);
+        if (amountToApply > 0 && baseUnpaid > 0) {
+          basePortionPaid = Math.min(amountToApply, baseUnpaid);
         }
         
         billPayment.amountPaid = remainingFundsCentavos;
@@ -311,22 +485,25 @@ class WaterPaymentsService {
     let overpayment = 0;
     let newCreditBalance = 0;
     
-    // Calculate how much credit was actually used
-    if (paymentAmountCentavos < totalBillsDueCentavos) {
-      // Underpayment scenario - credit was used to cover shortfall
-      const shortfallCentavos = totalBillsDueCentavos - paymentAmountCentavos;
-      const shortfallPesos = centavosToPesos(shortfallCentavos);
-      
-      // Credit used is the minimum of shortfall and available credit (can't go negative)
-      creditUsed = this._roundCurrency(Math.min(shortfallPesos, currentCreditBalance));
-      newCreditBalance = this._roundCurrency(currentCreditBalance - creditUsed);
-      overpayment = 0;
-    } else {
-      // Overpayment scenario - excess payment goes to credit balance
+    // FIX: Compare PAYMENT AMOUNT to bills due, not total funds
+    // Logic:
+    // 1. If payment >= bills → No credit needed, payment covers everything
+    // 2. If payment < bills → Need credit to make up difference
+    
+    if (paymentAmountCentavos >= totalBillsDueCentavos) {
+      // Payment covers all bills - no credit needed
+      creditUsed = 0;
+      // Excess payment goes to credit balance
       const excessPaymentCentavos = paymentAmountCentavos - totalBillsDueCentavos;
       overpayment = this._roundCurrency(centavosToPesos(excessPaymentCentavos));
       newCreditBalance = this._roundCurrency(currentCreditBalance + overpayment);
-      creditUsed = 0;
+    } else {
+      // Payment doesn't cover bills - use credit to make up difference
+      const shortfallCentavos = totalBillsDueCentavos - paymentAmountCentavos;
+      const creditNeededCentavos = Math.min(shortfallCentavos, pesosToCentavos(currentCreditBalance));
+      creditUsed = this._roundCurrency(centavosToPesos(creditNeededCentavos));
+      newCreditBalance = this._roundCurrency(currentCreditBalance - creditUsed);
+      overpayment = 0;
     }
     
     console.log(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
@@ -338,12 +515,29 @@ class WaterPaymentsService {
     }
     
     // Convert billPayments to PESOS for return to frontend
-    const billPaymentsForAllocations = billPayments.map(bp => ({
-      ...bp,
-      amountPaid: centavosToPesos(bp.amountPaid),
-      baseChargePaid: centavosToPesos(bp.baseChargePaid),
-      penaltyPaid: centavosToPesos(bp.penaltyPaid)
-    }));
+    const billPaymentsForAllocations = billPayments.map(bp => {
+      // Find the original bill to get UNPAID amounts due (for frontend display)
+      const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
+      
+      // Calculate UNPAID portions (what's still owed after previous payments)
+      const unpaidBaseDue = originalBill ? originalBill.currentCharge - (originalBill.basePaid || 0) : bp.baseChargePaid;
+      const unpaidPenaltyDue = originalBill ? originalBill.penaltyAmount - (originalBill.penaltyPaid || 0) : bp.penaltyPaid;
+      const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
+      
+      console.log(`🔍 [MODAL DATA] Bill ${bp.billPeriod}: currentCharge=${originalBill?.currentCharge}, basePaid=${originalBill?.basePaid}, unpaidBaseDue=${unpaidBaseDue} centavos ($${centavosToPesos(unpaidBaseDue)})`);
+      
+      return {
+        ...bp,
+        amountPaid: centavosToPesos(bp.amountPaid),
+        baseChargePaid: centavosToPesos(bp.baseChargePaid),
+        penaltyPaid: centavosToPesos(bp.penaltyPaid),
+        // Return UNPAID amounts (what's still owed) for frontend display
+        // This ensures the modal shows correct "Total Due" that doesn't change when payment amount changes
+        totalBaseDue: centavosToPesos(unpaidBaseDue),
+        totalPenaltyDue: centavosToPesos(unpaidPenaltyDue),
+        totalDue: centavosToPesos(totalUnpaidDue)
+      };
+    });
     
     // Generate allocations using existing function
     const paymentDataForAllocations = {
@@ -366,7 +560,8 @@ class WaterPaymentsService {
       creditUsed: creditUsed,
       overpayment: overpayment,
       currentCreditBalance: currentCreditBalance, // Add this for frontend
-      newCreditBalance: newCreditBalance
+      newCreditBalance: newCreditBalance,
+      totalBillsDue: centavosToPesos(totalBillsDueCentavos) // Add missing field
     };
   }
   
@@ -385,7 +580,8 @@ class WaterPaymentsService {
       reference = '',
       notes = '',
       accountId,
-      accountType
+      accountType,
+      selectedMonth  // FIX #1: Extract selectedMonth from paymentData
     } = paymentData;
     
     // Validate required fields
@@ -408,7 +604,9 @@ class WaterPaymentsService {
     console.log(`💰 Current credit balance: $${currentCreditBalance}`);
     
     // STEP 2: Use centralized calculation method (single source of truth)
-    const distribution = await this.calculatePaymentDistribution(clientId, unitId, amount, currentCreditBalance);
+    // Pass payment date for backdated payment penalty recalculation
+    // FIX #1: Pass selectedMonth to filter bills correctly (matches preview behavior)
+    const distribution = await this.calculatePaymentDistribution(clientId, unitId, amount, currentCreditBalance, paymentDate, selectedMonth);
     
     console.log(`📊 Distribution calculated: ${distribution.billPayments.length} bills, Credit used: $${distribution.creditUsed}, Overpayment: $${distribution.overpayment}`);
     
@@ -535,23 +733,8 @@ class WaterPaymentsService {
     // STEP 8: Update water bills with payment info (billPayments are in centavos)
     await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, amount);
     
-    // STEP 9: Smart cache update - only update affected months instead of full invalidation
-    await this._updateAffectedMonthsInCache(clientId, billPayments);
-    
-    // STEP 10: Surgical update - Update Firestore aggregatedData for immediate frontend refresh
-    // This triggers automatic cache invalidation in the frontend (1-2s vs 10s manual refresh)
-    try {
-      // Pass unit-specific data for true surgical updates (only recalculate affected units)
-      const affectedUnitsAndMonths = billPayments.map(bp => ({
-        unitId: bp.unitId,
-        monthId: bp.billId
-      }));
-      await waterDataService.updateAggregatedDataAfterPayment(clientId, fiscalYear, affectedUnitsAndMonths);
-      console.log(`✅ [PAYMENT] Surgical update completed - UI will auto-refresh with "Paid" status`);
-    } catch (error) {
-      console.warn(`⚠️ [PAYMENT] Surgical update failed (non-critical):`, error.message);
-      // Payment succeeded - cache will rebuild on next manual refresh
-    }
+    // Payment complete - frontend will fetch fresh data on next read
+    console.log(`✅ [PAYMENT] Payment recorded successfully - bill documents updated`);
     
     return {
       success: true,
@@ -638,6 +821,8 @@ class WaterPaymentsService {
       .orderBy('__name__') // Order by document name (YYYY-MM format - oldest first)
       .get();
     
+    console.log(`🔍 [DEBUG] _getUnpaidBillsForUnit: Found ${billsSnapshot.size} bill documents for unit ${unitId}`);
+    
     // Collect bill metadata (no longer need penalty calculation data)
     const billsMetadata = [];
     
@@ -645,15 +830,28 @@ class WaterPaymentsService {
       const billData = doc.data();
       const unitBill = billData.bills?.units?.[unitId];
       
+      console.log(`🔍 [DEBUG] Bill ${doc.id}: unitBill exists=${!!unitBill}, status=${unitBill?.status}, currentCharge=${unitBill?.currentCharge}, paidAmount=${unitBill?.paidAmount}`);
+      
       if (unitBill && unitBill.status !== 'paid') {
         const paidAmount = unitBill.paidAmount || 0;
         const basePaid = unitBill.basePaid || 0;
+        const penaltyPaid = unitBill.penaltyPaid || 0;
         
-        // Extract base amount from bill structure
+        // Extract amounts from bill structure
         const storedBaseAmount = unitBill.currentCharge || 0;
-        const unpaidBaseAmount = storedBaseAmount - basePaid;
+        const storedPenaltyAmount = unitBill.penaltyAmount || 0;
+        const totalDue = storedBaseAmount + storedPenaltyAmount;
         
-        if (unpaidBaseAmount > 0) {
+        // Calculate unpaid amounts - use the correct logic
+        const unpaidBaseAmount = storedBaseAmount - basePaid;
+        const unpaidPenaltyAmount = storedPenaltyAmount - penaltyPaid;
+        const totalUnpaidAmount = totalDue - paidAmount;
+        
+        console.log(`🔍 [DEBUG] Bill ${doc.id}: storedBaseAmount=${storedBaseAmount}, basePaid=${basePaid}, unpaidBaseAmount=${unpaidBaseAmount}`);
+        console.log(`🔍 [DEBUG] Bill ${doc.id}: storedPenaltyAmount=${storedPenaltyAmount}, penaltyPaid=${penaltyPaid}, unpaidPenaltyAmount=${unpaidPenaltyAmount}`);
+        console.log(`🔍 [DEBUG] Bill ${doc.id}: totalDue=${totalDue}, paidAmount=${paidAmount}, totalUnpaidAmount=${totalUnpaidAmount}`);
+        
+        if (totalUnpaidAmount > 0) {
           // Use existing waterDataService fiscal-to-calendar conversion
           // Format: YYYY-MM where YYYY is fiscal year and MM is fiscal month (00-11)
           const [fiscalYearStr, fiscalMonthStr] = doc.id.split('-');
@@ -677,10 +875,14 @@ class WaterPaymentsService {
             id: doc.id,
             period: doc.id,
             originalData: unitBill,
+            billData: billData, // Store bill document data for dueDate access
             paidAmount,
             basePaid,
             penaltyPaid: unitBill.penaltyPaid || 0,
-            status: unitBill.status
+            status: unitBill.status,
+            totalUnpaidAmount: totalUnpaidAmount,
+            unpaidBaseAmount: unpaidBaseAmount,
+            unpaidPenaltyAmount: unpaidPenaltyAmount
           });
         }
       }
@@ -690,13 +892,15 @@ class WaterPaymentsService {
     // No dynamic calculation needed - penalties are pre-calculated and stored
     for (const metadata of billsMetadata) {
       const unitBill = metadata.originalData;
+      const billData = metadata.billData; // Get bill document data
       
       // Use stored penalty amounts from the bill document
       const storedPenaltyAmount = unitBill.penaltyAmount || 0;
       const storedTotalAmount = unitBill.totalAmount || unitBill.currentCharge || 0;
       const currentCharge = unitBill.currentCharge || 0;
       
-      const totalCurrentlyDue = storedTotalAmount - metadata.paidAmount;
+      // Use the calculated total unpaid amount from metadata
+      const totalCurrentlyDue = metadata.totalUnpaidAmount;
       
       if (totalCurrentlyDue > 0) {
         bills.push({
@@ -712,7 +916,7 @@ class WaterPaymentsService {
           status: metadata.status,
           monthsOverdue: 0, // Will be calculated during penalty recalc
           daysOverdue: 0,   // Will be calculated during penalty recalc
-          dueDate: unitBill.dueDate,
+          dueDate: billData.dueDate, // Use actual due date from bill document
           lastPenaltyUpdate: unitBill.lastPenaltyUpdate || null,
           // Debug info
           _dynamicCalculation: false,
@@ -721,6 +925,8 @@ class WaterPaymentsService {
         });
       }
     }
+    
+    console.log(`🔍 [DEBUG] _getUnpaidBillsForUnit: Returning ${bills.length} unpaid bills:`, bills.map(b => ({ period: b.period, unpaidAmount: b.unpaidAmount, status: b.status })));
     
     return bills; // Already sorted oldest first by document name
   }
@@ -731,17 +937,10 @@ class WaterPaymentsService {
   async _updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, paymentAmount) {
     const batch = this.db.batch();
     
-    // Convert paymentAmount from pesos to centavos for bill storage
+    // Convert paymentAmount from pesos to centavos for audit trail
     const paymentAmountCentavos = pesosToCentavos(paymentAmount);
     
-    // Determine which month to record the FULL payment amount in
-    // Use current fiscal month based on payment date
-    const currentDate = new Date(paymentDate);
-    const currentFiscalYear = getNow().getFullYear() + 1; // AVII uses FY 2026 for 2025 calendar year
-    const currentFiscalMonth = Math.max(0, currentDate.getMonth() - 6); // July = 0, Aug = 1, etc.
-    const paymentMonthId = `${currentFiscalYear}-${String(currentFiscalMonth).padStart(2, '0')}`;
-    
-    console.log(`💳 Recording FULL payment amount ${paymentAmountCentavos} centavos ($${paymentAmount}) in month ${paymentMonthId} for display`);
+    console.log(`💳 Recording payment distribution for ${billPayments.length} bills (Total: $${paymentAmount})`);
     
     for (const payment of billPayments) {
       const billRef = this.db.collection('clients').doc(clientId)
@@ -761,21 +960,21 @@ class WaterPaymentsService {
       const newBasePaid = (currentBill.basePaid || 0) + payment.baseChargePaid;
       const newPenaltyPaid = (currentBill.penaltyPaid || 0) + payment.penaltyPaid;
       
-      // For paidAmount display: Show FULL payment in the payment month, allocated amounts in other months (ALL IN CENTAVOS)
-      const isPaymentMonth = payment.billId === paymentMonthId;
-      const displayPaidAmount = isPaymentMonth ? paymentAmountCentavos : payment.amountPaid;
-      const newPaidAmount = (currentBill.paidAmount || 0) + displayPaidAmount;
+      // FIX: paidAmount should ONLY reflect the actual amount paid to THIS bill
+      // This ensures UI calculations (currentCharge - basePaid) work correctly
+      const newPaidAmount = newBasePaid + newPenaltyPaid;
       
-      console.log(`💰 Bill ${payment.billId}: isPaymentMonth=${isPaymentMonth}, displayAmount=${displayPaidAmount} centavos`);
+      console.log(`💰 Bill ${payment.billId}: basePaid=${newBasePaid}, penaltyPaid=${newPenaltyPaid}, paidAmount=${newPaidAmount} centavos`);
       
       // Get existing payments array or initialize it
       const existingPayments = currentBill.payments || [];
       
       // Create new payment entry (following HOA Dues pattern, ALL IN CENTAVOS)
+      // Store the FULL transaction amount in the payments array entry for audit trail
       const paymentEntry = {
-        amount: displayPaidAmount,           // In centavos
-        baseChargePaid: payment.baseChargePaid,  // In centavos
-        penaltyPaid: payment.penaltyPaid,        // In centavos
+        amount: paymentAmountCentavos,           // Full transaction amount for audit trail
+        baseChargePaid: payment.baseChargePaid,  // Portion allocated to this bill's base
+        penaltyPaid: payment.penaltyPaid,        // Portion allocated to this bill's penalty
         date: paymentDate,
         method: paymentMethod,
         reference: reference,
@@ -787,7 +986,7 @@ class WaterPaymentsService {
       const updatedPayments = [...existingPayments, paymentEntry];
       
       batch.update(billRef, {
-        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,       // In centavos
+        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,       // In centavos - sum of base + penalty
         [`bills.units.${unitId}.basePaid`]: newBasePaid,           // In centavos
         [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,     // In centavos
         [`bills.units.${unitId}.status`]: payment.newStatus,
@@ -1079,42 +1278,6 @@ class WaterPaymentsService {
     }
   }
 
-  /**
-   * Smart cache update - only refresh affected months instead of full cache invalidation
-   */
-  async _updateAffectedMonthsInCache(clientId, billPayments) {
-    if (!billPayments || billPayments.length === 0) {
-      console.log(`⏭️ No bill payments to update cache for`);
-      return;
-    }
-
-    // Extract unique year/month combinations from billPayments
-    const affectedMonths = new Set();
-    for (const payment of billPayments) {
-      // payment.billId format is "YYYY-MM" 
-      const [yearStr, monthStr] = payment.billId.split('-');
-      const year = parseInt(yearStr);
-      const month = parseInt(monthStr);
-      affectedMonths.add(`${year}-${month}`);
-    }
-
-    console.log(`🔄 Smart cache update for ${affectedMonths.size} affected months:`, Array.from(affectedMonths));
-
-    // Update each affected month in cache
-    for (const monthKey of affectedMonths) {
-      const [year, month] = monthKey.split('-').map(Number);
-      try {
-        await waterDataService.updateMonthInCache(clientId, year, month);
-        console.log(`✅ Updated cache for ${clientId} FY${year} month ${month}`);
-      } catch (error) {
-        console.error(`❌ Failed to update cache for ${clientId} FY${year} month ${month}:`, error);
-        // Fallback to full cache clear if individual month update fails
-        console.log(`🔄 Falling back to full cache invalidation for ${clientId}`);
-        waterDataService.clearCache(clientId);
-        break;
-      }
-    }
-  }
 }
 
 export const waterPaymentsService = new WaterPaymentsService();

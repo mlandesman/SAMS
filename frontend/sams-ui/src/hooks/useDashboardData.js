@@ -614,9 +614,9 @@ export const useDashboardData = () => {
         let previewResponse = null;
         
         try {
-          // Get water bills summary using the aggregated data API (which includes summary)
-          previewResponse = await waterAPI.getAggregatedData(selectedClient.id, currentYear);
-          console.log('💧 Dashboard: Water aggregated data response received:', {
+          // Get water bills data (all 12 months)
+          previewResponse = await waterAPI.getBillsForYear(selectedClient.id, currentYear);
+          console.log('💧 Dashboard: Water bills response received:', {
             hasResponse: !!previewResponse,
             hasData: !!previewResponse?.data,
             hasSummary: !!previewResponse?.data?.summary,

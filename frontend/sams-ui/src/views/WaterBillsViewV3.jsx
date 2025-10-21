@@ -3,6 +3,8 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
+import { getAuthInstance } from '../firebaseClient';
+import { config } from '../config/index.js';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
@@ -46,7 +48,7 @@ function WaterBillsViewV3() {
   useEffect(() => {
     if (selectedClient) {
       // Fetch initial data to get unit IDs and determine auto-advance month
-      waterAPI.getAggregatedData(selectedClient.id, selectedYear)
+      waterAPI.getBillsForYear(selectedClient.id, selectedYear)
         .then(response => {
           setYearData(response.data);
           
@@ -104,9 +106,9 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
-  // Enhanced refresh function that clears aggregatedData, timestamp, and triggers rebuild
+  // SIMPLIFIED: Refresh function that re-fetches fresh bill data
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - clearing and rebuilding data');
+    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - refetching bills');
     console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
     console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
     
@@ -114,31 +116,35 @@ function WaterBillsViewV3() {
     setIsRefreshing(true);
     
     try {
-      // Step 1: Clear aggregatedData document AND timestamp, then rebuild on backend
-      console.log('📞 [WaterBillsViewV3] Calling waterAPI.clearAggregatedData with rebuild=true...');
-      const clearResult = await waterAPI.clearAggregatedData(selectedClient.id, selectedYear, true);
-      console.log('✅ [WaterBillsViewV3] Backend clear and rebuild response:', clearResult);
+      // STEP 1: Clear and rebuild aggregatedData on backend
+      console.log('🗑️ [WaterBillsViewV3] Clearing and rebuilding aggregatedData...');
+      const API_BASE_URL = config.api.baseUrl;
+      const clearResponse = await fetch(`${API_BASE_URL}/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await getAuthInstance().currentUser.getIdToken()}`
+        }
+      });
       
-      if (clearResult.rebuilt) {
-        console.log(`✅ [WaterBillsViewV3] Data rebuilt on backend with timestamp: ${clearResult.timestamp}`);
+      if (!clearResponse.ok) {
+        throw new Error(`Failed to rebuild aggregatedData: ${clearResponse.statusText}`);
       }
       
-      // Step 2: Clear frontend cache to force reload from new backend data
-      console.log('🗑️ [WaterBillsViewV3] Clearing frontend sessionStorage cache...');
+      const clearResult = await clearResponse.json();
+      console.log('✅ [WaterBillsViewV3] AggregatedData rebuilt:', clearResult);
+      
+      // STEP 2: Refresh frontend data from rebuilt aggregatedData
+      console.log('📞 [WaterBillsViewV3] Refreshing frontend data...');
       if (window.waterBillsRefresh) {
         await window.waterBillsRefresh();
-        console.log('✅ [WaterBillsViewV3] Frontend cache cleared via context');
-      } else {
-        console.warn('⚠️ [WaterBillsViewV3] window.waterBillsRefresh not available, clearing sessionStorage directly');
-        // Fallback: clear sessionStorage cache directly
-        const cacheKey = `waterData-${selectedClient.id}-${selectedYear}`;
-        sessionStorage.removeItem(cacheKey);
+        console.log('✅ [WaterBillsViewV3] Fresh data loaded via context');
       }
       
-      // Step 3: Increment refresh key to force all components to reload
+      // Increment refresh key to force all components to reload
       setRefreshKey(prev => prev + 1);
       
-      console.log('🎉 [WaterBillsViewV3] Refresh complete - data rebuilt and cache cleared!');
+      console.log('🎉 [WaterBillsViewV3] Refresh complete - aggregatedData rebuilt and fresh data loaded!');
     } catch (error) {
       console.error('❌ [WaterBillsViewV3] Error during refresh:', error);
       console.error('❌ [WaterBillsViewV3] Error details:', {
@@ -203,27 +209,42 @@ function WaterBillsViewV3() {
     </div>
   );
   
-  // Month selector for reading entry
-  const MonthSelector = () => (
-    <div className="month-selector">
-      <label htmlFor="month-select">Select Month:</label>
-      <select 
-        id="month-select"
-        value={selectedMonth} 
-        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-        className="month-dropdown"
-      >
-        {fiscalMonthNames.map((month, idx) => {
-          const calendarYear = idx < 6 ? selectedYear - 1 : selectedYear;
-          return (
-            <option key={idx} value={idx}>
-              {month} {calendarYear}
-            </option>
-          );
-        })}
-      </select>
-    </div>
-  );
+  // Month selector for reading entry - show only up to current + 1
+  const MonthSelector = () => {
+    // Find the highest month with readings data
+    let highestMonthWithReadings = -1;
+    if (yearData?.months) {
+      yearData.months.forEach(monthData => {
+        if (monthData.readingDate) {
+          highestMonthWithReadings = Math.max(highestMonthWithReadings, monthData.month);
+        }
+      });
+    }
+    
+    // Show months up to current + 1 (but not more than 12)
+    const maxMonth = Math.min(highestMonthWithReadings + 2, 12);
+    
+    return (
+      <div className="month-selector">
+        <label htmlFor="month-select">Select Month:</label>
+        <select 
+          id="month-select"
+          value={selectedMonth} 
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          className="month-dropdown"
+        >
+          {fiscalMonthNames.slice(0, maxMonth).map((month, idx) => {
+            const calendarYear = idx < 6 ? selectedYear - 1 : selectedYear;
+            return (
+              <option key={idx} value={idx}>
+                {month} {calendarYear}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  };
   
   if (!selectedClient) {
     return (
@@ -326,6 +347,7 @@ function WaterBillsViewV3() {
           
           {activeTab === 'bills' && (
             <div className="tab-panel">
+              {console.log('🎯 [WaterBillsViewV3] Rendering WaterBillsList with clientId:', selectedClient.id)}
               <WaterBillsList 
                 key={`bills-${refreshKey}`}
                 clientId={selectedClient.id}

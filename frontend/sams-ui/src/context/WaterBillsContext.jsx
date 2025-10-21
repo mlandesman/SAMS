@@ -8,7 +8,11 @@ console.log('📁 [WaterBillsContext] Module loaded');
 
 const WaterBillsContext = createContext();
 
-// Cache is now handled by waterAPI.getAggregatedData() internally
+// ⚠️ NO CACHING - ALL REQUESTS FETCH FRESH FROM FIRESTORE
+// - No fetchInProgress deduplication
+// - Cache-busting timestamp on every API call
+// - No localStorage/sessionStorage
+// - React state only holds current view data
 
 export function WaterBillsProvider({ children }) {
   const { selectedClient } = useClient();
@@ -16,15 +20,13 @@ export function WaterBillsProvider({ children }) {
   const [selectedYear, setSelectedYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fetchInProgress, setFetchInProgress] = useState(false);
 
   console.log('🌊 [WaterBillsContext] Component rendered:', {
     hasClient: !!selectedClient,
     clientId: selectedClient?.id,
     selectedYear,
     loading,
-    hasError: !!error,
-    fetchInProgress
+    hasError: !!error
   });
 
   // Set initial year when client is loaded - EXACT PATTERN from HOA
@@ -53,13 +55,13 @@ export function WaterBillsProvider({ children }) {
     }
   }, [selectedClient, selectedYear]);
 
-  // Fetch water data using aggregated data API
+  // Fetch water data directly from bill documents
+  // NO CACHING - fetches fresh from Firestore every time
   const fetchWaterData = async (year) => {
     console.log('💧 [WaterBillsContext] fetchWaterData called:', {
       hasClient: !!selectedClient,
       clientId: selectedClient?.id,
-      year,
-      fetchInProgress
+      year
     });
     
     if (!selectedClient || !year) {
@@ -71,23 +73,17 @@ export function WaterBillsProvider({ children }) {
       return;
     }
 
-    // Prevent duplicate requests during same render cycle
-    if (fetchInProgress) {
-      console.log('⏸️ [WaterBillsContext] Fetch already in progress, skipping duplicate request');
-      debug.log('WaterBillsContext - Deduplicating concurrent fetch request');
-      return;
-    }
-
+    // NO DEDUPLICATION - always fetch fresh data
+    // Cache-busting in waterAPI ensures we never get stale data
     
-    // Fetch from API using the same aggregated data endpoint as Dashboard (with built-in caching)
-    console.log('🌐 [WaterBillsContext] Fetching aggregated data...');
-    setFetchInProgress(true);
+    // Fetch from API - gets all 12 months of bill documents
+    console.log('🌐 [WaterBillsContext] Fetching bills for year...');
     setLoading(true);
     setError(null);
     
     try {
-      debug.log('WaterBillsContext - Fetching water data from API for year:', year);
-      const response = await waterAPI.getAggregatedData(selectedClient.id, year);
+      debug.log('WaterBillsContext - Fetching water bills from API for year:', year);
+      const response = await waterAPI.getBillsForYear(selectedClient.id, year);
       
       console.log('📦 [WaterBillsContext] API Response received:', {
         hasResponse: !!response,
@@ -95,7 +91,7 @@ export function WaterBillsProvider({ children }) {
         dataKeys: response?.data ? Object.keys(response.data) : 'none'
       });
       
-      // The response.data contains the aggregated data (already cached by waterAPI)
+      // The response.data contains all 12 months of bills (direct from Firestore)
       // Update state
       const dataToSet = response?.data || {};
       console.log('📊 [WaterBillsContext] Setting water data state:', {
@@ -118,9 +114,8 @@ export function WaterBillsProvider({ children }) {
       }
       setWaterData({});
     } finally {
-      console.log('🏁 [WaterBillsContext] Fetch complete, clearing flags');
+      console.log('🏁 [WaterBillsContext] Fetch complete');
       setLoading(false);
-      setFetchInProgress(false);
     }
   };
 
@@ -143,22 +138,18 @@ export function WaterBillsProvider({ children }) {
     }
   }, [selectedClient, selectedYear]);
 
-  // CRUD operations with cache invalidation
-  const clearCacheAndRefresh = async () => {
+  // CRUD operations - refresh data after changes (no cache to clear)
+  const refreshAfterChange = async () => {
     if (!selectedClient || !selectedYear) return;
     
-    debug.log('WaterBillsContext - Clearing cache and refreshing data');
-    // Clear the aggregated data cache
-    const cacheKey = `water_bills_${selectedClient.id}_${selectedYear}`;
-    try {
-      sessionStorage.removeItem(cacheKey);
-      debug.log('Cleared aggregated data cache:', cacheKey);
-    } catch (error) {
-      debug.error('Error clearing cache:', error);
-    }
-    // Clear the fetch-in-progress flag to allow fresh fetch
-    setFetchInProgress(false);
-    await fetchWaterData(selectedYear); // Fetch fresh data
+    debug.log('WaterBillsContext - Refreshing data after change');
+    
+    // Add small delay to allow Firestore to propagate changes
+    // This prevents race condition where we fetch before write completes
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // NO CACHE - always fetch fresh with cache-busting timestamp
+    await fetchWaterData(selectedYear);
   };
 
   const submitBatchReadings = async (readings, readingDate) => {
@@ -171,8 +162,8 @@ export function WaterBillsProvider({ children }) {
         readingDate
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -191,8 +182,8 @@ export function WaterBillsProvider({ children }) {
         readingDate
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -212,8 +203,8 @@ export function WaterBillsProvider({ children }) {
         options
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -232,8 +223,8 @@ export function WaterBillsProvider({ children }) {
         paymentData
       );
       
-      // CRITICAL: Clear cache and reload - SAMS Pattern
-      await clearCacheAndRefresh();
+      // Refresh data after change (no cache to clear)
+      await refreshAfterChange();
       
       return response;
     } catch (error) {
@@ -242,7 +233,8 @@ export function WaterBillsProvider({ children }) {
     }
   };
 
-  // Computed values from cached data - for Dashboard integration
+  // Computed values from current state - for Dashboard integration
+  // Note: waterData state refreshes on every fetch (no caching)
   const getSummaryData = () => {
     const units = Object.values(waterData);
     
@@ -281,7 +273,7 @@ export function WaterBillsProvider({ children }) {
     };
   };
 
-  // Helper to get all bills from cached data
+  // Helper to get all bills from current state (no cache)
   const getAllBills = () => {
     const allBills = [];
     Object.values(waterData).forEach(unit => {
@@ -298,7 +290,7 @@ export function WaterBillsProvider({ children }) {
     return allBills;
   };
 
-  // Helper to get all readings from cached data
+  // Helper to get all readings from current state (no cache)
   const getAllReadings = () => {
     const allReadings = [];
     Object.values(waterData).forEach(unit => {
@@ -315,7 +307,7 @@ export function WaterBillsProvider({ children }) {
     return allReadings;
   };
 
-  // Helper to get latest readings from cached data
+  // Helper to get latest readings from current state (no cache)
   const getLatestReadings = () => {
     const latestReadings = {};
     Object.values(waterData).forEach(unit => {
@@ -342,21 +334,21 @@ export function WaterBillsProvider({ children }) {
         setSelectedYear,
         
         // Data fetching
-        refreshData: clearCacheAndRefresh,
+        refreshData: refreshAfterChange,
         
-        // CRUD operations with cache invalidation
+        // CRUD operations (always trigger fresh fetch)
         submitBatchReadings,
         importReadingsFromCSV,
         generateBills,
         recordPayment,
         
-        // Computed values from cache (for Dashboard)
+        // Computed values from current state (no cache)
         getSummaryData,
         getAllBills,
         getAllReadings,
         getLatestReadings,
         
-        // Legacy compatibility (using cached data)
+        // Legacy compatibility (uses current state, no cache)
         waterBills: getAllBills(),
         meterReadings: getAllReadings(),
         latestReadings: getLatestReadings(),

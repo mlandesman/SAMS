@@ -5,9 +5,10 @@ import { getPaymentMethods } from '../../api/paymentMethods';
 import { getAuthInstance } from '../../firebaseClient';
 import waterAPI from '../../api/waterAPI';
 import { formatAsMXN } from '../../utils/hoaDuesUtils';
+import { getMexicoDateString } from '../../utils/timezone';
 import './WaterPaymentModal.css';
 
-function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
+function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }) {
   const { selectedClient } = useClient();
   const { waterData } = useWaterBills();
   
@@ -18,7 +19,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentDate, setPaymentDate] = useState(getMexicoDateString());
   
   // Data state  
   const [unpaidBills, setUnpaidBills] = useState([]);
@@ -37,34 +38,46 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   
   // Load unpaid bills and credit balance when modal opens
   useEffect(() => {
-    if (isOpen && unitId && selectedClient && waterData && Object.keys(waterData).length > 0) {
+    if (isOpen && unitId && selectedClient && waterData && Object.keys(waterData).length > 0 && selectedMonth !== undefined) {
       loadUnpaidBillsData();
       loadPaymentMethods();
       loadClientAccounts();
     }
-  }, [isOpen, unitId, selectedClient, waterData]);
+  }, [isOpen, unitId, selectedClient, waterData, selectedMonth]);
   
   // Payment distribution calculation (only on blur)
   
   const loadUnpaidBillsData = async () => {
     setLoadingData(true);
     try {
-      // Get total due from aggregatedData (which we already have)
+      // Get total due from aggregatedData for the SELECTED month (same as table)
       let totalDue = 0;
-      if (waterData.months && Array.isArray(waterData.months)) {
-        for (const monthData of waterData.months) {
-          if (monthData.billsGenerated === true && monthData.units && monthData.units[unitId]) {
-            const unitData = monthData.units[unitId];
-            // Use the last month's total due (most recent bill)
-            totalDue = unitData.displayTotalDue || 0;
-          }
+      if (waterData.months && Array.isArray(waterData.months) && selectedMonth !== undefined) {
+        // Use the SAME month that the table is displaying
+        const monthData = waterData.months[selectedMonth];
+        
+        if (monthData && monthData.units && monthData.units[unitId]) {
+          const unitData = monthData.units[unitId];
+          totalDue = unitData.displayTotalDue || 0;
+          console.log(`🔍 [WaterPaymentModal] Using selected month ${selectedMonth} (${monthData.monthName} ${monthData.calendarYear}), displayTotalDue: $${totalDue}`);
+        } else {
+          console.warn(`⚠️ [WaterPaymentModal] No unit data found for unit ${unitId} in month ${selectedMonth}`);
         }
       }
       
       console.log(`🔍 [WaterPaymentModal] Loading unpaid bills via preview API with total due: $${totalDue}`);
       
-      // Call preview API with total due amount to show all bills as "Will be paid in full"
-      const response = await waterAPI.previewPayment(selectedClient.id, { unitId, amount: totalDue });
+      // Use today's date (from state) for initial payment preview
+      // User can backdate the payment using the payment date input field
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${paymentDate} (today's date from state)`);
+      
+      // Call preview API with total due amount and payment date
+      const response = await waterAPI.previewPayment(selectedClient.id, { 
+        unitId, 
+        amount: totalDue,
+        payOnDate: paymentDate,
+        selectedMonth: selectedMonth
+      });
       
       if (response.success && response.data) {
         const previewData = response.data;
@@ -81,27 +94,59 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         });
         
         // Build unpaid bills table from preview data
-        const unpaidBills = previewData.billPayments.map(billPayment => ({
+        // Filter to only show bills up to and including the selected month
+        const selectedMonthData = waterData.months[selectedMonth];
+        const selectedFiscalYear = selectedMonthData?.fiscalYear;
+        const selectedMonthNum = selectedMonthData?.month;
+        
+        console.log(`🔍 [WaterPaymentModal] Filtering bills to show only up to fiscal year ${selectedFiscalYear}, month ${selectedMonthNum}`);
+        
+        const filteredBillPayments = previewData.billPayments.filter(billPayment => {
+          // Parse the bill period (e.g., "2026-00", "2026-01", etc.)
+          const [billFiscalYear, billMonth] = billPayment.billPeriod.split('-');
+          const billFiscalYearNum = parseInt(billFiscalYear);
+          const billMonthNum = parseInt(billMonth);
+          
+          // Include bill if it's in the same fiscal year and month <= selected month
+          // OR if it's in a previous fiscal year
+          const isIncluded = (billFiscalYearNum < selectedFiscalYear) || 
+                           (billFiscalYearNum === selectedFiscalYear && billMonthNum <= selectedMonthNum);
+          
+          console.log(`🔍 Bill ${billPayment.billPeriod}: fiscal year ${billFiscalYearNum}, month ${billMonthNum} vs selected ${selectedFiscalYear}, ${selectedMonthNum} -> ${isIncluded ? 'INCLUDED' : 'EXCLUDED'}`);
+          
+          return isIncluded;
+        });
+        
+        const unpaidBills = filteredBillPayments.map(billPayment => ({
           unitId: unitId,
           period: billPayment.billPeriod,
-          baseChargeDue: billPayment.baseChargePaid, // Amount that would be paid
-          penaltiesDue: billPayment.penaltyPaid,      // Amount that would be paid
-          unpaidAmount: billPayment.amountPaid,       // Total amount that would be paid
-          status: billPayment.newStatus === 'paid' ? 'Will be paid in full' : 'Partial payment',
+          // Display total amounts due (not payment amounts)
+          // CRITICAL: Use explicit undefined check because 0 is a valid value for partial payments!
+          baseChargeDue: billPayment.totalBaseDue !== undefined ? billPayment.totalBaseDue : billPayment.baseChargePaid,
+          penaltiesDue: billPayment.totalPenaltyDue !== undefined ? billPayment.totalPenaltyDue : billPayment.penaltyPaid,
+          unpaidAmount: billPayment.totalDue !== undefined ? billPayment.totalDue : billPayment.amountPaid,
+          // Store payment amounts for reference
+          baseChargePaid: billPayment.baseChargePaid, // Amount that would be paid to base charges
+          penaltyPaid: billPayment.penaltyPaid,      // Amount that would be paid to penalties
+          amountPaid: billPayment.amountPaid,         // Total amount that would be paid
+          status: billPayment.newStatus === 'paid' ? 'Will be paid in full' : 
+                  billPayment.newStatus === 'partial' ? 'Partial payment' : 'UNPAID',
           statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
                       billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
         }));
         
-        // Get credit balance from preview data
+        // Get credit balance and usage from preview data
         const creditBalance = previewData.currentCreditBalance || 0;
+        const creditUsed = previewData.creditUsed || 0;
+        const creditRemaining = previewData.newCreditBalance || creditBalance;
         
         setUnpaidBills(unpaidBills);
         setCreditBalance(creditBalance);
         setAmount(totalDue.toString());
         
-        // Initialize credit usage data for full payment scenario
-        setCreditUsed(0); // No credit used for full payment
-        setCreditRemaining(creditBalance); // All credit remains
+        // Set credit usage data from backend response
+        setCreditUsed(creditUsed);
+        setCreditRemaining(creditRemaining);
         
         console.log(`💧 [WaterPaymentModal] Loaded ${unpaidBills.length} unpaid bills via preview API, total due: $${totalDue}`);
       } else {
@@ -164,7 +209,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
   // Payment distribution calculation (only on blur)
   const isCalculating = useRef(false);
   
-  const calculatePaymentDistribution = async () => {
+  const calculatePaymentDistribution = async (overridePaymentDate = null) => {
     // Prevent duplicate calls
     if (isCalculating.current) {
       console.log('🔍 Debug: Calculation already in progress, skipping...');
@@ -182,10 +227,18 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
     try {
       console.log(`💰 Fetching payment distribution from backend: $${paymentAmount}`);
       
+      // Use the payment date from the form for backdated payment calculation
+      // Allow override for immediate calculation (fixes async state issue)
+      const payOnDate = overridePaymentDate || paymentDate;
+      
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (${overridePaymentDate ? 'override' : 'from form state'})`);
+      
       // Call backend preview API (single source of truth)
       const response = await waterAPI.previewPayment(selectedClient.id, {
         unitId,
-        amount: paymentAmount
+        amount: paymentAmount,
+        payOnDate: payOnDate,
+        selectedMonth: selectedMonth
       });
       
       if (response.success && response.data) {
@@ -203,7 +256,8 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
           fullResponse: dist
         });
         
-        // Update the status column in existing unpaid bills based on preview results
+        // Update the unpaid bills with recalculated penalty amounts and status
+        // FIX: Keep the TOTAL DUE amounts fixed, only update the STATUS based on payment
         setUnpaidBills(prevBills => 
           prevBills.map(bill => {
             // Find matching bill payment from preview
@@ -222,6 +276,17 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
               
               return {
                 ...bill,
+                // FIX: Use totalDue amounts (what's owed), NOT payment amounts
+                // These should NOT change when user changes payment amount
+                // CRITICAL: Use explicit undefined check because 0 is a valid value!
+                penaltiesDue: billPayment.totalPenaltyDue !== undefined ? billPayment.totalPenaltyDue : bill.penaltiesDue,
+                baseChargeDue: billPayment.totalBaseDue !== undefined ? billPayment.totalBaseDue : bill.baseChargeDue,
+                unpaidAmount: billPayment.totalDue !== undefined ? billPayment.totalDue : bill.unpaidAmount,
+                // Store payment allocations for reference
+                baseChargePaid: billPayment.baseChargePaid,
+                penaltyPaid: billPayment.penaltyPaid,
+                amountPaid: billPayment.amountPaid,
+                // Update status to show what WILL happen with this payment
                 status: status,
                 statusClass: billPayment.newStatus === 'paid' ? 'status-paid' : 
                             billPayment.newStatus === 'partial' ? 'status-partial' : 'status-unpaid'
@@ -276,8 +341,8 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
         reference,
         notes,
         accountId: selectedAccount.id,
-        accountType: selectedAccount.type
-        // Backend will recalculate distribution using same logic as preview
+        accountType: selectedAccount.type,
+        selectedMonth: selectedMonth  // FIX #3: Pass selectedMonth to match preview behavior
       });
       
       console.log('💳 Full payment API response:', response.data);
@@ -382,10 +447,15 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                       type="number"
                       step="0.01"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onBlur={() => {
-                        // Trigger calculation immediately when field loses focus
-                        if (amount && unpaidBills.length >= 0) {
+                      onChange={(e) => {
+                        const newAmount = e.target.value;
+                        setAmount(newAmount);
+                        // Don't recalculate on every keystroke - wait for blur
+                      }}
+                      onBlur={(e) => {
+                        // Trigger recalculation when user finishes entering amount
+                        const newAmount = e.target.value;
+                        if (newAmount && parseFloat(newAmount) > 0) {
                           calculatePaymentDistribution();
                         }
                       }}
@@ -456,7 +526,18 @@ function WaterPaymentModal({ isOpen, onClose, unitId, onSuccess }) {
                   <input
                     type="date"
                     value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
+                    onChange={(e) => {
+                      const newPaymentDate = e.target.value;
+                      setPaymentDate(newPaymentDate);
+                      // Don't recalculate on every keystroke - wait for blur
+                    }}
+                    onBlur={(e) => {
+                      // Trigger recalculation when user finishes entering date
+                      const newPaymentDate = e.target.value;
+                      if (amount && parseFloat(amount) > 0 && newPaymentDate) {
+                        calculatePaymentDistribution(newPaymentDate);
+                      }
+                    }}
                     required
                     disabled={loading}
                   />
