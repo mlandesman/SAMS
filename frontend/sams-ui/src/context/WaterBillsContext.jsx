@@ -150,6 +150,11 @@ export function WaterBillsProvider({ children }) {
     debug.log('WaterBillsContext - Refreshing data after change');
     // Clear the fetch-in-progress flag to allow fresh fetch
     setFetchInProgress(false);
+    
+    // Add small delay to allow Firestore to propagate changes
+    // This prevents race condition where we fetch before write completes
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     await fetchWaterData(selectedYear); // Fetch fresh data directly
   };
 
