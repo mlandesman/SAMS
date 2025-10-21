@@ -400,14 +400,22 @@ class WaterDataService {
         
         // Get dueDate from document level (bills.dueDate), not unit level (bill.dueDate doesn't exist)
         const dueDate = bills?.dueDate;
-        if (!dueDate) return penaltyAmount; // Fallback to stored if no due date
+        if (!dueDate) {
+          console.log(`⚠️  No dueDate for unit ${unit.unitId}, falling back to stored penalty`);
+          return penaltyAmount; // Fallback to stored if no due date
+        }
         
         const dueDateObj = new Date(dueDate);
         const today = new Date();
         const gracePeriodDays = config?.penaltyDays || 10;
         const daysPastDue = Math.max(0, Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24)));
         
-        if (daysPastDue <= gracePeriodDays) return 0; // Within grace period
+        console.log(`💰 Penalty calc for unit ${unit.unitId}: dueDate=${dueDate}, daysPastDue=${daysPastDue}, gracePeriod=${gracePeriodDays}`);
+        
+        if (daysPastDue <= gracePeriodDays) {
+          console.log(`   Within grace period, returning 0`);
+          return 0; // Within grace period
+        }
         
         // Calculate months past due
         let monthsPastDue = (today.getFullYear() - dueDateObj.getFullYear()) * 12;
@@ -418,7 +426,11 @@ class WaterDataService {
         // Calculate penalty on UNPAID base amount (current bill only)
         const unpaidBaseAmount = billAmount - (bill.basePaid || 0);
         const penaltyRate = config?.penaltyRate || 0.05;
-        return Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+        const calculatedPenalty = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+        
+        console.log(`   monthsPastDue=${monthsPastDue}, unpaidBase=${unpaidBaseAmount}, rate=${penaltyRate}, penalty=${calculatedPenalty}`);
+        
+        return calculatedPenalty;
       })(),                                                                      // In centavos
       displayOverdue: billStatus === 'paid' ? 0 : (carryover.previousBalance || 0),  // In centavos
       
@@ -942,7 +954,30 @@ class WaterDataService {
         })(),
         displayPenalties: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : penaltyAmount;                       // In centavos
+          if (billStatus === 'paid') return 0;
+          if (!bill) return 0; // No bill = no current month penalties (overdue penalties in displayOverdue)
+          
+          // Get dueDate from document level
+          const dueDate = bills?.dueDate;
+          if (!dueDate) return penaltyAmount; // Fallback if no dueDate
+          
+          const dueDateObj = new Date(dueDate);
+          const today = new Date();
+          const gracePeriodDays = config?.penaltyDays || 10;
+          const daysPastDue = Math.max(0, Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24)));
+          
+          if (daysPastDue <= gracePeriodDays) return 0;
+          
+          // Calculate months past due
+          let monthsPastDue = (today.getFullYear() - dueDateObj.getFullYear()) * 12;
+          monthsPastDue += today.getMonth() - dueDateObj.getMonth();
+          if (today.getDate() >= dueDateObj.getDate()) monthsPastDue += 1;
+          monthsPastDue = Math.max(1, monthsPastDue);
+          
+          // Calculate penalty on UNPAID base amount
+          const unpaidBaseAmount = billAmount - (bill.basePaid || 0);
+          const penaltyRate = config?.penaltyRate || 0.05;
+          return Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
         })(),
         displayOverdue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
