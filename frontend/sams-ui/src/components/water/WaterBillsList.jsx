@@ -54,6 +54,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       const response = await waterAPI.getReadingsForYear(clientId, 2026);
       
       console.log('📡 [WaterBillsList] getReadingsForYear response:', response);
+      console.log('📊 [WaterBillsList] Response data.months:', response.data?.months);
       
       if (response.success && response.data?.months) {
         const readingMonths = [];
@@ -62,10 +63,13 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         let highestMonthWithReadings = -1;
         for (let i = 0; i < 12; i++) {
           const monthData = response.data.months[i];
+          console.log(`🔍 [WaterBillsList] Month ${i} data:`, monthData);
           if (monthData && Object.keys(monthData).length > 0) {
             highestMonthWithReadings = i;
+            console.log(`✅ [WaterBillsList] Month ${i} has readings data`);
           }
         }
+        console.log(`📈 [WaterBillsList] Highest month with readings: ${highestMonthWithReadings}`);
         
         // Show months up to highest + 1 (for bill generation)
         const maxMonth = Math.min(highestMonthWithReadings + 2, 12);
@@ -75,6 +79,8 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           const hasReadings = monthData && Object.keys(monthData).length > 0;
           const calendarYear = i < 6 ? 2025 : 2026;
           const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
+          
+          console.log(`📅 [WaterBillsList] Adding month ${i}: ${monthName} ${calendarYear} (hasReadings: ${hasReadings})`);
           
           readingMonths.push({
             month: i,
