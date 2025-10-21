@@ -101,7 +101,8 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             monthName: `${monthName} ${calendarYear}`,
             fiscalYearDisplay,
             calendarYear,
-            hasReadings
+            hasReadings,
+            readingsData: monthData // Store the actual readings data
           });
         }
         
@@ -622,17 +623,41 @@ ${washCharges.toFixed(2)}
               );
             })
               ) : (
-                // Show readings data when bills don't exist yet
+                // Show readings data in table format when bills don't exist yet
                 availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings ? (
-                  <tr>
-                    <td colSpan="9" className="text-center">
-                      <div className="readings-preview">
-                        <h4>📊 Readings Data Available for {availableReadingMonths.find(m => m.month === selectedMonth)?.monthName}</h4>
-                        <p>Readings data exists for this month. You can generate bills after setting the due date.</p>
-                        <p><strong>Note:</strong> Bill amounts will be calculated from readings when you click "Generate Bills".</p>
-                      </div>
-                    </td>
-                  </tr>
+                  // Show readings data in table format
+                  units.map((unit) => {
+                    const unitId = unit.unitId || unit.id;
+                    const ownerName = unit.ownerLastName || unit.ownerName || 'No Name Available';
+                    
+                    // Get readings data for this unit from the readings response
+                    const readingsData = availableReadingMonths.find(m => m.month === selectedMonth)?.readingsData;
+                    const unitReading = readingsData?.units?.[unitId];
+                    
+                    if (!unitReading) {
+                      return null; // Skip units without readings
+                    }
+                    
+                    const consumption = unitReading.consumption || 0;
+                    const ratePerM3 = billingConfig?.ratePerM3 || 5000; // In centavos
+                    const monthlyCharge = (consumption * ratePerM3) / 100; // Convert to pesos
+                    
+                    return (
+                      <tr key={unitId}>
+                        <td className="unit-id text-left">{unitId}</td>
+                        <td className="owner-name text-left">{ownerName}</td>
+                        <td className="consumption text-right">{formatNumber(consumption)}</td>
+                        <td className="monthly-charge text-right">${formatCurrency(monthlyCharge)}</td>
+                        <td className="washes text-right">$0.00</td>
+                        <td className="overdue text-right">$0.00</td>
+                        <td className="penalties text-right">$0.00</td>
+                        <td className="due text-right">${formatCurrency(monthlyCharge)}</td>
+                        <td className="status text-center">
+                          <span className="status-nobill">NOBILL</span>
+                        </td>
+                      </tr>
+                    );
+                  }).filter(Boolean)
                 ) : (
                   <tr>
                     <td colSpan="9" className="text-center">
