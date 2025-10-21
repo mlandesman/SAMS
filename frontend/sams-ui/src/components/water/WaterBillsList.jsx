@@ -36,22 +36,27 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   useEffect(() => {
     if (clientId) {
       fetchBillingConfig();
-      fetchAvailableReadingMonths();
     }
 }, [clientId, refreshKey]);
 
+  // Update dropdown when waterData changes
+  useEffect(() => {
+    if (waterData?.months) {
+      fetchAvailableReadingMonths();
+    }
+}, [waterData]);
+
   const fetchAvailableReadingMonths = async () => {
     try {
-      // Fetch reading months from the readings API
-      const response = await waterAPI.getReadingsForYear(clientId, 2026);
-      if (response.success && response.data?.months) {
+      // Use bills data from context instead of making separate API call
+      if (waterData?.months) {
         const readingMonths = [];
         
-        // Find highest month with readings data
+        // Find highest month with readings data (has readingDate)
         let highestMonthWithReadings = -1;
-        for (let i = 0; i < 12; i++) {
-          const monthData = response.data.months[i];
-          if (monthData && Object.keys(monthData).length > 0) {
+        for (let i = 0; i < waterData.months.length; i++) {
+          const monthData = waterData.months[i];
+          if (monthData?.readingDate) {
             highestMonthWithReadings = i;
           }
         }
@@ -60,8 +65,8 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         const maxMonth = Math.min(highestMonthWithReadings + 2, 12);
         
         for (let i = 0; i < maxMonth; i++) {
-          const monthData = response.data.months[i];
-          const hasReadings = monthData && Object.keys(monthData).length > 0;
+          const monthData = waterData.months[i];
+          const hasReadings = monthData?.readingDate !== undefined;
           const calendarYear = i < 6 ? 2025 : 2026;
           const monthName = new Date(calendarYear, i, 1).toLocaleDateString('en-US', { month: 'long' });
           
