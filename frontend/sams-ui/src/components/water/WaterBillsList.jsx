@@ -405,7 +405,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             disabled={hasBills || generating || !selectedDueDate}
             className="btn btn-primary generate-bills-btn"
           >
-            {generating ? 'Generating...' : `Generate Bills for ${monthData.monthName}`}
+            {generating ? 'Generating...' : `Generate Bills for ${availableReadingMonths.find(m => m.month === selectedMonth)?.monthName || `Month ${selectedMonth}`}`}
           </button>
         </div>
       </div>
@@ -428,23 +428,24 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      <div className="bills-table-container">
-        <table className="bills-table">
-          <thead>
-            <tr>
-              <th className="text-left">Unit</th>
-              <th className="text-left">Owner</th>
-              <th className="text-right">Usage (m³)</th>
-              <th className="text-right">Monthly Charge</th>
-              <th className="text-right">Washes</th>
-              <th className="text-right">Overdue</th>
-              <th className="text-right">Penalties</th>
-              <th className="text-right">Due</th>
-              <th className="text-center">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(monthData.units).map(([unitId, unit]) => {
+      {monthData && monthData.units ? (
+        <div className="bills-table-container">
+          <table className="bills-table">
+            <thead>
+              <tr>
+                <th className="text-left">Unit</th>
+                <th className="text-left">Owner</th>
+                <th className="text-right">Usage (m³)</th>
+                <th className="text-right">Monthly Charge</th>
+                <th className="text-right">Washes</th>
+                <th className="text-right">Overdue</th>
+                <th className="text-right">Penalties</th>
+                <th className="text-right">Due</th>
+                <th className="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(monthData.units).map(([unitId, unit]) => {
               // Find unit to get owner name - will come from backend eventually
               const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
               const ownerName = unitConfig?.ownerLastName || unitConfig?.ownerName || 
@@ -639,9 +640,16 @@ ${washCharges.toFixed(2)}
             </tr>
           </tfoot>
         </table>
-      </div>
+        </div>
+      ) : (
+        <div className="no-bills-message">
+          <p>No bills data available for the selected month.</p>
+          <p>Select a month from the dropdown above to view or generate bills.</p>
+        </div>
+      )}
 
-      <div className="bills-summary">
+      {monthData && (
+        <div className="bills-summary">
         <div className="summary-item">
           <span className="summary-label">Month Billed:</span>
           <span className="summary-value">${formatCurrency(monthTotals.billAmount)}</span>
@@ -660,7 +668,8 @@ ${washCharges.toFixed(2)}
             <span className="summary-value overdue">${formatCurrency(monthTotals.penalties)}</span>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Water Payment Modal */}
       <WaterPaymentModal
