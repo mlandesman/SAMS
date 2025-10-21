@@ -393,7 +393,13 @@ class WaterDataService {
         // CRITICAL: Calculate penalties dynamically as of TODAY, not stored value
         // This ensures UI always shows current penalties based on current date
         if (billStatus === 'paid') return 0;
-        if (!bill || !bill.dueDate) return penaltyAmount; // Fallback to stored if no due date
+        
+        // If no bill exists yet (nobill status), penalties are only on carried-over amounts
+        // These are already included in displayOverdue, so show 0 here to avoid double-counting
+        if (!bill) return 0;
+        
+        // If bill exists but no dueDate, fallback to stored penalty
+        if (!bill.dueDate) return penaltyAmount;
         
         const dueDate = new Date(bill.dueDate);
         const today = new Date();
@@ -408,7 +414,7 @@ class WaterDataService {
         if (today.getDate() >= dueDate.getDate()) monthsPastDue += 1;
         monthsPastDue = Math.max(1, monthsPastDue);
         
-        // Calculate penalty on UNPAID base amount
+        // Calculate penalty on UNPAID base amount (current bill only)
         const unpaidBaseAmount = billAmount - (bill.basePaid || 0);
         const penaltyRate = config?.penaltyRate || 0.05;
         return Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
