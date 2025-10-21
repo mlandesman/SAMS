@@ -277,9 +277,10 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                 ...bill,
                 // FIX: Use totalDue amounts (what's owed), NOT payment amounts
                 // These should NOT change when user changes payment amount
-                penaltiesDue: billPayment.totalPenaltyDue || bill.penaltiesDue,
-                baseChargeDue: billPayment.totalBaseDue || bill.baseChargeDue,
-                unpaidAmount: billPayment.totalDue || bill.unpaidAmount,
+                // CRITICAL: Use explicit undefined check because 0 is a valid value!
+                penaltiesDue: billPayment.totalPenaltyDue !== undefined ? billPayment.totalPenaltyDue : bill.penaltiesDue,
+                baseChargeDue: billPayment.totalBaseDue !== undefined ? billPayment.totalBaseDue : bill.baseChargeDue,
+                unpaidAmount: billPayment.totalDue !== undefined ? billPayment.totalDue : bill.unpaidAmount,
                 // Store payment allocations for reference
                 baseChargePaid: billPayment.baseChargePaid,
                 penaltyPaid: billPayment.penaltyPaid,
