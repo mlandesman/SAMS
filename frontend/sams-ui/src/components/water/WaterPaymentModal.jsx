@@ -208,7 +208,7 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
   // Payment distribution calculation (only on blur)
   const isCalculating = useRef(false);
   
-  const calculatePaymentDistribution = async () => {
+  const calculatePaymentDistribution = async (overridePaymentDate = null) => {
     // Prevent duplicate calls
     if (isCalculating.current) {
       console.log('🔍 Debug: Calculation already in progress, skipping...');
@@ -227,9 +227,10 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
       console.log(`💰 Fetching payment distribution from backend: $${paymentAmount}`);
       
       // Use the payment date from the form for backdated payment calculation
-      const payOnDate = paymentDate;
+      // Allow override for immediate calculation (fixes async state issue)
+      const payOnDate = overridePaymentDate || paymentDate;
       
-      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (from form input)`);
+      console.log(`🔍 [WaterPaymentModal] Using payment date: ${payOnDate} (${overridePaymentDate ? 'override' : 'from form state'})`);
       
       // Call backend preview API (single source of truth)
       const response = await waterAPI.previewPayment(selectedClient.id, {
@@ -437,14 +438,14 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                       type="number"
                       step="0.01"
                       value={amount}
-                      onChange={(e) => {
-                        const newAmount = e.target.value;
-                        setAmount(newAmount);
-                        // Trigger recalculation immediately when amount changes
-                        if (newAmount && parseFloat(newAmount) > 0) {
-                          calculatePaymentDistribution(parseFloat(newAmount));
-                        }
-                      }}
+                    onChange={(e) => {
+                      const newAmount = e.target.value;
+                      setAmount(newAmount);
+                      // Trigger recalculation immediately when amount changes
+                      if (newAmount && parseFloat(newAmount) > 0) {
+                        calculatePaymentDistribution();
+                      }
+                    }}
                       required
                       disabled={loading}
                       autoFocus
@@ -516,8 +517,9 @@ function WaterPaymentModal({ isOpen, onClose, unitId, selectedMonth, onSuccess }
                       const newPaymentDate = e.target.value;
                       setPaymentDate(newPaymentDate);
                       // Trigger recalculation immediately when payment date changes
+                      // Pass new date directly to avoid async state timing issue
                       if (amount && parseFloat(amount) > 0) {
-                        calculatePaymentDistribution(parseFloat(amount));
+                        calculatePaymentDistribution(newPaymentDate);
                       }
                     }}
                     required
