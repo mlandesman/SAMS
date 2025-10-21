@@ -281,7 +281,12 @@ class WaterPaymentsService {
         
         console.log(`   Calendar months calculation: ${dueDateObj.toDateString()} to ${paymentDateObj.toDateString()} = ${monthsPastDue} months`);
         
-        recalculatedPenaltyAmount = Math.round(bill.currentCharge * penaltyRate * monthsPastDue);
+        // CRITICAL: Calculate penalty on UNPAID base amount, not full original charge
+        // For partial payments, only charge penalty on the remaining unpaid balance
+        const unpaidBaseAmount = bill.currentCharge - (bill.basePaid || 0);
+        recalculatedPenaltyAmount = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+        
+        console.log(`   Penalty calculation: unpaidBase=$${unpaidBaseAmount/100} × ${penaltyRate} × ${monthsPastDue} months = $${recalculatedPenaltyAmount/100}`);
       }
       
       const recalculatedTotalAmount = bill.currentCharge + recalculatedPenaltyAmount;
