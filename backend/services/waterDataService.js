@@ -384,9 +384,9 @@ class WaterDataService {
       
       // NEW: Summary fields for UI (cumulative totals)
       totalPenalties: billStatus === 'paid' ? 0 : (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0)),  // Current month penalty OR cumulative penalties from previous months
-      totalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0))) * 100) / 100,  // Total to clear account (rounded)
+      totalDue: billStatus === 'paid' ? 0 : unpaidAmount,  // Use unpaidAmount which accounts for partial payments
       displayTotalPenalties: billStatus === 'paid' ? 0 : (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0)),  // For UI display
-      displayTotalDue: billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (month === 0 ? penaltyAmount : (carryover.totalPenalties || 0))) * 100) / 100  // For UI display (rounded)
+      displayTotalDue: billStatus === 'paid' ? 0 : unpaidAmount  // Use unpaidAmount which accounts for partial payments
     };
     
     // TASK 2: Data consistency validation (after building the unit data)
@@ -544,14 +544,16 @@ class WaterDataService {
         // Use stored bill data which has correct accounting (all in centavos)
         totalDueAmount = bill.totalAmount || 0;
         penaltyAmount = bill.penaltyAmount || 0;
-        unpaidAmount = totalDueAmount - (bill.paidAmount || 0);
+        // CRITICAL: Use basePaid + penaltyPaid, NOT paidAmount (which may include overflow)
+        const totalPaid = (bill.basePaid || 0) + (bill.penaltyPaid || 0);
+        unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
         
         console.log(`💰 Unit ${unitId} bill data (centavos):`);
         console.log(`  Monthly Amount: ${billAmount} (${centavosToPesos(billAmount)} pesos)`);
         console.log(`  Previous Balance: ${bill.previousBalance || 0} (${centavosToPesos(bill.previousBalance || 0)} pesos)`);
         console.log(`  Penalty Amount: ${penaltyAmount} (${centavosToPesos(penaltyAmount)} pesos)`);
         console.log(`  Total Due: ${totalDueAmount} (${centavosToPesos(totalDueAmount)} pesos)`);
-        console.log(`  Paid Amount: ${bill.paidAmount || 0} (${centavosToPesos(bill.paidAmount || 0)} pesos)`);
+        console.log(`  Total Paid: ${totalPaid} (${centavosToPesos(totalPaid)} pesos) [basePaid: ${bill.basePaid || 0}, penaltyPaid: ${bill.penaltyPaid || 0}]`);
         console.log(`  Status: ${this.calculateStatus(bill)}`);
         console.log(`  Unpaid Amount: ${unpaidAmount} (${centavosToPesos(unpaidAmount)} pesos)`);
       } else {
@@ -904,7 +906,7 @@ class WaterDataService {
         })(),
         totalDue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100;  // Total to clear account (rounded)
+          return billStatus === 'paid' ? 0 : unpaidAmount;  // Use unpaidAmount which accounts for partial payments
         })(),
         displayTotalPenalties: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
@@ -912,7 +914,7 @@ class WaterDataService {
         })(),
         displayTotalDue: (() => {
           const billStatus = this.calculateStatus(bill) || (carryover.previousBalance > 0 ? 'unpaid' : 'nobill');
-          return billStatus === 'paid' ? 0 : Math.round((billAmount + (carryover.previousBalance || 0) + (carryover.totalPenalties || 0)) * 100) / 100;  // For UI display (rounded)
+          return billStatus === 'paid' ? 0 : unpaidAmount;  // Use unpaidAmount which accounts for partial payments
         })()
       };
       
