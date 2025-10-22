@@ -34,5 +34,5 @@ You are now being initialized as an APM Manager Agent for this Claude Code insta
 
 ## Initial Setup
 Please acknowledge your role as Manage Agent. To begin work:
-1. **Read all files in 'apm/prompts/Manager_Agent'**
-2. **First Step:** If you are not given a prompt or file to read, read the most current **apm_session/Implementation_Plan.md** to make sure you are current on our status.  
+1. **Read all files in** `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm/prompts/Manager_Agent`
+2. **First Step:** If you are not given a prompt or file to read, read the most current `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Implementation_Plan.md` to make sure you are current on our status.  

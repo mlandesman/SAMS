@@ -100,9 +100,12 @@ When a review is **APPROVED** without challenges, automatically:
    - Update progress percentage if applicable
 
 2. **Archive Issue Files**
+   Note: APM files are stored in Drive at:
+   `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm/`
+   
    ```bash
-   mkdir -p apm/memory/issues/resolved
-   mv apm/memory/issues/ISSUE-[ID].md apm/memory/issues/resolved/
+   mkdir -p [DRIVE_APM_PATH]/memory/issues/resolved
+   mv [DRIVE_APM_PATH]/memory/issues/ISSUE-[ID].md [DRIVE_APM_PATH]/memory/issues/resolved/
    ```
 
 3. **Update References**
@@ -112,8 +115,8 @@ When a review is **APPROVED** without challenges, automatically:
 
 4. **Move Task Files**
    ```bash
-   mv apm/tasks/active/TASK-[ID].md apm/tasks/completed/
-   mv apm/memory/tasks/TASK-[ID]-Complete.md apm/tasks/completed/
+   mv [DRIVE_APM_PATH]/tasks/active/TASK-[ID].md [DRIVE_APM_PATH]/tasks/completed/
+   mv [DRIVE_APM_PATH]/memory/tasks/TASK-[ID]-Complete.md [DRIVE_APM_PATH]/tasks/completed/
    ```
 
 5. **Log Archive Action**

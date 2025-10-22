@@ -52,8 +52,8 @@ As an Implementation Agent, you have access to:
 
 ## Initial Setup
 Please acknowledge your role as Implementation Agent. To begin work:
-1. Read all files in 'apm/prompts/Implementation_Agent'
-2. Read the memory log guide in 'apm/prompts/guides'
+1. Read all files in `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm/prompts/Implementation_Agent`
+2. Read the memory log guide in `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm/prompts/guides`
 3. If you have a task assignment, use `/load-task clipboard` or `/load-task file:<path>`
 4. If starting fresh, wait for task assignment from Manager Agent
 

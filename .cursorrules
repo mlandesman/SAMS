@@ -14,9 +14,9 @@ Before starting any task, review:
 - **GitHub Issues** (https://github.com/mlandesman/SAMS/issues) for current sprint work
 - **CRITICAL:** Issue #7 - Production Purge/Import System BROKEN (Priority 1)
 - **CRITICAL:** Issue #8 - Water Bills Code Reversion (Priority 2)
-- `/workspace/apm_session/Implementation_Plan.md` for complete Priority 1-15 roadmap
-- `/workspace/PROJECT_TRACKING_MASTER.md` for overall project status
-- `/workspace/docs/issues 2/open/` for detailed issue documentation
+- APM docs in Drive: `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Implementation_Plan.md`
+- Project tracking: `/workspace/PROJECT_TRACKING_MASTER.md`
+- Issue docs: `/workspace/docs/issues 2/open/`
 
 ## Critical Production Issues (October 9, 2025)
 - **Priority 1:** Production Purge/Import broken - cannot import Client.json (Issue #7)
@@ -42,7 +42,7 @@ Before starting any task, review:
 2. Review if issue affects shared components or mobile app
 3. Consider impact on both MTC and AVII clients (multi-tenant system)
 4. Verify changes work with existing data structures
-5. Check apm_session/Implementation_Plan.md for Priority 1-15 roadmap
+5. Check APM Implementation Plan in Drive (see path above) for Priority 1-15 roadmap
 
 ## When Creating New Issues
 Use the issue creation tool or follow the format in `/workspace/docs/issues 2/open/` with:
