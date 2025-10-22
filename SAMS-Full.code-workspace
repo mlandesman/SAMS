@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "name": "SAMS (Code)",
+      "path": "."
+    },
+    {
+      "name": "SAMS-Docs (APM & Documentation)",
+      "path": "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.git": false
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/package-lock.json": true
+    }
+  }
+}
+
