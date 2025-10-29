@@ -13,6 +13,7 @@ import {
 // Use DateService for proper timezone handling
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import admin from 'firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
 
 // PHASE 4 TASK 4.1: Import Phase 3 shared services
 import { getNow } from '../../shared/services/DateService.js';
@@ -995,7 +996,6 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         } else if (p.date && typeof p.date === 'object' && p.date._seconds !== undefined) {
           // Handle Timestamp-like objects (from Firestore reads)
           try {
-            const { Timestamp } = await import('firebase-admin/firestore');
             const ts = Timestamp.fromMillis(p.date._seconds * 1000 + (p.date._nanoseconds || 0) / 1000000);
             cleanedDate = ts.toDate().toISOString();
             console.log(`🔄 Converting Timestamp object to ISO string`);
