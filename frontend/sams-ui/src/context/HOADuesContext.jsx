@@ -1,409 +1,225 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useClient } from './ClientContext';
-import { recordDuesPayment as apiRecordDuesPayment, updateCreditBalance as apiUpdateCreditBalance } from '../api/hoaDuesService';
-import { useTransactionsContext } from './TransactionsContext';
-import { config } from '../config';
-import { databaseFieldMappings } from '../utils/databaseFieldMappings';
-import { getFiscalYear } from '../utils/fiscalYearUtils';
 import debug from '../utils/debug';
+import hoaDuesAPI from '../api/hoaDuesAPI';
+import { getFiscalYear } from '../utils/fiscalYearUtils';
+
+console.log('📁 [HOADuesContext] Module loaded');
 
 const HOADuesContext = createContext();
 
-// Cache utility functions
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-
-const getCacheKey = (clientId, year) => `hoa_dues_${clientId}_${year}`;
-const getUnitsCacheKey = (clientId) => `hoa_units_${clientId}`;
-
-const isCacheValid = (timestamp) => {
-  return Date.now() - timestamp < CACHE_DURATION;
-};
-
-const getFromCache = (key) => {
-  try {
-    const cached = sessionStorage.getItem(key);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (isCacheValid(timestamp)) {
-        debug.log('Cache hit for key:', key);
-        return data;
-      }
-      debug.log('Cache expired for key:', key);
-    }
-  } catch (error) {
-    debug.error('Cache read error:', error);
-  }
-  return null;
-};
-
-const saveToCache = (key, data) => {
-  try {
-    const cacheData = { data, timestamp: Date.now() };
-    // DEBUG: Log what we're saving
-    if (key.includes('dues')) {
-      debug.log('Saving dues data to cache:', key);
-      const firstUnit = Object.keys(data)[0];
-      if (firstUnit && data[firstUnit]) {
-        debug.log('Sample unit data being cached:', firstUnit, data[firstUnit]);
-        debug.log('Sample payment:', data[firstUnit].payments?.[0]);
-      }
-    }
-    sessionStorage.setItem(key, JSON.stringify(cacheData));
-    debug.log('Saved to cache:', key);
-  } catch (error) {
-    debug.error('Cache write error:', error);
-    // Handle quota exceeded error
-    if (error.name === 'QuotaExceededError') {
-      // Clear old HOA cache entries and retry
-      clearOldHOACacheEntries();
-      try {
-        sessionStorage.setItem(key, JSON.stringify(cacheData));
-        debug.log('Saved to cache after clearing old entries:', key);
-      } catch (retryError) {
-        debug.error('Cache write failed even after clearing:', retryError);
-      }
-    }
-  }
-};
-
-const clearHOACache = (clientId) => {
-  // Clear both dues and units cache for the client
-  const duesPattern = `hoa_dues_${clientId}`;
-  const unitsPattern = `hoa_units_${clientId}`;
-  
-  Object.keys(sessionStorage)
-    .filter(key => key.includes(duesPattern) || key.includes(unitsPattern))
-    .forEach(key => {
-      sessionStorage.removeItem(key);
-      debug.log('Cleared cache:', key);
-    });
-};
-
-const clearOldHOACacheEntries = () => {
-  const pattern = /^hoa_dues_/;
-  Object.keys(sessionStorage)
-    .filter(key => pattern.test(key))
-    .forEach(key => {
-      try {
-        const cached = sessionStorage.getItem(key);
-        if (cached) {
-          const { timestamp } = JSON.parse(cached);
-          if (!isCacheValid(timestamp)) {
-            sessionStorage.removeItem(key);
-            debug.log('Removed expired cache entry:', key);
-          }
-        }
-      } catch (error) {
-        // If we can't parse it, remove it
-        sessionStorage.removeItem(key);
-        debug.log('Removed invalid cache entry:', key);
-      }
-    });
-};
+// ⚠️ NO CACHING - ALL REQUESTS FETCH FRESH FROM FIRESTORE
+// - No fetchInProgress deduplication
+// - Cache-busting timestamp on every API call
+// - No localStorage/sessionStorage
+// - React state only holds current view data
 
 export function HOADuesProvider({ children }) {
   const { selectedClient } = useClient();
-  const { balanceUpdateTrigger } = useTransactionsContext();
-  const [units, setUnits] = useState([]);
   const [duesData, setDuesData] = useState({});
-  const [loading, setLoading] = useState(true); // Start with loading true
-  const [error, setError] = useState(null);
-  
-  // Initialize selectedYear with null to detect if it needs to be set
   const [selectedYear, setSelectedYear] = useState(null);
-  
-  // Set the initial year when client is loaded
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  console.log('💰 [HOADuesContext] Component rendered:', {
+    hasClient: !!selectedClient,
+    clientId: selectedClient?.id,
+    selectedYear,
+    loading,
+    hasError: !!error
+  });
+
+  // Set initial year when client is loaded - EXACT PATTERN from Water Bills
   useEffect(() => {
+    console.log('📅 [HOADuesContext] Year effect triggered:', {
+      hasClient: !!selectedClient,
+      clientId: selectedClient?.id,
+      currentYear: selectedYear
+    });
+    
     if (selectedClient && selectedYear === null) {
       const fiscalYearStartMonth = selectedClient.configuration?.fiscalYearStartMonth || 1;
       const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
-      console.log('HOADuesContext - Setting initial year based on client');
-      console.log('  Client:', selectedClient.id);
-      console.log('  Fiscal Year Start Month:', fiscalYearStartMonth);
-      console.log('  Calculated Fiscal Year:', currentFiscalYear);
+      
+      console.log('📅 [HOADuesContext] Setting initial year:', {
+        client: selectedClient.id,
+        fiscalYearStartMonth,
+        calculatedYear: currentFiscalYear
+      });
+      
+      debug.log('HOADuesContext - Setting initial year based on client');
+      debug.log('  Client:', selectedClient.id);
+      debug.log('  Fiscal Year Start Month:', fiscalYearStartMonth);
+      debug.log('  Calculated Fiscal Year:', currentFiscalYear);
       setSelectedYear(currentFiscalYear);
     }
   }, [selectedClient, selectedYear]);
-  
-  // DEBUG: Log current state
-  console.log('HOADuesContext - Current State');
-  console.log('  Selected Client:', selectedClient?.id || 'No client');
-  console.log('  Selected Year:', selectedYear);
 
-  // Update selected year when client changes
-  useEffect(() => {
-    console.log('HOADuesContext - Client changed effect running');
-    console.log('HOADuesContext - Effect - Selected Client:', selectedClient);
+  // Fetch HOA dues data directly from backend
+  // NO CACHING - fetches fresh from Firestore every time
+  const fetchDuesData = async (year) => {
+    console.log('💰 [HOADuesContext] fetchDuesData called:', {
+      hasClient: !!selectedClient,
+      clientId: selectedClient?.id,
+      year
+    });
     
-    if (selectedClient) {
-      const clientFiscalStartMonth = selectedClient.configuration?.fiscalYearStartMonth || 1;
-      const newFiscalYear = getFiscalYear(new Date(), clientFiscalStartMonth);
-      console.log('HOADuesContext - Effect - Client Fiscal Start Month:', clientFiscalStartMonth);
-      console.log('HOADuesContext - Effect - New Fiscal Year:', newFiscalYear);
-      setSelectedYear(newFiscalYear);
-    }
-  }, [selectedClient]);
-
-  // Fetch all units for the selected client
-  useEffect(() => {
-    if (!selectedClient || selectedYear === null) {
-      console.log('HOADuesContext - Skipping units fetch:', { 
-        hasClient: !!selectedClient, 
-        selectedYear 
+    if (!selectedClient || !year) {
+      console.log('⚠️ [HOADuesContext] Skipping fetch - missing requirements:', {
+        hasClient: !!selectedClient,
+        year
       });
-      if (!selectedClient) {
-        setLoading(false);
-      }
+      debug.log('HOADuesContext - Skipping fetch, missing client or year');
       return;
     }
+
+    // NO DEDUPLICATION - always fetch fresh data
+    // Cache-busting in hoaDuesAPI ensures we never get stale data
     
-    const fetchUnits = async () => {
-      // Check cache for units first
-      const unitsCacheKey = getUnitsCacheKey(selectedClient.id);
-      const cachedUnits = getFromCache(unitsCacheKey);
-      
-      if (cachedUnits) {
-        debug.log(`Using cached units for client ${selectedClient.id}`);
-        debug.log('Cached units structure:', cachedUnits);
-        debug.log('First unit:', cachedUnits[0]);
-        setUnits(cachedUnits);
-        // Don't change loading state here - let fetchDuesData handle it
-        // Fetch dues data with cached units
-        await fetchDuesData(cachedUnits, selectedYear, false);
-        return;
-      }
-      
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Get auth token for API call
-        const { getAuthInstance } = await import('../firebaseClient');
-        const auth = getAuthInstance();
-        const token = await auth.currentUser?.getIdToken();
-        
-        if (!token) {
-          throw new Error('Failed to get authentication token');
-        }
-        
-        // Use backend API to fetch units
-        const API_BASE_URL = config.api.baseUrl;
-        const response = await fetch(`${API_BASE_URL}/clients/${selectedClient.id}/units`, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch units: ${response.status} ${response.statusText}`);
-        }
-        
-        const unitsResponse = await response.json();
-        debug.log('All units data:', unitsResponse);
-        
-        // Extract the data array from the response wrapper
-        const unitsData = unitsResponse.data || unitsResponse;
-        debug.log('Units structure - first unit:', unitsData[0]);
-        debug.log('Does first unit have unitId?', unitsData[0]?.unitId);
-        debug.log('Does first unit have id?', unitsData[0]?.id);
-        setUnits(unitsData);
-        
-        // Cache the units data
-        saveToCache(unitsCacheKey, unitsData);
-        
-        // After fetching units, fetch dues data for each unit
-        // Don't force refresh on initial load - let cache work
-        fetchDuesData(unitsData, selectedYear, false);
-      } catch (error) {
-        console.error('Error fetching units:', error);
-        setError('Failed to load units. Please try again later.');
-        setLoading(false);
-      }
-    };
-    
-    fetchUnits();
-  }, [selectedClient, selectedYear]);
-  
-  // Listen for balance update triggers from transaction operations
-  useEffect(() => {
-    if (balanceUpdateTrigger === 0) return; // Skip the initial value
-    if (!selectedClient || !units.length) return;
-    
-    debug.log('HOA Dues: Balance update trigger received, refreshing dues data');
-    // Refresh dues data when balance updates are triggered
-    fetchDuesData(units, selectedYear);
-  }, [balanceUpdateTrigger, selectedClient, units, selectedYear]);
-  
-  // Fetch dues data for all units for the selected year using backend API
-  const fetchDuesData = async (unitsList, year, forceRefresh = false) => {
-    if (!selectedClient || !unitsList.length) return;
-    
-    // Check cache first unless force refresh is requested
-    const cacheKey = getCacheKey(selectedClient.id, year);
-    if (!forceRefresh) {
-      const cachedData = getFromCache(cacheKey);
-      if (cachedData) {
-        debug.log(`Using cached data for client ${selectedClient.id}, year ${year}`);
-        
-        // Process cached data the same way we process API data
-        const processedDuesData = {};
-        
-        // First, process what we received from cache (same as API processing)
-        Object.entries(cachedData).forEach(([unitId, unitData]) => {
-          if (!unitData.creditBalanceHistory) {
-            unitData.creditBalanceHistory = [];
-          }
-          processedDuesData[unitId] = unitData;
-        });
-        
-        // Then, ensure every unit has data (even units without dues records)
-        unitsList.forEach(unit => {
-          if (!processedDuesData[unit.unitId]) {
-            processedDuesData[unit.unitId] = {
-              creditBalance: 0,
-              scheduledAmount: unit.duesAmount || 0,
-              payments: Array(12).fill().map((_, i) => ({
-                month: i + 1,
-                paid: 0,
-                amount: 0,
-                date: null,
-                transactionId: null,
-                notes: ''
-              })),
-              creditBalanceHistory: []
-            };
-          }
-        });
-        
-        setDuesData(processedDuesData);
-        // Small delay to ensure state updates are processed
-        setTimeout(() => setLoading(false), 0);
-        return;
-      }
-    }
-    
+    // Fetch from API - gets all units' dues data for the year
+    console.log('🌐 [HOADuesContext] Fetching dues for year...');
     setLoading(true);
     setError(null);
     
-    let fetchSuccessful = false;
-    
     try {
-      debug.log(`Attempting to fetch dues data from backend API for year ${year}`);
+      debug.log('HOADuesContext - Fetching HOA dues from API for year:', year);
+      const response = await hoaDuesAPI.getDuesForYear(selectedClient.id, year);
       
-      // Get authentication headers
-      const { getCurrentUser, getAuthInstance } = await import('../firebaseClient');
-      const currentUser = getCurrentUser();
-      
-      if (!currentUser) {
-        console.warn('User not authenticated');
-        return;
-      }
-      
-      const auth = getAuthInstance();
-      const token = await auth.currentUser?.getIdToken();
-      
-      if (!token) {
-        console.warn('Failed to get authentication token');
-        return;
-      }
-      
-      // Use backend API to ensure consistency
-      const API_BASE_URL = config.api.baseUrl;
-      const response = await fetch(`${API_BASE_URL}/hoadues/${selectedClient.id}/year/${year}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      .catch(e => {
-        console.warn('Network error fetching from API, will try fallback', e);
-        return { ok: false };
+      console.log('📦 [HOADuesContext] API Response received:', {
+        hasResponse: !!response,
+        unitCount: response ? Object.keys(response).length : 0,
+        units: response ? Object.keys(response) : 'none'
       });
       
-      if (response.ok) {
-        const duesDataObj = await response.json();
-        debug.log('Successfully received dues data from API:', duesDataObj);
-        debug.log('API Response type:', typeof duesDataObj);
-        debug.log('API Response keys:', Object.keys(duesDataObj));
-        debug.log('First unit data sample:', duesDataObj[Object.keys(duesDataObj)[0]]);
-        
-        // Process the data and set default values for any missing units
-        const processedDuesData = {};
-        
-        // First, process what we received from API
-        Object.entries(duesDataObj).forEach(([unitId, unitData]) => {
-          // Ensure creditBalanceHistory exists
-          if (!unitData.creditBalanceHistory) {
-            unitData.creditBalanceHistory = [];
-          }
-          // DEBUG: Log what we're processing
-          if (unitId === '1A') {
-            debug.log('Processing unit 1A data:', unitData);
-            debug.log('Unit 1A payments:', unitData.payments);
-            debug.log('First payment:', unitData.payments?.[0]);
-          }
-          processedDuesData[unitId] = unitData;
-        });
-        
-        // Then, ensure every unit has data (even units without dues records)
-        unitsList.forEach(unit => {
-          if (!processedDuesData[unit.unitId]) {
-            // Initialize empty dues data for this unit and year
-            processedDuesData[unit.unitId] = {
-              creditBalance: 0,
-              scheduledAmount: unit.duesAmount || 0,
-              payments: Array(12).fill().map((_, i) => ({
-                month: i + 1,
-                paid: 0,
-                amount: 0,  // MISSING: Need amount field!
-                date: null,
-                transactionId: null,
-                notes: ''
-              })),
-              creditBalanceHistory: []
-            };
-          }
-        });
-        
-        debug.structured('Final processed dues data', processedDuesData);
-        setDuesData(processedDuesData);
-        
-        // Save RAW API response to cache (not processed data)
-        saveToCache(cacheKey, duesDataObj);
-        
-        fetchSuccessful = true;
-      } else {
-        console.error(`API returned status ${response.status || 'unknown'}`);
-        setError('Failed to load dues data. Please try refreshing the page.');
-      }
+      // The response contains all units' dues data (direct from Firestore)
+      // Update state
+      const dataToSet = response || {};
+      console.log('📊 [HOADuesContext] Setting dues data state:', {
+        unitCount: Object.keys(dataToSet).length,
+        units: Object.keys(dataToSet)
+      });
+      setDuesData(dataToSet);
+      
+      debug.log('HOADuesContext - Loaded dues data for client:', selectedClient.id, 'year:', year);
     } catch (error) {
-      console.error('Error fetching dues data from API:', error);
-      setError('Failed to load dues data. Please try refreshing the page.');
+      console.error('🚨 [HOADuesContext] Error loading dues data:', {
+        message: error.message,
+        status: error.status,
+        stack: error.stack
+      });
+      debug.error('HOADuesContext - Error loading dues data:', error);
+      // Don't set error state for 404s, just use empty data
+      if (error.status !== 404) {
+        setError('Failed to load HOA dues data');
+      }
+      setDuesData({});
+    } finally {
+      console.log('🏁 [HOADuesContext] Fetch complete');
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
-  // Function to clear cache and refresh data
-  const clearCacheAndRefresh = async () => {
-    if (selectedClient) {
-      clearHOACache(selectedClient.id);
-      await fetchDuesData(units, selectedYear, true);
+  // Fetch data when client or year changes
+  useEffect(() => {
+    console.log('🔄 [HOADuesContext] Data fetch effect triggered:', {
+      hasClient: !!selectedClient,
+      clientId: selectedClient?.id,
+      selectedYear
+    });
+    
+    if (selectedClient && selectedYear) {
+      console.log('🚀 [HOADuesContext] Conditions met - calling fetchDuesData');
+      fetchDuesData(selectedYear);
+    } else {
+      console.log('⏸️ [HOADuesContext] Conditions not met - skipping fetch:', {
+        hasClient: !!selectedClient,
+        selectedYear
+      });
     }
+  }, [selectedClient, selectedYear]);
+
+  // CRUD operations - refresh data after changes (no cache to clear)
+  const refreshAfterPayment = async () => {
+    if (!selectedClient || !selectedYear) return;
+    
+    debug.log('HOADuesContext - Refreshing data after payment');
+    
+    // Add small delay to allow Firestore to propagate changes
+    // This prevents race condition where we fetch before write completes
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // NO CACHE - always fetch fresh with cache-busting timestamp
+    await fetchDuesData(selectedYear);
   };
+
+  // Helper to get all units from current state (no cache)
+  const getAllUnits = () => {
+    return Object.keys(duesData).map(unitId => ({
+      unitId,
+      ...duesData[unitId]
+    }));
+  };
+
+  // Helper to get unit data from current state (no cache)
+  const getUnitData = (unitId) => {
+    return duesData[unitId] || null;
+  };
+
+  // Computed summary data from current state
+  const getSummaryData = () => {
+    const units = Object.values(duesData);
+    
+    const totalDue = units.reduce((sum, unit) => 
+      sum + (unit.totalDue || 0), 0
+    );
+    
+    const totalPaid = units.reduce((sum, unit) => 
+      sum + (unit.totalPaid || 0), 0
+    );
+    
+    const totalOutstanding = totalDue - totalPaid;
+    
+    const unitsWithOutstanding = units.filter(unit => 
+      (unit.totalDue || 0) > (unit.totalPaid || 0)
+    ).length;
+    
+    return {
+      totalDue,
+      totalPaid,
+      totalOutstanding,
+      unitsWithOutstanding,
+      unitCount: units.length
+    };
+  };
+
+  // Provide units array for compatibility with HOADuesView
+  // This is derived from duesData keys - units are those with dues data
+  const units = getAllUnits();
 
   return (
     <HOADuesContext.Provider
       value={{
-        units,
+        // State
         duesData,
+        selectedYear,
         loading,
         error,
-        selectedYear,
+        units,  // Derived from duesData for compatibility
+        
+        // Year management
         setSelectedYear,
-        refreshData: () => fetchDuesData(units, selectedYear, true), // Force refresh to ensure latest data
-        clearCacheAndRefresh
+        
+        // Data fetching
+        fetchDuesData,
+        refreshAfterPayment,
+        
+        // Helper functions from current state (no cache)
+        getAllUnits,
+        getUnitData,
+        getSummaryData,
+        
+        // Legacy compatibility
+        refreshData: refreshAfterPayment
       }}
     >
       {children}
