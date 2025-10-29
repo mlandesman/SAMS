@@ -808,8 +808,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         ? `${paymentData.notes} (Transaction ID: ${transactionId})`
         : `Payment recorded in Transaction ID: ${transactionId}`;
       
-      // Use timestamp conversion utility
+      // Use timestamp conversion utility - but store as ISO string for Firestore compatibility
+      // CRITICAL FIX: Firestore update() cannot serialize Timestamp objects from different SDK versions
       const paymentTimestamp = convertToTimestamp(paymentDate);
+      // Convert to ISO string immediately to avoid serialization issues
+      const paymentDateISO = paymentTimestamp?.toDate?.() ? paymentTimestamp.toDate().toISOString() : (paymentDate instanceof Date ? paymentDate.toISOString() : paymentDate);
       
       // Calculate new paid amount - handle different distribution formats
       // Frontend sends amounts in dollars, so we need to convert to cents
@@ -821,11 +824,12 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       console.log(`Updating month ${item.month} (index ${monthIndex}): ${centsToDollars(amountInCents)} dollars`);
       
       // Update the specific month in the 12-element array - PRESERVE existing data
+      // Store date as ISO string (not Timestamp) to avoid Firestore serialization errors
       duesData.payments[monthIndex] = {
         ...duesData.payments[monthIndex], // Preserve any existing fields
         paid: amountInCents > 0,
         amount: amountInCents,
-        date: paymentTimestamp,
+        date: paymentDateISO, // Store as ISO string, not Timestamp object
         reference: transactionId,
         notes: paymentNote  // Store payment notes for tooltip display
       };
@@ -974,14 +978,52 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         sum + (payment.amount || 0), 0
       );
       
+      // CRITICAL FIX: Convert Firestore Timestamp objects to ISO strings before saving
+      // Firestore update() cannot serialize Timestamp objects from different SDK versions
+      const cleanedPayments = duesData.payments.map(p => {
+        let cleanedDate = p.date;
+        
+        // If date is a Firestore Timestamp object, convert to ISO string
+        if (p.date && typeof p.date.toDate === 'function') {
+          try {
+            cleanedDate = p.date.toDate().toISOString();
+            console.log(`🔄 Converting Timestamp to ISO string for month ${p._hoaMetadata?.month || 'unknown'}`);
+          } catch (err) {
+            console.warn(`⚠️ Failed to convert Timestamp, using as-is:`, err);
+            cleanedDate = p.date;
+          }
+        } else if (p.date && typeof p.date === 'object' && p.date._seconds !== undefined) {
+          // Handle Timestamp-like objects (from Firestore reads)
+          try {
+            const { Timestamp } = await import('firebase-admin/firestore');
+            const ts = Timestamp.fromMillis(p.date._seconds * 1000 + (p.date._nanoseconds || 0) / 1000000);
+            cleanedDate = ts.toDate().toISOString();
+            console.log(`🔄 Converting Timestamp object to ISO string`);
+          } catch (err) {
+            console.warn(`⚠️ Failed to convert Timestamp object, using ISO string if available:`, err);
+            cleanedDate = p.date?.toISOString?.() || p.date;
+          }
+        } else if (p.date && typeof p.date === 'string') {
+          // Already a string, keep as-is
+          cleanedDate = p.date;
+        }
+        
+        return {
+          ...p,
+          date: cleanedDate
+        };
+      });
+      
+      console.log(`✅ Cleaned ${cleanedPayments.length} payment entries for Firestore update`);
+      
       // SURGICAL UPDATE: Only update specific fields that changed
       const updates = {
         // Update calculated fields
         totalPaid: totalPaid,
         creditBalance: Number(duesData.creditBalance) || 0,
         
-        // Update the payment array
-        payments: duesData.payments, // Already updated with new payment data
+        // Update the payment array with cleaned dates
+        payments: cleanedPayments,
         
         // Update credit balance history
         creditBalanceHistory: Array.isArray(duesData.creditBalanceHistory) ? [...duesData.creditBalanceHistory] : [],
