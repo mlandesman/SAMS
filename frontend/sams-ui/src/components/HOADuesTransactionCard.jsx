@@ -26,14 +26,15 @@ function HOADuesTransactionCard({ metadata }) {
       return 'No months specified';
     }
     
+    // Month names array (1-indexed to match month numbers)
+    const MONTH_NAMES_SHORT = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
     // Sort months numerically
     const sortedMonths = [...months].sort((a, b) => a - b);
     
     // Get month names
-    const monthNames = sortedMonths.map(month => {
-      const date = new Date(2000, month - 1, 1);
-      return date.toLocaleString('default', { month: 'short' });
-    });
+    const monthNames = sortedMonths.map(month => MONTH_NAMES_SHORT[month] || '?');
     
     // Display as comma-separated list
     return monthNames.join(', ');

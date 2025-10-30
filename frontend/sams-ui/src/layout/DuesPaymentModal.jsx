@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useHOADues } from '../context/HOADuesContext';
 import { useClient } from '../context/ClientContext';
 import { 
-  calculatePayments, 
   formatAsMXN, 
   getMonthName, 
   generateMonthsDescription
@@ -10,12 +9,13 @@ import {
 import { formatUnitIdWithOwnerAndDues, sortUnitsByUnitId } from '../utils/unitUtils';
 import { recordDuesPayment as apiRecordDuesPayment } from '../api/hoaDuesService';
 import { generateHOADuesReceipt } from '../utils/receiptUtils';
+import hoaDuesAPI from '../api/hoaDuesAPI';
 import { getPaymentMethods } from '../api/paymentMethods';
 import { getAuthInstance } from '../firebaseClient';
 import DigitalReceipt from '../components/DigitalReceipt';
 import NotificationModal from './NotificationModal';
 import { useNotification } from '../hooks/useNotification';
-import { getMexicoDateString } from '../utils/timezone';
+import { getMexicoDateString, getMexicoDate } from '../utils/timezone';
 import { useTransactionsContext } from '../context/TransactionsContext';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import './DuesPaymentModal.css';
@@ -31,7 +31,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
 
   // Always use current fiscal year for credit balance operations
   // Credit balances should be "live" regardless of which year is being viewed
-  const currentFiscalYear = getFiscalYear(new Date(), selectedClient?.configuration?.fiscalYearStartMonth || 7);
+  const currentFiscalYear = getFiscalYear(getMexicoDate(), selectedClient?.configuration?.fiscalYearStartMonth || 7);
 
   // State for current fiscal year credit balance (separate from selected year)
   const [currentYearCreditBalance, setCurrentYearCreditBalance] = useState(0);
@@ -105,9 +105,13 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [checkNumber, setCheckNumber] = useState('');
-  const [calculationResult, setCalculationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Preview API state
+  const [preview, setPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
   
   // Client data for dynamic payment methods and accounts
   const [clientPaymentMethods, setClientPaymentMethods] = useState([]);
@@ -117,6 +121,53 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   
   // Convert string amount to number
   const amountNumber = parseFloat(amount) || 0;
+  
+  // Preview Payment Fetch Function
+  const fetchPreview = async (paymentAmount) => {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      setPreview(null);
+      return;
+    }
+    
+    if (!selectedUnitId || !selectedClient?.id || !selectedYear) {
+      console.warn('⚠️ Missing required data for preview:', { selectedUnitId, clientId: selectedClient?.id, selectedYear });
+      return;
+    }
+
+    setLoadingPreview(true);
+    setPreviewError(null);
+
+    try {
+      console.log('💰 [Preview API] Fetching payment preview:', {
+        clientId: selectedClient.id,
+        unitId: selectedUnitId,
+        paymentAmount: parseFloat(paymentAmount),
+        payOnDate: paymentDate,
+        year: selectedYear
+      });
+
+      const response = await hoaDuesAPI.previewPayment(
+        selectedClient.id,
+        {
+          unitId: selectedUnitId,
+          paymentAmount: parseFloat(paymentAmount),
+          payOnDate: paymentDate,
+          year: selectedYear
+        }
+      );
+
+      console.log('✅ [Preview API Response]:', response);
+      // Extract data from response wrapper
+      const previewData = response.data || response;
+      setPreview(previewData);
+    } catch (error) {
+      console.error('❌ [Preview API Error]:', error);
+      setPreviewError(error.message || 'Failed to load payment preview');
+      setPreview(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
   
   // Update selectedUnitId when unitId prop changes
   useEffect(() => {
@@ -206,8 +257,8 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   // Handle unit dropdown change
   const handleUnitChange = (e) => {
     setSelectedUnitId(e.target.value);
-    // Reset calculation result when changing unit
-    setCalculationResult(null);
+    // Reset preview when changing unit
+    setPreview(null);
   };
   
   // Reset form when modal opens
@@ -217,207 +268,27 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       setPaymentDate(getMexicoDateString()); // Use Mexico timezone
       setNotes('');
       setCheckNumber('');
-      setCalculationResult(null);
       setError(null);
+      setPreview(null);
+      setPreviewError(null);
       // Payment method and account will be set by the client data loading effect
     }
   }, [isOpen]);
   
-  // Calculate the first unpaid month
-  const getFirstUnpaidMonth = () => {
-    if (!selectedUnitId || !duesData[selectedUnitId]?.payments) {
-      return monthIndex || 1;
-    }
-    
-    if (monthIndex) {
-      return monthIndex; // Use specified month if provided
-    }
-
-    const payments = duesData[selectedUnitId].payments || [];
-    const monthlyAmount = duesData[selectedUnitId]?.scheduledAmount || unit?.duesAmount || 0;
-    
-    // Sort payments by month to ensure we check them in order
-    const sortedPayments = [...payments].sort((a, b) => a.month - b.month);
-    
-    // Find the first month that's not fully paid
-    for (let i = 0; i < sortedPayments.length; i++) {
-      const payment = sortedPayments[i];
-      // Check if payment is missing or less than the full monthly amount
-      if (!payment.paid || Number(payment.paid) < monthlyAmount) {
-        console.log(`Found first unpaid month: ${payment.month}`);
-        return payment.month;
-      }
-    }
-    
-    // If we've reached here, all current months are paid, 
-    // so we need to determine the next month to pay
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1; // Convert from 0-based to 1-based
-    const currentYear = currentDate.getFullYear();
-    
-    if (currentYear > selectedYear) {
-      return 1; // If we're viewing a past year, default to January
-    } else if (currentYear === selectedYear) {
-      return currentMonth; // If we're viewing current year, default to current month
-    } else {
-      return 1; // If we're viewing a future year, default to January
-    }
-  };
-  
-  // Generate credit usage or overpayment message
-  const getCreditMessage = () => {
-    if (!calculationResult) return '';
-    
-    const { amtOverpayment } = calculationResult;
-    
-    if (amtOverpayment < 0) {
-      return `Used ${formatAsMXN(Math.abs(amtOverpayment))} from credit balance`;
-    } else if (amtOverpayment > 0) {
-      return `Added ${formatAsMXN(amtOverpayment)} to credit balance`;
-    } else {
-      return 'No credit was used or added';
-    }
-  };
-
-  // Debugging function to test our month calculation
-  const testMonthCalculation = () => {
-    if (!selectedUnitId || !duesData[selectedUnitId]) return;
-    
-    const payments = duesData[selectedUnitId].payments || [];
-    const monthlyAmount = duesData[selectedUnitId]?.scheduledAmount || unit?.duesAmount || 0;
-    
-    console.log('---- DEBUG: Payment Status by Month ----');
-    for (let i = 1; i <= 12; i++) {
-      const payment = payments.find(p => p.month === i);
-      const status = !payment ? 'No payment record' : 
-                    !payment.paid ? 'Unpaid' :
-                    Number(payment.paid) < monthlyAmount ? 'Partial payment' : 'Fully paid';
-      
-      console.log(`Month ${i}: ${status} - ${payment ? `Amount: ${payment.paid}` : 'No data'}`);
-    }
-    
-    const firstUnpaidMonth = getFirstUnpaidMonth();
-    console.log(`First unpaid month calculated as: ${firstUnpaidMonth}`);
-  };
-
-  // Calculate payment distribution
-  const calculateDistribution = () => {
-    if (!unit || !amountNumber) {
-      setCalculationResult(null);
+  // Debounced preview fetch when amount or payment date changes
+  useEffect(() => {
+    if (!amount || parseFloat(amount) <= 0) {
+      setPreview(null);
       return;
     }
-    
-    // Handle case where duesData might not exist for this unit yet
-    const unitDuesData = duesData[selectedUnitId] || {
-      creditBalance: 0,
-      scheduledAmount: unit.duesAmount || 0,
-      payments: Array(12).fill().map((_, i) => ({
-        month: i + 1,
-        paid: 0,
-        date: null
-      }))
-    };
-    
-    // Use current fiscal year credit balance for payment calculations
-    // This ensures credit balances are always "live" regardless of which year is being viewed
-    const currentCredit = currentYearCreditBalance;
-    const monthlyAmount = unitDuesData.scheduledAmount || unit.duesAmount || 0;
-    const firstUnpaidMonth = getFirstUnpaidMonth();
-    
-    // STEP 1: Handle credit balance repair if negative
-    let remainingAmount = amountNumber;
-    let creditRepairAmount = 0;
-    let creditBalanceAfterRepair = currentCredit;
-    
-    if (currentCredit < 0) {
-      creditRepairAmount = Math.min(Math.abs(currentCredit), remainingAmount);
-      creditBalanceAfterRepair = currentCredit + creditRepairAmount;
-      remainingAmount -= creditRepairAmount;
-      
-      console.log(`🔧 Credit repair needed: ${creditRepairAmount} to fix negative balance of ${currentCredit}`);
-      console.log(`Credit balance after repair: ${creditBalanceAfterRepair}, Remaining for dues: ${remainingAmount}`);
-    }
-    
-    // Debug log to verify calculation
-    console.log('---- Payment Distribution Calculation ----');
-    console.log(`Unit: ${selectedUnitId}, Monthly Amount: ${monthlyAmount}, Payment: ${amountNumber}`);
-    console.log(`Original Credit Balance: ${currentCredit}, After Repair: ${creditBalanceAfterRepair}`);
-    console.log(`Credit Repair Amount: ${creditRepairAmount}, Remaining for Dues: ${remainingAmount}`);
-    
-    // Run the test calculation
-    testMonthCalculation();
-    
-    // STEP 2: Use remaining amount for monthly dues calculation
-    const result = calculatePayments(remainingAmount, monthlyAmount, creditBalanceAfterRepair);
-    
-    console.log('Calculation result:', result);
-    
-    // Figure out which months will actually be paid
-    // This simulates the payment distribution logic
-    const monthsThatWillBePaid = [];
-    let currentMonthIndex = firstUnpaidMonth;
-    let paymentsRemaining = result.monthlyPayments.length;
-    
-    // Find months that need payment (not fully paid)
-    while (paymentsRemaining > 0) {
-      // Calculate actual month (1-12) considering wrapping to next year
-      const actualMonth = ((currentMonthIndex - 1) % 12) + 1;
-      
-      // Find existing payment for this month
-      const existingPayment = duesData[selectedUnitId]?.payments?.find(p => p.month === actualMonth);
-      const existingPaidAmount = Number(existingPayment?.paid || 0);
-      
-      // If this month isn't fully paid, add it to our list
-      if (existingPaidAmount < monthlyAmount) {
-        monthsThatWillBePaid.push(actualMonth);
-        paymentsRemaining--;
-      }
-      
-      // Move to next month
-      currentMonthIndex++;
-    }
-    
-    // Sort the months in ascending order
-    monthsThatWillBePaid.sort((a, b) => a - b);
-    
-    console.log("Months that will be paid:", monthsThatWillBePaid);
-    
-    // Calculate the description based on the actual months that will be paid
-    const monthsDescription = monthsThatWillBePaid.length > 0 
-      ? generateMonthsDescription(monthsThatWillBePaid[0], monthsThatWillBePaid.length, selectedYear)
-      : '';
-    
-    // Add additional info for display including credit repair
-    setCalculationResult({
-      ...result,
-      startMonth: firstUnpaidMonth,
-      monthlyAmount,
-      totalPaid: result.monthlyPayments.reduce((sum, val) => sum + val, 0),
-      monthsDescription: monthsDescription,
-      actualMonthsToPayIndexes: monthsThatWillBePaid,
-      // Credit repair information
-      creditRepairAmount,
-      creditBalanceAfterRepair,
-      originalCreditBalance: currentCredit,
-      remainingAmountForDues: remainingAmount
-    });
-    
-    console.log('Final calculation result with months:', {
-      startMonth: firstUnpaidMonth,
-      monthCount: result.monthlyPayments.length,
-      description: generateMonthsDescription(
-        firstUnpaidMonth,
-        result.monthlyPayments.length,
-        selectedYear
-      )
-    });
-  };
 
-  // Run calculation when amount changes
-  useEffect(() => {
-    calculateDistribution();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amountNumber, unit, duesData, selectedUnitId, monthIndex, selectedYear]);
+    // Debounce: Wait 500ms after user stops typing
+    const timeoutId = setTimeout(() => {
+      fetchPreview(amount);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [amount, selectedUnitId, paymentDate, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Digital Receipt handlers
   const handleDigitalReceiptClose = async () => {
@@ -509,8 +380,13 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
       return;
     }
     
-    if (!calculationResult) {
-      setError('Failed to calculate payment distribution');
+    if (!preview) {
+      setError('Please wait for payment preview to load');
+      return;
+    }
+    
+    if (loadingPreview) {
+      setError('Payment preview is still loading, please wait');
       return;
     }
     
@@ -520,10 +396,11 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     try {
       // Create a detailed description for the transaction
       const generateTransactionDescription = () => {
-        if (calculationResult.monthlyPayments.length === 0) {
+        if (!preview.monthsAffected || preview.monthsAffected.length === 0) {
           return `Credit balance for Unit ${selectedUnitId}`;
         } else {
-          return `HOA Dues payment for Unit ${selectedUnitId} - ${calculationResult.monthsDescription}`;
+          const monthNames = preview.monthsAffected.map(m => m.month || `Month ${m.monthIndex + 1}`).join(', ');
+          return `HOA Dues payment for Unit ${selectedUnitId} - ${monthNames}`;
         }
       };
       
@@ -537,14 +414,14 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
         notes: notes,
         description: generateTransactionDescription(),
         scheduledAmount: duesData[selectedUnitId]?.scheduledAmount || unit?.duesAmount || 0,
-        creditBalanceAdded: calculationResult.amtOverpayment > 0 ? calculationResult.amtOverpayment : 0,
-        newCreditBalance: calculationResult.remainingCredit, // Send the new calculated credit balance
-        creditUsed: calculationResult.amtOverpayment < 0 ? Math.abs(calculationResult.amtOverpayment) : 0, // Amount of credit used
-        creditRepairAmount: calculationResult.creditRepairAmount || 0 // Amount used to repair negative credit balance
+        creditBalanceAdded: preview.overpayment || 0,
+        newCreditBalance: preview.newCreditBalance, // Send the new calculated credit balance
+        creditUsed: preview.creditUsed || 0, // Amount of credit used
+        creditRepairAmount: 0 // Backend handles credit repair
       };
       
       // Handle case where no full months can be paid (add directly to credit)
-      if (calculationResult.monthlyPayments.length === 0) {
+      if (!preview.monthsAffected || preview.monthsAffected.length === 0) {
         try {
           // Use the API instead of direct function call for consistency
           // Note: Credit balance operations use current fiscal year, but payment is recorded for selected year
@@ -580,58 +457,32 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
         return;
       }
       
-      // Find months that need payment, starting from the first unpaid month
-      console.log("Finding months that need payment...");
-      const monthlyAmount = calculationResult.monthlyAmount;
-      const monthsNeeded = calculationResult.monthlyPayments.length;
-      let monthsToUpdate = [];
-      let currentMonthIndex = calculationResult.startMonth;
-      let paymentsRemaining = monthsNeeded;
+      // Use preview data to build distribution for API call
+      console.log("Building payment distribution from preview data...");
+      const monthlyAmount = duesData[selectedUnitId]?.scheduledAmount || unit?.duesAmount || 0;
       
-      console.log(`Starting with month ${currentMonthIndex}, need to allocate ${paymentsRemaining} payments`);
-      
-      while (paymentsRemaining > 0) {
-        // Calculate actual month (1-12) considering wrapping to next year
-        const actualMonth = ((currentMonthIndex - 1) % 12) + 1;
+      const distribution = preview.monthsAffected.map(monthData => {
+        // monthIndex is 0-11, but payments array uses 1-12
+        const monthForPayments = monthData.monthIndex + 1;
         
-        // Find existing payment for this month or create placeholder
-        const existingPayment = duesData[selectedUnitId]?.payments?.find(p => p.month === actualMonth) || {
-          month: actualMonth,
+        // Find existing payment for this month
+        const existingPayment = duesData[selectedUnitId]?.payments?.find(p => p.month === monthForPayments) || {
+          month: monthForPayments,
           paid: 0
         };
         
         const existingPaidAmount = Number(existingPayment.paid || 0);
+        const newAmount = existingPaidAmount + monthData.totalPaid;
         
-        console.log(`Checking month ${actualMonth}: Existing paid=${existingPaidAmount}, Monthly amount=${monthlyAmount}`);
+        console.log(`Month ${monthData.month} (${monthForPayments}): Existing $${existingPaidAmount} + Payment $${monthData.totalPaid} = New $${newAmount}`);
         
-        // If this month isn't fully paid, add it to our update list
-        if (existingPaidAmount < monthlyAmount) {
-          console.log(`Month ${actualMonth} needs payment (${existingPaidAmount} < ${monthlyAmount})`);
-          monthsToUpdate.push({
-            month: actualMonth,
-            existingAmount: existingPaidAmount,
-            newAmount: monthlyAmount,  // Always pay the full monthly amount
-            amountToAdd: monthlyAmount - existingPaidAmount // Amount to add to existing payment
-          });
-          
-          paymentsRemaining--;
-        } else {
-          console.log(`Month ${actualMonth} already fully paid, skipping`);
-        }
-        
-        // Move to next month
-        currentMonthIndex++;
-      }
-      
-      console.log(`Will update ${monthsToUpdate.length} months:`, monthsToUpdate);
-
-      // Create the payment distribution data for the API
-      const distribution = monthsToUpdate.map(monthData => ({
-        month: monthData.month,
-        existingAmount: monthData.existingAmount,
-        newAmount: monthData.newAmount,
-        amountToAdd: monthData.amountToAdd
-      }));
+        return {
+          month: monthForPayments,
+          existingAmount: existingPaidAmount,
+          newAmount: newAmount,
+          amountToAdd: monthData.totalPaid
+        };
+      });
 
       // Double check distribution data integrity
       console.log('Generated distribution data:', JSON.stringify(distribution));
@@ -957,61 +808,109 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                 <div className="payment-summary">
                   <h3>Payment Summary</h3>
                   <p><strong>Monthly Due Amount:</strong> {formatAsMXN(duesData[selectedUnitId]?.scheduledAmount || unit.duesAmount || 0)}</p>
-                  <p><strong>Current Credit Balance:</strong> {formatAsMXN(duesData[selectedUnitId]?.creditBalance || 0)}</p>
+                  <p><strong>Current Credit Balance:</strong> {formatAsMXN(currentYearCreditBalance || 0)}</p>
                 </div>
                 
                 <div className="payment-distribution">
-                  <h3>Payment Distribution</h3>
+                  <h3>Payment Preview</h3>
                   
-                  {calculationResult ? (
+                  {loadingPreview && (
+                    <div className="preview-loading">
+                      <p>⏳ Loading payment preview...</p>
+                    </div>
+                  )}
+                  
+                  {previewError && (
+                    <div className="preview-error" style={{color: '#d9534f', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px'}}>
+                      <p>❌ Error loading preview: {previewError}</p>
+                    </div>
+                  )}
+                  
+                  {preview && !loadingPreview ? (
                     <>
                       <div className="distribution-summary">
-                        <p><strong>Monthly Due Amount:</strong> {formatAsMXN(calculationResult.monthlyAmount)}</p>
                         <p><strong>Payment Amount:</strong> {formatAsMXN(amountNumber)}</p>
-                        <p><strong>Current Credit Balance:</strong> {formatAsMXN(duesData[selectedUnitId]?.creditBalance || 0)}</p>
-                        {calculationResult.monthlyPayments.length > 0 ? (
-                          <p><strong>Months Covered:</strong> {calculationResult.monthsDescription || 'None'}</p>
+                        <p><strong>Current Credit Balance:</strong> {formatAsMXN(preview.currentCreditBalance || 0)}</p>
+                        {preview.monthsAffected && preview.monthsAffected.filter(m => m.totalPaid > 0).length > 0 ? (
+                          <p><strong>Months Being Paid:</strong> {preview.monthsAffected.filter(m => m.totalPaid > 0).length} month{preview.monthsAffected.filter(m => m.totalPaid > 0).length !== 1 ? 's' : ''}</p>
                         ) : (
-                          <p><strong>Months Covered:</strong> <span style={{color: '#d9534f'}}>No full months can be paid with this amount</span></p>
+                          <p><strong>Months Being Paid:</strong> <span style={{color: '#d9534f'}}>No months will be paid (amount goes to credit)</span></p>
                         )}
-                        <p><strong>Total Months:</strong> {calculationResult.monthlyPayments.length}</p>
                       </div>
                       
-                      {calculationResult.monthlyPayments.length > 0 && (
+                      {preview.monthsAffected && preview.monthsAffected.length > 0 && (
                         <div className="distribution-table">
+                          <h4>Bill Payments:</h4>
                           <table>
                             <thead>
                               <tr>
                                 <th>Month</th>
-                                <th>Amount Applied</th>
+                                <th>Dues</th>
+                                <th>Penalties</th>
+                                <th>Total</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {(calculationResult.actualMonthsToPayIndexes || []).map((monthIndex, i) => {
+                              {preview.monthsAffected
+                                .filter(m => m.totalPaid > 0)  // Only show months that received payment
+                                .map((monthData, idx) => {
+                                // monthData.month is a number (1-12 calendar month)
+                                // We need to convert it to a fiscal month name
+                                // monthData.monthIndex is the fiscal month index (0-11)
+                                const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7;
+                                const fiscalMonthIndex = monthData.monthIndex; // 0-11
+                                const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1;
+                                const monthName = getMonthName(calendarMonth);
+                                
                                 return (
-                                  <tr key={monthIndex}>
-                                    <td>{getMonthName(monthIndex)}</td>
-                                    <td>{formatAsMXN(calculationResult.monthlyPayments[i] || 0)}</td>
+                                  <tr key={idx}>
+                                    <td>{monthName}</td>
+                                    <td>{formatAsMXN(monthData.basePaid || 0)}</td>
+                                    <td className={monthData.penaltyPaid > 0 ? 'penalty-highlight' : ''}>
+                                      {formatAsMXN(monthData.penaltyPaid || 0)}
+                                    </td>
+                                    <td><strong>{formatAsMXN(monthData.totalPaid || 0)}</strong></td>
                                   </tr>
                                 );
                               })}
                             </tbody>
+                            <tfoot>
+                              <tr>
+                                <td colSpan="3"><strong>Total Applied to Bills:</strong></td>
+                                <td><strong>{formatAsMXN(preview.totalApplied || 0)}</strong></td>
+                              </tr>
+                            </tfoot>
                           </table>
                         </div>
                       )}
                       
                       <div className="credit-balance-info">
-                        <p><strong>Credit Activity:</strong> {getCreditMessage()}</p>
-                        <p><strong>Credit Balance After Payment:</strong> {formatAsMXN(calculationResult.remainingCredit)}</p>
-                        {calculationResult.remainingCredit > 0 && (
-                          <p className="credit-explanation">
+                        {preview.creditUsed > 0 && (
+                          <p style={{color: '#0066cc'}}>
+                            <strong>💳 Credit Used:</strong> {formatAsMXN(preview.creditUsed)}
+                          </p>
+                        )}
+                        
+                        {preview.overpayment > 0 && (
+                          <p style={{color: '#28a745'}}>
+                            <strong>➕ Overpayment (New Credit):</strong> {formatAsMXN(preview.overpayment)}
+                            <br />
+                            <span className="credit-explanation" style={{fontSize: '0.9em', color: '#666'}}>
+                              This amount will be added to credit balance
+                            </span>
+                          </p>
+                        )}
+                        
+                        <p><strong>New Credit Balance:</strong> {formatAsMXN(preview.newCreditBalance || 0)}</p>
+                        {preview.newCreditBalance > 0 && (
+                          <p className="credit-explanation" style={{fontSize: '0.9em', color: '#666'}}>
                             This credit will be automatically applied to future payments.
                           </p>
                         )}
                       </div>
                     </>
-                  ) : (
-                    <p>Enter an amount to see the distribution</p>
+                  ) : !loadingPreview && !previewError && (
+                    <p>Enter an amount to see the payment preview</p>
                   )}
                 </div>
               </>
@@ -1043,7 +942,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
               <button
                 type="submit"
                 className="submit-button"
-                disabled={loading || !calculationResult}
+                disabled={loading || !preview || loadingPreview}
               >
                 {loading ? 'Processing...' : 'Save Payment'}
               </button>

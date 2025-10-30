@@ -349,9 +349,71 @@ const getNow = () => {
   return new Date(year, month, day, hour, minute, second, millisecond);
 };
 
+/**
+ * Parse a date string or Date object safely in Cancun timezone
+ * @param {string|Date} dateInput - Date to parse
+ * @returns {Date} JavaScript Date object
+ */
+const parseDate = (dateInput) => {
+  if (!dateInput) return null;
+  
+  if (dateInput instanceof Date) {
+    return dateInput;
+  }
+  
+  // Parse ISO string to Cancun timezone
+  const dt = DateTime.fromISO(String(dateInput), { zone: 'America/Cancun' });
+  if (dt.isValid) {
+    return dt.toJSDate();
+  }
+  
+  // Fallback to standard Date parse
+  return new Date(dateInput);
+};
+
+/**
+ * Create a date in Cancun timezone
+ * @param {number} year - Year
+ * @param {number} month - Month (1-12, NOT 0-11)
+ * @param {number} day - Day
+ * @returns {Date} JavaScript Date object
+ */
+const createDate = (year, month, day) => {
+  const dt = DateTime.fromObject(
+    { year, month, day, hour: 0, minute: 0, second: 0 },
+    { zone: 'America/Cancun' }
+  );
+  return dt.toJSDate();
+};
+
+/**
+ * Add days to a date
+ * @param {Date} date - Input date
+ * @param {number} days - Number of days to add
+ * @returns {Date} New date
+ */
+const addDays = (date, days) => {
+  const dt = DateTime.fromJSDate(date).setZone('America/Cancun');
+  return dt.plus({ days }).toJSDate();
+};
+
+/**
+ * Convert date to ISO string safely
+ * @param {Date} date - Input date
+ * @returns {string} ISO string
+ */
+const toISOString = (date) => {
+  if (!date) return null;
+  return date.toISOString();
+};
+
 export {
   DateService,
   defaultDateService,
-  getNow
+  getNow,
+  parseDate,
+  createDate,
+  addDays,
+  toISOString
 };
 

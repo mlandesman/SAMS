@@ -3,9 +3,9 @@ import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { waterDataService } from './waterDataService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
-import { getNow } from '../services/DateService.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
-import { validateCentavos } from '../utils/centavosValidation.js';
+import { getNow } from '../../shared/services/DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { validateCentavos } from '../../shared/utils/centavosValidation.js';
 
 class WaterBillsService {
   constructor() {

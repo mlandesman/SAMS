@@ -1,46 +1,41 @@
 import admin from 'firebase-admin';
-import { getNow } from './DateService.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { getNow } from '../../shared/services/DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
+
+// Phase 3C: Import shared penalty calculation service
+import {
+  validatePenaltyConfig,
+  calculatePenaltyForBill as calculatePenaltyForBillShared,
+  recalculatePenalties as recalculatePenaltiesShared,
+  loadBillingConfig
+} from '../../shared/services/PenaltyRecalculationService.js';
 
 class PenaltyRecalculationService {
   constructor() {
-    this.db = admin.firestore();
+    this.db = null;
+  }
+
+  async _initializeDb() {
+    if (!this.db) {
+      this.db = admin.firestore();
+    }
   }
 
   /**
    * Load and validate water billing configuration
+   * 
+   * PHASE 3C: Now uses shared PenaltyRecalculationService
+   * 
    * @param {string} clientId - The client ID
    * @returns {Object} Validated configuration
    * @throws {Error} If config is missing or invalid
    */
   async loadValidatedConfig(clientId) {
-    const configDoc = await this.db
-      .collection('clients').doc(clientId)
-      .collection('config').doc('waterBills')
-      .get();
+    // Use shared service to load config
+    const config = await loadBillingConfig(clientId, 'water');
     
-    if (!configDoc.exists) {
-      throw new Error(`Water billing configuration not found for client ${clientId}. Cannot proceed with penalty calculation.`);
-    }
-    
-    const config = configDoc.data();
-    
-    // Validate required fields
-    const errors = [];
-    
-    if (typeof config.penaltyRate !== 'number' || config.penaltyRate <= 0) {
-      errors.push('penaltyRate must be a positive number');
-    }
-    
-    if (typeof config.penaltyDays !== 'number' || config.penaltyDays <= 0) {
-      errors.push('penaltyDays must be a positive number');
-    }
-    
-    if (errors.length > 0) {
-      throw new Error(`Invalid water billing configuration for client ${clientId}: ${errors.join(', ')}`);
-    }
-    
-    return config;
+    // Validate using shared function
+    return validatePenaltyConfig(config);
   }
 
   /**
@@ -51,6 +46,8 @@ class PenaltyRecalculationService {
    * @returns {Promise<Object>} Summary with success/error structure for UI handling
    */
   async recalculatePenaltiesForClient(clientId, currentDate = getNow(), unitIds = null) {
+    await this._initializeDb();
+    
     try {
       const startTime = Date.now();
       const scopeDescription = unitIds ? `units: [${unitIds.join(', ')}]` : 'all units';
@@ -207,11 +204,8 @@ class PenaltyRecalculationService {
    * of the corresponding month, after the ten days there will be a 5% interest 
    * per month as approved by the Condominium Owner's Meeting"
    * 
-   * Implementation:
-   * - Bills are due on the 1st of each month
-   * - Grace period: configurable days (default 10)
-   * - After grace period: Add penalty rate % to existing penalty amount
-   * - Penalties are INCREMENTAL, not recalculated from scratch
+   * PHASE 3C: Now uses shared PenaltyRecalculationService
+   * This is a wrapper that delegates to the shared service
    * 
    * @param {Object} billData - The bill data object
    * @param {Date} currentDate - Current date for calculation
@@ -220,77 +214,38 @@ class PenaltyRecalculationService {
    * @returns {Object} Penalty calculation result
    */
   calculatePenaltyForBill(billData, currentDate, billDueDate, config) {
-    const result = {
-      penaltyAmount: billData.penaltyAmount || 0,  // Start with existing penalty
-      updated: false,
-      details: {
-        // Use unpaid balance (totalAmount - paidAmount - existing penalties) for penalty calculations
-        unpaidBalance: Math.max(0, (billData.totalAmount || billData.currentCharge || 0) - (billData.paidAmount || 0) - (billData.penaltyAmount || 0)),
-        chargeAmount: billData.currentCharge || 0,
-        penaltyRate: config.penaltyRate,
-        graceDays: config.penaltyDays,
-        lastUpdate: billData.lastPenaltyUpdate
-      }
+    // Prepare bill object for shared service
+    const bill = {
+      billId: billData.billId || 'unknown',
+      currentCharge: billData.currentCharge || 0,
+      paidAmount: billData.paidAmount || 0,
+      penaltyAmount: billData.penaltyAmount || 0,
+      dueDate: billDueDate,
+      lastPenaltyUpdate: billData.lastPenaltyUpdate
     };
-
-    // If billDueDate is undefined, return early with no penalty update
+    
+    // If no due date, return early with no penalty update
     if (!billDueDate) {
       console.log(`⚠️  [PENALTY_RECALC] Bill has no due date - skipping penalty calculation`);
-      return result;
-    }
-
-    // Parse the bill's due date and calculate grace period end from that date
-    const billDueDateObj = new Date(billDueDate);
-    const gracePeriodEnd = new Date(billDueDateObj);
-    gracePeriodEnd.setDate(billDueDateObj.getDate() + result.details.graceDays);
-    
-    // Check if we're past the bill's grace period
-    const pastGracePeriod = currentDate > gracePeriodEnd;
-    console.log(`📅 Date Check - Current: ${currentDate.toISOString()}, Bill Due: ${billDueDateObj.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past Grace: ${pastGracePeriod}`);
-    
-    // Calculate overdue amount (unpaid principal without penalties) - NOW IN CENTAVOS
-    const overdueAmount = Math.max(0, (billData.currentCharge || 0) - (billData.paidAmount || 0));
-    
-    console.log(`🔍 [PENALTY_DEBUG] Bill data: charge=${billData.currentCharge}, paid=${billData.paidAmount}, currentPenalty=${billData.penaltyAmount}`);
-    console.log(`🔍 [PENALTY_DEBUG] Calculated overdue amount: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
-    
-    if (pastGracePeriod && overdueAmount > 0) {
-      // Calculate how many complete penalty periods have passed since grace period ended
-      const monthsSinceGracePeriod = this.getMonthsDifference(gracePeriodEnd, currentDate);
-      console.log(`🔢 Months since grace period ended: ${monthsSinceGracePeriod}`);
-      console.log(`💰 Overdue amount for penalty calculation: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
-      
-      // COMPOUNDING PENALTY LOGIC: Each month, penalty is calculated on (principal + previous penalties)
-      // Start with overdue principal amount (in centavos)
-      let runningTotal = overdueAmount;
-      let totalPenalty = 0;
-      
-      console.log(`🧮 [COMPOUND_CALC] Starting compounding calculation:`);
-      console.log(`🧮 [COMPOUND_CALC] Initial overdue principal: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
-      
-      for (let month = 1; month <= monthsSinceGracePeriod; month++) {
-        const monthlyPenalty = runningTotal * result.details.penaltyRate;
-        totalPenalty += monthlyPenalty;
-        runningTotal += monthlyPenalty;
-        
-        console.log(`🧮 [COMPOUND_CALC] Month ${month}: ${Math.round(runningTotal)} centavos ($${centavosToPesos(Math.round(runningTotal))}) × ${result.details.penaltyRate} = ${Math.round(monthlyPenalty)} centavos penalty (total penalty: ${Math.round(totalPenalty)} centavos)`);
-      }
-      
-      const expectedPenalty = Math.round(totalPenalty); // Already in centavos, just round to integer
-      
-      // Update if penalty amounts are different (switching to compounding logic)
-      // Allow 1 centavo tolerance for rounding
-      if (Math.abs(result.penaltyAmount - expectedPenalty) > 1) {
-        console.log(`💰 Updating penalty: Current ${result.penaltyAmount} centavos -> Expected ${expectedPenalty} centavos (compounding logic)`);
-        result.penaltyAmount = expectedPenalty;
-        result.updated = true;
-        result.details.lastUpdate = currentDate.toISOString();
-      } else {
-        console.log(`✅ Penalty already up-to-date: ${result.penaltyAmount} centavos (expected ${expectedPenalty} centavos)`);
-      }
+      return {
+        penaltyAmount: billData.penaltyAmount || 0,
+        updated: false,
+        details: {
+          unpaidBalance: Math.max(0, (billData.totalAmount || billData.currentCharge || 0) - (billData.paidAmount || 0) - (billData.penaltyAmount || 0)),
+          chargeAmount: billData.currentCharge || 0,
+          penaltyRate: config.penaltyRate,
+          graceDays: config.penaltyDays,
+          lastUpdate: billData.lastPenaltyUpdate
+        }
+      };
     }
     
-    return result;
+    // Use shared penalty calculation service
+    return calculatePenaltyForBillShared({
+      bill,
+      asOfDate: currentDate,
+      config
+    });
   }
 
   /**
@@ -311,6 +266,8 @@ class PenaltyRecalculationService {
    * @returns {Promise<Array>} Results for all clients
    */
   async scheduleMonthlyPenaltyRecalc() {
+    await this._initializeDb();
+    
     try {
       console.log('Starting monthly penalty recalculation for all clients');
       const currentDate = getNow();
@@ -397,6 +354,8 @@ class PenaltyRecalculationService {
    * @returns {Promise<Object>} Summary of penalties for the client
    */
   async getPenaltySummary(clientId) {
+    await this._initializeDb();
+    
     try {
       const billsCollectionRef = this.db
         .collection('clients').doc(clientId)

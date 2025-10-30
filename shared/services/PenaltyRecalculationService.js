@@ -19,9 +19,10 @@
  * All amounts in INTEGER CENTAVOS internally for precision
  */
 
-import { getNow } from './DateService.js';
+import { getNow, parseDate, createDate, addDays } from './DateService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
+import { validatePenaltyConfig as validatePenaltyConfigShared } from '../utils/configValidation.js';
 
 /**
  * Validate penalty configuration
@@ -33,23 +34,23 @@ import { getDb } from '../../backend/firebase.js';
  * @throws {Error} If config has invalid values
  */
 export function validatePenaltyConfig(config) {
-  const validated = {
-    penaltyRate: config.penaltyRate || 0.10, // Default 10%
-    penaltyDays: config.penaltyDays || 10,    // Default 10 days grace
-    penaltyFrequency: config.penaltyFrequency || 'monthly'
-  };
+  // Use shared validation utility for required fields check
+  const validated = validatePenaltyConfigShared(config, 'penalty recalculation');
   
-  // Validate penalty rate
+  // Add local type validation
   if (typeof validated.penaltyRate !== 'number' || validated.penaltyRate < 0) {
     throw new Error('penaltyRate must be a non-negative number');
   }
   
-  // Validate grace period
   if (typeof validated.penaltyDays !== 'number' || validated.penaltyDays < 0) {
     throw new Error('penaltyDays must be a non-negative number');
   }
   
-  return validated;
+  // Return with penaltyFrequency added
+  return {
+    ...validated,
+    penaltyFrequency: config.penaltyFrequency || 'monthly'
+  };
 }
 
 /**
@@ -67,7 +68,7 @@ export function validatePenaltyConfig(config) {
 export function calculateDueDate(bill, config) {
   // If bill has explicit due date, use it
   if (bill.dueDate) {
-    return new Date(bill.dueDate);
+    return parseDate(bill.dueDate);
   }
   
   // Parse bill ID to get month/year
@@ -87,8 +88,8 @@ export function calculateDueDate(bill, config) {
     calendarYear += 1;
   }
   
-  // Create due date: 1st of the month
-  const dueDate = new Date(calendarYear, calendarMonth, 1);
+  // Create due date: 1st of the month (createDate uses 1-based month)
+  const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
   
   return dueDate;
 }
@@ -105,8 +106,7 @@ export function calculateDueDate(bill, config) {
  */
 export function calculateMonthsOverdue(dueDate, asOfDate, gracePeriodDays = 10) {
   // Calculate grace period end date
-  const gracePeriodEnd = new Date(dueDate);
-  gracePeriodEnd.setDate(dueDate.getDate() + gracePeriodDays);
+  const gracePeriodEnd = addDays(dueDate, gracePeriodDays);
   
   // If not yet past grace period, return 0
   if (asOfDate <= gracePeriodEnd) {
@@ -190,8 +190,7 @@ export function calculatePenaltyForBill(params) {
   
   // Calculate due date
   const dueDate = calculateDueDate(bill, validatedConfig);
-  const gracePeriodEnd = new Date(dueDate);
-  gracePeriodEnd.setDate(dueDate.getDate() + validatedConfig.penaltyDays);
+  const gracePeriodEnd = addDays(dueDate, validatedConfig.penaltyDays);
   
   // Check if past grace period
   const pastGracePeriod = asOfDate > gracePeriodEnd;
@@ -331,12 +330,8 @@ export async function loadBillingConfig(clientId, moduleType = 'water') {
     .get();
   
   if (!configDoc.exists) {
-    // Return default config
-    console.warn(`⚠️  No ${moduleType} billing config found for ${clientId}, using defaults`);
-    return {
-      penaltyRate: 0.10,  // 10% default
-      penaltyDays: 10     // 10 days grace default
-    };
+    // Fail fast - no defaults
+    throw new Error(`Billing configuration not found for client ${clientId}, module ${moduleType}`);
   }
   
   return configDoc.data();

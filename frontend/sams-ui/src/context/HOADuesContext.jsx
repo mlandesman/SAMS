@@ -3,6 +3,7 @@ import { useClient } from './ClientContext';
 import debug from '../utils/debug';
 import hoaDuesAPI from '../api/hoaDuesAPI';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
+import { getMexicoDate } from '../utils/timezone';
 
 console.log('📁 [HOADuesContext] Module loaded');
 
@@ -39,7 +40,7 @@ export function HOADuesProvider({ children }) {
     
     if (selectedClient && selectedYear === null) {
       const fiscalYearStartMonth = selectedClient.configuration?.fiscalYearStartMonth || 1;
-      const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+      const currentFiscalYear = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
       
       console.log('📅 [HOADuesContext] Setting initial year:', {
         client: selectedClient.id,
@@ -153,11 +154,14 @@ export function HOADuesProvider({ children }) {
   };
 
   // Helper to get all units from current state (no cache)
+  // Filter out creditBalances storage document
   const getAllUnits = () => {
-    return Object.keys(duesData).map(unitId => ({
-      unitId,
-      ...duesData[unitId]
-    }));
+    return Object.keys(duesData)
+      .filter(unitId => unitId !== 'creditBalances')
+      .map(unitId => ({
+        unitId,
+        ...duesData[unitId]
+      }));
   };
 
   // Helper to get unit data from current state (no cache)
@@ -166,8 +170,11 @@ export function HOADuesProvider({ children }) {
   };
 
   // Computed summary data from current state
+  // Filter out creditBalances storage document
   const getSummaryData = () => {
-    const units = Object.values(duesData);
+    const units = Object.entries(duesData)
+      .filter(([unitId]) => unitId !== 'creditBalances')
+      .map(([, unit]) => unit);
     
     const totalDue = units.reduce((sum, unit) => 
       sum + (unit.totalDue || 0), 0

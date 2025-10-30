@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
+import { useHOADues } from '../context/HOADuesContext';
 import { useExchangeRates } from './useExchangeRates';
 import { getClientAccountBalances } from '../utils/clientAccounts';
 import { getOwnerInfo } from '../utils/unitUtils';
@@ -8,6 +9,7 @@ import { config } from '../config';
 import debug from '../utils/debug';
 import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils';
 import { hasWaterBills } from '../utils/clientFeatures';
+import { getMexicoDate } from '../utils/timezone';
 
 // Cache utility functions (same as HOADuesContext)
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -165,7 +167,7 @@ export const useDashboardData = () => {
         setError(prev => ({ ...prev, dues: null }));
         
         // Get current fiscal year and month for calculations
-        const currentDate = new Date();
+        const currentDate = getMexicoDate();
         const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
         const currentYear = getFiscalYear(currentDate, fiscalYearStartMonth);
         const currentMonth = getCurrentFiscalMonth(currentDate, fiscalYearStartMonth);
@@ -279,263 +281,148 @@ export const useDashboardData = () => {
           console.log('⚠️ Failed to get dues data from API, calculations will be 0');
         }
         
-        // Calculate dues using individual unit amounts from API data
-        const monthsElapsed = currentMonth; // How many months of the year have passed
-        let annualDuesTotal = 0;
-        let currentMonthDuesExpected = 0;
-        let totalExpectedToDate = 0;
+        // ============================================
+        // DASHBOARD CALCULATIONS - TRUST BACKEND VALUES
+        // All amounts come from backend, we only aggregate for dashboard display
+        // ============================================
         
-        if (apiSuccess && Object.keys(duesDataFromAPI).length > 0) {
-          console.log('📋 Processing individual unit scheduled amounts:');
-          
-          for (const unit of units) {
-            const unitDues = duesDataFromAPI[unit.unitId];
-            const unitScheduledAmount = unitDues?.scheduledAmount || 0;
-            
-            console.log(`  Unit ${unit.unitId}: $${unitScheduledAmount}/month`);
-            
-            // Add to totals
-            annualDuesTotal += unitScheduledAmount * 12;
-            currentMonthDuesExpected += unitScheduledAmount;
-            totalExpectedToDate += unitScheduledAmount * monthsElapsed;
-          }
-          
-          console.log(`📊 Total monthly expected: $${currentMonthDuesExpected.toLocaleString()}`);
-          console.log(`📊 Annual dues total: $${annualDuesTotal.toLocaleString()}`);
-          console.log(`📊 Total expected to date (${monthsElapsed} months): $${totalExpectedToDate.toLocaleString()}`);
-        } else {
-          console.log('⚠️ No API data available for individual amounts');
-        }
+        const monthsElapsed = currentMonth;
         
-        // Process payment data from API (same logic as HOADuesView)
+        // Calculate summary metrics from backend dues data
         let totalCollected = 0;
-        let currentMonthCollected = 0;
-        let pastDueUnits = 0;
+        let totalDue = 0;
         let pastDueAmount = 0;
-        let pastDueDetails = []; // Array to store details of past due units
+        let pastDueUnits = 0;
         
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        // Dashboard-specific calculations - aggregate backend values for display
+        // Calculate expected dues to date (months elapsed × backend scheduledAmount)
+        let totalExpectedToDate = 0;
+        let currentMonthDuesExpected = 0;
         
-        console.log('🔍 DEBUG: Starting payment calculations');
-        console.log('🔍 DEBUG: duesDataFromAPI:', duesDataFromAPI);
-        console.log('🔍 DEBUG: First unit dues data:', duesDataFromAPI[units[0]?.unitId]);
-        
-        if (apiSuccess) {
-          for (const unit of units) {
-            const unitDues = duesDataFromAPI[unit.unitId];
-            const unitScheduledAmount = unitDues?.scheduledAmount || 0;
-            const shouldHavePaidByNow = unitScheduledAmount * monthsElapsed;
-            let unitPaidTotal = 0;
-            
-            console.log(`🔍 DEBUG: Processing unit ${unit.unitId}:`);
-            console.log(`  - Unit data:`, unit);
-            console.log(`  - scheduledAmount: ${unitScheduledAmount}`);
-            console.log(`  - shouldHavePaidByNow (${monthsElapsed} months): ${shouldHavePaidByNow}`);
-            console.log(`  - creditBalance: ${unitDues?.creditBalance || 0}`);
-            
-            // Initialize currentMonthAmount outside the if block
-            let currentMonthAmount = 0;
-            
-            if (unitDues?.payments) {
-              console.log(`  - payments array:`, unitDues.payments);
+        if (duesDataFromAPI && Object.keys(duesDataFromAPI).length > 0) {
+          // Filter out creditBalances storage document - it's not a real unit
+          Object.entries(duesDataFromAPI)
+            .filter(([unitId]) => unitId !== 'creditBalances')
+            .forEach(([unitId, unitData]) => {
+              const scheduledAmount = unitData?.scheduledAmount || 0; // From backend
+              const unitTotalPaid = unitData?.totalPaid || 0; // From backend
+              const unitTotalDue = unitData?.totalDue || 0; // From backend
               
-              // Sum payments up to current month only
-              unitDues.payments.forEach((payment, idx) => {
-                // CRITICAL: The payments array is ALREADY in fiscal year order!
-                // For AVII: payments[0] = July, payments[1] = August, etc.
-                // For MTC: payments[0] = January, payments[1] = February, etc.
-                const fiscalMonth = idx + 1; // Convert to 1-based fiscal month
-                
-                console.log(`    - Fiscal Month ${fiscalMonth}: paid=${payment.paid}, amount=${payment.amount}`);
-                
-                // CRITICAL: The 'paid' field is a boolean, 'amount' is in dollars from API
-                const paymentAmount = (payment.paid && payment.amount) ? payment.amount : 0;
-                
-                // Only count payments up to and including current fiscal month
-                if (paymentAmount > 0 && fiscalMonth <= currentMonth) {
-                  totalCollected += paymentAmount;
-                  unitPaidTotal += paymentAmount;
-                  console.log(`      Added $${paymentAmount} to current paid (fiscal month ${fiscalMonth})`);
-                }
-              });
-              console.log(`  💳 Unit ${unit.unitId} payments total: $${unitPaidTotal} (${unitDues.payments.length} payment records)`);
+              totalCollected += unitTotalPaid;
+              totalDue += unitTotalDue;
               
-              // Get credit balance and add to unit's total paid
-              const unitCreditBalance = unitDues?.creditBalance || 0;
-              unitPaidTotal += unitCreditBalance;
-              console.log(`  💰 Unit ${unit.unitId} credit balance: $${unitCreditBalance}, total with credit: $${unitPaidTotal}`);
-              
-              // Check current month payment for collection rate calculation
-              // The payments array is already in fiscal year order
-              const currentMonthIndex = currentMonth - 1; // Convert to 0-based index
-              const currentMonthPayment = unitDues.payments[currentMonthIndex];
-              currentMonthAmount = (currentMonthPayment?.paid && currentMonthPayment?.amount) ? currentMonthPayment.amount : 0;
-              if (currentMonthAmount > 0) {
-                currentMonthCollected += currentMonthAmount;
-              }
-              
-              // Check if unit is past due (hasn't paid all that's owed to date including credits)
-              const totalOwedForUnit = unitScheduledAmount * currentMonth;
-              const totalPaidForUnit = unitPaidTotal; // Now includes credits
-              if (totalPaidForUnit < totalOwedForUnit) {
-                // Unit is past due on the 1st of the month
-                pastDueUnits++;
-                const totalPastDueForUnit = totalOwedForUnit - totalPaidForUnit;
-                console.log(`  ⚠️ Unit ${unit.unitId} is past due by $${totalPastDueForUnit} total`);
-                
-                // Add to past due details
-                const { lastName } = getOwnerInfo(unit);
-                pastDueDetails.push({
-                  unitId: unit.unitId,
-                  owner: unit.owner || lastName || 'Unknown',
-                  amountDue: totalPastDueForUnit,
-                  totalOwed: totalOwedForUnit,
-                  creditBalance: unitCreditBalance,
-                  netDue: totalPastDueForUnit
-                });
-              }
-            } else {
-              // No payment data found for this unit - past due on the 1st
-              pastDueUnits++;
-              const totalPastDueForUnit = unitScheduledAmount * currentMonth;
-              
-              // Add to past due details (full amount due for all months)
-              const { lastName } = getOwnerInfo(unit);
-              const unitCreditBalance = unitDues?.creditBalance || 0;
-              pastDueDetails.push({
-                unitId: unit.unitId,
-                owner: unit.owner || lastName || 'Unknown',
-                amountDue: totalPastDueForUnit - unitCreditBalance,
-                totalOwed: totalPastDueForUnit,
-                creditBalance: unitCreditBalance,
-                netDue: totalPastDueForUnit - unitCreditBalance
-              });
-            }
-            
-            console.log(`  - Total paid by unit (including credit): $${unitPaidTotal}`);
-            
-            // For past due calculation, count total unpaid amount from start of fiscal year
-            // Units are past due on the 1st of the month
-            const totalOwedToDate = unitScheduledAmount * currentMonth; // What they should have paid by now
-            const totalPaidToDate = unitPaidTotal; // What they actually paid
-            if (totalPaidToDate < totalOwedToDate) {
-              const totalPastDue = totalOwedToDate - totalPaidToDate;
-              pastDueAmount += totalPastDue;
-              console.log(`  - Unit owes $${totalPastDue} total (should have paid $${totalOwedToDate}, paid $${totalPaidToDate})`);
-            }
-          }
-          
-          console.log('🔍 DEBUG: Final totals:');
-          console.log(`  - totalCollected: $${totalCollected}`);
-          console.log(`  - currentMonthCollected: $${currentMonthCollected}`);
-          console.log(`  - pastDueUnits: ${pastDueUnits}`);
-          console.log(`  - pastDueAmount: $${pastDueAmount}`);
-        } else {
-          console.log('⚠️ No API data available, skipping payment calculations');
-        }
-        
-        // Calculate Expected Dues for Months Elapsed using individual unit amounts
-        // Use the totalExpectedToDate calculated above from individual unit amounts
-        const expectedDuesToDate = totalExpectedToDate;
-        
-        // Calculate payment breakdown - match HOA Dues view logic
-        const currentlyDue = totalExpectedToDate; // Total due through current month
-        const currentPaid = totalCollected; // Total actually collected (including credits)
-        
-        // For pre-paid amounts, include future payments AND credit balances
-        let prePaidAmount = 0;
-        let totalCreditBalances = 0;
-        
-        if (apiSuccess) {
-          for (const unit of units) {
-            const unitDues = duesDataFromAPI[unit.unitId];
-            
-            // Add credit balance to pre-paid total
-            if (unitDues?.creditBalance > 0) {
-              totalCreditBalances += unitDues.creditBalance;
-            }
-            
-            // Check payments for future months (after current fiscal month)
-            if (unitDues?.payments) {
-              // The payments array is already in fiscal year order
-              for (let fiscalMonth = currentMonth + 1; fiscalMonth <= 12; fiscalMonth++) {
-                const monthIndex = fiscalMonth - 1; // Convert to 0-based index
-                
-                if (monthIndex < unitDues.payments.length) {
-                  const payment = unitDues.payments[monthIndex];
-                  const paymentAmount = (payment?.paid && payment?.amount) ? payment.amount : 0;
-                  if (paymentAmount > 0) {
-                    prePaidAmount += paymentAmount;
+              // Calculate past due for THIS unit by checking unpaid months
+              // Past due = unpaid bills for current/past months
+              let unitPastDue = 0;
+              if (unitData?.payments && Array.isArray(unitData.payments)) {
+                for (let m = 1; m <= currentMonth; m++) {
+                  const monthIndex = m - 1;
+                  const payment = unitData.payments[monthIndex];
+                  const paidAmount = (payment?.paid && payment?.amount) ? payment.amount : 0;
+                  const shortfall = scheduledAmount - paidAmount;
+                  if (shortfall > 0) {
+                    unitPastDue += shortfall;
                   }
                 }
               }
-            }
-          }
+              
+              if (unitPastDue > 0) {
+                pastDueAmount += unitPastDue;
+                pastDueUnits += 1;
+              }
+              
+              totalExpectedToDate += scheduledAmount * monthsElapsed;
+              currentMonthDuesExpected += scheduledAmount;
+            });
         }
         
-        // Total pre-paid = future payments + credit balances
+        // Calculate current month collected - sum backend payment amounts
+        let currentMonthCollected = 0;
+        if (duesDataFromAPI && Object.keys(duesDataFromAPI).length > 0) {
+          Object.entries(duesDataFromAPI)
+            .filter(([unitId]) => unitId !== 'creditBalances')
+            .forEach(([unitId, unitData]) => {
+              if (unitData?.payments && Array.isArray(unitData.payments)) {
+                const currentMonthIndex = currentMonth - 1; // Convert to 0-based index
+                const currentMonthPayment = unitData.payments[currentMonthIndex];
+                if (currentMonthPayment?.paid && currentMonthPayment?.amount) {
+                  currentMonthCollected += currentMonthPayment.amount; // From backend
+                }
+              }
+            });
+        }
+        
+        // Calculate pre-paid amounts - sum backend credit + future payment values
+        let prePaidAmount = 0;
+        let totalCreditBalances = 0;
+        if (duesDataFromAPI && Object.keys(duesDataFromAPI).length > 0) {
+          Object.entries(duesDataFromAPI)
+            .filter(([unitId]) => unitId !== 'creditBalances')
+            .forEach(([unitId, unitData]) => {
+              // Sum backend credit balances
+              const creditBalance = unitData?.creditBalance || 0; // From backend
+              if (creditBalance > 0) {
+                totalCreditBalances += creditBalance;
+              }
+              
+              // Sum backend future payment amounts
+              if (unitData?.payments && Array.isArray(unitData.payments)) {
+                for (let fiscalMonth = currentMonth + 1; fiscalMonth <= 12; fiscalMonth++) {
+                  const monthIndex = fiscalMonth - 1;
+                  if (monthIndex < unitData.payments.length) {
+                    const payment = unitData.payments[monthIndex];
+                    const paymentAmount = (payment?.paid && payment?.amount) ? payment.amount : 0; // From backend
+                    if (paymentAmount > 0) {
+                      prePaidAmount += paymentAmount;
+                    }
+                  }
+                }
+              }
+            });
+        }
         prePaidAmount += totalCreditBalances;
         
-        console.log(`🎯 Currently Due calculation: Individual unit amounts × ${monthsElapsed} months = $${currentlyDue.toLocaleString()}`);
-        console.log(`🎯 Total Collected (actual payments only): $${currentPaid.toLocaleString()}`);
-        console.log(`🎯 Pre-Paid Amount (future payments + credits): $${prePaidAmount.toLocaleString()}`);
-        console.log(`   - Future payments: $${(prePaidAmount - totalCreditBalances).toLocaleString()}`);
-        console.log(`   - Credit balances: $${totalCreditBalances.toLocaleString()}`);
+        // Calculate currently due (total expected to date through current month)
+        const currentlyDue = totalExpectedToDate || 0;
+        const currentPaid = totalCollected || 0;
         
-        // Calculate payment breakdown
-        console.log(`💰 Payment Breakdown:`);
-        console.log(`  📋 Currently Due (through ${monthNames[currentMonth - 1]}): $${currentlyDue.toLocaleString()}`);
-        console.log(`  ✅ Current Paid (actual payments): $${currentPaid.toLocaleString()}`);
-        console.log(`  🔮 Pre-Paid (future + credits): $${prePaidAmount.toLocaleString()}`);
-        
-        // Collection Rate based on what's been collected vs what's due
+        // Collection rate based on what's been collected vs what's due
         const collectionRate = currentlyDue > 0 ? (currentPaid / currentlyDue) * 100 : 0;
         
-        // Debug logging to understand the calculation
-        console.log('🏠 HOA Dues Calculation Debug:');
-        console.log('📅 Current Date:', currentDate.toISOString());
-        console.log('📆 Current Year:', currentYear);
-        console.log('📊 Current Month:', currentMonth);
-        console.log('⏰ Months Elapsed:', monthsElapsed);
-        console.log('🏘️ Units Count:', units.length);
-        console.log('💰 Annual Dues Total:', annualDuesTotal.toLocaleString());
-        console.log('🎯 Expected Dues to Date (' + monthsElapsed + ' months):', expectedDuesToDate.toLocaleString());
-        console.log('✅ Total Collected (YTD):', totalCollected.toLocaleString());
-        console.log('📅 Current Month Expected:', currentMonthDuesExpected.toLocaleString());
-        console.log('💰 Current Month Collected:', currentMonthCollected.toLocaleString());
-        console.log('📊 Collection Rate (Current Obligations):', collectionRate.toFixed(1) + '%');
-        console.log('🚨 Past Due Units Count:', pastDueUnits);
-        console.log('💸 Past Due Amount:', pastDueAmount.toLocaleString());
+        // Past due details - could be expanded to show unit-level details if needed
+        const pastDueDetails = []; // Future enhancement: extract from duesDataFromAPI
         
-        // Log per-unit details
-        console.log('🏘️ Unit Details:');
-        console.log(`🔗 API Success: ${apiSuccess}`);
-        if (apiSuccess && Object.keys(duesDataFromAPI).length > 0) {
-          units.forEach((unit, index) => {
-            const unitDues = duesDataFromAPI[unit.unitId];
-            const unitScheduledAmount = unitDues?.scheduledAmount || 0;
-            console.log(`  Unit ${index + 1}: ${unit.unitId} - $${unitScheduledAmount}/month`);
-          });
-        } else {
-          console.log('  No individual unit amounts available from API');
-        }
+        console.log('🏠 HOA Dues Dashboard (using backend data):');
+        console.log('  Total Collected:', totalCollected);
+        console.log('  Total Due:', totalDue);
+        console.log('  Currently Due (to date):', currentlyDue);
+        console.log('  Past Due Amount:', pastDueAmount);
+        console.log('  Past Due Units:', pastDueUnits);
+        console.log('  Current Month Collected:', currentMonthCollected);
+        console.log('  Pre-paid Amount:', prePaidAmount);
+        console.log('  Collection Rate:', collectionRate.toFixed(1) + '%');
         
         setHoaDuesStatus({
-          currentlyDue: Math.round(currentlyDue), // Total due through current month (rounded)
-          currentPaid: Math.round(currentPaid), // Total actually collected (rounded)
-          futurePayments: Math.round(prePaidAmount), // Pre-paid amount (future + credits, rounded)
-          totalCollected: Math.round(currentPaid), // Total collected year-to-date (rounded)
-          collectionRate: Math.min(100, Math.max(0, collectionRate)), // Collection rate
-          overdueCount: pastDueUnits,
-          pastDueAmount: Math.round(pastDueAmount), // Rounded to nearest peso
-          pastDueDetails: pastDueDetails, // Array of past due unit details
-          monthsElapsed,
-          unitsCount: units.length
+          currentlyDue: Math.round(currentlyDue) || 0,
+          currentPaid: Math.round(currentPaid) || 0,
+          futurePayments: Math.round(prePaidAmount) || 0,
+          totalCollected: Math.round(currentPaid) || 0,
+          collectionRate: Math.min(100, Math.max(0, collectionRate)) || 0,
+          overdueCount: pastDueUnits || 0,
+          pastDueAmount: Math.round(pastDueAmount) || 0,
+          pastDueDetails: pastDueDetails || [],
+          monthsElapsed: monthsElapsed || 0,
+          unitsCount: units.length || 0
         });
         
       } catch (err) {
         console.error('Error fetching HOA dues status:', err);
-        setError(prev => ({ ...prev, dues: err.message }));
+        console.error('Error details:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        });
+        setError(prev => ({ ...prev, dues: err.message || 'Unknown error' }));
         
         // Fallback to zero data on error
         setHoaDuesStatus({
@@ -600,7 +487,7 @@ export const useDashboardData = () => {
         setError(prev => ({ ...prev, water: null }));
         
         // Get current fiscal year for water bills
-        const currentDate = new Date();
+        const currentDate = getMexicoDate();
         const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
         const currentYear = getFiscalYear(currentDate, fiscalYearStartMonth);
         

@@ -11,7 +11,7 @@ import {
 } from '../controllers/hoaDuesController.js';
 import { checkFirestoreConnection, getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
-import { getNow } from '../services/DateService.js';
+import { getNow, parseDate } from '../../shared/services/DateService.js';
 import { centavosToPesos, pesosToCentavos } from '../../shared/utils/currencyUtils.js';
 
 const router = express.Router();
@@ -359,7 +359,7 @@ router.post('/:clientId/payment/preview', async (req, res) => {
       unitId, 
       parseInt(year), 
       parseFloat(paymentAmount),
-      payOnDate ? new Date(payOnDate) : null
+      payOnDate ? parseDate(payOnDate) : null
     );
     
     // previewHOAPayment already returns amounts in pesos (see controller line 1559-1695)
@@ -634,7 +634,7 @@ router.post('/:clientId/payment/:unitId/:year', async (req, res) => {
     
     try {
       // Parse and validate date to ensure it's a valid value
-      const testDate = new Date(paymentData.date);
+      const testDate = parseDate(paymentData.date);
       if (isNaN(testDate.getTime())) {
         return res.status(400).json({ error: 'Invalid date format in paymentData' });
       }

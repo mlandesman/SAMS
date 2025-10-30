@@ -249,10 +249,16 @@ input[type="number"] {
 }
 
 .distribution-table th {
-  background-color: #0527ae;
-  font-weight: bold;
-  color: white;
+  background-color: #0527ae !important;
+  font-weight: bold !important;
+  color: white !important;
   text-align: center;
+}
+
+/* Penalty highlighting */
+.distribution-table .penalty-highlight {
+  color: #dc3545;
+  font-weight: bold;
 }
 
 .distribution-table tfoot tr td {

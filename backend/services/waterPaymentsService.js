@@ -1,12 +1,17 @@
 import { getDb } from '../firebase.js';
 import { waterDataService } from './waterDataService.js';
 import { createTransaction } from '../controllers/transactionsController.js';
-import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
+import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import axios from 'axios';
-import { getNow } from '../services/DateService.js';
+import { getNow } from '../../shared/services/DateService.js';
 import { CreditAPI } from '../api/creditAPI.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
+
+// Phase 3B: Import shared payment services
+import { calculatePaymentDistribution as calculatePaymentDistributionShared } from '../../shared/services/PaymentDistributionService.js';
+import { createModuleAllocations, createAllocationSummary } from '../../shared/services/TransactionAllocationService.js';
+import { generateCreditDescription as generateCreditDescriptionShared } from '../../shared/services/CreditBalanceService.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 
@@ -18,161 +23,42 @@ const api = axios.create({
 });
 
 /**
- * Create Water Bills allocations from bill payments (mirrors HOA Dues pattern)
+ * Create Water Bills allocations from bill payments
+ * 
+ * PHASE 3B: Now uses shared TransactionAllocationService
+ * Module-agnostic allocation generation
+ * 
  * @param {Array} billPayments - Array of bill payment objects
  * @param {string} unitId - Unit identifier
  * @param {object} paymentData - Payment data containing credit info
  * @returns {Array} Array of allocation objects
  */
 function createWaterBillsAllocations(billPayments, unitId, paymentData) {
-  const allocations = [];
-  let allocationIndex = 0;
-  
-  console.log(`🔍 Creating allocations for ${billPayments.length} bill payments:`, billPayments);
-  
-  // Add allocations for each bill payment (base charges and penalties)
-  if (billPayments && billPayments.length > 0) {
-    billPayments.forEach((billPayment) => {
-      // Add base charge allocation
-      if (billPayment.baseChargePaid > 0) {
-        allocations.push({
-          id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
-          type: "water_bill",
-          targetId: `bill_${billPayment.billId}`,
-          targetName: `${billPayment.billPeriod} - Unit ${unitId}`,
-          amount: billPayment.baseChargePaid, // Keep in dollars - transactionController will convert to cents
-          percentage: null,
-          categoryName: "Water Consumption",
-          categoryId: "water-consumption",
-          data: {
-            unitId: unitId,
-            billId: billPayment.billId,
-            billPeriod: billPayment.billPeriod,
-            billType: "base_charge"
-          },
-          metadata: {
-            processingStrategy: "water_bills",
-            cleanupRequired: true,
-            auditRequired: true,
-            createdAt: getNow().toISOString()
-          }
-        });
-      }
-      
-      // Add penalty allocation (only if penalties exist)
-      if (billPayment.penaltyPaid > 0) {
-        allocations.push({
-          id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
-          type: "water_penalty",
-          targetId: `penalty_${billPayment.billId}`,
-          targetName: `${billPayment.billPeriod} Penalties - Unit ${unitId}`,
-          amount: billPayment.penaltyPaid, // Keep in dollars - transactionController will convert to cents
-          percentage: null,
-          categoryName: "Water Penalties",
-          categoryId: "water-penalties",
-          data: {
-            unitId: unitId,
-            billId: billPayment.billId,
-            billPeriod: billPayment.billPeriod,
-            billType: "penalty"
-          },
-          metadata: {
-            processingStrategy: "water_bills",
-            cleanupRequired: true,
-            auditRequired: true,
-            createdAt: getNow().toISOString()
-          }
-        });
-      }
-    });
-  }
-  
-  // Add Credit Balance allocation for overpayments (positive) or usage (negative)
-  if (paymentData && paymentData.overpayment && paymentData.overpayment > 0) {
-    // Overpayment: Credit balance is ADDED (positive allocation)
-    allocations.push({
-      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
-      type: "water_credit",
-      targetId: `credit_${unitId}_water`,
-      targetName: `Account Credit - Unit ${unitId}`,
-      amount: paymentData.overpayment, // Keep in dollars - transactionController will convert to cents
-      percentage: null,
-      categoryName: "Account Credit",
-      categoryId: "account-credit",
-      data: {
-        unitId: unitId,
-        creditType: "water_overpayment"
-      },
-      metadata: {
-        processingStrategy: "account_credit",
-        cleanupRequired: true,
-        auditRequired: true,
-        createdAt: getNow().toISOString()
-      }
-    });
-  } else if (paymentData && paymentData.creditUsed && paymentData.creditUsed > 0) {
-    // Credit was used to help pay bills (negative allocation)
-    allocations.push({
-      id: `alloc_${String(++allocationIndex).padStart(3, '0')}`,
-      type: "water_credit",
-      targetId: `credit_${unitId}_water`,
-      targetName: `Account Credit - Unit ${unitId}`,
-      amount: -paymentData.creditUsed, // Keep in dollars (negative for credit usage) - transactionController will convert to cents
-      percentage: null,
-      categoryName: "Account Credit",
-      categoryId: "account-credit",
-      data: {
-        unitId: unitId,
-        creditType: "water_credit_used"
-      },
-      metadata: {
-        processingStrategy: "account_credit",
-        cleanupRequired: true,
-        auditRequired: true,
-        createdAt: getNow().toISOString()
-      }
-    });
-  }
-  
-  return allocations;
+  // Use shared TransactionAllocationService
+  return createModuleAllocations({
+    billPayments,
+    unitId,
+    moduleType: 'water',
+    paymentData
+  });
 }
 
 /**
  * Create allocation summary for transaction
+ * 
+ * PHASE 3B: Now uses shared TransactionAllocationService
+ * 
  * @param {Array} billPayments - Array of bill payment objects
  * @param {number} totalAmountCents - Total transaction amount in cents
  * @returns {Object} Allocation summary object
  */
 function createWaterBillsAllocationSummary(billPayments, totalAmountCents) {
-  if (!billPayments || billPayments.length === 0) {
-    return {
-      totalAllocated: 0,
-      allocationCount: 0,
-      allocationType: null,
-      hasMultipleTypes: false
-    };
-  }
-  
-  // Calculate total allocated (bills + penalties) in cents for comparison
-  const totalAllocated = billPayments.reduce((sum, payment) => {
-    return sum + dollarsToCents(payment.baseChargePaid) + dollarsToCents(payment.penaltyPaid);
-  }, 0);
-  
-  // Check if we have multiple types (bills + penalties)
-  const hasPenalties = billPayments.some(p => p.penaltyPaid > 0);
-  
-  return {
-    totalAllocated: totalAllocated,
-    allocationCount: billPayments.length * (hasPenalties ? 2 : 1), // Count base + penalty as separate
-    allocationType: "water_bill",
-    hasMultipleTypes: hasPenalties, // True if both bills and penalties exist
-    // Verify allocation integrity
-    integrityCheck: {
-      expectedTotal: totalAmountCents,
-      actualTotal: totalAllocated,
-      isValid: Math.abs(totalAmountCents - totalAllocated) < 100 // Allow 1 peso tolerance
-    }
-  };
+  // Use shared TransactionAllocationService
+  return createAllocationSummary({
+    billPayments,
+    totalAmountCents,
+    moduleType: 'water'
+  });
 }
 
 class WaterPaymentsService {
@@ -308,7 +194,10 @@ class WaterPaymentsService {
   
   /**
    * Calculate payment distribution for preview or actual payment
-   * This is the single source of truth for payment calculations
+   * 
+   * PHASE 4 REFACTOR: Module-specific wrapper for shared PaymentDistributionService
+   * Loads Water Bills data from native storage, prepares bills array, calls shared service
+   * 
    * @param {string} clientId - Client ID
    * @param {string} unitId - Unit ID
    * @param {number} paymentAmount - Payment amount in PESOS
@@ -318,6 +207,68 @@ class WaterPaymentsService {
    * @returns {object} Distribution breakdown with allocations (all amounts in PESOS)
    */
   async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0, payOnDate = null, selectedMonth = null) {
+    console.log(`💧 [WATER WRAPPER] Loading bills for unit ${unitId}`);
+    
+    // PHASE 4: Load Water Bills data from native storage
+    const db = await getDb();  // getDb() is async - must await
+    const { getUnpaidWaterBillsForUnit, filterBillsByMonth, recalculatePenaltiesAsOfDate, getBillingConfig } = await import('../../shared/services/BillDataService.js');
+    
+    // 1. Load unpaid bills from Water Bills storage structure
+    let bills = await getUnpaidWaterBillsForUnit(db, clientId, unitId);
+    console.log(`📋 [WATER WRAPPER] Loaded ${bills.length} unpaid bills`);
+    
+    // 2. Filter by selectedMonth if provided
+    if (selectedMonth !== null && selectedMonth !== undefined) {
+      bills = filterBillsByMonth(bills, selectedMonth);
+      console.log(`📋 [WATER WRAPPER] Filtered to ${bills.length} bills (up to month ${selectedMonth})`);
+    }
+    
+    // 3. Recalculate penalties if backdated payment
+    if (payOnDate) {
+      const paymentDate = typeof payOnDate === 'string' ? new Date(payOnDate) : payOnDate;
+      const config = await getBillingConfig(db, clientId, 'water');
+      bills = await recalculatePenaltiesAsOfDate(clientId, bills, paymentDate, config);
+      console.log(`📋 [WATER WRAPPER] Recalculated penalties for ${bills.length} bills`);
+    }
+    
+    // 4. Call shared PaymentDistributionService with prepared bills
+    const distribution = calculatePaymentDistributionShared({
+      bills: bills,
+      paymentAmount,
+      currentCreditBalance,
+      unitId
+    });
+    
+    console.log(`✅ [WATER WRAPPER] Distribution calculated:`, {
+      billPayments: distribution.billPayments?.length || 0,
+      creditUsed: distribution.creditUsed,
+      overpayment: distribution.overpayment
+    });
+    
+    // 5. Add allocations using shared services
+    const paymentDataForAllocations = {
+      creditUsed: distribution.creditUsed,
+      overpayment: distribution.overpayment,
+      newCreditBalance: distribution.newCreditBalance
+    };
+    
+    const allocations = createWaterBillsAllocations(distribution.billPayments, unitId, paymentDataForAllocations);
+    const allocationSummary = createWaterBillsAllocationSummary(distribution.billPayments, dollarsToCents(paymentAmount));
+    
+    // Return distribution with allocations
+    return {
+      ...distribution,
+      allocations,
+      allocationSummary
+    };
+  }
+  
+  /**
+   * DEPRECATED: Old calculatePaymentDistribution implementation
+   * Kept for reference during Phase 3B transition
+   * Remove after verification complete
+   */
+  async _calculatePaymentDistributionOld(clientId, unitId, paymentAmount, currentCreditBalance = 0, payOnDate = null, selectedMonth = null) {
     await this._initializeDb();
     
     console.log(`💧 Calculating payment distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
@@ -1175,14 +1126,12 @@ class WaterPaymentsService {
   
   /**
    * Generate credit balance change description
+   * 
+   * PHASE 3B: Now uses shared CreditBalanceService
    */
   _generateCreditDescription(billPayments, totalBaseCharges, totalPenalties) {
-    if (billPayments.length === 0) {
-      return 'Water bill overpayment - no bills due';
-    }
-    
-    const billPeriods = billPayments.map(p => p.billPeriod).join(', ');
-    return `Water bills paid: ${billPeriods} (Base: $${totalBaseCharges.toFixed(2)}, Penalties: $${totalPenalties.toFixed(2)})`;
+    // Use shared CreditBalanceService
+    return generateCreditDescriptionShared(billPayments, totalBaseCharges, totalPenalties, 'water');
   }
   
   /**

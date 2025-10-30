@@ -20,6 +20,7 @@ import {
   getFiscalYear,
   isFiscalYear
 } from '../utils/fiscalYearUtils';
+import { getMexicoDate } from '../utils/timezone';
 import debug from '../utils/debug';
 import './HOADuesView.css';
 
@@ -222,8 +223,9 @@ function HOADuesView() {
     if (status === 'partial') return 'payment-partial';
     
     // Get current fiscal month and year for comparison
-    const currentFiscalMonth = getCurrentFiscalMonth(new Date(), fiscalYearStartMonth);
-    const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+    const today = getMexicoDate();
+    const currentFiscalMonth = getCurrentFiscalMonth(today, fiscalYearStartMonth);
+    const currentFiscalYear = getFiscalYear(today, fiscalYearStartMonth);
     
     // Compare selected year against current fiscal year
     const selectedYearIsCurrent = selectedYear === currentFiscalYear;
@@ -240,7 +242,13 @@ function HOADuesView() {
     return '';
   };
 
-  // Calculate row totals (by fiscal month)
+  // ============================================
+  // DISPLAY AGGREGATION FUNCTIONS
+  // These functions aggregate backend-provided values for UI display
+  // All underlying data comes from backend - no financial calculations
+  // ============================================
+
+  // Calculate row totals (by fiscal month) - Sum backend payment amounts for display
   const calculateMonthlyTotal = (fiscalMonth) => {
     return units.reduce((total, unit) => {
       const paymentStatus = getPaymentStatus(unit, fiscalMonth);
@@ -248,48 +256,36 @@ function HOADuesView() {
     }, 0);
   };
 
-  // Calculate unit total paid for the year including both payments and credits
+  // Get unit total paid - Direct backend value
   const calculateUnitTotal = (unitId) => {
     const unitData = duesData[unitId];
-    if (!unitData) return 0;
-    
-    // Sum all payments for the year
-    let paymentsTotal = 0;
-    if (Array.isArray(unitData.payments)) {
-      paymentsTotal = unitData.payments.reduce((total, payment) => {
-        // Only sum if payment was made (paid is true) and amount exists
-        return total + (payment.paid && payment.amount ? payment.amount : 0);
-      }, 0);
-    }
-    
-    // Add credit balance to total paid (credits count as payments received)
-    const creditBalance = unitData.creditBalance || 0;
-    
-    return paymentsTotal + creditBalance;
+    // Backend provides totalPaid (includes credit balance)
+    return unitData?.totalPaid || 0;
   };
 
-  // Calculate total amount to be collected (remaining)
+  // Calculate remaining to collect for a specific month - Sum backend values
   const calculateRemainingToCollect = (fiscalMonth) => {
     const totalDues = units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0), 0);
     const totalCollected = calculateMonthlyTotal(fiscalMonth);
     return totalDues - totalCollected;
   };
 
-  // Calculate grand totals
+  // Calculate grand total - Sum backend totalPaid values
   const calculateGrandTotal = () => {
     return units.reduce((total, unit) => total + calculateUnitTotal(unit.unitId), 0);
   };
 
-  // Calculate credit balance total
+  // Calculate total credit - Sum backend creditBalance values
   const calculateTotalCredit = () => {
     return units.reduce((total, unit) => {
       const unitData = duesData[unit.unitId];
-      return total + (unitData ? unitData.creditBalance || 0 : 0);
+      return total + (unitData?.creditBalance || 0);
     }, 0);
   };
 
   // ============================================
   // QUARTERLY DISPLAY FUNCTIONS
+  // These aggregate backend payment values for quarterly view
   // ============================================
   
   /**
@@ -329,9 +325,10 @@ function HOADuesView() {
 
   /**
    * Calculate quarter payment totals and status for a unit
+   * Aggregates backend payment values for quarterly display
    * @param {Object} unit - Unit object
    * @param {Array} fiscalMonths - Array of fiscal month numbers in quarter (e.g., [1,2,3])
-   * @returns {Object} Quarter payment data
+   * @returns {Object} Quarter payment data (all amounts from backend)
    */
   const getQuarterPaymentStatus = (unit, fiscalMonths) => {
     if (!unit || !duesData[unit.unitId]) {
@@ -383,8 +380,9 @@ function HOADuesView() {
 
   /**
    * Calculate quarter totals across all units
+   * Sums backend payment values for quarterly display
    * @param {Array} fiscalMonths - Array of fiscal month numbers
-   * @returns {number} Total collected for quarter
+   * @returns {number} Total collected for quarter (from backend)
    */
   const calculateQuarterTotal = (fiscalMonths) => {
     return units.reduce((total, unit) => {
@@ -395,8 +393,9 @@ function HOADuesView() {
 
   /**
    * Calculate remaining to collect for quarter
+   * Sums backend due/paid values for quarterly display
    * @param {Array} fiscalMonths - Array of fiscal month numbers
-   * @returns {number} Total remaining for quarter
+   * @returns {number} Total remaining for quarter (from backend)
    */
   const calculateQuarterRemaining = (fiscalMonths) => {
     return units.reduce((total, unit) => {
@@ -517,7 +516,7 @@ function HOADuesView() {
                           // Handle Firestore timestamp objects
                           const timestamp = entry.timestamp;
                           const dateStr = timestamp?.display || timestamp?.displayFull || 'Unknown Date';
-                          const typeLabel = (entry.type || 'UNKNOWN').replace(/_/g, ' ').toUpperCase();
+                          const typeLabel = String(entry.type || 'UNKNOWN').replace(/_/g, ' ').toUpperCase();
                           tooltip += `${typeLabel}: ${entry.amount} on ${dateStr}`;
                           if (entry.description) tooltip += ` ${entry.description}`;
                           tooltip += '\n';
@@ -654,8 +653,9 @@ function HOADuesView() {
               let remainingToCollect = null;
               
               // Get current fiscal month for comparison
-              const currentFiscalMonth = getCurrentFiscalMonth(new Date(), fiscalYearStartMonth);
-              const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+              const today = getMexicoDate();
+              const currentFiscalMonth = getCurrentFiscalMonth(today, fiscalYearStartMonth);
+              const currentFiscalYear = getFiscalYear(today, fiscalYearStartMonth);
               
               // For current fiscal year
               if (selectedYear === currentFiscalYear) {
@@ -728,7 +728,13 @@ function HOADuesView() {
                 ${formatNumber(calculateGrandTotal())}
               </td>
               <td className="grand-remaining">
-                ${formatNumber(units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0) * 12, 0) - calculateGrandTotal())}
+                ${formatNumber(units.reduce((total, unit) => {
+                  const unitData = duesData[unit.unitId];
+                  // Use backend totalDue (total expected for year) minus totalPaid
+                  const unitTotalDue = unitData?.totalDue || 0;
+                  const unitTotalPaid = unitData?.totalPaid || 0;
+                  return total + (unitTotalDue - unitTotalPaid);
+                }, 0))}
               </td>
             </tr>
           </tfoot>
