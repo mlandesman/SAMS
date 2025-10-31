@@ -104,8 +104,13 @@ temp/
 .sams/
 *.lock.json
 
-# APM directory and all its contents
+# APM directories and all their contents (belong in SAMS-Docs)
 apm/
+apm_session/
+apm_v0.3_summary/
+Memory/
+analysis_reports/
+docs/
 
 # Client Test Data directories
 AVIIdata/
