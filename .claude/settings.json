@@ -1,8 +1,0 @@
-{
-  "slashCommands": {
-    "newIA": {
-      "description": "Initialize as Senior Implementation Agent with APM prompts",
-      "prompt": "Read all files in 'apm/prompts/Implementation_Agent' and Initialize yourself as a Senior Implementation Agent. If there is additional text on the command line, read that as your first Task Assignment prompt. Confirm what documents you have read and show me the ToDo list you created for this new task, if you have one."
-    }
-  }
-}

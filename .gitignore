@@ -120,3 +120,53 @@ firebase-admin-*.json
 # Editor backup files
 * 2.js
 *.backup-*
+
+# APM Documentation (belongs in SAMS-Docs on Google Drive)
+# See: SAMS-Docs/DOC_CREATION_RULES.md for correct locations
+
+# Task completion docs
+TASK_*.md
+*_COMPLETE.md
+*_COMPLETION_*.md
+
+# Testing and verification docs
+*_TEST_RESULTS.md
+*_VERIFICATION_*.md
+TESTING_GUIDE_*.md
+*_TESTING_*.md
+
+# Phase documentation
+PHASE_*_TEST_*.md
+PHASE_*_IMPLEMENTATION_*.md
+
+# Handover documents
+*_Handoff_*.md
+*_Handover_*.md
+START_HERE_*.md
+
+# Analysis and review docs
+*_ANALYSIS_*.md
+*_REVIEW_*.md
+*_FINDINGS_*.md
+
+# Test results and ephemeral test data
+backend/test-results/*.json
+backend/testing/test-results/*.json
+functions/backend/test-results/*.json
+functions/backend/testing/test-results/*.json
+test-results/*.json
+
+# One-off test scripts (keep only versioned tests)
+backend/test-*.js
+backend/testing/test*.js
+functions/backend/test-*.js
+functions/backend/testing/test*.js
+!backend/testing/testWaterPayments.js
+!functions/backend/testing/testWaterPayments.js
+
+# Screenshots
+.cursor/screenshots/
+.claude/screenshots/
+
+# Old .claude commands (migrated to .cursor)
+.claude/

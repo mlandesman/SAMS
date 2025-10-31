@@ -3,6 +3,13 @@
 ## Project Context
 This is the Sandyland Asset Management System (SAMS), a Firebase-based property management platform for HOA communities in Mexico.
 
+## Document Creation Rules (CRITICAL)
+**All APM task docs, completion logs, test results, and handovers MUST be created in Google Drive, NOT in this code repository.**
+
+See: `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/DOC_CREATION_RULES.md`
+
+Quick rule: Task/test/phase/handover docs → **Google Drive (SAMS-Docs)**, Code → **Local (SAMS)**
+
 ## Critical Constraints
 1. **ES6 Modules Only**: All backend code MUST use ES6 exports. CommonJS breaks the system.
 2. **Timezone**: All dates must be normalized to America/Cancun timezone
