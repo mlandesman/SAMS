@@ -6,9 +6,15 @@ This is the Sandyland Asset Management System (SAMS), a Firebase-based property 
 ## Document Creation Rules (CRITICAL)
 **All APM task docs, completion logs, test results, and handovers MUST be created in Google Drive, NOT in this code repository.**
 
-See: `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/DOC_CREATION_RULES.md`
+**Full Documentation**:
+- `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/DOC_CREATION_RULES.md`
+- `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/PATH_CONVENTIONS.md`
 
-Quick rule: Task/test/phase/handover docs → **Google Drive (SAMS-Docs)**, Code → **Local (SAMS)**
+**Quick Rules**:
+- Task/test/phase/handover docs → **Google Drive (SAMS-Docs/)**
+- Code files → **Local (/Users/michael/Projects/SAMS/)**
+- In documentation, use `SAMS-Docs/` prefix for clarity
+- In prompts for agents, use full absolute paths
 
 ## Critical Constraints
 1. **ES6 Modules Only**: All backend code MUST use ES6 exports. CommonJS breaks the system.
