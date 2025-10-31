@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.js'; // Import auth routes
 import versionRoutes from './routes/version.js'; // Import version routes
 import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
+import creditRoutes from './routes/creditRoutes.js'; // Import credit balance routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
@@ -122,6 +123,10 @@ app.use('/admin', adminRoutes); // Admin functions under dedicated domain
 // HOA DUES DOMAIN (domain-specific with authentication)
 console.log('Mounting HOA dues domain routes');
 app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues under dedicated domain with auth
+
+// CREDIT BALANCE DOMAIN (domain-independent with authentication)
+console.log('Mounting credit balance domain routes');
+app.use('/credit', authenticateUserWithProfile, creditRoutes); // Credit balance operations (domain-independent)
 
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {

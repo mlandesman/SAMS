@@ -3,7 +3,9 @@ import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { waterDataService } from './waterDataService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
-import { getNow } from '../services/DateService.js';
+import { getNow } from '../../shared/services/DateService.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { validateCentavos } from '../../shared/utils/centavosValidation.js';
 
 class WaterBillsService {
   constructor() {
@@ -44,12 +46,13 @@ class WaterBillsService {
     
     // 3. Get water billing config
     const config = await this.getBillingConfig(clientId);
-    const rateInPesos = config.ratePerM3 / 100; // Convert centavos to pesos
+    const rateInCentavos = config.ratePerM3; // Already in centavos from config
     const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
     
-    // 4. Calculate or use provided due date (MOVE EARLIER)
-    const billDate = getNow();
-    const dueDate = options.dueDate ? new Date(options.dueDate).toISOString() : this._calculateDueDate(billDate, config);
+    // 4. Calculate or use provided billDate and dueDate (MOVE EARLIER)
+    // During import, billDate should be the actual bill month date (not current date)
+    const billDate = options.billDate ? new Date(options.billDate) : getNow();
+    const dueDate = options.dueDate ? (typeof options.dueDate === 'string' ? options.dueDate : new Date(options.dueDate).toISOString()) : this._calculateDueDate(billDate, config);
     
     // 5. CRITICAL: Run penalty recalculation before generating new bills
     console.log(`Running penalty recalculation for client ${clientId} before bill generation...`);
@@ -76,23 +79,23 @@ class WaterBillsService {
         boatWashCount = data.currentReading?.boatWashCount || 0;
       }
       
-      // Calculate water consumption charges
+      // Calculate water consumption charges (in centavos)
+      // CRITICAL: Validate all calculations to prevent floating point contamination
       let waterCharge = 0;
       if (data.consumption > 0 || config.minimumCharge > 0) {
-        waterCharge = Math.max(
-          data.consumption * rateInPesos,
-          (config.minimumCharge || 0) / 100
-        );
+        const consumptionCharge = validateCentavos(data.consumption * rateInCentavos, 'consumptionCharge');
+        const minimumCharge = validateCentavos(config.minimumCharge || 0, 'minimumCharge');
+        waterCharge = Math.max(consumptionCharge, minimumCharge);
       }
       
-      // Calculate car wash charges
-      const carWashCharge = carWashCount * ((config.rateCarWash || 0) / 100);
+      // Calculate car wash charges (config values already in centavos)
+      const carWashCharge = validateCentavos(carWashCount * (config.rateCarWash || 0), 'carWashCharge');
       
-      // Calculate boat wash charges  
-      const boatWashCharge = boatWashCount * ((config.rateBoatWash || 0) / 100);
+      // Calculate boat wash charges (config values already in centavos)
+      const boatWashCharge = validateCentavos(boatWashCount * (config.rateBoatWash || 0), 'boatWashCharge');
       
-      // Total charge for this month
-      const newCharge = waterCharge + carWashCharge + boatWashCharge;
+      // Total charge for this month (in centavos)
+      const newCharge = validateCentavos(waterCharge + carWashCharge + boatWashCharge, 'newCharge');
       
       // Removed Unit 203 debug logging to prevent confusion
       
@@ -119,17 +122,18 @@ class WaterBillsService {
           // Preserve original washes array for UI consumption
           washes: data.currentReading?.washes || [],
           
-          // Detailed charges breakdown
-          waterCharge: waterCharge,
-          carWashCharge: carWashCharge,
-          boatWashCharge: boatWashCharge,
+          // Detailed charges breakdown (ALL IN CENTAVOS - integers)
+          // CRITICAL: Final validation before Firestore write
+          waterCharge: validateCentavos(waterCharge, 'waterCharge'),
+          carWashCharge: validateCentavos(carWashCharge, 'carWashCharge'),
+          boatWashCharge: validateCentavos(boatWashCharge, 'boatWashCharge'),
           
-          // Core financial fields (clean - no previousBalance/previousPenalty)
-          currentCharge: newCharge,
+          // Core financial fields (ALL IN CENTAVOS - integers, clean - no previousBalance/previousPenalty)
+          currentCharge: newCharge,            // In centavos (already validated above)
           penaltyAmount: 0,                    // New bills start with no penalty
-          totalAmount: newCharge,              // currentCharge + penaltyAmount (0 for new)
+          totalAmount: newCharge,              // currentCharge + penaltyAmount (0 for new), in centavos
           status: 'unpaid',
-          paidAmount: 0,
+          paidAmount: 0,                       // In centavos
           
           // Bill notes for detailed breakdown
           billNotes: billNotes,
@@ -137,8 +141,9 @@ class WaterBillsService {
           // Timestamp
           lastPenaltyUpdate: getNow().toISOString(),
           
-          // Payment tracking (keep for payment service compatibility)
-          penaltyPaid: 0
+          // Payment tracking (keep for payment service compatibility, in centavos)
+          penaltyPaid: 0,
+          basePaid: 0                          // Track base charge payments separately (in centavos)
         };
         
         totalNewCharges += newCharge;
@@ -152,9 +157,10 @@ class WaterBillsService {
       'carWashCount', 'boatWashCount', 'washes',
       'waterCharge', 'carWashCharge', 'boatWashCharge',
       'currentCharge', 'penaltyAmount', 'totalAmount',
-      'status', 'paidAmount', 'penaltyPaid',
-      'billNotes', 'lastPenaltyUpdate', 'lastPayment', 'basePaid',
-      'payments' // Array of payment entries with transaction IDs
+      'status', 'paidAmount', 'penaltyPaid', 'basePaid',
+      'billNotes', 'lastPenaltyUpdate', 'lastPayment',
+      'payments', // Array of payment entries with transaction IDs
+      'previousBalance' // Carryover from previous months (in centavos)
     ];
 
     // Clean any extra fields that might have been added
@@ -188,10 +194,10 @@ class WaterBillsService {
       },
       summary: {
         totalUnits: unitsWithBills,
-        totalNewCharges: totalNewCharges,        // New water charges this month only
-        totalBilled: totalNewCharges,            // Just this month's charges
-        totalUnpaid: totalNewCharges,            // Just this month's charges (new bills are unpaid)
-        totalPaid: 0,                            // New bills start unpaid
+        totalNewCharges: totalNewCharges,        // New water charges this month only (in centavos)
+        totalBilled: totalNewCharges,            // Just this month's charges (in centavos)
+        totalUnpaid: totalNewCharges,            // Just this month's charges (new bills are unpaid, in centavos)
+        totalPaid: 0,                            // New bills start unpaid (in centavos)
         currency: config.currency || 'MXN',
         currencySymbol: config.currencySymbol || '$'
       },

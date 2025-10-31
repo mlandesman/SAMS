@@ -1,0 +1,69 @@
+📝 Test logging enabled: test-results/test-results-2025-10-17_03-02-14-336.json
+╔════════════════════════════════════════════════════════════╗
+║  PENALTY CALCULATION OPTIMIZATION TEST SUITE (Task WB2)   ║
+╚════════════════════════════════════════════════════════════╝
+
+
+🔄 TEST 1: Full Penalty Recalculation (All Units - Baseline)
+═══════════════════════════════════════════════════════════
+🔥 Test harness Firebase Admin initialized
+🔑 Creating custom token for UID: AVII...
+🔄 Exchanging custom token for ID token...
+✅ ID token generated successfully for UID: AVII
+🔵 API Request: POST /water/clients/AVII/bills/recalculate-penalties
+   Data: {}
+🔴 API Error: 403 /water/clients/AVII/bills/recalculate-penalties
+   Error Data: {
+  "error": "Access denied to this client",
+  "code": "CLIENT_ACCESS_DENIED",
+  "clientId": "AVII"
+}
+❌ Full recalculation test failed: Request failed with status code 403
+
+🎯 TEST 2: Unit-Scoped Penalty Recalculation (Surgical Update)
+═══════════════════════════════════════════════════════════
+🔵 API Request: POST /water/clients/AVII/bills/recalculate-penalties
+   Data: {
+  "unitIds": [
+    "203",
+    "104"
+  ]
+}
+🔴 API Error: 403 /water/clients/AVII/bills/recalculate-penalties
+   Error Data: {
+  "error": "Access denied to this client",
+  "code": "CLIENT_ACCESS_DENIED",
+  "clientId": "AVII"
+}
+❌ Unit-scoped recalculation test failed: Request failed with status code 403
+
+📊 TEST 3: Performance Comparison Analysis
+═══════════════════════════════════════════════════════════
+⚠️  Cannot compare performance - one or both tests failed
+
+💰 TEST 4: Verify Paid Bills Are Skipped
+═══════════════════════════════════════════════════════════
+🔵 API Request: POST /water/clients/AVII/bills/recalculate-penalties
+   Data: {}
+🔴 API Error: 403 /water/clients/AVII/bills/recalculate-penalties
+   Error Data: {
+  "error": "Access denied to this client",
+  "code": "CLIENT_ACCESS_DENIED",
+  "clientId": "AVII"
+}
+❌ Paid bills skipping test failed: Request failed with status code 403
+
+
+╔════════════════════════════════════════════════════════════╗
+║                    TEST SUITE SUMMARY                      ║
+╚════════════════════════════════════════════════════════════╝
+
+❌ SOME TESTS FAILED
+
+Test Results:
+   - Full recalculation: ❌
+   - Scoped recalculation: ❌
+   - Performance comparison: ❌
+   - Paid bills skipping: ❌
+
+✅ Test suite execution complete!

@@ -9,6 +9,8 @@ import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
 import { DateService, getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { validateCentavos, validateCentavosInObject } from '../utils/centavosValidation.js';
 import { readFileFromFirebaseStorage, deleteImportFiles, findFileCaseInsensitive, writeFileToFirebaseStorage } from '../api/importStorage.js';
 import { 
   augmentTransaction,
@@ -995,12 +997,14 @@ export class ImportService {
           // Build allocations from HOA payments (match working AVII structure)
           const allocations = hoaData.payments.map((payment, index) => {
             const monthName = this.getMonthName(payment.month);
+            // CRITICAL: Validate centavos conversion before Firestore write
+            const amountInCentavos = validateCentavos(payment.amount * 100, `payment.amount[${index}]`);
             return {
               id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
               type: "hoa_month",
               targetId: `month_${payment.month}_${year}`, // month_3_2026 format
               targetName: `${monthName} ${year}`, // "March 2026" format
-              amount: payment.amount * 100, // Convert pesos to centavos
+              amount: amountInCentavos, // Convert pesos to centavos with validation
               percentage: null, // Required field
               categoryName: "HOA Dues", // Required for split transaction UI
               categoryId: "hoa_dues", // Required for consistency
@@ -1019,9 +1023,13 @@ export class ImportService {
           });
           
           // Calculate if there's a credit balance allocation needed
-          const totalDuesAmount = hoaData.payments.reduce((sum, p) => sum + (p.amount * 100), 0);
-          const transactionAmount = Math.round(transaction.Amount * 100); // Convert to centavos
-          const creditAmount = transactionAmount - totalDuesAmount;
+          // CRITICAL: Validate all centavos calculations
+          const totalDuesAmount = validateCentavos(
+            hoaData.payments.reduce((sum, p) => sum + validateCentavos(p.amount * 100, 'payment.amount'), 0),
+            'totalDuesAmount'
+          );
+          const transactionAmount = validateCentavos(transaction.Amount * 100, 'transactionAmount');
+          const creditAmount = validateCentavos(transactionAmount - totalDuesAmount, 'creditAmount');
           
           // Add credit allocation if transaction amount doesn't equal dues amount
           if (creditAmount !== 0) {
@@ -1158,9 +1166,11 @@ export class ImportService {
                 }
               }
               
+              // CRITICAL: Validate centavos conversion before Firestore write
+              const amountInCentavos = validateCentavos(payment.paid * 100, `payment.paid[${payment.month}]`);
               return {
                 month: payment.month,
-                amount: payment.paid * 100, // Convert to cents  
+                amount: amountInCentavos, // Convert to cents with validation
                 paid: payment.paid > 0,
                 date: extractedDate,
                 method: 'bank',
@@ -1196,12 +1206,16 @@ export class ImportService {
                 
                 if (transaction) {
                   // Calculate credit using SAME logic as allocation creation
-                  const totalDuesAmount = hoaPaymentsForSequence.reduce((sum, p) => sum + (p.amount * 100), 0);
-                  const transactionAmount = Math.round(transaction.Amount * 100);
-                  const creditAmount = transactionAmount - totalDuesAmount;
+                  // CRITICAL: Validate all centavos calculations
+                  const totalDuesAmount = validateCentavos(
+                    hoaPaymentsForSequence.reduce((sum, p) => sum + validateCentavos(p.amount * 100, 'p.amount'), 0),
+                    'totalDuesAmount'
+                  );
+                  const transactionAmount = validateCentavos(transaction.Amount * 100, 'transactionAmount');
+                  const creditAmount = validateCentavos(transactionAmount - totalDuesAmount, 'creditAmount');
                   
                   if (creditAmount !== 0) {
-                    runningBalance += creditAmount;
+                    runningBalance = validateCentavos(runningBalance + creditAmount, 'runningBalance');
                     
                     creditBalanceTransactions.push({
                       sequenceNumber,
@@ -1227,22 +1241,28 @@ export class ImportService {
             // Parse date string properly with timezone (tx.date is ISO string like "2024-07-15")
             const txDate = DateTime.fromISO(tx.date, { zone: 'America/Cancun' }).toJSDate();
             
+            // CRITICAL: Validate all centavos amounts in history
+            const validatedAmount = validateCentavos(Math.abs(tx.amount), 'tx.amount');
+            const validatedBalanceBefore = validateCentavos(runningBalance - tx.amount, 'balanceBefore');
+            const validatedBalanceAfter = validateCentavos(runningBalance, 'balanceAfter');
+            
             creditBalanceHistory.push({
               id: this.generateId(),
               timestamp: txDate,
               transactionId: tx.transactionId,
               type: type,
-              amount: Math.abs(tx.amount), // Store as positive value
+              amount: validatedAmount, // Store as positive value (validated)
               description: description,
-              balanceBefore: runningBalance - tx.amount,
-              balanceAfter: runningBalance,
+              balanceBefore: validatedBalanceBefore,
+              balanceAfter: validatedBalanceAfter,
               notes: tx.notes || ''
             });
           }
           
           // Calculate final balance and add starting balance if needed
-          const finalCreditBalance = (unitData.creditBalance || 0) * 100;
-          const startingBalance = finalCreditBalance - runningBalance;
+          // CRITICAL: Validate all centavos calculations
+          const finalCreditBalance = validateCentavos((unitData.creditBalance || 0) * 100, 'unitData.creditBalance');
+          const startingBalance = validateCentavos(finalCreditBalance - runningBalance, 'startingBalance');
           
           // If there was a starting balance (from prior period or manual adjustments), add it as first entry
           if (startingBalance !== 0) {
@@ -1252,44 +1272,82 @@ export class ImportService {
             const { startDate } = getFiscalYearBounds(year, fiscalYearStartMonth);
             
             // Insert at beginning of history array
+            // CRITICAL: Validate all centavos amounts in starting balance entry
+            const validatedStartingAmount = validateCentavos(Math.abs(startingBalance), 'startingBalance');
+            
             creditBalanceHistory.unshift({
               id: this.generateId(),
               timestamp: startDate, // Start of fiscal year
               transactionId: null,
               type: 'starting_balance',
-              amount: Math.abs(startingBalance),
+              amount: validatedStartingAmount,
               description: startingBalance > 0 ? 'Starting credit balance from prior period' : 'Starting debit balance from prior period',
               balanceBefore: 0,
-              balanceAfter: startingBalance,
+              balanceAfter: startingBalance, // Already validated above
               notes: 'Imported from legacy system'
             });
             
             // Adjust all subsequent balanceBefore/balanceAfter to include starting balance
-            let cumulativeBalance = startingBalance;
+            let cumulativeBalance = startingBalance; // Already validated
             for (let i = 1; i < creditBalanceHistory.length; i++) {
               const entry = creditBalanceHistory[i];
               const changeAmount = entry.type === 'credit_used' ? -entry.amount : entry.amount;
-              entry.balanceBefore = cumulativeBalance;
-              cumulativeBalance += changeAmount;
-              entry.balanceAfter = cumulativeBalance;
+              // CRITICAL: Validate cumulative balance calculations
+              entry.balanceBefore = validateCentavos(cumulativeBalance, `history[${i}].balanceBefore`);
+              cumulativeBalance = validateCentavos(cumulativeBalance + changeAmount, `cumulativeBalance[${i}]`);
+              entry.balanceAfter = validateCentavos(cumulativeBalance, `history[${i}].balanceAfter`);
             }
           }
           
           // Calculate totalPaid from payments array
+          // CRITICAL: Validate all centavos conversions
           const totalPaid = unitData.payments 
-            ? unitData.payments.reduce((sum, p) => sum + (p.paid || 0), 0) * 100 
+            ? validateCentavos(
+                unitData.payments.reduce((sum, p) => sum + (p.paid || 0), 0) * 100,
+                'totalPaid'
+              )
             : 0;
           
-          // Update dues document with scheduled amount, totals, credit balance and history
+          // CRITICAL: Validate final credit balance before write
+          const validatedCreditBalance = validateCentavos(finalCreditBalance, 'finalCreditBalance');
+          const validatedScheduledAmount = validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount');
+          
+          // Update dues document with scheduled amount, totals, and credit balance history
+          // NOTE: creditBalance is deprecated in dues document - use new structure instead
           await duesRef.update({
-            scheduledAmount: (unitData.scheduledAmount || 0) * 100, // Convert pesos to centavos
-            totalPaid: totalPaid, // Calculate from payments
-            creditBalance: finalCreditBalance,
-            creditBalanceHistory: creditBalanceHistory
+            scheduledAmount: validatedScheduledAmount,
+            totalPaid: totalPaid,
+            creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
           });
           
+          // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances
+          // This is the single source of truth for current credit balances
+          const creditBalancesRef = db.collection('clients').doc(this.clientId)
+            .collection('units').doc('creditBalances');
+          
+          // Get existing creditBalances document
+          const creditBalancesDoc = await creditBalancesRef.get();
+          const allCreditBalances = creditBalancesDoc.exists ? creditBalancesDoc.data() : {};
+          
+          // Update this unit's credit balance in the new structure
+          allCreditBalances[unitId] = {
+            creditBalance: validatedCreditBalance,
+            lastChange: {
+              year: year.toString(),
+              historyIndex: creditBalanceHistory.length - 1,
+              timestamp: getNow().toISOString()
+            },
+            history: creditBalanceHistory
+          };
+          
+          // Write to new structure
+          await creditBalancesRef.set(allCreditBalances);
+          
           results.success++;
-          console.log(`✅ Processed HOA dues for unit ${unitId}: ${unitData.payments?.length || 0} payments, ${finalCreditBalance/100} credit balance`);
+          console.log(`✅ Processed HOA dues for unit ${unitId}:`);
+          console.log(`   - Payments: ${unitData.payments?.length || 0}`);
+          console.log(`   - Credit Balance: ${validatedCreditBalance/100} pesos (${validatedCreditBalance} centavos)`);
+          console.log(`   - Written to NEW structure: clients/${this.clientId}/units/creditBalances`);
           
           // Create metadata record for the HOA dues year document
           await this.createMetadataRecord(
@@ -1576,10 +1634,13 @@ export class ImportService {
       console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
       console.log(`✓ Loaded transaction CrossRef with ${Object.keys(txnCrossRef.byPaymentSeq || {}).length} payments`);
       
-      // Get fiscal year configuration from client config
+      // Load client config to get fiscal year and water bills configuration
       const clientConfig = await this.getClientConfig();
       const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+      const waterBillsConfig = clientConfig.config?.waterBills || clientConfig.waterBills || {};
+      const paymentDueDay = waterBillsConfig.paymentDueDate || 10; // Day of month when payment is due
       console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
+      console.log(`📅 Water bills due date: Day ${paymentDueDay} of bill month`);
       
       // Parse readings chronologically
       const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth);
@@ -1595,7 +1656,7 @@ export class ImportService {
           results.readingsImported++;
           
           // Step 2: Generate bills for this month (using existing service)
-          await this.generateMonthBills(cycle);
+          await this.generateMonthBills(cycle, paymentDueDay);
           results.billsGenerated++;
           
           // Step 3: Process payments made during this billing month
@@ -1741,14 +1802,35 @@ export class ImportService {
   
   /**
    * Generate bills for a single month
+   * Now calculates proper bill date and due date based on fiscal year/month
    */
-  async generateMonthBills(cycle) {
+  async generateMonthBills(cycle, paymentDueDay = 10) {
     const waterBillsService = (await import('./waterBillsService.js')).default;
     
+    // Calculate bill date: First day of the billing month in Cancun timezone
+    const [yearNum, monthNum] = cycle.billingMonth.split('-').map(Number);
+    const billDate = DateTime.fromObject(
+      { year: yearNum, month: monthNum, day: 1, hour: 0, minute: 0, second: 0 },
+      { zone: 'America/Cancun' }
+    ).toJSDate();
+    
+    // Calculate due date: paymentDueDay of the billing month
+    const dueDate = DateTime.fromObject(
+      { year: yearNum, month: monthNum, day: paymentDueDay, hour: 23, minute: 59, second: 59 },
+      { zone: 'America/Cancun' }
+    ).toISO();
+    
+    console.log(`  📅 Bill date: ${billDate.toISOString()}, Due date: ${dueDate}`);
+    
+    // Pass billDate and dueDate as options to bill generation
     await waterBillsService.generateBills(
       this.clientId,
       cycle.fiscalYear,
-      cycle.fiscalMonth
+      cycle.fiscalMonth,
+      { 
+        billDate: billDate,
+        dueDate: dueDate 
+      }
     );
     
     console.log(`  💵 Generated bills for ${cycle.billingMonth} (fiscal ${cycle.fiscalYear}-${cycle.fiscalMonth})`);
@@ -1756,6 +1838,7 @@ export class ImportService {
   
   /**
    * Process payments for a single month
+   * CRITICAL: Converts payment amounts from pesos to centavos (WB1 requirement)
    */
   async processMonthPayments(cycle, txnCrossRef) {
     // Group charges by payment sequence
@@ -1763,6 +1846,10 @@ export class ImportService {
     
     for (const charge of cycle.payments) {
       const paySeq = charge.PaymentSeq;
+      
+      // CRITICAL: Convert amount from pesos to centavos (import files are in pesos)
+      // Validate conversion output to ensure integer centavos
+      const amountInCentavos = validateCentavos(pesosToCentavos(charge.AmountApplied), 'AmountApplied');
       
       if (!paymentGroups[paySeq]) {
         paymentGroups[paySeq] = {
@@ -1776,13 +1863,27 @@ export class ImportService {
         };
       }
       
-      paymentGroups[paySeq].charges.push(charge);
-      paymentGroups[paySeq].totalAmount += charge.AmountApplied;
+      // Store converted charge with centavos
+      paymentGroups[paySeq].charges.push({
+        ...charge,
+        AmountAppliedCentavos: amountInCentavos // Add centavos version (validated)
+      });
+      // Validate all accumulations to prevent floating point contamination
+      paymentGroups[paySeq].totalAmount = validateCentavos(
+        paymentGroups[paySeq].totalAmount + amountInCentavos,
+        'totalAmount'
+      );
       
       if (charge.Category === 'WC') {
-        paymentGroups[paySeq].baseCharges += charge.AmountApplied;
+        paymentGroups[paySeq].baseCharges = validateCentavos(
+          paymentGroups[paySeq].baseCharges + amountInCentavos,
+          'baseCharges'
+        );
       } else if (charge.Category === 'WCP') {
-        paymentGroups[paySeq].penalties += charge.AmountApplied;
+        paymentGroups[paySeq].penalties = validateCentavos(
+          paymentGroups[paySeq].penalties + amountInCentavos,
+          'penalties'
+        );
       }
     }
     
@@ -1806,12 +1907,15 @@ export class ImportService {
         await this.applyPaymentToBill(billUpdate);
       }
       
-      console.log(`  💰 Applied payment ${paySeq} (txn: ${transactionId || 'none'}): $${payment.totalAmount.toFixed(2)} → ${billsToUpdate.length} bill(s)`);
+      // Convert centavos to pesos for logging
+      const totalAmountPesos = centavosToPesos(payment.totalAmount);
+      console.log(`  💰 Applied payment ${paySeq} (txn: ${transactionId || 'none'}): $${totalAmountPesos.toFixed(2)} (${payment.totalAmount} centavos) → ${billsToUpdate.length} bill(s)`);
     }
   }
   
   /**
    * Find which bills a set of charges applies to
+   * CRITICAL: Now uses AmountAppliedCentavos (already converted in processMonthPayments)
    */
   async findBillsForCharges(charges) {
     // Get fiscal year configuration from client config
@@ -1844,11 +1948,23 @@ export class ImportService {
         billUpdates.push(billUpdate);
       }
       
-      billUpdate.amountApplied += charge.AmountApplied;
+      // Use centavos version (already converted in processMonthPayments)
+      // CRITICAL: Validate all accumulations to prevent floating point contamination
+      const amountCentavos = validateCentavos(charge.AmountAppliedCentavos, 'AmountAppliedCentavos');
+      billUpdate.amountApplied = validateCentavos(
+        billUpdate.amountApplied + amountCentavos,
+        'amountApplied'
+      );
       if (charge.Category === 'WC') {
-        billUpdate.basePaid += charge.AmountApplied;
+        billUpdate.basePaid = validateCentavos(
+          billUpdate.basePaid + amountCentavos,
+          'basePaid'
+        );
       } else if (charge.Category === 'WCP') {
-        billUpdate.penaltyPaid += charge.AmountApplied;
+        billUpdate.penaltyPaid = validateCentavos(
+          billUpdate.penaltyPaid + amountCentavos,
+          'penaltyPaid'
+        );
       }
     }
     
@@ -1882,9 +1998,19 @@ export class ImportService {
     }
     
     // Update bill with payment info
-    const newPaidAmount = (unitBill.paidAmount || 0) + billUpdate.amountApplied;
-    const newBasePaid = (unitBill.basePaid || 0) + billUpdate.basePaid;
-    const newPenaltyPaid = (unitBill.penaltyPaid || 0) + billUpdate.penaltyPaid;
+    // CRITICAL: Validate all accumulations to prevent floating point contamination
+    const newPaidAmount = validateCentavos(
+      (unitBill.paidAmount || 0) + billUpdate.amountApplied,
+      'newPaidAmount'
+    );
+    const newBasePaid = validateCentavos(
+      (unitBill.basePaid || 0) + billUpdate.basePaid,
+      'newBasePaid'
+    );
+    const newPenaltyPaid = validateCentavos(
+      (unitBill.penaltyPaid || 0) + billUpdate.penaltyPaid,
+      'newPenaltyPaid'
+    );
     
     // Determine new status
     let newStatus = 'unpaid';
@@ -1920,7 +2046,9 @@ export class ImportService {
       [`bills.units.${billUpdate.unitId}.payments`]: updatedPayments
     });
     
-    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${billUpdate.amountApplied.toFixed(2)} → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
+    // Convert centavos to pesos for logging
+    const amountPesos = centavosToPesos(billUpdate.amountApplied);
+    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${amountPesos.toFixed(2)} (${billUpdate.amountApplied} centavos) → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
   }
 
   /**

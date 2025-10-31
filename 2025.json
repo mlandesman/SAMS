@@ -1,0 +1,125 @@
+{
+  "_id": "2025",
+  "year": 2025,
+  "unitId": "PH1A",
+  "creditBalance": 0,
+  "totalDue": 300000,
+  "updated": {
+    "_seconds": 1759881918,
+    "_nanoseconds": 0
+  },
+  "payments": [
+    {
+      "month": 1,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 2,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 3,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 4,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 5,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 6,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 36,000.00 on Tue Dec 31 2024 19:52:34 GMT-0500 (Eastern Standard Time)\nJan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months\nSeq: 25014",
+      "reference": "2025-01-01_190218_400",
+      "transactionId": "2025-01-01_190218_400"
+    },
+    {
+      "month": 7,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 10,400.00 on Tue Jul 01 2025 15:44:46 GMT-0500 (Eastern Standard Time)\nJul, Aug 2025 using MXN 1,200.00 from Credit Balance DolarApp → CiBanco\nSeq: 25124",
+      "reference": "2025-07-01_190408_470",
+      "transactionId": "2025-07-01_190408_470"
+    },
+    {
+      "month": 8,
+      "amount": 580000,
+      "paid": true,
+      "date": null,
+      "method": "bank",
+      "notes": "Posted: MXN 10,400.00 on Tue Jul 01 2025 15:44:46 GMT-0500 (Eastern Standard Time)\nJul, Aug 2025 using MXN 1,200.00 from Credit Balance DolarApp → CiBanco\nSeq: 25124",
+      "reference": "2025-07-01_190408_470",
+      "transactionId": "2025-07-01_190408_470"
+    }
+  ],
+  "creditBalanceHistory": [
+    {
+      "id": "9a8w9ovsiqmgh897hg",
+      "timestamp": {
+        "_seconds": 1735692754,
+        "_nanoseconds": 948000000
+      },
+      "transactionId": "2025-01-01_190218_400",
+      "type": "credit_added",
+      "amount": 120000,
+      "description": "from Overpayment",
+      "balanceBefore": -120000,
+      "balanceAfter": 0,
+      "notes": "Jan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months"
+    },
+    {
+      "id": "2r2inrpyarxmgh897hg",
+      "timestamp": {
+        "_seconds": 1751402686,
+        "_nanoseconds": 601000000
+      },
+      "transactionId": "2025-07-01_190408_470",
+      "type": "credit_used",
+      "amount": 120000,
+      "description": "from Credit Balance Usage",
+      "balanceBefore": 120000,
+      "balanceAfter": 0,
+      "notes": "Jul, Aug 2025 using MXN 1,200.00 from Credit Balance DolarApp → CiBanco"
+    }
+  ],
+  "scheduledAmount": 580000,
+  "totalPaid": 4640000
+}

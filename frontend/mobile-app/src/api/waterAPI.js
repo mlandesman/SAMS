@@ -111,6 +111,84 @@ class WaterAPI {
   }
 
   /**
+   * Get bills for entire fiscal year (12 months)
+   * Returns calculated year data with months array
+   * DIRECT READ from bill documents (no aggregatedData caching)
+   */
+  async getBillsForYear(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    console.log(`💧 WaterAPI (Mobile) fetching bills for ${clientId} year ${year}`);
+    
+    // Add cache-busting parameter to ensure fresh data
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/bills/${year}?${cacheBuster}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    console.log(`✅ WaterAPI (Mobile) received ${result.data?.months?.length || 0} months of bills`);
+    
+    return result;
+  }
+
+  /**
+   * Get bills for specific month
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {number} month - Fiscal month (0-11)
+   * @param {boolean} unpaidOnly - Only return unpaid bills
+   */
+  async getBillsForMonth(clientId, year, month, unpaidOnly = false) {
+    const token = await this.getAuthToken();
+    
+    const url = new URL(`${this.baseUrl}/water/clients/${clientId}/bills/${year}/${month}`);
+    if (unpaidOnly) {
+      url.searchParams.append('unpaidOnly', 'true');
+    }
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    return handleApiResponse(response);
+  }
+
+  /**
+   * Get water billing configuration for client
+   * Returns rates, penalties, and billing settings
+   */
+  async getBillingConfig(clientId) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/config`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    return handleApiResponse(response);
+  }
+
+  /**
    * Get client configuration
    */
   async getClientInfo(clientId) {
