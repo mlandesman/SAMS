@@ -18,6 +18,7 @@ import { useNotification } from '../hooks/useNotification';
 import { getMexicoDateString, getMexicoDate } from '../utils/timezone';
 import { useTransactionsContext } from '../context/TransactionsContext';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
+import { centavosToPesos } from '../utils/currencyUtils';
 import './DuesPaymentModal.css';
 
 function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
@@ -808,7 +809,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                 <div className="payment-summary">
                   <h3>Payment Summary</h3>
                   <p><strong>Monthly Due Amount:</strong> {formatAsMXN(duesData[selectedUnitId]?.scheduledAmount || unit.duesAmount || 0)}</p>
-                  <p><strong>Current Credit Balance:</strong> {formatAsMXN(currentYearCreditBalance || 0)}</p>
+                  <p><strong>Current Credit Balance:</strong> {formatAsMXN(centavosToPesos(currentYearCreditBalance || 0))}</p>
                 </div>
                 
                 <div className="payment-distribution">
