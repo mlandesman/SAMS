@@ -37,6 +37,39 @@ const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestam
 // Initialize DateService for Mexico timezone
 const dateService = new DateService({ timezone: 'America/Cancun' });
 
+/**
+ * Recursively convert all Firestore Timestamp objects to ISO strings
+ * Prevents "Timestamp doesn't match expected instance" errors caused by
+ * multiple firebase-admin module instances creating incompatible Timestamp objects
+ * 
+ * @param {*} obj - Object to clean (can be nested)
+ * @returns {*} Cleaned object with all Timestamps as ISO strings
+ */
+function cleanTimestamps(obj) {
+  if (!obj) return obj;
+  
+  // Direct Timestamp object (has toDate() method)
+  if (typeof obj.toDate === 'function') {
+    return obj.toDate().toISOString();
+  }
+  
+  // Array of values
+  if (Array.isArray(obj)) {
+    return obj.map(cleanTimestamps);
+  }
+  
+  // Nested object (plain objects only, not class instances)
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      cleaned[key] = cleanTimestamps(value);
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
+
 // Helper to format date fields consistently for API responses using Mexico timezone
 function formatDateField(dateValue) {
   if (!dateValue) return null;
@@ -480,6 +513,8 @@ async function createTransaction(clientId, data) {
       };
       
       console.log('💾 About to save transaction data:', transactionData);
+      // Note: Do NOT clean transaction dates - frontend expects Timestamp objects
+      // Only nested structures (like creditBalanceHistory) need cleaning
       transaction.set(txnRef, transactionData);
       
       // Update account balance if accountId is specified (now always available due to mapping)
@@ -638,6 +673,7 @@ async function updateTransaction(clientId, txnId, newData) {
     // Use a transaction to ensure consistency
     await db.runTransaction(async (transaction) => {
       // Update the transaction document
+      // Note: Do NOT clean transaction dates - frontend expects Timestamp objects
       transaction.update(txnRef, normalizedData);
       
       // Handle account balance updates
@@ -1305,7 +1341,9 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   };
   
   console.log(`💾 [BACKEND] Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments, updated notes`);
-  firestoreTransaction.update(duesRef, updateData);
+  // Clean all Timestamp objects before update
+  const cleanedDuesUpdateData = cleanTimestamps(updateData);
+  firestoreTransaction.update(duesRef, cleanedDuesUpdateData);
   
   // 🎯 BACKEND CLEANUP COMPLETE: Final summary
   console.log('🎯 BACKEND CLEANUP COMPLETE: HOA cleanup summary:', {
@@ -1374,13 +1412,17 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
     console.log(`💧 [BACKEND] Bill ${billId} reversal: paid ${unitBill.paidAmount} → ${newPaidAmount}, status ${unitBill.status} → ${newStatus}`);
     
     // Update the water bill document
-    firestoreTransaction.update(billRef, {
+    const waterBillUpdateData = {
       [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
       [`bills.units.${unitId}.basePaid`]: newBasePaid,
       [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
       [`bills.units.${unitId}.status`]: newStatus,
       [`bills.units.${unitId}.payments`]: updatedPayments // Remove the payment from the array
-    });
+    };
+    
+    // Clean all Timestamp objects before update
+    const cleanedWaterBillUpdateData = cleanTimestamps(waterBillUpdateData);
+    firestoreTransaction.update(billRef, cleanedWaterBillUpdateData);
     
     billsReversed++;
     
@@ -1454,7 +1496,9 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
   };
   
   console.log(`Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments`);
-  firestoreTransaction.update(duesRef, updateData);
+  // Clean all Timestamp objects before update
+  const cleanedDuesData = cleanTimestamps(updateData);
+  firestoreTransaction.update(duesRef, cleanedDuesData);
   
   return {
     creditBalanceReversed: creditBalanceReversal,
@@ -1564,14 +1608,17 @@ async function addDocumentToTransaction(clientId, transactionId, documentId, doc
     const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
     
     // Add document reference to transaction's documents array
-    await txnRef.update({
+    const docUpdateData = {
       documents: admin.firestore.FieldValue.arrayUnion({
         id: documentId,
         filename: documentInfo.filename || documentInfo.originalName,
         uploadedAt: documentInfo.uploadedAt || getNow(),
         type: documentInfo.documentType || 'receipt'
       })
-    });
+    };
+    
+    // Note: uploadedAt is a Date object from getNow(), not a Firestore Timestamp, so no cleaning needed
+    await txnRef.update(docUpdateData);
     
     console.log(`✅ Added document ${documentId} to transaction ${transactionId}`);
     return true;
@@ -1602,9 +1649,12 @@ async function removeDocumentFromTransaction(clientId, transactionId, documentId
     // Filter out the document to remove
     const updatedDocuments = documents.filter(doc => doc.id !== documentId);
     
-    await txnRef.update({
+    const docRemoveUpdateData = {
       documents: updatedDocuments
-    });
+    };
+    
+    // Note: Document data doesn't contain Firestore Timestamps, so no cleaning needed
+    await txnRef.update(docRemoveUpdateData);
     
     console.log(`✅ Removed document ${documentId} from transaction ${transactionId}`);
     return true;

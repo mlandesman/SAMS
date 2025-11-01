@@ -33,6 +33,39 @@ const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp
 import { DateService } from '../../shared/services/DateService.js';
 const dateService = new DateService({ timezone: 'America/Cancun' });
 
+/**
+ * Recursively convert all Firestore Timestamp objects to ISO strings
+ * Prevents "Timestamp doesn't match expected instance" errors caused by
+ * multiple firebase-admin module instances creating incompatible Timestamp objects
+ * 
+ * @param {*} obj - Object to clean (can be nested)
+ * @returns {*} Cleaned object with all Timestamps as ISO strings
+ */
+function cleanTimestamps(obj) {
+  if (!obj) return obj;
+  
+  // Direct Timestamp object (has toDate() method)
+  if (typeof obj.toDate === 'function') {
+    return obj.toDate().toISOString();
+  }
+  
+  // Array of values
+  if (Array.isArray(obj)) {
+    return obj.map(cleanTimestamps);
+  }
+  
+  // Nested object (plain objects only, not class instances)
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      cleaned[key] = cleanTimestamps(value);
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
+
 // Helper to format date fields consistently for API responses using DateService
 function formatDateField(dateValue) {
   if (!dateValue) return null;
@@ -360,12 +393,16 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
   });
   
   // Update document with new penalties
-  await duesRef.update({
+  const penaltyUpdates = {
     payments: updatedPayments,
     totalPenalty: totalPenaltyAmount,
     lastPenaltyCalculation: admin.firestore.Timestamp.fromDate(calculationDate),
     updated: admin.firestore.Timestamp.now()
-  });
+  };
+  
+  // Clean all Timestamp objects before update
+  const cleanedPenaltyUpdates = cleanTimestamps(penaltyUpdates);
+  await duesRef.update(cleanedPenaltyUpdates);
   
   console.log(`✅ [HOA PENALTIES] Updated penalties: Total $${centavosToPesos(totalPenaltyAmount)}`);
   
@@ -1079,8 +1116,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       try {
         console.log(`🔄 Attempting surgical update for document: ${firestorePath}`);
         
+        // Clean all Timestamp objects before update to prevent serialization errors
+        const cleanedUpdates = cleanTimestamps(updates);
+        
         // Use update() to only modify specific fields
-        await duesRef.update(updates);
+        await duesRef.update(cleanedUpdates);
         console.log(`✅ Surgical update completed successfully for document: ${firestorePath}`);
       } catch (updateError) {
         console.error(`❌ Update failed:`, updateError);
@@ -1112,7 +1152,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
             ...(duesData.scheduledAmount !== undefined && { scheduledAmount: duesData.scheduledAmount })
           };
           
-          await duesRef.set(newDuesDoc);
+          // Clean all Timestamp objects before set
+          const cleanedNewDuesDoc = cleanTimestamps(newDuesDoc);
+          await duesRef.set(cleanedNewDuesDoc);
           console.log(`✅ Created new document with full structure`);
         } else {
           throw new Error(`Failed to update dues data: ${updateError.message}`);
@@ -1136,7 +1178,8 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           
           // Try to update just the payments array as a fallback
           console.log(`🔄 Attempting to fix payments array with surgical update...`);
-          await duesRef.update({ payments: updates.payments });
+          const cleanedPaymentsUpdate = cleanTimestamps({ payments: updates.payments });
+          await duesRef.update(cleanedPaymentsUpdate);
           console.log(`✅ Payments array update completed`);
           
           // Final verification after payments update
@@ -1178,7 +1221,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         };
         
         // Try a direct write without merge as last resort
-        await duesRef.set(newDuesDoc);
+        // Clean all Timestamp objects before set
+        const cleanedDoc = cleanTimestamps(newDuesDoc);
+        await duesRef.set(cleanedDoc);
         console.log(`✅ Created new document at ${firestorePath}`);
       }
       
@@ -1472,7 +1517,9 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     };
     
     // Use update() for surgical updates
-    await duesRef.update(updates);
+    // Clean all Timestamp objects before update
+    const cleanedCreditUpdates = cleanTimestamps(updates);
+    await duesRef.update(cleanedCreditUpdates);
     
     // Log the action
     await writeAuditLog({
@@ -1607,7 +1654,9 @@ async function updateCreditBalanceFromModule(req, res) {
       updated: convertToTimestamp(getNow())
     };
     
-    await duesRef.update(updates);
+    // Clean all Timestamp objects before update
+    const cleanedCrossModuleUpdates = cleanTimestamps(updates);
+    await duesRef.update(cleanedCrossModuleUpdates);
     
     // Log cross-module credit update
     console.log(`💰 Credit balance updated by ${module}: Unit ${unitId}, ${centsToDollars(originalBalance)} → ${newBalance}`);
