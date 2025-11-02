@@ -319,7 +319,7 @@ export const useDashboardData = () => {
                 for (let m = 1; m <= currentMonth; m++) {
                   const monthIndex = m - 1;
                   const payment = unitData.payments[monthIndex];
-                  const paidAmount = (payment?.paid && payment?.amount) ? payment.amount : 0;
+                  const paidAmount = payment?.amount || 0; // Amount is already in pesos
                   const shortfall = scheduledAmount - paidAmount;
                   if (shortfall > 0) {
                     unitPastDue += shortfall;
