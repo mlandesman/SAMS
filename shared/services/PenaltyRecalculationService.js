@@ -97,12 +97,14 @@ export function calculateDueDate(bill, config) {
 /**
  * Calculate months overdue
  * 
- * Returns number of complete months between due date (+ grace period) and current date
+ * CRITICAL BUSINESS LOGIC: Penalties start IMMEDIATELY after grace period ends
+ * - Any time past grace period = at least 1 month penalty
+ * - Additional months calculated based on days elapsed / 30
  * 
  * @param {Date} dueDate - Bill due date
  * @param {Date} asOfDate - Current date or payment date
  * @param {number} gracePeriodDays - Grace period in days
- * @returns {number} Number of complete months overdue (0 if not yet overdue)
+ * @returns {number} Number of months overdue (minimum 1 if past grace, 0 if within grace)
  */
 export function calculateMonthsOverdue(dueDate, asOfDate, gracePeriodDays = 10) {
   // Calculate grace period end date
@@ -113,11 +115,16 @@ export function calculateMonthsOverdue(dueDate, asOfDate, gracePeriodDays = 10) 
     return 0;
   }
   
-  // Calculate complete months between grace period end and current date
-  const months = (asOfDate.getFullYear() - gracePeriodEnd.getFullYear()) * 12 + 
-                 (asOfDate.getMonth() - gracePeriodEnd.getMonth());
+  // Calculate days past grace period
+  const daysPastGrace = Math.floor((asOfDate.getTime() - gracePeriodEnd.getTime()) / (24 * 60 * 60 * 1000));
   
-  return Math.max(0, months);
+  // Penalties start immediately after grace period ends
+  // Calculate fractional months (30 days = 1 month) and round UP
+  // This ensures even 1 day past grace = 1 month penalty
+  const monthsOverdue = Math.ceil(daysPastGrace / 30);
+  
+  // Minimum 1 month if past grace period at all
+  return Math.max(1, monthsOverdue);
 }
 
 /**
@@ -193,7 +200,9 @@ export function calculatePenaltyForBill(params) {
   const gracePeriodEnd = addDays(dueDate, validatedConfig.penaltyDays);
   
   // Check if past grace period
-  const pastGracePeriod = asOfDate > gracePeriodEnd;
+  // CRITICAL FIX: Use >= instead of > so that payment on grace period end date applies penalties
+  // This matches the logic in calculateMonthsOverdue() which uses <= for "not overdue"
+  const pastGracePeriod = asOfDate >= gracePeriodEnd;
   
   console.log(`📅 Date Check - Current: ${asOfDate.toISOString()}, Due: ${dueDate.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past: ${pastGracePeriod}`);
   

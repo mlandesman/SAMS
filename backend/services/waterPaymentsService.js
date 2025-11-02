@@ -105,94 +105,6 @@ class WaterPaymentsService {
   }
   
   /**
-   * Recalculate penalties for bills as of a specific date (for backdated payments)
-   * @param {string} clientId - Client ID
-   * @param {Array} bills - Array of bill objects
-   * @param {Date} asOfDate - Date to calculate penalties as of
-   * @returns {Array} Bills with recalculated penalties
-   */
-  async _recalculatePenaltiesAsOfDate(clientId, bills, asOfDate) {
-    console.log(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
-    
-    // Get billing config for penalty rate
-    const config = await this._getBillingConfig(clientId);
-    const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
-    const gracePeriodDays = config.penaltyDays || 10; // 10 days grace period default (penaltyDays is the grace period)
-    
-    const recalculatedBills = [];
-    
-    for (const bill of bills) {
-      const billDate = new Date(bill.billDate || bill.createdAt);
-      
-      // Get due date from bill period or use default grace period
-      let dueDate;
-      if (bill.dueDate) {
-        dueDate = new Date(bill.dueDate);
-      } else {
-        // Calculate due date based on bill period (e.g., "2026-00" = July 2025)
-        // Default: 15th of the month + 7 days grace period = 22nd
-        const billPeriod = bill.billPeriod || bill.period;
-        if (billPeriod) {
-          const [fiscalYear, month] = billPeriod.split('-');
-          const calendarYear = fiscalYear === '2026' ? 2025 : parseInt(fiscalYear);
-          const monthIndex = parseInt(month) + 6; // Convert fiscal year months to calendar year months (July = 0 in fiscal, 6 in calendar)
-          dueDate = new Date(calendarYear, monthIndex, 15 + gracePeriodDays); // 15th + grace period
-        } else {
-          // Fallback: use bill date + grace period
-          dueDate = new Date(billDate.getTime() + (gracePeriodDays * 24 * 60 * 60 * 1000));
-        }
-      }
-      
-      // Calculate days past due as of the payment date
-      const daysPastDue = Math.max(0, Math.floor((asOfDate - dueDate) / (1000 * 60 * 60 * 24)));
-      
-      let recalculatedPenaltyAmount = 0;
-      
-      if (daysPastDue > gracePeriodDays) {
-        // Calculate penalty based on actual calendar months past due
-        const dueDateObj = new Date(dueDate);
-        const paymentDateObj = new Date(asOfDate);
-        
-        // Calculate actual calendar months between dates
-        let monthsPastDue = (paymentDateObj.getFullYear() - dueDateObj.getFullYear()) * 12;
-        monthsPastDue += paymentDateObj.getMonth() - dueDateObj.getMonth();
-        
-        // If payment date is on or after the same day of the month as due date, add 1 month
-        if (paymentDateObj.getDate() >= dueDateObj.getDate()) {
-          monthsPastDue += 1;
-        }
-        
-        // Ensure minimum of 1 month if past grace period
-        monthsPastDue = Math.max(1, monthsPastDue);
-        
-        console.log(`   Calendar months calculation: ${dueDateObj.toDateString()} to ${paymentDateObj.toDateString()} = ${monthsPastDue} months`);
-        
-        // CRITICAL: Calculate penalty on UNPAID base amount, not full original charge
-        // For partial payments, only charge penalty on the remaining unpaid balance
-        const unpaidBaseAmount = bill.currentCharge - (bill.basePaid || 0);
-        recalculatedPenaltyAmount = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
-        
-        console.log(`   Penalty calculation: unpaidBase=$${unpaidBaseAmount/100} × ${penaltyRate} × ${monthsPastDue} months = $${recalculatedPenaltyAmount/100}`);
-      }
-      
-      const recalculatedTotalAmount = bill.currentCharge + recalculatedPenaltyAmount;
-      
-      console.log(`   Bill ${bill.billId}: ${daysPastDue} days past due, penalty: ${bill.penaltyAmount} → ${recalculatedPenaltyAmount}`);
-      
-      recalculatedBills.push({
-        ...bill,
-        penaltyAmount: recalculatedPenaltyAmount,
-        totalAmount: recalculatedTotalAmount
-        // CRITICAL: DO NOT reset paidAmount/basePaid/penaltyPaid!
-        // These track actual payments made and are needed for unpaid calculation
-        // The spread operator (...bill) preserves these fields
-      });
-    }
-    
-    return recalculatedBills;
-  }
-  
-  /**
    * Calculate payment distribution for preview or actual payment
    * 
    * PHASE 4 REFACTOR: Module-specific wrapper for shared PaymentDistributionService
@@ -330,7 +242,11 @@ class WaterPaymentsService {
       // For backdated payments, ALWAYS recalculate penalties based on the payment date
       // This overrides any stored penalty data to ensure accurate backdated calculations
       console.log(`📅 Recalculating penalties for all ${unpaidBills.length} bills based on payment date`);
-      const recalculatedBills = await this._recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate);
+      
+      // Use shared BillDataService for consistent penalty calculation
+      const { recalculatePenaltiesAsOfDate, getBillingConfig } = await import('../../shared/services/BillDataService.js');
+      const config = await getBillingConfig(this.db, clientId, 'water');
+      const recalculatedBills = await recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate, config);
       
       console.log(`📅 AFTER recalculation - sample bill:`, recalculatedBills[0] ? {
         billId: recalculatedBills[0].billId,

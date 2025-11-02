@@ -12,6 +12,7 @@ import { getNow, parseDate, createDate, addDays } from './DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig } from '../utils/configValidation.js';
+import { calculatePenaltyForBill } from './PenaltyRecalculationService.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -64,48 +65,27 @@ export async function recalculatePenaltiesAsOfDate(clientId, bills, asOfDate, co
   
   // Use shared validation utility
   const validatedConfig = validatePenaltyConfig(config, `${clientId} bill data service`);
-  const penaltyRate = validatedConfig.penaltyRate;
-  const gracePeriodDays = validatedConfig.gracePeriodDays;
   
   const recalculatedBills = [];
   
   for (const bill of bills) {
-    const billDate = parseDate(bill.billDate || bill.createdAt);
-    
-    // Get due date from bill period or use default grace period
-    let dueDate;
-    if (bill.dueDate) {
-      dueDate = parseDate(bill.dueDate);
-    } else {
-      // Calculate due date based on bill period (e.g., "2026-00" = July 2025)
-      const billPeriod = bill.billPeriod || bill.period;
-      if (billPeriod) {
-        const [fiscalYear, month] = billPeriod.split('-');
-        const calendarYear = fiscalYear === '2026' ? 2025 : parseInt(fiscalYear);
-        const monthIndex = parseInt(month) + 6; // Convert fiscal year months to calendar year months
-        const day = 15 + gracePeriodDays;
-        dueDate = createDate(calendarYear, monthIndex + 1, day); // createDate uses 1-based month
-      } else {
-        // Fallback: use bill date + grace period
-        dueDate = addDays(billDate, gracePeriodDays);
+    // CRITICAL: Use shared PenaltyRecalculationService for consistent compounding logic
+    // This ensures both Water Bills and HOA Dues use the same penalty calculation
+    const penaltyResult = calculatePenaltyForBill({
+      bill,
+      asOfDate,
+      config: {
+        penaltyRate: validatedConfig.penaltyRate,
+        penaltyDays: validatedConfig.gracePeriodDays || validatedConfig.penaltyDays
       }
-    }
+    });
     
-    // Calculate days past due as of the payment date
-    const daysPastDue = Math.floor((asOfDate.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000));
-    
-    let newPenaltyAmount = 0;
-    if (daysPastDue > gracePeriodDays) {
-      // Calculate penalty based on unpaid base charge
-      const unpaidBase = bill.currentCharge - (bill.basePaid || 0);
-      const monthsLate = Math.floor((daysPastDue - gracePeriodDays) / 30);
-      newPenaltyAmount = Math.floor(unpaidBase * penaltyRate * monthsLate);
-    }
-    
+    // Return bill with updated penalty in same format as before
+    // The wrapper expects full bill objects, not just penalty results
     recalculatedBills.push({
       ...bill,
-      penaltyAmount: newPenaltyAmount,
-      totalAmount: bill.currentCharge + newPenaltyAmount,
+      penaltyAmount: penaltyResult.penaltyAmount,
+      totalAmount: bill.currentCharge + penaltyResult.penaltyAmount,
       lastPenaltyUpdate: asOfDate.toISOString()
     });
   }

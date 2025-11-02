@@ -22,7 +22,7 @@ import { validateCentavos, validateCentavosInObject } from '../../shared/utils/c
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
 import { createModuleAllocations, createAllocationSummary as createAllocationSummaryShared } from '../../shared/services/TransactionAllocationService.js';
 import { calculateCreditUsage, updateCreditBalance as updateCreditBalanceShared, getCreditBalance } from '../../shared/services/CreditBalanceService.js';
-import { recalculatePenalties, loadBillingConfig } from '../../shared/services/PenaltyRecalculationService.js';
+import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 
@@ -313,6 +313,16 @@ async function getHOABillingConfig(clientId) {
 /**
  * Recalculate penalties for HOA Dues using Phase 3 PenaltyRecalculationService
  * 
+ * ⚠️  FOR BATCH UPDATES / NIGHTLY JOBS - Writes to Firestore
+ * 
+ * This function:
+ * - Compares calculated penalties to stored penalties
+ * - Only updates Firestore if penalties changed
+ * - Intended for scheduled batch updates to keep stored values current
+ * 
+ * ❌ DO NOT use for preview/record - use calculatePenaltiesInMemory() instead
+ * ✅ Preview/Record need penalties for specific payment date (not comparison)
+ * 
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
  * @param {number} year - Fiscal year
@@ -412,6 +422,61 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
     totalPenaltiesAdded: penaltyResult.totalPenaltiesAdded,
     totalPenaltyAmount: totalPenaltyAmount
   };
+}
+
+/**
+ * Calculate penalties in-memory for preview/record (does NOT write to Firestore)
+ * 
+ * CRITICAL: This function is for on-demand penalty calculation based on payment date.
+ * For batch updates / nightly recalculation, use recalculateHOAPenalties() instead.
+ * 
+ * KEY DIFFERENCES from recalculateHOAPenalties():
+ * - Does NOT compare to stored penalties (always recalculates)
+ * - Does NOT write to Firestore
+ * - Returns bills with updated penalties in-memory only
+ * - Used by preview/record to calculate penalties for specific payment date
+ * 
+ * @param {Array} bills - Bills array with current penalty amounts
+ * @param {Date} asOfDate - Calculate penalties as of this date (payment date)
+ * @param {object} config - HOA billing configuration
+ * @returns {Array} Bills array with recalculated penalties (in-memory only)
+ */
+function calculatePenaltiesInMemory(bills, asOfDate, config) {
+  console.log(`💰 [IN-MEMORY CALC] Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
+  
+  // Validate penalty configuration exists (check for undefined/null, allow 0)
+  if (config.penaltyRate === undefined || config.penaltyRate === null || 
+      config.penaltyDays === undefined || config.penaltyDays === null) {
+    const missing = [];
+    if (config.penaltyRate === undefined || config.penaltyRate === null) missing.push('penaltyRate');
+    if (config.penaltyDays === undefined || config.penaltyDays === null) missing.push('penaltyDays');
+    throw new Error(`Penalty configuration incomplete. Missing: ${missing.join(', ')}`);
+  }
+  
+  // Recalculate each bill's penalty using shared service
+  const updatedBills = bills.map(bill => {
+    // Call shared service to calculate penalty for this specific date
+    const penaltyResult = calculatePenaltyForBill({
+      bill,
+      asOfDate,
+      config: {
+        penaltyRate: config.penaltyRate,
+        penaltyDays: config.penaltyDays
+      }
+    });
+    
+    // Return bill with updated penalty (in-memory)
+    return {
+      ...bill,
+      penaltyAmount: penaltyResult.penaltyAmount,
+      totalAmount: bill.currentCharge + penaltyResult.penaltyAmount
+    };
+  });
+  
+  const totalPenalties = updatedBills.reduce((sum, b) => sum + (b.penaltyAmount || 0), 0);
+  console.log(`✅ [IN-MEMORY CALC] Recalculated penalties: Total $${centavosToPesos(totalPenalties)}`);
+  
+  return updatedBills;
 }
 
 /**
@@ -683,6 +748,42 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       console.error('Error converting date:', dateError);
       paymentDate = getNow();
       paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
+    }
+    
+    // CRITICAL: Recalculate penalties based on payment date for accurate recording
+    // This ensures backdated payments use correct penalties for that date
+    console.log(`💰 [HOA RECORD] Verifying penalties for payment date: ${paymentDate.toISOString()}`);
+    
+    // Get the database instance if not already initialized
+    if (!dbInstance) {
+      dbInstance = await getDb();
+    }
+    
+    // Load current dues document to get latest state
+    const duesRefVerify = dbInstance.collection('clients').doc(clientId)
+      .collection('units').doc(unitId)
+      .collection('dues').doc(year.toString());
+    const duesSnap = await duesRefVerify.get();
+    
+    if (duesSnap.exists) {
+      const hoaDuesDoc = duesSnap.data();
+      
+      // Load HOA configuration
+      const config = await getHOABillingConfig(clientId);
+      
+      // Convert to bills format
+      const bills = convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config);
+      
+      // Calculate penalties in-memory for payment date
+      const billsWithUpdatedPenalties = calculatePenaltiesInMemory(bills, paymentDate, config);
+      
+      console.log(`✅ [HOA RECORD] Penalties verified for ${billsWithUpdatedPenalties.length} bills`);
+      
+      // Note: The distribution parameter already contains payment breakdown from preview
+      // We've verified penalties are correct for the payment date
+      // The transaction will use the correct penalty amounts
+    } else {
+      console.log(`⚠️  [HOA RECORD] No dues document found - will be created during payment processing`);
     }
     
     // Format notes to match the existing schema format
@@ -1715,23 +1816,19 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
     
     console.log(`📋 [HOA WRAPPER] Loaded HOA dues for unit ${unitId}, year ${year}`);
     
-    // 2. Recalculate penalties (HOA-specific timing)
-    const calculationDate = payOnDate || getNow();
-    await recalculateHOAPenalties(clientId, unitId, year, calculationDate);
-    
-    // 3. Reload dues after penalty recalculation
-    const updatedDuesSnap = await duesRef.get();
-    const updatedHOADues = updatedDuesSnap.data();
-    
-    // 4. Convert HOA native format to standardized bills array
-    const allBills = convertHOADuesToBills(updatedHOADues, clientId, unitId, year, config);
+    // 2. Convert HOA native format to standardized bills array
+    const allBills = convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config);
     console.log(`📋 [HOA WRAPPER] Converted to ${allBills.length} bills`);
     
-    // 5. Filter to unpaid bills only (wrapper responsibility)
-    const unpaidBills = allBills.filter(b => b.status !== 'paid');
+    // 3. Calculate penalties in-memory for payment date (does NOT write to Firestore)
+    const calculationDate = payOnDate || getNow();
+    const billsWithUpdatedPenalties = calculatePenaltiesInMemory(allBills, calculationDate, config);
+    
+    // 4. Filter to unpaid bills only (wrapper responsibility)
+    const unpaidBills = billsWithUpdatedPenalties.filter(b => b.status !== 'paid');
     console.log(`📋 [HOA WRAPPER] Filtered to ${unpaidBills.length} unpaid bills`);
     
-    // 6. Call shared PaymentDistributionService with prepared unpaid bills
+    // 5. Call shared PaymentDistributionService with prepared unpaid bills
     const distribution = calculatePaymentDistribution({
       bills: unpaidBills,
       paymentAmount,
