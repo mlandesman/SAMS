@@ -343,6 +343,15 @@ export const useDashboardData = () => {
                 pastDueAmount += unitPastDue;
                 pastDueUnits += 1;
                 
+                // DEBUG: Log what we're adding to pastDueDetails
+                console.log('🔍 [Dashboard] Adding to pastDueDetails:', {
+                  unitId,
+                  unitPastDue,
+                  rounded: Math.round(unitPastDue),
+                  scheduledAmount,
+                  paymentsLength: unitData.payments.length
+                });
+                
                 // Add to pastDueDetails array for hover tooltip (same pattern as Water Bills)
                 pastDueDetails.push({
                   unitId: unitId,
