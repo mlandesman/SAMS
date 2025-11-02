@@ -316,18 +316,6 @@ export const useDashboardData = () => {
               // Past due = unpaid bills for current/past months
               let unitPastDue = 0;
               if (unitData?.payments && Array.isArray(unitData.payments)) {
-                // DEBUG: Log payment structure for first unit only
-                if (unitId === Object.keys(duesDataFromAPI).filter(id => id !== 'creditBalances')[0]) {
-                  console.log('🔍 [Dashboard] Payment structure for first unit:', {
-                    unitId,
-                    paymentsCount: unitData.payments.length,
-                    firstPayment: unitData.payments[0],
-                    firstPaymentKeys: unitData.payments[0] ? Object.keys(unitData.payments[0]) : [],
-                    scheduledAmount,
-                    currentMonth
-                  });
-                }
-                
                 for (let m = 1; m <= currentMonth; m++) {
                   const monthIndex = m - 1;
                   const payment = unitData.payments[monthIndex];
