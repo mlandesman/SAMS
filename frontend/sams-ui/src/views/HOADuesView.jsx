@@ -45,11 +45,32 @@ function HOADuesView() {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // DEBUG: Log what's in selectedClient
+  console.log('🔍 [HOADuesView] selectedClient structure:', {
+    hasClient: !!selectedClient,
+    clientId: selectedClient?.id,
+    hasConfiguration: !!selectedClient?.configuration,
+    configKeys: selectedClient?.configuration ? Object.keys(selectedClient.configuration) : [],
+    hasUnits: !!selectedClient?.configuration?.units,
+    unitsCount: selectedClient?.configuration?.units?.length || 0,
+    firstUnit: selectedClient?.configuration?.units?.[0],
+    units: selectedClient?.configuration?.units
+  });
+  
   // Get fiscal year configuration
   const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
   
   // Get dues frequency configuration (monthly or quarterly)
   const duesFrequency = selectedClient?.feeStructure?.duesFrequency || 'monthly';
+  
+  // DEBUG: Log units from context
+  console.log('🔍 [HOADuesView] units from HOADuesContext:', {
+    hasUnits: !!units,
+    count: units?.length || 0,
+    firstUnit: units?.[0],
+    firstUnitKeys: units?.[0] ? Object.keys(units[0]) : [],
+    allUnits: units
+  });
   
   // DEBUG: Log client configuration
   console.log('HOA Dues View - Selected Client:', selectedClient);
