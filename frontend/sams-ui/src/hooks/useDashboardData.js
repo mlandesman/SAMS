@@ -343,19 +343,15 @@ export const useDashboardData = () => {
                 pastDueAmount += unitPastDue;
                 pastDueUnits += 1;
                 
-                // DEBUG: Log what we're adding to pastDueDetails
-                console.log('🔍 [Dashboard] Adding to pastDueDetails:', {
-                  unitId,
-                  unitPastDue,
-                  rounded: Math.round(unitPastDue),
-                  scheduledAmount,
-                  paymentsLength: unitData.payments.length
-                });
+                // Get owner lastName from units array (same pattern as Water Bills)
+                const unitWithOwner = units.find(u => u.unitId === unitId);
+                const ownerLastName = unitWithOwner?.owners?.[0]?.split(' ').pop() || '';
                 
                 // Add to pastDueDetails array for hover tooltip (same pattern as Water Bills)
                 pastDueDetails.push({
                   unitId: unitId,
-                  amountDue: Math.round(unitPastDue) // Use "amountDue" to match tooltip display code
+                  owner: ownerLastName, // Last name for display
+                  amountDue: Math.round(unitPastDue)
                 });
               }
               
