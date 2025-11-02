@@ -45,6 +45,9 @@ function HOADuesView() {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // Get units from client configuration (for owner names)
+  const clientUnits = selectedClient?.configuration?.units || [];
+  
   // Get fiscal year configuration
   const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
   
@@ -453,15 +456,17 @@ function HOADuesView() {
                 </div>
               </th>
               {units.map(unit => {
-                // Get owner info using the utility function
-                const { lastName } = getOwnerInfo(unit);
+                // Find unit config to get owner info (same pattern as Water Bills)
+                const unitConfig = clientUnits.find(u => (u.unitId || u.id) === unit.unitId);
+                const { lastName } = getOwnerInfo(unitConfig || {});
+                const ownerName = unitConfig?.ownerName || unitConfig?.owners?.[0] || 'No Name';
                 
                 return (
                   <th 
                     key={unit.unitId} 
                     className={`unit-header ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
                   >
-                    <div className="unit-name-cell">{unit.owner}</div>
+                    <div className="unit-name-cell">{ownerName}</div>
                     <div className="unit-id-cell">{unit.unitId}</div>
                     <div className="owner-lastname-cell">{lastName}</div>
                   </th>

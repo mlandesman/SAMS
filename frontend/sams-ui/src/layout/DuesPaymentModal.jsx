@@ -6,7 +6,7 @@ import {
   getMonthName, 
   generateMonthsDescription
 } from '../utils/hoaDuesUtils';
-import { formatUnitIdWithOwnerAndDues, sortUnitsByUnitId } from '../utils/unitUtils';
+import { formatUnitIdWithOwnerAndDues, sortUnitsByUnitId, getOwnerInfo } from '../utils/unitUtils';
 import { recordDuesPayment as apiRecordDuesPayment } from '../api/hoaDuesService';
 import { generateHOADuesReceipt } from '../utils/receiptUtils';
 import hoaDuesAPI from '../api/hoaDuesAPI';
@@ -29,6 +29,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     refreshData,
     selectedYear
   } = useHOADues();
+  
+  // Get units from client configuration (for owner names)
+  const clientUnits = selectedClient?.configuration?.units || [];
 
   // Always use current fiscal year for credit balance operations
   // Credit balances should be "live" regardless of which year is being viewed
@@ -663,11 +666,16 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   
   if (!isOpen) return null;
   
+  // Get owner name for modal title (same pattern as Water Bills)
+  const unitConfig = clientUnits.find(u => (u.unitId || u.id) === selectedUnitId);
+  const ownerName = unitConfig?.ownerName || unitConfig?.owners?.[0] || '';
+  const unitDisplay = unit ? `Unit ${unit.unitId}${ownerName ? ` - ${ownerName}` : ''}` : 'HOA Dues';
+  
   return (
     <div className="modal-backdrop">
       <div className="dues-payment-modal">
         <div className="modal-header">
-          <h2>Payment for {unit ? `Unit ${unit.unitId}` : 'HOA Dues'} {monthIndex && unit ? `- ${getMonthName(monthIndex)}` : ''}</h2>
+          <h2>Payment for {unitDisplay} {monthIndex && unit ? `- ${getMonthName(monthIndex)}` : ''}</h2>
           <button type="button" className="close-button" onClick={onClose}>×</button>
         </div>
         
