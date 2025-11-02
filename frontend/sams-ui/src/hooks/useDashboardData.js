@@ -293,6 +293,7 @@ export const useDashboardData = () => {
         let totalDue = 0;
         let pastDueAmount = 0;
         let pastDueUnits = 0;
+        const pastDueDetails = []; // Array for hover tooltip data
         
         // Dashboard-specific calculations - aggregate backend values for display
         // Calculate expected dues to date (months elapsed × backend scheduledAmount)
@@ -329,6 +330,12 @@ export const useDashboardData = () => {
               if (unitPastDue > 0) {
                 pastDueAmount += unitPastDue;
                 pastDueUnits += 1;
+                
+                // Add to pastDueDetails array for hover tooltip (same pattern as Water Bills)
+                pastDueDetails.push({
+                  unitId: unitId,
+                  amount: Math.round(unitPastDue)
+                });
               }
               
               totalExpectedToDate += scheduledAmount * monthsElapsed;
@@ -388,9 +395,6 @@ export const useDashboardData = () => {
         
         // Collection rate based on what's been collected vs what's due
         const collectionRate = currentlyDue > 0 ? (currentPaid / currentlyDue) * 100 : 0;
-        
-        // Past due details - could be expanded to show unit-level details if needed
-        const pastDueDetails = []; // Future enhancement: extract from duesDataFromAPI
         
         console.log('🏠 HOA Dues Dashboard (using backend data):');
         console.log('  Total Collected:', totalCollected);
