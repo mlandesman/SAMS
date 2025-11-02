@@ -390,7 +390,7 @@ export const useDashboardData = () => {
                   const monthIndex = fiscalMonth - 1;
                   if (monthIndex < unitData.payments.length) {
                     const payment = unitData.payments[monthIndex];
-                    const paymentAmount = (payment?.paid && payment?.amount) ? payment.amount : 0; // From backend
+                    const paymentAmount = payment?.amount || 0; // Amount is already in pesos
                     if (paymentAmount > 0) {
                       prePaidAmount += paymentAmount;
                     }
