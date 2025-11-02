@@ -85,6 +85,7 @@ Structure your feedback as:
 
 ### 5. Memory Bank Update
 Log your review to Memory Bank:
+- For memory log paths, read `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/DOC_CREATION_RULES.md`
 - Create review entry in `Memory/Reviews/`
 - Reference the task being reviewed
 - Include feedback and decisions
