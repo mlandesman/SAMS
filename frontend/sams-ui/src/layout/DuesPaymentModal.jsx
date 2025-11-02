@@ -25,6 +25,7 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   const { selectedClient } = useClient();
   const {
     units,
+    unitsWithOwners,
     duesData,
     refreshData,
     selectedYear
@@ -663,10 +664,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   
   if (!isOpen) return null;
   
-  // Get owner name for modal title (same pattern as Water Bills)
-  // Get owner name from units context (which has full unit data with owners)
-  const unitData = units.find(u => u.unitId === selectedUnitId);
-  const ownerName = unitData?.owners?.[0] || unitData?.owner || '';
+  // Get owner name for modal title from unitsWithOwners (has owner data from API)
+  const unitWithOwner = unitsWithOwners.find(u => u.unitId === selectedUnitId);
+  const ownerName = unitWithOwner?.owners?.[0] || unitWithOwner?.owner || '';
   const unitDisplay = unit ? `Unit ${unit.unitId}${ownerName ? ` - ${ownerName}` : ''}` : 'HOA Dues';
   
   return (

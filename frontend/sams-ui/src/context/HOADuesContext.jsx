@@ -21,6 +21,7 @@ export function HOADuesProvider({ children }) {
   const [selectedYear, setSelectedYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unitsWithOwners, setUnitsWithOwners] = useState([]); // Units with owner data from API
 
   console.log('💰 [HOADuesContext] Component rendered:', {
     hasClient: !!selectedClient,
@@ -55,6 +56,37 @@ export function HOADuesProvider({ children }) {
       setSelectedYear(currentFiscalYear);
     }
   }, [selectedClient, selectedYear]);
+
+  // Fetch units with owner data from API (separate from dues financial data)
+  const fetchUnitsWithOwners = async () => {
+    if (!selectedClient) return;
+    
+    try {
+      const { getAuthInstance } = await import('../firebaseClient');
+      const { config } = await import('../config');
+      const token = await getAuthInstance().currentUser.getIdToken();
+
+      const response = await fetch(`${config.api.baseUrl}/clients/${selectedClient.id}/units`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const unitsResponse = await response.json();
+        const units = unitsResponse.data || unitsResponse;
+        console.log('👥 [HOADuesContext] Loaded units with owner data:', units.length, 'units');
+        setUnitsWithOwners(units);
+      } else {
+        console.warn(`Failed to fetch units with owner data for client ${selectedClient.id}`);
+        setUnitsWithOwners([]);
+      }
+    } catch (error) {
+      console.error('Error fetching units with owner data:', error);
+      setUnitsWithOwners([]);
+    }
+  };
 
   // Fetch HOA dues data directly from backend
   // NO CACHING - fetches fresh from Firestore every time
@@ -119,6 +151,15 @@ export function HOADuesProvider({ children }) {
       setLoading(false);
     }
   };
+
+  // Fetch units with owner data when client changes
+  useEffect(() => {
+    if (selectedClient) {
+      fetchUnitsWithOwners();
+    } else {
+      setUnitsWithOwners([]);
+    }
+  }, [selectedClient]);
 
   // Fetch data when client or year changes
   useEffect(() => {
@@ -211,7 +252,8 @@ export function HOADuesProvider({ children }) {
         selectedYear,
         loading,
         error,
-        units,  // Derived from duesData for compatibility
+        units,  // Derived from duesData for compatibility (financial data only)
+        unitsWithOwners,  // Units with owner information from API
         
         // Year management
         setSelectedYear,

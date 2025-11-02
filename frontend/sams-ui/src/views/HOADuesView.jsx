@@ -29,6 +29,7 @@ function HOADuesView() {
   
   const { 
     units, 
+    unitsWithOwners,
     duesData, 
     loading, 
     error, 
@@ -45,32 +46,11 @@ function HOADuesView() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // DEBUG: Log what's in selectedClient
-  console.log('🔍 [HOADuesView] selectedClient structure:', {
-    hasClient: !!selectedClient,
-    clientId: selectedClient?.id,
-    hasConfiguration: !!selectedClient?.configuration,
-    configKeys: selectedClient?.configuration ? Object.keys(selectedClient.configuration) : [],
-    hasUnits: !!selectedClient?.configuration?.units,
-    unitsCount: selectedClient?.configuration?.units?.length || 0,
-    firstUnit: selectedClient?.configuration?.units?.[0],
-    units: selectedClient?.configuration?.units
-  });
-  
   // Get fiscal year configuration
   const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
   
   // Get dues frequency configuration (monthly or quarterly)
   const duesFrequency = selectedClient?.feeStructure?.duesFrequency || 'monthly';
-  
-  // DEBUG: Log units from context
-  console.log('🔍 [HOADuesView] units from HOADuesContext:', {
-    hasUnits: !!units,
-    count: units?.length || 0,
-    firstUnit: units?.[0],
-    firstUnitKeys: units?.[0] ? Object.keys(units[0]) : [],
-    allUnits: units
-  });
   
   // DEBUG: Log client configuration
   console.log('HOA Dues View - Selected Client:', selectedClient);
@@ -474,11 +454,10 @@ function HOADuesView() {
                 </div>
               </th>
               {units.map(unit => {
-                // Find unit config to get owner info (same pattern as Water Bills)
-                // Get owner name from units context (which has full unit data with owners)
-                const unitData = units.find(u => u.unitId === unit.unitId);
-                const { lastName } = getOwnerInfo(unitData || {});
-                const ownerName = unitData?.owners?.[0] || unitData?.owner || 'No Name';
+                // Find unit config from unitsWithOwners (has owner data from API)
+                const unitWithOwner = unitsWithOwners.find(u => u.unitId === unit.unitId);
+                const { lastName } = getOwnerInfo(unitWithOwner || {});
+                const ownerName = unitWithOwner?.owners?.[0] || unitWithOwner?.owner || 'No Name';
                 
                 return (
                   <th 
