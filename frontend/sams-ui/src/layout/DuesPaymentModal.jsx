@@ -29,9 +29,6 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
     refreshData,
     selectedYear
   } = useHOADues();
-  
-  // Get units from client configuration (for owner names)
-  const clientUnits = selectedClient?.configuration?.units || [];
 
   // Always use current fiscal year for credit balance operations
   // Credit balances should be "live" regardless of which year is being viewed
@@ -667,8 +664,9 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
   if (!isOpen) return null;
   
   // Get owner name for modal title (same pattern as Water Bills)
-  const unitConfig = clientUnits.find(u => (u.unitId || u.id) === selectedUnitId);
-  const ownerName = unitConfig?.ownerName || unitConfig?.owners?.[0] || '';
+  // Get owner name from units context (which has full unit data with owners)
+  const unitData = units.find(u => u.unitId === selectedUnitId);
+  const ownerName = unitData?.owners?.[0] || unitData?.owner || '';
   const unitDisplay = unit ? `Unit ${unit.unitId}${ownerName ? ` - ${ownerName}` : ''}` : 'HOA Dues';
   
   return (
