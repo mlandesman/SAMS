@@ -464,7 +464,6 @@ function HOADuesView() {
                     key={unit.unitId} 
                     className={`unit-header ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
                   >
-                    <div className="unit-name-cell">{ownerName}</div>
                     <div className="unit-id-cell">{unit.unitId}</div>
                     <div className="owner-lastname-cell">{lastName}</div>
                   </th>
