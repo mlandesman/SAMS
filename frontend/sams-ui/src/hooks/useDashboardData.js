@@ -355,7 +355,7 @@ export const useDashboardData = () => {
                 // Add to pastDueDetails array for hover tooltip (same pattern as Water Bills)
                 pastDueDetails.push({
                   unitId: unitId,
-                  amount: Math.round(unitPastDue)
+                  amountDue: Math.round(unitPastDue) // Use "amountDue" to match tooltip display code
                 });
               }
               
