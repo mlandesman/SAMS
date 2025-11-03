@@ -16,6 +16,31 @@ This is the Sandyland Asset Management System (SAMS), a Firebase-based property 
 - In documentation, use `SAMS-Docs/` prefix for clarity
 - In prompts for agents, use full absolute paths
 
+## APM Task Assignment Requirements
+When creating task assignments for Implementation Agents, ALWAYS include:
+
+1. **YAML Frontmatter with memory_log_path**:
+   ```yaml
+   ---
+   memory_log_path: /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/[Task_Name]_[Date].md
+   ---
+   ```
+   Where:
+   - `[Task_Name]` = Brief task identifier (e.g., `Water_Bills_Task_1`, `Unified_Payment_Task_1`)
+   - `[Date]` = Current date in YYYY-MM-DD format (e.g., `2025-11-02`)
+
+2. **Standard Path Pattern**:
+   - Always use the full absolute path to Google Drive
+   - Always place in `Memory/Task_Completion_Logs/` directory
+   - Use consistent naming: `Task_Name_YYYY-MM-DD.md`
+
+3. **Example**:
+   ```yaml
+   ---
+   memory_log_path: /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/Unified_Payment_Task_1_Create_Wrapper_2025-11-02.md
+   ---
+   ```
+
 ## Critical Constraints
 1. **ES6 Modules Only**: All backend code MUST use ES6 exports. CommonJS breaks the system.
 2. **Timezone**: All dates must be normalized to America/Cancun timezone
