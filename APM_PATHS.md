@@ -1,7 +1,10 @@
 # APM Documentation Paths
 
 ## Overview
-APM (Agent Process Management) documentation and prompts are now stored **locally** at `/Users/michael/Projects/SAMS-Docs` due to Google Drive sync issues on macOS 26, while the code repository remains in `/Users/michael/Projects/SAMS`.
+⚠️ **CRITICAL CHANGE**: APM (Agent Process Management) documentation and prompts have been **PERMANENTLY MOVED** from Google Drive to local storage due to macOS 26 sync issues.
+
+**ALWAYS USE LOCAL PATH**: `/Users/michael/Projects/SAMS-Docs`  
+**NEVER USE GOOGLE DRIVE** (broken/unreliable)
 
 ## Path Reference
 
@@ -10,9 +13,9 @@ APM (Agent Process Management) documentation and prompts are now stored **locall
 /Users/michael/Projects/SAMS-Docs
 ```
 
-### Previous Google Drive Path (no longer used)
+### ~~OLD Google Drive Path~~ (DO NOT USE - BROKEN)
 ```
-/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs
+~~/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs~~
 ```
 
 ### Directory Structure
@@ -46,7 +49,7 @@ SAMS-Docs/
 # Jump to SAMS code
 sams
 
-# Jump to SAMS docs
+# Jump to SAMS docs (LOCAL)
 sams-docs
 
 # Jump to APM prompts
@@ -57,9 +60,14 @@ sams-docs && cd apm_session
 ```
 
 ### From Code Repository
-When referencing APM files from Cursor/Claude commands, use full paths:
+When referencing APM files from Cursor/Claude commands, **ALWAYS use local paths**:
 ```
 /Users/michael/Projects/SAMS-Docs/apm/prompts/Implementation_Agent
+```
+
+**NEVER USE**:
+```
+~~/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/...~~
 ```
 
 ## Updated Files
@@ -81,26 +89,29 @@ The following Cursor command files have been updated with correct Drive paths:
 ✅ **Build Speed** - Faster npm installs and builds  
 
 ### Docs in Local Storage (`~/Projects/SAMS-Docs`)
-✅ **Reliable** - No sync issues  
+✅ **Reliable** - No sync issues or corruption  
 ✅ **Fast** - Immediate file access  
 ✅ **Stable** - No cloud connectivity problems  
-⚠️ **Manual Backup** - Requires manual backup to cloud  
+⚠️ **Manual Backup** - Requires manual backup strategy  
 
 ## Migration Notes
 
-Date: October 21, 2025
+**Date: October 21, 2025**
 - Moved code from Drive to local storage
 - Created SAMS-Docs directory for documentation
 - Updated all Cursor command references
 - Added shell aliases for quick navigation
 - Preserved Git history in new location
 
-Date: November 2, 2025
-- Moved SAMS-Docs from Google Drive to local storage due to sync issues
-- Updated all paths from Google Drive location to `/Users/michael/Projects/SAMS-Docs`
-- Temporary measure until Google fixes Drive for macOS 26
+**Date: November 3, 2025** ⚠️ **CRITICAL**
+- **PERMANENTLY MOVED SAMS-Docs from Google Drive to local storage**
+- Reason: Google Drive sync broken on macOS 26 (file corruption, sync failures)
+- Updated ALL references from Google Drive to `/Users/michael/Projects/SAMS-Docs`
+- Updated `.cursorrules`, all `.cursor/commands`, APM_PATHS.md, shell aliases
+- Added warnings to prevent future Google Drive usage
+- **THIS IS PERMANENT UNTIL GOOGLE FIXES DRIVE**
 
 ---
 
-Last Updated: November 2, 2025
+Last Updated: November 3, 2025
 

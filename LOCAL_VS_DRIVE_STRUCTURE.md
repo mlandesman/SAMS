@@ -307,7 +307,7 @@ Total:                    ~750ms (< 1 second)
 
 ### "I can't find my docs!"
 ```bash
-# They're now in local storage (moved from Drive due to sync issues)
+# They're in LOCAL storage now (moved from Drive - Drive is BROKEN)
 cd "/Users/michael/Projects/SAMS-Docs"
 
 # Or use alias

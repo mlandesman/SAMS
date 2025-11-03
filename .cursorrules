@@ -1,20 +1,35 @@
 # SAMS Development Guidelines for Cursor AI
 
+## ⚠️ CRITICAL PATH REQUIREMENT ⚠️
+**SAMS-Docs Location**: `/Users/michael/Projects/SAMS-Docs`  
+**NEVER USE GOOGLE DRIVE** - It is broken on macOS 26  
+All task assignments, memory logs, and documentation MUST use the local path above.
+
 ## Project Context
 This is the Sandyland Asset Management System (SAMS), a Firebase-based property management platform for HOA communities in Mexico.
 
 ## Document Creation Rules (CRITICAL)
-**All APM task docs, completion logs, test results, and handovers MUST be created in Google Drive, NOT in this code repository.**
+⚠️ **GOOGLE DRIVE IS BROKEN - DO NOT USE** ⚠️
+**All APM task docs, completion logs, test results, and handovers MUST be created in LOCAL STORAGE.**
+
+**CRITICAL: SAMS-Docs Location**
+SAMS-Docs has been PERMANENTLY moved from Google Drive to local storage due to macOS 26 sync issues.
+
+**ALWAYS USE THIS PATH**:
+`/Users/michael/Projects/SAMS-Docs`
+
+**NEVER USE THIS PATH** (BROKEN):
+~~`/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs`~~
 
 **Full Documentation**:
 - `/Users/michael/Projects/SAMS-Docs/DOC_CREATION_RULES.md`
 - `/Users/michael/Projects/SAMS-Docs/PATH_CONVENTIONS.md`
 
 **Quick Rules**:
-- Task/test/phase/handover docs → **Google Drive (SAMS-Docs/)**
+- Task/test/phase/handover docs → **LOCAL (/Users/michael/Projects/SAMS-Docs/)**
 - Code files → **Local (/Users/michael/Projects/SAMS/)**
 - In documentation, use `SAMS-Docs/` prefix for clarity
-- In prompts for agents, use full absolute paths
+- In prompts for agents, use full absolute paths to `/Users/michael/Projects/SAMS-Docs`
 
 ## APM Task Assignment Requirements
 When creating task assignments for Implementation Agents, ALWAYS include:
@@ -27,17 +42,18 @@ When creating task assignments for Implementation Agents, ALWAYS include:
    ```
    Where:
    - `[Task_Name]` = Brief task identifier (e.g., `Water_Bills_Task_1`, `Unified_Payment_Task_1`)
-   - `[Date]` = Current date in YYYY-MM-DD format (e.g., `2025-11-02`)
+   - `[Date]` = Current date in YYYY-MM-DD format (e.g., `2025-11-03`)
 
 2. **Standard Path Pattern**:
-   - Always use the full absolute path to Google Drive
+   - Always use the full absolute path: `/Users/michael/Projects/SAMS-Docs`
    - Always place in `Memory/Task_Completion_Logs/` directory
    - Use consistent naming: `Task_Name_YYYY-MM-DD.md`
+   - **NEVER use Google Drive path**
 
 3. **Example**:
    ```yaml
    ---
-   memory_log_path: /Users/michael/Projects/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/Unified_Payment_Task_1_Create_Wrapper_2025-11-02.md
+   memory_log_path: /Users/michael/Projects/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/Unified_Payment_Task_2_Controller_2025-11-03.md
    ---
    ```
 

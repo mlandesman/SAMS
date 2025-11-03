@@ -1,0 +1,108 @@
+{
+  "_id": "2025-11-01_161211_864",
+  "date": "2025-11-01T05:00:00.000Z",
+  "amount": 920000,
+  "categoryId": null,
+  "categoryName": "-Split-",
+  "type": "income",
+  "accountType": "bank",
+  "accountId": "bank-001",
+  "paymentMethodId": "cash",
+  "notes": "HOA Dues payment for Unit 2A - October, November, December",
+  "unitId": "2A",
+  "vendorId": "deposit",
+  "vendorName": "Deposit",
+  "reference": "DUES-2A-2025",
+  "allocations": [
+    {
+      "id": "alloc_001",
+      "type": "hoa_month",
+      "targetId": "month_10_2025",
+      "targetName": "October 2025",
+      "amount": 460000,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "2A",
+        "month": 10,
+        "year": 2025
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-11-01T21:12:11.263Z"
+      }
+    },
+    {
+      "id": "alloc_002",
+      "type": "hoa_month",
+      "targetId": "month_11_2025",
+      "targetName": "November 2025",
+      "amount": 460000,
+      "percentage": null,
+      "categoryName": "HOA Dues",
+      "categoryId": "hoa_dues",
+      "data": {
+        "unitId": "2A",
+        "month": 11,
+        "year": 2025
+      },
+      "metadata": {
+        "processingStrategy": "hoa_dues",
+        "cleanupRequired": true,
+        "auditRequired": true,
+        "createdAt": "2025-11-01T21:12:11.263Z"
+      }
+    }
+  ],
+  "allocationSummary": {
+    "totalAllocated": 9200,
+    "allocationCount": 3,
+    "allocationType": "hoa_month",
+    "hasMultipleTypes": false,
+    "integrityCheck": {
+      "expectedTotal": 920000,
+      "actualTotal": 9200,
+      "isValid": false
+    }
+  },
+  "duesDistribution": [
+    {
+      "unitId": "2A",
+      "month": 10,
+      "amount": 4600,
+      "year": 2025
+    },
+    {
+      "unitId": "2A",
+      "month": 11,
+      "amount": 4600,
+      "year": 2025
+    },
+    {
+      "unitId": "2A",
+      "month": 12,
+      "amount": 0,
+      "year": 2025
+    }
+  ],
+  "metadata": {
+    "type": "hoa_dues",
+    "unitId": "2A",
+    "year": 2025,
+    "months": [
+      10,
+      11,
+      12
+    ]
+  },
+  "clientId": "MTC",
+  "propertyId": "MTC",
+  "enteredBy": "system",
+  "updated": "2025-11-01T21:12:11.373Z",
+  "paymentMethod": "",
+  "accountName": "MTC Bank",
+  "documents": []
+}

@@ -55,8 +55,8 @@ Please acknowledge your role as Implementation Agent. To begin work:
 1. Read all files in `/Users/michael/Projects/SAMS-Docs/apm/prompts/Implementation_Agent`
 2. Read the memory log guide in `/Users/michael/Projects/SAMS-Docs/apm/prompts/guides`
 3. For memory log paths, read `/Users/michael/Projects/SAMS-Docs/DOC_CREATION_RULES.md`
-4. If a task document has been attached to this command, you should read it, ask any qualifying questions to ensure a clear understanding and then begin work.  A task assignment overrides a handover document.
-5. If starting without a task assignment or a handover document, wait for task assignment from Manager Agent
+4. If you have a task assignment, use `/load-task file:<path>`
+5. If starting fresh, wait for task assignment from Manager Agent
 
 Remember: You are the executor of specific tasks. Your primary goal is to deliver high-quality implementations that meet the task requirements while maintaining clear documentation. Always verify your work with real tests before claiming success.
 
