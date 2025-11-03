@@ -85,7 +85,7 @@ Structure your feedback as:
 
 ### 5. Memory Bank Update
 Log your review to Memory Bank:
-- For memory log paths, read `/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/DOC_CREATION_RULES.md`
+- For memory log paths, read `/Users/michael/Projects/SAMS-Docs/DOC_CREATION_RULES.md`
 - Create review entry in `Memory/Reviews/`
 - Reference the task being reviewed
 - Include feedback and decisions
@@ -98,7 +98,7 @@ When a review is **APPROVED** without challenges, you MUST complete this full ar
 #### Step 1: Create Archive Directory Structure
 ```bash
 # For completed phases/tasks, create organized archive
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Memory/Archive"
+cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory/Archive"
 
 mkdir -p "[Phase_Name]_[Date]/Task_Assignments"
 mkdir -p "[Phase_Name]_[Date]/Completion_Logs"
@@ -112,7 +112,7 @@ mkdir -p "[Phase_Name]_[Date]/Test_Results"
 ```bash
 # Move task assignments from /apm_session/ root to archive
 # These are the files new agents might mistake as "not done yet"
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session"
+cd "/Users/michael/Projects/SAMS-Docs/apm_session"
 
 mv Task_[Phase]*.md Memory/Archive/[Archive_Dir]/Task_Assignments/
 ```
@@ -122,7 +122,7 @@ mv Task_[Phase]*.md Memory/Archive/[Archive_Dir]/Task_Assignments/
 #### Step 3: Copy Completion Logs to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) completion logs - keep originals in Task_Completion_Logs/
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Memory"
+cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
 
 cp Task_Completion_Logs/Task_[Phase]*_Complete*.md Archive/[Archive_Dir]/Completion_Logs/
 ```
@@ -132,7 +132,7 @@ cp Task_Completion_Logs/Task_[Phase]*_Complete*.md Archive/[Archive_Dir]/Complet
 #### Step 4: Copy Manager Reviews to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) manager reviews - keep originals in Reviews/
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session/Memory"
+cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
 
 cp Reviews/Manager_Review_[Phase]*.md Archive/[Archive_Dir]/Reviews/
 cp Reviews/Phase_[X]_Complete_Handoff*.md Archive/[Archive_Dir]/Reviews/
@@ -143,7 +143,7 @@ cp Reviews/Phase_[X]_Complete_Handoff*.md Archive/[Archive_Dir]/Reviews/
 #### Step 5: Move Summary Documents to Archive (MOVE)
 ```bash
 # Move phase/project summary documents from /apm_session/ root to archive
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm_session"
+cd "/Users/michael/Projects/SAMS-Docs/apm_session"
 
 mv [PHASE]_MANAGER_REVIEW_COMPLETE_SUMMARY.md Memory/Archive/[Archive_Dir]/
 mv [PHASE]_COMPLETION_SUMMARY.md Memory/Archive/[Archive_Dir]/ (if exists)
