@@ -307,8 +307,8 @@ Total:                    ~750ms (< 1 second)
 
 ### "I can't find my docs!"
 ```bash
-# They're in Drive, not code folder
-cd "/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs"
+# They're now in local storage (moved from Drive due to sync issues)
+cd "/Users/michael/Projects/SAMS-Docs"
 
 # Or use alias
 sams-docs

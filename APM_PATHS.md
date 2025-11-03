@@ -1,11 +1,16 @@
 # APM Documentation Paths
 
 ## Overview
-APM (Agent Process Management) documentation and prompts are stored in **Google Drive** for accessibility across devices, while the code repository is stored **locally** for performance.
+APM (Agent Process Management) documentation and prompts are now stored **locally** at `/Users/michael/Projects/SAMS-Docs` due to Google Drive sync issues on macOS 26, while the code repository remains in `/Users/michael/Projects/SAMS`.
 
 ## Path Reference
 
 ### Full Path (for scripts and absolute references)
+```
+/Users/michael/Projects/SAMS-Docs
+```
+
+### Previous Google Drive Path (no longer used)
 ```
 /Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs
 ```
@@ -41,7 +46,7 @@ SAMS-Docs/
 # Jump to SAMS code
 sams
 
-# Jump to SAMS docs in Drive
+# Jump to SAMS docs
 sams-docs
 
 # Jump to APM prompts
@@ -54,7 +59,7 @@ sams-docs && cd apm_session
 ### From Code Repository
 When referencing APM files from Cursor/Claude commands, use full paths:
 ```
-/Users/michael/Library/CloudStorage/GoogleDrive-michael@landesman.com/My Drive/Sandyland/SAMS-Docs/apm/prompts/Implementation_Agent
+/Users/michael/Projects/SAMS-Docs/apm/prompts/Implementation_Agent
 ```
 
 ## Updated Files
@@ -75,11 +80,11 @@ The following Cursor command files have been updated with correct Drive paths:
 ✅ **IDE Performance** - Immediate file access  
 ✅ **Build Speed** - Faster npm installs and builds  
 
-### Docs in Drive (`SAMS-Docs/`)
-✅ **Accessible** - Available on all devices  
-✅ **Synced** - Automatic cloud backup  
-✅ **Collaborative** - Easy to share and access  
-✅ **Historical** - Preserved across machines  
+### Docs in Local Storage (`~/Projects/SAMS-Docs`)
+✅ **Reliable** - No sync issues  
+✅ **Fast** - Immediate file access  
+✅ **Stable** - No cloud connectivity problems  
+⚠️ **Manual Backup** - Requires manual backup to cloud  
 
 ## Migration Notes
 
@@ -90,7 +95,12 @@ Date: October 21, 2025
 - Added shell aliases for quick navigation
 - Preserved Git history in new location
 
+Date: November 2, 2025
+- Moved SAMS-Docs from Google Drive to local storage due to sync issues
+- Updated all paths from Google Drive location to `/Users/michael/Projects/SAMS-Docs`
+- Temporary measure until Google fixes Drive for macOS 26
+
 ---
 
-Last Updated: October 21, 2025
+Last Updated: November 2, 2025
 
