@@ -1111,13 +1111,23 @@ export class ImportService {
         const unitData = duesData[unitId];
         
         try {
-          // Initialize year document for this unit
-          await initializeYearDocument(this.clientId, unitId, year);
+          // NOTE: initializeYearDocument() was intentionally disabled in Phase 4 refactor
+          // because it can't auto-initialize without scheduledAmount.
+          // Import has scheduledAmount from HOADues.json, so we create the document directly.
           
           const db = await this.getDb();
           const duesRef = db.collection('clients').doc(this.clientId)
             .collection('units').doc(unitId)
             .collection('dues').doc(year.toString());
+          
+          // Prepare document data with scheduledAmount
+          const duesDocument = {
+            year: year,
+            scheduledAmount: unitData.scheduledAmount || 0, // From HOADues.json
+            payments: [],
+            creditBalance: unitData.creditBalance || 0,
+            creditBalanceHistory: []
+          };
           
           // Process payments
           if (unitData.payments && unitData.payments.length > 0) {
@@ -1180,11 +1190,10 @@ export class ImportService {
               };
             });
             
-            await duesRef.update({
-              payments: paymentData
-            });
+            // Add payments to the document
+            duesDocument.payments = paymentData;
             
-            console.log(`✅ Recorded ${paymentData.length} payments for unit ${unitId}`);
+            console.log(`✅ Preparing ${paymentData.length} payments for unit ${unitId}`);
           }
           
           // Process credit balance and build history
@@ -1312,13 +1321,14 @@ export class ImportService {
           const validatedCreditBalance = validateCentavos(finalCreditBalance, 'finalCreditBalance');
           const validatedScheduledAmount = validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount');
           
-          // Update dues document with scheduled amount, totals, and credit balance history
+          // Complete the dues document with all required fields
+          duesDocument.scheduledAmount = validatedScheduledAmount;
+          duesDocument.totalPaid = totalPaid;
+          duesDocument.creditBalanceHistory = creditBalanceHistory;
+          
+          // Write the complete dues document (use set with merge to handle existing docs)
           // NOTE: creditBalance is deprecated in dues document - use new structure instead
-          await duesRef.update({
-            scheduledAmount: validatedScheduledAmount,
-            totalPaid: totalPaid,
-            creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
-          });
+          await duesRef.set(duesDocument, { merge: true });
           
           // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances
           // This is the single source of truth for current credit balances
