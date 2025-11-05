@@ -649,9 +649,10 @@ async function initializeYearDocument(clientId, unitId, year) {
  * @param {number} year - Year for the payment
  * @param {object} paymentData - Payment data containing amount, date, etc.
  * @param {Array} distribution - How payment should be distributed across months
+ * @param {string|null} transactionId - Optional: Pre-created transaction ID (for unified payments)
  * @returns {object} Result containing status and payment details
  */
-async function recordDuesPayment(clientId, unitId, year, paymentData, distribution) {
+async function recordDuesPayment(clientId, unitId, year, paymentData, distribution, transactionId = null) {
   try {
     // Log full payment data for debugging
     console.log('Processing payment data in controller:', {
@@ -813,71 +814,80 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       formattedNotes += ` - $${Math.round(duesAmount)} Dues + $${creditAdded} credit`;
     }
     
-    // Debug: Log the payment date being used
-    console.log(`🗓️ [HOA PAYMENT DEBUG] Creating transaction with date:`, {
-      paymentDate: paymentDate.toISOString(),
-      year: paymentDate.getFullYear(),
-      month: paymentDate.getMonth() + 1,
-      day: paymentDate.getDate(),
-      originalDate: paymentData.date,
-      targetYear: year
-    });
+    // Create the transaction (unless already provided by unified payment system)
+    let finalTransactionId = transactionId;
     
-    // Create transaction data with standardized field names
-    const transactionData = {
-      date: paymentDate.toISOString().split('T')[0], // Convert Date to string format YYYY-MM-DD
-      amount: paymentData.amount,
-      categoryId: 'hoa_dues',
-      categoryName: 'HOA Dues',
-      type: 'income',
-      // Payment method is the ID, we'll look up the type from the payment method document
-      // For now, use a simple mapping based on common patterns
-      accountType: paymentData.accountType || 'bank', // Default to bank, frontend should pass this
-      accountId: paymentData.accountId || paymentData.accountToCredit || 'bank-001', // Use standard account IDs
-      paymentMethodId: paymentData.method || null,  // This is the payment method document ID
-      notes: formattedNotes, // Consolidated notes field with all information
-      unitId: unitId, // Use the new field name
-      vendorId: 'deposit',
-      vendorName: 'Deposit',
-      reference: `DUES-${unitId}-${year}`,
+    if (!finalTransactionId) {
+      // No transaction ID provided - create new transaction (standard flow)
       
-      // Enhanced allocation pattern - generalized for future split transactions
-      allocations: createHOAAllocations(distribution, unitId, year, paymentData),
-      allocationSummary: createAllocationSummary(distribution, dollarsToCents(paymentData.amount)),
+      // Debug: Log the payment date being used
+      console.log(`🗓️ [HOA PAYMENT DEBUG] Creating transaction with date:`, {
+        paymentDate: paymentDate.toISOString(),
+        year: paymentDate.getFullYear(),
+        month: paymentDate.getMonth() + 1,
+        day: paymentDate.getDate(),
+        originalDate: paymentData.date,
+        targetYear: year
+      });
       
-      // Maintain backward compatibility - preserve original duesDistribution
-      duesDistribution: distribution.map(item => ({
-        unitId,
-        month: item.month,
-        amount: item.amountToAdd,
-        year
-      })),
+      // Create transaction data with standardized field names
+      const transactionData = {
+        date: paymentDate.toISOString().split('T')[0], // Convert Date to string format YYYY-MM-DD
+        amount: paymentData.amount,
+        categoryId: 'hoa_dues',
+        categoryName: 'HOA Dues',
+        type: 'income',
+        // Payment method is the ID, we'll look up the type from the payment method document
+        // For now, use a simple mapping based on common patterns
+        accountType: paymentData.accountType || 'bank', // Default to bank, frontend should pass this
+        accountId: paymentData.accountId || paymentData.accountToCredit || 'bank-001', // Use standard account IDs
+        paymentMethodId: paymentData.method || null,  // This is the payment method document ID
+        notes: formattedNotes, // Consolidated notes field with all information
+        unitId: unitId, // Use the new field name
+        vendorId: 'deposit',
+        vendorName: 'Deposit',
+        reference: `DUES-${unitId}-${year}`,
+        
+        // Enhanced allocation pattern - generalized for future split transactions
+        allocations: createHOAAllocations(distribution, unitId, year, paymentData),
+        allocationSummary: createAllocationSummary(distribution, dollarsToCents(paymentData.amount)),
+        
+        // Maintain backward compatibility - preserve original duesDistribution
+        duesDistribution: distribution.map(item => ({
+          unitId,
+          month: item.month,
+          amount: item.amountToAdd,
+          year
+        })),
+        
+        // NOTE: Credit balance data is stored only in HOA dues documents, not here
+        // This prevents data duplication and synchronization issues
+        
+        // Add metadata to enable bidirectional navigation
+        metadata: {
+          type: 'hoa_dues',
+          unitId,
+          year,
+          months: distribution.map(item => item.month)
+        }
+      };
       
-      // NOTE: Credit balance data is stored only in HOA dues documents, not here
-      // This prevents data duplication and synchronization issues
-      
-      // Add metadata to enable bidirectional navigation
-      metadata: {
-        type: 'hoa_dues',
-        unitId,
-        year,
-        months: distribution.map(item => item.month)
+      // Store the checkNumber as an internal field if provided
+      if (paymentData.method === 'check' && paymentData.checkNumber) {
+        transactionData.checkNumber = paymentData.checkNumber;
       }
-    };
-    
-    // Store the checkNumber as an internal field if provided
-    if (paymentData.method === 'check' && paymentData.checkNumber) {
-      transactionData.checkNumber = paymentData.checkNumber;
+      
+      finalTransactionId = await createTransaction(clientId, transactionData);
+      
+      if (!finalTransactionId) {
+        throw new Error('Failed to create transaction record');
+      }
+      
+      console.log(`Created transaction ${finalTransactionId} for HOA Dues payment`);
+    } else {
+      // Transaction ID provided - skip transaction creation (unified payment flow)
+      console.log(`Using existing transaction ${finalTransactionId} for HOA Dues payment (unified payment)`);
     }
-    
-    // Create the transaction
-    const transactionId = await createTransaction(clientId, transactionData);
-    
-    if (!transactionId) {
-      throw new Error('Failed to create transaction record');
-    }
-    
-    console.log(`Created transaction ${transactionId} for HOA Dues payment`);
     
     // Now update the unit's dues record
     // Get the database instance if not already initialized
@@ -939,7 +949,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       duesData.creditBalance = (duesData.creditBalance || 0) + creditToAdd;
       
       // Add a payment note about the credit
-      const paymentNote = `Added ${creditToAdd} to credit balance (Transaction ID: ${transactionId})`;
+      const paymentNote = `Added ${creditToAdd} to credit balance (Transaction ID: ${finalTransactionId})`;
       
       // Add a note to transaction metadata
       console.log(`Adding note to transaction: ${paymentNote}`);
@@ -965,8 +975,8 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       
       // Create a payment note without the redundant prefix, just include user notes and transaction ID
       const paymentNote = paymentData.notes 
-        ? `${paymentData.notes} (Transaction ID: ${transactionId})`
-        : `Payment recorded in Transaction ID: ${transactionId}`;
+        ? `${paymentData.notes} (Transaction ID: ${finalTransactionId})`
+        : `Payment recorded in Transaction ID: ${finalTransactionId}`;
       
       // Use timestamp conversion utility - but store as ISO string for Firestore compatibility
       // CRITICAL FIX: Firestore update() cannot serialize Timestamp objects from different SDK versions
@@ -990,7 +1000,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         paid: amountInCents > 0,
         amount: amountInCents,
         date: paymentDateISO, // Store as ISO string, not Timestamp object
-        reference: transactionId,
+        reference: finalTransactionId,
         notes: paymentNote  // Store payment notes for tooltip display
       };
     }
@@ -1029,7 +1039,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: transactionId,
+          transactionId: finalTransactionId,
           type: 'credit_repair',
           amount: creditRepairAmountCents,  // Store in centavos
           description: 'to fix negative balance',
@@ -1047,7 +1057,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: transactionId,
+          transactionId: finalTransactionId,
           type: 'credit_used',
           amount: creditUsedCents,  // Store in centavos
           description: `from ${paymentData.method || 'Payment'}`,
@@ -1064,7 +1074,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         duesData.creditBalanceHistory.push({
           id: randomUUID(),
           timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: transactionId,
+          transactionId: finalTransactionId,
           type: 'credit_added',
           amount: creditAddedCents,  // Store in centavos
           description: 'from Overpayment',
@@ -1084,7 +1094,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       duesData.creditBalanceHistory.push({
         id: randomUUID(),
         timestamp: getNow().toISOString(),
-        transactionId: transactionId,
+        transactionId: finalTransactionId,
         type: 'credit_added',
         amount: creditAddedCents,  // Store in centavos
         description: 'from Legacy payment',
@@ -1348,17 +1358,128 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       metadata: {
         unitId,
         amount: paymentData.amount,
-        transactionId
+        transactionId: finalTransactionId
       }
     });
     
     return {
       success: true,
-      transactionId,
+      transactionId: finalTransactionId,
       duesData
     };
   } catch (error) {
     console.error('❌ Error recording dues payment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update HOA dues payments in Firestore (bypasses all calculations)
+ * Used by unified payment system when calculations are already done
+ * 
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} year - Fiscal year
+ * @param {Array} monthsData - Array of {month, basePaid, penaltyPaid} objects
+ * @param {string} transactionId - Pre-created transaction ID
+ * @param {string} paymentDate - Payment date (ISO string)
+ * @param {string} paymentMethod - Payment method
+ * @param {string|null} reference - Payment reference
+ * @param {string} userId - User ID who recorded payment
+ * @param {object} creditData - {final, used, added} - Final credit balance info
+ * @returns {object} Success status
+ */
+async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, transactionId, paymentDate, paymentMethod, reference, userId, creditData) {
+  try {
+    console.log(`🏠 [HOA UPDATE] Updating ${monthsData.length} months for unit ${unitId}/${year}`);
+    
+    if (!dbInstance) {
+      dbInstance = await getDb();
+    }
+    
+    const duesRef = dbInstance.collection('clients').doc(clientId)
+      .collection('units').doc(unitId)
+      .collection('dues').doc(year.toString());
+    
+    const duesDoc = await duesRef.get();
+    
+    if (!duesDoc.exists) {
+      throw new Error(`HOA dues document not found for ${unitId}/${year}`);
+    }
+    
+    const duesData = duesDoc.data();
+    const paymentsArray = Array.isArray(duesData.payments) ? [...duesData.payments] : Array(12).fill(null);
+    
+    // Ensure 12-element array
+    while (paymentsArray.length < 12) {
+      paymentsArray.push(null);
+    }
+    
+    // Update each month
+    monthsData.forEach(monthData => {
+      const monthIndex = monthData.month - 1; // Convert to 0-based index
+      
+      if (monthIndex < 0 || monthIndex > 11) {
+        console.warn(`Invalid month ${monthData.month}, skipping`);
+        return;
+      }
+      
+      const existingPayment = paymentsArray[monthIndex] || {};
+      
+      paymentsArray[monthIndex] = {
+        ...existingPayment,
+        paid: true,
+        amount: (existingPayment.amount || 0) + monthData.basePaid, // In centavos
+        penaltyPaid: monthData.penaltyPaid, // In centavos
+        date: paymentDate,
+        method: paymentMethod,
+        reference: transactionId,
+        notes: monthData.notes || `Unified payment (Transaction ID: ${transactionId})`
+      };
+    });
+    
+    // Calculate total paid
+    const totalPaid = paymentsArray.reduce((sum, p) => sum + (p?.amount || 0), 0);
+    
+    // Update credit balance and history
+    const originalCreditBalance = duesData.creditBalance || 0;
+    const newCreditBalance = pesosToCentavos(creditData.final);
+    
+    const creditBalanceHistory = duesData.creditBalanceHistory || [];
+    
+    // Add credit history entry if credit changed
+    if (creditData.used > 0 || creditData.added > 0) {
+      creditBalanceHistory.push({
+        id: transactionId,
+        timestamp: getNow().toISOString(),
+        transactionId: transactionId,
+        type: creditData.added > 0 ? 'credit_added' : 'credit_used',
+        amount: Math.abs(pesosToCentavos(creditData.added - creditData.used)),
+        balanceBefore: originalCreditBalance,
+        balanceAfter: newCreditBalance,
+        description: `Unified payment: ${paymentMethod}`,
+        notes: `Transaction ${transactionId}`
+      });
+    }
+    
+    // Update Firestore
+    const updates = {
+      payments: paymentsArray,
+      totalPaid: totalPaid,
+      creditBalance: newCreditBalance,
+      creditBalanceHistory: creditBalanceHistory,
+      updated: getNow().toISOString()
+    };
+    
+    const cleanedUpdates = cleanTimestamps(updates);
+    await duesRef.update(cleanedUpdates);
+    
+    console.log(`✅ [HOA UPDATE] Updated ${monthsData.length} months, credit: $${creditData.final}`);
+    
+    return { success: true, transactionId };
+    
+  } catch (error) {
+    console.error('❌ Error updating HOA dues:', error);
     throw error;
   }
 }
@@ -1402,6 +1523,31 @@ async function getUnitDuesData(clientId, unitId, year) {
       const data = duesDoc.data();
       console.log(`✅ Found dues data with ${data.payments?.length || 0} payments and credit balance ${centsToDollars(data.creditBalance || 0)}`);
       
+      // Fetch credit balance data from the new centralized location
+      let creditBalance = data.creditBalance || 0;
+      let creditBalanceHistory = [];
+      
+      try {
+        const creditBalancesRef = db.collection('clients').doc(clientId)
+          .collection('units').doc('creditBalances');
+        const creditBalancesDoc = await creditBalancesRef.get();
+        
+        if (creditBalancesDoc.exists) {
+          const allCreditData = creditBalancesDoc.data();
+          const unitCreditData = allCreditData[unitId];
+          
+          if (unitCreditData) {
+            creditBalance = unitCreditData.creditBalance || 0;
+            creditBalanceHistory = unitCreditData.history || [];
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not fetch credit balance from new location, using dues document data:`, error);
+        // Fallback to dues document data
+        creditBalance = data.creditBalance || 0;
+        creditBalanceHistory = data.creditBalanceHistory || [];
+      }
+      
       // NO CONVERSION - Return raw centavos values
       const apiData = {
         ...data,
@@ -1411,7 +1557,8 @@ async function getUnitDuesData(clientId, unitId, year) {
           date: formatDateField(payment.date),
           transactionId: payment.reference || null
         })),
-        creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => {
+        creditBalance: creditBalance, // From creditBalances document
+        creditBalanceHistory: creditBalanceHistory.map(entry => {
           const dateStr = formatDateField(entry.timestamp);
           return {
             ...entry,
@@ -1421,7 +1568,7 @@ async function getUnitDuesData(clientId, unitId, year) {
               raw: entry.timestamp
             }
           };
-        }) : [],
+        }),
         created: formatDateField(data.created),
         updated: data.updated ? convertFromTimestamp(data.updated) : null
       };
@@ -1464,9 +1611,26 @@ async function getAllDuesDataForYear(clientId, year) {
     
     const duesData = {};
     
+    // Fetch all credit balances from centralized location
+    let allCreditBalances = {};
+    try {
+      const creditBalancesRef = dbInstance.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      const creditBalancesDoc = await creditBalancesRef.get();
+      
+      if (creditBalancesDoc.exists) {
+        allCreditBalances = creditBalancesDoc.data();
+      }
+    } catch (error) {
+      console.warn(`⚠️ Could not fetch credit balances from new location:`, error);
+    }
+    
     // For each unit, get their dues data for the specified year
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
+      
+      // Skip the creditBalances document itself
+      if (unitId === 'creditBalances') continue;
       
       try {
         // Get dues document for this unit and year
@@ -1478,20 +1642,37 @@ async function getAllDuesDataForYear(clientId, year) {
         if (duesDoc.exists) {
           const data = duesDoc.data();
           
+          // Get credit data from centralized location
+          const unitCreditData = allCreditBalances[unitId] || {};
+          const creditBalance = unitCreditData.creditBalance || 0;
+          const creditBalanceHistory = unitCreditData.history || [];
+          
           // Convert amounts from cents to dollars for API response
           duesData[unitId] = {
             ...data,
-            creditBalance: centsToDollars(data.creditBalance || 0),
+            creditBalance: centsToDollars(creditBalance), // From centralized creditBalances
             scheduledAmount: centsToDollars(data.scheduledAmount || 0),
             totalDue: centsToDollars(data.totalDue || 0),
             totalPaid: centsToDollars(data.totalPaid || 0),
-            payments: data.payments.map((payment, index) => ({
-              ...payment,
-              month: index + 1, // Add month field (1-based)
-              amount: payment.amount ? centsToDollars(payment.amount) : 0,
-              date: formatDateField(payment.date)
-            })),
-            creditBalanceHistory: data.creditBalanceHistory ? data.creditBalanceHistory.map(entry => {
+            payments: data.payments.map((payment, index) => {
+              // Handle null payments (unpaid months)
+              if (!payment) {
+                return {
+                  month: index + 1,
+                  amount: 0,
+                  paid: false,
+                  date: null
+                };
+              }
+              
+              return {
+                ...payment,
+                month: index + 1, // Add month field (1-based)
+                amount: payment.amount ? centsToDollars(payment.amount) : 0,
+                date: formatDateField(payment.date)
+              };
+            }),
+            creditBalanceHistory: creditBalanceHistory.map(entry => {
               const dateStr = formatDateField(entry.timestamp);
               return {
                 ...entry,
@@ -1504,7 +1685,7 @@ async function getAllDuesDataForYear(clientId, year) {
                 balanceBefore: typeof entry.balanceBefore === 'number' ? centsToDollars(entry.balanceBefore) : 0,
                 balanceAfter: typeof entry.balanceAfter === 'number' ? centsToDollars(entry.balanceAfter) : 0
               };
-            }) : [],
+            }),
             created: formatDateField(data.created),
             updated: formatDateField(data.updated)
           };
@@ -1894,6 +2075,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
 export {
   initializeYearDocument,
   recordDuesPayment,
+  updateHOADuesWithPayment, // Unified Payment System - Firestore update only
   getUnitDuesData,
   getAllDuesDataForYear,
   updateCreditBalance,

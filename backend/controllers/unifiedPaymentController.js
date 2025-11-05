@@ -68,7 +68,7 @@ function validateUnitId(unitId) {
 
 /**
  * Validate payment amount
- * @param {number} amount - Payment amount in pesos
+ * @param {number} amount - Payment amount in CENTAVOS
  * @returns {object} Validation result
  */
 function validateAmount(amount) {
@@ -88,9 +88,10 @@ function validateAmount(amount) {
     return { valid: false, error: 'amount must be greater than 0' };
   }
   
-  // Reasonable upper limit (1 million pesos)
-  if (amount > 1000000) {
-    return { valid: false, error: 'amount exceeds maximum allowed (1,000,000)' };
+  // Reasonable upper limit: 10 million pesos = 1 billion centavos
+  // This allows payments up to $10,000,000 MXN which covers any realistic scenario
+  if (amount > 1000000000) {
+    return { valid: false, error: 'amount exceeds maximum allowed (10,000,000 pesos)' };
   }
   
   return { valid: true };
@@ -212,14 +213,18 @@ export const previewUnifiedPayment = async (req, res) => {
       });
     }
     
-    // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: $${amount}, Date: ${paymentDate}`);
+    // Convert centavos to pesos for the wrapper service
+    // Frontend sends centavos, but wrapper expects pesos
+    const amountInPesos = centavosToPesos(amount);
     
-    // Call UnifiedPaymentWrapper service
+    // Log validated request
+    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
+    
+    // Call UnifiedPaymentWrapper service (expects PESOS)
     const preview = await unifiedPaymentWrapper.previewUnifiedPayment(
       clientId,
       unitId,
-      amount,
+      amountInPesos,
       paymentDate
     );
     
@@ -336,14 +341,18 @@ export const recordUnifiedPayment = async (req, res) => {
       });
     }
     
+    // Convert centavos to pesos for the wrapper service
+    // Frontend sends centavos, but wrapper expects pesos
+    const amountInPesos = centavosToPesos(amount);
+    
     // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: $${amount}, Method: ${paymentMethod}`);
+    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Method: ${paymentMethod}`);
     if (reference) console.log(`   ℹ️  Reference: ${reference}`);
     if (notes) console.log(`   ℹ️  Notes: ${notes}`);
     
     // Prepare payment data (include user ID from auth middleware)
     const paymentData = {
-      amount,
+      amount: amountInPesos,  // Convert to pesos for wrapper
       paymentDate,
       paymentMethod,
       reference: reference || null,

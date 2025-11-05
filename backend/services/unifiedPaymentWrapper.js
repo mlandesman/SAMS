@@ -306,16 +306,35 @@ export class UnifiedPaymentWrapper {
     
     // Step 2: Generate consolidated transaction notes
     console.log(`   📝 Generating consolidated transaction notes...`);
+    
+    // Format payment date for notes
+    const formattedDate = paymentDateObj.toLocaleString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'America/Cancun',
+      timeZoneName: 'short'
+    });
+    
+    // Create comprehensive notes with payment details
+    const paymentHeader = `Posted: MXN ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} on ${formattedDate}`;
     const transactionNotes = this._generateConsolidatedNotes(preview, configs.fiscalYearStartMonth || 1);
-    console.log(`   Notes: "${transactionNotes}"`);
+    const paymentFooter = `Payment: ${paymentMethod}`;
+    
+    // Note: Sequence will be added after transaction creation
+    const notesWithoutSeq = [paymentHeader, transactionNotes, paymentFooter].join('\n');
     
     // Step 3: Create unified transaction document FIRST (for the transaction ID)
     console.log(`   💾 Creating unified transaction document...`);
     
-    // Combine consolidated notes with user notes
+    // Combine notes with user notes (sequence will be added after transaction creation)
     const combinedNotes = notes 
-      ? `${transactionNotes}. ${notes}` 
-      : transactionNotes;
+      ? `${notesWithoutSeq}\n${notes}` 
+      : notesWithoutSeq;
     
     // Build allocations array for TransactionView
     const allocations = [];
@@ -479,8 +498,8 @@ export class UnifiedPaymentWrapper {
       source: 'unified_payment_system',
       accountId: accountId,
       accountType: accountType,
-      vendorId: '', // No vendor for unified payments
-      vendorName: '',
+      vendorId: 'deposit', // Standard vendor for all deposits
+      vendorName: 'Deposit', // Display name for reporting
       allocations: allocations, // CRITICAL: TransactionView needs this for split display
       allocationSummary: allocationSummary,
       metadata: {
@@ -500,6 +519,9 @@ export class UnifiedPaymentWrapper {
     const transactionId = await createTransaction(clientId, transactionData);
     console.log(`   ✅ Unified transaction created: ${transactionId}`);
     
+    // Now add the transaction ID to the comprehensive notes
+    const comprehensiveNotesWithSeq = `${notesWithoutSeq}\nTxnID: ${transactionId}`;
+    
     // Step 4: Update HOA dues in Firestore (if HOA bills were paid)
     if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
       console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA months in Firestore...`);
@@ -508,7 +530,8 @@ export class UnifiedPaymentWrapper {
       const monthsData = preview.hoa.monthsAffected.map(month => ({
         month: month.month,
         basePaid: pesosToCentavos(month.basePaid), // Convert to centavos
-        penaltyPaid: pesosToCentavos(month.penaltyPaid) // Convert to centavos
+        penaltyPaid: pesosToCentavos(month.penaltyPaid), // Convert to centavos
+        notes: comprehensiveNotesWithSeq // Add comprehensive notes to each month
       }));
       
       // Call lightweight Firestore update function
@@ -1094,7 +1117,8 @@ export class UnifiedPaymentWrapper {
           basePaid: payment.baseChargePaid || 0,
           penaltyPaid: payment.penaltyPaid || 0,
           totalPaid: payment.amountPaid || 0,
-          status: payment.newStatus
+          status: payment.newStatus,
+          priority: originalBill._metadata.priority  // For frontend sorting
         });
         
       } else if (moduleType === 'water') {
@@ -1108,7 +1132,8 @@ export class UnifiedPaymentWrapper {
           basePaid: payment.baseChargePaid || 0,
           penaltyPaid: payment.penaltyPaid || 0,
           totalPaid: payment.amountPaid || 0,
-          status: payment.newStatus
+          status: payment.newStatus,
+          priority: originalBill._metadata.priority  // For frontend sorting
         });
       }
     });

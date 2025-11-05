@@ -1,0 +1,280 @@
+/* Unified Payment Modal Styles */
+/* Based on WaterPaymentModal.css with tighter spacing */
+
+.unified-payment-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 850px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Header with clean white background */
+.unified-payment-modal .modal-header {
+  background-color: #ffffff;
+  color: #2c3e50;
+  padding: 20px 25px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.unified-payment-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.6em;
+  font-weight: 600;
+  color: #2563eb;  /* Blue title text */
+}
+
+.unified-payment-modal .close-button {
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 2em;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  transition: color 0.2s;
+}
+
+.unified-payment-modal .close-button:hover {
+  color: #dc3545;
+}
+
+.unified-payment-modal .modal-body {
+  padding: 15px 20px;
+}
+
+.credit-balance-info {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin: 10px 0;
+}
+
+.credit-balance-info h3 {
+  color: #2c3e50;
+  margin: 4px 0;
+  font-size: 1.1em;
+}
+
+.credit-negative {
+  color: #e74c3c;
+  font-weight: bold;
+  margin: 4px 0;
+}
+
+.unpaid-bills-summary {
+  margin: 10px 0;
+}
+
+.unpaid-bills-summary h3 {
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.bills-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 0.95em;
+}
+
+.bills-table th,
+.bills-table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.bills-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.funds-calculation {
+  background-color: #e8f4fd;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.funds-calculation p {
+  margin: 3px 0;
+  font-size: 0.95em;
+}
+
+.funds-calculation .total-funds {
+  color: #2c3e50;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+/* Status colors */
+.status-paid {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.status-partial {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.status-unpaid {
+  background-color: #f9c74f;
+  color: #333;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.no-bills {
+  color: #7f8c8d;
+  font-style: italic;
+  text-align: center;
+  padding: 15px;
+}
+
+.select-unit-message {
+  color: #7f8c8d;
+  font-style: italic;
+  text-align: center;
+  padding: 30px;
+  font-size: 1.1em;
+}
+
+.loading-container {
+  text-align: center;
+  padding: 30px;
+}
+
+/* Form styling */
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.form-group {
+  flex: 1;
+  margin-bottom: 8px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+  color: #2c3e50;
+  font-size: 0.95em;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+.form-group textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.input-group {
+  position: relative;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7f8c8d;
+  font-weight: bold;
+}
+
+.input-group input {
+  padding-left: 30px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.btn-cancel {
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95em;
+}
+
+.btn-cancel:hover {
+  background-color: #7f8c8d;
+}
+
+.btn-primary {
+  background-color: #198754;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95em;
+}
+
+.btn-primary:hover {
+  background-color: #157347;
+}
+
+.btn-primary:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 12px 0;
+  font-size: 0.95em;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
