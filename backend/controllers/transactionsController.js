@@ -555,7 +555,7 @@ async function createTransaction(clientId, data) {
     return txnId;
   } catch (error) {
     console.error('❌ Error creating transaction:', error);
-    return null;
+    throw error; // CRITICAL FIX: Throw error to trigger atomic rollback, don't return null
   }
 }
 
@@ -773,40 +773,86 @@ async function deleteTransaction(clientId, txnId) {
       creditBalanceAdded: originalData.creditBalanceAdded
     });
     
-    // Check if this is an HOA Dues transaction requiring special cleanup
-    const isHOATransaction = originalData.category === 'HOA Dues' || 
-                            originalData.metadata?.type === 'hoa_dues';
+    // ══════════════════════════════════════════════════════════════════════
+    // ENHANCED TRANSACTION TYPE DETECTION (Task 3.5 - Unified Payment Support)
+    // ══════════════════════════════════════════════════════════════════════
     
-    // 🔍 BACKEND DELETE: Transaction detection analysis
-    console.log('🔍 BACKEND DELETE: Transaction analysis:', {
-        transactionId: txnId,
-        category: originalData?.category,
-        metadataType: originalData?.metadata?.type,
-        isHOADetected: isHOATransaction,
-        fullTransactionData: JSON.stringify(originalData, null, 2)
-    });
-                            
-    // Check if this is a Water Bills transaction requiring special cleanup
-    // For split transactions, check allocations array for water bills allocations
+    // Check for HOA allocations
+    const hasHOAAllocations = originalData.allocations?.some(alloc => 
+      alloc.categoryId === 'hoa_dues' ||
+      alloc.categoryName === 'HOA Dues' ||
+      alloc.categoryName === 'HOA Penalties' ||
+      alloc.type === 'hoa_payment' ||
+      alloc.type === 'hoa_penalty' ||
+      alloc.metadata?.processingStrategy === 'hoa_dues'
+    ) || false;
+    
+    // Legacy HOA detection (backward compatibility)
+    const isLegacyHOATransaction = originalData.category === 'HOA Dues' || 
+                                   originalData.metadata?.type === 'hoa_dues';
+    
+    // Combined HOA detection
+    const hasHOAData = hasHOAAllocations || isLegacyHOATransaction;
+    
+    // Check for Water allocations
     const hasWaterAllocations = originalData.allocations?.some(alloc => 
       alloc.categoryId === 'water_bills' || 
       alloc.categoryId === 'water-consumption' ||
       alloc.categoryName === 'Water Consumption' ||
+      alloc.categoryName === 'Water Penalties' ||
       alloc.type === 'water_bill' ||
       alloc.type === 'water_penalty' ||
       alloc.type === 'water_credit' ||
       alloc.metadata?.processingStrategy === 'water_bills'
     ) || false;
     
-    const isWaterTransaction = originalData.categoryId === 'water_payments' || 
-                              originalData.categoryName === 'Water Payments' ||
-                              originalData.categoryId === 'water-consumption' ||
-                              originalData.categoryName === 'Water Consumption' ||
-                              originalData.category === 'water_bills' ||
-                              hasWaterAllocations; // Check allocations for split transactions
+    // Legacy Water detection (backward compatibility)
+    const isLegacyWaterTransaction = originalData.categoryId === 'water_payments' || 
+                                     originalData.categoryName === 'Water Payments' ||
+                                     originalData.categoryId === 'water-consumption' ||
+                                     originalData.categoryName === 'Water Consumption' ||
+                                     originalData.category === 'water_bills';
+    
+    // Combined Water detection
+    const hasWaterData = hasWaterAllocations || isLegacyWaterTransaction;
+    
+    // Determine transaction type
+    const isUnifiedTransaction = hasHOAData && hasWaterData;
+    const isHOAOnlyTransaction = hasHOAData && !hasWaterData;
+    const isWaterOnlyTransaction = hasWaterData && !hasHOAData;
+    
+    // Check for unified payment type marker (from Task 3)
+    const isUnifiedPaymentType = originalData.type === 'unified_payment' || 
+                                 originalData.paymentType === 'unified' ||
+                                 originalData.category === '-split-' ||
+                                 originalData.category === '-Split-';
+    
+    // 🔍 BACKEND DELETE: Enhanced transaction detection analysis
+    console.log('🔍 [BACKEND] Enhanced Transaction Type Detection:', {
+      transactionId: txnId,
+      category: originalData?.category,
+      type: originalData?.type,
+      paymentType: originalData?.paymentType,
+      hasHOAAllocations,
+      hasWaterAllocations,
+      isLegacyHOATransaction,
+      isLegacyWaterTransaction,
+      '---': '---',
+      isUnifiedTransaction,
+      isHOAOnlyTransaction,
+      isWaterOnlyTransaction,
+      isUnifiedPaymentType,
+      '===': '===',
+      finalDecision: isUnifiedTransaction ? 'UNIFIED' : (isHOAOnlyTransaction ? 'HOA-ONLY' : (isWaterOnlyTransaction ? 'WATER-ONLY' : 'UNKNOWN'))
+    });
+    
+    // Backward compatibility aliases
+    const isHOATransaction = hasHOAData;
+    const isWaterTransaction = hasWaterData;
                             
-    console.log(`🏠 [BACKEND] HOA Transaction check: ${isHOATransaction}`);
-    console.log(`💧 [BACKEND] Water Transaction check: ${isWaterTransaction}`);
+    console.log(`🏠 [BACKEND] HOA Data Present: ${isHOATransaction}`);
+    console.log(`💧 [BACKEND] Water Data Present: ${isWaterTransaction}`);
+    console.log(`🔄 [BACKEND] Unified Transaction: ${isUnifiedTransaction}`);
     if (isHOATransaction) {
       console.log(`🏠 [BACKEND] HOA metadata:`, originalData.metadata);
     }
@@ -827,51 +873,23 @@ async function deleteTransaction(clientId, txnId) {
     let creditBalanceBefore = 0;
     
     // ══════════════════════════════════════════════════════════════════════
-    // CREDIT REVERSAL FIRST (Simple → Complex Pattern)
+    // ATOMIC TRANSACTION REVERSAL (Task 3.5 - Full Atomicity)
     // ══════════════════════════════════════════════════════════════════════
-    // For Water Bills transactions, reverse credit changes BEFORE the complex
-    // bill cleanup transaction. If the transaction fails, we can easily rollback
-    // with a single credit update.
-    // ══════════════════════════════════════════════════════════════════════
-    
-    if (isWaterTransaction && originalData.unitId) {
-      try {
-        console.log(`💳 [BACKEND] Step 1: Reversing credit balance changes for transaction ${txnId}`);
-        
-        // FIX: Use new delete method instead of adding reversal entries
-        // This will delete the history entries and recalculate the balance properly
-        const deleteResult = await creditService.deleteCreditHistoryEntry(
-          clientId,
-          originalData.unitId,
-          txnId
-        );
-        
-        console.log(`💳 [BACKEND] Deleted ${deleteResult.entriesDeleted} credit history entries for transaction ${txnId}`);
-        
-        if (deleteResult.entriesDeleted > 0) {
-          creditBalanceBefore = deleteResult.previousBalance;
-          creditReversalAmount = deleteResult.newBalance - deleteResult.previousBalance;
-          creditReversalExecuted = true;
-          
-          console.log(`✅ [BACKEND] Credit reversal complete: ${deleteResult.previousBalance} → ${deleteResult.newBalance} centavos`);
-        } else {
-          console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
-        }
-      } catch (creditError) {
-        console.error(`❌ [BACKEND] Error reversing credit balance:`, creditError);
-        throw new Error(`Failed to reverse credit balance: ${creditError.message}`);
-      }
-    }
-    
-    // ══════════════════════════════════════════════════════════════════════
-    // WATER BILLS TRANSACTION (Complex Operation)
-    // ══════════════════════════════════════════════════════════════════════
-    // Now execute the complex bill cleanup transaction. If this fails, we can
-    // easily rollback the credit reversal above with a single credit update.
+    // ALL operations (Credit + HOA + Water + Transaction Deletion) happen in
+    // ONE Firestore transaction. This ensures true atomicity: all succeed or
+    // all fail together. No partial state possible, no rollback logic needed.
     // ══════════════════════════════════════════════════════════════════════
     
     try {
-      console.log(`🔄 [BACKEND] Step 2: Starting complex bill cleanup transaction`);
+      console.log(`🔄 [BACKEND] Starting ATOMIC transaction reversal (all operations in one transaction)`);
+      
+      if (isUnifiedTransaction) {
+        console.log(`🔄 [BACKEND] Processing UNIFIED transaction reversal (HOA + Water + Credit)`);
+      } else if (isHOAOnlyTransaction) {
+        console.log(`🏠 [BACKEND] Processing HOA-ONLY transaction reversal`);
+      } else if (isWaterOnlyTransaction) {
+        console.log(`💧 [BACKEND] Processing WATER-ONLY transaction reversal`);
+      }
       
       // Use a transaction to ensure consistency
       await db.runTransaction(async (transaction) => {
@@ -879,13 +897,62 @@ async function deleteTransaction(clientId, txnId) {
       
       // Read transaction document (already done above, but we have the data)
       
+      // Determine unitId and year for cleanup (works for both unified and legacy transactions)
+      const cleanupUnitId = originalData.unitId || originalData.metadata?.unitId || originalData.metadata?.id;
+      let cleanupYear = originalData.metadata?.year;
+      
+      // If no metadata year, try to get from HOA allocations (unified transactions)
+      if (!cleanupYear && originalData.allocations) {
+        console.log(`🔍 [BACKEND] Looking for year in allocations:`, {
+          allocationsCount: originalData.allocations.length,
+          sample: originalData.allocations[0]
+        });
+        
+        const hoaAlloc = originalData.allocations.find(a => 
+          a.type === 'hoa_month' || a.type === 'hoa_penalty' ||
+          a.categoryName === 'HOA Dues' || a.categoryName === 'HOA Penalties'
+        );
+        
+        console.log(`🔍 [BACKEND] HOA allocation found:`, hoaAlloc);
+        cleanupYear = hoaAlloc?.data?.year;
+      }
+      
+      console.log(`🔍 [BACKEND] Cleanup parameters determined:`, {
+        unitId: cleanupUnitId,
+        year: cleanupYear,
+        unitIdSource: originalData.unitId ? 'root' : (originalData.metadata?.unitId ? 'metadata' : 'unknown'),
+        yearSource: originalData.metadata?.year ? 'metadata' : (cleanupYear ? 'allocations' : 'unknown')
+      });
+      
+      // Read credit balance document if transaction affects credit
+      let creditDoc = null;
+      let creditData = null;
+      let unitCreditData = null;
+      if (originalData.unitId && (isWaterTransaction || isUnifiedTransaction)) {
+        const creditBalancesRef = db.collection('clients').doc(clientId)
+          .collection('units').doc('creditBalances');
+        
+        console.log(`💳 [BACKEND] Reading credit balance for unit ${originalData.unitId}`);
+        creditDoc = await transaction.get(creditBalancesRef);
+        
+        if (creditDoc.exists) {
+          creditData = creditDoc.data();
+          unitCreditData = creditData[originalData.unitId];
+          if (unitCreditData) {
+            console.log(`📊 [BACKEND] Current credit balance: ${unitCreditData.creditBalance} centavos`);
+          } else {
+            console.warn(`⚠️ [BACKEND] No credit data found for unit ${originalData.unitId}`);
+          }
+        } else {
+          console.warn(`⚠️ [BACKEND] Credit balances document not found`);
+        }
+      }
+      
       // Read dues document if this is an HOA transaction requiring cleanup
       let duesDoc = null;
       let duesData = null;
-      if (isHOATransaction && (originalData.metadata?.unitId || originalData.metadata?.id) && originalData.metadata?.year) {
-        const unitId = originalData.metadata.unitId || originalData.metadata.id;
-        const year = originalData.metadata.year;
-        const duesPath = `clients/${clientId}/units/${unitId}/dues/${year}`;
+      if (isHOATransaction && cleanupUnitId && cleanupYear) {
+        const duesPath = `clients/${clientId}/units/${cleanupUnitId}/dues/${cleanupYear}`;
         const duesRef = db.doc(duesPath);
         
         console.log(`🔍 [BACKEND] Reading dues document: ${duesPath}`);
@@ -900,6 +967,13 @@ async function deleteTransaction(clientId, txnId) {
         } else {
           console.warn(`⚠️ [BACKEND] Dues document not found at ${duesPath} - HOA cleanup will be skipped`);
         }
+      } else if (isHOATransaction) {
+        console.warn(`⚠️ [BACKEND] HOA transaction but missing required data:`, {
+          cleanupUnitId,
+          cleanupYear,
+          hasAllocations: !!originalData.allocations,
+          hasMetadata: !!originalData.metadata
+        });
       }
       
       // Read water bill documents if this is a Water Bills transaction requiring cleanup
@@ -956,18 +1030,81 @@ async function deleteTransaction(clientId, txnId) {
         }
       }
       
+      // Reverse credit balance changes (ATOMIC within transaction)
+      if (creditDoc && unitCreditData && originalData.unitId) {
+        const history = unitCreditData.history || [];
+        
+        // Find and remove entries with matching transaction ID
+        const entriesToDelete = history.filter(entry => entry.transactionId === txnId);
+        const entriesDeleted = entriesToDelete.length;
+        
+        if (entriesDeleted > 0) {
+          console.log(`💳 [BACKEND] Reversing ${entriesDeleted} credit history entries for transaction ${txnId}`);
+          
+          // Remove entries from history
+          const newHistory = history.filter(entry => entry.transactionId !== txnId);
+          
+          // Recalculate balance by replaying history
+          let recalculatedBalance = 0;
+          newHistory.forEach(entry => {
+            if (typeof entry.balance === 'number' && !isNaN(entry.balance)) {
+              recalculatedBalance = entry.balance;
+            }
+          });
+          
+          // If no history left, balance should be 0
+          if (newHistory.length === 0) {
+            recalculatedBalance = 0;
+          }
+          
+          // Validate recalculated balance
+          if (typeof recalculatedBalance !== 'number' || isNaN(recalculatedBalance)) {
+            console.warn(`⚠️ [BACKEND] Invalid balance calculated: ${recalculatedBalance}, defaulting to 0`);
+            recalculatedBalance = 0;
+          }
+          
+          creditBalanceBefore = unitCreditData.creditBalance;
+          creditReversalAmount = recalculatedBalance - unitCreditData.creditBalance;
+          
+          console.log(`💳 [BACKEND] Credit balance: ${unitCreditData.creditBalance} → ${recalculatedBalance} centavos (change: ${creditReversalAmount})`);
+          
+          // Update credit data in-place (this will be written atomically)
+          const now = getNow();
+          const currentYear = now.getFullYear().toString();
+          
+          creditData[originalData.unitId] = {
+            creditBalance: recalculatedBalance,
+            lastChange: {
+              year: currentYear,
+              historyIndex: Math.max(0, newHistory.length - 1),
+              timestamp: now.toISOString()
+            },
+            history: newHistory
+          };
+          
+          // Write updated credit data (atomic within transaction)
+          const creditBalancesRef = db.collection('clients').doc(clientId)
+            .collection('units').doc('creditBalances');
+          transaction.set(creditBalancesRef, creditData);
+          
+          creditReversalExecuted = true;
+          console.log(`✅ [BACKEND] Credit reversal prepared (will commit atomically)`);
+        } else {
+          console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
+        }
+      }
+      
       // Execute HOA Dues cleanup if applicable
-      if (isHOATransaction && duesDoc && duesData && (originalData.metadata?.unitId || originalData.metadata?.id) && originalData.metadata?.year) {
-        const unitId = originalData.metadata.unitId || originalData.metadata.id;
-        console.log(`🧹 [BACKEND] Starting HOA cleanup for Unit: ${unitId}, Year: ${originalData.metadata.year}`);
+      if (isHOATransaction && duesDoc && duesData && cleanupUnitId && cleanupYear) {
+        console.log(`🧹 [BACKEND] Starting HOA cleanup for Unit: ${cleanupUnitId}, Year: ${cleanupYear}`);
         
         // 🧹 BACKEND CLEANUP: HOA cleanup function entry
         console.log('🧹 BACKEND CLEANUP: HOA cleanup function called:', {
           clientId,
           transactionId: txnId,
           functionExecuting: 'executeHOADuesCleanupWrite',
-          unitId,
-          year: originalData.metadata.year,
+          unitId: cleanupUnitId,
+          year: cleanupYear,
           duesDocExists: !!duesDoc,
           duesDataExists: !!duesData
         });
@@ -983,10 +1120,12 @@ async function deleteTransaction(clientId, txnId) {
         console.log(`✅ [BACKEND] HOA Dues cleanup prepared for transaction ${txnId}`, hoaCleanupDetails);
       } else if (isHOATransaction) {
         console.log(`⚠️ [BACKEND] HOA transaction detected but cleanup skipped:`, {
-          hasUnitId: !!(originalData.metadata?.unitId || originalData.metadata?.id),
-          hasYear: !!originalData.metadata?.year,
+          hasUnitId: !!cleanupUnitId,
+          hasYear: !!cleanupYear,
           duesDocExists: !!duesDoc?.exists,
-          metadata: originalData.metadata
+          unitIdSource: originalData.unitId ? 'root' : 'metadata',
+          metadata: originalData.metadata,
+          allocationsCount: originalData.allocations?.length || 0
         });
       }
       
@@ -1012,39 +1151,25 @@ async function deleteTransaction(clientId, txnId) {
       }
       });
       
-      console.log(`✅ [BACKEND] Complex bill cleanup transaction completed successfully`);
+      console.log(`✅ [BACKEND] Atomic transaction reversal completed successfully`);
+      console.log(`✅ [BACKEND] All operations committed atomically:`, {
+        transactionDeleted: true,
+        creditReversed: creditReversalExecuted,
+        hoaReversed: hoaCleanupExecuted,
+        waterReversed: waterCleanupExecuted
+      });
       
     } catch (transactionError) {
       // ══════════════════════════════════════════════════════════════════════
-      // ROLLBACK CREDIT REVERSAL (Simple → Complex Pattern)
+      // AUTOMATIC ROLLBACK (Firestore Transaction Guarantee)
       // ══════════════════════════════════════════════════════════════════════
-      // Transaction failed! Rollback the credit reversal we did earlier.
-      // This is a single, simple operation.
+      // Transaction failed! Firestore automatically rolls back ALL operations.
+      // No manual rollback needed - atomic consistency is guaranteed.
+      // All changes (Credit + HOA + Water + Transaction) are reverted.
       // ══════════════════════════════════════════════════════════════════════
       
-      console.error(`❌ [BACKEND] Transaction failed:`, transactionError);
-      
-      if (creditReversalExecuted && creditReversalAmount !== 0) {
-        console.log(`🔄 [BACKEND] Rolling back credit reversal: restoring ${-creditReversalAmount} centavos`);
-        
-        try {
-          // Reverse the reversal (restore original change)
-          await creditService.updateCreditBalance(
-            clientId,
-            originalData.unitId,
-            -creditReversalAmount, // Negative to undo the reversal
-            `${txnId}_rollback`,
-            `Rollback of credit reversal due to transaction deletion failure for ${txnId}`,
-            'waterBills'
-          );
-          
-          console.log(`✅ [BACKEND] Credit balance rolled back successfully`);
-        } catch (rollbackError) {
-          console.error(`❌❌ [BACKEND] CRITICAL: Failed to rollback credit balance:`, rollbackError);
-          console.error(`❌❌ [BACKEND] Manual intervention required! Unit ${originalData.unitId} credit balance may be incorrect.`);
-          // Don't throw - we want to report the original transaction error
-        }
-      }
+      console.error(`❌ [BACKEND] Atomic transaction failed - ALL operations automatically rolled back:`, transactionError);
+      console.error(`❌ [BACKEND] Nothing was changed - database remains in consistent state`);
       
       throw transactionError; // Re-throw the original error
     }
@@ -1158,16 +1283,42 @@ async function deleteTransaction(clientId, txnId) {
  * @returns {Array} Array of month objects with { month, unitId, year, amount }
  */
 function getHOAMonthsFromTransaction(transactionData) {
-  // Check for allocations first (new format)
+  // Check for allocations first (new format from Task 3)
   if (transactionData.allocations && transactionData.allocations.length > 0) {
-    return transactionData.allocations
-      .filter(allocation => allocation.type === "hoa_month")
-      .map(allocation => ({
-        month: allocation.data.month,
-        unitId: allocation.data.unitId,
-        year: allocation.data.year,
-        amount: allocation.amount
-      }));
+    // Task 3 uses type: 'hoa_month' for base charges and 'hoa_penalty' for penalties
+    // Need to group by month and combine base + penalty for same month
+    const hoaAllocations = transactionData.allocations.filter(allocation => 
+      allocation.type === 'hoa_month' || 
+      allocation.type === 'hoa_penalty' ||
+      allocation.categoryName === 'HOA Dues' ||
+      allocation.categoryName === 'HOA Penalties'
+    );
+    
+    if (hoaAllocations.length > 0) {
+      // Group by month (allocations may have separate base and penalty entries)
+      const monthsMap = new Map();
+      
+      hoaAllocations.forEach(allocation => {
+        const monthKey = `${allocation.metadata?.year || allocation.data?.year}-${allocation.metadata?.month || allocation.data?.month}`;
+        const month = allocation.metadata?.month || allocation.data?.month;
+        const year = allocation.metadata?.year || allocation.data?.year;
+        const unitId = allocation.metadata?.unitId || allocation.data?.unitId;
+        
+        if (!monthsMap.has(monthKey)) {
+          monthsMap.set(monthKey, {
+            month,
+            unitId,
+            year,
+            amount: 0
+          });
+        }
+        
+        // Add this allocation's amount (could be base or penalty)
+        monthsMap.get(monthKey).amount += allocation.amount;
+      });
+      
+      return Array.from(monthsMap.values());
+    }
   }
   
   // Fallback to duesDistribution (legacy format)
@@ -1269,15 +1420,32 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   
   // Get the months this transaction paid for - check allocations first, fallback to duesDistribution
   const monthsData = getHOAMonthsFromTransaction(originalData);
-  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months`);
+  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months:`, monthsData);
   
   // Clear each month that was paid by this transaction
   monthsData.forEach(monthData => {
-    const monthIndex = monthData.month - 1; // Convert month (1-12) to index (0-11)
+    // Task 3 now correctly stores FISCAL month index (0-11) in data.month
+    const monthIndex = monthData.month; // Already 0-based fiscal month index
+    
+    if (monthIndex < 0 || monthIndex > 11) {
+      console.warn(`⚠️ [BACKEND] Invalid month index ${monthIndex}, skipping`);
+      return;
+    }
+    
     const payment = updatedPayments[monthIndex];
     
+    console.log(`🔍 [BACKEND] Checking month ${monthIndex}:`, {
+      hasPayment: !!payment,
+      paymentReference: payment?.reference,
+      paymentTransactionId: payment?.transactionId,
+      targetTxnId: txnId,
+      matchesReference: payment?.reference === txnId,
+      matchesTransactionId: payment?.transactionId === txnId
+    });
+    
+    // Task 3's updateHOADuesWithPayment stores transaction ID in 'reference' field (line 1436)
     if (payment && payment.reference === txnId) {
-      console.log(`🗑️ [BACKEND] Clearing payment for month ${monthData.month} (index ${monthIndex})`);
+      console.log(`🗑️ [BACKEND] Clearing payment for fiscal month ${monthIndex} (year ${monthData.year})`);
       monthsCleared++;
       
       // Clear the payment entry

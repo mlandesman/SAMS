@@ -43,9 +43,35 @@
 - Foundation for future charge types (Propane, Special Assessments, etc.)
 - Improves owner satisfaction with accurate payment application
 
+### Phase 6: Fiscal Year Boundary Handling
+**Status**: 📋 **READY TO BEGIN** - After Unified Payment Tasks 4-9  
+**Priority**: HIGH - Affects Unified Payment production use  
+**Estimated Effort**: 12-16 hours (5 tasks)  
+**Documentation**: `SAMS-Docs/apm_session/PHASE_6_FISCAL_YEAR_BOUNDARIES.md`
+
+**Business Problem**: "All months paid" blocks prepayment when current fiscal year exhausted
+
+**Real Scenario**: Michael's MTC condo paid through early 2026 - system needs to handle multi-year prepayment
+
+**Implementation Tasks**:
+1. **Task 6.1**: Auto-initialize next fiscal year (3-4 hrs)
+2. **Task 6.2**: Cross-fiscal-year payment allocation (3-4 hrs)
+3. **Task 6.3**: Prior-year debt resolution (2-3 hrs)
+4. **Task 6.4**: Year-end balance carryover (2-3 hrs)
+5. **Task 6.5**: Fiscal boundary testing (2-3 hrs)
+
+**Strategic Value**:
+- Eliminates "all months paid" blocker
+- Enables true multi-year prepayment
+- Handles new-year payments for old-year debt
+- Foundation for TD-008 (year-end closeout)
+
+**Sequence**: After Unified Payment, BEFORE Phase 5 (Quarterly)
+
 ### Phase 5: Quarterly Billing Support (Frequency-Agnostic)
 **Status**: 🔄 **IN PROGRESS** - Task 5.0 complete, 5.1-5.6 pending  
 **Priority**: HIGH - Unblocks AVII production accuracy  
+**Sequence**: After Phase 6 (Fiscal Boundaries) recommended  
 **Progress**: 1 of 7 tasks complete (14%)  
 **Remaining Effort**: 19-26 hours
 
@@ -77,6 +103,112 @@
   - Priority order: Past HOA → Past Water → Current → Future → Credit
 - **Strategic Impact**: Eliminates manual Google Sheets payment allocation
 - **Next Step**: Task 2 - Create unified controller endpoints
+
+### ✅ Unified Payment Task 3.5 Complete - November 5, 2025
+- Achievement: Enhanced transaction deletion with full atomic consistency
+- Discoveries: Found and fixed 4 critical bugs (including architectural violation)
+- Implementation: ALL operations in ONE Firestore transaction
+- Testing: 20/20 units passed (10 AVII, 10 MTC)
+- Duration: ~8 hours (vs 2-3 estimated due to bug fixes)
+- Quality: ⭐⭐⭐⭐⭐ Exceptional
+- Documentation: `Memory/Reviews/Manager_Review_Unified_Payment_Task_3_5_2025-11-05.md`
+
+### ✅ Unified Payment Task 3 Revision #2 Complete - November 5, 2025
+- Achievement: Fixed critical credit allocation bug
+- Problem: Units with existing credit couldn't make unified payments
+- Root Cause: Double-counting in multi-pass algorithm
+- Solution: Simplified credit tracking with netCreditAdded calculation
+- Duration: 90 minutes
+- Quality: ⭐⭐⭐⭐⭐ Production Ready
+- Documentation: `Memory/Reviews/Manager_Review_Unified_Payment_Task_3_REVISION_2_2025-11-05.md`
+
+### ✅ Unified Payment Task 3: Atomic Transaction Recording - RE-APPROVED November 5, 2025
+- **Achievement**: Implemented atomic cross-module payment recording with real Firestore verification and penalty split allocations
+- **Duration**: 8 hours actual (vs. 4-5 hour estimate) - 60% over due to enhancements
+- **Quality**: ⭐⭐⭐⭐⭐ Exceptional - Real database writes, smart architecture, valuable enhancements
+- **Deliverables**:
+  - Recording function: 277 lines in UnifiedPaymentWrapper (`recordUnifiedPayment()`)
+  - Notes helper: 94 lines (`_generateConsolidatedNotes()`)
+  - Controller update: Replaced 501 with actual recording call
+  - Lightweight update functions: `updateHOADuesWithPayment()`, `updateWaterBillsWithPayment()`
+  - Integration tests: 238 lines with real Firestore writes
+  - Bug fixes: Null handling, account passthrough, dynamic validation
+- **Key Architecture Decision - Reuse Over Rewrite**:
+  - Calls existing `recordDuesPayment()` and `waterPaymentsService.recordPayment()`
+  - Maintains perfect data format consistency (integers in centavos, proper fields)
+  - Modified existing functions to accept optional `transactionId` parameter (backward compatible)
+  - Prevents data structure drift
+- **Enhancement - Penalty Split Allocations**:
+  - Base charges and penalties as separate line items
+  - Matches TransactionView UI expectations (like 10/27 transaction)
+  - Example: 1 HOA bill → 2 allocations (base + penalty)
+  - Result: Better itemization for users
+- **Real Database Verification**:
+  - **Transaction ID**: `2025-11-03_173313_493` verified in Firestore ✅
+  - **Amount**: $20,000 split into 9 allocations
+  - **Breakdown**: HOA $13,252.39 + Water $1,815.32 + Credit $4,932.29
+  - **Data Format**: All amounts are integers in centavos (476318 ✅ not 4763.18 ❌)
+  - **Cross-References**: All transactionIds match across modules ✅
+  - **Tick-and-Tie**: Total allocations = payment amount ✅
+- **Bug Fixes Completed**:
+  - Fixed null payment handling in `hoaDuesController.js` (prevents crashes)
+  - Added accountId/accountType passthrough (enables account balance reconciliation)
+  - Removed hardcoded client/payment method validations (dynamic system)
+- **Atomic Consistency**:
+  - Firestore batch writes ensure all-or-nothing
+  - Preview verification prevents race conditions (409 Conflict response)
+  - Single unified transaction ID across all modules
+  - Perfect audit trail
+- **Strategic Impact**: Core Unified Payment functionality complete - backend ready for frontend integration
+- **Next Step**: Task 3.5 - Transaction delete/reversal (HIGH PRIORITY before production)
+
+**✅ REVISION COMPLETE - November 4, 2025** (Approval Restored):
+- **Bug #1 FIXED**: Credit split into "Used" (negative) and "Added" (positive) allocations
+  - Result: Allocations = payment amount exactly
+  - Test: Transaction `2025-11-04_092544_120` - $1,000 payment = $1,000 allocations ✅
+  - Solution: Cash flow accounting (credit used is contra-revenue)
+- **Bug #2 VERIFIED NOT A BUG**: Priority order working correctly
+  - Multi-pass algorithm pays future HOA before credit ✅
+  - Test: Unit 106 paid 2 future months ($24,641) before credit ($5,358)
+  - Root cause: Test units had no future bills available (data gap, not code issue)
+- **Bug #3 FIXED**: Atomicity bug fixed by Task 3.5 agent (`throw error`)
+- **Revision Duration**: 1.5 hours
+- **Status**: ✅ APPROVED FOR PRODUCTION
+- **Impact**: Task 3.5 can now proceed with testing
+
+### ✅ Unified Payment Task 2: Create Controller Endpoints - November 3, 2025
+- **Achievement**: Created RESTful API endpoints exposing UnifiedPaymentWrapper to frontend with preview + record skeleton
+- **Duration**: 2 hours actual (vs. 3-4 hour estimate) - 50% under budget
+- **Quality**: ⭐⭐⭐⭐⭐ Exceptional - Perfect code quality, comprehensive validation, outstanding documentation
+- **Deliverables**:
+  - Controller: 434 lines (`/backend/controllers/unifiedPaymentController.js`)
+  - Routes: 90 lines (`/backend/routes/paymentRoutes.js`)
+  - Unit tests: 36 tests (Jest format, 808 lines)
+  - Integration tests: 12 tests (testHarness format, 488 lines)
+  - Documentation: 595-line completion log with all decisions explained
+- **Endpoints Implemented**:
+  - `POST /payments/unified/preview` - Full preview allocation working ✅
+  - `POST /payments/unified/record` - Returns 501 (Phase 3 implementation)
+  - Domain-specific routing at `/payments/*` (matches SAMS architecture)
+- **Testing Results**:
+  - **12/12 integration tests PASSED** ✅
+  - Preview validation: 5/5 passed
+  - Preview success: 3/3 passed (MTC 1A, AVII 101, AVII 103)
+  - Record validation: 3/3 passed
+  - Record implementation: 1/1 passed (501 verified)
+  - Performance: 1.1-5.2 seconds (within expected range)
+- **Key Implementation Decisions**:
+  - Phased approach: Preview working now, recording in Task 3 (atomic transactions)
+  - 6 dedicated validation functions with user-friendly error messages
+  - Proper HTTP status codes (400, 404, 500, 501)
+  - Date range validation: 5 years past, 1 year future
+  - Preview data required for recording (prevents race conditions)
+- **Real Data Verified**:
+  - MTC Unit 1A: Credit-only scenario (6,239 + 10,000 = 16,239) ✅
+  - AVII Unit 101: Future HOA bills (4 months prepaid for 19,356.72) ✅
+  - AVII Unit 103: Mixed allocation (19,635.92 HOA + 2,368.98 Water) ✅
+- **Strategic Impact**: Frontend can now integrate preview endpoint for immediate user value
+- **Next Step**: Task 3 - Implement atomic transaction recording
 
 ### ✅ Phase 5 Task 5.0: Remove Stored Penalties Complete - November 2, 2025
 - **Achievement**: Vestigial penalty storage eliminated, clean architectural foundation established for quarterly billing

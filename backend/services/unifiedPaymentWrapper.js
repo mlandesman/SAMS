@@ -41,10 +41,12 @@ import { calculatePaymentDistribution } from '../../shared/services/PaymentDistr
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { getDb } from '../firebase.js';
+import { createTransaction } from '../controllers/transactionsController.js';
 
 // Import module-specific functions
 import { 
-  getHOABillingConfig
+  getHOABillingConfig,
+  updateHOADuesWithPayment
 } from '../controllers/hoaDuesController.js';
 
 import { 
@@ -52,6 +54,8 @@ import {
   getBillingConfig as getWaterBillingConfig,
   recalculatePenaltiesAsOfDate as calculateWaterPenalties
 } from '../../shared/services/BillDataService.js';
+
+import { waterPaymentsService } from './waterPaymentsService.js';
 
 import { getFiscalYearBounds, getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { parseDate } from '../../shared/services/DateService.js';
@@ -155,13 +159,14 @@ export class UnifiedPaymentWrapper {
     console.log(`   💰 Current credit balance: $${currentCredit}`);
     
     // Step 4: MULTI-PASS PRIORITY ALGORITHM
-    // Process each priority level sequentially, using remainder for next level
-    // This maximizes bill payment and minimizes penalties accruing
+    // Simple approach: Pass payment and credit separately to distribution service
+    // Let it handle the combination and track remaining funds
     console.log(`   🔄 Starting multi-pass priority processing`);
     
     const allPaidBills = [];
-    let remainingFunds = paymentAmount + currentCredit;
-    let totalCreditUsed = 0;
+    let remainingFunds = paymentAmount + currentCredit;  // Total available
+    let paymentForNextLevel = paymentAmount;  // Track payment portion for distribution service
+    let creditForNextLevel = currentCredit;   // Track credit portion for distribution service
     
     // Process priority levels 1-5 sequentially
     for (let priorityLevel = 1; priorityLevel <= 5; priorityLevel++) {
@@ -175,11 +180,11 @@ export class UnifiedPaymentWrapper {
       
       console.log(`   💸 Priority ${priorityLevel}: ${billsAtThisLevel.length} bills, $${remainingFunds.toFixed(2)} available`);
       
-      // Call PaymentDistributionService for this priority level only
+      // Call PaymentDistributionService with payment and credit separate
       const levelDistribution = calculatePaymentDistribution({
         bills: billsAtThisLevel,
-        paymentAmount: remainingFunds,
-        currentCreditBalance: 0, // Credit already added to remainingFunds
+        paymentAmount: paymentForNextLevel,
+        currentCreditBalance: creditForNextLevel,
         unitId
       });
       
@@ -191,31 +196,46 @@ export class UnifiedPaymentWrapper {
       });
       
       // Update remaining funds for next level
-      remainingFunds = levelDistribution.overpayment || 0;
+      // The newCreditBalance from PaymentDistributionService is the total remaining
+      remainingFunds = levelDistribution.newCreditBalance || 0;
+      
+      // For next level: all remaining funds become "payment" with 0 credit
+      // This simplifies tracking while maintaining correct total
+      paymentForNextLevel = remainingFunds;
+      creditForNextLevel = 0;
       
       console.log(`      ✓ Paid ${levelDistribution.billPayments.filter(b => b.amountPaid > 0).length} bills, $${remainingFunds.toFixed(2)} remaining`);
     }
     
-    // Calculate final credit balance
+    // Calculate final results
     const totalPaidAmount = allPaidBills.reduce((sum, bp) => sum + bp.amountPaid, 0);
-    const actualCreditUsed = Math.max(0, totalPaidAmount - paymentAmount);
-    const newCreditBalance = currentCredit - actualCreditUsed + remainingFunds;
+    const finalCreditBalance = remainingFunds;
     
-    console.log(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid, final credit: $${newCreditBalance.toFixed(2)}`);
+    // NET credit change calculation (as per your logic):
+    // New Credit Added = Remaining Total - Original Credit Balance
+    const netCreditAdded = finalCreditBalance - currentCredit;
+    
+    console.log(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid`);
+    console.log(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit change $${netCreditAdded.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
     
     // Reconstruct distribution object for splitting
     const distribution = {
       totalAvailableFunds: paymentAmount + currentCredit,
       currentCreditBalance: currentCredit,
-      newCreditBalance: roundCurrency(newCreditBalance),
-      creditUsed: roundCurrency(actualCreditUsed),
-      overpayment: roundCurrency(remainingFunds),
+      newCreditBalance: roundCurrency(finalCreditBalance),
+      creditUsed: netCreditAdded < 0 ? roundCurrency(-netCreditAdded) : 0,  // If negative, credit was used
+      overpayment: netCreditAdded > 0 ? roundCurrency(netCreditAdded) : 0,  // If positive, credit was added
+      netCreditAdded: roundCurrency(netCreditAdded),  // Can be positive or negative
       totalApplied: roundCurrency(totalPaidAmount),
       billPayments: allPaidBills
     };
     
     // Step 5: Split results by module (use bills with unique periods for accurate matching)
     const splitResults = this._splitDistributionByModule(distribution, billsWithUniquePeroids);
+    
+    // Add netCreditAdded to the split results
+    splitResults.netCreditAdded = distribution.netCreditAdded;
+    splitResults.currentCreditBalance = currentCredit;
     
     console.log(`✅ [UNIFIED WRAPPER] Preview complete`);
     console.log(`   HOA: ${splitResults.hoa.billsPaid.length} bills, $${splitResults.hoa.totalPaid}`);
@@ -242,8 +262,332 @@ export class UnifiedPaymentWrapper {
     
     console.log(`🌐 [UNIFIED WRAPPER] Record payment: ${clientId}/${unitId}, Amount: $${paymentData.amount}`);
     
-    // TODO: Implement recording logic
-    throw new Error('recordUnifiedPayment not yet implemented');
+    // Extract payment data
+    const { 
+      amount, 
+      paymentDate, 
+      paymentMethod, 
+      reference = null, 
+      notes = null,
+      preview,
+      userId = 'system',
+      accountId, // Required - no default
+      accountType // Required - no default
+    } = paymentData;
+    
+    // Validate required fields
+    if (!amount || !paymentDate || !paymentMethod || !preview) {
+      throw new Error('Missing required payment data: amount, paymentDate, paymentMethod, and preview are required');
+    }
+    
+    console.log(`   📋 Payment details: Method=${paymentMethod}, Date=${paymentDate}, Reference=${reference || 'none'}`);
+    
+    // Step 1: Verify preview data matches current state
+    console.log(`   🔍 Verifying preview data matches current state...`);
+    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate);
+    
+    // Compare totals (allow small floating point differences)
+    const previewTotal = preview.summary?.totalAllocated || 0;
+    const currentTotal = currentPreview.summary?.totalAllocated || 0;
+    
+    if (Math.abs(previewTotal - currentTotal) > 0.01) {
+      console.error(`   ❌ Preview mismatch: Expected $${previewTotal}, Current $${currentTotal}`);
+      throw new Error('Bill status changed since preview. Please refresh and try again.');
+    }
+    
+    console.log(`   ✅ Preview verified: $${currentTotal} allocation matches`);
+    
+    // Parse payment date
+    const paymentDateObj = parseDate(paymentDate);
+    
+    // Get fiscal year configuration
+    const configs = await this._getMergedConfig(clientId);
+    const fiscalYear = getFiscalYear(paymentDateObj, configs.fiscalYearStartMonth || 1);
+    
+    // Step 2: Generate consolidated transaction notes
+    console.log(`   📝 Generating consolidated transaction notes...`);
+    const transactionNotes = this._generateConsolidatedNotes(preview, configs.fiscalYearStartMonth || 1);
+    console.log(`   Notes: "${transactionNotes}"`);
+    
+    // Step 3: Create unified transaction document FIRST (for the transaction ID)
+    console.log(`   💾 Creating unified transaction document...`);
+    
+    // Combine consolidated notes with user notes
+    const combinedNotes = notes 
+      ? `${transactionNotes}. ${notes}` 
+      : transactionNotes;
+    
+    // Build allocations array for TransactionView
+    const allocations = [];
+    let allocationIndex = 1;
+    
+    // Add HOA allocations (split into base and penalty)
+    if (preview.hoa && preview.hoa.monthsAffected) {
+      preview.hoa.monthsAffected.forEach(month => {
+        // Base charge allocation
+        if (month.basePaid > 0) {
+          allocations.push({
+            id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+            type: 'hoa_month',
+            targetId: `month_${month.monthIndex}_${fiscalYear}`,
+            targetName: this._getMonthName(month.monthIndex, fiscalYear),
+            amount: month.basePaid, // In pesos - createTransaction will convert to centavos
+            categoryName: 'HOA Dues',
+            categoryId: 'hoa_dues',
+            data: {
+              unitId: unitId,
+              month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
+              year: fiscalYear
+            }
+          });
+          allocationIndex++;
+        }
+        
+        // Penalty allocation (separate line item)
+        if (month.penaltyPaid > 0) {
+          allocations.push({
+            id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+            type: 'hoa_penalty',
+            targetId: `penalty_${month.monthIndex}_${fiscalYear}`,
+            targetName: this._getMonthName(month.monthIndex, fiscalYear),
+            amount: month.penaltyPaid, // In pesos - createTransaction will convert to centavos
+            categoryName: 'HOA Penalties',
+            categoryId: 'hoa_penalties',
+            data: {
+              unitId: unitId,
+              month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
+              year: fiscalYear
+            }
+          });
+          allocationIndex++;
+        }
+      });
+    }
+    
+    // Add Water allocations (split into base and penalty)
+    if (preview.water && preview.water.billsAffected) {
+      preview.water.billsAffected.forEach(bill => {
+        // Base charge allocation
+        if (bill.basePaid > 0) {
+          allocations.push({
+            id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+            type: 'water_consumption',
+            targetId: `water_${bill.billPeriod}`,
+            targetName: `Water Bill ${bill.billPeriod}`,
+            amount: bill.basePaid, // In pesos - createTransaction will convert to centavos
+            categoryName: 'Water Consumption',
+            categoryId: 'water-consumption',
+            data: {
+              unitId: unitId,
+              billPeriod: bill.billPeriod
+            }
+          });
+          allocationIndex++;
+        }
+        
+        // Penalty allocation (separate line item)
+        if (bill.penaltyPaid > 0) {
+          allocations.push({
+            id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+            type: 'water_penalty',
+            targetId: `water_penalty_${bill.billPeriod}`,
+            targetName: `Water Bill ${bill.billPeriod}`,
+            amount: bill.penaltyPaid, // In pesos - createTransaction will convert to centavos
+            categoryName: 'Water Penalties',
+            categoryId: 'water_penalties',
+            data: {
+              unitId: unitId,
+              billPeriod: bill.billPeriod
+            }
+          });
+          allocationIndex++;
+        }
+      });
+    }
+    
+    // Add Credit allocations
+    // SIMPLIFIED ALLOCATION LOGIC:
+    // - Payment allocations must sum to the payment amount
+    // - If netCreditAdded is negative, credit was used (negative allocation)
+    // - If netCreditAdded is positive, credit was added (positive allocation)
+    
+    const totalBillsPaid = (preview.hoa?.totalPaid || 0) + (preview.water?.totalPaid || 0);
+    
+    if (preview.credit && preview.netCreditAdded !== undefined && preview.netCreditAdded !== 0) {
+      if (preview.netCreditAdded < 0) {
+        // Credit was used (negative allocation)
+        allocations.push({
+          id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+          type: 'credit_used',
+          targetId: `credit_used_${unitId}`,
+          targetName: 'Credit Balance',
+          amount: preview.netCreditAdded, // NEGATIVE value
+          categoryName: 'Credit Used',
+          categoryId: 'credit_used',
+          data: {
+            unitId: unitId,
+            balanceBefore: preview.currentCreditBalance,
+            balanceAfter: preview.credit.final
+          }
+        });
+        allocationIndex++;
+      } else {
+        // Credit was added (positive allocation)
+        allocations.push({
+          id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+          type: 'credit_added',
+          targetId: `credit_added_${unitId}`,
+          targetName: 'Credit Balance',
+          amount: preview.netCreditAdded, // POSITIVE value
+          categoryName: 'Credit Added',
+          categoryId: 'credit_added',
+          data: {
+            unitId: unitId,
+            balanceBefore: preview.currentCreditBalance,
+            balanceAfter: preview.credit.final
+          }
+        });
+        allocationIndex++;
+      }
+    }
+    
+    // Calculate allocation summary
+    // totalAllocated must be in CENTAVOS to match stored allocation amounts
+    // (createTransaction converts individual allocation.amount but not the summary total)
+    const totalAllocatedPesos = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+    const totalAllocatedCentavos = pesosToCentavos(totalAllocatedPesos);
+    
+    const allocationSummary = {
+      totalAllocated: totalAllocatedCentavos, // In centavos to match allocation amounts
+      allocationCount: allocations.length,
+      allocationType: allocations.length > 0 ? allocations[0].type : null,
+      hasMultipleTypes: allocations.length > 1 && 
+        new Set(allocations.map(a => a.type)).size > 1
+    };
+    
+    const transactionData = {
+      date: paymentDate, // Use original date string (yyyy-MM-dd format)
+      amount: amount, // Pass in pesos - createTransaction will convert to centavos
+      type: 'income',
+      categoryId: '-split-', // Split transaction (lowercase with hyphens)
+      categoryName: '-Split-', // Split transaction (capital S with hyphens)
+      notes: combinedNotes, // Combined: consolidated allocation + user notes
+      paymentMethod: paymentMethod,
+      reference: reference || null,
+      unitId: unitId,
+      enteredBy: userId,
+      source: 'unified_payment_system',
+      accountId: accountId,
+      accountType: accountType,
+      vendorId: '', // No vendor for unified payments
+      vendorName: '',
+      allocations: allocations, // CRITICAL: TransactionView needs this for split display
+      allocationSummary: allocationSummary,
+      metadata: {
+        hoaBillsPaid: preview.hoa?.billsPaid?.length || 0,
+        waterBillsPaid: preview.water?.billsPaid?.length || 0,
+        creditUsed: preview.credit?.used || 0,
+        creditAdded: preview.credit?.added || 0
+      }
+    };
+    
+    console.log(`   💾 Transaction Data Being Sent:`);
+    console.log(`      Amount: ${transactionData.amount} pesos`);
+    console.log(`      Account: ${transactionData.accountId} (${transactionData.accountType})`);
+    console.log(`      Allocations: ${allocations.length}`);
+    console.log(`      AllocationSummary.totalAllocated: ${allocationSummary.totalAllocated}`);
+    
+    const transactionId = await createTransaction(clientId, transactionData);
+    console.log(`   ✅ Unified transaction created: ${transactionId}`);
+    
+    // Step 4: Update HOA dues in Firestore (if HOA bills were paid)
+    if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
+      console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA months in Firestore...`);
+      
+      // Build months data from preview (already calculated)
+      const monthsData = preview.hoa.monthsAffected.map(month => ({
+        month: month.month,
+        basePaid: pesosToCentavos(month.basePaid), // Convert to centavos
+        penaltyPaid: pesosToCentavos(month.penaltyPaid) // Convert to centavos
+      }));
+      
+      // Call lightweight Firestore update function
+      await updateHOADuesWithPayment(
+        clientId,
+        unitId,
+        fiscalYear,
+        monthsData,
+        transactionId,
+        paymentDate,
+        paymentMethod,
+        reference,
+        userId,
+        preview.credit // {final, used, added}
+      );
+      
+      console.log(`      ✅ HOA payments updated in Firestore`);
+    }
+    
+    // Step 5: Update Water bills in Firestore (if Water bills were paid)
+    if (preview.water && preview.water.billsAffected && preview.water.billsAffected.length > 0) {
+      console.log(`   💧 Updating ${preview.water.billsAffected.length} Water bills in Firestore...`);
+      
+      // Build bills data from preview (already calculated, already in PESOS)
+      const billsData = preview.water.billsAffected.map(bill => ({
+        billPeriod: bill.billPeriod,
+        basePaid: bill.basePaid, // In pesos
+        penaltyPaid: bill.penaltyPaid, // In pesos
+        amountPaid: bill.totalPaid // In pesos
+      }));
+      
+      // Call lightweight Firestore update function
+      await waterPaymentsService.updateWaterBillsWithPayment(
+        clientId,
+        unitId,
+        billsData,
+        transactionId,
+        paymentDate,
+        paymentMethod,
+        reference
+      );
+      
+      console.log(`      ✅ Water bills updated in Firestore`);
+    }
+    
+    // Step 6: Return result summary
+    const result = {
+      success: true,
+      transactionId: transactionId,
+      summary: {
+        totalAmount: amount,
+        hoaBillsPaid: preview.hoa?.billsPaid?.length || 0,
+        waterBillsPaid: preview.water?.billsPaid?.length || 0,
+        creditUsed: preview.credit?.used || 0,
+        creditAdded: preview.credit?.added || 0,
+        finalCreditBalance: preview.credit?.final || 0
+      },
+      details: {
+        hoa: {
+          billsPaid: preview.hoa?.billsPaid?.length || 0,
+          totalPaid: preview.hoa?.totalPaid || 0,
+          monthsAffected: preview.hoa?.monthsAffected || []
+        },
+        water: {
+          billsPaid: preview.water?.billsPaid?.length || 0,
+          totalPaid: preview.water?.totalPaid || 0,
+          billsAffected: preview.water?.billsAffected || []
+        },
+        credit: preview.credit
+      },
+      timestamp: getNow().toISOString()
+    };
+    
+    console.log(`✅ [UNIFIED WRAPPER] Payment recorded successfully`);
+    console.log(`   Transaction ID: ${transactionId}`);
+    console.log(`   HOA Bills: ${result.summary.hoaBillsPaid}, Water Bills: ${result.summary.waterBillsPaid}`);
+    console.log(`   Credit Balance: $${result.summary.finalCreditBalance}`);
+    
+    return result;
   }
 
   /**
@@ -373,6 +717,12 @@ export class UnifiedPaymentWrapper {
       // Calculate due date
       const { startDate } = getFiscalYearBounds(year, config.fiscalYearStartMonth || 1);
       const dueDate = parseDate(startDate);
+      
+      // Validate dueDate before using it
+      if (isNaN(dueDate.getTime())) {
+        throw new Error(`Invalid dueDate calculated for fiscal year ${year}, month ${fiscalMonth}. startDate: ${startDate}`);
+      }
+      
       dueDate.setMonth(dueDate.getMonth() + fiscalMonth);
       
       const paidAmount = payment?.amount || 0;
@@ -408,7 +758,10 @@ export class UnifiedPaymentWrapper {
         paid: isPaid,
         dueDate: dueDate.toISOString(),
         billDate: dueDate.toISOString(),
-        paidDate: payment?.date ? new Date(payment.date).toISOString() : null,
+        paidDate: payment?.date ? (() => {
+          const dateObj = new Date(payment.date);
+          return isNaN(dateObj.getTime()) ? null : dateObj.toISOString();
+        })() : null,
         _hoaMetadata: {
           monthIndex: monthIndex,
           month: month,
@@ -699,7 +1052,7 @@ export class UnifiedPaymentWrapper {
       },
       credit: {
         used: distribution.creditUsed || 0,
-        added: distribution.overpayment || 0,
+        added: distribution.netCreditAdded > 0 ? distribution.netCreditAdded : 0,  // Only positive values
         final: distribution.newCreditBalance || 0
       },
       summary: {
@@ -765,6 +1118,131 @@ export class UnifiedPaymentWrapper {
     console.log(`   Water: ${result.water.billsPaid.length} bills, Total: $${result.water.totalPaid}`);
     
     return result;
+  }
+
+  /**
+   * Get month name for allocation display
+   * 
+   * @private
+   * @param {number} month - Month number (1-12)
+   * @param {number} year - Year
+   * @returns {string} Month name with year (e.g., "October 2025")
+   */
+  _getMonthName(month, year) {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${monthNames[month - 1]} ${year}`;
+  }
+
+  /**
+   * Generate consolidated transaction notes
+   * 
+   * Format: "HOA: Jan - Feb 2026. Water: Jul - Oct 2026. Credit: +$200"
+   * 
+   * @private
+   * @param {object} preview - Preview data from unified payment
+   * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12)
+   * @returns {string} Consolidated notes string
+   */
+  _generateConsolidatedNotes(preview, fiscalYearStartMonth = 1) {
+    const parts = [];
+    
+    // Month names array
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    // Helper to get calendar month name from fiscal period
+    const getPeriodMonthName = (period, fiscalStart) => {
+      // Remove any module prefix (e.g., "hoa:2026-00" or "water:2026-00")
+      const cleanPeriod = period.includes(':') ? period.split(':')[1] : period;
+      
+      // Period format: "2026-00" where 00 is fiscal month index (0-11)
+      const [year, fiscalMonthStr] = cleanPeriod.split('-');
+      const fiscalMonth = parseInt(fiscalMonthStr);
+      
+      // Convert fiscal month index to calendar month (0-11)
+      let calendarMonth = (fiscalStart - 1 + fiscalMonth) % 12;
+      
+      return { monthName: monthNames[calendarMonth], year };
+    };
+    
+    // Helper to format month range
+    const formatMonthRange = (months, year) => {
+      if (months.length === 1) {
+        return `${months[0]} ${year}`;
+      }
+      return `${months[0]} - ${months[months.length - 1]} ${year}`;
+    };
+    
+    // HOA bills paid
+    if (preview.hoa && preview.hoa.billsPaid && preview.hoa.billsPaid.length > 0) {
+      const hoaMonths = preview.hoa.billsPaid
+        .map(bill => getPeriodMonthName(bill.billPeriod, fiscalYearStartMonth))
+        .sort((a, b) => {
+          // Sort by year, then by month order in array
+          if (a.year !== b.year) return parseInt(a.year) - parseInt(b.year);
+          return monthNames.indexOf(a.monthName) - monthNames.indexOf(b.monthName);
+        });
+      
+      // Group by year
+      const yearGroups = {};
+      hoaMonths.forEach(({ monthName, year }) => {
+        if (!yearGroups[year]) yearGroups[year] = [];
+        yearGroups[year].push(monthName);
+      });
+      
+      // Format as range: "Jan - Feb 2026"
+      const hoaParts = Object.entries(yearGroups).map(([year, months]) => {
+        return formatMonthRange(months, year);
+      });
+      
+      parts.push(`HOA: ${hoaParts.join('; ')}`);
+    }
+    
+    // Water bills paid
+    if (preview.water && preview.water.billsPaid && preview.water.billsPaid.length > 0) {
+      const waterMonths = preview.water.billsPaid
+        .map(bill => getPeriodMonthName(bill.billPeriod, fiscalYearStartMonth))
+        .sort((a, b) => {
+          // Sort by year, then by month order in array
+          if (a.year !== b.year) return parseInt(a.year) - parseInt(b.year);
+          return monthNames.indexOf(a.monthName) - monthNames.indexOf(b.monthName);
+        });
+      
+      // Group by year
+      const yearGroups = {};
+      waterMonths.forEach(({ monthName, year }) => {
+        if (!yearGroups[year]) yearGroups[year] = [];
+        yearGroups[year].push(monthName);
+      });
+      
+      // Format as range: "Jul - Oct 2026"
+      const waterParts = Object.entries(yearGroups).map(([year, months]) => {
+        return formatMonthRange(months, year);
+      });
+      
+      parts.push(`Water: ${waterParts.join('; ')}`);
+    }
+    
+    // Credit balance change
+    if (preview.credit && (preview.credit.used > 0 || preview.credit.added > 0)) {
+      const netChange = preview.credit.added - preview.credit.used;
+      if (netChange !== 0) {
+        const sign = netChange > 0 ? '+' : '';
+        parts.push(`Credit: ${sign}$${netChange.toFixed(2)}`);
+      }
+    }
+    
+    // If no parts, return generic message
+    if (parts.length === 0) {
+      return 'Unified payment';
+    }
+    
+    return parts.join('. ');
   }
 
   /**
