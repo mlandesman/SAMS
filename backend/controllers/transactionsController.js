@@ -793,10 +793,11 @@ async function deleteTransaction(clientId, txnId) {
     
     // Check for HOA allocations
     const hasHOAAllocations = originalData.allocations?.some(alloc => 
-      alloc.categoryId === 'hoa_dues' ||
+      alloc.categoryId === 'hoa-dues' || // Firestore uses hyphens
+      alloc.categoryId === 'hoa_dues' || // Legacy/backward compatibility
       alloc.categoryName === 'HOA Dues' ||
       alloc.categoryName === 'HOA Penalties' ||
-      alloc.type === 'hoa_payment' ||
+      alloc.type === 'hoa_month' || // Unified payment system
       alloc.type === 'hoa_penalty' ||
       alloc.metadata?.processingStrategy === 'hoa_dues'
     ) || false;
@@ -814,8 +815,8 @@ async function deleteTransaction(clientId, txnId) {
     
     // Check for Water allocations
     const hasWaterAllocations = originalData.allocations?.some(alloc => 
-      alloc.categoryId === 'water_bills' || 
-      alloc.categoryId === 'water-consumption' ||
+      alloc.categoryId === 'water-consumption' || // Firestore uses hyphens
+      alloc.categoryId === 'water_bills' || // Legacy/backward compatibility
       alloc.categoryName === 'Water Consumption' ||
       alloc.categoryName === 'Water Penalties' ||
       alloc.type === 'water_bill' ||

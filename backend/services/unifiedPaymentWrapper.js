@@ -352,7 +352,7 @@ export class UnifiedPaymentWrapper {
             targetName: this._getMonthName(month.monthIndex, fiscalYear),
             amount: month.basePaid, // In pesos - createTransaction will convert to centavos
             categoryName: 'HOA Dues',
-            categoryId: 'hoa_dues',
+            categoryId: 'hoa-dues',
             data: {
               unitId: unitId,
               month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
@@ -371,7 +371,7 @@ export class UnifiedPaymentWrapper {
             targetName: this._getMonthName(month.monthIndex, fiscalYear),
             amount: month.penaltyPaid, // In pesos - createTransaction will convert to centavos
             categoryName: 'HOA Penalties',
-            categoryId: 'hoa_penalties',
+            categoryId: 'hoa-penalties',
             data: {
               unitId: unitId,
               month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
@@ -413,7 +413,7 @@ export class UnifiedPaymentWrapper {
             targetName: `Water Bill ${bill.billPeriod}`,
             amount: bill.penaltyPaid, // In pesos - createTransaction will convert to centavos
             categoryName: 'Water Penalties',
-            categoryId: 'water_penalties',
+            categoryId: 'water-penalties',
             data: {
               unitId: unitId,
               billPeriod: bill.billPeriod
