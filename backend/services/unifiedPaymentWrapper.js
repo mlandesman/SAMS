@@ -526,27 +526,39 @@ export class UnifiedPaymentWrapper {
     if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
       console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA months in Firestore...`);
       
-      // Build months data from preview (already calculated)
-      const monthsData = preview.hoa.monthsAffected.map(month => ({
-        month: month.month,
-        basePaid: pesosToCentavos(month.basePaid), // Convert to centavos
-        penaltyPaid: pesosToCentavos(month.penaltyPaid), // Convert to centavos
-        notes: comprehensiveNotesWithSeq // Add comprehensive notes to each month
-      }));
+      // Group months by fiscal year since we might have bills from multiple years
+      const monthsByYear = {};
+      preview.hoa.monthsAffected.forEach(month => {
+        // Extract year from billPeriod (e.g., "2024-09" -> 2024)
+        const year = parseInt(month.billPeriod.split('-')[0]);
+        if (!monthsByYear[year]) {
+          monthsByYear[year] = [];
+        }
+        monthsByYear[year].push({
+          month: month.month,
+          basePaid: pesosToCentavos(month.basePaid), // Convert to centavos
+          penaltyPaid: pesosToCentavos(month.penaltyPaid), // Convert to centavos
+          notes: comprehensiveNotesWithSeq // Add comprehensive notes to each month
+        });
+      });
       
-      // Call lightweight Firestore update function
-      await updateHOADuesWithPayment(
-        clientId,
-        unitId,
-        fiscalYear,
-        monthsData,
-        transactionId,
-        paymentDate,
-        paymentMethod,
-        reference,
-        userId,
-        preview.credit // {final, used, added}
-      );
+      // Update each year's document separately
+      for (const [year, monthsData] of Object.entries(monthsByYear)) {
+        console.log(`      📅 Updating ${monthsData.length} months for year ${year}...`);
+        
+        await updateHOADuesWithPayment(
+          clientId,
+          unitId,
+          year, // Use the specific year for these bills
+          monthsData,
+          transactionId,
+          paymentDate,
+          paymentMethod,
+          reference,
+          userId,
+          preview.credit // {final, used, added}
+        );
+      }
       
       console.log(`      ✅ HOA payments updated in Firestore`);
     }
@@ -692,8 +704,64 @@ export class UnifiedPaymentWrapper {
       // Filter to unpaid bills only
       const unpaidBills = billsWithPenalties.filter(b => b.status !== 'paid');
       
+      // Check if month 0 is unpaid - if so, scan backward into prior year
+      const month0Unpaid = unpaidBills.find(bill => 
+        bill._hoaMetadata?.monthIndex === 0
+      );
+      
+      let allUnpaidBills = [...unpaidBills];
+      
+      if (month0Unpaid) {
+        console.log(`   📅 [HOA] Month 0 is unpaid, scanning prior year ${fiscalYear - 1}`);
+        
+        // Load prior year HOA dues document
+        const priorYear = fiscalYear - 1;
+        const priorDuesRef = this.db.collection('clients').doc(clientId)
+          .collection('units').doc(unitId)
+          .collection('dues').doc(priorYear.toString());
+        
+        const priorDuesSnap = await priorDuesRef.get();
+        
+        if (priorDuesSnap.exists) {
+          const priorDuesDoc = priorDuesSnap.data();
+          
+          // Convert prior year dues to bills
+          const priorBills = this._convertHOADuesToBills(priorDuesDoc, clientId, unitId, priorYear, config);
+          const priorBillsWithPenalties = this._calculateHOAPenaltiesInMemory(priorBills, calculationDate, config);
+          
+          // Scan backward from month 11 to 0
+          const priorUnpaidBills = [];
+          for (let monthIndex = 11; monthIndex >= 0; monthIndex--) {
+            const bill = priorBillsWithPenalties.find(b => b._hoaMetadata?.monthIndex === monthIndex);
+            
+            if (!bill) continue;
+            
+            // Stop at first paid bill (status === 'paid' && paidAmount > 0)
+            if (bill.status === 'paid' && bill.paidAmount > 0) {
+              console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
+              break;
+            }
+            
+            // Add unpaid bills to collection
+            if (bill.status === 'unpaid') {
+              priorUnpaidBills.unshift(bill); // Add to beginning to maintain chronological order
+            }
+          }
+          
+          if (priorUnpaidBills.length > 0) {
+            console.log(`   📊 [HOA] Found ${priorUnpaidBills.length} unpaid bills from prior year ${priorYear}`);
+            // Add prior year bills to the beginning of the array (they have higher priority)
+            allUnpaidBills = [...priorUnpaidBills, ...allUnpaidBills];
+          } else {
+            console.log(`   ℹ️  [HOA] No additional unpaid bills found in prior year ${priorYear}`);
+          }
+        } else {
+          console.log(`   ℹ️  [HOA] No prior year dues document found for ${unitId}/${priorYear}`);
+        }
+      }
+      
       // Enhance with unified metadata
-      const enhancedBills = unpaidBills.map(bill => ({
+      const enhancedBills = allUnpaidBills.map(bill => ({
         ...bill,
         _metadata: {
           moduleType: 'hoa',
