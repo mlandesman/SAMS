@@ -433,6 +433,23 @@ async function createTransaction(clientId, data) {
         const singleAllocation = normalizedData.allocations[0];
         normalizedData.categoryName = singleAllocation.categoryName;
         normalizedData.categoryId = singleAllocation.categoryId;
+        
+        // Preserve year and month information in metadata for delete/reversal
+        if (singleAllocation.data && normalizedData.metadata) {
+          if (singleAllocation.data.year) {
+            normalizedData.metadata.year = singleAllocation.data.year;
+            console.log(`📅 Preserving year in metadata: ${singleAllocation.data.year}`);
+          }
+          if (singleAllocation.data.month !== undefined) {
+            normalizedData.metadata.hoaMonthsPaid = [singleAllocation.data.month];
+            console.log(`📅 Preserving month in metadata: ${singleAllocation.data.month}`);
+          }
+          if (singleAllocation.data.unitId) {
+            normalizedData.metadata.unitId = singleAllocation.data.unitId;
+            console.log(`📅 Preserving unitId in metadata: ${singleAllocation.data.unitId}`);
+          }
+        }
+        
         // Remove allocations array for single transactions
         delete normalizedData.allocations;
         console.log(`✅ Single allocation converted to regular transaction: ${normalizedData.categoryName}`);
@@ -802,8 +819,15 @@ async function deleteTransaction(clientId, txnId) {
     const isLegacyHOATransaction = originalData.category === 'HOA Dues' || 
                                    originalData.metadata?.type === 'hoa_dues';
     
+    // Single allocation HOA detection (from unified payment enhancement)
+    const isSingleAllocationHOA = originalData.categoryId === 'hoa_dues' ||
+                                  originalData.categoryName === 'HOA Dues';
+    
+    // Metadata-based HOA detection (unified payment system)
+    const hasHOAMetadata = originalData.metadata?.hoaBillsPaid > 0;
+    
     // Combined HOA detection
-    const hasHOAData = hasHOAAllocations || isLegacyHOATransaction;
+    const hasHOAData = hasHOAAllocations || isLegacyHOATransaction || isSingleAllocationHOA || hasHOAMetadata;
     
     // Check for Water allocations
     const hasWaterAllocations = originalData.allocations?.some(alloc => 
@@ -824,8 +848,11 @@ async function deleteTransaction(clientId, txnId) {
                                      originalData.categoryName === 'Water Consumption' ||
                                      originalData.category === 'water_bills';
     
+    // Metadata-based Water detection (unified payment system)
+    const hasWaterMetadata = originalData.metadata?.waterBillsPaid > 0;
+    
     // Combined Water detection
-    const hasWaterData = hasWaterAllocations || isLegacyWaterTransaction;
+    const hasWaterData = hasWaterAllocations || isLegacyWaterTransaction || hasWaterMetadata;
     
     // Determine transaction type
     const isUnifiedTransaction = hasHOAData && hasWaterData;
@@ -1125,7 +1152,8 @@ async function deleteTransaction(clientId, txnId) {
           duesDoc.ref, 
           duesData, 
           originalData, 
-          txnId
+          txnId,
+          cleanupUnitId
         );
         hoaCleanupExecuted = true;
         console.log(`✅ [BACKEND] HOA Dues cleanup prepared for transaction ${txnId}`, hoaCleanupDetails);
@@ -1332,6 +1360,43 @@ function getHOAMonthsFromTransaction(transactionData) {
     }
   }
   
+  // Check for single allocation HOA transaction (from unified payment enhancement)
+  if ((transactionData.categoryId === 'hoa_dues' || transactionData.categoryName === 'HOA Dues') &&
+      transactionData.metadata?.hoaBillsPaid > 0) {
+    // For single allocation, check if we have the specific months in metadata
+    const year = transactionData.metadata.year;
+    const unitId = transactionData.unitId || transactionData.metadata.unitId;
+    const monthsPaid = transactionData.metadata.hoaMonthsPaid;
+    
+    if (monthsPaid && monthsPaid.length > 0 && year && unitId) {
+      // We have the exact months that were paid
+      return monthsPaid.map(month => ({
+        month: month,
+        unitId: unitId,
+        year: year,
+        amount: transactionData.amount / monthsPaid.length // Divide amount equally if multiple months
+      }));
+    } else if (transactionData.metadata.hoaBillsPaid === 1 && year && unitId) {
+      // Fallback: Single month payment without specific month info
+      // Try to determine from payment date
+      const paymentDate = transactionData.date;
+      const paymentMonth = paymentDate ? new Date(paymentDate).getMonth() : new Date().getMonth();
+      
+      // Convert calendar month (0-11) to fiscal month (0-11 where 0=July)
+      // Calendar: Jan=0, Feb=1, ..., Jul=6, Aug=7, ..., Dec=11
+      // Fiscal:   Jan=6, Feb=7, ..., Jul=0, Aug=1, ..., Dec=5
+      const fiscalMonth = (paymentMonth + 6) % 12;
+      
+      return [{
+        month: fiscalMonth,
+        unitId: unitId,
+        year: year,
+        amount: transactionData.amount
+      }];
+    }
+    // TODO: Handle multiple months paid without specific month info
+  }
+  
   // Fallback to duesDistribution (legacy format)
   if (transactionData.duesDistribution && transactionData.duesDistribution.length > 0) {
     return transactionData.duesDistribution.map(dues => ({
@@ -1347,7 +1412,7 @@ function getHOAMonthsFromTransaction(transactionData) {
 }
 
 // HOA Dues cleanup logic for transaction deletion (write-only operations)
-function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId) {
+function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId, unitId) {
   // 🧹 CREDIT BALANCE DEBUG: Add entry point logging
   console.log('🧹 CLEANUP: Starting HOA dues cleanup write:', {
     transactionId: txnId,
@@ -1391,9 +1456,8 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   const transactionEntries = creditHistory.filter(entry => entry.transactionId === txnId);
   
   // 💰 BACKEND CREDIT: Credit balance processing
-  const targetUnitId = originalData.metadata?.unitId || originalData.metadata?.id;
   console.log('💰 BACKEND CREDIT: Credit balance processing:', {
-    unitId: targetUnitId,
+    unitId: unitId,
     creditHistoryLength: duesData.creditBalanceHistory?.length || 0,
     entriesToReverse: transactionEntries.length,
     currentCreditBalance: duesData.creditBalance,
@@ -1498,7 +1562,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   
   // 📝 CREDIT BALANCE DEBUG: Add detailed update operations logging
   console.log('📝 UPDATE: Applying credit balance changes:', {
-    unitId: originalData.metadata?.unitId || originalData.metadata?.id,
+    unitId: unitId,
     balanceBefore: currentCreditBalance,
     balanceAfter: newCreditBalance,
     creditBalanceReversal: creditBalanceReversal,
@@ -1527,7 +1591,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   // 🎯 BACKEND CLEANUP COMPLETE: Final summary
   console.log('🎯 BACKEND CLEANUP COMPLETE: HOA cleanup summary:', {
     transactionId: txnId,
-    unitId: originalData.metadata?.unitId || originalData.metadata?.id,
+    unitId: unitId,
     year: originalData.metadata?.year,
     creditBalanceReversed: `${creditBalanceReversal} centavos (${creditBalanceReversal / 100} pesos)`,
     newCreditBalance: `${newCreditBalance} centavos (${newCreditBalance / 100} pesos)`,
