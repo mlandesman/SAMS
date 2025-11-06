@@ -427,32 +427,18 @@ async function createTransaction(clientId, data) {
       }
       
       // Check if this is truly a split transaction (more than 1 allocation)
-      // If only 1 allocation, convert to a regular transaction
+      // If only 1 allocation, use that allocation's category but KEEP the allocations array
       if (normalizedData.allocations.length === 1) {
-        // Single allocation - convert to regular transaction
+        // Single allocation - use the allocation's category (frontend won't show split UI)
         const singleAllocation = normalizedData.allocations[0];
         normalizedData.categoryName = singleAllocation.categoryName;
         normalizedData.categoryId = singleAllocation.categoryId;
         
-        // Preserve year and month information in metadata for delete/reversal
-        if (singleAllocation.data && normalizedData.metadata) {
-          if (singleAllocation.data.year) {
-            normalizedData.metadata.year = singleAllocation.data.year;
-            console.log(`📅 Preserving year in metadata: ${singleAllocation.data.year}`);
-          }
-          if (singleAllocation.data.month !== undefined) {
-            normalizedData.metadata.hoaMonthsPaid = [singleAllocation.data.month];
-            console.log(`📅 Preserving month in metadata: ${singleAllocation.data.month}`);
-          }
-          if (singleAllocation.data.unitId) {
-            normalizedData.metadata.unitId = singleAllocation.data.unitId;
-            console.log(`📅 Preserving unitId in metadata: ${singleAllocation.data.unitId}`);
-          }
-        }
+        // Keep allocations array - this simplifies delete/reversal logic
+        // Frontend requires BOTH categoryName === "-Split-" AND allocations.length > 0 to show split UI
+        // So this will display as a regular transaction in the list
         
-        // Remove allocations array for single transactions
-        delete normalizedData.allocations;
-        console.log(`✅ Single allocation converted to regular transaction: ${normalizedData.categoryName}`);
+        console.log(`✅ Single allocation transaction: ${normalizedData.categoryName} (allocations preserved for delete/reversal)`);
       } else {
         // Multiple allocations - keep as split transaction
         normalizedData.categoryName = "-Split-";
@@ -819,15 +805,12 @@ async function deleteTransaction(clientId, txnId) {
     const isLegacyHOATransaction = originalData.category === 'HOA Dues' || 
                                    originalData.metadata?.type === 'hoa_dues';
     
-    // Single allocation HOA detection (from unified payment enhancement)
-    const isSingleAllocationHOA = originalData.categoryId === 'hoa_dues' ||
-                                  originalData.categoryName === 'HOA Dues';
-    
     // Metadata-based HOA detection (unified payment system)
+    // This catches transactions that have HOA allocations but may use actual category instead of "-Split-"
     const hasHOAMetadata = originalData.metadata?.hoaBillsPaid > 0;
     
     // Combined HOA detection
-    const hasHOAData = hasHOAAllocations || isLegacyHOATransaction || isSingleAllocationHOA || hasHOAMetadata;
+    const hasHOAData = hasHOAAllocations || isLegacyHOATransaction || hasHOAMetadata;
     
     // Check for Water allocations
     const hasWaterAllocations = originalData.allocations?.some(alloc => 
@@ -1358,43 +1341,6 @@ function getHOAMonthsFromTransaction(transactionData) {
       
       return Array.from(monthsMap.values());
     }
-  }
-  
-  // Check for single allocation HOA transaction (from unified payment enhancement)
-  if ((transactionData.categoryId === 'hoa_dues' || transactionData.categoryName === 'HOA Dues') &&
-      transactionData.metadata?.hoaBillsPaid > 0) {
-    // For single allocation, check if we have the specific months in metadata
-    const year = transactionData.metadata.year;
-    const unitId = transactionData.unitId || transactionData.metadata.unitId;
-    const monthsPaid = transactionData.metadata.hoaMonthsPaid;
-    
-    if (monthsPaid && monthsPaid.length > 0 && year && unitId) {
-      // We have the exact months that were paid
-      return monthsPaid.map(month => ({
-        month: month,
-        unitId: unitId,
-        year: year,
-        amount: transactionData.amount / monthsPaid.length // Divide amount equally if multiple months
-      }));
-    } else if (transactionData.metadata.hoaBillsPaid === 1 && year && unitId) {
-      // Fallback: Single month payment without specific month info
-      // Try to determine from payment date
-      const paymentDate = transactionData.date;
-      const paymentMonth = paymentDate ? new Date(paymentDate).getMonth() : new Date().getMonth();
-      
-      // Convert calendar month (0-11) to fiscal month (0-11 where 0=July)
-      // Calendar: Jan=0, Feb=1, ..., Jul=6, Aug=7, ..., Dec=11
-      // Fiscal:   Jan=6, Feb=7, ..., Jul=0, Aug=1, ..., Dec=5
-      const fiscalMonth = (paymentMonth + 6) % 12;
-      
-      return [{
-        month: fiscalMonth,
-        unitId: unitId,
-        year: year,
-        amount: transactionData.amount
-      }];
-    }
-    // TODO: Handle multiple months paid without specific month info
   }
   
   // Fallback to duesDistribution (legacy format)
