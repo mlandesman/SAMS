@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -33,6 +34,7 @@ import ClientSwitcher from '../components/ClientSwitcher';
 import './DashboardView.css';
 
 function DashboardView() {
+  const navigate = useNavigate();
   const { currentUser, samsUser } = useAuth();
   const { selectedClient, menuConfig } = useClient();
   const { 
@@ -181,19 +183,28 @@ function DashboardView() {
 
         {/* HOA Dues Status Card */}
         <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%',
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(10px)',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
-              }
-            }}
+          <Tooltip
+            title="Click to receive payment"
+            arrow
+            placement="top"
           >
-            <CardContent>
+            <Card 
+              sx={{ 
+                height: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(10px)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+                }
+              }}
+              onClick={() => {
+                navigate('/transactions', { state: { openUnifiedPayment: true } });
+              }}
+            >
+              <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <HomeIcon sx={{ color: '#059669', mr: 1, fontSize: 28 }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>HOA Dues Status</Typography>
@@ -245,6 +256,7 @@ function DashboardView() {
               )}
             </CardContent>
           </Card>
+          </Tooltip>
         </Grid>
 
         {/* HOA Dues Past Due Card */}

@@ -18,6 +18,7 @@ import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import creditRoutes from './routes/creditRoutes.js'; // Import credit balance routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
+import paymentRoutes from './routes/paymentRoutes.js'; // Import unified payment routes
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // New comment for testing
@@ -128,6 +129,10 @@ app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues und
 console.log('Mounting credit balance domain routes');
 app.use('/credit', authenticateUserWithProfile, creditRoutes); // Credit balance operations (domain-independent)
 
+// UNIFIED PAYMENT DOMAIN (cross-module payments with authentication)
+console.log('Mounting unified payment domain routes');
+app.use('/payments', paymentRoutes); // Unified payment endpoints (authentication handled in routes)
+
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {
   res.json({
@@ -150,6 +155,7 @@ app.get('/', (req, res) => {
       '/comm/*',       // Communications & email
       '/admin/*',      // Admin functions (users, clients, onboarding, management)
       '/hoadues/*',    // HOA dues & assessments
+      '/payments/*',   // Unified payments (cross-module)
     ],
     legacy: [
       '/api/clients/*',          // LEGACY: Being migrated to domain-specific

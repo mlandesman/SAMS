@@ -36,11 +36,13 @@ import {
   faFilter,
   faPrint,
   faCheckDouble,
-  faTrash
+  faTrash,
+  faHandHoldingDollar
 } from '@fortawesome/free-solid-svg-icons';
 import '../layout/ActionBar.css';
 import './TransactionsDetail.css';
 import { isSuperAdmin } from '../utils/userRoles';
+import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
@@ -97,6 +99,10 @@ function TransactionsView() {
   // Success modal state (survives balance recalculation remounts)
   const [showExpenseSuccessModal, setShowExpenseSuccessModal] = useState(false);
   const [expenseSuccessData, setExpenseSuccessData] = useState(null);
+  
+  // Unified payment modal state
+  const [showUnifiedPaymentModal, setShowUnifiedPaymentModal] = useState(false);
+  const [selectedUnitForPayment, setSelectedUnitForPayment] = useState(null);
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
@@ -1033,10 +1039,51 @@ function TransactionsView() {
     // Close all modals
     handleAction('clear');
   };
+  
+  // Unified payment modal handlers
+  const handleOpenUnifiedPaymentModal = (unitId = null) => {
+    console.log('🟢 [TransactionsView] Opening Unified Payment Modal:', { unitId, selectedClient: selectedClient?.id });
+    setSelectedUnitForPayment(unitId);
+    setShowUnifiedPaymentModal(true);
+  };
+  
+  const handleCloseUnifiedPaymentModal = () => {
+    setShowUnifiedPaymentModal(false);
+    setSelectedUnitForPayment(null);
+  };
+  
+  const handleUnifiedPaymentSuccess = () => {
+    console.log('✅ Unified payment recorded successfully');
+    // Refresh transaction list
+    setIsRefreshing(true);
+    // Clear any HOA/Water caches
+    // TODO: Add cache clearing for HOA and Water modules
+  };
+  
+  // Handle navigation state for opening unified payment from other views
+  useEffect(() => {
+    if (location.state?.openUnifiedPayment) {
+      setShowUnifiedPaymentModal(true);
+      setSelectedUnitForPayment(location.state.unitId);
+      // Clear state to prevent reopening on refresh
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   return (
     <div className="view-container">
       <ActivityActionBar>
+        {/* Only SuperAdmin can receive payments */}
+        {isSuperAdmin(samsUser) && (
+          <button 
+            className="action-item" 
+            onClick={() => handleOpenUnifiedPaymentModal()}
+          >
+            <FontAwesomeIcon icon={faHandHoldingDollar} />
+            <span>Receive Payment</span>
+          </button>
+        )}
+        
         {/* Only SuperAdmin can add transactions */}
         {isSuperAdmin(samsUser) && (
           <button className="action-item" onClick={() => handleAction('add')}>
@@ -1572,6 +1619,23 @@ function TransactionsView() {
           } : null}
           existingAllocations={selectedTransaction?.allocations || []}
         />
+      )}
+
+      {/* Unified Payment Modal */}
+      {showUnifiedPaymentModal && (
+        <>
+          {console.log('🟢 [TransactionsView] Rendering UnifiedPaymentModal:', { 
+            isOpen: showUnifiedPaymentModal, 
+            unitId: selectedUnitForPayment,
+            clientId: selectedClient?.id 
+          })}
+          <UnifiedPaymentModal
+            isOpen={showUnifiedPaymentModal}
+            onClose={handleCloseUnifiedPaymentModal}
+            unitId={selectedUnitForPayment}
+            onSuccess={handleUnifiedPaymentSuccess}
+          />
+        </>
       )}
 
       {/* Global Notification Modal - renders at root level to avoid z-index issues */}

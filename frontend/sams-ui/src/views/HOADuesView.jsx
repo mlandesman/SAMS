@@ -21,6 +21,7 @@ import {
   isFiscalYear
 } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
+import { formatAsMXN } from '../utils/hoaDuesUtils';
 import debug from '../utils/debug';
 import './HOADuesView.css';
 
@@ -141,10 +142,25 @@ function HOADuesView() {
         alert('No Matching Transaction Record');
       }
     } else {
-      // Not paid - open payment modal
-      setSelectedUnitId(unitId);
-      setSelectedMonth(fiscalMonth);
-      setShowPaymentModal(true);
+      // Not paid - navigate to Transactions and open unified payment modal
+      console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
+      navigate('/transactions', { 
+        state: { 
+          openUnifiedPayment: true, 
+          unitId,
+          monthIndex: fiscalMonth
+        }
+      });
+      
+      // Update sidebar activity
+      try {
+        const event = new CustomEvent('activityChange', { 
+          detail: { activity: 'transactions' } 
+        });
+        window.dispatchEvent(event);
+      } catch (error) {
+        console.error('Error dispatching activity change event:', error);
+      }
     }
   };
   
@@ -418,6 +434,180 @@ function HOADuesView() {
     return new Intl.NumberFormat('en-US').format(Math.round(num));
   };
 
+  // Format credit history for tooltip display
+  const formatCreditHistoryTooltip = (creditHistory, currentBalance) => {
+    let tooltip = `Credit Balance: ${formatAsMXN(currentBalance || 0)}`;
+    
+    if (!creditHistory || creditHistory.length === 0) {
+      return tooltip;
+    }
+    
+    // Show last 5 entries, most recent first
+    const recentHistory = creditHistory
+      .slice(-5)
+      .reverse();
+    
+    if (recentHistory.length > 0) {
+      tooltip += '\n\nRecent History:';
+      
+      recentHistory.forEach(entry => {
+        // Handle various timestamp formats
+        let dateStr = 'Unknown Date';
+        if (entry.timestamp) {
+          // Check for nested display object (backend formatted structure)
+          if (entry.timestamp.display && typeof entry.timestamp.display === 'object') {
+            // Backend returns formatted timestamp with nested display object
+            if (entry.timestamp.display.display && typeof entry.timestamp.display.display === 'string') {
+              dateStr = entry.timestamp.display.display;
+            } else if (entry.timestamp.display.displayFull && typeof entry.timestamp.display.displayFull === 'string') {
+              dateStr = entry.timestamp.display.displayFull;
+            } else if (entry.timestamp.display.iso && typeof entry.timestamp.display.iso === 'string') {
+              try {
+                const date = new Date(entry.timestamp.display.iso);
+                dateStr = date.toLocaleDateString();
+              } catch (e) {
+                dateStr = 'Invalid Date';
+              }
+            }
+          } else if (entry.timestamp.displayFull && typeof entry.timestamp.displayFull === 'object') {
+            // Check displayFull object
+            if (entry.timestamp.displayFull.display && typeof entry.timestamp.displayFull.display === 'string') {
+              dateStr = entry.timestamp.displayFull.display;
+            } else if (entry.timestamp.displayFull.iso && typeof entry.timestamp.displayFull.iso === 'string') {
+              try {
+                const date = new Date(entry.timestamp.displayFull.iso);
+                dateStr = date.toLocaleDateString();
+              } catch (e) {
+                dateStr = 'Invalid Date';
+              }
+            }
+          } else if (typeof entry.timestamp.display === 'string') {
+            // Direct string display
+            dateStr = entry.timestamp.display;
+          } else if (typeof entry.timestamp.displayFull === 'string') {
+            // Direct string displayFull
+            dateStr = entry.timestamp.displayFull;
+          } else if (entry.timestamp.toDate) {
+            // Firestore timestamp object
+            try {
+              const date = entry.timestamp.toDate();
+              dateStr = date.toLocaleDateString();
+            } catch (e) {
+              dateStr = 'Invalid Date';
+            }
+          } else if (entry.timestamp._seconds) {
+            // Firestore timestamp as plain object
+            try {
+              const date = new Date(entry.timestamp._seconds * 1000);
+              dateStr = date.toLocaleDateString();
+            } catch (e) {
+              dateStr = 'Invalid Date';
+            }
+          } else if (typeof entry.timestamp === 'string') {
+            try {
+              dateStr = new Date(entry.timestamp).toLocaleDateString();
+            } catch (e) {
+              dateStr = entry.timestamp; // Use as-is if parsing fails
+            }
+          }
+        } else if (entry.date) {
+          try {
+            dateStr = new Date(entry.date).toLocaleDateString();
+          } catch (e) {
+            dateStr = 'Invalid Date';
+          }
+        }
+        
+        // Format the entry type (remove underscores, capitalize)
+        let typeLabel = String(entry.type || 'UNKNOWN');
+        
+        // Check if the type contains "[object Object]" corruption
+        if (typeLabel.includes('[object Object]')) {
+          // Try to extract meaningful part or use default
+          if (entry.description && typeof entry.description === 'string' && !entry.description.includes('[object Object]')) {
+            typeLabel = 'Credit Change';
+          } else {
+            typeLabel = 'Credit Change';
+          }
+        } else {
+          // Normal formatting
+          typeLabel = typeLabel
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+        }
+        
+        // Handle amount formatting (convert from centavos if needed)
+        let displayAmount = entry.amount || 0;
+        // If amount appears to be in centavos (large integer), convert to pesos
+        if (Number.isInteger(displayAmount) && Math.abs(displayAmount) > 100) {
+          displayAmount = displayAmount / 100;
+        }
+        const amount = formatAsMXN(displayAmount);
+        
+        // Build the history line
+        let historyLine = `${dateStr}: ${typeLabel} ${amount}`;
+        
+        // Add description if available (avoid showing [object Object])
+        if (entry.description) {
+          let descStr = typeof entry.description === 'string' 
+            ? entry.description 
+            : JSON.stringify(entry.description);
+          
+          // Clean up corrupted descriptions
+          if (descStr.includes('[object Object]')) {
+            // Try to extract meaningful information
+            if (descStr.includes('Transaction Deletion')) {
+              descStr = 'from Transaction Deletion';
+            } else if (descStr.includes('Credit')) {
+              descStr = 'Credit adjustment';
+            } else {
+              descStr = null; // Skip corrupted descriptions
+            }
+          }
+          
+          if (descStr && descStr !== '[object Object]' && descStr !== '{}') {
+            historyLine += ` - ${descStr}`;
+          }
+        }
+        
+        tooltip += `\n${historyLine}`;
+      });
+    }
+    
+    return tooltip;
+  };
+
+  // Format comprehensive payment notes for tooltip
+  const formatPaymentNotesTooltip = (paymentStatus, amount, paymentDate, transactionId) => {
+    if (!paymentStatus.notes || paymentStatus.notes.trim() === '') {
+      if (amount > 0) {
+        return `Payment: ${formatAsMXN(amount)}\nTransaction: ${transactionId || 'N/A'}`;
+      }
+      return '';
+    }
+    
+    // If notes already contain comprehensive info (from unified payment), return as-is
+    if (paymentStatus.notes.includes('HOA:') || paymentStatus.notes.includes('Water:')) {
+      return paymentStatus.notes;
+    }
+    
+    // Otherwise, format basic notes with payment info
+    let tooltip = `Posted: ${formatAsMXN(amount)}`;
+    if (paymentDate) {
+      tooltip += ` on ${paymentDate}`;
+    }
+    if (paymentStatus.notes) {
+      tooltip += `\n${paymentStatus.notes}`;
+    }
+    if (transactionId) {
+      tooltip += `\nTxnID: ${transactionId}`;
+    }
+    
+    return tooltip;
+  };
+
   return (
     <div className="hoa-dues-view">
       <ActivityActionBar>
@@ -505,24 +695,10 @@ function HOADuesView() {
                     className={`credit-cell ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''} ${(unitData.creditBalance || 0) < 0 ? 'negative-credit' : ''} ${hasCreditHistory ? 'has-credit-history' : ''} ${canEditCredit ? 'editable' : ''}`}
                     onClick={() => handlePaymentClick(unit.unitId, 'credit')}
                     title={(() => {
-                      // Generate tooltip from credit balance history array
-                      let tooltip = `Credit Balance: $${formatNumber((unitData.creditBalance || 0))}`;
+                      let tooltip = formatCreditHistoryTooltip(unitData.creditBalanceHistory, unitData.creditBalance);
                       
                       if (canEditCredit) {
                         tooltip += '\n\nClick to edit credit balance';
-                      }
-                      
-                      if (hasCreditHistory) {
-                        tooltip += '\n\nHistory:\n';
-                        unitData.creditBalanceHistory.forEach(entry => {
-                          // Handle Firestore timestamp objects
-                          const timestamp = entry.timestamp;
-                          const dateStr = timestamp?.display || timestamp?.displayFull || 'Unknown Date';
-                          const typeLabel = String(entry.type || 'UNKNOWN').replace(/_/g, ' ').toUpperCase();
-                          tooltip += `${typeLabel}: ${entry.amount} on ${dateStr}`;
-                          if (entry.description) tooltip += ` ${entry.description}`;
-                          tooltip += '\n';
-                        });
                       }
                       
                       return tooltip;
@@ -614,7 +790,7 @@ function HOADuesView() {
                                   key={`payment-${unit.unitId}-${fiscalMonth}`}
                                   className={`payment-cell ${getPaymentStatusClass(paymentStatus.status, fiscalMonth)} ${paymentStatus.transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
                                   onClick={() => handlePaymentClick(unit.unitId, fiscalMonth)}
-                                  title={hasNotes ? paymentStatus.notes : ''}
+                                  title={paymentStatus.amount > 0 ? formatPaymentNotesTooltip(paymentStatus, paymentStatus.amount, null, paymentStatus.transactionId) : ''}
                                 >
                                   {paymentStatus.amount > 0 ? (
                                     <span className="payment-amount">${formatNumber(paymentStatus.amount)}</span>
@@ -698,7 +874,7 @@ function HOADuesView() {
                         key={`payment-${unit.unitId}-${fiscalMonth}`}
                         className={`payment-cell ${getPaymentStatusClass(paymentStatus.status, fiscalMonth)} ${paymentStatus.transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
                         onClick={() => handlePaymentClick(unit.unitId, fiscalMonth)}
-                        title={hasNotes ? paymentStatus.notes : ''}
+                        title={paymentStatus.amount > 0 ? formatPaymentNotesTooltip(paymentStatus, paymentStatus.amount, null, paymentStatus.transactionId) : ''}
                       >
                         {paymentStatus.amount > 0 ? (
                           <span className="payment-amount">${formatNumber(paymentStatus.amount)}</span>

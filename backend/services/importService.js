@@ -1111,46 +1111,31 @@ export class ImportService {
         const unitData = duesData[unitId];
         
         try {
-          // Initialize year document for this unit
-          await initializeYearDocument(this.clientId, unitId, year);
+          // NOTE: initializeYearDocument() was intentionally disabled in Phase 4 refactor
+          // because it can't auto-initialize without scheduledAmount.
+          // Import has scheduledAmount from HOADues.json, so we create the document directly.
           
           const db = await this.getDb();
           const duesRef = db.collection('clients').doc(this.clientId)
             .collection('units').doc(unitId)
             .collection('dues').doc(year.toString());
           
+          // Prepare document data with scheduledAmount
+          const duesDocument = {
+            year: year,
+            scheduledAmount: unitData.scheduledAmount || 0, // From HOADues.json
+            payments: [],
+            creditBalance: unitData.creditBalance || 0,
+            creditBalanceHistory: []
+          };
+          
           // Process payments
           if (unitData.payments && unitData.payments.length > 0) {
             const paymentData = unitData.payments.map(payment => {
-              // Extract date from notes: "Posted: MXN 15,000.00 on Sat Dec 28 2024 13:56:50 GMT-0500"
-              let extractedDate = null;
-              if (payment.notes) {
-                const dateMatch = payment.notes.match(/Posted:.*?on\s+(.+?)\s+GMT/i);
-                if (dateMatch) {
-                  try {
-                    // Parse the date string "Sat Dec 28 2024 13:56:50" format
-                    const dateStr = dateMatch[1].trim();
-                    // Use DateTime's RFC2822 parser for this format
-                    const parsedDate = DateTime.fromRFC2822(dateStr, { zone: 'America/Cancun' });
-                    if (parsedDate.isValid) {
-                      extractedDate = parsedDate.toJSDate();
-                    } else {
-                      // Fallback: try HTTP format
-                      const httpDate = DateTime.fromHTTP(dateStr, { zone: 'America/Cancun' });
-                      if (httpDate.isValid) {
-                        extractedDate = httpDate.toJSDate();
-                      } else {
-                        extractedDate = null; // Invalid date
-                      }
-                    }
-                  } catch (e) {
-                    console.warn(`⚠️ Could not parse date from notes for unit ${unitId}: ${payment.notes}`);
-                  }
-                }
-              }
-              
               // Extract sequence reference from notes and look up transaction ID: "Seq: 25010"
               let reference = null;
+              let extractedDate = null;
+              
               if (payment.notes) {
                 const seqMatch = payment.notes.match(/Seq:\s*(\d+)/);
                 if (seqMatch) {
@@ -1159,9 +1144,42 @@ export class ImportService {
                   if (crossReference && crossReference.bySequence && crossReference.bySequence[sequenceNumber]) {
                     reference = crossReference.bySequence[sequenceNumber].transactionId;
                     console.log(`🔗 Payment reference: Seq ${sequenceNumber} → Transaction ${reference}`);
+                    
+                    // Extract date from transactionId: "2025-07-17_124221_397" → "2025-07-17"
+                    // This is more reliable than parsing the notes date format
+                    if (reference && reference.includes('_')) {
+                      const datePart = reference.split('_')[0]; // Get "2025-07-17"
+                      try {
+                        const parsedDate = DateTime.fromISO(datePart, { zone: 'America/Cancun' });
+                        if (parsedDate.isValid) {
+                          extractedDate = parsedDate.toJSDate();
+                          console.log(`📅 Extracted date from transactionId: ${datePart}`);
+                        }
+                      } catch (e) {
+                        console.warn(`⚠️ Could not parse date from transactionId ${reference}`);
+                      }
+                    }
                   } else {
                     console.warn(`⚠️ No CrossRef found for sequence ${sequenceNumber} in unit ${unitId}`);
                     reference = sequenceNumber; // Fallback to sequence number
+                  }
+                }
+              }
+              
+              // Fallback: Try to extract date from notes if transactionId parsing failed
+              if (!extractedDate && payment.notes) {
+                const dateMatch = payment.notes.match(/Posted:.*?on\s+(.+?)\s+GMT/i);
+                if (dateMatch) {
+                  try {
+                    // Try parsing as JavaScript Date string format "Thu Jul 17 2025 09:38:52"
+                    const dateStr = dateMatch[1].trim();
+                    const jsDate = new Date(dateStr);
+                    if (!isNaN(jsDate.getTime())) {
+                      extractedDate = jsDate;
+                      console.log(`📅 Parsed date from notes: ${dateStr}`);
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ Could not parse date from notes for unit ${unitId}: ${payment.notes}`);
                   }
                 }
               }
@@ -1180,11 +1198,10 @@ export class ImportService {
               };
             });
             
-            await duesRef.update({
-              payments: paymentData
-            });
+            // Add payments to the document
+            duesDocument.payments = paymentData;
             
-            console.log(`✅ Recorded ${paymentData.length} payments for unit ${unitId}`);
+            console.log(`✅ Preparing ${paymentData.length} payments for unit ${unitId}`);
           }
           
           // Process credit balance and build history
@@ -1312,13 +1329,14 @@ export class ImportService {
           const validatedCreditBalance = validateCentavos(finalCreditBalance, 'finalCreditBalance');
           const validatedScheduledAmount = validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount');
           
-          // Update dues document with scheduled amount, totals, and credit balance history
+          // Complete the dues document with all required fields
+          duesDocument.scheduledAmount = validatedScheduledAmount;
+          duesDocument.totalPaid = totalPaid;
+          duesDocument.creditBalanceHistory = creditBalanceHistory;
+          
+          // Write the complete dues document (use set with merge to handle existing docs)
           // NOTE: creditBalance is deprecated in dues document - use new structure instead
-          await duesRef.update({
-            scheduledAmount: validatedScheduledAmount,
-            totalPaid: totalPaid,
-            creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
-          });
+          await duesRef.set(duesDocument, { merge: true });
           
           // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances
           // This is the single source of truth for current credit balances
