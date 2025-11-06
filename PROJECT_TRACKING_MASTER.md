@@ -7,33 +7,49 @@
 
 ---
 
-## 🚨 CRITICAL ISSUES (November 5, 2025)
+## 🔄 ACTIVE DEVELOPMENT (November 6, 2025)
+
+### Phase 6: Fiscal Year Boundary Handling
+**Status**: 📋 **READY TO BEGIN** - Next Priority  
+**Priority**: HIGH - Required for multi-year prepayment  
+**Estimated Effort**: 12-16 hours (5 tasks)  
+**Documentation**: `SAMS-Docs/apm_session/PHASE_6_FISCAL_YEAR_BOUNDARIES.md`
+
+**Business Problem**: "All months paid" blocks prepayment when current fiscal year exhausted
+
+**Implementation Tasks**:
+1. **Task 6.1**: Auto-initialize next fiscal year (2-3 hrs)
+2. **Task 6.2**: Cross-fiscal-year payment allocation (3-4 hrs)
+3. **Task 6.3**: Prior-year debt resolution (2-3 hrs)
+4. **Task 6.4**: Year-end balance carryover (2-3 hrs)
+5. **Task 6.5**: Fiscal boundary testing (2-3 hrs)
+
+**Sequence**: Phase 6 → Phase 5 (Quarterly) for optimal flow
+
+---
+
+## 🟡 MEDIUM PRIORITY ISSUES
 
 ### Issue #39: Water Bills Import Creates Invalid Bills
-**Status**: 🔴 **OPEN** - Data Corruption on Import  
+**Status**: 🟡 **OPEN** - Medium Priority  
 **GitHub**: https://github.com/mlandesman/SAMS/issues/39  
-**Severity**: CRITICAL - Blocks Task 4 Testing  
+**Severity**: Medium - Has manual workaround  
 
 **Problem**:
 - Import creates water bill for 2025-11 with garbage data (85,000+ peso bills)
 - Should only use 2025-11 reading to calculate 2026-00 bill
-- Corrupts production data on EVERY import
 
-**Impact**:
-- Manual Firestore fixes required after each import
-- Blocks unified payment testing with realistic data
-- Affects all water bill clients (AVII confirmed)
-
-**Root Cause**: Import logic incorrectly creates bills for reading-only periods
+**Workaround**: Delete invalid record after import  
+**Timeline**: Fix before production, not blocking current development
 
 ---
 
-## 🔄 ACTIVE DEVELOPMENT (November 5, 2025)
+## ✅ RECENTLY COMPLETED (November 6, 2025)
 
-### 🆕 Unified Payment System - Cross-Module Payment Allocation
-**Status**: 🔄 **IN PROGRESS** - Tasks 1-4, 6-8 complete, Task 5 ready  
+### 🎉 Unified Payment System - MERGED TO MAIN
+**Status**: ✅ **COMPLETE** - Merged to main  
+**Duration**: November 2-6, 2025 (4 days, 35 hours)  
 **Priority**: CRITICAL - Solves manual Google Sheets payment allocation  
-**Progress**: ~30 hours completed of 35-40 hours (75-86%)  
 **Documentation**: `SAMS-Docs/apm_session/Implementation_Plan.md`
 
 **Business Problem**:
