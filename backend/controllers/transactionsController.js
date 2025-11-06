@@ -426,11 +426,22 @@ async function createTransaction(clientId, data) {
         }
       }
       
-      // Set category to "-Split-" for split transactions
-      normalizedData.categoryName = "-Split-";
-      normalizedData.categoryId = null; // Clear single category ID since this is split
-      
-      console.log(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
+      // Check if this is truly a split transaction (more than 1 allocation)
+      // If only 1 allocation, convert to a regular transaction
+      if (normalizedData.allocations.length === 1) {
+        // Single allocation - convert to regular transaction
+        const singleAllocation = normalizedData.allocations[0];
+        normalizedData.categoryName = singleAllocation.categoryName;
+        normalizedData.categoryId = singleAllocation.categoryId;
+        // Remove allocations array for single transactions
+        delete normalizedData.allocations;
+        console.log(`✅ Single allocation converted to regular transaction: ${normalizedData.categoryName}`);
+      } else {
+        // Multiple allocations - keep as split transaction
+        normalizedData.categoryName = "-Split-";
+        normalizedData.categoryId = null; // Clear single category ID since this is split
+        console.log(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
+      }
     }
     
     // Step 2.5: Apply proper accounting sign conventions based on category type
