@@ -308,6 +308,7 @@ export const useDashboardData = () => {
               const scheduledAmount = unitData?.scheduledAmount || 0; // From backend
               const unitTotalPaid = unitData?.totalPaid || 0; // From backend
               const unitTotalDue = unitData?.totalDue || 0; // From backend
+              const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
               
               totalCollected += unitTotalPaid;
               totalDue += unitTotalDue;
@@ -316,7 +317,6 @@ export const useDashboardData = () => {
               // For quarterly billing: If quarter is past due, count ALL 3 months
               let unitPastDue = 0;
               if (unitData?.payments && Array.isArray(unitData.payments)) {
-                const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
                 
                 if (duesFrequency === 'quarterly') {
                   // Check quarters: If due date passed, count entire quarter
