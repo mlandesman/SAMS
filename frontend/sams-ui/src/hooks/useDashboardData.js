@@ -307,8 +307,23 @@ export const useDashboardData = () => {
             .forEach(([unitId, unitData]) => {
               const scheduledAmount = unitData?.scheduledAmount || 0; // From backend
               const unitTotalPaid = unitData?.totalPaid || 0; // From backend
-              const unitTotalDue = unitData?.totalDue || 0; // From backend
               const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
+              
+              // Calculate totalDue based on billing frequency (backend returns 0)
+              let unitTotalDue = 0;
+              if (duesFrequency === 'quarterly') {
+                // For quarterly: Calculate based on quarters that have passed
+                for (let quarter = 0; quarter < 4; quarter++) {
+                  const quarterFirstMonth = quarter * 3 + 1;
+                  if (currentMonth >= quarterFirstMonth) {
+                    // This quarter is due - count all 3 months
+                    unitTotalDue += scheduledAmount * 3;
+                  }
+                }
+              } else {
+                // For monthly: Count each month through currentMonth
+                unitTotalDue = scheduledAmount * monthsElapsed;
+              }
               
               totalCollected += unitTotalPaid;
               totalDue += unitTotalDue;
