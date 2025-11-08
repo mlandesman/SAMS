@@ -374,7 +374,7 @@ export class UnifiedPaymentWrapper {
             data: {
               unitId: unitId,
               month: entry.monthIndex, // Keep for compatibility
-              quarter: entry.quarterIndex,
+              ...(entry.quarterIndex !== undefined && { quarter: entry.quarterIndex }), // Only include if defined
               year: fiscalYear
             }
           });
@@ -394,7 +394,7 @@ export class UnifiedPaymentWrapper {
             data: {
               unitId: unitId,
               month: entry.monthIndex, // Keep for compatibility
-              quarter: entry.quarterIndex,
+              ...(entry.quarterIndex !== undefined && { quarter: entry.quarterIndex }), // Only include if defined
               year: fiscalYear
             }
           });

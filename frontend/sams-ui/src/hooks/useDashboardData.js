@@ -287,6 +287,24 @@ export const useDashboardData = () => {
         // ============================================
         
         const monthsElapsed = currentMonth;
+        const duesFrequency = selectedClient?.feeStructure?.duesFrequency || 'monthly';
+        
+        // Calculate how many months are due based on billing frequency
+        let monthsDue = 0;
+        if (duesFrequency === 'quarterly') {
+          // For quarterly: Count quarters whose due date has passed
+          for (let quarter = 0; quarter < 4; quarter++) {
+            const quarterFirstMonth = quarter * 3 + 1; // Q1=1, Q2=4, Q3=7, Q4=10
+            if (currentMonth >= quarterFirstMonth) {
+              monthsDue += 3; // Entire quarter is due
+            }
+          }
+        } else {
+          // Monthly: Each month through current month
+          monthsDue = currentMonth;
+        }
+        
+        console.log(`📊 Billing Frequency: ${duesFrequency}, Current Month: ${currentMonth}, Months Due: ${monthsDue}`);
         
         // Calculate summary metrics from backend dues data
         let totalCollected = 0;
@@ -306,26 +324,23 @@ export const useDashboardData = () => {
             .filter(([unitId]) => unitId !== 'creditBalances')
             .forEach(([unitId, unitData]) => {
               const scheduledAmount = unitData?.scheduledAmount || 0; // From backend
-              const unitTotalPaid = unitData?.totalPaid || 0; // From backend
-              const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
               
-              // Calculate totalDue based on billing frequency (backend returns 0)
-              let unitTotalDue = 0;
-              if (duesFrequency === 'quarterly') {
-                // For quarterly: Calculate based on quarters that have passed
-                for (let quarter = 0; quarter < 4; quarter++) {
-                  const quarterFirstMonth = quarter * 3 + 1;
-                  if (currentMonth >= quarterFirstMonth) {
-                    // This quarter is due - count all 3 months
-                    unitTotalDue += scheduledAmount * 3;
+              // Calculate expected for this unit
+              const unitTotalDue = scheduledAmount * monthsDue;
+              
+              // Calculate actual BASE payments made (excluding penalties and credits)
+              let unitBasePaid = 0;
+              if (unitData?.payments && Array.isArray(unitData.payments)) {
+                unitData.payments.forEach(payment => {
+                  if (payment?.paid && payment?.amount > 0) {
+                    unitBasePaid += payment.amount; // Base payment only (penalties separate)
                   }
-                }
-              } else {
-                // For monthly: Count each month through currentMonth
-                unitTotalDue = scheduledAmount * monthsElapsed;
+                });
               }
               
-              totalCollected += unitTotalPaid;
+              console.log(`  Unit ${unitId}: scheduled=${scheduledAmount}, monthsDue=${monthsDue}, due=${unitTotalDue}, paid=${unitBasePaid}`);
+              
+              totalCollected += unitBasePaid;  // Use base payments only
               totalDue += unitTotalDue;
               
               // Calculate past due for THIS unit by checking unpaid bills
