@@ -946,10 +946,10 @@ function HOADuesView() {
                   const currentFiscalYear = getFiscalYear(today, fiscalYearStartMonth);
                   const selectedYearIsCurrent = selectedYear === currentFiscalYear;
                   const isPastYear = selectedYear < currentFiscalYear;
-                  const lastMonthOfQuarter = firstMonthOfQuarter + 2;
                   
-                  // Quarter is late if current year and we're past the last month of the quarter
-                  const isLateQuarter = (isPastYear || (selectedYearIsCurrent && currentFiscalMonth > lastMonthOfQuarter));
+                  // Quarter is late if current year and we're past (or at) the first month of the quarter
+                  // This means if we're in Nov (month 5) and Q2 starts at month 4, Q2 is late if unpaid
+                  const isLateQuarter = (isPastYear || (selectedYearIsCurrent && currentFiscalMonth >= firstMonthOfQuarter));
                   
                   return (
                     <tr key={`quarter-${quarter.id}`} className="quarter-row">
