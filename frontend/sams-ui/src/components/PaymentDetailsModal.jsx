@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { centavosToPesos } from '../utils/currencyUtils';
 import './PaymentDetailsModal.css';
 
 /**
@@ -20,8 +21,12 @@ function PaymentDetailsModal({ isOpen, onClose, details }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
+    // If it's already formatted (e.g., "Nov 8, 2025 at 9:17am"), return as-is
+    if (dateString.includes(' at ')) return dateString;
+    
     try {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
       return date.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'short', 
@@ -69,16 +74,16 @@ function PaymentDetailsModal({ isOpen, onClose, details }) {
             </div>
           </div>
 
-          {/* Financial Details */}
+          {/* Financial Details - Single Line */}
           <div className="details-section">
             <h3>Financial Details</h3>
             <div className="details-grid">
               <div className="detail-item">
-                <span className="detail-label">Total Due:</span>
+                <span className="detail-label">Due:</span>
                 <span className="detail-value">{formatCurrency(details.totalDue)}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">Base Charge:</span>
+                <span className="detail-label">Base:</span>
                 <span className="detail-value">{formatCurrency(details.baseCharge)}</span>
               </div>
               <div className="detail-item">
@@ -86,7 +91,7 @@ function PaymentDetailsModal({ isOpen, onClose, details }) {
                 <span className="detail-value">{formatCurrency(details.penalties)}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">Total Paid:</span>
+                <span className="detail-label">Paid:</span>
                 <span className="detail-value detail-highlight">{formatCurrency(details.totalPaid)}</span>
               </div>
               {details.remaining > 0 && (
@@ -137,18 +142,34 @@ function PaymentDetailsModal({ isOpen, onClose, details }) {
                 <thead>
                   <tr>
                     <th>Month</th>
-                    <th>Amount Paid</th>
+                    <th>Base Paid</th>
+                    <th>Penalty Paid</th>
+                    <th>Total</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {details.months.map((month, index) => (
-                    <tr key={index}>
-                      <td>{month.fiscalMonth}</td>
-                      <td>{formatCurrency(month.amount)}</td>
-                      <td className={`status-${month.status}`}>{month.status}</td>
-                    </tr>
-                  ))}
+                  {details.months.map((month, index) => {
+                    // Get penalty from the month data if available (convert centavos to pesos)
+                    const penaltyPaid = centavosToPesos(month.penaltyPaid || 0);
+                    const basePaid = month.amount || 0;
+                    const total = basePaid + penaltyPaid;
+                    
+                    // For display: Show actual penalty on first month, "(included above)" for others
+                    const penaltyDisplay = penaltyPaid > 0 
+                      ? formatCurrency(penaltyPaid) 
+                      : (index === 0 ? formatCurrency(0) : '(included above)');
+                    
+                    return (
+                      <tr key={index}>
+                        <td>Month {month.fiscalMonth}</td>
+                        <td>{formatCurrency(basePaid)}</td>
+                        <td>{penaltyDisplay}</td>
+                        <td>{formatCurrency(total)}</td>
+                        <td className={`status-${month.status}`}>{month.status}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

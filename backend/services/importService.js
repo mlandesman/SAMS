@@ -1124,10 +1124,10 @@ export class ImportService {
           const duesDocument = {
             year: year,
             scheduledAmount: unitData.scheduledAmount || 0, // From HOADues.json
-            payments: [],
-            creditBalance: unitData.creditBalance || 0,
-            creditBalanceHistory: []
+            payments: []
           };
+          duesDocument.creditBalance = admin.firestore.FieldValue.delete();
+          duesDocument.creditBalanceHistory = admin.firestore.FieldValue.delete();
           
           // Process payments
           if (unitData.payments && unitData.payments.length > 0) {
@@ -1332,7 +1332,6 @@ export class ImportService {
           // Complete the dues document with all required fields
           duesDocument.scheduledAmount = validatedScheduledAmount;
           duesDocument.totalPaid = totalPaid;
-          duesDocument.creditBalanceHistory = creditBalanceHistory;
           
           // Write the complete dues document (use set with merge to handle existing docs)
           // NOTE: creditBalance is deprecated in dues document - use new structure instead

@@ -17,7 +17,6 @@
  */
 
 import { getDb, getApp } from '../firebase.js';
-import { randomUUID } from 'crypto';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
@@ -950,7 +949,7 @@ async function deleteTransaction(clientId, txnId) {
       let creditDoc = null;
       let creditData = null;
       let unitCreditData = null;
-      if (originalData.unitId && (isWaterTransaction || isUnifiedTransaction)) {
+      if (originalData.unitId && (isWaterTransaction || isUnifiedTransaction || isHOATransaction)) {
         const creditBalancesRef = db.collection('clients').doc(clientId)
           .collection('units').doc('creditBalances');
         
@@ -1232,7 +1231,8 @@ async function deleteTransaction(clientId, txnId) {
     let auditNotes = `Deleted transaction record${originalData.account ? ` and adjusted ${originalData.account} balance` : ''}`;
     
     if (hoaCleanupExecuted && hoaCleanupDetails) {
-      auditNotes += `. HOA cleanup: reversed ${Math.abs(hoaCleanupDetails.creditBalanceReversed || 0)} credit balance, cleared ${hoaCleanupDetails.monthsCleared || 0} month(s) of payment data`;
+      const creditReversalForAudit = creditReversalExecuted ? creditReversalAmount : 0;
+      auditNotes += `. HOA cleanup: reversed ${Math.abs(creditReversalForAudit || 0)} credit balance, cleared ${hoaCleanupDetails.monthsCleared || 0} month(s) of payment data`;
     }
     
     if (waterCleanupExecuted && waterCleanupDetails) {
@@ -1259,7 +1259,7 @@ async function deleteTransaction(clientId, txnId) {
           hoaCleanupExecuted: true,
           unitAffected: originalData.metadata?.unitId || originalData.metadata?.id,
           yearAffected: originalData.metadata?.year,
-          creditBalanceReversed: hoaCleanupDetails?.creditBalanceReversed,
+          creditBalanceReversed: creditReversalExecuted ? creditReversalAmount : 0,
           monthsCleared: hoaCleanupDetails?.monthsCleared
         } : {}),
         ...(waterCleanupExecuted ? {
@@ -1360,7 +1360,6 @@ function getHOAMonthsFromTransaction(transactionData) {
 
 // HOA Dues cleanup logic for transaction deletion (write-only operations)
 function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId, unitId) {
-  // 🧹 CREDIT BALANCE DEBUG: Add entry point logging
   console.log('🧹 CLEANUP: Starting HOA dues cleanup write:', {
     transactionId: txnId,
     transactionData: {
@@ -1371,16 +1370,13 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
       duesDistribution: originalData.duesDistribution
     },
     duesData: {
-      creditBalance: duesData.creditBalance,
-      creditHistoryLength: duesData.creditBalanceHistory?.length || 0,
       paymentsType: Array.isArray(duesData.payments) ? 'array' : typeof duesData.payments
     }
   });
-  const currentCreditBalance = duesData.creditBalance || 0;
+
   // Handle payments as either array or object with numeric keys
   let currentPayments = duesData.payments || [];
-  
-  // If payments is an object with numeric keys (0-11), convert to array
+
   if (!Array.isArray(currentPayments) && typeof currentPayments === 'object') {
     console.log(`🔄 [BACKEND] Converting payments object to array`);
     const paymentsArray = [];
@@ -1389,56 +1385,12 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     }
     currentPayments = paymentsArray;
   }
-  
+
   console.log(`🧹 [BACKEND] Processing HOA cleanup write operations for transaction ${txnId}`);
-  console.log(`📊 [BACKEND] Clean architecture: Credit data NOT stored in transactions`);
-  console.log(`📊 [BACKEND] Will reverse credit changes by analyzing credit history in dues document`);
-  
-  // 1. CLEAN ARCHITECTURE: Analyze credit history to determine what to reverse
-  let creditBalanceReversal = 0;
-  let newCreditBalance = currentCreditBalance;
-  
-  // Find credit history entries for this transaction
-  const creditHistory = duesData.creditBalanceHistory || [];
-  const transactionEntries = creditHistory.filter(entry => entry.transactionId === txnId);
-  
-  // 💰 BACKEND CREDIT: Credit balance processing
-  console.log('💰 BACKEND CREDIT: Credit balance processing:', {
-    unitId: unitId,
-    creditHistoryLength: duesData.creditBalanceHistory?.length || 0,
-    entriesToReverse: transactionEntries.length,
-    currentCreditBalance: duesData.creditBalance,
-    entriesFound: transactionEntries.map(e => ({
-      id: e.id,
-      type: e.type,
-      amount: e.amount,
-      transactionId: e.transactionId
-    }))
-  });
-  
-  console.log(`💳 [BACKEND] Found ${transactionEntries.length} credit history entries for transaction ${txnId}`);
-  
-  // Reverse all credit changes for this transaction
-  for (const entry of transactionEntries) {
-    if (entry.type === 'credit_added') {
-      creditBalanceReversal -= entry.amount; // Subtract added credit
-      console.log(`💳 [BACKEND] Reversing credit addition: -${entry.amount} centavos`);
-    } else if (entry.type === 'credit_used') {
-      creditBalanceReversal += entry.amount; // Restore used credit
-      console.log(`💳 [BACKEND] Restoring used credit: +${entry.amount} centavos`);
-    } else if (entry.type === 'credit_repair') {
-      creditBalanceReversal -= entry.amount; // Reverse repair
-      console.log(`💳 [BACKEND] Reversing credit repair: -${entry.amount} centavos`);
-    }
-  }
-  
-  newCreditBalance = Math.max(0, currentCreditBalance + creditBalanceReversal);
-  console.log(`💳 [BACKEND] Total reversal: ${creditBalanceReversal} centavos (${creditBalanceReversal / 100} pesos)`);
-  console.log(`💳 [BACKEND] Balance update: ${currentCreditBalance} → ${newCreditBalance} centavos (${currentCreditBalance / 100} → ${newCreditBalance / 100} pesos)`);
-  
-  // 2. Clear payment entries for this transaction
+
+  // Clear payment entries for this transaction
   let monthsCleared = 0;
-  const updatedPayments = [...currentPayments]; // Make a copy
+  const updatedPayments = [...currentPayments];
   
   // Get the months this transaction paid for - check allocations first, fallback to duesDistribution
   const monthsData = getHOAMonthsFromTransaction(originalData);
@@ -1483,54 +1435,16 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     }
   });
   
-  // 3. Handle credit balance history updates
-  let creditBalanceHistory = Array.isArray(duesData.creditBalanceHistory) ? [...duesData.creditBalanceHistory] : [];
-  
-  // Remove entries that match the deleted transaction
-  creditBalanceHistory = creditBalanceHistory.filter(entry => entry.transactionId !== txnId);
-  
-  // Add reversal entry if there was a credit balance change
-  if (creditBalanceReversal !== 0) {
-    const reversalType = creditBalanceReversal > 0 ? 'credit_restored' : 'credit_removed';
-    const description = creditBalanceReversal > 0 ? 'from Transaction Deletion' : 'from Transaction Deletion';
-    
-    creditBalanceHistory.push({
-      id: randomUUID(),
-      timestamp: getNow().toISOString(),
-      transactionId: txnId + '_reversal',
-      type: reversalType,
-      amount: Math.abs(creditBalanceReversal),  // Store in centavos
-      description: description,
-      balanceBefore: currentCreditBalance,  // Store in centavos
-      balanceAfter: newCreditBalance,     // Store in centavos
-      notes: `Transaction ${txnId} deleted`
-    });
-  }
-  
-  // 📝 CREDIT BALANCE DEBUG: Add detailed update operations logging
-  console.log('📝 UPDATE: Applying credit balance changes:', {
-    unitId: unitId,
-    balanceBefore: currentCreditBalance,
-    balanceAfter: newCreditBalance,
-    creditBalanceReversal: creditBalanceReversal,
-    historyEntriesRemoved: transactionEntries.length,
-    newHistoryEntry: creditBalanceReversal !== 0 ? {
-      type: creditBalanceReversal > 0 ? 'credit_restored' : 'credit_removed',
-      amount: Math.abs(creditBalanceReversal),
-      transactionId: txnId + '_reversal'
-    } : null,
-    monthsCleared: monthsCleared,
-    finalHistoryLength: creditBalanceHistory.length
-  });
-
-  // 4. Update dues document with cleaned data and history
+  // Update dues document with cleaned payment data and remove legacy credit fields
+  const updatedTotalPaid = updatedPayments.reduce((sum, payment) => sum + (payment?.amount || 0), 0);
   const updateData = {
-    creditBalance: newCreditBalance,
     payments: updatedPayments,
-    creditBalanceHistory: creditBalanceHistory
+    totalPaid: updatedTotalPaid,
+    creditBalance: admin.firestore.FieldValue.delete(),
+    creditBalanceHistory: admin.firestore.FieldValue.delete()
   };
   
-  console.log(`💾 [BACKEND] Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments, updated notes`);
+  console.log(`💾 [BACKEND] Updating dues document: cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
   // Clean all Timestamp objects before update
   const cleanedDuesUpdateData = cleanTimestamps(updateData);
   firestoreTransaction.update(duesRef, cleanedDuesUpdateData);
@@ -1540,16 +1454,12 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     transactionId: txnId,
     unitId: unitId,
     year: originalData.metadata?.year,
-    creditBalanceReversed: `${creditBalanceReversal} centavos (${creditBalanceReversal / 100} pesos)`,
-    newCreditBalance: `${newCreditBalance} centavos (${newCreditBalance / 100} pesos)`,
     monthsCleared: monthsCleared,
     success: true
   });
   
   return {
-    creditBalanceReversed: creditBalanceReversal,
-    monthsCleared: monthsCleared,
-    newCreditBalance: newCreditBalance
+    monthsCleared: monthsCleared
   };
 }
 
@@ -1650,18 +1560,13 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
   const duesDoc = await firestoreTransaction.get(duesRef);
   if (!duesDoc.exists) {
     console.warn(`Dues document not found at ${duesPath} - skipping HOA cleanup`);
-    return { creditBalanceReversed: 0, monthsCleared: 0 };
+    return { monthsCleared: 0 };
   }
   
   const duesData = duesDoc.data();
-  const currentCreditBalance = duesData.creditBalance || 0;
   const currentPayments = duesData.payments || [];
   
-  // 1. Calculate credit balance reversal
-  const creditBalanceReversal = -(originalData.creditBalanceAdded || 0);
-  const newCreditBalance = Math.max(0, currentCreditBalance + creditBalanceReversal);
-  
-  // 2. Clear payment entries for this transaction
+  // 1. Clear payment entries for this transaction
   let monthsCleared = 0;
   const updatedPayments = currentPayments.map(payment => {
     if (payment && payment.transactionId === txnId) {
@@ -1679,21 +1584,22 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
     return payment;
   });
   
-  // 3. Update dues document with cleaned data
+  // 2. Update dues document with cleaned data (legacy fallback)
+  const updatedTotalPaid = updatedPayments.reduce((sum, payment) => sum + (payment?.amount || 0), 0);
   const updateData = {
-    creditBalance: newCreditBalance,
-    payments: updatedPayments
+    payments: updatedPayments,
+    totalPaid: updatedTotalPaid,
+    creditBalance: admin.firestore.FieldValue.delete(),
+    creditBalanceHistory: admin.firestore.FieldValue.delete()
   };
   
-  console.log(`Updating dues document: creditBalance ${currentCreditBalance} -> ${newCreditBalance}, cleared ${monthsCleared} payments`);
+  console.log(`Updating dues document (legacy fallback): cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
   // Clean all Timestamp objects before update
   const cleanedDuesData = cleanTimestamps(updateData);
   firestoreTransaction.update(duesRef, cleanedDuesData);
   
   return {
-    creditBalanceReversed: creditBalanceReversal,
-    monthsCleared: monthsCleared,
-    newCreditBalance: newCreditBalance
+    monthsCleared: monthsCleared
   };
 }
 

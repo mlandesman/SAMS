@@ -1312,12 +1312,12 @@ export class ImportService {
           const validatedCreditBalance = validateCentavos(finalCreditBalance, 'finalCreditBalance');
           const validatedScheduledAmount = validateCentavos((unitData.scheduledAmount || 0) * 100, 'scheduledAmount');
           
-          // Update dues document with scheduled amount, totals, and credit balance history
-          // NOTE: creditBalance is deprecated in dues document - use new structure instead
+          // Update dues document with scheduled amount and totals only (remove legacy credit fields)
           await duesRef.update({
             scheduledAmount: validatedScheduledAmount,
             totalPaid: totalPaid,
-            creditBalanceHistory: creditBalanceHistory // Keep history in dues for backward compatibility
+            creditBalance: admin.firestore.FieldValue.delete(),
+            creditBalanceHistory: admin.firestore.FieldValue.delete()
           });
           
           // PHASE 1A NEW STRUCTURE: Write credit balance to /units/creditBalances

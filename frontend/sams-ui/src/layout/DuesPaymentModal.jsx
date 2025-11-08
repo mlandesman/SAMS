@@ -4,7 +4,9 @@ import { useClient } from '../context/ClientContext';
 import { 
   formatAsMXN, 
   getMonthName, 
-  generateMonthsDescription
+  generateMonthsDescription,
+  groupBillsByDueDate,
+  getQuarterLabel
 } from '../utils/hoaDuesUtils';
 import { formatUnitIdWithOwnerAndDues, sortUnitsByUnitId, getOwnerInfo } from '../utils/unitUtils';
 import { recordDuesPayment as apiRecordDuesPayment } from '../api/hoaDuesService';
@@ -838,58 +840,100 @@ function DuesPaymentModal({ isOpen, onClose, unitId, monthIndex }) {
                       <div className="distribution-summary">
                         <p><strong>Payment Amount:</strong> {formatAsMXN(amountNumber)}</p>
                         <p><strong>Current Credit Balance:</strong> {formatAsMXN(preview.currentCreditBalance || 0)}</p>
-                        {preview.monthsAffected && preview.monthsAffected.filter(m => m.totalPaid > 0).length > 0 ? (
-                          <p><strong>Months Being Paid:</strong> {preview.monthsAffected.filter(m => m.totalPaid > 0).length} month{preview.monthsAffected.filter(m => m.totalPaid > 0).length !== 1 ? 's' : ''}</p>
-                        ) : (
-                          <p><strong>Months Being Paid:</strong> <span style={{color: '#d9534f'}}>No months will be paid (amount goes to credit)</span></p>
-                        )}
+                        {(() => {
+                          const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
+                          const paidCount = preview.monthsAffected?.filter(m => m.totalPaid > 0).length || 0;
+                          
+                          if (paidCount === 0) {
+                            return <p><strong>Bills Being Paid:</strong> <span style={{color: '#d9534f'}}>No bills will be paid (amount goes to credit)</span></p>;
+                          }
+                          
+                          if (duesFrequency === 'quarterly') {
+                            const groups = groupBillsByDueDate(preview.monthsAffected.filter(m => m.totalPaid > 0));
+                            const quarterCount = groups.length;
+                            return <p><strong>Quarters Being Paid:</strong> {quarterCount} quarter{quarterCount !== 1 ? 's' : ''} ({paidCount} month{paidCount !== 1 ? 's' : ''})</p>;
+                          } else {
+                            return <p><strong>Months Being Paid:</strong> {paidCount} month{paidCount !== 1 ? 's' : ''}</p>;
+                          }
+                        })()}
                       </div>
                       
-                      {preview.monthsAffected && preview.monthsAffected.length > 0 && (
-                        <div className="distribution-table">
-                          <h4>Bill Payments:</h4>
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Month</th>
-                                <th>Dues</th>
-                                <th>Penalties</th>
-                                <th>Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {preview.monthsAffected
-                                .filter(m => m.totalPaid > 0)  // Only show months that received payment
-                                .map((monthData, idx) => {
-                                // monthData.month is a number (1-12 calendar month)
-                                // We need to convert it to a fiscal month name
-                                // monthData.monthIndex is the fiscal month index (0-11)
-                                const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7;
-                                const fiscalMonthIndex = monthData.monthIndex; // 0-11
-                                const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1;
-                                const monthName = getMonthName(calendarMonth);
-                                
-                                return (
-                                  <tr key={idx}>
-                                    <td>{monthName}</td>
-                                    <td>{formatAsMXN(monthData.basePaid || 0)}</td>
-                                    <td className={monthData.penaltyPaid > 0 ? 'penalty-highlight' : ''}>
-                                      {formatAsMXN(monthData.penaltyPaid || 0)}
-                                    </td>
-                                    <td><strong>{formatAsMXN(monthData.totalPaid || 0)}</strong></td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                            <tfoot>
-                              <tr>
-                                <td colSpan="3"><strong>Total Applied to Bills:</strong></td>
-                                <td><strong>{formatAsMXN(preview.totalApplied || 0)}</strong></td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      )}
+                      {preview.monthsAffected && preview.monthsAffected.length > 0 && (() => {
+                        const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7;
+                        const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
+                        const paidBills = preview.monthsAffected.filter(m => m.totalPaid > 0);
+                        
+                        // Group by due date if quarterly billing
+                        const shouldGroup = duesFrequency === 'quarterly' && paidBills.length > 0;
+                        const groups = shouldGroup ? groupBillsByDueDate(paidBills) : null;
+                        
+                        return (
+                          <div className="distribution-table">
+                            <h4>Bill Payments:</h4>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>{shouldGroup ? 'Quarter' : 'Month'}</th>
+                                  <th>Dues</th>
+                                  <th>Penalties</th>
+                                  <th>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {shouldGroup ? (
+                                  // Quarterly billing: Show grouped quarters
+                                  groups.map((group, idx) => {
+                                    const totalDues = group.bills.reduce((sum, b) => sum + (b.basePaid || 0), 0);
+                                    const totalPenalties = group.bills.reduce((sum, b) => sum + (b.penaltyPaid || 0), 0);
+                                    const totalPaid = group.bills.reduce((sum, b) => sum + (b.totalPaid || 0), 0);
+                                    const quarterLabel = getQuarterLabel(group.bills, fiscalYearStartMonth);
+                                    
+                                    return (
+                                      <tr key={idx}>
+                                        <td>
+                                          <strong>{quarterLabel}</strong>
+                                          <div style={{fontSize: '0.85em', color: '#666'}}>
+                                            Due: {new Date(group.dueDate).toLocaleDateString()}
+                                          </div>
+                                        </td>
+                                        <td>{formatAsMXN(totalDues)}</td>
+                                        <td className={totalPenalties > 0 ? 'penalty-highlight' : ''}>
+                                          {formatAsMXN(totalPenalties)}
+                                        </td>
+                                        <td><strong>{formatAsMXN(totalPaid)}</strong></td>
+                                      </tr>
+                                    );
+                                  })
+                                ) : (
+                                  // Monthly billing: Show individual months
+                                  paidBills.map((monthData, idx) => {
+                                    const fiscalMonthIndex = monthData.monthIndex; // 0-11
+                                    const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1;
+                                    const monthName = getMonthName(calendarMonth);
+                                    
+                                    return (
+                                      <tr key={idx}>
+                                        <td>{monthName}</td>
+                                        <td>{formatAsMXN(monthData.basePaid || 0)}</td>
+                                        <td className={monthData.penaltyPaid > 0 ? 'penalty-highlight' : ''}>
+                                          {formatAsMXN(monthData.penaltyPaid || 0)}
+                                        </td>
+                                        <td><strong>{formatAsMXN(monthData.totalPaid || 0)}</strong></td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                              <tfoot>
+                                <tr>
+                                  <td colSpan="3"><strong>Total Applied to Bills:</strong></td>
+                                  <td><strong>{formatAsMXN(preview.totalApplied || 0)}</strong></td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        );
+                      })()}
                       
                       <div className="credit-balance-info">
                         {preview.creditUsed > 0 && (

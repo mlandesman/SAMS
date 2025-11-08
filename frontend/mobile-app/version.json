@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.1.0",
-  "buildDate": "2025-10-30T23:09:57.104Z",
-  "buildTimestamp": 1761865797104,
+  "buildDate": "2025-11-08T16:58:20.496Z",
+  "buildTimestamp": 1762621100497,
   "environment": "development",
   "gitBranch": "staging",
   "gitCommit": "local",
@@ -21,20 +21,20 @@
     "Unit Management"
   ],
   "git": {
-    "hash": "763ac54",
-    "branch": "feature/phase-4-hoa-dues-refactor",
-    "lastCommitDate": "2025-10-29 14:36:09 -0500"
+    "hash": "5a3fe3a",
+    "branch": "phase-5-quarterly-billing",
+    "lastCommitDate": "2025-11-08 11:25:35 -0500"
   },
   "build": {
-    "timestamp": "2025-10-30T23:09:57.104Z",
+    "timestamp": "2025-11-08T16:58:20.496Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251030.1809"
+    "buildNumber": "251108.1158"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-10-30T23:09:57.104Z",
+    "date": "2025-11-08T16:58:20.496Z",
     "automated": true
   }
 }

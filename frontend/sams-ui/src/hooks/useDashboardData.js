@@ -312,17 +312,41 @@ export const useDashboardData = () => {
               totalCollected += unitTotalPaid;
               totalDue += unitTotalDue;
               
-              // Calculate past due for THIS unit by checking unpaid months
-              // Past due = unpaid bills for current/past months
+              // Calculate past due for THIS unit by checking unpaid bills
+              // For quarterly billing: If quarter is past due, count ALL 3 months
               let unitPastDue = 0;
               if (unitData?.payments && Array.isArray(unitData.payments)) {
-                for (let m = 1; m <= currentMonth; m++) {
-                  const monthIndex = m - 1;
-                  const payment = unitData.payments[monthIndex];
-                  const paidAmount = payment?.amount || 0; // Amount is already in pesos
-                  const shortfall = scheduledAmount - paidAmount;
-                  if (shortfall > 0) {
-                    unitPastDue += shortfall;
+                const duesFrequency = selectedClient?.configuration?.feeStructure?.duesFrequency || 'monthly';
+                
+                if (duesFrequency === 'quarterly') {
+                  // Check quarters: If due date passed, count entire quarter
+                  for (let quarter = 0; quarter < 4; quarter++) {
+                    const quarterFirstMonth = quarter * 3 + 1; // Q1=1, Q2=4, Q3=7, Q4=10
+                    
+                    // Quarter is past due if we're past the first month of the quarter
+                    if (currentMonth >= quarterFirstMonth) {
+                      // Check all 3 months of this quarter
+                      for (let i = 0; i < 3; i++) {
+                        const monthIndex = quarter * 3 + i;
+                        const payment = unitData.payments[monthIndex];
+                        const paidAmount = payment?.amount || 0;
+                        const shortfall = scheduledAmount - paidAmount;
+                        if (shortfall > 0) {
+                          unitPastDue += shortfall;
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  // Monthly billing: Check each month individually (existing logic)
+                  for (let m = 1; m <= currentMonth; m++) {
+                    const monthIndex = m - 1;
+                    const payment = unitData.payments[monthIndex];
+                    const paidAmount = payment?.amount || 0;
+                    const shortfall = scheduledAmount - paidAmount;
+                    if (shortfall > 0) {
+                      unitPastDue += shortfall;
+                    }
                   }
                 }
               }
@@ -343,8 +367,28 @@ export const useDashboardData = () => {
                 });
               }
               
-              totalExpectedToDate += scheduledAmount * monthsElapsed;
-              currentMonthDuesExpected += scheduledAmount;
+              // Calculate expected to date based on billing frequency
+              if (duesFrequency === 'quarterly') {
+                // For quarterly: Calculate based on complete quarters that have passed
+                const currentQuarter = Math.floor((currentMonth - 1) / 3); // Q1=0, Q2=1, Q3=2, Q4=3
+                const monthsInPastQuarters = currentQuarter * 3; // Quarters 0-current (not including current)
+                
+                // Add complete past quarters
+                totalExpectedToDate += scheduledAmount * monthsInPastQuarters;
+                
+                // Add current quarter if its due date has passed
+                const currentQuarterFirstMonth = currentQuarter * 3 + 1;
+                if (currentMonth >= currentQuarterFirstMonth) {
+                  totalExpectedToDate += scheduledAmount * 3; // Full quarter expected
+                }
+                
+                // Current quarter is expected (all 3 months)
+                currentMonthDuesExpected += scheduledAmount * 3;
+              } else {
+                // Monthly: Each month counted individually (existing logic)
+                totalExpectedToDate += scheduledAmount * monthsElapsed;
+                currentMonthDuesExpected += scheduledAmount;
+              }
             });
         }
         
