@@ -318,18 +318,61 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
    * Format bill period for display
    */
   const formatBillPeriod = (billPeriod, billType, monthData) => {
-    // If we have the actual month number from backend, use it
-    if (monthData?.month) {
+    const prefix = billType === 'hoa' ? 'HOA' : billType === 'water' ? 'Water' : 'Bill';
+    
+    console.log('formatBillPeriod called:', {
+      billPeriod,
+      billType,
+      monthData,
+      duesFrequency: selectedClient?.configuration?.feeStructure?.duesFrequency,
+      fiscalYearStartMonth: selectedClient?.configuration?.fiscalYearStartMonth
+    });
+    
+    // For quarterly HOA bills (backend sends isQuarterly flag)
+    if (billType === 'hoa' && monthData?.isQuarterly) {
+      const quarterNumber = (monthData.quarterIndex || 0) + 1;
+      return `${prefix} Q${quarterNumber}`;
+    }
+    
+    // For HOA bills with quarterly billing, check if this is part of a quarter (legacy check)
+    if (billType === 'hoa' && selectedClient?.configuration?.feeStructure?.duesFrequency === 'quarterly' && monthData?.monthIndex !== undefined) {
+      const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7; // Default July for AVII
+      const fiscalMonthIndex = monthData.monthIndex; // 0-11
+      const quarterNumber = Math.floor(fiscalMonthIndex / 3) + 1; // Q1-Q4
+      
+      // Get the three months in this quarter
+      const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
+      const quarterMonths = [];
+      
+      for (let i = 0; i < 3; i++) {
+        const fiscalMonth = quarterStartFiscalMonth + i;
+        const calendarMonth = ((fiscalMonth + fiscalYearStartMonth - 1) % 12) + 1; // 1-12
+        const calendarMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        quarterMonths.push(calendarMonthNames[calendarMonth - 1]);
+      }
+      
+      return `${prefix} Q${quarterNumber} (${quarterMonths.join('/')})`;
+    }
+    
+    // For monthly HOA or water bills
+    if (monthData?.monthIndex !== undefined && billType === 'hoa') {
+      // Convert fiscal month to calendar month for HOA
+      const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1; // Default Jan
+      const fiscalMonthIndex = monthData.monthIndex; // 0-11
+      const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1; // 1-12
+      const calendarMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthName = calendarMonthNames[calendarMonth - 1];
+      return `${prefix} ${monthName}`;
+    } else if (monthData?.month) {
+      // Direct calendar month from backend (water bills or legacy)
       const calendarMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthName = calendarMonthNames[monthData.month - 1] || monthData.month;
-      const prefix = billType === 'hoa' ? 'HOA' : billType === 'water' ? 'Water' : 'Bill';
       return `${prefix} ${monthName}`;
     }
     
     // Fallback: parse from billPeriod
     // billPeriod format: "2026-00", "2026-01", etc. (fiscal month index)
     const [year, fiscalMonthIndex] = billPeriod.split('-');
-    const prefix = billType === 'hoa' ? 'HOA' : billType === 'water' ? 'Water' : 'Bill';
     return `${prefix} ${billPeriod}`;
   };
   

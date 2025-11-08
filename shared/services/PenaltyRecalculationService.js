@@ -161,6 +161,47 @@ export function calculateCompoundingPenalty(baseAmount, previousPenalty = 0, mon
 }
 
 /**
+ * Group bills by their due date
+ * 
+ * PHASE 5 TASK 5.2: Bills sharing the same due date are grouped together
+ * This enables frequency-agnostic penalty calculation:
+ * - Monthly: Each bill has unique due date → 1 bill per group
+ * - Quarterly: 3 bills share due date → 3 bills per group
+ * 
+ * @param {Array} bills - Array of bills with dueDate property
+ * @returns {Object} Map of dueDate -> array of bills
+ */
+export function groupBillsByDueDate(bills) {
+  const groups = {};
+  
+  bills.forEach(bill => {
+    // Normalize due date to string (YYYY-MM-DD format)
+    let dueDateStr;
+    if (typeof bill.dueDate === 'string') {
+      dueDateStr = bill.dueDate.split('T')[0]; // Extract date part from ISO string
+    } else if (bill.dueDate instanceof Date) {
+      dueDateStr = bill.dueDate.toISOString().split('T')[0];
+    } else {
+      console.warn(`⚠️  Bill ${bill.billId} has invalid dueDate:`, bill.dueDate);
+      dueDateStr = 'unknown';
+    }
+    
+    if (!groups[dueDateStr]) {
+      groups[dueDateStr] = [];
+    }
+    
+    groups[dueDateStr].push(bill);
+  });
+  
+  console.log(`📦 [GROUPING] Grouped ${bills.length} bills into ${Object.keys(groups).length} due date group(s)`);
+  Object.entries(groups).forEach(([date, groupBills]) => {
+    console.log(`   ${date}: ${groupBills.length} bill(s)`);
+  });
+  
+  return groups;
+}
+
+/**
  * Calculate penalty for a single bill
  * 
  * Core penalty calculation algorithm with compounding logic
@@ -241,7 +282,12 @@ export function calculatePenaltyForBill(params) {
 }
 
 /**
- * Recalculate penalties for multiple bills
+ * Recalculate penalties for multiple bills with DUE DATE GROUPING
+ * 
+ * PHASE 5 TASK 5.2: Frequency-agnostic penalty calculation
+ * - Groups bills by due date
+ * - Calculates penalty on group total
+ * - Distributes penalty equally across unpaid bills in group
  * 
  * Module-agnostic penalty recalculation for water, hoa, or any billing module
  * 
@@ -268,6 +314,7 @@ export async function recalculatePenalties(params) {
   } = params;
   
   console.log(`🔄 [PENALTY_RECALC] Starting for ${moduleType}: ${bills.length} bills`);
+  console.log(`📅 [PENALTY_RECALC] Calculation date: ${asOfDate.toISOString()}`);
   
   // Validate configuration
   const validatedConfig = validatePenaltyConfig(config);
@@ -279,43 +326,134 @@ export async function recalculatePenalties(params) {
     totalPenaltiesAdded: 0,
     billsUpdated: 0,
     billsProcessed: 0,
-    billsSkipped: 0
+    billsSkipped: 0,
+    groupsProcessed: 0
   };
   
-  for (const bill of bills) {
-    result.billsProcessed++;
+  // PHASE 5 TASK 5.2: Group bills by due date
+  const billGroups = groupBillsByDueDate(bills);
+  
+  // Process each due date group
+  for (const [dueDate, groupBills] of Object.entries(billGroups)) {
+    result.groupsProcessed++;
     
-    // Skip paid bills (they can't accumulate penalties)
-    if (bill.status === 'paid') {
-      result.billsSkipped++;
+    console.log(`\n💰 [GROUP ${result.groupsProcessed}] Processing due date: ${dueDate} (${groupBills.length} bills)`);
+    
+    // Filter to unpaid bills only
+    const unpaidBills = groupBills.filter(b => b.status !== 'paid');
+    const paidBills = groupBills.filter(b => b.status === 'paid');
+    
+    console.log(`   📊 Unpaid: ${unpaidBills.length}, Paid: ${paidBills.length}`);
+    
+    if (unpaidBills.length === 0) {
+      console.log(`   ✅ All bills paid - no penalties to calculate`);
+      result.billsSkipped += groupBills.length;
+      
+      // Add paid bills to result with zero penalty
+      paidBills.forEach(bill => {
+        result.updatedBills.push({
+          ...bill,
+          penaltyAmount: 0,
+          totalAmount: bill.currentCharge
+        });
+      });
       continue;
     }
     
-    // Calculate penalty for this bill
-    const penaltyResult = calculatePenaltyForBill({
-      bill,
-      asOfDate,
-      config: validatedConfig
+    // Calculate total unpaid amount for this group
+    const totalUnpaid = unpaidBills.reduce((sum, bill) => {
+      return sum + Math.max(0, (bill.currentCharge || 0) - (bill.paidAmount || 0));
+    }, 0);
+    
+    console.log(`   💵 Total unpaid in group: ${totalUnpaid} centavos ($${centavosToPesos(totalUnpaid)})`);
+    
+    // Calculate due date and grace period for group
+    const dueDateObj = parseDate(dueDate);
+    const gracePeriodEnd = addDays(dueDateObj, validatedConfig.penaltyDays);
+    const pastGracePeriod = asOfDate >= gracePeriodEnd;
+    
+    console.log(`   📅 Due: ${dueDate}, Grace End: ${gracePeriodEnd.toISOString().split('T')[0]}, Past Grace: ${pastGracePeriod}`);
+    
+    if (!pastGracePeriod || totalUnpaid === 0) {
+      console.log(`   ⏭️  No penalty (within grace period or fully paid)`);
+      result.billsSkipped += groupBills.length;
+      
+      // Add all bills with zero penalty
+      groupBills.forEach(bill => {
+        result.updatedBills.push({
+          ...bill,
+          penaltyAmount: 0,
+          totalAmount: bill.currentCharge
+        });
+      });
+      continue;
+    }
+    
+    // Calculate months overdue for the group
+    const monthsOverdue = calculateMonthsOverdue(dueDateObj, asOfDate, validatedConfig.penaltyDays);
+    console.log(`   🔢 Months overdue: ${monthsOverdue}`);
+    
+    // Calculate compounding penalty on GROUP TOTAL
+    const totalPenalty = calculateCompoundingPenalty(
+      totalUnpaid,
+      0, // Starting penalty (fresh calculation)
+      monthsOverdue,
+      validatedConfig.penaltyRate
+    );
+
+    console.log(`   💰 Group total penalty: ${totalPenalty} centavos ($${centavosToPesos(totalPenalty)})`);
+    
+    // Distribute penalty equally across unpaid bills in group
+    const penaltyPerBill = Math.round(totalPenalty / unpaidBills.length);
+    console.log(`   📤 Penalty per unpaid bill: ${penaltyPerBill} centavos ($${centavosToPesos(penaltyPerBill)})`);
+    
+    // Handle rounding: last bill gets adjustment
+    let distributedSoFar = 0;
+    
+    groupBills.forEach((bill, index) => {
+      result.billsProcessed++;
+      
+      if (bill.status === 'paid') {
+        // Paid bills get zero penalty
+        result.updatedBills.push({
+          ...bill,
+          penaltyAmount: 0,
+          totalAmount: bill.currentCharge
+        });
+        return;
+      }
+      
+      // Calculate this bill's penalty share
+      const isLastUnpaidBill = (index === groupBills.length - 1) || 
+                                (groupBills.slice(index + 1).every(b => b.status === 'paid'));
+      
+      const billPenalty = isLastUnpaidBill 
+        ? totalPenalty - distributedSoFar  // Last bill gets rounding adjustment
+        : penaltyPerBill;
+      
+      distributedSoFar += billPenalty;
+      
+      // Check if penalty changed
+      const oldPenalty = bill.penaltyAmount || 0;
+      if (Math.abs(oldPenalty - billPenalty) > 1) {
+        result.billsUpdated++;
+        result.totalPenaltiesAdded += (billPenalty - oldPenalty);
+        console.log(`   ✏️  Bill ${bill.billId}: ${oldPenalty} → ${billPenalty} centavos`);
+      }
+      
+      result.updatedBills.push({
+        ...bill,
+        penaltyAmount: billPenalty,
+        totalAmount: (bill.currentCharge || 0) + billPenalty,
+        lastPenaltyUpdate: asOfDate.toISOString()
+      });
     });
     
-    if (penaltyResult.updated) {
-      // Update bill with new penalty
-      const updatedBill = {
-        ...bill,
-        penaltyAmount: penaltyResult.penaltyAmount,
-        totalAmount: (bill.currentCharge || 0) + penaltyResult.penaltyAmount,
-        lastPenaltyUpdate: penaltyResult.details.lastUpdate
-      };
-      
-      result.updatedBills.push(updatedBill);
-      result.totalPenaltiesAdded += (penaltyResult.penaltyAmount - (bill.penaltyAmount || 0));
-      result.billsUpdated++;
-      
-      console.log(`Updated ${moduleType} penalty for bill ${bill.billId}: $${centavosToPesos(penaltyResult.penaltyAmount)}`);
-    }
+    console.log(`   ✅ Group complete: ${unpaidBills.length} bills with penalties`);
   }
   
-  console.log(`✅ [PENALTY_RECALC] Complete: ${result.billsUpdated} bills updated, ${result.billsSkipped} skipped`);
+  console.log(`\n✅ [PENALTY_RECALC] Complete: ${result.groupsProcessed} groups, ${result.billsUpdated} bills updated, ${result.billsSkipped} skipped`);
+  console.log(`   💰 Total penalties added: ${result.totalPenaltiesAdded} centavos ($${centavosToPesos(result.totalPenaltiesAdded)})`);
   
   return result;
 }

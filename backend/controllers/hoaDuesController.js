@@ -2,7 +2,6 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { createTransaction } from './transactionsController.js';
-import { randomUUID } from 'crypto';
 import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
 import { 
   calculateDuesStatus, 
@@ -16,7 +15,7 @@ import admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // PHASE 4 TASK 4.1: Import Phase 3 shared services
-import { getNow, parseDate, toISOString } from '../../shared/services/DateService.js';
+import { getNow, parseDate, toISOString, createDate } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos, formatCurrency } from '../../shared/utils/currencyUtils.js';
 import { validateCentavos, validateCentavosInObject } from '../../shared/utils/centavosValidation.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
@@ -25,6 +24,7 @@ import { calculateCreditUsage, updateCreditBalance as updateCreditBalanceShared,
 import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
+import creditService from '../services/creditService.js';
 
 // Legacy functions for compatibility during transition
 const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
@@ -32,6 +32,60 @@ const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp
 // Initialize DateService for Mexico timezone (using shared DateService)
 import { DateService } from '../../shared/services/DateService.js';
 const dateService = new DateService({ timezone: 'America/Cancun' });
+
+/**
+ * Calculate due date based on billing frequency
+ * 
+ * PHASE 5 TASK 5.1: Frequency-agnostic due date calculation
+ * - Monthly: Each fiscal month has its own due date (1st of that month)
+ * - Quarterly: 3 fiscal months share the same due date (1st of quarter start month)
+ * 
+ * Uses existing getFiscalYearBounds utility to correctly handle year boundaries
+ * 
+ * @param {number} fiscalMonthIndex - Month within fiscal year (0-11)
+ * @param {number} fiscalYear - Fiscal year (e.g., 2026)
+ * @param {string} frequency - 'monthly' or 'quarterly'
+ * @param {number} fiscalYearStartMonth - Calendar month fiscal year starts (1-12, 1=Jan, 7=Jul)
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency, fiscalYearStartMonth) {
+  // Validate inputs
+  if (fiscalMonthIndex < 0 || fiscalMonthIndex > 11) {
+    throw new Error(`fiscalMonthIndex must be 0-11, got ${fiscalMonthIndex}`);
+  }
+  
+  if (!['monthly', 'quarterly'].includes(frequency)) {
+    throw new Error(`Unsupported duesFrequency: ${frequency}. Expected 'monthly' or 'quarterly'.`);
+  }
+  
+  // Get fiscal year start date (handles year boundaries correctly)
+  const { startDate } = getFiscalYearBounds(fiscalYear, fiscalYearStartMonth);
+  
+  // For monthly, each fiscal month has its own due date
+  if (frequency === 'monthly') {
+    // Start from fiscal year start and add fiscal months
+    const dueDate = parseDate(startDate);
+    dueDate.setMonth(dueDate.getMonth() + fiscalMonthIndex);
+    return toISOString(dueDate);
+  }
+  
+  // For quarterly, months share due dates by quarter
+  if (frequency === 'quarterly') {
+    // Q1: fiscal months 0,1,2 → all due on fiscal month 0 date
+    // Q2: fiscal months 3,4,5 → all due on fiscal month 3 date
+    // Q3: fiscal months 6,7,8 → all due on fiscal month 6 date
+    // Q4: fiscal months 9,10,11 → all due on fiscal month 9 date
+    const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
+    
+    // Start from fiscal year start and add quarter start month
+    const dueDate = parseDate(startDate);
+    dueDate.setMonth(dueDate.getMonth() + quarterStartFiscalMonth);
+    return toISOString(dueDate);
+  }
+  
+  // Should never reach here due to validation above
+  throw new Error(`Unsupported frequency: ${frequency}`);
+}
 
 /**
  * Recursively convert all Firestore Timestamp objects to ISO strings
@@ -136,11 +190,20 @@ function convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config = {}) 
     const month = monthIndex + 1; // 1-12
     const fiscalMonth = monthIndex; // 0-11 for fiscal year format
     
-    // Calculate due date for this fiscal month
-    // Get fiscal year start date, then add fiscal months
-    const { startDate } = getFiscalYearBounds(year, config.fiscalYearStartMonth || 1);
-    const dueDate = parseDate(startDate);
-    dueDate.setMonth(dueDate.getMonth() + fiscalMonth);
+    // Get due date - calculate using frequency-aware logic
+    // This ensures quarters share the same due date
+    const dueDateISO = calculateFrequencyAwareDueDate(
+      fiscalMonth,
+      year,
+      config.duesFrequency || 'monthly',
+      config.fiscalYearStartMonth || 1
+    );
+    const dueDate = parseDate(dueDateISO);
+    
+    // DEBUG: Log due date calculation for first few months
+    if (monthIndex < 4) {
+      console.log(`   📅 [DUE DATE] Month ${monthIndex}: ${dueDateISO} (frequency: ${config.duesFrequency})`);
+    }
     
     // Determine bill status based on amounts (not payment.paid boolean)
     const paidAmount = payment?.amount || 0; // Already in centavos
@@ -283,6 +346,11 @@ async function getHOABillingConfig(clientId) {
     const clientDoc = await db.collection('clients').doc(clientId).get();
     const clientData = clientDoc.data() || {};
     const fiscalYearStartMonth = clientData.configuration?.fiscalYearStartMonth || 1;
+    const duesFrequency =
+      clientData.feeStructure?.duesFrequency ||
+      clientData.configuration?.feeStructure?.duesFrequency ||
+      clientData.configuration?.duesFrequency ||
+      'monthly';
     
     // Load HOA-specific config
     const configDoc = await db
@@ -302,7 +370,8 @@ async function getHOABillingConfig(clientId) {
     
     return {
       ...validatedConfig,
-      fiscalYearStartMonth: validatedConfig.fiscalYearStartMonth || fiscalYearStartMonth  // Prefer config, fallback to client
+      fiscalYearStartMonth: hoaConfig?.fiscalYearStartMonth || fiscalYearStartMonth,
+      duesFrequency
     };
   } catch (error) {
     console.error(`❌ Error loading HOA config for ${clientId}:`, error);
@@ -441,7 +510,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
  * @param {object} config - HOA billing configuration
  * @returns {Array} Bills array with recalculated penalties (in-memory only)
  */
-function calculatePenaltiesInMemory(bills, asOfDate, config) {
+async function calculatePenaltiesInMemory(bills, asOfDate, config) {
   console.log(`💰 [IN-MEMORY CALC] Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
   
   // Validate penalty configuration exists (check for undefined/null, allow 0)
@@ -453,30 +522,21 @@ function calculatePenaltiesInMemory(bills, asOfDate, config) {
     throw new Error(`Penalty configuration incomplete. Missing: ${missing.join(', ')}`);
   }
   
-  // Recalculate each bill's penalty using shared service
-  const updatedBills = bills.map(bill => {
-    // Call shared service to calculate penalty for this specific date
-    const penaltyResult = calculatePenaltyForBill({
-      bill,
-      asOfDate,
-      config: {
-        penaltyRate: config.penaltyRate,
-        penaltyDays: config.penaltyDays
-      }
-    });
-    
-    // Return bill with updated penalty (in-memory)
-    return {
-      ...bill,
-      penaltyAmount: penaltyResult.penaltyAmount,
-      totalAmount: bill.currentCharge + penaltyResult.penaltyAmount
-    };
+  // Use grouped penalty recalculation (Phase 5 Task 5.2)
+  // This groups bills by due date and calculates penalties on the group total
+  const result = await recalculatePenalties({
+    bills,
+    asOfDate,
+    config: {
+      penaltyRate: config.penaltyRate,
+      penaltyDays: config.penaltyDays
+    }
   });
   
-  const totalPenalties = updatedBills.reduce((sum, b) => sum + (b.penaltyAmount || 0), 0);
-  console.log(`✅ [IN-MEMORY CALC] Recalculated penalties: Total $${centavosToPesos(totalPenalties)}`);
+  const totalPenalties = result.totalPenaltiesAdded;
+  console.log(`✅ [IN-MEMORY CALC] Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
   
-  return updatedBills;
+  return result.updatedBills;
 }
 
 /**
@@ -776,7 +836,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       const bills = convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config);
       
       // Calculate penalties in-memory for payment date
-      const billsWithUpdatedPenalties = calculatePenaltiesInMemory(bills, paymentDate, config);
+      const billsWithUpdatedPenalties = await calculatePenaltiesInMemory(bills, paymentDate, config);
       
       console.log(`✅ [HOA RECORD] Penalties verified for ${billsWithUpdatedPenalties.length} bills`);
       
@@ -942,17 +1002,6 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     console.log('Current payments array before update:', duesData.payments);      // Handle case where distribution is empty (credit-only payment)
     if (!distribution || distribution.length === 0) {
       console.log(`No distribution provided - this appears to be a credit-only payment of ${paymentData.amount}`);
-      
-      // Add credit to the balance (convert to cents)
-      const creditToAdd = dollarsToCents(paymentData.amount || 0);
-      console.log(`Adding ${centsToDollars(creditToAdd)} to credit balance`);
-      duesData.creditBalance = (duesData.creditBalance || 0) + creditToAdd;
-      
-      // Add a payment note about the credit
-      const paymentNote = `Added ${creditToAdd} to credit balance (Transaction ID: ${finalTransactionId})`;
-      
-      // Add a note to transaction metadata
-      console.log(`Adding note to transaction: ${paymentNote}`);
     }
     
     // Update payments array with distributed payments
@@ -1005,112 +1054,51 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       };
     }
     
-    // Update credit balance based on the calculation from frontend
-    const originalCreditBalance = duesData.creditBalance || 0;
-    const currentDateTime = getNow().toString();
-    
-    // Initialize creditBalanceHistory as array if it doesn't exist
-    if (!duesData.creditBalanceHistory) {
-      duesData.creditBalanceHistory = [];
-      // If there's an existing credit balance, add a starting entry
-      if (originalCreditBalance !== 0) {
-        duesData.creditBalanceHistory.push({
-          id: randomUUID(),
-          timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: null,
-          type: 'starting_balance',
-          amount: originalCreditBalance,
-          description: 'Initial credit balance',
-          balanceBefore: 0,
-          balanceAfter: originalCreditBalance,
-          notes: 'System initialization'
-        });
-      }
+    // Determine credit balance impact using shared credit service
+    const creditBalanceInfo = await creditService.getCreditBalance(clientId, unitId);
+    const existingCreditCentavos = dollarsToCents(creditBalanceInfo.creditBalance || 0);
+    let creditDeltaCentavos = 0;
+
+    if (typeof paymentData.newCreditBalance === 'number') {
+      const targetCreditCentavos = dollarsToCents(paymentData.newCreditBalance);
+      creditDeltaCentavos = targetCreditCentavos - existingCreditCentavos;
+    } else {
+      const creditAddedCentavos = dollarsToCents(paymentData.creditBalanceAdded || 0);
+      const creditRepairCentavos = dollarsToCents(paymentData.creditRepairAmount || 0);
+      const creditUsedCentavos = dollarsToCents(paymentData.creditUsed || 0);
+      creditDeltaCentavos = creditAddedCentavos + creditRepairCentavos - creditUsedCentavos;
     }
-    
-    if (paymentData.newCreditBalance !== undefined) {
-      console.log(`Setting credit balance from ${centsToDollars(originalCreditBalance)} to calculated amount: ${paymentData.newCreditBalance}`);
-      duesData.creditBalance = dollarsToCents(paymentData.newCreditBalance);
-      
-      // Add credit repair entry if negative balance was fixed
-      if (paymentData.creditRepairAmount && paymentData.creditRepairAmount > 0) {
-        console.log(`Credit repair amount: ${paymentData.creditRepairAmount}`);
-        const creditRepairAmountCents = dollarsToCents(paymentData.creditRepairAmount);
-        duesData.creditBalanceHistory.push({
-          id: randomUUID(),
-          timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: finalTransactionId,
-          type: 'credit_repair',
-          amount: creditRepairAmountCents,  // Store in centavos
-          description: 'to fix negative balance',
-          balanceBefore: originalCreditBalance,  // Already in centavos
-          balanceAfter: originalCreditBalance + creditRepairAmountCents,  // Both in centavos
-          notes: `${paymentData.method || 'Payment'} repair`
-        });
+
+    if (creditDeltaCentavos !== 0) {
+      const noteSegments = [];
+      if (typeof paymentData.creditBalanceAdded === 'number') {
+        noteSegments.push(`overpayment +$${Number(paymentData.creditBalanceAdded).toFixed(2)}`);
       }
-      
-      // Add credit usage entry
-      if (paymentData.creditUsed && paymentData.creditUsed > 0) {
-        console.log(`Credit used in this payment: ${paymentData.creditUsed}`);
-        const creditUsedCents = dollarsToCents(paymentData.creditUsed);
-        const balanceAfterUseCents = dollarsToCents(paymentData.newCreditBalance) - dollarsToCents(paymentData.creditBalanceAdded || 0);
-        duesData.creditBalanceHistory.push({
-          id: randomUUID(),
-          timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: finalTransactionId,
-          type: 'credit_used',
-          amount: creditUsedCents,  // Store in centavos
-          description: `from ${paymentData.method || 'Payment'}`,
-          balanceBefore: balanceAfterUseCents + creditUsedCents,  // Both in centavos
-          balanceAfter: balanceAfterUseCents,  // In centavos
-          notes: paymentData.notes || ''
-        });
+      if (typeof paymentData.creditUsed === 'number' && paymentData.creditUsed > 0) {
+        noteSegments.push(`credit used $${Number(paymentData.creditUsed).toFixed(2)}`);
       }
-      
-      // Add credit addition entry
-      if (paymentData.creditBalanceAdded && paymentData.creditBalanceAdded > 0) {
-        const creditAddedCents = dollarsToCents(paymentData.creditBalanceAdded);
-        const newCreditBalanceCents = dollarsToCents(paymentData.newCreditBalance);
-        duesData.creditBalanceHistory.push({
-          id: randomUUID(),
-          timestamp: getNow().toISOString(), // Store as ISO string to avoid Timestamp version mismatch
-          transactionId: finalTransactionId,
-          type: 'credit_added',
-          amount: creditAddedCents,  // Store in centavos
-          description: 'from Overpayment',
-          balanceBefore: newCreditBalanceCents - creditAddedCents,  // Both in centavos
-          balanceAfter: newCreditBalanceCents,  // In centavos
-          notes: paymentData.notes || ''
-        });
+      if (typeof paymentData.creditRepairAmount === 'number' && paymentData.creditRepairAmount > 0) {
+        noteSegments.push(`repair +$${Number(paymentData.creditRepairAmount).toFixed(2)}`);
       }
-      
-    } else if (paymentData.creditBalanceAdded) {
-      // Fallback to old logic for backward compatibility
-      console.log(`Adding to credit balance (legacy): ${paymentData.creditBalanceAdded}`);
-      const creditAddedCents = dollarsToCents(paymentData.creditBalanceAdded);
-      duesData.creditBalance = (duesData.creditBalance || 0) + creditAddedCents;
-      
-      // Add entry for legacy credit addition
-      duesData.creditBalanceHistory.push({
-        id: randomUUID(),
-        timestamp: getNow().toISOString(),
-        transactionId: finalTransactionId,
-        type: 'credit_added',
-        amount: creditAddedCents,  // Store in centavos
-        description: 'from Legacy payment',
-        balanceBefore: duesData.creditBalance - creditAddedCents,  // Both in centavos
-        balanceAfter: duesData.creditBalance,  // In centavos
-        notes: 'Legacy compatibility'
-      });
+      const creditNote = `HOA dues payment ${finalTransactionId}${noteSegments.length ? ` (${noteSegments.join(', ')})` : ''}`;
+
+      await creditService.updateCreditBalance(
+        clientId,
+        unitId,
+        creditDeltaCentavos,
+        finalTransactionId,
+        creditNote,
+        'hoaDues'
+      );
+      console.log(`💳 [CREDIT] Applied delta of ${creditDeltaCentavos} centavos via shared credit service`);
+    } else {
+      console.log('💳 [CREDIT] No credit delta detected for this payment');
     }
-    
-    console.log(`Credit balance updated: ${originalCreditBalance} → ${duesData.creditBalance}`);
     
     // Debug the data before saving - more detailed logging
     console.log('Attempting to save dues data:', {
       path: `clients/${clientId}/units/${unitId}/dues/${year}`,
       duesData: {
-        creditBalance: duesData.creditBalance,
         scheduledAmount: duesData.scheduledAmount,
         paymentsCount: duesData.payments.length,
         payments: duesData.payments.map(p => ({
@@ -1136,7 +1124,6 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       
       // Debug the current state of duesData before cleaning
       console.log('Current duesData structure before cleaning:', {
-        creditBalance: duesData.creditBalance,
         scheduledAmount: duesData.scheduledAmount,
         paymentsCount: duesData.payments?.length || 0,
         paymentsArray: Array.isArray(duesData.payments),
@@ -1189,20 +1176,14 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       const updates = {
         // Update calculated fields
         totalPaid: totalPaid,
-        creditBalance: Number(duesData.creditBalance) || 0,
-        
+
         // Update the payment array with cleaned dates
         payments: cleanedPayments,
-        
-        // Update credit balance history - clean any Timestamp objects to ISO strings
-        creditBalanceHistory: Array.isArray(duesData.creditBalanceHistory) 
-          ? duesData.creditBalanceHistory.map(entry => ({
-              ...entry,
-              // Convert Timestamp to ISO string if needed (fixes version mismatch)
-              timestamp: entry.timestamp?.toDate ? entry.timestamp.toDate().toISOString() : entry.timestamp
-            }))
-          : [],
-        
+
+        // Remove legacy credit fields permanently
+        creditBalance: admin.firestore.FieldValue.delete(),
+        creditBalanceHistory: admin.firestore.FieldValue.delete(),
+
         // Update timestamp
         updated: convertToTimestamp(getNow())
       };
@@ -1216,7 +1197,6 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       
       // Log the update for debugging
       console.log('Surgical update fields:', {
-        creditBalance: updates.creditBalance,
         totalPaid: updates.totalPaid,
         paymentsCount: updates.payments.length,
         updatedFields: Object.keys(updates)
@@ -1253,11 +1233,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           const newDuesDoc = {
             year: year,
             unitId: unitId,
-            creditBalance: updates.creditBalance,
             totalDue: duesData.totalDue, // Annual dues in centavos
             totalPaid: updates.totalPaid,
             payments: updates.payments,
-            creditBalanceHistory: updates.creditBalanceHistory,
             updated: updates.updated,
             // Preserve scheduledAmount if it exists in duesData
             ...(duesData.scheduledAmount !== undefined && { scheduledAmount: duesData.scheduledAmount })
@@ -1277,7 +1255,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       if (verifyDoc.exists) {
         const savedData = verifyDoc.data();
         console.log(`✅ Verified dues record for Unit ${unitId} Year ${year}:`, {
-          savedCreditBalance: savedData.creditBalance,
+          legacyCreditFieldsPresent: 'creditBalance' in savedData || 'creditBalanceHistory' in savedData,
           savedPaymentsCount: savedData.payments?.length || 0,
           path: firestorePath,
           documentId: verifyDoc.id
@@ -1321,11 +1299,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         const newDuesDoc = {
           year: year,
           unitId: unitId,
-          creditBalance: updates.creditBalance,
           totalDue: duesData.totalDue, // Annual dues in centavos
           totalPaid: updates.totalPaid,
           payments: updates.payments,
-          creditBalanceHistory: updates.creditBalanceHistory,
           updated: updates.updated,
           // Preserve scheduledAmount if it exists in duesData
           ...(duesData.scheduledAmount !== undefined && { scheduledAmount: duesData.scheduledAmount })
@@ -1441,33 +1417,37 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
     // Calculate total paid
     const totalPaid = paymentsArray.reduce((sum, p) => sum + (p?.amount || 0), 0);
     
-    // Update credit balance and history
-    const originalCreditBalance = duesData.creditBalance || 0;
-    const newCreditBalance = pesosToCentavos(creditData.final);
-    
-    const creditBalanceHistory = duesData.creditBalanceHistory || [];
-    
-    // Add credit history entry if credit changed
-    if (creditData.used > 0 || creditData.added > 0) {
-      creditBalanceHistory.push({
-        id: transactionId,
-        timestamp: getNow().toISOString(),
-        transactionId: transactionId,
-        type: creditData.added > 0 ? 'credit_added' : 'credit_used',
-        amount: Math.abs(pesosToCentavos(creditData.added - creditData.used)),
-        balanceBefore: originalCreditBalance,
-        balanceAfter: newCreditBalance,
-        description: `Unified payment: ${paymentMethod}`,
-        notes: `Transaction ${transactionId}`
-      });
+    // Update shared credit balance document instead of legacy dues fields
+    const creditDeltaCentavos = pesosToCentavos((creditData.added || 0) - (creditData.used || 0));
+    if (creditDeltaCentavos !== 0) {
+      const creditNoteParts = [];
+      if (creditData.added > 0) {
+        creditNoteParts.push(`overpayment +$${Number(creditData.added).toFixed(2)}`);
+      }
+      if (creditData.used > 0) {
+        creditNoteParts.push(`credit used $${Number(creditData.used).toFixed(2)}`);
+      }
+
+      const creditNote = `Unified HOA payment ${transactionId}${creditNoteParts.length ? ` (${creditNoteParts.join(', ')})` : ''}`;
+      await creditService.updateCreditBalance(
+        clientId,
+        unitId,
+        creditDeltaCentavos,
+        transactionId,
+        creditNote,
+        'hoaDues'
+      );
+      console.log(`💳 [CREDIT] Unified payment adjusted credit by ${creditDeltaCentavos} centavos`);
+    } else {
+      console.log('💳 [CREDIT] Unified payment had no credit delta');
     }
-    
-    // Update Firestore
+
+    // Update Firestore (payments only)
     const updates = {
       payments: paymentsArray,
       totalPaid: totalPaid,
-      creditBalance: newCreditBalance,
-      creditBalanceHistory: creditBalanceHistory,
+      creditBalance: admin.firestore.FieldValue.delete(),
+      creditBalanceHistory: admin.firestore.FieldValue.delete(),
       updated: getNow().toISOString()
     };
     
@@ -1475,6 +1455,181 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
     await duesRef.update(cleanedUpdates);
     
     console.log(`✅ [HOA UPDATE] Updated ${monthsData.length} months, credit: $${creditData.final}`);
+    
+    return { success: true, transactionId };
+    
+  } catch (error) {
+    console.error('❌ Error updating HOA dues:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update HOA dues with payment (handles both monthly and quarterly)
+ * Detects billing frequency from the data structure
+ * 
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} year - Fiscal year
+ * @param {Array} paymentsData - Array of payment data (months or quarters)
+ * @param {string} transactionId - Pre-created transaction ID
+ * @param {string} paymentDate - Payment date (ISO string)
+ * @param {string} paymentMethod - Payment method
+ * @param {string|null} reference - Payment reference
+ * @param {string} userId - User ID who recorded payment
+ * @param {object} creditData - {final, used, added} - Final credit balance info
+ * @returns {object} Success status
+ */
+async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsData, transactionId, paymentDate, paymentMethod, reference, userId, creditData) {
+  try {
+    console.log(`🏠 [HOA UPDATE] Processing ${paymentsData.length} payment entries for unit ${unitId}/${year}`);
+    
+    if (!dbInstance) {
+      dbInstance = await getDb();
+    }
+    
+    const duesRef = dbInstance.collection('clients').doc(clientId)
+      .collection('units').doc(unitId)
+      .collection('dues').doc(year.toString());
+    
+    const duesDoc = await duesRef.get();
+    
+    if (!duesDoc.exists) {
+      throw new Error(`HOA dues document not found for ${unitId}/${year}`);
+    }
+    
+    const duesData = duesDoc.data();
+    
+    // Detect billing frequency from data structure
+    const hasQuarters = duesData.quarters && Array.isArray(duesData.quarters);
+    const hasPayments = duesData.payments && Array.isArray(duesData.payments);
+    
+    let updates = {};
+    
+    if (hasQuarters) {
+      // QUARTERLY BILLING
+      console.log(`   📅 Detected quarterly billing structure`);
+      const quartersArray = [...duesData.quarters];
+      
+      // Ensure 4-element array
+      while (quartersArray.length < 4) {
+        quartersArray.push(null);
+      }
+      
+      // Update each quarter
+      paymentsData.forEach(paymentData => {
+        const quarterIndex = paymentData.quarterIndex;
+        
+        if (quarterIndex < 0 || quarterIndex > 3) {
+          console.warn(`Invalid quarter ${quarterIndex}, skipping`);
+          return;
+        }
+        
+        const existingQuarter = quartersArray[quarterIndex] || {};
+        
+        quartersArray[quarterIndex] = {
+          ...existingQuarter,
+          paid: true,
+          amount: (existingQuarter.amount || 0) + paymentData.basePaid, // In centavos
+          penaltyPaid: paymentData.penaltyPaid, // In centavos
+          date: paymentDate,
+          method: paymentMethod,
+          reference: transactionId,
+          notes: paymentData.notes || `Unified payment Q${quarterIndex + 1} (Transaction ID: ${transactionId})`
+        };
+      });
+      
+      // Calculate total paid
+      const totalPaid = quartersArray.reduce((sum, q) => sum + (q?.amount || 0), 0);
+      
+      updates = {
+        quarters: quartersArray,
+        totalPaid: totalPaid,
+        updated: getNow().toISOString()
+      };
+      
+      console.log(`   ✅ Updated ${paymentsData.length} quarters`);
+      
+    } else if (hasPayments) {
+      // MONTHLY BILLING (existing logic)
+      console.log(`   📅 Detected monthly billing structure`);
+      const paymentsArray = [...duesData.payments];
+      
+      // Ensure 12-element array
+      while (paymentsArray.length < 12) {
+        paymentsArray.push(null);
+      }
+      
+      // Update each month
+      paymentsData.forEach(paymentData => {
+        const monthIndex = paymentData.month - 1; // Convert to 0-based index
+        
+        if (monthIndex < 0 || monthIndex > 11) {
+          console.warn(`Invalid month ${paymentData.month}, skipping`);
+          return;
+        }
+        
+        const existingPayment = paymentsArray[monthIndex] || {};
+        
+        paymentsArray[monthIndex] = {
+          ...existingPayment,
+          paid: true,
+          amount: (existingPayment.amount || 0) + paymentData.basePaid, // In centavos
+          penaltyPaid: paymentData.penaltyPaid, // In centavos
+          date: paymentDate,
+          method: paymentMethod,
+          reference: transactionId,
+          notes: paymentData.notes || `Unified payment (Transaction ID: ${transactionId})`
+        };
+      });
+      
+      // Calculate total paid
+      const totalPaid = paymentsArray.reduce((sum, p) => sum + (p?.amount || 0), 0);
+      
+      updates = {
+        payments: paymentsArray,
+        totalPaid: totalPaid,
+        updated: getNow().toISOString()
+      };
+      
+      console.log(`   ✅ Updated ${paymentsData.length} months`);
+      
+    } else {
+      throw new Error(`No valid payment structure found in dues document for ${unitId}/${year}`);
+    }
+    
+    // Update shared credit balance document
+    const creditDeltaCentavos = pesosToCentavos((creditData.added || 0) - (creditData.used || 0));
+    if (creditDeltaCentavos !== 0) {
+      const creditNoteParts = [];
+      if (creditData.added > 0) {
+        creditNoteParts.push(`overpayment +$${Number(creditData.added).toFixed(2)}`);
+      }
+      if (creditData.used > 0) {
+        creditNoteParts.push(`credit used $${Number(creditData.used).toFixed(2)}`);
+      }
+
+      const creditNote = `Unified HOA payment ${transactionId}${creditNoteParts.length ? ` (${creditNoteParts.join(', ')})` : ''}`;
+      await creditService.updateCreditBalance(
+        clientId,
+        unitId,
+        creditDeltaCentavos,
+        transactionId,
+        creditNote,
+        'hoaDues'
+      );
+      console.log(`💳 [CREDIT] Unified payment adjusted credit by ${creditDeltaCentavos} centavos`);
+    }
+
+    // Clean up legacy fields if present
+    updates.creditBalance = admin.firestore.FieldValue.delete();
+    updates.creditBalanceHistory = admin.firestore.FieldValue.delete();
+    
+    // Update Firestore
+    const cleanedUpdates = cleanTimestamps(updates);
+    await duesRef.update(cleanedUpdates);
+    
+    console.log(`✅ [HOA UPDATE] Success, credit: $${creditData.final}`);
     
     return { success: true, transactionId };
     
@@ -1521,7 +1676,7 @@ async function getUnitDuesData(clientId, unitId, year) {
     
     if (duesDoc.exists) {
       const data = duesDoc.data();
-      console.log(`✅ Found dues data with ${data.payments?.length || 0} payments and credit balance ${centsToDollars(data.creditBalance || 0)}`);
+      console.log(`✅ Found dues data with ${data.payments?.length || 0} payments`);
       
       // Fetch credit balance data from the new centralized location
       let creditBalance = data.creditBalance || 0;
@@ -1757,51 +1912,56 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
                       .collection('units').doc(unitId).collection('dues').doc(year.toString());
     const duesDoc = await duesRef.get();
     
-    let duesData;
-    
-    // If document doesn't exist, we need to initialize it first
     if (!duesDoc.exists) {
       await initializeYearDocument(clientId, unitId, year);
       // Re-fetch the document
-      const newDoc = await duesRef.get();
-      duesData = newDoc.data();
-    } else {
-      duesData = duesDoc.data();
+      await duesRef.set({
+        year,
+        unitId,
+        payments: Array(12).fill(null).map(() => ({
+          paid: false,
+          amount: 0,
+          date: null,
+          reference: null
+        })),
+        totalPaid: 0,
+        updated: convertToTimestamp(getNow())
+      }, { merge: true });
     }
     
-    // Update credit balance (convert from dollars to cents)
-    const originalBalance = duesData.creditBalance || 0;
-    const newBalanceInCents = dollarsToCents(newCreditBalance);
-    
-    // Prepare credit balance history entry
-    const historyEntry = {
-      id: randomUUID(),
-      timestamp: convertToTimestamp(getNow()),
-      transactionId: null,
-      type: 'manual_adjustment',
-      amount: newBalanceInCents - originalBalance,
-      description: notes ? `MANUAL ADJUSTMENT: ${notes}` : 'MANUAL ADJUSTMENT',
-      balanceBefore: originalBalance,
-      balanceAfter: newBalanceInCents,
-      notes: notes || 'Updated via API'
-    };
-    
-    // Prepare the existing history array
-    const creditBalanceHistory = Array.isArray(duesData.creditBalanceHistory) 
-      ? [...duesData.creditBalanceHistory, historyEntry]
-      : [historyEntry];
-    
-    // SURGICAL UPDATE: Only update specific fields
-    const updates = {
-      creditBalance: newBalanceInCents,
-      creditBalanceHistory: creditBalanceHistory,
-      updated: convertToTimestamp(getNow())
-    };
-    
-    // Use update() for surgical updates
-    // Clean all Timestamp objects before update
-    const cleanedCreditUpdates = cleanTimestamps(updates);
-    await duesRef.update(cleanedCreditUpdates);
+    const currentCreditInfo = await creditService.getCreditBalance(clientId, unitId);
+    const currentBalancePesos = currentCreditInfo.creditBalance || 0;
+    const newBalancePesos = newCreditBalance;
+    const changeAmountPesos = newBalancePesos - currentBalancePesos;
+
+    if (Math.abs(changeAmountPesos) < 0.005) {
+      console.log('💳 [CREDIT] Manual update requested but no change detected');
+    } else {
+      const changeAmountCentavos = dollarsToCents(changeAmountPesos);
+      const adjustmentNote = notes ? `Manual HOA adjustment: ${notes}` : 'Manual HOA credit adjustment';
+      await creditService.updateCreditBalance(
+        clientId,
+        unitId,
+        changeAmountCentavos,
+        null,
+        adjustmentNote,
+        'hoaDues'
+      );
+      console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos`);
+    }
+
+    // Remove legacy fields from dues document if they still exist
+    try {
+      await duesRef.update({
+        creditBalance: admin.firestore.FieldValue.delete(),
+        creditBalanceHistory: admin.firestore.FieldValue.delete(),
+        updated: convertToTimestamp(getNow())
+      });
+    } catch (updateError) {
+      if (updateError.code !== 'not-found') {
+        throw updateError;
+      }
+    }
     
     // Log the action
     await writeAuditLog({
@@ -1814,7 +1974,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       metadata: {
         unitId,
         newCreditBalance,
-        previousCreditBalance: duesDoc.exists ? duesDoc.data().creditBalance : 0
+        previousCreditBalance: currentCreditInfo.creditBalance
       }
     });
     
@@ -1834,38 +1994,19 @@ async function getCreditBalanceForModule(req, res) {
     const { clientId, unitId, year } = req.params;
     const { module = 'unknown' } = req.query; // Track which module is requesting
     
-    if (!dbInstance) {
-      dbInstance = await getDb();
-    }
-    
-    // Get HOA dues document (where credit balance lives)
-    const duesRef = dbInstance.collection('clients').doc(clientId)
-      .collection('units').doc(unitId)
-      .collection('dues').doc(year.toString());
-    
-    const duesDoc = await duesRef.get();
-    
-    if (!duesDoc.exists) {
-      // Initialize if doesn't exist (common for new units)
-      const newDoc = await initializeYearDocument(clientId, unitId, parseInt(year));
-      return res.json({
-        success: true,
-        creditBalance: 0,
-        creditBalanceHistory: [],
-        initialized: true
-      });
-    }
-    
-    const data = duesDoc.data();
-    
+    const [creditInfo, creditHistoryInfo] = await Promise.all([
+      creditService.getCreditBalance(clientId, unitId),
+      creditService.getCreditHistory(clientId, unitId, 50)
+    ]);
+
     // Log cross-module access for audit
-    console.log(`📊 Credit balance accessed by ${module} module: Unit ${unitId}, Year ${year}, Balance: ${centsToDollars(data.creditBalance || 0)}`);
+    console.log(`📊 Credit balance accessed by ${module} module: Unit ${unitId}, Balance: $${creditInfo.creditBalance || 0}`);
     
     res.json({
       success: true,
-      creditBalance: centsToDollars(data.creditBalance || 0), // Return in dollars
-      creditBalanceHistory: data.creditBalanceHistory || [],
-      lastUpdated: formatDateField(data.updated)
+      creditBalance: creditInfo.creditBalance || 0,
+      creditBalanceHistory: creditHistoryInfo.history || [],
+      lastUpdated: creditInfo.lastUpdated
     });
     
   } catch (error) {
@@ -1893,65 +2034,48 @@ async function updateCreditBalanceFromModule(req, res) {
       module = 'unknown'
     } = req.body;
     
+    const changeCentavos = dollarsToCents(changeAmount);
+    const source = module === 'hoa' ? 'hoaDues' : module;
+    const creditNote = description || `${module} credit update (${changeType || 'unspecified'})`;
+
+    await creditService.updateCreditBalance(
+      clientId,
+      unitId,
+      changeCentavos,
+      transactionId || null,
+      creditNote,
+      source
+    );
+
+    // Remove any lingering legacy fields asynchronously (best-effort)
     if (!dbInstance) {
       dbInstance = await getDb();
     }
-    
-    // Get current dues document
     const duesRef = dbInstance.collection('clients').doc(clientId)
       .collection('units').doc(unitId)
       .collection('dues').doc(year.toString());
-    
-    const duesDoc = await duesRef.get();
-    let duesData;
-    
-    if (!duesDoc.exists) {
-      // Initialize if doesn't exist
-      duesData = await initializeYearDocument(clientId, unitId, parseInt(year));
-    } else {
-      duesData = duesDoc.data();
+    try {
+      await duesRef.update({
+        creditBalance: admin.firestore.FieldValue.delete(),
+        creditBalanceHistory: admin.firestore.FieldValue.delete(),
+        updated: convertToTimestamp(getNow())
+      });
+    } catch (legacyCleanupError) {
+      if (legacyCleanupError.code !== 'not-found') {
+        console.warn('⚠️ Unable to remove legacy credit fields:', legacyCleanupError.message);
+      }
     }
-    
-    // Update credit balance
-    const originalBalance = duesData.creditBalance || 0;
-    const newBalanceInCents = dollarsToCents(newBalance);
-    
-    // Create history entry with module tracking
-    const historyEntry = {
-      id: randomUUID(),
-      timestamp: convertToTimestamp(getNow()),
-      type: changeType, // 'water_payment_applied', 'water_overpayment', etc.
-      amount: dollarsToCents(changeAmount),  // Store in centavos
-      balanceBefore: originalBalance,  // Already in centavos
-      balanceAfter: newBalanceInCents,  // Already in centavos
-      description: description,
-      module: module, // Track which module made the change
-      transactionId: transactionId || null
-    };
-    
-    // Update document
-    const updates = {
-      creditBalance: newBalanceInCents,
-      creditBalanceHistory: admin.firestore.FieldValue.arrayUnion(historyEntry),
-      updated: convertToTimestamp(getNow())
-    };
-    
-    // Clean all Timestamp objects before update
-    const cleanedCrossModuleUpdates = cleanTimestamps(updates);
-    await duesRef.update(cleanedCrossModuleUpdates);
-    
-    // Log cross-module credit update
-    console.log(`💰 Credit balance updated by ${module}: Unit ${unitId}, ${centsToDollars(originalBalance)} → ${newBalance}`);
+
+    // Fetch updated balance for response
+    const updatedCredit = await creditService.getCreditBalance(clientId, unitId);
+    console.log(`💰 Credit balance updated by ${module}: Unit ${unitId}, change ${changeAmount} (pesos)`);
     
     res.json({
       success: true,
-      previousBalance: centsToDollars(originalBalance),
-      newBalance: newBalance,
+      previousBalance: updatedCredit.creditBalance - changeAmount,
+      newBalance: updatedCredit.creditBalance,
       changeAmount: changeAmount,
-      historyEntry: {
-        ...historyEntry,
-        timestamp: formatDateField(historyEntry.timestamp)
-      }
+      module
     });
     
   } catch (error) {
@@ -2003,7 +2127,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
     
     // 3. Calculate penalties in-memory for payment date (does NOT write to Firestore)
     const calculationDate = payOnDate || getNow();
-    const billsWithUpdatedPenalties = calculatePenaltiesInMemory(allBills, calculationDate, config);
+    const billsWithUpdatedPenalties = await calculatePenaltiesInMemory(allBills, calculationDate, config);
     
     // 4. Filter to unpaid bills only (wrapper responsibility)
     const unpaidBills = billsWithUpdatedPenalties.filter(b => b.status !== 'paid');
@@ -2076,6 +2200,7 @@ export {
   initializeYearDocument,
   recordDuesPayment,
   updateHOADuesWithPayment, // Unified Payment System - Firestore update only
+  updateHOADuesWithPaymentUnified, // Handles both monthly and quarterly
   getUnitDuesData,
   getAllDuesDataForYear,
   updateCreditBalance,

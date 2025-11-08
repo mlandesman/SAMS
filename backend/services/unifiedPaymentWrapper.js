@@ -242,6 +242,13 @@ export class UnifiedPaymentWrapper {
     console.log(`   Water: ${splitResults.water.billsPaid.length} bills, $${splitResults.water.totalPaid}`);
     console.log(`   Credit: Used $${splitResults.credit.used}, Added $${splitResults.credit.added}, Final $${splitResults.credit.final}`);
     
+    // Debug: Log first few HOA months
+    console.log(`   🔍 HOA Months Sample:`, splitResults.hoa.monthsAffected.slice(0, 3).map(m => ({
+      billPeriod: m.billPeriod,
+      monthIndex: m.monthIndex,
+      month: m.month
+    })));
+    
     return splitResults;
   }
 
@@ -342,20 +349,32 @@ export class UnifiedPaymentWrapper {
     
     // Add HOA allocations (split into base and penalty)
     if (preview.hoa && preview.hoa.monthsAffected) {
-      preview.hoa.monthsAffected.forEach(month => {
+      preview.hoa.monthsAffected.forEach(entry => {
+        // Determine target ID and name based on whether it's quarterly or monthly
+        let targetId, targetName;
+        if (entry.isQuarterly) {
+          const quarterNum = (entry.quarterIndex || 0) + 1;
+          targetId = `Q${quarterNum}_${fiscalYear}`;
+          targetName = `Q${quarterNum} ${fiscalYear}`;
+        } else {
+          targetId = `month_${entry.monthIndex}_${fiscalYear}`;
+          targetName = this._getMonthName((entry.monthIndex || 0) + 1, fiscalYear); // Convert 0-11 to 1-12
+        }
+        
         // Base charge allocation
-        if (month.basePaid > 0) {
+        if (entry.basePaid > 0) {
           allocations.push({
             id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
             type: 'hoa_month',
-            targetId: `month_${month.monthIndex}_${fiscalYear}`,
-            targetName: this._getMonthName(month.monthIndex, fiscalYear),
-            amount: month.basePaid, // In pesos - createTransaction will convert to centavos
+            targetId: targetId,
+            targetName: targetName,
+            amount: entry.basePaid, // In pesos - createTransaction will convert to centavos
             categoryName: 'HOA Dues',
             categoryId: 'hoa-dues',
             data: {
               unitId: unitId,
-              month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
+              month: entry.monthIndex, // Keep for compatibility
+              quarter: entry.quarterIndex,
               year: fiscalYear
             }
           });
@@ -363,18 +382,19 @@ export class UnifiedPaymentWrapper {
         }
         
         // Penalty allocation (separate line item)
-        if (month.penaltyPaid > 0) {
+        if (entry.penaltyPaid > 0) {
           allocations.push({
             id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
             type: 'hoa_penalty',
-            targetId: `penalty_${month.monthIndex}_${fiscalYear}`,
-            targetName: this._getMonthName(month.monthIndex, fiscalYear),
-            amount: month.penaltyPaid, // In pesos - createTransaction will convert to centavos
+            targetId: `penalty_${targetId}`,
+            targetName: targetName,
+            amount: entry.penaltyPaid, // In pesos - createTransaction will convert to centavos
             categoryName: 'HOA Penalties',
             categoryId: 'hoa-penalties',
             data: {
               unitId: unitId,
-              month: month.monthIndex, // FIXED: Use fiscal month index (0-11), not calendar month
+              month: entry.monthIndex, // Keep for compatibility
+              quarter: entry.quarterIndex,
               year: fiscalYear
             }
           });
@@ -524,33 +544,56 @@ export class UnifiedPaymentWrapper {
     
     // Step 4: Update HOA dues in Firestore (if HOA bills were paid)
     if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
-      console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA months in Firestore...`);
+      console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA entries in Firestore...`);
       
-      // Group months by fiscal year since we might have bills from multiple years
-      const monthsByYear = {};
-      preview.hoa.monthsAffected.forEach(month => {
-        // Extract year from billPeriod (e.g., "2024-09" -> 2024)
-        const year = parseInt(month.billPeriod.split('-')[0]);
-        if (!monthsByYear[year]) {
-          monthsByYear[year] = [];
+      // Group by fiscal year since we might have bills from multiple years
+      const entriesByYear = {};
+      preview.hoa.monthsAffected.forEach(entry => {
+        // Extract year from billPeriod (e.g., "2024-09" -> 2024 or "2024-Q1" -> 2024)
+        const year = parseInt(entry.billPeriod.split('-')[0]);
+        if (!entriesByYear[year]) {
+          entriesByYear[year] = [];
         }
-        monthsByYear[year].push({
-          month: month.month,
-          basePaid: pesosToCentavos(month.basePaid), // Convert to centavos
-          penaltyPaid: pesosToCentavos(month.penaltyPaid), // Convert to centavos
-          notes: comprehensiveNotesWithSeq // Add comprehensive notes to each month
-        });
+        
+        // Prepare data based on whether it's quarterly or monthly
+        const paymentEntry = {
+          basePaid: pesosToCentavos(entry.basePaid), // Convert to centavos
+          penaltyPaid: pesosToCentavos(entry.penaltyPaid), // Convert to centavos
+          notes: comprehensiveNotesWithSeq // Add comprehensive notes
+        };
+        
+        if (entry.isQuarterly) {
+          // Quarterly payment - we need to record payment for all 3 months in the quarter
+          const quarterIndex = entry.quarterIndex || 0;
+          const startMonth = quarterIndex * 3; // 0, 3, 6, 9
+          
+          // Create entries for each month in the quarter
+          for (let i = 0; i < 3; i++) {
+            const monthIndex = startMonth + i;
+            const monthPaymentEntry = {
+              month: monthIndex + 1, // Convert 0-based to 1-based
+              basePaid: pesosToCentavos(entry.basePaid / 3), // Split equally among 3 months
+              penaltyPaid: i === 0 ? pesosToCentavos(entry.penaltyPaid) : 0, // Penalty only on first month
+              notes: comprehensiveNotesWithSeq + ` (Q${quarterIndex + 1} Month ${i + 1}/3)`
+            };
+            entriesByYear[year].push(monthPaymentEntry);
+          }
+        } else {
+          // Monthly payment
+          paymentEntry.month = entry.month;
+          entriesByYear[year].push(paymentEntry);
+        }
       });
       
       // Update each year's document separately
-      for (const [year, monthsData] of Object.entries(monthsByYear)) {
-        console.log(`      📅 Updating ${monthsData.length} months for year ${year}...`);
+      for (const [year, paymentsData] of Object.entries(entriesByYear)) {
+        console.log(`      📅 Updating ${paymentsData.length} month entries for year ${year}...`);
         
         await updateHOADuesWithPayment(
           clientId,
           unitId,
           year, // Use the specific year for these bills
-          monthsData,
+          paymentsData,
           transactionId,
           paymentDate,
           paymentMethod,
@@ -699,7 +742,7 @@ export class UnifiedPaymentWrapper {
       const bills = this._convertHOADuesToBills(hoaDuesDoc, clientId, unitId, fiscalYear, config);
       
       // Calculate penalties in-memory for payment date
-      const billsWithPenalties = this._calculateHOAPenaltiesInMemory(bills, calculationDate, config);
+      const billsWithPenalties = await this._calculateHOAPenaltiesInMemory(bills, calculationDate, config);
       
       // Filter to unpaid bills only
       const unpaidBills = billsWithPenalties.filter(b => b.status !== 'paid');
@@ -727,7 +770,7 @@ export class UnifiedPaymentWrapper {
           
           // Convert prior year dues to bills
           const priorBills = this._convertHOADuesToBills(priorDuesDoc, clientId, unitId, priorYear, config);
-          const priorBillsWithPenalties = this._calculateHOAPenaltiesInMemory(priorBills, calculationDate, config);
+          const priorBillsWithPenalties = await this._calculateHOAPenaltiesInMemory(priorBills, calculationDate, config);
           
           // Scan backward from month 11 to 0
           const priorUnpaidBills = [];
@@ -782,6 +825,36 @@ export class UnifiedPaymentWrapper {
   }
 
   /**
+   * Calculate frequency-aware due date for HOA Dues
+   * (Replicated from hoaDuesController)
+   * 
+   * @private
+   */
+  _calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency, fiscalYearStartMonth) {
+    const { startDate } = getFiscalYearBounds(fiscalYear, fiscalYearStartMonth);
+    const startDateObj = parseDate(startDate);
+    
+    if (frequency === 'quarterly') {
+      // For quarterly billing, months 0-2, 3-5, 6-8, 9-11 share due dates
+      const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
+      const baseCalendarYear = (fiscalYearStartMonth > 1) ? fiscalYear - 1 : fiscalYear;
+      const calendarMonth = ((quarterStartFiscalMonth + fiscalYearStartMonth - 1) % 12) + 1;
+      const calendarYear = baseCalendarYear + Math.floor((quarterStartFiscalMonth + fiscalYearStartMonth - 1) / 12);
+      
+      const dueDate = new Date(Date.UTC(calendarYear, calendarMonth - 1, 1, 5, 0, 0));
+      return dueDate.toISOString();
+    } else {
+      // For monthly billing, each month has its own due date
+      const baseCalendarYear = (fiscalYearStartMonth > 1) ? fiscalYear - 1 : fiscalYear;
+      const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1;
+      const calendarYear = baseCalendarYear + Math.floor((fiscalMonthIndex + fiscalYearStartMonth - 1) / 12);
+      
+      const dueDate = new Date(Date.UTC(calendarYear, calendarMonth - 1, 1, 5, 0, 0));
+      return dueDate.toISOString();
+    }
+  }
+
+  /**
    * Convert HOA Dues monthly payment array to bill array
    * (Replicated from hoaDuesController since it's not exported)
    * 
@@ -796,25 +869,96 @@ export class UnifiedPaymentWrapper {
     
     const monthlyAmount = hoaDuesDoc.scheduledAmount;
     const paymentsArray = hoaDuesDoc.payments || [];
+    const isQuarterly = config.duesFrequency === 'quarterly';
     
-    console.log(`      🔄 Converting HOA dues to bills: 12 fiscal months`);
+    console.log(`      🔄 Converting HOA dues to bills: ${isQuarterly ? '4 quarters' : '12 fiscal months'}`);
     
-    // Generate bills for all 12 fiscal months (0-11)
-    for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    if (isQuarterly) {
+      // Generate bills for 4 quarters (Q1-Q4)
+      for (let quarter = 0; quarter < 4; quarter++) {
+        const quarterStartMonth = quarter * 3;
+        const quarterEndMonth = quarterStartMonth + 2;
+        
+        // Sum up payments and charges for the quarter
+        let quarterBaseCharge = 0;
+        let quarterPaidAmount = 0;
+        let quarterPenaltyPaid = 0;
+        let allMonthsPaid = true;
+        
+        for (let monthIndex = quarterStartMonth; monthIndex <= quarterEndMonth; monthIndex++) {
+          const payment = paymentsArray[monthIndex] || null;
+          quarterBaseCharge += monthlyAmount;
+          quarterPaidAmount += payment?.amount || 0;
+          quarterPenaltyPaid += payment?.penaltyPaid || 0;
+          
+          if (!payment || payment.amount < monthlyAmount) {
+            allMonthsPaid = false;
+          }
+        }
+        
+        // Calculate frequency-aware due date for the quarter (first month of quarter)
+        const dueDateISO = this._calculateFrequencyAwareDueDate(
+          quarterStartMonth,
+          year,
+          config.duesFrequency,
+          config.fiscalYearStartMonth || 1
+        );
+        const dueDate = parseDate(dueDateISO);
+        
+        const totalDue = quarterBaseCharge; // Penalty calculated fresh later
+        const totalPaid = quarterPaidAmount + quarterPenaltyPaid;
+        
+        let billStatus;
+        if (allMonthsPaid && totalPaid >= totalDue && totalDue > 0) {
+          billStatus = 'paid';
+        } else if (totalPaid > 0) {
+          billStatus = 'partial';
+        } else {
+          billStatus = 'unpaid';
+        }
+        
+        bills.push({
+          billId: `${year}-Q${quarter + 1}`,
+          period: `${year}-Q${quarter + 1}`,
+          unitId: unitId,
+          currentCharge: quarterBaseCharge,
+          baseCharge: quarterBaseCharge,
+          penaltyAmount: 0, // Calculated fresh later
+          totalCharge: quarterBaseCharge,
+          paidAmount: quarterPaidAmount,
+          penaltyPaid: quarterPenaltyPaid,
+          status: billStatus,
+          billDate: dueDate.toISOString(),
+          dueDate: dueDate.toISOString(),  // Required for penalty calculation
+          paidDate: allMonthsPaid && totalPaid > 0 ? dueDate.toISOString() : null,
+          _hoaMetadata: {
+            monthIndex: quarterStartMonth, // First month of quarter
+            quarterIndex: quarter,
+            monthsInQuarter: [quarterStartMonth, quarterStartMonth + 1, quarterStartMonth + 2],
+            isQuarterly: true,
+            originalPayments: [
+              paymentsArray[quarterStartMonth] || null,
+              paymentsArray[quarterStartMonth + 1] || null,
+              paymentsArray[quarterStartMonth + 2] || null
+            ]
+          }
+        });
+      }
+    } else {
+      // Generate bills for all 12 fiscal months (0-11)
+      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
       const payment = paymentsArray[monthIndex] || null;
       const month = monthIndex + 1;
       const fiscalMonth = monthIndex;
       
-      // Calculate due date
-      const { startDate } = getFiscalYearBounds(year, config.fiscalYearStartMonth || 1);
-      const dueDate = parseDate(startDate);
-      
-      // Validate dueDate before using it
-      if (isNaN(dueDate.getTime())) {
-        throw new Error(`Invalid dueDate calculated for fiscal year ${year}, month ${fiscalMonth}. startDate: ${startDate}`);
-      }
-      
-      dueDate.setMonth(dueDate.getMonth() + fiscalMonth);
+      // Calculate frequency-aware due date using the same logic as hoaDuesController
+      const dueDateISO = this._calculateFrequencyAwareDueDate(
+        fiscalMonth,
+        year,
+        config.duesFrequency || 'monthly',
+        config.fiscalYearStartMonth || 1
+      );
+      const dueDate = parseDate(dueDateISO);
       
       const paidAmount = payment?.amount || 0;
       const baseCharge = monthlyAmount;
@@ -859,9 +1003,10 @@ export class UnifiedPaymentWrapper {
           originalPayment: payment ? { ...payment } : null
         }
       });
+      }
     }
     
-    console.log(`      ✅ Converted ${bills.length} months to bills`);
+    console.log(`      ✅ Converted ${bills.length} ${isQuarterly ? 'quarters' : 'months'} to bills`);
     return bills;
   }
 
@@ -871,7 +1016,7 @@ export class UnifiedPaymentWrapper {
    * 
    * @private
    */
-  _calculateHOAPenaltiesInMemory(bills, asOfDate, config) {
+  async _calculateHOAPenaltiesInMemory(bills, asOfDate, config) {
     console.log(`      💰 Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
     
     // Validate penalty configuration
@@ -883,28 +1028,23 @@ export class UnifiedPaymentWrapper {
       throw new Error(`Penalty configuration incomplete. Missing: ${missing.join(', ')}`);
     }
     
-    // Recalculate each bill's penalty
-    const updatedBills = bills.map(bill => {
-      const penaltyResult = calculatePenaltyForBill({
-        bill,
-        asOfDate,
-        config: {
-          penaltyRate: config.penaltyRate,
-          penaltyDays: config.penaltyDays
-        }
-      });
-      
-      return {
-        ...bill,
-        penaltyAmount: penaltyResult.penaltyAmount,
-        totalAmount: bill.currentCharge + penaltyResult.penaltyAmount
-      };
+    // Import the grouped penalty recalculation from PenaltyRecalculationService
+    const { recalculatePenalties } = await import('../../shared/services/PenaltyRecalculationService.js');
+    
+    // Use grouped penalty recalculation (Phase 5)
+    const result = await recalculatePenalties({
+      bills,
+      asOfDate,
+      config: {
+        penaltyRate: config.penaltyRate,
+        penaltyDays: config.penaltyDays
+      }
     });
     
-    const totalPenalties = updatedBills.reduce((sum, b) => sum + (b.penaltyAmount || 0), 0);
-    console.log(`      ✅ Recalculated penalties: Total $${centavosToPesos(totalPenalties)}`);
+    const totalPenalties = result.totalPenaltiesAdded;
+    console.log(`      ✅ Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
     
-    return updatedBills;
+    return result.updatedBills;
   }
 
   /**
@@ -1178,7 +1318,8 @@ export class UnifiedPaymentWrapper {
         result.hoa.totalPaid = roundCurrency(result.hoa.totalPaid + (payment.amountPaid || 0));
         
         // Format for HOA-specific response (use original period without module prefix)
-        result.hoa.monthsAffected.push({
+        const isQuarterly = originalBill._hoaMetadata?.isQuarterly;
+        const hoaMonth = {
           month: originalBill._hoaMetadata?.month,
           monthIndex: originalBill._metadata.monthIndex,
           billPeriod: displayPeriod,
@@ -1186,8 +1327,14 @@ export class UnifiedPaymentWrapper {
           penaltyPaid: payment.penaltyPaid || 0,
           totalPaid: payment.amountPaid || 0,
           status: payment.newStatus,
-          priority: originalBill._metadata.priority  // For frontend sorting
-        });
+          priority: originalBill._metadata.priority,  // For frontend sorting
+          isQuarterly: isQuarterly,
+          quarterIndex: originalBill._hoaMetadata?.quarterIndex,
+          monthsInQuarter: originalBill._hoaMetadata?.monthsInQuarter
+        };
+        
+        console.log(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}`);
+        result.hoa.monthsAffected.push(hoaMonth);
         
       } else if (moduleType === 'water') {
         // Add to Water results
@@ -1253,6 +1400,12 @@ export class UnifiedPaymentWrapper {
       // Remove any module prefix (e.g., "hoa:2026-00" or "water:2026-00")
       const cleanPeriod = period.includes(':') ? period.split(':')[1] : period;
       
+      // Check if this is a quarterly period (e.g., "2026-Q1")
+      if (cleanPeriod.includes('-Q')) {
+        const [year, quarter] = cleanPeriod.split('-Q');
+        return { monthName: `Q${quarter}`, year, isQuarter: true };
+      }
+      
       // Period format: "2026-00" where 00 is fiscal month index (0-11)
       const [year, fiscalMonthStr] = cleanPeriod.split('-');
       const fiscalMonth = parseInt(fiscalMonthStr);
@@ -1260,7 +1413,7 @@ export class UnifiedPaymentWrapper {
       // Convert fiscal month index to calendar month (0-11)
       let calendarMonth = (fiscalStart - 1 + fiscalMonth) % 12;
       
-      return { monthName: monthNames[calendarMonth], year };
+      return { monthName: monthNames[calendarMonth], year, isQuarter: false };
     };
     
     // Helper to format month range
@@ -1276,9 +1429,21 @@ export class UnifiedPaymentWrapper {
       const hoaMonths = preview.hoa.billsPaid
         .map(bill => getPeriodMonthName(bill.billPeriod, fiscalYearStartMonth))
         .sort((a, b) => {
-          // Sort by year, then by month order in array
+          // Sort by year first
           if (a.year !== b.year) return parseInt(a.year) - parseInt(b.year);
-          return monthNames.indexOf(a.monthName) - monthNames.indexOf(b.monthName);
+          
+          // For quarters, sort by quarter number
+          if (a.isQuarter && b.isQuarter) {
+            return parseInt(a.monthName.substring(1)) - parseInt(b.monthName.substring(1));
+          }
+          
+          // For months, sort by month order
+          if (!a.isQuarter && !b.isQuarter) {
+            return monthNames.indexOf(a.monthName) - monthNames.indexOf(b.monthName);
+          }
+          
+          // Quarters come before months in the same year
+          return a.isQuarter ? -1 : 1;
         });
       
       // Group by year
@@ -1288,9 +1453,14 @@ export class UnifiedPaymentWrapper {
         yearGroups[year].push(monthName);
       });
       
-      // Format as range: "Jan - Feb 2026"
-      const hoaParts = Object.entries(yearGroups).map(([year, months]) => {
-        return formatMonthRange(months, year);
+      // Format as range or list
+      const hoaParts = Object.entries(yearGroups).map(([year, items]) => {
+        // For quarters, just list them
+        if (items.some(item => item.startsWith('Q'))) {
+          return `${items.join(', ')} ${year}`;
+        }
+        // For months, format as range
+        return formatMonthRange(items, year);
       });
       
       parts.push(`HOA: ${hoaParts.join('; ')}`);

@@ -28,7 +28,13 @@ function convertPreviewFromCentavos(data) {
     totalPayment: month.totalPaid || 0,
     status: month.status || 'unpaid',
     priority: month.priority || 999,
-    monthData: { month: month.month, monthIndex: month.monthIndex }  // Pass through for display
+    monthData: { 
+      month: month.month, 
+      monthIndex: month.monthIndex,
+      isQuarterly: month.isQuarterly,
+      quarterIndex: month.quarterIndex,
+      monthsInQuarter: month.monthsInQuarter
+    }  // Pass through for display
   }));
   
   const waterBills = (data.water?.billsAffected || []).map(bill => ({
@@ -124,9 +130,15 @@ const unifiedPaymentAPI = {
       // Extract preview from response wrapper
       const previewData = data.preview || data;
       
+      // Debug: Log HOA months before conversion
+      console.log('🔍 HOA months before conversion:', previewData.hoa?.monthsAffected?.slice(0, 3));
+      
       // Convert centavos back to pesos in response
       const converted = convertPreviewFromCentavos(previewData);
       console.log('💱 Unified Payment Preview Response (converted to pesos):', converted);
+      
+      // Debug: Log billPayments after conversion
+      console.log('🔍 Bill payments after conversion:', converted.billPayments?.slice(0, 3));
       
       return converted;
     } catch (error) {

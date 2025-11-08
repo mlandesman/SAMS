@@ -23,6 +23,8 @@ import {
 import { getMexicoDate } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
 import debug from '../utils/debug';
+import ContextMenu from '../components/ContextMenu';
+import PaymentDetailsModal from '../components/PaymentDetailsModal';
 import './HOADuesView.css';
 
 function HOADuesView() {
@@ -69,16 +71,19 @@ function HOADuesView() {
   const [creditEditUnitId, setCreditEditUnitId] = useState(null);
   const [creditEditCurrentBalance, setCreditEditCurrentBalance] = useState(0);
   
-  // Quarterly view state - track which quarters are expanded
-  const [expandedQuarters, setExpandedQuarters] = useState({});
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    type: null, // 'payment' or 'credit'
+    data: null
+  });
   
-  // Toggle quarter expansion
-  const toggleQuarterExpansion = (quarterId) => {
-    setExpandedQuarters(prev => ({
-      ...prev,
-      [quarterId]: !prev[quarterId]
-    }));
-  };
+  // Details modal state
+  const [detailsModal, setDetailsModal] = useState({
+    isOpen: false,
+    data: null
+  });
   
   // Check for url parameters on component mount or url change
   useEffect(() => {
@@ -310,28 +315,31 @@ function HOADuesView() {
    * Returns array of 4 quarters with aggregated payment data
    */
   const groupByQuarter = () => {
+    // Generate month names for each quarter based on fiscal year start
+    const monthNames = getFiscalMonthNames(fiscalYearStartMonth, { short: true });
+    
     const quarters = [
       { 
         id: 'Q1', 
-        name: 'Q1 (Jul-Sep)', 
+        name: `Q1 (${monthNames[0]}/${monthNames[1]}/${monthNames[2]})`, 
         months: [1, 2, 3], // Fiscal months 1-3
         expanded: false 
       },
       { 
         id: 'Q2', 
-        name: 'Q2 (Oct-Dec)', 
+        name: `Q2 (${monthNames[3]}/${monthNames[4]}/${monthNames[5]})`, 
         months: [4, 5, 6], // Fiscal months 4-6
         expanded: false 
       },
       { 
         id: 'Q3', 
-        name: 'Q3 (Jan-Mar)', 
+        name: `Q3 (${monthNames[6]}/${monthNames[7]}/${monthNames[8]})`, 
         months: [7, 8, 9], // Fiscal months 7-9
         expanded: false 
       },
       { 
         id: 'Q4', 
-        name: 'Q4 (Apr-Jun)', 
+        name: `Q4 (${monthNames[9]}/${monthNames[10]}/${monthNames[11]})`, 
         months: [10, 11, 12], // Fiscal months 10-12
         expanded: false 
       }
@@ -665,15 +673,23 @@ function HOADuesView() {
             
             {/* Subheader row with scheduled amounts */}
             <tr className="owner-header-row">
-              <th className="dues-label">Dues</th>
-              {units.map(unit => (
-                <th key={`dues-${unit.unitId}`} className="owner-header">
-                  <div className="scheduled-amount">${formatNumber(duesData[unit.unitId]?.scheduledAmount || 0)}</div>
-                </th>
-              ))}
+              <th className="dues-label">Dues{duesFrequency === 'quarterly' ? '/Qtr' : '/Mo'}</th>
+              {units.map(unit => {
+                const monthlyAmount = duesData[unit.unitId]?.scheduledAmount || 0;
+                const displayAmount = duesFrequency === 'quarterly' ? monthlyAmount * 3 : monthlyAmount;
+                return (
+                  <th key={`dues-${unit.unitId}`} className="owner-header">
+                    <div className="scheduled-amount">${formatNumber(displayAmount)}</div>
+                  </th>
+                );
+              })}
               <th className="total-scheduled-header">
                 <div className="total-scheduled-amount">
-                  ${formatNumber(units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0), 0))}
+                  {(() => {
+                    const monthlyTotal = units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0), 0);
+                    const displayTotal = duesFrequency === 'quarterly' ? monthlyTotal * 3 : monthlyTotal;
+                    return `$${formatNumber(displayTotal)}`;
+                  })()}
                 </div>
               </th>
               <th className="remaining-scheduled-header">
@@ -720,90 +736,93 @@ function HOADuesView() {
             
             {/* Conditional rendering: Quarterly or Monthly payment rows */}
             {duesFrequency === 'quarterly' ? (
-              // QUARTERLY VIEW
+              // QUARTERLY VIEW - No expand/collapse, quarters are clickable
               <>
                 {groupByQuarter().map(quarter => {
-                  const isExpanded = expandedQuarters[quarter.id];
                   const quarterTotal = calculateQuarterTotal(quarter.months);
                   const quarterRemaining = calculateQuarterRemaining(quarter.months);
                   
+                  // Determine quarter status for CSS classes
+                  const quarterIndex = parseInt(quarter.id.substring(1)) - 1; // Q1 -> 0, Q2 -> 1, etc.
+                  const firstMonthOfQuarter = quarterIndex * 3 + 1; // Q1 -> 1, Q2 -> 4, etc.
+                  
+                  // Get status from first month of quarter (they're all grouped now)
+                  const today = getMexicoDate();
+                  const currentFiscalMonth = getCurrentFiscalMonth(today, fiscalYearStartMonth);
+                  const currentFiscalYear = getFiscalYear(today, fiscalYearStartMonth);
+                  const selectedYearIsCurrent = selectedYear === currentFiscalYear;
+                  const isPastYear = selectedYear < currentFiscalYear;
+                  const lastMonthOfQuarter = firstMonthOfQuarter + 2;
+                  
+                  // Quarter is late if current year and we're past the last month of the quarter
+                  const isLateQuarter = (isPastYear || (selectedYearIsCurrent && currentFiscalMonth > lastMonthOfQuarter));
+                  
                   return (
-                    <React.Fragment key={`quarter-${quarter.id}`}>
-                      {/* Quarter summary row */}
-                      <tr className="quarter-row" onClick={() => toggleQuarterExpansion(quarter.id)}>
-                        <td className="row-label quarter-label">
-                          <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                          {quarter.name}
-                        </td>
-                        {units.map(unit => {
-                          const quarterStatus = getQuarterPaymentStatus(unit, quarter.months);
-                          return (
-                            <td
-                              key={`quarter-${quarter.id}-${unit.unitId}`}
-                              className={`payment-cell quarter-cell ${
-                                quarterStatus.status === 'paid' ? 'payment-paid' :
-                                quarterStatus.status === 'partial' ? 'payment-partial' :
-                                'payment-unpaid'
-                              } ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
-                              title={`${quarterStatus.percentPaid}% paid (${formatNumber(quarterStatus.totalPaid)} of ${formatNumber(quarterStatus.totalDue)})`}
-                            >
-                              {quarterStatus.totalPaid > 0 ? (
-                                <span className="payment-amount">${formatNumber(quarterStatus.totalPaid)}</span>
-                              ) : ''}
-                            </td>
-                          );
-                        })}
-                        <td className="total-cell">${formatNumber(quarterTotal)}</td>
-                        <td className="remaining-cell">
-                          {quarterRemaining > 0 ? `$${formatNumber(quarterRemaining)}` : ''}
-                        </td>
-                      </tr>
-                      
-                      {/* Expanded monthly detail rows */}
-                      {isExpanded && quarter.months.map(fiscalMonth => {
-                        const monthNames = getFiscalMonthNames(fiscalYearStartMonth, { short: true });
-                        const monthName = monthNames[fiscalMonth - 1];
-                        const calendarMonth = fiscalToCalendarMonth(fiscalMonth, fiscalYearStartMonth);
+                    <tr key={`quarter-${quarter.id}`} className="quarter-row">
+                      <td className="row-label quarter-label">
+                        {quarter.id} ({quarter.months.map(m => getFiscalMonthNames(fiscalYearStartMonth, { short: true })[m-1]).join('/')})
+                      </td>
+                      {units.map(unit => {
+                        const quarterStatus = getQuarterPaymentStatus(unit, quarter.months);
                         
-                        // Format month label with correct year
-                        let displayYear = selectedYear;
-                        if (fiscalYearStartMonth > 1 && calendarMonth < fiscalYearStartMonth) {
-                          displayYear = selectedYear;
-                        } else if (fiscalYearStartMonth > 1) {
-                          displayYear = selectedYear - 1;
+                        // Get transaction ID from first month that has one
+                        const transactionId = quarterStatus.months.find(m => m.transactionId)?.transactionId || null;
+                        
+                        // Build comprehensive tooltip with all month details
+                        const tooltipLines = [];
+                        tooltipLines.push(`Quarter: ${quarter.id} - ${quarterStatus.percentPaid}% paid`);
+                        tooltipLines.push(`Total Due: $${formatNumber(quarterStatus.totalDue)}`);
+                        tooltipLines.push(`Total Paid: $${formatNumber(quarterStatus.totalPaid)}`);
+                        if (quarterStatus.remaining > 0) {
+                          tooltipLines.push(`Remaining: $${formatNumber(quarterStatus.remaining)}`);
                         }
-                        const monthLabel = `${monthName}-${displayYear}`;
                         
-                        const monthlyTotal = calculateMonthlyTotal(fiscalMonth);
+                        // Add notes from months if any
+                        const notesFromMonths = quarterStatus.months
+                          .filter(m => m.notes)
+                          .map(m => m.notes)
+                          .join('\n');
+                        if (notesFromMonths) {
+                          tooltipLines.push('---');
+                          tooltipLines.push(notesFromMonths);
+                        }
+                        
+                        if (transactionId) {
+                          tooltipLines.push('---');
+                          tooltipLines.push(`Transaction: ${transactionId}`);
+                          tooltipLines.push('Click to view transaction');
+                        }
+                        
+                        const tooltip = tooltipLines.join('\n');
+                        
+                        // Determine CSS class
+                        let statusClass = '';
+                        if (quarterStatus.status === 'paid') {
+                          statusClass = 'payment-paid';
+                        } else if (quarterStatus.status === 'partial') {
+                          statusClass = 'payment-partial';
+                        } else if (isLateQuarter) {
+                          statusClass = 'payment-late';
+                        }
                         
                         return (
-                          <tr key={`month-${fiscalMonth}`} className="month-row month-detail-row">
-                            <td className="row-label month-detail-label">
-                              <span className="indent">└─</span>{monthLabel}
-                            </td>
-                            {units.map(unit => {
-                              const paymentStatus = getPaymentStatus(unit, fiscalMonth);
-                              const hasNotes = paymentStatus.notes && paymentStatus.notes.length > 0;
-                              
-                              return (
-                                <td
-                                  key={`payment-${unit.unitId}-${fiscalMonth}`}
-                                  className={`payment-cell ${getPaymentStatusClass(paymentStatus.status, fiscalMonth)} ${paymentStatus.transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
-                                  onClick={() => handlePaymentClick(unit.unitId, fiscalMonth)}
-                                  title={paymentStatus.amount > 0 ? formatPaymentNotesTooltip(paymentStatus, paymentStatus.amount, null, paymentStatus.transactionId) : ''}
-                                >
-                                  {paymentStatus.amount > 0 ? (
-                                    <span className="payment-amount">${formatNumber(paymentStatus.amount)}</span>
-                                  ) : ''}
-                                </td>
-                              );
-                            })}
-                            <td className="total-cell">${formatNumber(monthlyTotal)}</td>
-                            <td className="remaining-cell"></td>
-                          </tr>
+                          <td
+                            key={`quarter-${quarter.id}-${unit.unitId}`}
+                            className={`payment-cell quarter-cell ${statusClass} ${transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
+                            onClick={() => handlePaymentClick(unit.unitId, firstMonthOfQuarter)}
+                            title={tooltip}
+                          >
+                            {quarterStatus.totalPaid > 0 ? (
+                              <span className="payment-amount">${formatNumber(quarterStatus.totalPaid)}</span>
+                            ) : ''}
+                          </td>
                         );
                       })}
-                    </React.Fragment>
+                      <td className="total-cell">${formatNumber(quarterTotal)}</td>
+                      <td className="remaining-cell">
+                        {quarterRemaining > 0 ? `$${formatNumber(quarterRemaining)}` : ''}
+                      </td>
+                    </tr>
                   );
                 })}
               </>
