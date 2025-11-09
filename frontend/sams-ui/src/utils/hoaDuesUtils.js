@@ -176,3 +176,57 @@ export function generateSequenceNumber() {
   
   return `${year}${month}${day}-${hour}${minute}`;
 }
+
+/**
+ * Group bills by their due date for quarterly billing display
+ * 
+ * @param {Array} bills - Array of bill objects with dueDate property
+ * @return {Array} Array of grouped bills with quarters
+ */
+export function groupBillsByDueDate(bills) {
+  if (!bills || bills.length === 0) return [];
+  
+  const groups = {};
+  
+  bills.forEach(bill => {
+    const dueDate = bill.dueDate ? bill.dueDate.split('T')[0] : 'unknown';
+    
+    if (!groups[dueDate]) {
+      groups[dueDate] = {
+        dueDate,
+        bills: []
+      };
+    }
+    
+    groups[dueDate].bills.push(bill);
+  });
+  
+  return Object.values(groups);
+}
+
+/**
+ * Get quarter label for a group of bills
+ * 
+ * @param {Array} bills - Array of bills in the quarter
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12)
+ * @return {string} Quarter label (e.g., "Q1 (Jul/Aug/Sep)")
+ */
+export function getQuarterLabel(bills, fiscalYearStartMonth = 7) {
+  if (!bills || bills.length === 0) return '';
+  
+  // Get the first bill's month index (fiscal month 0-11)
+  const firstBill = bills[0];
+  const fiscalMonthIndex = firstBill.monthIndex;
+  
+  // Determine quarter (0-2 = Q1, 3-5 = Q2, 6-8 = Q3, 9-11 = Q4)
+  const quarterNumber = Math.floor(fiscalMonthIndex / 3) + 1;
+  
+  // Get month names for this quarter
+  const monthNames = bills.map(bill => {
+    const calendarMonth = ((bill.monthIndex + fiscalYearStartMonth - 1) % 12) + 1;
+    return getMonthName(calendarMonth, true); // true for short name
+  });
+  
+  return `Q${quarterNumber} (${monthNames.join('/')})`;
+}
+

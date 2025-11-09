@@ -66,7 +66,7 @@ async function firestoreToJson(firestorePath) {
     }
     
     // Save to file
-    const outputPath = `${outputName}.json`;
+    const outputPath = `/Users/michael/Projects/SAMS/test-results/${outputName}.json`;
     await fs.writeFile(outputPath, JSON.stringify(data, null, 2));
     
     console.log(`✅ Data saved to: ${outputPath}`);

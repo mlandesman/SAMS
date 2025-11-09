@@ -148,6 +148,9 @@ echo "======================================================"
 echo ""
 echo "💡 Press Ctrl+C to stop all services"
 
+# start Chrome browser in Incognito mode
+open -a "Google Chrome" --args --incognito "http://localhost:5173"
+
 # Trap Ctrl+C and properly terminate all processes
 cleanup() {
   echo ""

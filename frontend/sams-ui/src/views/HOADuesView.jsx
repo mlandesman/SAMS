@@ -22,7 +22,10 @@ import {
 } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
+import { centavosToPesos } from '../utils/currencyUtils';
 import debug from '../utils/debug';
+import ContextMenu from '../components/ContextMenu';
+import PaymentDetailsModal from '../components/PaymentDetailsModal';
 import './HOADuesView.css';
 
 function HOADuesView() {
@@ -69,16 +72,19 @@ function HOADuesView() {
   const [creditEditUnitId, setCreditEditUnitId] = useState(null);
   const [creditEditCurrentBalance, setCreditEditCurrentBalance] = useState(0);
   
-  // Quarterly view state - track which quarters are expanded
-  const [expandedQuarters, setExpandedQuarters] = useState({});
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    type: null, // 'payment' or 'credit'
+    data: null
+  });
   
-  // Toggle quarter expansion
-  const toggleQuarterExpansion = (quarterId) => {
-    setExpandedQuarters(prev => ({
-      ...prev,
-      [quarterId]: !prev[quarterId]
-    }));
-  };
+  // Details modal state
+  const [detailsModal, setDetailsModal] = useState({
+    isOpen: false,
+    data: null
+  });
   
   // Check for url parameters on component mount or url change
   useEffect(() => {
@@ -162,6 +168,187 @@ function HOADuesView() {
         console.error('Error dispatching activity change event:', error);
       }
     }
+  };
+  
+  // ============================================
+  // CONTEXT MENU HANDLERS & HELPERS
+  // ============================================
+  
+  // Helper to extract date/time from payment notes (format: "Nov 8, 2025 at 9:17am")
+  const extractDateTimeFromPayment = (paymentData) => {
+    if (!paymentData || !paymentData.notes) return null;
+    
+    // Extract transaction ID which contains date and time (2025-11-08_091704_278)
+    const match = paymentData.notes.match(/(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})_\d+/);
+    if (!match) return null;
+    
+    const [, date, hour, minute] = match;
+    
+    // Format as "Nov 8, 2025 at 9:17am"
+    const dateObj = new Date(date);
+    const monthName = dateObj.toLocaleDateString('en-US', { month: 'short' });
+    const day = dateObj.getDate();
+    const year = dateObj.getFullYear();
+    
+    // Convert to 12-hour format
+    const hourNum = parseInt(hour);
+    const ampm = hourNum >= 12 ? 'pm' : 'am';
+    const hour12 = hourNum % 12 || 12;
+    
+    return `${monthName} ${day}, ${year} at ${hour12}:${minute}${ampm}`;
+  };
+  
+  // Helper to extract payment method from notes
+  const extractMethodFromNotes = (notes) => {
+    if (!notes) return null;
+    const match = notes.match(/Payment:\s*(\w+)/i);
+    return match ? match[1] : null;
+  };
+  
+  // Handle payment cell context menu (right-click)
+  const handlePaymentContextMenu = (e, unitId, fiscalMonth, quarterData) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const unit = units.find(u => u.unitId === unitId);
+    const quarterStatus = quarterData || getPaymentStatus(unit, fiscalMonth);
+    const transactionId = quarterData?.months?.find(m => m.transactionId)?.transactionId || quarterStatus.transactionId;
+    
+    const options = [
+      {
+        label: 'Make Payment',
+        icon: '💳',
+        onClick: () => handlePaymentClick(unitId, fiscalMonth)
+      }
+    ];
+    
+    if (transactionId) {
+      options.push({
+        label: 'View Details',
+        icon: '📋',
+        onClick: () => {
+          // Get date/time for modal
+          const paymentMonth = quarterData?.months?.find(m => m.notes) || quarterStatus;
+          const dateTime = extractDateTimeFromPayment(paymentMonth);
+          
+          // Calculate total penalties from month data (convert centavos to pesos)
+          let totalPenaltiesPaid = 0;
+          if (quarterData) {
+            totalPenaltiesPaid = quarterData.months.reduce((sum, m) => {
+              const unit = units.find(u => u.unitId === unitId);
+              const unitData = duesData[unit.unitId];
+              const paymentIndex = m.fiscalMonth - 1;
+              const payment = unitData?.payments?.[paymentIndex];
+              return sum + centavosToPesos(payment?.penaltyPaid || 0);
+            }, 0);
+          }
+          
+          // Calculate actual amounts paid
+          // quarterStatus.totalPaid is just the base payments (without penalties)
+          // We need to add penalties to get the actual total paid
+          const basePaidAmount = quarterData?.totalPaid || quarterStatus.amount;
+          const totalPaidAmount = basePaidAmount + totalPenaltiesPaid;
+          const totalDueAmount = quarterData?.totalDue || quarterStatus.amount; // Base charge only
+          
+          setDetailsModal({
+            isOpen: true,
+            data: {
+              unitId,
+              period: quarterData ? `Q${quarterData.quarterIndex + 1}` : `Month ${fiscalMonth}`,
+              isQuarter: !!quarterData,
+              quarter: quarterData ? `Q${quarterData.quarterIndex + 1}` : null,
+              month: !quarterData ? fiscalMonth : null,
+              totalDue: totalDueAmount,
+              baseCharge: totalDueAmount, // Base charge = total due (without penalties)
+              penalties: totalPenaltiesPaid,
+              totalPaid: totalPaidAmount, // Base + Penalties
+              remaining: quarterData?.remaining || 0,
+              status: quarterData?.status || quarterStatus.status,
+              transactionId,
+              paymentDate: dateTime,
+              paymentMethod: extractMethodFromNotes(quarterStatus.notes || paymentMonth?.notes),
+              notes: quarterStatus.notes || paymentMonth?.notes,
+              months: quarterData?.months || []
+            }
+          });
+        }
+      });
+      
+      options.push({
+        label: 'Go to Transaction',
+        icon: '🔗',
+        onClick: () => {
+          navigate(`/transactions?search=${transactionId}`);
+        }
+      });
+    }
+    
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      type: 'payment',
+      data: { unitId, fiscalMonth, quarterData },
+      options
+    });
+  };
+  
+  // Handle credit cell context menu (right-click)
+  const handleCreditContextMenu = (e, unitId, creditBalance) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canEditCredit = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
+    
+    const options = [];
+    
+    if (canEditCredit) {
+      options.push({
+        label: 'Edit Balance',
+        icon: '✏️',
+        onClick: () => {
+          setCreditEditUnitId(unitId);
+          setCreditEditCurrentBalance(creditBalance);
+          setShowCreditEditModal(true);
+        }
+      });
+      options.push({ type: 'divider' });
+    }
+    
+    options.push(
+      {
+        label: 'View History',
+        icon: '📋',
+        onClick: () => {
+          alert('Credit history feature coming soon!');
+        }
+      },
+      {
+        label: 'Details',
+        icon: 'ℹ️',
+        onClick: () => {
+          alert('Credit details feature coming soon!');
+        }
+      }
+    );
+    
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      type: 'credit',
+      data: { unitId, creditBalance },
+      options
+    });
+  };
+  
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      type: null,
+      data: null,
+      options: []
+    });
   };
   
   
@@ -310,28 +497,31 @@ function HOADuesView() {
    * Returns array of 4 quarters with aggregated payment data
    */
   const groupByQuarter = () => {
+    // Generate month names for each quarter based on fiscal year start
+    const monthNames = getFiscalMonthNames(fiscalYearStartMonth, { short: true });
+    
     const quarters = [
       { 
         id: 'Q1', 
-        name: 'Q1 (Jul-Sep)', 
+        name: `Q1 (${monthNames[0]}/${monthNames[1]}/${monthNames[2]})`, 
         months: [1, 2, 3], // Fiscal months 1-3
         expanded: false 
       },
       { 
         id: 'Q2', 
-        name: 'Q2 (Oct-Dec)', 
+        name: `Q2 (${monthNames[3]}/${monthNames[4]}/${monthNames[5]})`, 
         months: [4, 5, 6], // Fiscal months 4-6
         expanded: false 
       },
       { 
         id: 'Q3', 
-        name: 'Q3 (Jan-Mar)', 
+        name: `Q3 (${monthNames[6]}/${monthNames[7]}/${monthNames[8]})`, 
         months: [7, 8, 9], // Fiscal months 7-9
         expanded: false 
       },
       { 
         id: 'Q4', 
-        name: 'Q4 (Apr-Jun)', 
+        name: `Q4 (${monthNames[9]}/${monthNames[10]}/${monthNames[11]})`, 
         months: [10, 11, 12], // Fiscal months 10-12
         expanded: false 
       }
@@ -368,10 +558,14 @@ function HOADuesView() {
     
     fiscalMonths.forEach(fiscalMonth => {
       const paymentStatus = getPaymentStatus(unit, fiscalMonth);
+      const paymentIndex = fiscalMonth - 1;
+      const payment = unitData.payments?.[paymentIndex];
+      
       totalPaid += paymentStatus.amount;
       monthsData.push({
         fiscalMonth,
-        ...paymentStatus
+        ...paymentStatus,
+        penaltyPaid: payment?.penaltyPaid || 0  // Add penalty data explicitly
       });
     });
     
@@ -665,15 +859,23 @@ function HOADuesView() {
             
             {/* Subheader row with scheduled amounts */}
             <tr className="owner-header-row">
-              <th className="dues-label">Dues</th>
-              {units.map(unit => (
-                <th key={`dues-${unit.unitId}`} className="owner-header">
-                  <div className="scheduled-amount">${formatNumber(duesData[unit.unitId]?.scheduledAmount || 0)}</div>
-                </th>
-              ))}
+              <th className="dues-label">Dues{duesFrequency === 'quarterly' ? '/Qtr' : '/Mo'}</th>
+              {units.map(unit => {
+                const monthlyAmount = duesData[unit.unitId]?.scheduledAmount || 0;
+                const displayAmount = duesFrequency === 'quarterly' ? monthlyAmount * 3 : monthlyAmount;
+                return (
+                  <th key={`dues-${unit.unitId}`} className="owner-header">
+                    <div className="scheduled-amount">${formatNumber(displayAmount)}</div>
+                  </th>
+                );
+              })}
               <th className="total-scheduled-header">
                 <div className="total-scheduled-amount">
-                  ${formatNumber(units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0), 0))}
+                  {(() => {
+                    const monthlyTotal = units.reduce((total, unit) => total + (duesData[unit.unitId]?.scheduledAmount || 0), 0);
+                    const displayTotal = duesFrequency === 'quarterly' ? monthlyTotal * 3 : monthlyTotal;
+                    return `$${formatNumber(displayTotal)}`;
+                  })()}
                 </div>
               </th>
               <th className="remaining-scheduled-header">
@@ -694,12 +896,20 @@ function HOADuesView() {
                     key={`credit-${unit.unitId}`}
                     className={`credit-cell ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''} ${(unitData.creditBalance || 0) < 0 ? 'negative-credit' : ''} ${hasCreditHistory ? 'has-credit-history' : ''} ${canEditCredit ? 'editable' : ''}`}
                     onClick={() => handlePaymentClick(unit.unitId, 'credit')}
+                    onContextMenu={(e) => handleCreditContextMenu(e, unit.unitId, unitData.creditBalance || 0)}
                     title={(() => {
-                      let tooltip = formatCreditHistoryTooltip(unitData.creditBalanceHistory, unitData.creditBalance);
+                      const creditBalance = unitData.creditBalance || 0;
+                      let tooltip = `Credit Balance: $${formatNumber(creditBalance)}`;
                       
-                      if (canEditCredit) {
-                        tooltip += '\n\nClick to edit credit balance';
+                      if (hasCreditHistory) {
+                        const lastUpdate = unitData.creditBalanceHistory[unitData.creditBalanceHistory.length - 1];
+                        if (lastUpdate?.date) {
+                          tooltip += `\nLast updated: ${lastUpdate.date}`;
+                        }
                       }
+                      
+                      tooltip += '\n\nClick: Edit balance';
+                      tooltip += '\nRight-click: More options ⋮';
                       
                       return tooltip;
                     })()}
@@ -720,90 +930,117 @@ function HOADuesView() {
             
             {/* Conditional rendering: Quarterly or Monthly payment rows */}
             {duesFrequency === 'quarterly' ? (
-              // QUARTERLY VIEW
+              // QUARTERLY VIEW - No expand/collapse, quarters are clickable
               <>
                 {groupByQuarter().map(quarter => {
-                  const isExpanded = expandedQuarters[quarter.id];
                   const quarterTotal = calculateQuarterTotal(quarter.months);
                   const quarterRemaining = calculateQuarterRemaining(quarter.months);
                   
+                  // Determine quarter status for CSS classes
+                  const quarterIndex = parseInt(quarter.id.substring(1)) - 1; // Q1 -> 0, Q2 -> 1, etc.
+                  const firstMonthOfQuarter = quarterIndex * 3 + 1; // Q1 -> 1, Q2 -> 4, etc.
+                  
+                  // Get status from first month of quarter (they're all grouped now)
+                  const today = getMexicoDate();
+                  const currentFiscalMonth = getCurrentFiscalMonth(today, fiscalYearStartMonth);
+                  const currentFiscalYear = getFiscalYear(today, fiscalYearStartMonth);
+                  const selectedYearIsCurrent = selectedYear === currentFiscalYear;
+                  const isPastYear = selectedYear < currentFiscalYear;
+                  
+                  // Quarter is late if current year and we're past (or at) the first month of the quarter
+                  // This means if we're in Nov (month 5) and Q2 starts at month 4, Q2 is late if unpaid
+                  const isLateQuarter = (isPastYear || (selectedYearIsCurrent && currentFiscalMonth >= firstMonthOfQuarter));
+                  
                   return (
-                    <React.Fragment key={`quarter-${quarter.id}`}>
-                      {/* Quarter summary row */}
-                      <tr className="quarter-row" onClick={() => toggleQuarterExpansion(quarter.id)}>
-                        <td className="row-label quarter-label">
-                          <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-                          {quarter.name}
-                        </td>
-                        {units.map(unit => {
-                          const quarterStatus = getQuarterPaymentStatus(unit, quarter.months);
-                          return (
-                            <td
-                              key={`quarter-${quarter.id}-${unit.unitId}`}
-                              className={`payment-cell quarter-cell ${
-                                quarterStatus.status === 'paid' ? 'payment-paid' :
-                                quarterStatus.status === 'partial' ? 'payment-partial' :
-                                'payment-unpaid'
-                              } ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
-                              title={`${quarterStatus.percentPaid}% paid (${formatNumber(quarterStatus.totalPaid)} of ${formatNumber(quarterStatus.totalDue)})`}
-                            >
-                              {quarterStatus.totalPaid > 0 ? (
-                                <span className="payment-amount">${formatNumber(quarterStatus.totalPaid)}</span>
-                              ) : ''}
-                            </td>
-                          );
-                        })}
-                        <td className="total-cell">${formatNumber(quarterTotal)}</td>
-                        <td className="remaining-cell">
-                          {quarterRemaining > 0 ? `$${formatNumber(quarterRemaining)}` : ''}
-                        </td>
-                      </tr>
-                      
-                      {/* Expanded monthly detail rows */}
-                      {isExpanded && quarter.months.map(fiscalMonth => {
-                        const monthNames = getFiscalMonthNames(fiscalYearStartMonth, { short: true });
-                        const monthName = monthNames[fiscalMonth - 1];
-                        const calendarMonth = fiscalToCalendarMonth(fiscalMonth, fiscalYearStartMonth);
+                    <tr key={`quarter-${quarter.id}`} className="quarter-row">
+                      <td className="row-label quarter-label">
+                        {quarter.id} ({quarter.months.map(m => getFiscalMonthNames(fiscalYearStartMonth, { short: true })[m-1]).join('/')})
+                      </td>
+                      {units.map(unit => {
+                        const quarterStatus = getQuarterPaymentStatus(unit, quarter.months);
                         
-                        // Format month label with correct year
-                        let displayYear = selectedYear;
-                        if (fiscalYearStartMonth > 1 && calendarMonth < fiscalYearStartMonth) {
-                          displayYear = selectedYear;
-                        } else if (fiscalYearStartMonth > 1) {
-                          displayYear = selectedYear - 1;
+                        // Get transaction ID from first month that has one
+                        const transactionId = quarterStatus.months.find(m => m.transactionId)?.transactionId || null;
+                        
+                        // Build concise tooltip with dynamic action text
+                        const tooltipLines = [];
+                        
+                        // Calculate penalties from month data (convert centavos to pesos)
+                        const totalPenalties = quarterStatus.months.reduce((sum, m) => {
+                          // Get the penalty paid from the payment data
+                          const unitData = duesData[unit.unitId];
+                          const paymentIndex = m.fiscalMonth - 1;
+                          const payment = unitData?.payments?.[paymentIndex];
+                          return sum + centavosToPesos(payment?.penaltyPaid || 0);
+                        }, 0);
+                        
+                        // Format payment status
+                        if (quarterStatus.status === 'paid') {
+                          const totalPaidWithPenalties = quarterStatus.totalPaid + totalPenalties;
+                          tooltipLines.push(`${quarter.id}: $${formatNumber(totalPaidWithPenalties)} paid`);
+                          if (totalPenalties > 0) {
+                            tooltipLines.push(`(Base: $${formatNumber(quarterStatus.totalPaid)} + Penalty: $${formatNumber(totalPenalties)})`);
+                          }
+                          
+                          // Get payment date/time
+                          const paymentMonth = quarterStatus.months.find(m => m.notes);
+                          if (paymentMonth) {
+                            const dateTime = extractDateTimeFromPayment(paymentMonth);
+                            if (dateTime) {
+                              tooltipLines.push(`Last payment: ${dateTime}`);
+                            }
+                          }
+                          
+                          tooltipLines.push('');
+                          tooltipLines.push('Click: View transaction');
+                        } else if (quarterStatus.status === 'partial') {
+                          tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalPaid)} of $${formatNumber(quarterStatus.totalDue)} paid`);
+                          if (totalPenalties > 0) {
+                            tooltipLines.push(`(Includes $${formatNumber(totalPenalties)} penalties)`);
+                          }
+                          tooltipLines.push(`Remaining: $${formatNumber(quarterStatus.remaining)}`);
+                          tooltipLines.push('');
+                          tooltipLines.push('Click: Make payment');
+                        } else {
+                          tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalDue)} due`);
+                          tooltipLines.push('Status: Unpaid');
+                          tooltipLines.push('');
+                          tooltipLines.push('Click: Make payment');
                         }
-                        const monthLabel = `${monthName}-${displayYear}`;
                         
-                        const monthlyTotal = calculateMonthlyTotal(fiscalMonth);
+                        tooltipLines.push('Right-click: More options ⋮');
+                        
+                        const tooltip = tooltipLines.join('\n');
+                        
+                        // Determine CSS class
+                        let statusClass = '';
+                        if (quarterStatus.status === 'paid') {
+                          statusClass = 'payment-paid';
+                        } else if (quarterStatus.status === 'partial') {
+                          statusClass = 'payment-partial';
+                        } else if (isLateQuarter) {
+                          statusClass = 'payment-late';
+                        }
                         
                         return (
-                          <tr key={`month-${fiscalMonth}`} className="month-row month-detail-row">
-                            <td className="row-label month-detail-label">
-                              <span className="indent">└─</span>{monthLabel}
-                            </td>
-                            {units.map(unit => {
-                              const paymentStatus = getPaymentStatus(unit, fiscalMonth);
-                              const hasNotes = paymentStatus.notes && paymentStatus.notes.length > 0;
-                              
-                              return (
-                                <td
-                                  key={`payment-${unit.unitId}-${fiscalMonth}`}
-                                  className={`payment-cell ${getPaymentStatusClass(paymentStatus.status, fiscalMonth)} ${paymentStatus.transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
-                                  onClick={() => handlePaymentClick(unit.unitId, fiscalMonth)}
-                                  title={paymentStatus.amount > 0 ? formatPaymentNotesTooltip(paymentStatus, paymentStatus.amount, null, paymentStatus.transactionId) : ''}
-                                >
-                                  {paymentStatus.amount > 0 ? (
-                                    <span className="payment-amount">${formatNumber(paymentStatus.amount)}</span>
-                                  ) : ''}
-                                </td>
-                              );
-                            })}
-                            <td className="total-cell">${formatNumber(monthlyTotal)}</td>
-                            <td className="remaining-cell"></td>
-                          </tr>
+                          <td
+                            key={`quarter-${quarter.id}-${unit.unitId}`}
+                            className={`payment-cell quarter-cell ${statusClass} ${transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
+                            onClick={() => handlePaymentClick(unit.unitId, firstMonthOfQuarter)}
+                            onContextMenu={(e) => handlePaymentContextMenu(e, unit.unitId, firstMonthOfQuarter, {...quarterStatus, quarterIndex: quarterIndex})}
+                            title={tooltip}
+                          >
+                            {quarterStatus.totalPaid > 0 ? (
+                              <span className="payment-amount">${formatNumber(quarterStatus.totalPaid)}</span>
+                            ) : ''}
+                          </td>
                         );
                       })}
-                    </React.Fragment>
+                      <td className="total-cell">${formatNumber(quarterTotal)}</td>
+                      <td className="remaining-cell">
+                        {quarterRemaining > 0 ? `$${formatNumber(quarterRemaining)}` : ''}
+                      </td>
+                    </tr>
                   );
                 })}
               </>
@@ -874,6 +1111,7 @@ function HOADuesView() {
                         key={`payment-${unit.unitId}-${fiscalMonth}`}
                         className={`payment-cell ${getPaymentStatusClass(paymentStatus.status, fiscalMonth)} ${paymentStatus.transactionId ? 'has-transaction' : ''} ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
                         onClick={() => handlePaymentClick(unit.unitId, fiscalMonth)}
+                        onContextMenu={(e) => handlePaymentContextMenu(e, unit.unitId, fiscalMonth, null)}
                         title={paymentStatus.amount > 0 ? formatPaymentNotesTooltip(paymentStatus, paymentStatus.amount, null, paymentStatus.transactionId) : ''}
                       >
                         {paymentStatus.amount > 0 ? (
@@ -960,6 +1198,21 @@ function HOADuesView() {
         currentBalance={creditEditCurrentBalance}
         year={selectedYear}
         onUpdate={handleCreditBalanceUpdate}
+      />
+      
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        onClose={closeContextMenu}
+        options={contextMenu.options || []}
+      />
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        isOpen={detailsModal.isOpen}
+        onClose={() => setDetailsModal({ isOpen: false, data: null })}
+        details={detailsModal.data}
       />
     </div>
   );

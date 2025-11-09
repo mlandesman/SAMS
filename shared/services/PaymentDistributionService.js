@@ -101,7 +101,21 @@ export function calculatePaymentDistribution(params) {
   
   const paymentAmountCentavos = pesosToCentavos(paymentAmount);
   
-  // Apply funds to bills (in CENTAVOS for precision)
+  // Group bills by due date (for quarterly billing)
+  // Bills with the same due date must be paid together as a group
+  const billGroups = {};
+  unpaidBills.forEach((bill, index) => {
+    const dueDate = bill.dueDate ? bill.dueDate.split('T')[0] : `group_${index}`;
+    if (!billGroups[dueDate]) {
+      billGroups[dueDate] = [];
+    }
+    billGroups[dueDate].push(bill);
+  });
+  
+  const groups = Object.values(billGroups);
+  console.log(`📦 [PAYMENT DIST] Grouped ${unpaidBills.length} bills into ${groups.length} due date group(s)`);
+  
+  // Apply funds to bill groups (in CENTAVOS for precision)
   let remainingFundsCentavos = totalAvailableFundsCentavos;
   const billPayments = [];
   let totalBaseChargesPaidCentavos = 0;
@@ -120,38 +134,49 @@ export function calculatePaymentDistribution(params) {
     });
   }
   
-  // Apply funds to bills (in CENTAVOS for precision)
-  // SIMPLE RULE: Pay bills in full until you can't afford the next full bill
-  // Remainder becomes credit (NO partial payments)
-  for (let i = 0; i < unpaidBills.length; i++) {
-    const bill = unpaidBills[i];
-    const billPayment = billPayments[i];
-    
+  // Apply funds to bill groups (entire group must be paid together)
+  // RULE FOR GROUPED BILLS: Pay entire group or skip entire group (no partial groups)
+  for (const group of groups) {
     if (remainingFundsCentavos <= 0) break;
     
-    const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
-    const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
-    const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+    // Calculate total for this group
+    const groupTotalCentavos = group.reduce((sum, bill) => {
+      return sum + (bill.totalAmount - (bill.paidAmount || 0));
+    }, 0);
     
-    console.log(`📄 Bill ${bill.period}: Total due ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)}) (Base: ${baseUnpaid}, Penalties: ${penaltyUnpaid})`);
+    const groupTotalPesos = centavosToPesos(groupTotalCentavos);
+    const groupDueDate = group[0].dueDate?.split('T')[0] || 'unknown';
     
-    if (remainingFundsCentavos >= unpaidAmount) {
-      // Can afford to pay this bill in full - pay it!
-      billPayment.amountPaid = unpaidAmount;
-      billPayment.baseChargePaid = baseUnpaid;
-      billPayment.penaltyPaid = penaltyUnpaid;
-      billPayment.newStatus = 'paid';
+    console.log(`📦 Group (due: ${groupDueDate}): ${group.length} bill(s), Total $${groupTotalPesos} (${groupTotalCentavos} centavos)`);
+    
+    if (remainingFundsCentavos >= groupTotalCentavos) {
+      // Can afford entire group - pay all bills in this group!
+      for (const bill of group) {
+        const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
+        const billPayment = billPayments[billIndex];
+        
+        const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
+        const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
+        const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+        
+        billPayment.amountPaid = unpaidAmount;
+        billPayment.baseChargePaid = baseUnpaid;
+        billPayment.penaltyPaid = penaltyUnpaid;
+        billPayment.newStatus = 'paid';
+        
+        totalBaseChargesPaidCentavos += baseUnpaid;
+        totalPenaltiesPaidCentavos += penaltyUnpaid;
+        
+        console.log(`  ✅ Bill ${bill.period} paid: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
+      }
       
-      totalBaseChargesPaidCentavos += baseUnpaid;
-      totalPenaltiesPaidCentavos += penaltyUnpaid;
-      remainingFundsCentavos -= unpaidAmount;
-      
-      console.log(`✅ Bill ${bill.period} paid in full: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
+      remainingFundsCentavos -= groupTotalCentavos;
+      console.log(`✅ Group paid in full: ${groupTotalCentavos} centavos ($${groupTotalPesos})`);
       
     } else {
-      // Can't afford this bill - STOP HERE
-      // Remainder becomes credit (no partial payment)
-      console.log(`⏭️  Bill ${bill.period} skipped - insufficient funds ($${centavosToPesos(remainingFundsCentavos)} < $${centavosToPesos(unpaidAmount)}), remainder becomes credit`);
+      // Can't afford this entire group - SKIP IT
+      // Remainder becomes credit (no partial group payment)
+      console.log(`⏭️  Group skipped - insufficient funds ($${centavosToPesos(remainingFundsCentavos)} < $${groupTotalPesos}), remainder becomes credit`);
       break;
     }
   }

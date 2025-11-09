@@ -7,6 +7,7 @@
 import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { getNow } from '../services/DateService.js';
+import creditService from '../services/creditService.js';
 
 /**
  * Extract client template from existing client (primarily MTC)
@@ -48,7 +49,8 @@ const extractClientTemplate = async (req, res) => {
       configurationTemplates: await extractConfigurationTemplates(sourceClientId, db),
       
       // Auto-categorization rules
-      autoCategorizeRules: await extractAutoCategorizeRules(sourceClientId, db)
+      autoCategorizeRules: await extractAutoCategorizeRules(sourceClientId, db),
+      creditTemplates: await extractCreditTemplates(sourceClientId, db)
     };
 
     res.json({
@@ -385,6 +387,43 @@ async function extractAutoCategorizeRules(clientId, db) {
     vendorToCategory: {},
     rules: []
   };
+}
+
+async function extractCreditTemplates(clientId, db) {
+  try {
+    const creditBalancesRef = db.collection('clients').doc(clientId)
+      .collection('units').doc('creditBalances');
+    const creditBalancesDoc = await creditBalancesRef.get();
+
+    if (!creditBalancesDoc.exists) {
+      console.log(`ℹ️ No credit balance document found for client ${clientId} during template extraction`);
+      return {};
+    }
+
+    const creditData = creditBalancesDoc.data() || {};
+    const unitIds = Object.keys(creditData);
+    const creditTemplates = {};
+
+    await Promise.all(unitIds.map(async (unitId) => {
+      try {
+        const historyResult = await creditService.getCreditHistory(clientId, unitId, 25);
+        const currentBalanceCentavos = creditData[unitId]?.creditBalance || 0;
+
+        creditTemplates[unitId] = {
+          currentBalanceCentavos,
+          currentBalancePesos: currentBalanceCentavos / 100,
+          history: historyResult.history || []
+        };
+      } catch (error) {
+        console.warn(`⚠️ Failed to extract credit history for unit ${unitId}:`, error.message);
+      }
+    }));
+
+    return creditTemplates;
+  } catch (error) {
+    console.warn(`⚠️ Could not extract credit templates for client ${clientId}:`, error.message);
+    return {};
+  }
 }
 
 // Helper functions for client creation
