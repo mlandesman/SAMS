@@ -730,6 +730,31 @@ class WaterBillsService {
       return qA - qB;
     });
     
+    // Calculate penalties dynamically for display
+    // (Penalties are calculated on-the-fly, not stored in bills)
+    const config = await this.getBillingConfig(clientId);
+    const currentDate = getNow();
+    
+    quarterlyBills.forEach(bill => {
+      if (bill.bills && bill.bills.units) {
+        Object.entries(bill.bills.units).forEach(([unitId, unitBill]) => {
+          // Only calculate penalties for unpaid bills
+          if (unitBill.status !== 'paid' && bill.dueDate) {
+            const penaltyResult = penaltyRecalculationService.calculatePenaltyForBill(
+              unitBill,
+              currentDate,
+              bill.dueDate,
+              config
+            );
+            
+            // Update penalty amounts for display (don't persist to DB)
+            unitBill.penaltyAmount = penaltyResult.penaltyAmount;
+            unitBill.totalAmount = unitBill.currentCharge + penaltyResult.penaltyAmount;
+          }
+        });
+      }
+    });
+    
     return quarterlyBills;
   }
 
