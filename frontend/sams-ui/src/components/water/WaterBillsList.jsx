@@ -366,6 +366,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           unpaidAmount: unpaidAmount,
           penaltyAmount: unitBill.penaltyAmount || 0, // Already in pesos
           totalPenalties: unitBill.penaltyAmount || 0, // For display consistency
+          displayPenalties: unitBill.penaltyAmount || 0, // Current penalties for this bill
           displayTotalDue: unpaidAmount, // Total amount still owed
           displayTotalPenalties: unitBill.penaltyAmount || 0,
           status: unitBill.status || 'unpaid',
