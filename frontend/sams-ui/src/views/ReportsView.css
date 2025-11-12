@@ -1,0 +1,112 @@
+.reports-view {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.reports-header {
+  margin-bottom: 32px;
+}
+
+.reports-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.reports-subtitle {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.reports-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.reports-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.reports-tab:hover:not(:disabled) {
+  color: #007bff;
+  background-color: #f8f9fa;
+}
+
+.reports-tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+}
+
+.reports-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tab-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background-color: #ffc107;
+  color: #000;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.reports-content {
+  min-height: 400px;
+}
+
+.reports-tab-content {
+  padding: 24px 0;
+}
+
+.reports-placeholder {
+  text-align: center;
+  padding: 80px 24px;
+  color: #666;
+}
+
+.reports-placeholder .placeholder-icon {
+  color: #ccc;
+  margin-bottom: 24px;
+}
+
+.reports-placeholder h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.reports-placeholder p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.reports-placeholder .coming-soon {
+  color: #999;
+  font-style: italic;
+  margin-top: 16px;
+}
+
