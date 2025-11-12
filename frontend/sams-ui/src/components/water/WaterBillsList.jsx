@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import waterAPI from '../../api/waterAPI';
 import WaterPaymentModal from './WaterPaymentModal';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
+import { getOwnerInfo } from '../../utils/unitUtils';
 import './WaterBillsList.css';
 
 const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) => {
@@ -19,11 +20,15 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const navigate = useNavigate();
   const [billingConfig, setBillingConfig] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(0); // Start with July (month 0)
+  const [selectedQuarter, setSelectedQuarter] = useState(1); // For quarterly billing
   const [selectedDueDate, setSelectedDueDate] = useState('');
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [availableReadingMonths, setAvailableReadingMonths] = useState([]);
+  const [quarterlyBills, setQuarterlyBills] = useState([]);
+  const [quarterlyLoading, setQuarterlyLoading] = useState(false);
+  const [unitsWithOwners, setUnitsWithOwners] = useState([]); // Units with owner data
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -32,8 +37,48 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   // Cache refresh key to force re-fetch when needed
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get units from client configuration
-  const units = selectedClient?.configuration?.units || [];
+  // Get units from API with owner data (not from configuration)
+  const units = unitsWithOwners;
+
+  // Fetch units with owner data from API
+  const fetchUnitsWithOwners = async () => {
+    if (!selectedClient) return;
+    
+    try {
+      const { getAuthInstance } = await import('../../firebaseClient');
+      const { config } = await import('../../config');
+      const token = await getAuthInstance().currentUser.getIdToken();
+
+      const response = await fetch(`${config.api.baseUrl}/clients/${selectedClient.id}/units`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const unitsResponse = await response.json();
+        const unitsData = unitsResponse.data || unitsResponse;
+        console.log('👥 [WaterBillsList] Loaded units with owner data:', unitsData.length, 'units');
+        setUnitsWithOwners(unitsData);
+      } else {
+        console.warn(`Failed to fetch units with owner data for client ${selectedClient.id}`);
+        setUnitsWithOwners([]);
+      }
+    } catch (error) {
+      console.error('Error fetching units with owner data:', error);
+      setUnitsWithOwners([]);
+    }
+  };
+
+  // Fetch units when client changes
+  useEffect(() => {
+    if (selectedClient) {
+      fetchUnitsWithOwners();
+    } else {
+      setUnitsWithOwners([]);
+    }
+  }, [selectedClient]);
 
   useEffect(() => {
     console.log('🔄 [WaterBillsList] useEffect triggered:', { clientId, refreshKey });
@@ -44,7 +89,14 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     } else {
       console.log('❌ [WaterBillsList] No clientId, skipping functions');
     }
-}, [clientId, refreshKey]);
+  }, [clientId, refreshKey]);
+
+  useEffect(() => {
+    // Fetch quarterly bills if billing period is quarterly
+    if (billingConfig?.billingPeriod === 'quarterly' && clientId) {
+      fetchQuarterlyBills();
+    }
+  }, [billingConfig, clientId, refreshKey]);
 
   const fetchAvailableReadingMonths = async () => {
     try {
@@ -157,6 +209,27 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   };
 
+  const fetchQuarterlyBills = async () => {
+    try {
+      setQuarterlyLoading(true);
+      setError('');
+      const response = await waterAPI.getQuarterlyBills(clientId, 2026);
+      console.log('📊 [WaterBillsList] Quarterly bills API response:', response);
+      console.log('📊 [WaterBillsList] Quarterly bills data:', response.data);
+      const bills = response.data || [];
+      console.log(`📊 [WaterBillsList] Found ${bills.length} quarterly bills`);
+      bills.forEach(bill => {
+        console.log(`  - ${bill._billId || 'unknown'}: Q${bill.fiscalQuarter}, ${Object.keys(bill.bills?.units || {}).length} units`);
+      });
+      setQuarterlyBills(bills);
+    } catch (error) {
+      console.error('❌ [WaterBillsList] Error fetching quarterly bills:', error);
+      setError('Failed to load quarterly bills: ' + (error.message || 'Unknown error'));
+    } finally {
+      setQuarterlyLoading(false);
+    }
+  };
+
 
   const generateBills = async (month) => {
     try {
@@ -172,8 +245,19 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       await waterAPI.generateBillsNew(clientId, 2026, month, { dueDate: selectedDueDate });
       
       // Refresh data to show new bills
-      await refreshData();
-      setMessage('Bills generated successfully!');
+      if (billingConfig?.billingPeriod === 'quarterly') {
+        // Add small delay to allow Firestore to propagate changes
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchQuarterlyBills();
+      } else {
+        await refreshData();
+      }
+      
+      // Show appropriate success message based on billing period
+      const successMsg = billingConfig?.billingPeriod === 'quarterly' 
+        ? 'Quarterly bill generated successfully!' 
+        : 'Bills generated successfully!';
+      setMessage(successMsg);
     } catch (error) {
       console.error('Error generating bills:', error);
       setError(error.response?.data?.error || 'Failed to generate bills');
@@ -184,11 +268,16 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
 
   // Manual refresh function - delegates to parent's refresh handler
   const handleRefresh = async () => {
-    console.log(`🔄 [WaterBillsList] Manual refresh triggered - delegating to parent`);
+    console.log(`🔄 [WaterBillsList] Manual refresh triggered`);
     
-    // Notify parent component to handle the full refresh
-    if (onRefresh) {
-      await onRefresh();
+    // Refresh based on billing period
+    if (billingConfig?.billingPeriod === 'quarterly') {
+      await fetchQuarterlyBills();
+    } else {
+      // Notify parent component to handle the full refresh
+      if (onRefresh) {
+        await onRefresh();
+      }
     }
     
     // Increment refresh key to trigger local re-render
@@ -233,7 +322,10 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     }
   };
 
-  if (contextLoading) {
+  // Check if quarterly billing
+  const isQuarterly = billingConfig?.billingPeriod === 'quarterly';
+  
+  if (contextLoading || (isQuarterly && quarterlyLoading)) {
     return <div className="loading-container">Loading water bills...</div>;
   }
 
@@ -241,12 +333,71 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     return <div className="error-message">{contextError}</div>;
   }
 
-  if (!waterData) {
-    return <div className="no-data-message">No water billing data available</div>;
+  // For quarterly billing, get the selected quarter's bill
+  let monthData = null;
+  let hasBills = false;
+  
+  if (isQuarterly) {
+    console.log(`🔍 [WaterBillsList] Looking for Q${selectedQuarter} bill`);
+    console.log(`🔍 [WaterBillsList] Available quarterly bills:`, quarterlyBills.map(b => `Q${b.fiscalQuarter}`));
+    const selectedQuarterBill = quarterlyBills.find(b => b.fiscalQuarter === selectedQuarter);
+    console.log(`🔍 [WaterBillsList] Selected quarter bill:`, selectedQuarterBill ? `Found Q${selectedQuarterBill.fiscalQuarter}` : 'NOT FOUND');
+    
+    if (selectedQuarterBill && selectedQuarterBill.bills?.units) {
+      console.log(`🔍 [WaterBillsList] Transforming ${Object.keys(selectedQuarterBill.bills.units).length} units`);
+      // Transform quarterly bill structure to match monthly structure
+      // Backend already converts currency fields to pesos, so use them directly
+      const transformedUnits = {};
+      Object.entries(selectedQuarterBill.bills.units).forEach(([unitId, unitBill]) => {
+        // Get owner name from units list using getOwnerInfo utility
+        const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
+        const ownerInfo = getOwnerInfo(unitConfig || {});
+        const ownerLastName = ownerInfo.lastName || 'NO NAME AVAILABLE';
+        
+        // Calculate unpaid amount (total - paid)
+        const unpaidAmount = (unitBill.totalAmount || 0) - (unitBill.paidAmount || 0);
+        
+        transformedUnits[unitId] = {
+          ownerLastName: ownerLastName,
+          consumption: unitBill.totalConsumption || 0,
+          billAmount: unitBill.waterCharge || 0, // Already in pesos from backend
+          totalAmount: unitBill.totalAmount || 0, // Already in pesos
+          paidAmount: unitBill.paidAmount || 0, // Already in pesos
+          unpaidAmount: unpaidAmount,
+          penaltyAmount: unitBill.penaltyAmount || 0, // Already in pesos
+          totalPenalties: unitBill.penaltyAmount || 0, // For display consistency
+          displayTotalDue: unpaidAmount, // Total amount still owed
+          displayTotalPenalties: unitBill.penaltyAmount || 0,
+          status: unitBill.status || 'unpaid',
+          carWashCount: unitBill.carWashCount || 0,
+          boatWashCount: unitBill.boatWashCount || 0,
+          currentReading: {
+            washes: unitBill.washes || []
+          },
+          // Add monthly breakdown for reference (still in centavos, but not used in Bills tab display)
+          monthlyBreakdown: unitBill.monthlyBreakdown || []
+        };
+      });
+      
+      monthData = {
+        units: transformedUnits,
+        billsGenerated: true,
+        month: selectedQuarterBill.readingsIncluded?.[0]?.month || 0,
+        dueDate: selectedQuarterBill.dueDate
+      };
+      hasBills = true;
+      console.log(`✅ [WaterBillsList] Q${selectedQuarter} bill found and transformed, hasBills=${hasBills}`);
+    } else {
+      console.log(`⚠️ [WaterBillsList] Q${selectedQuarter} bill not found or has no units`);
+    }
+  } else {
+    // Monthly billing - use existing logic
+    if (!waterData) {
+      return <div className="no-data-message">No water billing data available</div>;
+    }
+    monthData = waterData.months?.[selectedMonth];
+    hasBills = hasBillsForMonth(monthData);
   }
-
-  const monthData = waterData.months[selectedMonth];
-  const hasBills = hasBillsForMonth(monthData);
   
   // Debug logging for August bills issue
   if (selectedMonth === 1) { // August is month 1
@@ -332,27 +483,55 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   return (
     <div className="water-bills-container">
       <div className="controls-bar">
-        <div className="month-selector">
-          <label htmlFor="month-select">Select Month:</label>
-          <select 
-            id="month-select"
-            value={selectedMonth} 
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="month-dropdown"
-          >
-            {availableReadingMonths.map((month) => (
-              <option key={month.month} value={month.month}>
-                {month.fiscalYearDisplay} - {month.monthName}
-                {!month.hasReadings ? ' (No readings)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isQuarterly ? (
+          <div className="quarter-selector">
+            <label htmlFor="quarter-select">Select Quarter:</label>
+            <select 
+              id="quarter-select"
+              value={selectedQuarter} 
+              onChange={(e) => setSelectedQuarter(Number(e.target.value))}
+              className="quarter-dropdown"
+            >
+              <option value={1}>Q1 (Jul-Sep)</option>
+              <option value={2}>Q2 (Oct-Dec)</option>
+              <option value={3}>Q3 (Jan-Mar)</option>
+              <option value={4}>Q4 (Apr-Jun)</option>
+            </select>
+          </div>
+        ) : (
+          <div className="month-selector">
+            <label htmlFor="month-select">Select Month:</label>
+            <select 
+              id="month-select"
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="month-dropdown"
+            >
+              {availableReadingMonths.map((month) => (
+                <option key={month.month} value={month.month}>
+                  {month.fiscalYearDisplay} - {month.monthName}
+                  {!month.hasReadings ? ' (No readings)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         
         <div className="due-date-selector">
           <label htmlFor="due-date-select">Due Date:</label>
-          {hasBills && monthData?.dueDate ? (
-            // Show read-only date when bills are already generated
+          {isQuarterly && hasBills ? (
+            // Show quarter's due date
+            <div className="due-date-display">
+              {quarterlyBills.find(b => b.fiscalQuarter === selectedQuarter)?.dueDate 
+                ? new Date(quarterlyBills.find(b => b.fiscalQuarter === selectedQuarter).dueDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })
+                : 'N/A'}
+            </div>
+          ) : hasBills && monthData?.dueDate ? (
+            // Show read-only date when bills are already generated (monthly)
             <div className="due-date-display">
               {new Date(monthData.dueDate).toLocaleDateString('en-US', { 
                 year: 'numeric', 
@@ -379,7 +558,11 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
             disabled={hasBills || generating || !selectedDueDate}
             className="btn btn-primary generate-bills-btn"
           >
-            {generating ? 'Generating...' : `Generate Bills for ${availableReadingMonths.find(m => m.month === selectedMonth)?.monthName || `Month ${selectedMonth}`}`}
+            {generating ? 'Generating...' : 
+              billingConfig?.billingPeriod === 'quarterly' 
+                ? 'Generate Quarterly Bill' 
+                : `Generate Bills for ${availableReadingMonths.find(m => m.month === selectedMonth)?.monthName || `Month ${selectedMonth}`}`
+            }
           </button>
         </div>
       </div>
@@ -402,7 +585,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         </div>
       )}
 
-      {(monthData && monthData.units) || (availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
+      {(monthData && monthData.units) || (!isQuarterly && availableReadingMonths.find(m => m.month === selectedMonth)?.hasReadings) ? (
         <div className="bills-table-container">
           <table className="bills-table">
             <thead>
@@ -410,7 +593,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
                 <th className="text-left">Unit</th>
                 <th className="text-left">Owner</th>
                 <th className="text-right">Usage (m³)</th>
-                <th className="text-right">Monthly Charge</th>
+                <th className="text-right">{isQuarterly ? 'Quarterly Charge' : 'Monthly Charge'}</th>
                 <th className="text-right">Washes</th>
                 <th className="text-right">Overdue</th>
                 <th className="text-right">Penalties</th>
@@ -422,10 +605,10 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
               {monthData?.units ? (
                 // Show bills data if it exists
                 Object.entries(monthData.units).map(([unitId, unit]) => {
-              // Find unit to get owner name - will come from backend eventually
+              // Find unit to get owner name using getOwnerInfo utility
               const unitConfig = units.find(u => (u.unitId || u.id) === unitId);
-              const ownerName = unitConfig?.ownerLastName || unitConfig?.ownerName || 
-                               unit.ownerName || unit.ownerLastName || 'No Name Available';
+              const ownerInfo = getOwnerInfo(unitConfig || {});
+              const ownerName = ownerInfo.lastName || 'No Name Available';
               
               // Calculate display values with new column structure
               const monthlyCharge = unit.billAmount || 0;  // Current month only
@@ -695,20 +878,20 @@ ${washCharges.toFixed(2)}
 
       <div className="bills-summary">
         <div className="summary-item">
-          <span className="summary-label">Month Billed:</span>
+          <span className="summary-label">{isQuarterly ? 'Quarter' : 'Month'} Billed:</span>
           <span className="summary-value">${formatCurrency(monthTotals.billAmount || 0)}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Month Paid:</span>
+          <span className="summary-label">{isQuarterly ? 'Quarter' : 'Month'} Paid:</span>
           <span className="summary-value paid">${formatCurrency(monthTotals.paid || 0)}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Month Due:</span>
+          <span className="summary-label">{isQuarterly ? 'Quarter' : 'Month'} Due:</span>
           <span className="summary-value unpaid">${formatCurrency(monthTotals.due || 0)}</span>
         </div>
         {(monthTotals.penalties || 0) > 0 && (
           <div className="summary-item">
-            <span className="summary-label">Month Penalties:</span>
+            <span className="summary-label">{isQuarterly ? 'Quarter' : 'Month'} Penalties:</span>
             <span className="summary-value overdue">${formatCurrency(monthTotals.penalties || 0)}</span>
           </div>
         )}
@@ -728,7 +911,11 @@ ${washCharges.toFixed(2)}
           console.log('✅ Payment recorded - refreshing data');
           
           // Direct refresh - no cache invalidation needed
-          refreshData();
+          if (billingConfig?.billingPeriod === 'quarterly') {
+            fetchQuarterlyBills();
+          } else {
+            refreshData();
+          }
         }}
       />
     </div>

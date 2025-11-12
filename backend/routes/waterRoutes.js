@@ -5,6 +5,7 @@ import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/
 import waterBillsService from '../services/waterBillsService.js';
 import waterReadingsService from '../services/waterReadingsService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
+
 import { 
   recordWaterPayment, 
   getWaterPaymentHistory, 
@@ -14,10 +15,17 @@ import {
   generateBills, 
   getBillingConfig, 
   recalculatePenalties, 
-  getPenaltySummary 
+  getPenaltySummary,
+  getQuarterlyBillsForYear 
 } from '../controllers/waterBillsController.js';
 
 const router = express.Router();
+
+// Request logging (can be enabled for debugging)
+// router.use((req, res, next) => {
+//   console.log(`🌊 [waterRoutes] ${req.method} ${req.path}`);
+//   next();
+// });
 
 // Apply authentication to all routes
 router.use(authenticateUserWithProfile);
@@ -265,7 +273,12 @@ router.post('/clients/:clientId/payments/record', enforceClientAccess, recordWat
 // GET /water/clients/:clientId/payments/history/:unitId
 router.get('/clients/:clientId/payments/history/:unitId', enforceClientAccess, getWaterPaymentHistory);
 
-// GET /water/clients/:clientId/bills/:year/:month - MUST BE AFTER unpaid route
+// ============= QUARTERLY BILLS =============
+// GET /water/clients/:clientId/bills/quarterly/:year - Get all quarterly bills for a year
+// CRITICAL: This MUST come BEFORE /bills/:year/:month to prevent Express from matching quarterly as :year and 2026 as :month
+router.get('/clients/:clientId/bills/quarterly/:year', enforceClientAccess, getQuarterlyBillsForYear);
+
+// GET /water/clients/:clientId/bills/:year/:month - MUST BE AFTER quarterly and unpaid routes
 router.get('/clients/:clientId/bills/:year/:month', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year, month } = req.params;
@@ -295,9 +308,6 @@ router.get('/clients/:clientId/bills/:year/:month', enforceClientAccess, async (
 router.get('/clients/:clientId/bills/:year', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year } = req.params;
-    
-    console.log(`📖 Building calculated year data for ${clientId} year ${year}`);
-    
     // Import waterDataService to use calculation methods
     const { waterDataService } = await import('../services/waterDataService.js');
     

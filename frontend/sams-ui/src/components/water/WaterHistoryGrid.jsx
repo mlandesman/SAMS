@@ -11,16 +11,24 @@ import {
   getFiscalYear,
   isFiscalYear
 } from '../../utils/fiscalYearUtils';
+import waterAPI from '../../api/waterAPI';
+import WaterHistoryQuarterly from './WaterHistoryQuarterly';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
 const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const { waterData, loading: contextLoading, error: contextError } = useWaterBills();
   const [yearData, setYearData] = useState(null);
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [billingConfig, setBillingConfig] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
   const navigate = useNavigate();
   
   // Get fiscal year configuration (AVII starts in July = month 7)
   const fiscalYearStartMonth = 7; // July
+
+  useEffect(() => {
+    fetchBillingConfig();
+  }, [clientId]);
 
   useEffect(() => {
     if (waterData && Object.keys(waterData).length > 0) {
@@ -28,6 +36,20 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
       setYearData(waterData);
     }
   }, [waterData]);
+
+  const fetchBillingConfig = async () => {
+    try {
+      setConfigLoading(true);
+      const response = await waterAPI.getConfig(clientId);
+      setBillingConfig(response.data);
+    } catch (error) {
+      console.error('Error fetching billing config:', error);
+      // Default to monthly if config fetch fails
+      setBillingConfig({ billingPeriod: 'monthly' });
+    } finally {
+      setConfigLoading(false);
+    }
+  };
 
   const formatNumber = (num) => {
     if (!num && num !== 0) return '';
@@ -39,7 +61,7 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     return amount.toFixed(0);
   };
 
-  if (contextLoading) {
+  if (contextLoading || configLoading) {
     return <div className="loading-container">Loading water history...</div>;
   }
 
@@ -47,6 +69,42 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     return <div className="error-message">{contextError}</div>;
   }
 
+  // Check if quarterly billing - render quarterly component
+  const isQuarterly = billingConfig?.billingPeriod === 'quarterly';
+  
+  if (isQuarterly) {
+    return (
+      <div className="hoa-dues-view">
+        <div className="hoa-dues-content">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
+            <h3 style={{ margin: 0, color: '#333' }}>Water Bill History</h3>
+            <div className="year-navigation">
+              <button 
+                className="year-nav-button"
+                onClick={() => setSelectedYear(selectedYear - 1)}
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </button>
+              <div className="year-display">
+                <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#1ebbd7' }}>
+                  {selectedYear}
+                </span>
+              </div>
+              <button 
+                className="year-nav-button"
+                onClick={() => setSelectedYear(selectedYear + 1)}
+              >
+                <FontAwesomeIcon icon={faChevronRight} />
+              </button>
+            </div>
+          </div>
+          <WaterHistoryQuarterly clientId={clientId} year={selectedYear} />
+        </div>
+      </div>
+    );
+  }
+
+  // Monthly billing - existing grid view
   if (!yearData || !yearData.months) {
     return <div className="no-data-message">No water history data available</div>;
   }

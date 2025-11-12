@@ -293,6 +293,27 @@ class WaterAPI {
   }
 
   /**
+   * Get quarterly bills for a fiscal year
+   * Returns array of quarterly bills (2026-Q1, 2026-Q2, etc.)
+   */
+  async getQuarterlyBills(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/bills/quarterly/${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    return handleApiResponse(response);
+  }
+
+  /**
    * Get all bills for a fiscal year (12 months)
    * SIMPLIFIED: Direct reads from bill documents (no aggregatedData caching)
    * This fetches all 12 monthly bill documents in one request

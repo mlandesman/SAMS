@@ -76,29 +76,78 @@ export function WaterBillsProvider({ children }) {
     // NO DEDUPLICATION - always fetch fresh data
     // Cache-busting in waterAPI ensures we never get stale data
     
-    // Fetch from API - gets all 12 months of bill documents
-    console.log('🌐 [WaterBillsContext] Fetching bills for year...');
     setLoading(true);
     setError(null);
     
     try {
-      debug.log('WaterBillsContext - Fetching water bills from API for year:', year);
-      const response = await waterAPI.getBillsForYear(selectedClient.id, year);
+      // First, check billing config to determine if this is monthly or quarterly
+      console.log('🔍 [WaterBillsContext] Checking billing config...');
+      const configResponse = await waterAPI.getConfig(selectedClient.id);
+      const billingPeriod = configResponse?.data?.billingPeriod || 'monthly';
+      console.log(`📋 [WaterBillsContext] Billing period: ${billingPeriod}`);
       
-      console.log('📦 [WaterBillsContext] API Response received:', {
-        hasResponse: !!response,
-        hasData: !!response?.data,
-        dataKeys: response?.data ? Object.keys(response.data) : 'none'
-      });
+      // Always fetch monthly year data for readings and carryover calculations
+      // This is needed even for quarterly billing because readings are monthly
+      console.log('🌐 [WaterBillsContext] Fetching MONTHLY year data for readings...');
+      debug.log('WaterBillsContext - Fetching monthly water data from API for year:', year);
       
-      // The response.data contains all 12 months of bills (direct from Firestore)
-      // Update state
-      const dataToSet = response?.data || {};
-      console.log('📊 [WaterBillsContext] Setting water data state:', {
-        unitCount: Object.keys(dataToSet).length,
-        units: Object.keys(dataToSet)
-      });
-      setWaterData(dataToSet);
+      let response;
+      if (billingPeriod === 'quarterly') {
+        // Fetch BOTH monthly data (for readings) AND quarterly bills (for billing display)
+        console.log('🌐 [WaterBillsContext] Also fetching QUARTERLY bills for billing display...');
+        const [monthlyResponse, quarterlyResponse] = await Promise.all([
+          waterAPI.getBillsForYear(selectedClient.id, year),
+          waterAPI.getQuarterlyBills(selectedClient.id, year)
+        ]);
+        
+        console.log('📦 [WaterBillsContext] Monthly data received:', {
+          hasResponse: !!monthlyResponse,
+          hasData: !!monthlyResponse?.data,
+          dataKeys: monthlyResponse?.data ? Object.keys(monthlyResponse.data) : 'none'
+        });
+        
+        console.log('📦 [WaterBillsContext] Quarterly bills received:', {
+          hasResponse: !!quarterlyResponse,
+          hasData: !!quarterlyResponse?.data,
+          dataLength: Array.isArray(quarterlyResponse?.data) ? quarterlyResponse.data.length : 'not array'
+        });
+        
+        // Combine both data sources
+        const monthlyData = monthlyResponse?.data || {};
+        const quarterlyBills = quarterlyResponse?.data || [];
+        
+        // Store monthly data structure with quarterly bills attached
+        const dataToSet = {
+          ...monthlyData,
+          quarters: quarterlyBills,
+          billingPeriod: 'quarterly'
+        };
+        
+        console.log('📊 [WaterBillsContext] Setting combined data state:', {
+          monthCount: monthlyData.months?.length || 0,
+          quarterCount: quarterlyBills.length
+        });
+        setWaterData(dataToSet);
+      } else {
+        // Fetch monthly bills (original behavior)
+        console.log('🌐 [WaterBillsContext] Fetching MONTHLY bills for year...');
+        debug.log('WaterBillsContext - Fetching monthly water bills from API for year:', year);
+        response = await waterAPI.getBillsForYear(selectedClient.id, year);
+        
+        console.log('📦 [WaterBillsContext] Monthly API Response received:', {
+          hasResponse: !!response,
+          hasData: !!response?.data,
+          dataKeys: response?.data ? Object.keys(response.data) : 'none'
+        });
+        
+        // The response.data contains all 12 months of bills (direct from Firestore)
+        const dataToSet = response?.data || {};
+        console.log('📊 [WaterBillsContext] Setting monthly water data state:', {
+          unitCount: Object.keys(dataToSet).length,
+          units: Object.keys(dataToSet)
+        });
+        setWaterData(dataToSet);
+      }
       
       debug.log('WaterBillsContext - Loaded water data for client:', selectedClient.id, 'year:', year);
     } catch (error) {

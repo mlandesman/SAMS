@@ -584,16 +584,115 @@ export const useDashboardData = () => {
         let previewResponse = null;
         
         try {
-          // Get water bills data (all 12 months)
-          previewResponse = await waterAPI.getBillsForYear(selectedClient.id, currentYear);
-          console.log('💧 Dashboard: Water bills response received:', {
+          // First check billing config
+          console.log('💧 Dashboard: Checking water billing config...');
+          const configResponse = await waterAPI.getConfig(selectedClient.id);
+          const billingPeriod = configResponse?.data?.billingPeriod || 'monthly';
+          console.log(`💧 Dashboard: Billing period is ${billingPeriod}`);
+          
+          if (billingPeriod === 'quarterly') {
+            console.log('💧 Dashboard: Fetching data for quarterly client...');
+            // For quarterly, fetch the quarterly bills endpoint
+            previewResponse = await waterAPI.getQuarterlyBills(selectedClient.id, currentYear);
+            console.log('💧 Dashboard: Quarterly bills response received:', {
+              hasResponse: !!previewResponse,
+              hasData: !!previewResponse?.data,
+              isArray: Array.isArray(previewResponse?.data),
+              length: Array.isArray(previewResponse?.data) ? previewResponse.data.length : 0
+            });
+            
+            // Aggregate summary from quarterly bills
+            if (previewResponse?.data && Array.isArray(previewResponse.data)) {
+              const quarterlyBills = previewResponse.data;
+              let totalUnpaid = 0;
+              let totalPaid = 0;
+              let totalBilled = 0;
+              let overdueDetails = [];
+              
+              // Fetch units with owner data for overdue details
+              let unitsWithOwners = [];
+              try {
+                const { getAuthInstance } = await import('../firebaseClient');
+                const token = await getAuthInstance().currentUser.getIdToken();
+                const unitsResponse = await fetch(`${config.api.baseUrl}/clients/${selectedClient.id}/units`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                });
+                if (unitsResponse.ok) {
+                  const unitsData = await unitsResponse.json();
+                  unitsWithOwners = unitsData.data || unitsData;
+                }
+              } catch (error) {
+                console.error('Error fetching units for overdue details:', error);
+              }
+              
+              // Build overdue details from bills
+              const unitTotals = {}; // Track total unpaid per unit across all quarters
+              
+              quarterlyBills.forEach(bill => {
+                if (bill.summary) {
+                  totalUnpaid += bill.summary.totalUnpaid || 0;
+                  totalPaid += bill.summary.totalPaid || 0;
+                  totalBilled += bill.summary.totalBilled || 0;
+                }
+                
+                // Extract unpaid amounts per unit
+                if (bill.bills?.units) {
+                  Object.entries(bill.bills.units).forEach(([unitId, unitBill]) => {
+                    const unpaid = (unitBill.totalAmount || 0) - (unitBill.paidAmount || 0);
+                    if (unpaid > 0) {
+                      if (!unitTotals[unitId]) {
+                        unitTotals[unitId] = 0;
+                      }
+                      unitTotals[unitId] += unpaid;
+                    }
+                  });
+                }
+              });
+              
+              // Build overdueDetails array with owner names
+              overdueDetails = Object.entries(unitTotals).map(([unitId, amountDue]) => {
+                const unit = unitsWithOwners.find(u => (u.unitId || u.id) === unitId);
+                const ownerInfo = getOwnerInfo(unit || {});
+                return {
+                  unitId,
+                  owner: ownerInfo.lastName || 'Unknown',
+                  amountDue: Math.round(amountDue) // Already in pesos from backend
+                };
+              });
+              
+              console.log('💧 Dashboard: Built overdue details:', overdueDetails);
+              
+              // Create a summary structure to match monthly format
+              previewResponse = {
+                ...previewResponse,
+                data: {
+                  summary: {
+                    totalUnpaid,
+                    totalPaid,
+                    totalBilled,
+                    overdueDetails,
+                    collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0
+                  }
+                }
+              };
+            }
+          } else {
+            console.log('💧 Dashboard: Fetching data for monthly client...');
+            // Get monthly bills data (all 12 months)
+            previewResponse = await waterAPI.getBillsForYear(selectedClient.id, currentYear);
+          }
+          
+          console.log('💧 Dashboard: Bills response received:', {
             hasResponse: !!previewResponse,
             hasData: !!previewResponse?.data,
             hasSummary: !!previewResponse?.data?.summary,
             summaryKeys: previewResponse?.data?.summary ? Object.keys(previewResponse.data.summary) : 'none'
           });
         } catch (previewError) {
-          console.log('💧 Dashboard: Water aggregated data API error:', previewError.message);
+          console.log('💧 Dashboard: Water bills API error:', previewError.message);
           if (previewError.status === 404) {
             console.log('💧 Dashboard: No water data found for this client/year (normal)');
             previewResponse = null;
