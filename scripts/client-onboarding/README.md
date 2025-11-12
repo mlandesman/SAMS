@@ -74,8 +74,54 @@ client-onboarding/
 - See `IMPORT_GUIDE.md` for detailed documentation
 - Old/deprecated scripts are archived in `archive-old-scripts/`
 
+## 🏢 Client-Specific Configurations
+
+### AVII (Quarterly Billing)
+**AVII uses quarterly billing for both HOA Dues and Water Bills**
+
+**Setup Steps:**
+```bash
+# 1. Create AVII client (if not exists)
+# 2. Configure for quarterly billing
+node scripts/client-onboarding/setup-avii-config.js
+
+# 3. Validate configuration
+node scripts/client-onboarding/validate-avii-quarterly.js
+
+# 4. Import data
+./run-complete-import.sh AVII ../../AVIIdata
+
+# 5. Generate quarterly water bills
+node backend/scripts/generateWaterQ1Bills.js
+```
+
+**Key Settings:**
+- Fiscal year: July 1 - June 30
+- HOA Dues: Quarterly (Q1, Q2, Q3, Q4)
+- Water Bills: Quarterly (bill IDs: 2026-Q1, 2026-Q2, etc.)
+- Penalty grace period: 30 days (vs 10 days for monthly)
+- Configuration: `config/avii-import-config.js`
+
+### MTC (Monthly Billing)
+**MTC uses monthly billing for both HOA Dues and Water Bills**
+
+**Setup Steps:**
+```bash
+# Standard import process
+./run-complete-import.sh MTC
+```
+
+**Key Settings:**
+- Fiscal year: January 1 - December 31
+- HOA Dues: Monthly (one bill per month)
+- Water Bills: Monthly (bill IDs: 2025-00, 2025-01, etc.)
+- Penalty grace period: 10 days
+- Configuration: `config/mtc-import-config.js`
+
 ## ⚠️ Important
 
 - The setup-client-config.js script will preserve existing configuration files
 - Account names in client-config.json must match those in Transactions.json
 - All amounts should be in cents (multiply dollars by 100)
+- AVII requires quarterly billing configuration before data import
+- Run `validate-avii-quarterly.js` to verify quarterly billing is properly configured
