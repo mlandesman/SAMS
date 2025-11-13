@@ -94,19 +94,15 @@ export function calculateCreditUsage(params) {
  */
 export async function getCreditBalance(clientId, unitId) {
   try {
-    console.log(`📊 Getting credit balance: Unit ${unitId}`);
-    
     const creditData = await CreditAPI.getCreditBalance(clientId, unitId);
-    
-    console.log(`📊 Credit balance retrieved: Unit ${unitId}, Balance: $${creditData.creditBalance || 0}`);
     
     return {
       creditBalance: creditData.creditBalance || 0, // Already in pesos from CreditAPI
-      creditBalanceHistory: creditData.creditBalanceHistory || []
+      creditBalanceHistory: creditData.creditBalanceHistory || creditData.history || []
     };
     
   } catch (error) {
-    console.error('Error getting credit balance:', error);
+    console.error(`Error getting credit balance for ${clientId}/${unitId}:`, error);
     // Return zero balance if credit endpoint unavailable (graceful degradation)
     return { creditBalance: 0, creditBalanceHistory: [] };
   }

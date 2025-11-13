@@ -307,4 +307,114 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
+/**
+ * Generate Statement of Account report
+ * POST /reports/statement/generate
+ * 
+ * Request body:
+ * {
+ *   unitId: string,
+ *   userId: string,
+ *   dateRange: {
+ *     start: string (ISO date),
+ *     end: string (ISO date)
+ *   },
+ *   options?: {
+ *     includeWaterBills?: boolean,
+ *     includeHoaDues?: boolean
+ *   }
+ * }
+ */
+router.post('/statement/generate', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { unitId, userId, dateRange, options } = req.body;
+    const user = req.user;
+
+    // Validate required fields
+    if (!unitId || !userId || !dateRange) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: unitId, userId, and dateRange are required'
+      });
+    }
+
+    if (!dateRange.start || !dateRange.end) {
+      return res.status(400).json({
+        success: false,
+        error: 'dateRange must include both start and end dates (ISO format)'
+      });
+    }
+
+    // Verify user has access to this client
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+
+    // Check unit access authorization
+    if (!hasUnitAccess(propertyAccess, unitId, user.samsProfile?.globalRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this unit',
+        unitId: unitId
+      });
+    }
+
+    // Parse date range
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid date format. Use ISO date strings (e.g., "2025-01-01T00:00:00.000Z")'
+      });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Start date must be before or equal to end date'
+      });
+    }
+
+    // Import StatementService dynamically to avoid circular dependencies
+    const { StatementService } = await import('../services/StatementService.js');
+    
+    // Create statement service instance
+    const statementService = new StatementService(clientId);
+    
+    // Aggregate statement data
+    const statementData = await statementService.aggregateStatementData(
+      unitId,
+      userId,
+      { start: startDate, end: endDate },
+      options || {}
+    );
+
+    res.json(statementData);
+
+  } catch (error) {
+    console.error('Error generating statement:', error);
+    
+    // Provide helpful error messages
+    if (error.message.includes('not found')) {
+      return res.status(404).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate statement',
+      details: error.message
+    });
+  }
+});
+
 export default router;

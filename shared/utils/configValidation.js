@@ -42,6 +42,11 @@ export function validateRequiredFields(config, requiredFields, context) {
  * @throws {Error} If configuration is incomplete
  */
 export function validatePenaltyConfig(config, context) {
+  // First check if config exists
+  if (!config) {
+    throw new Error(`Configuration missing for Penalty config for ${context}`);
+  }
+  
   // Accept either penaltyDays or gracePeriodDays
   // Check for undefined/null to allow 0 values (e.g., 0% penalty rate)
   if (config.penaltyRate === undefined || config.penaltyRate === null) {
