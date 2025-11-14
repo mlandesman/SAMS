@@ -5,6 +5,8 @@
 
 import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
+import { createDate as createCancunDate, parseDate as parseCancunDate } from '../../shared/services/DateService.js';
+import { DateTime } from 'luxon';
 import waterBillsService from './waterBillsService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { 
@@ -114,29 +116,27 @@ export class DataAggregator {
       const duesData = duesSnap.data();
       const scheduledAmount = duesData.scheduledAmount || 0;
       const payments = duesData.payments || [];
-      const quarters = duesData.quarters || [];
       
       if (duesFrequency === 'quarterly') {
-        // Check if quarters array exists (new quarterly structure)
-        if (quarters.length > 0) {
-          // Use quarters array structure (Phase 5 quarterly billing)
-          quarters.forEach((quarter, index) => {
-            if (!quarter) return; // Skip null/undefined quarters
-            
-            const quarterNum = index + 1; // Q1, Q2, Q3, Q4
-            const quarterAmount = scheduledAmount * 3; // Quarterly amount (3 months)
-            const quarterPaid = quarter.amount || 0;
-            const quarterBalance = quarterAmount - quarterPaid;
-            
-            // Calculate due date for this quarter using fiscal year logic
-            // Quarters are indexed 0-3, each quarter is 3 fiscal months
-            // Q1 = fiscal months 1-3, Q2 = 4-6, Q3 = 7-9, Q4 = 10-12
-            const quarterStartFiscalMonth = (index * 3) + 1; // 1, 4, 7, 10
+        // For quarterly billing, payments are stored as months (0-11) in the payments array
+        // Group payments by quarter based on common due dates (Q1=months 1-3, Q2=months 4-6, Q3=months 7-9, Q4=months 10-12)
+        // This is the standard storage structure - there is no separate quarters array
+        // The code groups months together based on their common due dates
+        const quartersMap = new Map(); // Map quarter number (1-4) to quarter data
+        
+        // Process all 12 fiscal months
+        for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
+          const paymentIndex = fiscalMonth - 1;
+          const payment = payments[paymentIndex];
+          
+          // Get quarter number for this fiscal month (Q1=months 1-3, Q2=months 4-6, Q3=months 7-9, Q4=months 10-12)
+          const quarter = this._getQuarterFromMonth(fiscalMonth);
+          
+          if (!quartersMap.has(quarter)) {
+            // Calculate due date for this quarter's start month
+            const quarterStartFiscalMonth = ((quarter - 1) * 3) + 1; // Q1=1, Q2=4, Q3=7, Q4=10
             const calendarMonth = fiscalToCalendarMonth(quarterStartFiscalMonth, fiscalYearStartMonth);
             
-            // Calculate calendar year for this fiscal month
-            // For fiscal months 1-6 (e.g., Jul-Dec), use previous calendar year
-            // For fiscal months 7-12 (e.g., Jan-Jun), use same calendar year as fiscal year
             let calendarYear;
             if (fiscalYearStartMonth === 1) {
               calendarYear = fiscalYear;
@@ -144,137 +144,76 @@ export class DataAggregator {
               calendarYear = quarterStartFiscalMonth <= 6 ? fiscalYear - 1 : fiscalYear;
             }
             
-            const dueDate = this._createDate(calendarYear, calendarMonth - 1, 1); // calendarMonth is 1-based, Date constructor expects 0-based
+            const calculatedDueDate = this._createDate(calendarYear, calendarMonth - 1, 1);
             
-            // Check if this quarter falls within the requested date range
-            if (dueDate >= startDate && dueDate <= endDate) {
-              const isPaid = quarterPaid > 0;
-              
-              // If paid, use stored penalty amount (allows for waivers)
-              // If unpaid, calculate dynamically as of current date
-              let penalty;
-              if (isPaid) {
-                // Use stored penalty from document (may be 0 if waived)
-                penalty = quarter.penaltyPaid || quarter.penaltyAmount || 0;
-              } else {
-                // Calculate penalty dynamically as of current date
-                penalty = this._calculatePenaltyAsOfDate(
-                  quarterAmount,
-                  dueDate,
-                  currentDate,
-                  hoaConfig
-                );
-              }
-              
-              transactions.push({
-                date: quarter.date ? this._parseDate(quarter.date) : dueDate,
-                description: `Maintenance Fee Q${quarterNum} ${fiscalYear}`,
-                invoiceReceipt: quarter.reference || quarter.transactionId || 'N/A',
-                transactionId: quarter.transactionId || null,
-                method: quarter.method || null,
-                notes: quarter.notes || null,
-                amount: centavosToPesos(quarterAmount),
-                penalty: centavosToPesos(penalty),
-                payments: centavosToPesos(quarterPaid),
-                // Balance will be calculated by calculateRunningBalance() - don't set it here
-                category: 'HOA Dues',
-                quarter: quarterNum,
-                year: fiscalYear
-              });
-            }
-          });
-        } else {
-          // Fallback: Group payments by quarter (legacy quarterly structure)
-          // For quarterly billing, payments array has 12 elements (fiscal months 1-12)
-          // Group by quarter (Q1=months 1-3, Q2=months 4-6, Q3=months 7-9, Q4=months 10-12)
-          const quartersMap = new Map(); // Map quarter number (1-4) to quarter data
-          
-          // Process all 12 fiscal months
-          for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
-            const paymentIndex = fiscalMonth - 1;
-            const payment = payments[paymentIndex];
-            
-            // Skip null payments but still create quarter entry
-            const quarter = this._getQuarterFromMonth(fiscalMonth);
-            
-            if (!quartersMap.has(quarter)) {
-              // Calculate due date for this quarter's start month
-              const quarterStartFiscalMonth = ((quarter - 1) * 3) + 1; // Q1=1, Q2=4, Q3=7, Q4=10
-              const calendarMonth = fiscalToCalendarMonth(quarterStartFiscalMonth, fiscalYearStartMonth);
-              
-              let calendarYear;
-              if (fiscalYearStartMonth === 1) {
-                calendarYear = fiscalYear;
-              } else {
-                calendarYear = quarterStartFiscalMonth <= 6 ? fiscalYear - 1 : fiscalYear;
-              }
-              
-              const calculatedDueDate = this._createDate(calendarYear, calendarMonth - 1, 1);
-              
-              quartersMap.set(quarter, {
-                quarter: quarter,
-                dueDate: calculatedDueDate,
-                amount: scheduledAmount * 3, // Quarterly amount (3 months)
-                payments: []
-              });
-            }
-            
-            // Add payment to quarter (even if null, we track the month)
-            if (payment) {
-              quartersMap.get(quarter).payments.push({
-                ...payment,
-                fiscalMonth: fiscalMonth
-              });
-            }
+            quartersMap.set(quarter, {
+              quarter: quarter,
+              dueDate: calculatedDueDate,
+              amount: scheduledAmount * 3, // Quarterly amount (3 months)
+              payments: []
+            });
           }
           
-          // Convert to transaction format
-          quartersMap.forEach((quarterData) => {
-            const dueDate = quarterData.dueDate;
-            
-            // Check if this quarter falls within the requested date range
-            if (dueDate >= startDate && dueDate <= endDate) {
-              const totalPaid = quarterData.payments.reduce((sum, p) => sum + (p.amount || p.paid || 0), 0);
-              const balance = quarterData.amount - totalPaid;
-              const isPaid = totalPaid > 0;
-              
-              // Get payment info for transactionId, method, notes
-              const firstPayment = quarterData.payments[0];
-              
-              // If paid, use stored penalty amount from payments (allows for waivers)
-              // If unpaid, calculate dynamically as of current date
-              let penalty;
-              if (isPaid) {
-                // Sum stored penalties from all payments in this quarter
-                penalty = quarterData.payments.reduce((sum, p) => sum + (p.penaltyPaid || p.penalty || 0), 0);
-              } else {
-                // Calculate penalty dynamically as of current date
-                penalty = this._calculatePenaltyAsOfDate(
-                  quarterData.amount,
-                  dueDate,
-                  currentDate,
-                  hoaConfig
-                );
-              }
-              
-              transactions.push({
-                date: dueDate,
-                description: `Maintenance Fee Q${quarterData.quarter} ${fiscalYear}`,
-                invoiceReceipt: firstPayment?.reference || firstPayment?.transactionId || 'N/A',
-                transactionId: firstPayment?.transactionId || null,
-                method: firstPayment?.method || null,
-                notes: firstPayment?.notes || null,
-                amount: centavosToPesos(quarterData.amount),
-                penalty: centavosToPesos(penalty),
-                payments: centavosToPesos(totalPaid),
-                // Balance will be calculated by calculateRunningBalance() - don't set it here
-                category: 'HOA Dues',
-                quarter: quarterData.quarter,
-                year: fiscalYear
-              });
-            }
-          });
+          // Add payment to quarter (even if null, we track the month)
+          if (payment) {
+            quartersMap.get(quarter).payments.push({
+              ...payment,
+              fiscalMonth: fiscalMonth
+            });
+          }
         }
+        
+        // Convert to transaction format
+        quartersMap.forEach((quarterData) => {
+          const dueDate = quarterData.dueDate;
+          
+          // Normalize dates for comparison to avoid timezone/time component issues
+          const normalizedDueDate = this._normalizeDateForComparison(dueDate);
+          const normalizedStartDate = this._normalizeDateForComparison(startDate);
+          const normalizedEndDate = this._normalizeDateForComparison(endDate);
+          
+          // Check if this quarter falls within the requested date range
+          if (normalizedDueDate >= normalizedStartDate && normalizedDueDate <= normalizedEndDate) {
+            const totalPaid = quarterData.payments.reduce((sum, p) => sum + (p.amount || p.paid || 0), 0);
+            const balance = quarterData.amount - totalPaid;
+            const isPaid = totalPaid > 0;
+            
+            // Get payment info for transactionId, method, notes
+            const firstPayment = quarterData.payments[0];
+            
+            // If paid, use stored penalty amount from payments (allows for waivers)
+            // If unpaid, calculate dynamically as of current date
+            let penalty;
+            if (isPaid) {
+              // Sum stored penalties from all payments in this quarter
+              penalty = quarterData.payments.reduce((sum, p) => sum + (p.penaltyPaid || p.penalty || 0), 0);
+            } else {
+              // Calculate penalty dynamically as of current date
+              penalty = this._calculatePenaltyAsOfDate(
+                quarterData.amount,
+                dueDate,
+                currentDate,
+                hoaConfig
+              );
+            }
+            
+            transactions.push({
+              date: dueDate,
+              description: `Maintenance Fee Q${quarterData.quarter} ${fiscalYear}`,
+              invoiceReceipt: firstPayment?.reference || firstPayment?.transactionId || 'N/A',
+              transactionId: firstPayment?.transactionId || null,
+              method: firstPayment?.method || null,
+              notes: firstPayment?.notes || null,
+              amount: centavosToPesos(quarterData.amount),
+              penalty: centavosToPesos(penalty),
+              payments: centavosToPesos(totalPaid),
+              // Balance will be calculated by calculateRunningBalance() - don't set it here
+              category: 'HOA Dues',
+              quarter: quarterData.quarter,
+              year: fiscalYear
+            });
+          }
+        });
       } else {
         // Monthly billing - iterate through fiscal months (1-12)
         for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
@@ -413,6 +352,9 @@ export class DataAggregator {
             // Get payment info from lastPayment if available
             const lastPayment = unitBill.lastPayment || {};
             
+            // Consumption can be stored as 'consumption' or 'totalConsumption' (for quarterly bills)
+            const consumption = unitBill.consumption || unitBill.totalConsumption || null;
+            
             transactions.push({
               date: calculatedDueDate,
               description: bill._billId || `Water Consumption Q${bill.quarter || '?'} ${fiscalYear}`,
@@ -427,7 +369,7 @@ export class DataAggregator {
               category: 'Water Bills',
               quarter: bill._billId || bill.quarter,
               year: fiscalYear,
-              consumption: unitBill.consumption || null
+              consumption: consumption
             });
           }
         });
@@ -762,14 +704,35 @@ export class DataAggregator {
 
   /**
    * Create a Date object for a specific date (year, month, day)
-   * Uses Cancun timezone-aware date creation
+   * Uses Cancun timezone-aware date creation via DateService
+   * @param {number} year - Year
+   * @param {number} month - Month (0-11, JavaScript convention)
+   * @param {number} day - Day (1-31)
+   * @returns {Date} JavaScript Date object in Cancun timezone
    * @private
    */
   _createDate(year, month, day) {
-    // Create date in Cancun timezone
-    // Note: JavaScript Date constructor uses local timezone, but we want Cancun timezone
-    // For statement purposes, we'll create a UTC date and treat it as Cancun time
-    return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    // createCancunDate expects month as 1-12, but we receive 0-11 (JavaScript convention)
+    // Convert to 1-based month for Cancun timezone-aware date creation
+    return createCancunDate(year, month + 1, day);
+  }
+  
+  /**
+   * Normalize a date to midnight Cancun time for date range comparisons
+   * This ensures dates are compared at the day level, not including time components
+   * Uses Cancun timezone-aware date creation via Luxon
+   * @private
+   */
+  _normalizeDateForComparison(date) {
+    if (!date) return null;
+    // Parse date using Cancun timezone-aware parser if it's a string
+    const d = date instanceof Date ? date : parseCancunDate(date);
+    if (!d) return null;
+    // Convert to Luxon DateTime in Cancun timezone to extract date components correctly
+    const dt = DateTime.fromJSDate(d).setZone('America/Cancun');
+    // Extract year, month, day as they appear in Cancun timezone and recreate at midnight Cancun time
+    // This ensures consistent day-level comparisons regardless of time components
+    return createCancunDate(dt.year, dt.month, dt.day);
   }
 }
 
