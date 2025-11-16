@@ -18,7 +18,8 @@ export function sanitizeDocumentId(input) {
   return input
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9-_]/g, '-')  // Replace invalid chars with hyphens
+    .replace(/_/g, '-')            // Convert underscores to hyphens FIRST (categories use hyphens only)
+    .replace(/[^a-z0-9-]/g, '-')   // Replace invalid chars with hyphens (removed underscore from allowed chars)
     .replace(/-+/g, '-')           // Replace multiple hyphens with single
     .replace(/^-|-$/g, '')         // Remove leading/trailing hyphens
     .substring(0, 100);            // Firestore ID limit is 1500, but keep it reasonable

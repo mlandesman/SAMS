@@ -1001,13 +1001,13 @@ export class ImportService {
             const amountInCentavos = validateCentavos(payment.amount * 100, `payment.amount[${index}]`);
             return {
               id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
-              type: "hoa_month",
+              type: "hoa-month", // Use hyphens to match categoryId format
               targetId: `month_${payment.month}_${year}`, // month_3_2026 format
               targetName: `${monthName} ${year}`, // "March 2026" format
               amount: amountInCentavos, // Convert pesos to centavos with validation
               percentage: null, // Required field
               categoryName: "HOA Dues", // Required for split transaction UI
-              categoryId: "hoa_dues", // Required for consistency
+              categoryId: "hoa-dues", // Must match categories collection format (hyphen, not underscore)
               data: {
                 unitId: payment.unitId,
                 month: payment.month,
@@ -1068,7 +1068,7 @@ export class ImportService {
           const allocationSummary = {
             totalAllocated: totalAllocated,
             allocationCount: allocations.length,
-            allocationType: 'hoa_month',
+            allocationType: 'hoa-month', // Use hyphens to match categoryId format
             hasMultipleTypes: false
           };
           

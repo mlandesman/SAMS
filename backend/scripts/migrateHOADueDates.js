@@ -38,7 +38,7 @@ function calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency,
   // For monthly, each fiscal month has its own due date
   if (frequency === 'monthly') {
     const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-    const calendarYear = fiscalYear + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+    const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
     
     const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
     return toISOString(dueDate);
@@ -48,7 +48,7 @@ function calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency,
   if (frequency === 'quarterly') {
     const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
     const calendarMonth = ((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) % 12;
-    const calendarYear = fiscalYear + Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
+    const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
     
     const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
     return toISOString(dueDate);

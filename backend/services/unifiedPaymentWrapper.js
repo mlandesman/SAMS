@@ -36,7 +36,7 @@
  * - Respects module-specific configurations
  */
 
-import { getNow } from '../../shared/services/DateService.js';
+import { getNow, createDate, toISOString } from '../../shared/services/DateService.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
@@ -826,32 +826,46 @@ export class UnifiedPaymentWrapper {
 
   /**
    * Calculate frequency-aware due date for HOA Dues
-   * (Replicated from hoaDuesController)
+   * (Replicated from hoaDuesController - FIXED)
+   * 
+   * FIXED: Correctly calculates calendar year from fiscal year
+   * Fiscal years are named by their ending year, so FY 2026 starts in 2025
    * 
    * @private
    */
   _calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency, fiscalYearStartMonth) {
-    const { startDate } = getFiscalYearBounds(fiscalYear, fiscalYearStartMonth);
-    const startDateObj = parseDate(startDate);
+    // Validate inputs
+    if (fiscalMonthIndex < 0 || fiscalMonthIndex > 11) {
+      throw new Error(`fiscalMonthIndex must be 0-11, got ${fiscalMonthIndex}`);
+    }
+    
+    if (!['monthly', 'quarterly'].includes(frequency)) {
+      throw new Error(`Unsupported duesFrequency: ${frequency}. Expected 'monthly' or 'quarterly'.`);
+    }
+    
+    // Calculate the actual calendar month and year
+    // This correctly handles fiscal years that span calendar years
+    
+    if (frequency === 'monthly') {
+      // For monthly, each fiscal month has its own due date
+      const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+      const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+      
+      const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
+      return toISOString(dueDate);
+    }
     
     if (frequency === 'quarterly') {
-      // For quarterly billing, months 0-2, 3-5, 6-8, 9-11 share due dates
+      // For quarterly, months share due dates by quarter
       const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
-      const baseCalendarYear = (fiscalYearStartMonth > 1) ? fiscalYear - 1 : fiscalYear;
-      const calendarMonth = ((quarterStartFiscalMonth + fiscalYearStartMonth - 1) % 12) + 1;
-      const calendarYear = baseCalendarYear + Math.floor((quarterStartFiscalMonth + fiscalYearStartMonth - 1) / 12);
+      const calendarMonth = ((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) % 12;
+      const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
       
-      const dueDate = new Date(Date.UTC(calendarYear, calendarMonth - 1, 1, 5, 0, 0));
-      return dueDate.toISOString();
-    } else {
-      // For monthly billing, each month has its own due date
-      const baseCalendarYear = (fiscalYearStartMonth > 1) ? fiscalYear - 1 : fiscalYear;
-      const calendarMonth = ((fiscalMonthIndex + fiscalYearStartMonth - 1) % 12) + 1;
-      const calendarYear = baseCalendarYear + Math.floor((fiscalMonthIndex + fiscalYearStartMonth - 1) / 12);
-      
-      const dueDate = new Date(Date.UTC(calendarYear, calendarMonth - 1, 1, 5, 0, 0));
-      return dueDate.toISOString();
+      const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
+      return toISOString(dueDate);
     }
+    
+    throw new Error(`Unsupported frequency: ${frequency}`);
   }
 
   /**

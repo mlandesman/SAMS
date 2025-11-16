@@ -16,7 +16,7 @@ import admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // PHASE 4 TASK 4.1: Import Phase 3 shared services
-import { getNow } from '../../shared/services/DateService.js';
+import { getNow, parseDate, toISOString, createDate } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos, formatCurrency } from '../../shared/utils/currencyUtils.js';
 import { validateCentavos, validateCentavosInObject } from '../../shared/utils/centavosValidation.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
@@ -58,6 +58,57 @@ const MONTH_NAMES = [
  */
 function getMonthName(month) {
   return MONTH_NAMES[month - 1] || `Month ${month}`;
+}
+
+/**
+ * Calculate due date based on billing frequency
+ * 
+ * PHASE 5 TASK 5.1: Frequency-agnostic due date calculation
+ * - Monthly: Each fiscal month has its own due date (1st of that month)
+ * - Quarterly: 3 fiscal months share the same due date (1st of quarter start month)
+ * 
+ * FIXED: Correctly calculates calendar year from fiscal year
+ * Fiscal years are named by their ending year, so FY 2026 starts in 2025
+ * 
+ * @param {number} fiscalMonthIndex - Month within fiscal year (0-11)
+ * @param {number} fiscalYear - Fiscal year (e.g., 2026)
+ * @param {string} frequency - 'monthly' or 'quarterly'
+ * @param {number} fiscalYearStartMonth - Calendar month fiscal year starts (1-12, 1=Jan, 7=Jul)
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function calculateFrequencyAwareDueDate(fiscalMonthIndex, fiscalYear, frequency, fiscalYearStartMonth) {
+  // Validate inputs
+  if (fiscalMonthIndex < 0 || fiscalMonthIndex > 11) {
+    throw new Error(`fiscalMonthIndex must be 0-11, got ${fiscalMonthIndex}`);
+  }
+  
+  if (!['monthly', 'quarterly'].includes(frequency)) {
+    throw new Error(`Unsupported duesFrequency: ${frequency}. Expected 'monthly' or 'quarterly'.`);
+  }
+  
+  // Calculate the actual calendar month and year
+  // This correctly handles fiscal years that span calendar years
+  
+  if (frequency === 'monthly') {
+    // For monthly, each fiscal month has its own due date
+    const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+    const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+    
+    const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
+    return toISOString(dueDate);
+  }
+  
+  if (frequency === 'quarterly') {
+    // For quarterly, months share due dates by quarter
+    const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
+    const calendarMonth = ((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) % 12;
+    const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
+    
+    const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
+    return toISOString(dueDate);
+  }
+  
+  throw new Error(`Unsupported frequency: ${frequency}`);
 }
 
 // ============================================================================
@@ -351,13 +402,13 @@ function createHOAAllocations(distribution, unitId, year, paymentData) {
     distribution.forEach((item, index) => {
       allocations.push({
         id: `alloc_${String(index + 1).padStart(3, '0')}`, // alloc_001, alloc_002, etc.
-        type: "hoa_month",
+        type: "hoa-month", // Use hyphens to match categoryId format
         targetId: `month_${item.month}_${year}`,
         targetName: `${getMonthName(item.month)} ${year}`,
         amount: item.amountToAdd,
         percentage: null, // Will be calculated in allocationSummary if needed
         categoryName: "HOA Dues", // Required for split transaction validation
-        categoryId: "hoa_dues", // Optional but recommended for consistency
+        categoryId: "hoa-dues", // Must match categories collection format (hyphen, not underscore)
         data: {
           unitId: unitId,
           month: item.month,
@@ -457,7 +508,7 @@ function createAllocationSummary(distribution, totalAmountCents) {
   return {
     totalAllocated: totalAllocated,
     allocationCount: distribution.length,
-    allocationType: "hoa_month",
+    allocationType: "hoa-month", // Use hyphens to match categoryId format
     hasMultipleTypes: false,
     // Verify allocation integrity
     integrityCheck: {
@@ -666,10 +717,10 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     
     // Create transaction data with standardized field names
     const transactionData = {
-      date: paymentDate.toISOString().split('T')[0], // Convert Date to string format YYYY-MM-DD
-      amount: paymentData.amount,
-      categoryId: 'hoa_dues',
-      categoryName: 'HOA Dues',
+        date: paymentDate.toISOString().split('T')[0], // Convert Date to string format YYYY-MM-DD
+        amount: paymentData.amount,
+        categoryId: 'hoa-dues', // Must match categories collection format (hyphen, not underscore)
+        categoryName: 'HOA Dues',
       type: 'income',
       // Payment method is the ID, we'll look up the type from the payment method document
       // For now, use a simple mapping based on common patterns
@@ -699,7 +750,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       
       // Add metadata to enable bidirectional navigation
       metadata: {
-        type: 'hoa_dues',
+        type: 'hoa-dues', // Use hyphens to match categoryId format
         unitId,
         year,
         months: distribution.map(item => item.month)
@@ -786,6 +837,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       console.log(`Adding note to transaction: ${paymentNote}`);
     }
     
+    // Load billing config to calculate due dates
+    const config = await getHOABillingConfig(clientId);
+    const frequency = config.duesFrequency || 'monthly';
+    const fiscalYearStartMonth = config.fiscalYearStartMonth || 1;
+    
     // Update payments array with distributed payments
     console.log(`Processing ${distribution.length} distribution items`);
     
@@ -803,6 +859,14 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         console.error(`Invalid month ${item.month}, skipping`);
         continue;
       }
+      
+      // Calculate due date for this fiscal month
+      const dueDateISO = calculateFrequencyAwareDueDate(
+        monthIndex,
+        year,
+        frequency,
+        fiscalYearStartMonth
+      );
       
       // Create a payment note without the redundant prefix, just include user notes and transaction ID
       const paymentNote = paymentData.notes 
@@ -831,6 +895,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         paid: amountInCents > 0,
         amount: amountInCents,
         date: paymentDateISO, // Store as ISO string, not Timestamp object
+        dueDate: dueDateISO, // Store due date for this month
         reference: transactionId,
         notes: paymentNote  // Store payment notes for tooltip display
       };

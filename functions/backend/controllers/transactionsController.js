@@ -739,7 +739,8 @@ async function deleteTransaction(clientId, txnId) {
     
     // Check if this is an HOA Dues transaction requiring special cleanup
     const isHOATransaction = originalData.category === 'HOA Dues' || 
-                            originalData.metadata?.type === 'hoa_dues';
+                            originalData.metadata?.type === 'hoa-dues' || // New format
+                            originalData.metadata?.type === 'hoa_dues'; // Legacy
     
     // 🔍 BACKEND DELETE: Transaction detection analysis
     console.log('🔍 BACKEND DELETE: Transaction analysis:', {
@@ -1124,14 +1125,68 @@ async function deleteTransaction(clientId, txnId) {
 function getHOAMonthsFromTransaction(transactionData) {
   // Check for allocations first (new format)
   if (transactionData.allocations && transactionData.allocations.length > 0) {
-    return transactionData.allocations
-      .filter(allocation => allocation.type === "hoa_month")
-      .map(allocation => ({
-        month: allocation.data.month,
-        unitId: allocation.data.unitId,
-        year: allocation.data.year,
-        amount: allocation.amount
-      }));
+    const hoaAllocations = transactionData.allocations.filter(allocation => 
+      allocation.type === 'hoa-month' || 
+      allocation.type === 'hoa_month' ||
+      allocation.type === 'hoa-penalty' ||
+      allocation.type === 'hoa_penalty' ||
+      allocation.categoryName === 'HOA Dues' ||
+      allocation.categoryName === 'HOA Penalties'
+    );
+    
+    if (hoaAllocations.length > 0) {
+      // Group by month (allocations may have separate base and penalty entries)
+      const monthsMap = new Map();
+      
+      hoaAllocations.forEach(allocation => {
+        const quarter = allocation.metadata?.quarter ?? allocation.data?.quarter;
+        const month = allocation.metadata?.month ?? allocation.data?.month;
+        const year = allocation.metadata?.year ?? allocation.data?.year;
+        const unitId = allocation.metadata?.unitId ?? allocation.data?.unitId;
+        
+        // If this is a quarterly allocation, expand to all 3 months
+        if (quarter !== undefined && quarter !== null) {
+          // Quarter 0 = months 0,1,2; Quarter 1 = months 3,4,5; etc.
+          const startMonth = quarter * 3;
+          const amountPerMonth = allocation.amount / 3; // Distribute amount across months
+          
+          for (let i = 0; i < 3; i++) {
+            const expandedMonth = startMonth + i;
+            const monthKey = `${year}-${expandedMonth}`;
+            
+            if (!monthsMap.has(monthKey)) {
+              monthsMap.set(monthKey, {
+                month: expandedMonth,
+                unitId,
+                year,
+                amount: 0
+              });
+            }
+            
+            // Add this allocation's amount (could be base or penalty)
+            // For quarterly allocations, distribute amount across 3 months
+            monthsMap.get(monthKey).amount += amountPerMonth;
+          }
+        } else if (month !== undefined && month !== null) {
+          // Single month allocation
+          const monthKey = `${year}-${month}`;
+          
+          if (!monthsMap.has(monthKey)) {
+            monthsMap.set(monthKey, {
+              month,
+              unitId,
+              year,
+              amount: 0
+            });
+          }
+          
+          // Add this allocation's amount (could be base or penalty)
+          monthsMap.get(monthKey).amount += allocation.amount;
+        }
+      });
+      
+      return Array.from(monthsMap.values());
+    }
   }
   
   // Fallback to duesDistribution (legacy format)

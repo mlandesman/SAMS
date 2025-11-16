@@ -35,11 +35,15 @@ function validateRequiredFields(data, requiredFields) {
 }
 
 // Generate document ID from name
+// CRITICAL: Categories collection uses hyphens, not underscores
 function generateDocumentId(name) {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
+    .trim()
+    .replace(/_/g, '-')            // Convert underscores to hyphens FIRST
+    .replace(/[^a-z0-9-]+/g, '-') // Replace invalid chars with hyphens
+    .replace(/-+/g, '-')           // Replace multiple hyphens with single
+    .replace(/^-|-$/g, '');       // Remove leading/trailing hyphens
 }
 
 // Create timestamp

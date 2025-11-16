@@ -6,6 +6,8 @@
 import { ReportEngine } from './ReportEngine.js';
 import { DataAggregator } from './DataAggregator.js';
 import { getNow } from './DateService.js';
+import { createDate as createCancunDate, parseDate as parseCancunDate } from '../../shared/services/DateService.js';
+import { DateTime } from 'luxon';
 import { getDb } from '../firebase.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { 
@@ -177,8 +179,14 @@ export class StatementService extends ReportEngine {
       generalTransactions
     );
     
+    // CRITICAL: Filter to be backwards-looking (Statement of Account requirement)
+    // Only include bills/transactions with due dates <= TODAY (not future bills)
+    // This filtering is Statement of Account-specific - other reports can use unfiltered data
+    const today = getNow();
+    const filteredTransactions = this._filterBackwardsLooking(allTransactions, today);
+    
     // Calculate running balances
-    const transactionsWithBalances = this.calculateRunningBalance(allTransactions);
+    const transactionsWithBalances = this.calculateRunningBalance(filteredTransactions);
     
     // Load credit balance from Firestore
     let creditBalanceData;
@@ -329,6 +337,51 @@ export class StatementService extends ReportEngine {
   }
 
   /**
+   * Filter transactions to be strictly backwards-looking (Statement of Account requirement)
+   * Only includes bills/transactions with due dates <= cutoff date (typically TODAY)
+   * Excludes future-dated bills that aren't due yet
+   * @param {Array} transactions - Array of transaction objects
+   * @param {Date} cutoffDate - Cutoff date (typically TODAY) - only transactions <= this date
+   * @returns {Array} Filtered transactions (backwards-looking only)
+   * @private
+   */
+  _filterBackwardsLooking(transactions, cutoffDate) {
+    // Normalize cutoff date to midnight Cancun time for consistent comparison
+    const normalizedCutoffDate = this._normalizeDateForComparison(cutoffDate);
+    
+    return transactions.filter(tx => {
+      // Normalize transaction date (due date for bills) for comparison
+      const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+      const normalizedTxDate = this._normalizeDateForComparison(txDate);
+      
+      // Only include transactions/bills on or before cutoff date (exclude future bills)
+      return normalizedTxDate <= normalizedCutoffDate;
+    });
+  }
+
+  /**
+   * Normalize date for comparison (extract date components in Cancun timezone)
+   * Reuses logic from DataAggregator for consistency
+   * @param {Date|string} date - Date to normalize
+   * @returns {Date|null} Normalized date at midnight Cancun time
+   * @private
+   */
+  _normalizeDateForComparison(date) {
+    if (!date) return null;
+    
+    // Parse date using Cancun timezone-aware parser if it's a string
+    const d = date instanceof Date ? date : parseCancunDate(date);
+    if (!d) return null;
+    
+    // Convert to Luxon DateTime in Cancun timezone to extract date components correctly
+    const dt = DateTime.fromJSDate(d).setZone('America/Cancun');
+    
+    // Extract year, month, day as they appear in Cancun timezone and recreate at midnight Cancun time
+    // This ensures consistent day-level comparisons regardless of time components
+    return createCancunDate(dt.year, dt.month, dt.day);
+  }
+
+  /**
    * Calculate summary statistics
    * @param {Array} transactions - Array of transactions with balances
    * @param {number} creditBalanceFromFirestore - Credit balance loaded from Firestore (in pesos)
@@ -393,6 +446,34 @@ export class StatementService extends ReportEngine {
         total: Math.round(comingDueItems.total * 100) / 100
       }
     };
+  }
+
+  /**
+   * Generate plain text statement
+   * @param {string} unitId - Unit ID
+   * @param {string} userId - User ID
+   * @param {Object} dateRange - { start: Date, end: Date }
+   * @param {Object} options - Generation options
+   * @returns {Promise<string>} Plain text statement
+   */
+  async generatePlainTextStatement(unitId, userId, dateRange, options = {}) {
+    // 1. Aggregate statement data (reuses existing method with backwards-looking filtering)
+    const statementData = await this.aggregateStatementData(unitId, userId, dateRange, options);
+    
+    // 2. Get user profile (for language) - already fetched in aggregateStatementData, but need full object
+    const userProfile = await this.getUserProfile(userId);
+    
+    // 3. Get client info (for banking details) - already fetched in aggregateStatementData, but need full object
+    const clientInfo = await this.getClientInfo();
+    
+    // 4. Use unit info from statementData (already fetched in aggregateStatementData)
+    const unitInfo = statementData.data.unit;
+    
+    // 5. Generate plain text
+    const { StatementTextGenerator } = await import('./StatementTextGenerator.js');
+    const generator = new StatementTextGenerator();
+    
+    return generator.generatePlainText(statementData, userProfile, clientInfo, unitInfo);
   }
 }
 

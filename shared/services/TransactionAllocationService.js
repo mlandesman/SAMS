@@ -64,7 +64,7 @@ export function createModuleAllocations(params) {
       if (billPayment.baseChargePaid > 0) {
         allocations.push({
           id: generateAllocationId(++allocationIndex),
-          type: `${moduleType}_bill`,
+          type: `${moduleType}-bill`, // Use hyphens to match categoryId format
           targetId: `bill_${billPayment.billId}`,
           targetName: `${billPayment.billPeriod} - Unit ${unitId}`,
           amount: billPayment.baseChargePaid, // Keep in pesos - transactionController will convert to cents
@@ -90,7 +90,7 @@ export function createModuleAllocations(params) {
       if (billPayment.penaltyPaid > 0) {
         allocations.push({
           id: generateAllocationId(++allocationIndex),
-          type: `${moduleType}_penalty`,
+          type: `${moduleType}-penalty`, // Use hyphens to match categoryId format
           targetId: `penalty_${billPayment.billId}`,
           targetName: `${billPayment.billPeriod} Penalties - Unit ${unitId}`,
           amount: billPayment.penaltyPaid, // Keep in pesos - transactionController will convert to cents
@@ -238,7 +238,7 @@ export function createAllocationSummary(params) {
   return {
     totalAllocated: totalAllocated,
     allocationCount: billPayments.length * (hasPenalties ? 2 : 1), // Count base + penalty as separate
-    allocationType: `${moduleType}_bill`,
+    allocationType: `${moduleType}-bill`, // Use hyphens to match categoryId format
     hasMultipleTypes: hasPenalties, // True if both bills and penalties exist
     // Verify allocation integrity
     integrityCheck: {

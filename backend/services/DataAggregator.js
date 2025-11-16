@@ -174,19 +174,26 @@ export class DataAggregator {
           
           // Check if this quarter falls within the requested date range
           if (normalizedDueDate >= normalizedStartDate && normalizedDueDate <= normalizedEndDate) {
-            const totalPaid = quarterData.payments.reduce((sum, p) => sum + (p.amount || p.paid || 0), 0);
-            const balance = quarterData.amount - totalPaid;
+            const totalBasePaid = quarterData.payments.reduce((sum, p) => sum + (p.amount || p.paid || 0), 0);
+            const totalPenaltyPaid = quarterData.payments.reduce((sum, p) => sum + (p.penaltyPaid || p.penalty || 0), 0);
+            const totalPaid = totalBasePaid + totalPenaltyPaid;
+            const balance = quarterData.amount - totalBasePaid;
             const isPaid = totalPaid > 0;
             
             // Get payment info for transactionId, method, notes
             const firstPayment = quarterData.payments[0];
+            const paymentDates = quarterData.payments
+              .map(p => p.paymentDate || p.date)
+              .filter(Boolean)
+              .map(dateStr => this._parseDate(dateStr));
+            const lastPaymentDate = paymentDates.length > 0 ? paymentDates[paymentDates.length - 1] : null;
             
             // If paid, use stored penalty amount from payments (allows for waivers)
             // If unpaid, calculate dynamically as of current date
             let penalty;
             if (isPaid) {
               // Sum stored penalties from all payments in this quarter
-              penalty = quarterData.payments.reduce((sum, p) => sum + (p.penaltyPaid || p.penalty || 0), 0);
+              penalty = totalPenaltyPaid;
             } else {
               // Calculate penalty dynamically as of current date
               penalty = this._calculatePenaltyAsOfDate(
@@ -210,7 +217,8 @@ export class DataAggregator {
               // Balance will be calculated by calculateRunningBalance() - don't set it here
               category: 'HOA Dues',
               quarter: quarterData.quarter,
-              year: fiscalYear
+              year: fiscalYear,
+              paymentDate: lastPaymentDate
             });
           }
         });
@@ -241,18 +249,22 @@ export class DataAggregator {
           
           // Check if this month falls within the requested date range
           if (dueDate >= startDate && dueDate <= endDate) {
-            const paid = payment?.amount || payment?.paid || 0;
-            const balance = scheduledAmount - paid;
+            const basePaid = payment?.amount || payment?.paid || 0;
+            const penaltyPaid = payment?.penaltyPaid || payment?.penalty || 0;
+            const paid = basePaid + penaltyPaid;
+            const balance = scheduledAmount - basePaid;
             const isPaid = paid > 0;
             
             const monthName = this._getMonthName(calendarMonth);
+            const paymentDateValue = payment?.paymentDate || payment?.date || null;
+            const paymentDate = paymentDateValue ? this._parseDate(paymentDateValue) : null;
             
             // If paid, use stored penalty amount from payment (allows for waivers)
             // If unpaid, calculate dynamically as of current date
             let penalty;
             if (isPaid) {
               // Use stored penalty from payment document (may be 0 if waived)
-              penalty = payment?.penaltyPaid || payment?.penalty || 0;
+              penalty = penaltyPaid;
             } else {
               // Calculate penalty dynamically as of current date
               penalty = this._calculatePenaltyAsOfDate(
@@ -276,7 +288,8 @@ export class DataAggregator {
               // Balance will be calculated by calculateRunningBalance() - don't set it here
               category: 'HOA Dues',
               month: fiscalMonth, // Store fiscal month
-              year: fiscalYear
+              year: fiscalYear,
+              paymentDate: paymentDate
             });
           }
         }
