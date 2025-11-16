@@ -12,6 +12,7 @@ import { testHarness } from '../testing/testHarness.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { getDb } from '../firebase.js';
+import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js';
 
 /**
  * Format pesos amount with commas
@@ -125,7 +126,7 @@ function parseDate(dateValue) {
  * @param {number} fiscalYear - Current fiscal year
  * @returns {Array} Chronological list of transactions with running balance
  */
-function createChronologicalTransactionList(payments, transactionMap, scheduledAmount, duesFrequency, fiscalYearStartMonth, fiscalYear, waterBills = []) {
+function createChronologicalTransactionList(payments, transactionMap, scheduledAmount, duesFrequency, fiscalYearStartMonth, fiscalYear, waterBills = [], hoaPenalties = [], waterPenalties = []) {
   const transactions = [];
   
   // Helper to parse due date
@@ -370,6 +371,10 @@ function createChronologicalTransactionList(payments, transactionMap, scheduledA
     }
   }
   
+  // Add penalty charges (passed in from caller)
+  transactions.push(...hoaPenalties);
+  transactions.push(...waterPenalties);
+  
   // Sort chronologically by date
   transactions.sort((a, b) => {
     const dateA = a.date.getTime();
@@ -377,7 +382,9 @@ function createChronologicalTransactionList(payments, transactionMap, scheduledA
     if (dateA !== dateB) {
       return dateA - dateB;
     }
-    // If same date, charges come before payments
+    // If same date, charges come before payments, penalties come after regular charges
+    if (a.type === 'penalty' && b.type !== 'penalty') return 1;
+    if (a.type !== 'penalty' && b.type === 'penalty') return -1;
     if (a.type === 'charge' && b.type === 'payment') return -1;
     if (a.type === 'payment' && b.type === 'charge') return 1;
     return 0;
@@ -481,6 +488,49 @@ async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth
       console.error(`  Error details:`, JSON.stringify(error.response.data, null, 2));
     }
     return [];
+  }
+}
+
+/**
+ * Fetch billing configuration for a client
+ * @param {string} clientId - Client ID
+ * @param {string} moduleType - 'hoa' or 'water'
+ * @returns {Promise<Object>} Billing configuration
+ */
+async function getBillingConfig(clientId, moduleType = 'hoa') {
+  const db = await getDb();
+  const configDocName = moduleType === 'water' ? 'waterBills' : 'hoaDues';
+  
+  try {
+    const configDoc = await db
+      .collection('clients')
+      .doc(clientId)
+      .collection('config')
+      .doc(configDocName)
+      .get();
+    
+    if (!configDoc.exists) {
+      // Return defaults based on module type
+      return {
+        penaltyRate: 0.10,  // 10% per month (task requirement)
+        penaltyDays: 10,    // 10 day grace period
+      };
+    }
+    
+    const config = configDoc.data();
+    // Ensure defaults if missing
+    return {
+      penaltyRate: config.penaltyRate ?? 0.10,
+      penaltyDays: config.penaltyDays ?? 10,
+      ...config
+    };
+  } catch (error) {
+    console.error(`⚠️ Error loading ${moduleType} config for ${clientId}:`, error.message);
+    // Return defaults on error
+    return {
+      penaltyRate: 0.10,
+      penaltyDays: 10
+    };
   }
 }
 
@@ -915,11 +965,147 @@ async function queryDuesPayments(api, clientId, unitId) {
     }
     console.log(`Total transactions in map: ${transactionMap.size}`);
     
-    // Step 5.5: Create and display chronological transaction list with running balance
+    // Step 5.5: Get all unpaid bills with penalties using unified preview API
+    console.log(`\n🔍 Fetching unpaid bills with penalties using unified preview API...`);
+    
+    // Use null amount to get all bills (TD-019 enhancement)
+    const scheduledAmount = duesData.scheduledAmount || 0;
+    
+    // Get all bills (HOA + Water) with penalties from unified preview
+    let hoaPenalties = [];
+    let waterPenalties = [];
+    try {
+      const payOnDateStr = today.toISOString().split('T')[0];
+      const unifiedPreviewResponse = await api.post(`/payments/unified/preview`, {
+        clientId,
+        unitId,
+        amount: null, // Use null to get all bills with credit = 0 (TD-019 enhancement)
+        paymentDate: payOnDateStr
+      });
+      
+      if (unifiedPreviewResponse.data?.success && unifiedPreviewResponse.data.preview) {
+        const preview = unifiedPreviewResponse.data.preview;
+        
+        // Extract HOA penalties from billsPaid (totalPenaltyDue shows penalty on bill)
+        const hoaBillsPaid = preview.hoa?.billsPaid || [];
+        for (const bill of hoaBillsPaid) {
+          // Use totalPenaltyDue (penalty amount on bill) not penaltyPaid (amount that would be paid)
+          if (bill.totalPenaltyDue && bill.totalPenaltyDue > 0) {
+            // Parse billPeriod to get due date
+            // Format: "hoa:2026-Q1" or "2026-Q1" or "2026-00"
+            const billPeriod = bill.billPeriod || '';
+            const cleanPeriod = billPeriod.replace('hoa:', ''); // Remove module prefix if present
+            let dueDate = null;
+            
+            if (cleanPeriod.includes('-Q')) {
+              // Quarterly: "2026-Q1" format
+              const [yearStr, quarterStr] = cleanPeriod.split('-Q');
+              const fiscalYear = parseInt(yearStr);
+              const quarter = parseInt(quarterStr);
+              // Q1 = months 0-2 (Jul-Sep), Q2 = months 3-5 (Oct-Dec), etc.
+              const fiscalMonthIndex = (quarter - 1) * 3;
+              const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+              const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+              dueDate = new Date(calendarYear, calendarMonth, 1);
+            } else if (cleanPeriod.includes('-')) {
+              // Monthly: "2026-00" format
+              const [yearStr, monthStr] = cleanPeriod.split('-');
+              const fiscalYear = parseInt(yearStr);
+              const fiscalMonthIndex = parseInt(monthStr);
+              const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+              const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+              dueDate = new Date(calendarYear, calendarMonth, 1);
+            }
+            
+            if (dueDate && !isNaN(dueDate.getTime())) {
+              // Penalty date is typically 1st of month after grace period
+              const penaltyDate = new Date(dueDate);
+              penaltyDate.setMonth(penaltyDate.getMonth() + 1);
+              penaltyDate.setDate(1);
+              
+              // Determine description
+              let description = 'HOA Penalty';
+              if (cleanPeriod.includes('-Q')) {
+                const quarter = cleanPeriod.split('-Q')[1];
+                description += ` - Q${quarter} ${dueDate.getFullYear()}`;
+              } else {
+                const monthName = dueDate.toLocaleString('en-US', { month: 'short' });
+                description += ` - ${monthName} ${dueDate.getFullYear()}`;
+              }
+              
+              hoaPenalties.push({
+                type: 'penalty',
+                category: 'hoa',
+                date: penaltyDate,
+                description: description,
+                amount: bill.totalPenaltyDue, // Penalty amount on bill (in pesos)
+                charge: bill.totalPenaltyDue,
+                payment: 0,
+                billId: cleanPeriod,
+                baseAmount: bill.totalBaseDue || 0
+              });
+            }
+          }
+        }
+        
+        // Extract water penalties from billsPaid (same structure as HOA)
+        const waterBillsPaid = preview.water?.billsPaid || [];
+        for (const bill of waterBillsPaid) {
+          // Use totalPenaltyDue (penalty amount on bill) not penaltyPaid (amount that would be paid)
+          if (bill.totalPenaltyDue && bill.totalPenaltyDue > 0) {
+            // Parse billPeriod (e.g., "water:2026-Q1" or "2026-Q1")
+            const billPeriod = bill.billPeriod || '';
+            const cleanPeriod = billPeriod.replace('water:', ''); // Remove module prefix if present
+            let dueDate = null;
+            
+            if (cleanPeriod.includes('-Q')) {
+              const [yearStr, quarterStr] = cleanPeriod.split('-Q');
+              const fiscalYear = parseInt(yearStr);
+              const quarter = parseInt(quarterStr);
+              const fiscalMonthIndex = (quarter - 1) * 3;
+              const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+              const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+              dueDate = new Date(calendarYear, calendarMonth, 1);
+            }
+            
+            if (dueDate && !isNaN(dueDate.getTime())) {
+              // Penalty date is typically 1st of month after grace period
+              const penaltyDate = new Date(dueDate);
+              penaltyDate.setMonth(penaltyDate.getMonth() + 1);
+              penaltyDate.setDate(1);
+              
+              const quarter = cleanPeriod.includes('-Q') ? cleanPeriod.split('-Q')[1] : '';
+              const description = `Water Penalty - Q${quarter} ${dueDate.getFullYear()}`;
+              
+              waterPenalties.push({
+                type: 'penalty',
+                category: 'water',
+                date: penaltyDate,
+                description: description,
+                amount: bill.totalPenaltyDue, // Penalty amount on bill (in pesos)
+                charge: bill.totalPenaltyDue,
+                payment: 0,
+                billId: cleanPeriod,
+                baseAmount: bill.totalBaseDue || 0
+              });
+            }
+          }
+        }
+        
+        console.log(`  Found ${hoaPenalties.length} HOA penalty charge(s)`);
+        console.log(`  Found ${waterPenalties.length} water penalty charge(s)`);
+      }
+    } catch (error) {
+      console.error(`  ⚠️ Error fetching unified preview:`, error.message);
+      if (error.response?.data) {
+        console.error(`  Error details:`, JSON.stringify(error.response.data, null, 2));
+      }
+    }
+    
+    // Step 5.6: Create and display chronological transaction list with running balance
     console.log(`\n📋 Chronological Transaction List with Running Balance:`);
     console.log(`═══════════════════════════════════════════════════════════════════════════════`);
     
-    const scheduledAmount = duesData.scheduledAmount || 0;
     const chronologicalTransactions = createChronologicalTransactionList(
       payments,
       transactionMap,
@@ -927,7 +1113,9 @@ async function queryDuesPayments(api, clientId, unitId) {
       duesFrequency,
       fiscalYearStartMonth,
       currentFiscalYear,
-      waterBills
+      waterBills,
+      hoaPenalties,
+      waterPenalties
     );
     
     if (chronologicalTransactions.length === 0) {
@@ -957,6 +1145,8 @@ async function queryDuesPayments(api, clientId, unitId) {
     }
     
     // Step 6: Fetch credit balance
+    // Note: We fetch this separately because the preview API with null amount returns credit = 0 (TD-019)
+    // This preserves the actual credit balance for display
     console.log(`\n🔍 Fetching credit balance...`);
     const creditBalanceData = await fetchCreditBalance(api, clientId, unitId);
     

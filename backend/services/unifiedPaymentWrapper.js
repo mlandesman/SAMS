@@ -102,10 +102,10 @@ export class UnifiedPaymentWrapper {
    * @param {Date|string} paymentDate - Payment date (for penalty calculation)
    * @returns {object} Unified payment distribution preview
    */
-  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null) {
+  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, zeroAmountRequest = false) {
     await this._initializeDb();
     
-    console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
+    console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}${zeroAmountRequest ? ' (zero-amount request)' : ''}`);
     
     // Parse payment date
     const calculationDate = paymentDate ? new Date(paymentDate) : getNow();
@@ -236,6 +236,42 @@ export class UnifiedPaymentWrapper {
     // Add netCreditAdded to the split results
     splitResults.netCreditAdded = distribution.netCreditAdded;
     splitResults.currentCreditBalance = currentCredit;
+    
+    // Handle zero-amount request: set credit to 0 and remove next fiscal year payments
+    if (zeroAmountRequest) {
+      console.log(`   🔧 Zero-amount request: Setting credit to 0 and removing next fiscal year payments`);
+      console.log(`   🔧 Before override - credit.added: ${splitResults.credit.added}, credit.final: ${splitResults.credit.final}, netCreditAdded: ${splitResults.netCreditAdded}`);
+      
+      // Set credit-related fields to 0
+      splitResults.credit.added = 0;
+      splitResults.credit.final = currentCredit; // Keep current credit, don't add any
+      splitResults.netCreditAdded = 0;
+      splitResults.newCreditBalance = currentCredit; // Also update newCreditBalance to match
+      
+      // Set additionalPaidToCredit to 0 if it exists (for compatibility)
+      if (splitResults.additionalPaidToCredit !== undefined) {
+        splitResults.additionalPaidToCredit = 0;
+      }
+      if (splitResults.additionalPaidToCredit_cents !== undefined) {
+        splitResults.additionalPaidToCredit_cents = 0;
+      }
+      
+      // Remove next fiscal year payments if present
+      if (splitResults.hoa?.nextFiscalYearPayments) {
+        delete splitResults.hoa.nextFiscalYearPayments;
+      }
+      
+      console.log(`   🔧 After override - credit.added: ${splitResults.credit.added}, credit.final: ${splitResults.credit.final}, newCreditBalance: ${splitResults.newCreditBalance}`);
+    } else {
+      // Normal request with actual payment amount - credit should be calculated correctly
+      console.log(`   💰 Normal payment request - Credit calculation:`);
+      console.log(`      Payment Amount: $${paymentAmount}`);
+      console.log(`      Bills Paid: $${splitResults.hoa.totalPaid + splitResults.water.totalPaid}`);
+      console.log(`      Current Credit: $${currentCredit}`);
+      console.log(`      Credit Added: $${splitResults.credit.added}`);
+      console.log(`      Final Credit: $${splitResults.credit.final}`);
+      console.log(`      New Credit Balance: $${splitResults.newCreditBalance}`);
+    }
     
     console.log(`✅ [UNIFIED WRAPPER] Preview complete`);
     console.log(`   HOA: ${splitResults.hoa.billsPaid.length} bills, $${splitResults.hoa.totalPaid}`);

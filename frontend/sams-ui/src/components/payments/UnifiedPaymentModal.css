@@ -278,3 +278,10 @@
   z-index: 1000;
 }
 
+/* Large payment date input */
+.payment-date-input-large {
+  font-size: 20px !important;
+  padding: 10px 14px !important;
+  min-width: 200px !important;
+}
+

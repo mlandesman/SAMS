@@ -72,8 +72,9 @@ function validateUnitId(unitId) {
  * @returns {object} Validation result
  */
 function validateAmount(amount) {
-  if (amount === undefined || amount === null) {
-    return { valid: false, error: 'amount is required' };
+  // Special case: 0, null, or undefined are allowed for "show all bills" preview
+  if (amount === 0 || amount === null || amount === undefined) {
+    return { valid: true, isZeroAmount: true };
   }
   
   if (typeof amount !== 'number') {
@@ -84,8 +85,8 @@ function validateAmount(amount) {
     return { valid: false, error: 'amount must be a valid number' };
   }
   
-  if (amount <= 0) {
-    return { valid: false, error: 'amount must be greater than 0' };
+  if (amount < 0) {
+    return { valid: false, error: 'amount cannot be negative' };
   }
   
   // Reasonable upper limit: 10 million pesos = 1 billion centavos
@@ -94,7 +95,7 @@ function validateAmount(amount) {
     return { valid: false, error: 'amount exceeds maximum allowed (10,000,000 pesos)' };
   }
   
-  return { valid: true };
+  return { valid: true, isZeroAmount: false };
 }
 
 /**
@@ -213,19 +214,32 @@ export const previewUnifiedPayment = async (req, res) => {
       });
     }
     
+    // Handle special zero/null/undefined amount case
+    let effectiveAmount = amount;
+    let zeroAmountRequest = false;
+    
+    if (amountValidation.isZeroAmount) {
+      // Use a very large amount (999,999,999 pesos = 99,999,999,900 centavos)
+      // This ensures all bills and penalties are included
+      effectiveAmount = 99999999900; // 999,999,999 pesos in centavos
+      zeroAmountRequest = true;
+      console.log(`   ℹ️  Zero/null amount request detected - using effective amount: ${effectiveAmount} centavos`);
+    }
+    
     // Convert centavos to pesos for the wrapper service
     // Frontend sends centavos, but wrapper expects pesos
-    const amountInPesos = centavosToPesos(amount);
+    const amountInPesos = centavosToPesos(effectiveAmount);
     
     // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
+    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos (effective: ${effectiveAmount} centavos = $${amountInPesos}), Date: ${paymentDate}`);
     
     // Call UnifiedPaymentWrapper service (expects PESOS)
     const preview = await unifiedPaymentWrapper.previewUnifiedPayment(
       clientId,
       unitId,
       amountInPesos,
-      paymentDate
+      paymentDate,
+      zeroAmountRequest // Pass flag to wrapper
     );
     
     // Return successful preview

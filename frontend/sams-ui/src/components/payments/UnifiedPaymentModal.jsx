@@ -31,6 +31,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   // Data state
   const [units, setUnits] = useState([]);
   const [unpaidBills, setUnpaidBills] = useState([]);
+  const [allBills, setAllBills] = useState([]); // Store all bills for when user enters amount
   const [totalDue, setTotalDue] = useState(0);
   const [currentCreditBalance, setCreditBalance] = useState(0);
   const [clientPaymentMethods, setClientPaymentMethods] = useState([]);
@@ -66,11 +67,12 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     }
   }, [isOpen, selectedClient]);
   
-  // Reset form when unit is selected
+  // Load preview with null amount when modal opens or unit changes
   useEffect(() => {
-    if (isOpen && selectedUnit && selectedClient) {
+    if (isOpen && selectedUnit && selectedClient?.id) {
       // Clear previous preview data
       setUnpaidBills([]);
+      setAllBills([]);
       setPreview(null);
       setPaymentAmount('');
       setCreditBalance(0);
@@ -79,9 +81,19 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setCreditRemaining(0);
       setError(null);
       
-      console.log('🔵 [UnifiedPaymentModal] Unit selected, ready for payment entry');
+      console.log('🔵 [UnifiedPaymentModal] Unit selected, loading preview with null amount');
+      
+      // Call preview API with null amount to show all bills
+      // Use a small delay to avoid race conditions with state updates
+      const timer = setTimeout(() => {
+        // Use current paymentDate from state
+        calculatePaymentDistribution(null, paymentDate);
+      }, 150);
+      
+      return () => clearTimeout(timer);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }
-  }, [isOpen, selectedUnit, selectedClient]);
+  }, [isOpen, selectedUnit, selectedClient?.id]);
   
   /**
    * Load units list from API
@@ -176,23 +188,46 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   
   /**
    * Calculate payment distribution (triggered on amount/date blur)
+   * 
+   * @param {number|null|undefined} overrideAmount - null = zero-amount request, undefined = use form value, number = use this value
+   * @param {string|undefined} overrideDate - undefined = use form value, string = use this date
    */
-  const calculatePaymentDistribution = async (overrideAmount = null, overrideDate = null) => {
+  const calculatePaymentDistribution = async (overrideAmount = undefined, overrideDate = undefined) => {
     // Prevent duplicate calls
     if (isCalculating.current) {
       console.log('🔍 Calculation already in progress, skipping...');
       return;
     }
     
-    const amount = overrideAmount !== null ? overrideAmount : parseFloat(paymentAmount) || 0;
+    // Handle overrideAmount: 
+    // - null = explicitly request "show all bills" (zero-amount request)
+    // - undefined = use form value (normal user input)
+    // - number = use provided value
+    let amount;
+    if (overrideAmount === null) {
+      // Explicit null means zero-amount request
+      amount = null;
+    } else if (overrideAmount !== undefined) {
+      // Explicit value provided
+      amount = overrideAmount;
+    } else {
+      // Use form value
+      const formAmount = parseFloat(paymentAmount);
+      amount = isNaN(formAmount) ? 0 : formAmount;
+    }
+    
     const dateToUse = overrideDate || paymentDate;
     
-    if (amount <= 0) {
+    // Determine if this is a zero-amount request (only when explicitly null)
+    // When user enters an amount, we want to calculate credit correctly
+    const isZeroAmountRequest = overrideAmount === null;
+    
+    if (!isZeroAmountRequest && amount <= 0) {
       console.log('🔵 No amount entered yet, skipping preview');
       return;
     }
     
-    if (amount < 0) {
+    if (!isZeroAmountRequest && amount < 0) {
       setError('Payment amount cannot be negative');
       return;
     }
@@ -202,34 +237,70 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     setError(null);
     
     try {
-      console.log(`💰 Calculating payment distribution: $${amount} on ${dateToUse}`);
+      console.log(`💰 Calculating payment distribution: ${isZeroAmountRequest ? 'null (show all bills)' : `$${amount}`} on ${dateToUse}`);
+      console.log(`💰 Amount details: overrideAmount=${overrideAmount}, paymentAmount="${paymentAmount}", calculated amount=${amount}, isZeroAmountRequest=${isZeroAmountRequest}`);
       
       const previewData = await unifiedPaymentAPI.previewUnifiedPayment(
         selectedClient.id,
         selectedUnit,
         {
-          amount: amount,
+          amount: isZeroAmountRequest ? null : amount,
           paymentDate: dateToUse
         }
       );
       
       console.log('📊 Payment Distribution Preview:', previewData);
+      console.log('📊 Credit Details:', {
+        currentCreditBalance: previewData.currentCreditBalance,
+        creditUsed: previewData.creditUsed,
+        creditAdded: previewData.credit?.added,
+        creditFinal: previewData.credit?.final,
+        newCreditBalance: previewData.newCreditBalance,
+        overpayment: previewData.overpayment,
+        isZeroAmountRequest: isZeroAmountRequest
+      });
       
       // Update bills with preview statuses
-      setUnpaidBills(previewData.billPayments || []);
+      const bills = previewData.billPayments || [];
+      console.log(`📋 Setting ${bills.length} bills in state`);
+      
+      // Store all bills for when user enters payment amount
+      setAllBills(bills);
+      
+      // Filter bills based on whether this is a zero-amount request (initial load)
+      // Priority levels: 1=Past HOA, 2=Past Water, 3=Current HOA, 4=Current Water, 5=Future HOA
+      // On initial load, only show priorities 1-4 (what's due now), exclude priority 5 (future)
+      let billsToDisplay = bills;
+      if (isZeroAmountRequest) {
+        billsToDisplay = bills.filter(bill => {
+          const priority = bill.priority || 999;
+          // Only show priorities 1-4 (past due and current), exclude 5 (future HOA)
+          return priority <= 4;
+        });
+        console.log(`🔍 Filtered to ${billsToDisplay.length} bills (excluding future HOA dues) out of ${bills.length} total`);
+      }
+      
+      setUnpaidBills(billsToDisplay);
       setPreview(previewData);
       
-      // Calculate and display total due from bills
-      const calculatedTotalDue = (previewData.billPayments || []).reduce(
+      // Calculate and display total due from filtered bills
+      const calculatedTotalDue = billsToDisplay.reduce(
         (sum, bill) => sum + (bill.totalDue || 0), 
         0
       );
       setTotalDue(calculatedTotalDue);
       
+      console.log(`💰 Total amount due (filtered): ${formatAsMXN(calculatedTotalDue)}`);
+      console.log(`✅ Preview complete - ${billsToDisplay.length} bills will be displayed`);
+      
       // Update credit calculations
+      // Use credit.final or newCreditBalance - both should represent the final credit balance
+      const finalCreditBalance = previewData.credit?.final ?? previewData.newCreditBalance ?? 0;
       setCreditBalance(previewData.currentCreditBalance || 0);
       setCreditUsed(previewData.creditUsed || 0);
-      setCreditRemaining(previewData.newCreditBalance || 0);
+      setCreditRemaining(finalCreditBalance);
+      
+      console.log(`💰 Credit Balance - Current: ${formatAsMXN(previewData.currentCreditBalance || 0)}, Final: ${formatAsMXN(finalCreditBalance)}, Used: ${formatAsMXN(previewData.creditUsed || 0)}`);
       
       console.log(`💰 Preview shows ${previewData.billPayments?.length || 0} bills affected by $${amount} payment`);
       
@@ -438,28 +509,49 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                 </div>
               )}
               
-              {/* Payment Date - always show if unit selected */}
+              {/* Payment Date and Total Due - always show if unit selected */}
               {selectedUnit && (
-                <div className="form-group" style={{ marginTop: '10px', marginBottom: '10px' }}>
-                  <label>Payment Date:</label>
-                  <input
-                    type="date"
-                    value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
-                    onBlur={(e) => {
-                      const newDate = e.target.value;
-                      if (paymentAmount && parseFloat(paymentAmount) >= 0 && newDate) {
-                        calculatePaymentDistribution(null, newDate);
-                      }
-                    }}
-                    required
-                    disabled={loading}
-                  />
+                <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '20px', width: '100%' }}>
+                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <label style={{ marginBottom: '5px', fontSize: '18px', fontWeight: 'bold' }}>Payment Date:</label>
+                    <input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      onBlur={(e) => {
+                        const newDate = e.target.value;
+                        if (selectedUnit && newDate) {
+                          // Recalculate with current amount from form (undefined = use form value)
+                          // Don't pass null here - let the function use form value
+                          calculatePaymentDistribution(undefined, newDate);
+                        }
+                      }}
+                      required
+                      disabled={loading}
+                      className="payment-date-input-large"
+                      style={{ 
+                        fontSize: '20px', 
+                        padding: '10px 14px', 
+                        fontWeight: '500', 
+                        minWidth: '200px',
+                        lineHeight: '1.5',
+                        height: 'auto'
+                      }}
+                    />
+                  </div>
+                  {unpaidBills.length > 0 && totalDue > 0 && (
+                    <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <label style={{ marginBottom: '5px', fontSize: '18px' }}>Total Amount Due:</label>
+                      <div style={{ fontSize: '27px', fontWeight: 'bold', color: '#2563eb', padding: '8px 12px', backgroundColor: '#eff6ff', borderRadius: '4px', border: '1px solid #bfdbfe', minWidth: '150px', textAlign: 'right' }}>
+                        {formatAsMXN(totalDue)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
               {/* Bills Affected by This Payment */}
-              {paymentAmount && unpaidBills.length > 0 && (
+              {unpaidBills.length > 0 && (
                 <div className="unpaid-bills-summary">
                   <h3>Bills Affected by This Payment ({unpaidBills.length})</h3>
                   {calculating ? (

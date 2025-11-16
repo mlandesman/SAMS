@@ -92,10 +92,15 @@ const unifiedPaymentAPI = {
       }
       
       // Convert pesos to centavos for API
+      // Handle null/undefined amount for "show all bills" preview
+      const amountInCentavos = (paymentData.amount === null || paymentData.amount === undefined) 
+        ? null 
+        : pesosToCentavos(paymentData.amount);
+      
       const requestBody = {
         clientId,
         unitId,
-        amount: pesosToCentavos(paymentData.amount),
+        amount: amountInCentavos,
         paymentDate: paymentData.paymentDate,
         preview: true
       };
