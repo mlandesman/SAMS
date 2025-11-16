@@ -547,9 +547,10 @@ async function initializeYearDocument(clientId, unitId, year) {
       payments,
       creditBalance: 0,
       creditBalanceHistory: [],
-      totalDue: dollarsToCents(monthlyDue * 12),
+      scheduledAmount: dollarsToCents(monthlyDue), // Store monthly amount instead of totalDue
       totalPaid: 0,
       // Only updated timestamp - creation metadata in audit log
+      // Note: totalDue field removed - calculate from scheduledAmount × 12 instead
       updated: convertToTimestamp(getNow())
     };
     
@@ -1128,11 +1129,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           console.log(`Document doesn't exist, initializing new document`);
           
           // Initialize with full structure including static fields
+          // Note: totalDue field removed - calculate from scheduledAmount × 12 instead
           const newDuesDoc = {
             year: year,
             unitId: unitId,
             creditBalance: updates.creditBalance,
-            totalDue: duesData.totalDue || dollarsToCents(250 * 12), // Annual dues in cents
             totalPaid: updates.totalPaid,
             payments: updates.payments,
             creditBalanceHistory: updates.creditBalanceHistory,
@@ -1184,11 +1185,11 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         console.log(`🔄 Document doesn't exist, attempting to create it with full data...`);
         
         // Create full document structure for new document
+        // Note: totalDue field removed - calculate from scheduledAmount × 12 instead
         const newDuesDoc = {
           year: year,
           unitId: unitId,
           creditBalance: updates.creditBalance,
-          totalDue: duesData.totalDue || dollarsToCents(250 * 12), // Annual dues in cents
           totalPaid: updates.totalPaid,
           payments: updates.payments,
           creditBalanceHistory: updates.creditBalanceHistory,
@@ -1353,11 +1354,15 @@ async function getAllDuesDataForYear(clientId, year) {
           const data = duesDoc.data();
           
           // Convert amounts from cents to dollars for API response
+          // Calculate totalDue from scheduledAmount × 12 (totalDue field removed)
+          const scheduledAmountDollars = centsToDollars(data.scheduledAmount || 0);
+          const calculatedTotalDue = scheduledAmountDollars * 12;
+          
           duesData[unitId] = {
             ...data,
             creditBalance: centsToDollars(data.creditBalance || 0),
-            scheduledAmount: centsToDollars(data.scheduledAmount || 0),
-            totalDue: centsToDollars(data.totalDue || 0),
+            scheduledAmount: scheduledAmountDollars,
+            totalDue: calculatedTotalDue, // Calculated from scheduledAmount × 12
             totalPaid: centsToDollars(data.totalPaid || 0),
             payments: data.payments.map((payment, index) => ({
               ...payment,
@@ -1384,11 +1389,14 @@ async function getAllDuesDataForYear(clientId, year) {
           };
         } else {
           // For units without dues data, include empty structure
+          // Calculate totalDue from scheduledAmount × 12 (default to $250/month if not set)
+          const defaultScheduledAmount = 250; // $250/month default
           duesData[unitId] = {
             year: year,
             unitId: unitId,
             creditBalance: 0,
-            totalDue: 3000, // $250 * 12 months
+            scheduledAmount: defaultScheduledAmount,
+            totalDue: defaultScheduledAmount * 12, // $250 * 12 months
             totalPaid: 0,
             payments: Array(12).fill(null).map((_, index) => ({
               month: index + 1, // Add month field (1-based)
@@ -1403,11 +1411,14 @@ async function getAllDuesDataForYear(clientId, year) {
       } catch (unitError) {
         console.error(`Error fetching dues for unit ${unitId}:`, unitError);
         // Still include empty structure for this unit
+        // Calculate totalDue from scheduledAmount × 12 (default to $250/month if not set)
+        const defaultScheduledAmount = 250; // $250/month default
         duesData[unitId] = {
           year: year,
           unitId: unitId,
           creditBalance: 0,
-          totalDue: 3000, // $250 * 12 months
+          scheduledAmount: defaultScheduledAmount,
+          totalDue: defaultScheduledAmount * 12, // $250 * 12 months
           totalPaid: 0,
           payments: Array(12).fill(null).map((_, index) => ({
             month: index + 1, // Add month field (1-based)
