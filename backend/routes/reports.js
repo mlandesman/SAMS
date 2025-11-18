@@ -8,6 +8,9 @@ import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
+import statementController from '../controllers/statementController.js';
+import { queryDuesPaymentsData } from '../services/statementDataService.js';
+import axios from 'axios';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -308,212 +311,71 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
 });
 
 /**
- * Generate Statement of Account report
- * POST /reports/statement/generate
+ * Generate Statement of Account for a unit (JSON format)
+ * GET /api/clients/:clientId/reports/statement/:unitId
+ * Query params:
+ *   - fiscalYear (optional): Specific fiscal year (e.g., 2026)
+ *   - asOfDate (optional): Date to calculate as of (ISO format)
  * 
- * Request body:
- * {
- *   unitId: string,
- *   userId: string,
- *   dateRange: {
- *     start: string (ISO date),
- *     end: string (ISO date)
- *   },
- *   options?: {
- *     includeWaterBills?: boolean,
- *     includeHoaDues?: boolean
- *   }
- * }
+ * NOTE: Temporarily disabled - will be implemented in Step 2
  */
-router.post('/statement/generate', authenticateUserWithProfile, async (req, res) => {
-  try {
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { unitId, userId, dateRange, options } = req.body;
-    const user = req.user;
-
-    // Validate required fields
-    if (!unitId || !userId || !dateRange) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: unitId, userId, and dateRange are required'
-      });
-    }
-
-    if (!dateRange.start || !dateRange.end) {
-      return res.status(400).json({
-        success: false,
-        error: 'dateRange must include both start and end dates (ISO format)'
-      });
-    }
-
-    // Verify user has access to this client
-    const propertyAccess = user.getPropertyAccess(clientId);
-    if (!propertyAccess) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied to this client'
-      });
-    }
-
-    // Check unit access authorization
-    if (!hasUnitAccess(propertyAccess, unitId, user.samsProfile?.globalRole)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied to this unit',
-        unitId: unitId
-      });
-    }
-
-    // Parse date range
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid date format. Use ISO date strings (e.g., "2025-01-01T00:00:00.000Z")'
-      });
-    }
-
-    if (startDate > endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'Start date must be before or equal to end date'
-      });
-    }
-
-    // Import StatementService dynamically to avoid circular dependencies
-    const { StatementService } = await import('../services/StatementService.js');
-    
-    // Create statement service instance
-    const statementService = new StatementService(clientId);
-    
-    // Aggregate statement data
-    const statementData = await statementService.aggregateStatementData(
-      unitId,
-      userId,
-      { start: startDate, end: endDate },
-      options || {}
-    );
-
-    res.json(statementData);
-
-  } catch (error) {
-    console.error('Error generating statement:', error);
-    
-    // Provide helpful error messages
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate statement',
-      details: error.message
-    });
-  }
-});
+// router.get('/statement/:unitId', authenticateUserWithProfile, statementController.generateStatement);
 
 /**
- * Generate Plain Text Statement of Account report
- * POST /reports/statement/generate-text
+ * Generate Statement of Account for a unit (Plain Text format)
+ * GET /api/clients/:clientId/reports/statement/:unitId/text
+ * Query params:
+ *   - fiscalYear (optional): Specific fiscal year (e.g., 2026)
+ *   - asOfDate (optional): Date to calculate as of (ISO format)
  * 
- * Request body: Same as /statement/generate
- * Response: Plain text string (text/plain content type)
+ * NOTE: Temporarily disabled - will be implemented in Step 2
  */
-router.post('/statement/generate-text', authenticateUserWithProfile, async (req, res) => {
+// router.get('/statement/:unitId/text', authenticateUserWithProfile, statementController.generateStatementText);
+
+/**
+ * Get complete Statement data (raw data structure)
+ * GET /api/clients/:clientId/reports/statement/data
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '102')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ * 
+ * Returns comprehensive data object with all fetched and processed data
+ */
+router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
   try {
     const clientId = req.originalParams?.clientId || req.params.clientId;
-    const { unitId, userId, dateRange, options } = req.body;
-    const user = req.user;
-
-    // Validate required fields
-    if (!unitId || !userId || !dateRange) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: unitId, userId, and dateRange are required'
-      });
-    }
-
-    if (!dateRange.start || !dateRange.end) {
-      return res.status(400).json({
-        success: false,
-        error: 'dateRange must include both start and end dates (ISO format)'
-      });
-    }
-
-    // Verify user has access to this client
-    const propertyAccess = user.getPropertyAccess(clientId);
-    if (!propertyAccess) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied to this client'
-      });
-    }
-
-    // Check unit access authorization
-    if (!hasUnitAccess(propertyAccess, unitId, user.samsProfile?.globalRole)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied to this unit',
-        unitId: unitId
-      });
-    }
-
-    // Parse date range
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid date format. Use ISO date strings (e.g., "2025-01-01T00:00:00.000Z")'
-      });
-    }
-
-    if (startDate > endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'Start date must be before or equal to end date'
-      });
-    }
-
-    // Import StatementService dynamically to avoid circular dependencies
-    const { StatementService } = await import('../services/StatementService.js');
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
     
-    // Create statement service instance
-    const statementService = new StatementService(clientId);
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'unitId query parameter is required' 
+      });
+    }
     
-    // Generate plain text statement
-    const plainText = await statementService.generatePlainTextStatement(
-      unitId,
-      userId,
-      { start: startDate, end: endDate },
-      options || {}
-    );
-
-    // Return as plain text
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.send(plainText);
-
+    // Create API client with auth token (for internal API calls)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    
+    // Call the service - returns comprehensive data object
+    const result = await queryDuesPaymentsData(api, clientId, unitId, fiscalYear);
+    
+    res.json({ success: true, data: result });
   } catch (error) {
-    console.error('Error generating plain text statement:', error);
-    
-    // Provide helpful error messages
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate plain text statement',
-      details: error.message
+    console.error('Error fetching statement data:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
     });
   }
 });

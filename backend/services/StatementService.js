@@ -5,6 +5,7 @@
 
 import { ReportEngine } from './ReportEngine.js';
 import { DataAggregator } from './DataAggregator.js';
+import StatementDataCollector from './statementDataCollector.js';
 import { getNow } from './DateService.js';
 import { createDate as createCancunDate, parseDate as parseCancunDate } from '../../shared/services/DateService.js';
 import { DateTime } from 'luxon';
@@ -21,6 +22,7 @@ export class StatementService extends ReportEngine {
   constructor(clientId) {
     super(clientId, 'statement');
     this.dataAggregator = new DataAggregator();
+    this.statementDataCollector = new StatementDataCollector();
     this.db = null;
   }
 
@@ -37,47 +39,17 @@ export class StatementService extends ReportEngine {
   /**
    * Get client billing configuration including fiscal year settings
    * Checks both config subcollection and client document for backward compatibility
+   * Returns format compatible with StatementDataCollector.getClientConfig()
    * @private
    */
   async _getBillingConfig() {
     await this._initializeDb();
     
-    // Get client document for fiscal year config
-    const clientDoc = await this.db.collection('clients').doc(this.clientId).get();
-    let clientData = {};
-    if (clientDoc.exists) {
-      clientData = clientDoc.data();
-    }
+    // Use StatementDataCollector to get client config (reuses its fast-fail validation)
+    // This ensures consistency and avoids duplicate code
+    const clientConfig = await this.statementDataCollector.getClientConfig(this.clientId);
     
-    // Get fiscal year start month (defaults to 1 for calendar year)
-    const fiscalYearStartMonth = validateFiscalYearConfig({
-      configuration: {
-        fiscalYearStartMonth: clientData.configuration?.fiscalYearStartMonth || 1
-      }
-    });
-    
-    // Check HOA Dues config subcollection first
-    const hoaConfigRef = this.db.collection('clients').doc(this.clientId)
-      .collection('config').doc('hoaDues');
-    const hoaConfigSnap = await hoaConfigRef.get();
-    
-    let duesFrequency = 'monthly';
-    if (hoaConfigSnap.exists) {
-      const hoaConfigData = hoaConfigSnap.data();
-      duesFrequency = hoaConfigData.duesFrequency || 
-                     clientData.feeStructure?.duesFrequency ||
-                     clientData.configuration?.feeStructure?.duesFrequency ||
-                     clientData.configuration?.duesFrequency ||
-                     'monthly';
-    } else {
-      // Fallback to client document (backward compatibility)
-      duesFrequency = clientData.feeStructure?.duesFrequency ||
-                     clientData.configuration?.feeStructure?.duesFrequency ||
-                     clientData.configuration?.duesFrequency ||
-                     'monthly';
-    }
-    
-    // Check Water Bills config subcollection
+    // Get Water Bills billing period (not in clientConfig from collector)
     const waterConfigRef = this.db.collection('clients').doc(this.clientId)
       .collection('config').doc('waterBills');
     const waterConfigSnap = await waterConfigRef.get();
@@ -87,9 +59,12 @@ export class StatementService extends ReportEngine {
       : 'monthly';
     
     return {
-      duesFrequency,
+      duesFrequency: clientConfig.duesFrequency,
       billingPeriod,
-      fiscalYearStartMonth
+      fiscalYearStartMonth: clientConfig.fiscalYearStartMonth,
+      language: clientConfig.language || 'en-US',
+      // Return full clientConfig for use with StatementDataCollector methods
+      clientConfig
     };
   }
 
@@ -130,8 +105,9 @@ export class StatementService extends ReportEngine {
       includeHoaDues = true
     } = options;
     
-    // Get billing configuration
+    // Get billing configuration (includes clientConfig for StatementDataCollector)
     const config = await this._getBillingConfig();
+    const clientConfig = config.clientConfig;
     
     // Get unit info
     const unitInfo = await this._getUnitInfo(unitId);
@@ -142,7 +118,7 @@ export class StatementService extends ReportEngine {
     // Get client info
     const clientInfo = await this.getClientInfo();
     
-    // Get HOA config for penalty calculation - REQUIRED, fail fast if missing
+    // Get HOA and Water billing configs for penalty calculation - REQUIRED, fail fast if missing
     const hoaConfigDoc = await this.db.collection('clients').doc(this.clientId)
       .collection('config').doc('hoaDues').get();
     
@@ -161,13 +137,70 @@ export class StatementService extends ReportEngine {
       throw new Error(`HOA Dues configuration incomplete for client ${this.clientId}. Missing required field: penaltyDays. Cannot calculate penalties without this value.`);
     }
     
-    // Collect data from all sources (pass fiscal year config and HOA config)
-    const hoaDuesTransactions = includeHoaDues
-      ? await this.aggregateHoaDuesData(unitId, dateRange, config.duesFrequency, config.fiscalYearStartMonth, hoaConfig)
+    // Get Water billing config only if water bills are included
+    // Match original test harness: try to load config, but don't fail if it doesn't exist
+    // collectPenalties will handle missing water config gracefully
+    let waterConfig = null;
+    if (includeWaterBills) {
+      try {
+        const waterConfigDoc = await this.db.collection('clients').doc(this.clientId)
+          .collection('config').doc('waterBills').get();
+        
+        if (waterConfigDoc.exists) {
+          waterConfig = waterConfigDoc.data();
+          
+          // Only validate if config exists
+          if (waterConfig.penaltyDays === undefined || waterConfig.penaltyDays === null) {
+            throw new Error(`Water Bills configuration incomplete for client ${this.clientId}. Missing required field: penaltyDays.`);
+          }
+        }
+        // If config doesn't exist, waterConfig remains null - collectPenalties will skip water penalties
+      } catch (error) {
+        // If error loading config, log but don't fail - allow statement generation without water penalties
+        console.warn(`Could not load water billing config for ${this.clientId}:`, error.message);
+        waterConfig = null;
+      }
+    }
+    
+    // Determine fiscal year(s) from dateRange
+    const startFiscalYear = getFiscalYear(dateRange.start, config.fiscalYearStartMonth);
+    const endFiscalYear = getFiscalYear(dateRange.end, config.fiscalYearStartMonth);
+    
+    // Collect data using StatementDataCollector for fiscal year-based collection
+    // This uses the validated patterns from the test harness
+    const fiscalYearBounds = getFiscalYearBounds(endFiscalYear, config.fiscalYearStartMonth);
+    const asOfDate = dateRange.end <= fiscalYearBounds.endDate ? dateRange.end : fiscalYearBounds.endDate;
+    
+    // Collect data for the fiscal year(s) in the date range
+    console.log(`[StatementService] aggregateStatementData: ${this.clientId}/${unitId}, includeHoaDues: ${includeHoaDues}, includeWaterBills: ${includeWaterBills}, fiscalYear: ${endFiscalYear}`);
+    
+    const hoaDuesData = includeHoaDues
+      ? await this.statementDataCollector.collectHOADues(this.clientId, unitId, endFiscalYear, clientConfig)
+      : null;
+    
+    const waterBillsData = includeWaterBills
+      ? await this.statementDataCollector.collectWaterBills(this.clientId, unitId, endFiscalYear, clientConfig)
+      : [];
+    
+    // Collect penalties using unified preview API
+    const { hoaPenalties, waterPenalties } = await this.statementDataCollector.collectPenalties(
+      this.clientId,
+      unitId,
+      endFiscalYear,
+      asOfDate,
+      clientConfig,
+      hoaConfig,
+      waterConfig
+    );
+    
+    // Transform collector data into chronological transaction list format
+    // This matches the test harness output structure
+    const hoaDuesTransactions = includeHoaDues && hoaDuesData
+      ? await this._transformCollectorDataToTransactions(hoaDuesData, waterBillsData, hoaPenalties, waterPenalties, config)
       : [];
     
     const waterBillsTransactions = includeWaterBills
-      ? await this.aggregateWaterBillsData(unitId, dateRange, config.billingPeriod, config.fiscalYearStartMonth)
+      ? await this._transformWaterBillsToTransactions(waterBillsData, waterPenalties, config)
       : [];
     
     const generalTransactions = await this.aggregateTransactions(unitId, dateRange);
@@ -188,10 +221,14 @@ export class StatementService extends ReportEngine {
     // Calculate running balances
     const transactionsWithBalances = this.calculateRunningBalance(filteredTransactions);
     
-    // Load credit balance from Firestore
+    // Load credit balance using StatementDataCollector (matches test harness pattern)
     let creditBalanceData;
     try {
-      creditBalanceData = await getCreditBalance(this.clientId, unitId);
+      const creditData = await this.statementDataCollector.collectCreditBalance(this.clientId, unitId);
+      creditBalanceData = {
+        creditBalance: creditData.creditBalance,
+        creditBalanceHistory: []
+      };
     } catch (error) {
       console.error(`Error loading credit balance for ${this.clientId}/${unitId}:`, error);
       creditBalanceData = { creditBalance: 0, creditBalanceHistory: [] };
@@ -446,6 +483,284 @@ export class StatementService extends ReportEngine {
         total: Math.round(comingDueItems.total * 100) / 100
       }
     };
+  }
+
+  /**
+   * Transform StatementDataCollector output to transaction format
+   * Converts collector's raw data structures into chronological transaction list
+   * Matches the test harness createChronologicalTransactionList pattern
+   * @private
+   */
+  async _transformCollectorDataToTransactions(hoaDuesData, waterBillsData, hoaPenalties, waterPenalties, config) {
+    const transactions = [];
+    const transactionMap = new Map();
+    
+    // Build transaction map from collector's transactions
+    // Filter out null/undefined transactions and those without transactionId
+    for (const txn of hoaDuesData.transactions || []) {
+      if (txn && txn.transactionId) {
+        transactionMap.set(txn.transactionId, txn);
+      }
+    }
+    
+    // Add HOA charges and payments (similar to test harness pattern)
+    // Filter out null/undefined payments to match original test harness pattern
+    const payments = (hoaDuesData.payments || []).filter(p => p != null);
+    const scheduledAmount = hoaDuesData.scheduledAmount || 0;
+    const duesFrequency = config.duesFrequency;
+    
+    if (duesFrequency === 'quarterly') {
+      // Group months into quarters
+      const quarters = [
+        { months: [1, 2, 3], name: 'Q1' },
+        { months: [4, 5, 6], name: 'Q2' },
+        { months: [7, 8, 9], name: 'Q3' },
+        { months: [10, 11, 12], name: 'Q4' }
+      ];
+      
+      for (const quarter of quarters) {
+        // Find due date from any month in the quarter
+        let quarterDueDate = null;
+        let quarterAmount = 0;
+        
+        for (const monthNum of quarter.months) {
+          const payment = payments.find(p => p && p.month === monthNum);
+          if (payment && payment.dueDate) {
+            const dueDate = payment.dueDate?.toDate ? payment.dueDate.toDate() : parseCancunDate(payment.dueDate);
+            if (!quarterDueDate && !isNaN(dueDate.getTime())) {
+              quarterDueDate = dueDate;
+            }
+            quarterAmount += payment.amount || 0;
+          }
+        }
+        
+        // If no dueDate found in payment data, calculate it from fiscal year
+        // This handles unpaid quarters that don't have dueDate set yet
+        if (!quarterDueDate) {
+          const fiscalYear = hoaDuesData.fiscalYear;
+          const fiscalYearStartMonth = config.fiscalYearStartMonth || 7;
+          // Calculate quarter due date using fiscal year utilities
+          // Q1 = months 1-3 (fiscal months 0-2), Q2 = months 4-6 (fiscal months 3-5), etc.
+          const fiscalMonthIndex = (quarter.months[0] - 1); // Convert to 0-based fiscal month
+          const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+          const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+          
+          // Create date for 1st of the calendar month
+          quarterDueDate = new Date(calendarYear, calendarMonth, 1);
+        }
+        
+        // Calculate quarter charge amount
+        const quarterChargeAmount = scheduledAmount * 3;
+        
+        if (quarterDueDate && !isNaN(quarterDueDate.getTime())) {
+          transactions.push({
+            type: 'charge',
+            date: quarterDueDate,
+            description: `HOA Dues ${quarter.name}`,
+            amount: quarterChargeAmount,
+            penalty: 0,
+            payments: 0,
+            category: 'HOA Dues',
+            categoryId: 'hoa-dues'
+          });
+        }
+        
+        // Add payments for this quarter
+        const quarterTransactionIds = new Set();
+        for (const monthNum of quarter.months) {
+          const payment = payments.find(p => p && p.month === monthNum);
+          if (payment && payment.paid && payment.amount > 0) {
+            const txnId = payment.transactionId || payment.reference;
+            if (txnId && txnId !== '-' && !quarterTransactionIds.has(txnId)) {
+              quarterTransactionIds.add(txnId);
+              const transaction = transactionMap.get(txnId);
+              const paymentDate = payment.date?.toDate ? payment.date.toDate() : parseCancunDate(payment.date);
+              
+              if (paymentDate && !isNaN(paymentDate.getTime())) {
+                const paymentAmount = transaction 
+                  ? centavosToPesos(transaction.amount || 0)
+                  : (payment.amount || 0);
+                
+                transactions.push({
+                  type: 'payment',
+                  date: paymentDate,
+                  description: `Payment ${quarter.name}`,
+                  amount: 0,
+                  penalty: 0,
+                  payments: paymentAmount,
+                  category: 'HOA Dues',
+                  categoryId: 'hoa-dues',
+                  transactionId: txnId
+                });
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Monthly billing
+      const monthlyTransactionIds = new Set();
+      
+      for (const payment of payments) {
+        // Skip null/undefined payments
+        if (!payment || !payment.month) continue;
+        
+        // Add charge
+        let dueDate = null;
+        if (payment.dueDate) {
+          dueDate = payment.dueDate?.toDate ? payment.dueDate.toDate() : parseCancunDate(payment.dueDate);
+        }
+        
+        // If no dueDate found in payment data, calculate it from fiscal year
+        // This handles unpaid months that don't have dueDate set yet
+        if (!dueDate || isNaN(dueDate.getTime())) {
+          const fiscalYear = hoaDuesData.fiscalYear;
+          const fiscalYearStartMonth = config.fiscalYearStartMonth || 7;
+          // Calculate month due date using fiscal year utilities
+          const fiscalMonthIndex = payment.month - 1; // Convert to 0-based fiscal month
+          const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+          const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+          
+          // Create date for 1st of the calendar month
+          dueDate = new Date(calendarYear, calendarMonth, 1);
+        }
+        
+        if (dueDate && !isNaN(dueDate.getTime())) {
+          transactions.push({
+            type: 'charge',
+            date: dueDate,
+            description: `HOA Dues Month ${payment.month}`,
+            amount: scheduledAmount,
+            penalty: 0,
+            payments: 0,
+            category: 'HOA Dues',
+            categoryId: 'hoa-dues',
+            month: payment.month
+          });
+        }
+        
+        // Add payment
+        if (payment.paid || payment.amount > 0) {
+          const txnId = payment.transactionId || payment.reference;
+          if (txnId && txnId !== '-' && !monthlyTransactionIds.has(txnId)) {
+            monthlyTransactionIds.add(txnId);
+            const transaction = transactionMap.get(txnId);
+            const paymentDate = payment.date?.toDate ? payment.date.toDate() : new Date(payment.date);
+            
+            if (paymentDate && !isNaN(paymentDate.getTime())) {
+              const paymentAmount = transaction 
+                ? centavosToPesos(transaction.amount || 0)
+                : (payment.amount || 0);
+              
+              transactions.push({
+                type: 'payment',
+                date: paymentDate,
+                description: `Payment Month ${payment.month}`,
+                amount: 0,
+                penalty: 0,
+                payments: paymentAmount,
+                category: 'HOA Dues',
+                categoryId: 'hoa-dues',
+                transactionId: txnId,
+                month: payment.month
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // NOTE: Water bills are NOT added here - they are handled separately by _transformWaterBillsToTransactions
+    // to avoid duplication. Water bills are merged later in aggregateStatementData.
+    
+    // Add penalties (filter out null/undefined penalties to match original test harness pattern)
+    transactions.push(...(hoaPenalties || []).filter(p => p != null).map(p => ({
+      ...p,
+      category: 'HOA Dues',
+      categoryId: 'hoa-penalties',
+      payments: 0
+    })));
+    
+    transactions.push(...(waterPenalties || []).filter(p => p != null).map(p => ({
+      ...p,
+      category: 'Water Bills',
+      categoryId: 'water-penalties',
+      payments: 0
+    })));
+    
+    // Sort chronologically
+    transactions.sort((a, b) => {
+      const dateA = a.date.getTime();
+      const dateB = b.date.getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      // Charges before payments, penalties after regular charges
+      if (a.type === 'penalty' && b.type !== 'penalty') return 1;
+      if (a.type !== 'penalty' && b.type === 'penalty') return -1;
+      if (a.type === 'charge' && b.type === 'payment') return -1;
+      if (a.type === 'payment' && b.type === 'charge') return 1;
+      return 0;
+    });
+    
+    return transactions;
+  }
+
+  /**
+   * Transform water bills data to transaction format
+   * @private
+   */
+  async _transformWaterBillsToTransactions(waterBillsData, waterPenalties, config) {
+    const transactions = [];
+    const processedBillIds = new Set(); // Track processed bills to prevent duplicates
+    
+    for (const bill of (waterBillsData || []).filter(b => b != null)) {
+      if (!bill.billId) {
+        console.warn(`[StatementService] Water bill missing billId, skipping:`, bill);
+        continue;
+      }
+      
+      // Skip if this bill was already processed (deduplication)
+      if (processedBillIds.has(bill.billId)) {
+        console.warn(`[StatementService] Duplicate water bill detected (billId: ${bill.billId}), skipping duplicate`);
+        continue;
+      }
+      
+      if (bill.totalAmount > 0) {
+        const dueDate = bill.dueDate?.toDate ? bill.dueDate.toDate() : parseCancunDate(bill.dueDate);
+        if (dueDate && !isNaN(dueDate.getTime())) {
+          const quarterName = bill.fiscalQuarter ? `Q${bill.fiscalQuarter}` : '';
+          const monthName = dueDate.toLocaleString(config.language || 'en-US', { month: 'short' });
+          const description = quarterName 
+            ? `Water Bill ${quarterName} ${bill.year}` 
+            : `Water Bill ${monthName} ${bill.year}`;
+          
+          transactions.push({
+            type: 'charge',
+            category: 'Water Bills',
+            categoryId: 'water-consumption',
+            date: dueDate,
+            description: description,
+            amount: bill.totalAmount,
+            penalty: bill.penaltyAmount || 0,
+            payments: bill.paidAmount || 0,
+            billId: bill.billId,
+            consumption: bill.consumption
+          });
+          
+          // Mark this bill as processed
+          processedBillIds.add(bill.billId);
+        }
+      }
+    }
+    
+    // Add water penalties
+    transactions.push(...waterPenalties.map(p => ({
+      ...p,
+      category: 'Water Bills',
+      categoryId: 'water-penalties',
+      payments: 0
+    })));
+    
+    return transactions;
   }
 
   /**
