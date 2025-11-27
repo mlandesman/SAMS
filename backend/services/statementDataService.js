@@ -2,7 +2,8 @@
  * Statement Data Service
  * 
  * Extracted from queryDuesPayments.js prototype
- * Returns comprehensive data object instead of console logging
+ * Returns comprehensive data object with all bills, payments, and penalties
+ * for HOA dues, water bills, and other project-related charges
  * 
  * This service uses API calls (like the prototype) via axios
  */
@@ -512,17 +513,22 @@ async function fetchCreditBalance(api, clientId, unitId) {
 }
 
 /**
- * Query dues payments and return comprehensive data object
+ * Get comprehensive consolidated unit data (raw data layer)
+ * Includes all bills, payments, penalties for HOA dues, water bills, and other charges
  * EXTRACTED FROM PROTOTYPE (lines 612-1227)
  * Modified to return data object instead of console logging
+ * 
+ * This is the raw data gathering layer - returns comprehensive "kitchen sink" object
+ * Use getStatementData() for presentation-ready optimized structure
  * 
  * @param {Object} api - API client (axios instance with baseURL)
  * @param {string} clientId - Client ID (e.g., 'AVII', 'MTC')
  * @param {string} unitId - Unit ID (e.g., '101', '1A')
  * @param {number} fiscalYear - Fiscal year (optional, defaults to current fiscal year)
- * @returns {Promise<Object>} Comprehensive data object
+ * @param {boolean} excludeFutureBills - Whether to exclude bills/charges with future dates (default: false)
+ * @returns {Promise<Object>} Comprehensive raw data object
  */
-export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = null) {
+export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear = null, excludeFutureBills = false) {
   try {
     // Step 1: Get client configuration
     const clientResponse = await api.get(`/clients/${clientId}`);
@@ -717,7 +723,10 @@ export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = 
               const [yearStr, quarterStr] = cleanPeriod.split('-Q');
               const fiscalYear = parseInt(yearStr);
               const quarter = parseInt(quarterStr);
-              const fiscalMonthIndex = (quarter - 1) * 3;
+              // Water bills are in arrears, due at start of next quarter
+              // e.g., Q1 (Jul-Sep) is due Oct 1
+              // So base date for penalty calculation is start of NEXT quarter
+              const fiscalMonthIndex = (quarter) * 3;
               const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
               const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
               dueDate = new Date(calendarYear, calendarMonth, 1);
@@ -751,7 +760,7 @@ export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = 
     }
     
     // Step 8: Create chronological transaction list
-    const chronologicalTransactions = createChronologicalTransactionList(
+    let chronologicalTransactions = createChronologicalTransactionList(
       payments,
       transactionMap,
       scheduledAmount,
@@ -763,6 +772,17 @@ export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = 
       waterPenalties
     );
     
+    // Filter future transactions if requested
+    if (excludeFutureBills) {
+      const cutoffDate = getNow();
+      // Include transactions for the current day
+      cutoffDate.setHours(23, 59, 59, 999);
+      
+      chronologicalTransactions = chronologicalTransactions.filter(txn => {
+        return txn.date <= cutoffDate;
+      });
+    }
+    
     // Step 9: Fetch credit balance
     const creditBalanceData = await fetchCreditBalance(api, clientId, unitId);
     
@@ -770,10 +790,15 @@ export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = 
     const calculatedTotalDue = scheduledAmount * 12;
     const totalDue = calculatedTotalDue;
     const totalPaid = duesData.totalPaid || 0;
-    const totalOutstanding = totalDue - totalPaid;
+    
+    // Determine final balance from the last transaction
     const finalBalance = chronologicalTransactions.length > 0 
       ? chronologicalTransactions[chronologicalTransactions.length - 1].balance 
       : 0;
+
+    // If filtering future bills, totalOutstanding should reflect current reality (finalBalance)
+    // Otherwise use the annual calculation
+    const totalOutstanding = excludeFutureBills ? finalBalance : (totalDue - totalPaid);
     
     // Step 11: Extract credit allocations
     const creditAllocations = [];
@@ -822,5 +847,243 @@ export async function queryDuesPaymentsData(api, clientId, unitId, fiscalYear = 
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * Get optimized statement data for a unit (presentation layer)
+ * Transforms raw consolidated data into lightweight, presentation-ready structure
+ * 
+ * @param {Object} api - API client (axios instance with baseURL)
+ * @param {string} clientId - Client ID (e.g., 'AVII', 'MTC')
+ * @param {string} unitId - Unit ID (e.g., '101', '1A')
+ * @param {number} fiscalYear - Fiscal year (optional, defaults to current fiscal year)
+ * @param {boolean} excludeFutureBills - Whether to exclude bills/charges with future dates (default: false)
+ * @returns {Promise<Object>} Optimized statement data object ready for rendering
+ */
+export async function getStatementData(api, clientId, unitId, fiscalYear = null, excludeFutureBills = false) {
+  // Get raw consolidated data
+  const rawData = await getConsolidatedUnitData(api, clientId, unitId, fiscalYear, excludeFutureBills);
+  
+  // Get client data for clientInfo
+  const clientResponse = await api.get(`/clients/${clientId}`);
+  const clientData = clientResponse.data || {};
+  
+  // Format address string
+  const addressObj = clientData.contactInfo?.address || {};
+  const addressParts = [
+    addressObj.street,
+    addressObj.city,
+    addressObj.state,
+    addressObj.postalCode
+  ].filter(Boolean);
+  const address = addressParts.length > 0 ? addressParts.join(', ') : null;
+  
+  /**
+   * Helper function to fetch user data by email using API endpoint
+   * Returns enriched user data if found, null otherwise
+   */
+  const fetchUserByEmail = async (email) => {
+    if (!email || typeof email !== 'string') return null;
+    
+    try {
+      const userResponse = await api.get(`/auth/user/by-email/${encodeURIComponent(email)}`);
+      
+      if (userResponse.data?.success && userResponse.data?.data) {
+        const userData = userResponse.data.data;
+        return {
+          email: userData.email,
+          displayName: userData.displayName || userData.name || null,
+          preferredCurrency: userData.profile?.preferredCurrency || null,
+          preferredLanguage: userData.profile?.preferredLanguage || null,
+          notifications: userData.notifications || {},
+          role: userData.role || userData.globalRole || null
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      // Handle 404 (user not found) gracefully - not an error
+      if (error.response?.status === 404) {
+        return null;
+      }
+      console.warn(`Warning: Could not fetch user data for email ${email}:`, error.message);
+      return null;
+    }
+  };
+  
+  // Get unit data for owner info
+  let owners = [];
+  let emails = [];
+  let managers = [];
+  
+  try {
+    // Fetch units list and find the specific unit
+    const unitsResponse = await api.get(`/clients/${clientId}/units`);
+    if (unitsResponse.data && unitsResponse.data.data) {
+      const units = unitsResponse.data.data;
+      const unit = units.find(u => u.unitId === unitId || u._id === unitId);
+      if (unit) {
+        // Extract owners (handle both array and single owner)
+        if (Array.isArray(unit.owners)) {
+          owners = unit.owners.map(owner => {
+            if (typeof owner === 'string') return owner;
+            return owner.name || owner;
+          });
+        } else if (unit.owner) {
+          owners = [typeof unit.owner === 'string' ? unit.owner : unit.owner.name || unit.owner];
+        }
+        
+        // Extract email addresses (raw strings)
+        let rawEmails = [];
+        if (Array.isArray(unit.emails)) {
+          rawEmails = unit.emails.filter(Boolean);
+        } else if (unit.email) {
+          rawEmails = [unit.email].filter(Boolean);
+        }
+        
+        // Enrich emails with user profile data
+        if (rawEmails.length > 0) {
+          const emailPromises = rawEmails.map(async (email) => {
+            const userData = await fetchUserByEmail(email);
+            // Return enriched email object
+            return {
+              email: email,
+              displayName: userData?.displayName || null,
+              preferredCurrency: userData?.preferredCurrency || null,
+              preferredLanguage: userData?.preferredLanguage || null,
+              notifications: userData?.notifications || {},
+              role: userData?.role || null
+            };
+          });
+          emails = await Promise.all(emailPromises);
+        }
+        
+        // Extract managers
+        if (Array.isArray(unit.managers)) {
+          managers = unit.managers.map(manager => {
+            if (typeof manager === 'string') return manager;
+            return manager.name || manager;
+          });
+        }
+      }
+    }
+  } catch (error) {
+    // Unit data not critical - continue with empty arrays
+    console.warn(`Warning: Could not fetch unit data for ${clientId}/${unitId}:`, error.message);
+  }
+  
+  // Format fiscal period string
+  const fiscalYearBounds = rawData.clientConfig.fiscalYearBounds;
+  const fiscalYearStartMonth = rawData.clientConfig.fiscalYearStartMonth;
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const startDate = fiscalYearBounds.startDate;
+  const endDate = fiscalYearBounds.endDate;
+  const startMonthName = monthNames[startDate.getMonth()];
+  const endMonthName = monthNames[endDate.getMonth()];
+  const startYear = startDate.getFullYear();
+  const endYear = endDate.getFullYear();
+  const periodCovered = `${startMonthName} ${startDate.getDate()}, ${startYear} - ${endMonthName} ${endDate.getDate()}, ${endYear}`;
+  
+  // Helper function to round to 2 decimal places
+  const roundTo2Decimals = (value) => {
+    if (value === null || value === undefined || isNaN(value)) return 0;
+    return Math.round(value * 100) / 100;
+  };
+  
+  // Transform chronological transactions to lineItems
+  const lineItems = rawData.chronologicalTransactions.map(txn => {
+    const txnDate = txn.date instanceof Date ? txn.date : parseDate(txn.date);
+    const dateStr = txnDate ? txnDate.toISOString().split('T')[0] : '';
+    
+    // Determine if future based on excludeFutureBills logic
+    const now = getNow();
+    const cutoffDate = new Date(now);
+    cutoffDate.setHours(23, 59, 59, 999);
+    const isFuture = txnDate && txnDate > cutoffDate;
+    
+    return {
+      date: dateStr,
+      description: txn.description || '',
+      charge: roundTo2Decimals(txn.charge || 0),
+      payment: roundTo2Decimals(txn.payment || 0),
+      balance: roundTo2Decimals(txn.balance || 0),
+      type: txn.type || 'charge', // 'charge', 'payment', 'penalty'
+      isFuture: isFuture
+    };
+  });
+  
+  // Transform credit allocations
+  const creditAllocations = rawData.creditAllocations.map(alloc => {
+    const transaction = alloc.transaction;
+    const txnDate = transaction.date instanceof Date ? transaction.date : parseDate(transaction.date);
+    const dateStr = txnDate ? txnDate.toISOString().split('T')[0] : '';
+    
+    // Sum all credit allocation amounts
+    const totalAmount = alloc.allocations.reduce((sum, a) => {
+      return sum + centavosToPesos(a.amount || 0);
+    }, 0);
+    
+    return {
+      date: dateStr,
+      description: `Credit used for ${transaction.description || 'Payment'}`,
+      amount: roundTo2Decimals(totalAmount)
+    };
+  });
+  
+  // Extract bank account info from feeStructure.bankDetails
+  let bankAccountInfo = null;
+  if (clientData.feeStructure?.bankDetails) {
+    const bankDetails = clientData.feeStructure.bankDetails;
+    bankAccountInfo = {
+      accountName: bankDetails.accountName || null,
+      bankName: bankDetails.bankName || null,
+      accountNumber: bankDetails.cuenta || bankDetails.accountNumber || null,
+      clabe: bankDetails.clabe || null,
+      swiftCode: bankDetails.swiftCode || null,
+      reference: bankDetails.reference || null
+    };
+  }
+  
+  // Handle logoUrl (convert empty string to null)
+  const logoUrl = clientData.branding?.logoUrl;
+  const normalizedLogoUrl = logoUrl && logoUrl.trim() !== '' ? logoUrl : null;
+  
+  // Build optimized return structure
+  return {
+    clientInfo: {
+      clientId: clientId,
+      name: clientData.basicInfo?.fullName || clientData.basicInfo?.displayName || clientId,
+      logoUrl: normalizedLogoUrl,
+      address: address,
+      bankAccountInfo: bankAccountInfo
+    },
+    unitInfo: {
+      unitId: unitId,
+      owners: owners,
+      emails: emails, // Array of enriched email objects with displayName, preferredCurrency, preferredLanguage, notifications, role
+      managers: managers
+    },
+    statementInfo: {
+      statementDate: getNow().toISOString().split('T')[0],
+      fiscalYear: rawData.clientConfig.fiscalYear,
+      periodCovered: periodCovered,
+      generatedAt: getNow().toISOString()
+    },
+    summary: {
+      totalDue: roundTo2Decimals(rawData.summary.totalDue),
+      totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
+      totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
+      openingBalance: 0, // Always starts at 0
+      closingBalance: roundTo2Decimals(rawData.summary.finalBalance)
+    },
+    lineItems: lineItems,
+    creditInfo: {
+      currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),
+      allocations: creditAllocations
+    }
+  };
 }
 

@@ -1,0 +1,32 @@
+📋 Chronological Transaction List with Running Balance:
+═══════════════════════════════════════════════════════════════════════════════
+Date       | Description           | Charge      | Payment     | Balance
+-----------|-----------------------|-------------|-------------|-------------
+           | Opening Balance       |             |             |        0.00
+2025-01-01 | HOA Dues Month 1      |    5,800.00 |             |    5,800.00
+2025-01-08 | Payment Month 1       |             |    5,800.00 |        0.00
+2025-02-01 | HOA Dues Month 2      |    5,800.00 |             |    5,800.00
+2025-02-18 | Payment Month 2       |             |    5,800.00 |        0.00
+2025-03-01 | HOA Dues Month 3      |    5,800.00 |             |    5,800.00
+2025-03-11 | Payment Month 3       |             |    5,800.00 |        0.00
+2025-04-01 | HOA Dues Month 4      |    5,800.00 |             |    5,800.00
+2025-04-16 | Payment Months 4-5    |             |   11,600.00 |   -5,800.00
+2025-05-01 | HOA Dues Month 5      |    5,800.00 |             |        0.00
+2025-06-01 | HOA Dues Month 6      |    5,800.00 |             |    5,800.00
+2025-06-13 | Payment Month 6       |             |    6,000.00 |     -200.00
+2025-07-01 | HOA Dues Month 7      |    5,800.00 |             |    5,600.00
+2025-07-07 | Payment Month 7       |             |    6,000.00 |     -400.00
+2025-08-01 | HOA Dues Month 8      |    5,800.00 |             |    5,400.00
+2025-08-09 | Payment Month 8       |             |    5,800.00 |     -400.00
+2025-09-01 | HOA Dues Month 9      |    5,800.00 |             |    5,400.00
+2025-09-09 | Payment Month 9       |             |    6,000.00 |     -600.00
+2025-10-01 | HOA Dues Month 10     |    5,800.00 |             |    5,200.00
+2025-11-01 | HOA Dues Month 11     |    5,800.00 |             |   11,000.00
+2025-12-01 | HOA Dues Month 12     |    5,800.00 |             |   16,800.00
+
+Final Running Balance: $16,800.00 MXN
+Summary:
+Total Due: $69,600.00 MXN (calculated: 5,800.00 × 12)
+Total Paid: $69,600.00 MXN
+Outstanding: $0.00 MXN
+Credit Balance: $910.44 MXN

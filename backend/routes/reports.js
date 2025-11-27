@@ -9,7 +9,8 @@ import { getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
 import statementController from '../controllers/statementController.js';
-import { queryDuesPaymentsData } from '../services/statementDataService.js';
+import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
+import { generateTextTable } from '../services/statementTextTableService.js';
 import axios from 'axios';
 
 // Create date service for formatting API responses
@@ -346,6 +347,7 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const excludeFutureBills = req.query.excludeFutureBills === 'true';
     
     if (!unitId) {
       return res.status(400).json({ 
@@ -367,11 +369,115 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     });
     
     // Call the service - returns comprehensive data object
-    const result = await queryDuesPaymentsData(api, clientId, unitId, fiscalYear);
+    const result = await getStatementData(api, clientId, unitId, fiscalYear, excludeFutureBills);
     
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Error fetching statement data:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get raw consolidated unit data (debug endpoint)
+ * GET /api/clients/:clientId/reports/statement/raw
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '102')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *   - excludeFutureBills (optional): Whether to exclude future bills (default: false)
+ * 
+ * Returns comprehensive raw data object (for debugging/internal use)
+ */
+router.get('/statement/raw', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const excludeFutureBills = req.query.excludeFutureBills === 'true';
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'unitId query parameter is required' 
+      });
+    }
+    
+    // Create API client with auth token (for internal API calls)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    
+    // Call the raw data service
+    const result = await getConsolidatedUnitData(api, clientId, unitId, fiscalYear, excludeFutureBills);
+    
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error fetching raw statement data:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get Statement of Account as plain text table
+ * GET /api/clients/:clientId/reports/statement/text
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '102')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ * 
+ * Returns plain text table matching prototype format exactly
+ */
+router.get('/statement/text', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const excludeFutureBills = req.query.excludeFutureBills === 'true';
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'unitId query parameter is required' 
+      });
+    }
+    
+    // Create API client with auth token (for internal API calls)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    
+    // Get statement data
+    const statementData = await getStatementData(api, clientId, unitId, fiscalYear, excludeFutureBills);
+    
+    // Generate text table output
+    const textOutput = generateTextTable(statementData);
+    
+    // Return as plain text
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(textOutput);
+  } catch (error) {
+    console.error('Error generating statement text:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,

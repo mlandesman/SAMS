@@ -1,0 +1,37 @@
+Chronological Transaction List with Running Balance:
+═══════════════════════════════════════════════════════════════════════════════
+Date       | Description           | Charge      | Payment     | Balance
+-----------|-----------------------|-------------|-------------|-------------
+           | Opening Balance       |             |             |        0.00
+2025-01-01 | HOA Dues Month 1      |    4,400.00 |             |    4,400.00
+2025-01-08 | Payment Month 1       |             |    5,000.00 |     -600.00
+2025-02-01 | HOA Dues Month 2      |    4,400.00 |             |    3,800.00
+2025-02-18 | Payment Month 2       |             |    4,500.00 |     -700.00
+2025-03-01 | HOA Dues Month 3      |    4,400.00 |             |    3,700.00
+2025-03-11 | Payment Month 3       |             |    4,500.00 |     -800.00
+2025-04-01 | HOA Dues Month 4      |    4,400.00 |             |    3,600.00
+2025-04-16 | Payment Month 4       |             |    5,000.00 |   -1,400.00
+2025-04-16 | Payment Month 5       |             |    5,000.00 |   -6,400.00
+2025-05-01 | HOA Dues Month 5      |    4,400.00 |             |   -2,000.00
+2025-06-01 | HOA Dues Month 6      |    4,400.00 |             |    2,400.00
+2025-06-13 | Payment Month 6       |             |    4,500.00 |   -2,100.00
+2025-07-01 | HOA Dues Month 7      |    4,400.00 |             |    2,300.00
+2025-07-07 | Payment Month 7       |             |    5,000.00 |   -2,700.00
+2025-08-01 | HOA Dues Month 8      |    4,400.00 |             |    1,700.00
+2025-08-09 | Payment Month 8       |             |    5,000.00 |   -3,300.00
+2025-09-01 | HOA Dues Month 9      |    4,400.00 |             |    1,100.00
+2025-09-09 | Payment Months 9-10   |             |    5,000.00 |   -3,900.00
+2025-10-01 | HOA Dues Month 10     |    4,400.00 |             |      500.00
+2025-11-01 | HOA Dues Month 11     |    4,400.00 |             |    4,900.00
+2025-11-05 | Payment Month 11      |             |    4,400.00 |      500.00
+2025-12-01 | HOA Dues Month 12     |    4,400.00 |             |    4,900.00
+
+Final Running Balance: $4,900.00 MXN
+
+
+Summary:
+Total Due: $52,800.00 MXN (calculated: 4,400.00 × 12)
+Total Paid: $48,400.00 MXN
+Outstanding: $4,400.00 MXN
+
+Credit Balance: $86.00 MXN

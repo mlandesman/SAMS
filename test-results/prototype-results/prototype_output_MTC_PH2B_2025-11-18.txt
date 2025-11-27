@@ -1,0 +1,29 @@
+📋 Chronological Transaction List with Running Balance:
+═══════════════════════════════════════════════════════════════════════════════
+Date       | Description           | Charge      | Payment     | Balance
+-----------|-----------------------|-------------|-------------|-------------
+           | Opening Balance       |             |             |        0.00
+2025-01-01 | HOA Dues Month 1      |    5,800.00 |             |    5,800.00
+2025-01-01 | Payment Months 4-6    |             |   17,100.00 |  -11,300.00
+2025-02-01 | HOA Dues Month 2      |    5,800.00 |             |   -5,500.00
+2025-03-01 | HOA Dues Month 3      |    5,800.00 |             |      300.00
+2025-04-01 | HOA Dues Month 4      |    5,800.00 |             |    6,100.00
+2025-04-12 | Payment Month 9       |             |      264.00 |    5,836.00
+2025-05-01 | HOA Dues Month 5      |    5,800.00 |             |   11,636.00
+2025-06-01 | HOA Dues Month 6      |    5,800.00 |             |   17,436.00
+2025-07-01 | HOA Dues Month 7      |    5,800.00 |             |   23,236.00
+2025-08-01 | HOA Dues Month 8      |    5,800.00 |             |   29,036.00
+2025-08-16 | Payment Months 10-12  |             |   17,400.00 |   11,636.00
+2025-09-01 | HOA Dues Month 9      |    5,800.00 |             |   17,436.00
+2025-10-01 | HOA Dues Month 10     |    5,800.00 |             |   23,236.00
+2025-11-01 | HOA Dues Month 11     |    5,800.00 |             |   29,036.00
+2025-12-01 | HOA Dues Month 12     |    5,800.00 |             |   34,836.00
+
+Final Running Balance: $34,836.00 MXN
+
+Summary:
+Total Due: $69,600.00 MXN (calculated: 5,800.00 × 12)
+Total Paid: $69,600.00 MXN
+Outstanding: $0.00 MXN
+
+Credit Balance: $0.00 MXN

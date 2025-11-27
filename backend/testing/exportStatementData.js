@@ -4,7 +4,7 @@
  */
 
 import { testHarness } from './testHarness.js';
-import { queryDuesPaymentsData } from '../services/statementDataService.js';
+import { getStatementData } from '../services/statementDataService.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,7 +30,7 @@ async function exportUnitData(api, clientId, unitId) {
   
   try {
     // Call the service
-    const data = await queryDuesPaymentsData(api, clientId, unitId);
+    const data = await getStatementData(api, clientId, unitId);
     
     // Generate filename
     const today = new Date();

@@ -1,0 +1,21 @@
+Chronological Transaction List with Running Balance:
+═══════════════════════════════════════════════════════════════════════════════
+Date       | Description           | Charge      | Payment     | Balance
+-----------|-----------------------|-------------|-------------|-------------
+           | Opening Balance       |             |             |        0.00
+2025-07-01 | HOA Dues Q1           |   14,517.54 |             |   14,517.54
+2025-07-17 | Payment Q1            |             |   14,517.54 |        0.00
+2025-09-29 | Payment Q2            |             |   14,277.81 |  -14,277.81
+2025-10-01 | Water Bill Q1 2025    |    1,550.00 |             |  -12,727.81
+2025-10-01 | HOA Dues Q2           |   14,517.54 |             |    1,789.73
+2025-11-11 | Water Payment         |             |    1,627.50 |      162.23
+2026-01-01 | HOA Dues Q3           |   14,517.54 |             |   14,679.77
+2026-04-01 | HOA Dues Q4           |   14,517.54 |             |   29,197.31
+
+Final Running Balance: $29,197.31 MXN
+Summary:
+Total Due: $58,070.16 MXN (calculated: 4,839.18 × 12)
+Total Paid: $48,391.80 MXN
+Outstanding: $9,678.36 MXN
+
+Credit Balance: $0.00 MXN

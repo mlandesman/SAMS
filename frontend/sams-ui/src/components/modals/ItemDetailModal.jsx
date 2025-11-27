@@ -183,9 +183,26 @@ const ItemDetailModal = ({
 
   return (
     <div className="sandyland-modal-overlay" onClick={onClose}>
-      <div className="sandyland-modal" onClick={e => e.stopPropagation()} style={{ width: '500px' }}>
+      <div className="sandyland-modal" onClick={e => e.stopPropagation()} style={{ width: '900px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="sandyland-modal-header">
-          <h2 className="sandyland-modal-title">{title}</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <h2 className="sandyland-modal-title" style={{ margin: 0 }}>{title}</h2>
+              {item.name && (
+                <div style={{
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  color: '#000000',
+                  letterSpacing: '0.01em',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '4px'
+                }}>
+                  {item.name}
+                </div>
+              )}
+            </div>
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -209,50 +226,62 @@ const ItemDetailModal = ({
         </div>
         
         <div className="sandyland-modal-content">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {fields.map((field, index) => (
-              <div key={field.key || field.label || index}>
-                <div 
-                  style={{ 
-                    color: '#4a5568',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '6px'
-                  }}
-                >
-                  {field.label}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: '1.5rem 2rem',
+            padding: '1.5rem 0'
+          }}>
+            {fields.map((field, index) => {
+              const isEmail = field.key === 'email';
+              return (
+                <div key={field.key || field.label || index} style={{
+                  gridColumn: field.fullWidth ? '1 / -1' : 'auto'
+                }}>
+                  <div 
+                    style={{ 
+                      fontSize: isEmail ? '0.875rem' : '0.75rem',
+                      fontWeight: '600',
+                      marginBottom: isEmail ? '0.75rem' : '0.5rem',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      color: '#6b7280'
+                    }}
+                  >
+                    {field.label}
+                  </div>
+                  <div style={{ 
+                    fontSize: isEmail ? '1.125rem' : '0.9375rem',
+                    color: '#1f2937',
+                    fontWeight: isEmail ? '600' : '500',
+                    minHeight: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    {renderFieldValue(field, getNestedValue(item, field.key))}
+                  </div>
                 </div>
-                <div style={{ fontSize: '16px' }}>
-                  {renderFieldValue(field, getNestedValue(item, field.key))}
-                </div>
-              </div>
-            ))}
-            
-            {/* Show ID if available (useful for debugging) */}
-            {item.id && (
-              <div style={{ 
-                marginTop: '16px', 
-                paddingTop: '16px', 
-                borderTop: '1px solid rgba(8, 99, 191, 0.08)' 
-              }}>
-                <div 
-                  style={{ 
-                    color: '#a0aec0',
-                    fontSize: '12px',
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  ID: {item.id}
-                </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         </div>
         
-        <div className="sandyland-modal-buttons">
+        <div className="sandyland-modal-buttons" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem' }}>
+          {item.id && (
+            <div style={{
+              fontSize: '1rem',
+              fontWeight: '700',
+              color: '#000000',
+              fontFamily: 'monospace',
+              letterSpacing: '0.05em'
+            }}>
+              ID: {item.id}
+            </div>
+          )}
           <button 
             className="sandyland-btn sandyland-btn-secondary"
             onClick={onClose}
+            style={{ marginLeft: item.id ? 'auto' : '0' }}
           >
             Close
           </button>

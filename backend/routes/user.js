@@ -258,6 +258,63 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
-// ... rest of the routes remain the same but use email-based lookups ...
+/**
+ * Get user by email address
+ * GET /api/user/by-email/:email
+ * 
+ * Used by statement/report services to enrich owner data with user preferences
+ */
+router.get('/by-email/:email', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    // Validate email parameter
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Email address is required'
+      });
+    }
+    
+    // Normalize email (lowercase, trim)
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    const db = await getDb();
+    
+    // Query users collection by email field
+    const userQuery = await db.collection('users')
+      .where('email', '==', normalizedEmail)
+      .limit(1)
+      .get();
+    
+    if (userQuery.empty) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+        email: normalizedEmail
+      });
+    }
+    
+    const userDoc = userQuery.docs[0];
+    const userData = userDoc.data();
+    
+    // Return user document with UUID
+    res.json({
+      success: true,
+      data: {
+        userId: userDoc.id, // UUID (document ID)
+        ...sanitizeUserData(userData, req.user)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user by email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user',
+      details: error.message
+    });
+  }
+});
 
 export default router;

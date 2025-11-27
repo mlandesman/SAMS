@@ -290,6 +290,14 @@ function ListManagementView() {
     const currentList = availableLists[tabIndex];
     console.log('Opening details for:', currentList.id, selectedItem);
     
+    // Debug: Log profile and notifications data for users
+    if (currentList.id === 'users') {
+      console.log('👤 User profile data:', selectedItem.profile);
+      console.log('🔔 User notifications data:', selectedItem.notifications);
+      console.log('🔑 User canLogin:', selectedItem.canLogin);
+      console.log('📊 User accountState:', selectedItem.accountState);
+    }
+    
     // Define detail fields for each list type
     let detailFields = [];
     let title = '';
@@ -383,12 +391,80 @@ function ListManagementView() {
       case 'users':
         title = 'User Details';
         detailFields = [
-          { key: 'name', label: 'Name' },
-          { key: 'email', label: 'Email', type: 'email' },
+          // Basic Info - Email is larger and on left side
+          { 
+            key: 'email', 
+            label: 'Email', 
+            type: 'email'
+          },
           { key: 'globalRole', label: 'Global Role' },
+          
+          // Login Status (NEW)
+          { 
+            key: 'canLogin', 
+            label: 'Login Enabled',
+            render: (value) => value !== false ? 'Yes' : 'No (Contact Only)'
+          },
+          
+          // Profile Fields (NEW)
+          { 
+            key: 'profile.firstName', 
+            label: 'First Name',
+            render: (value, item) => item.profile?.firstName || '-'
+          },
+          { 
+            key: 'profile.lastName', 
+            label: 'Last Name',
+            render: (value, item) => item.profile?.lastName || '-'
+          },
+          { 
+            key: 'profile.phone', 
+            label: 'Phone',
+            render: (value, item) => item.profile?.phone || '-'
+          },
+          { 
+            key: 'profile.taxId', 
+            label: 'Tax ID (RFC)',
+            render: (value, item) => item.profile?.taxId || '-'
+          },
+          
+          // Preferences (NEW)
+          { 
+            key: 'profile.preferredLanguage', 
+            label: 'Preferred Language',
+            render: (value, item) => {
+              const lang = item.profile?.preferredLanguage;
+              if (lang === 'spanish') return 'Spanish';
+              if (lang === 'english') return 'English';
+              return lang || 'English';
+            }
+          },
+          { 
+            key: 'profile.preferredCurrency', 
+            label: 'Preferred Currency',
+            render: (value, item) => item.profile?.preferredCurrency || 'MXN'
+          },
+          
+          // Notifications (NEW) - Full width
+          { 
+            key: 'notifications', 
+            label: 'Notifications',
+            fullWidth: true,
+            render: (value, item) => {
+              const notif = item.notifications || {};
+              const enabled = [];
+              if (notif.email !== false) enabled.push('Email');
+              if (notif.sms === true) enabled.push('SMS');
+              if (notif.duesReminders !== false) enabled.push('Dues Reminders');
+              return enabled.length > 0 ? enabled.join(', ') : 'None';
+            }
+          },
+          
+          // Existing fields - Full width for complex data
           { 
             key: 'propertyAccess', 
             label: 'Client Access',
+            fullWidth: true,
             render: (value) => {
               if (!value || typeof value !== 'object') return 'None';
               return Object.entries(value).map(([clientId, access]) => 
@@ -402,6 +478,19 @@ function ListManagementView() {
             render: (value) => value ? 'Active' : 'Inactive'
           },
           { 
+            key: 'accountState', 
+            label: 'Account State',
+            render: (value) => {
+              switch(value) {
+                case 'active': return 'Active';
+                case 'pending_password_change': return 'Pending Password Change';
+                case 'pending_invitation': return 'Pending Invitation';
+                case 'contact_only': return 'Contact Only';
+                default: return value || 'Unknown';
+              }
+            }
+          },
+          { 
             key: 'firebaseMetadata.lastSignInTime', 
             label: 'Last Login',
             render: (value, item) => {
@@ -413,7 +502,6 @@ function ListManagementView() {
               const diffHours = (now - lastLogin) / (1000 * 60 * 60);
               const diffDays = diffHours / 24;
               
-              // Show relative time for recent logins
               if (diffHours < 1) {
                 return 'Just now';
               } else if (diffHours < 24) {
@@ -746,8 +834,49 @@ function ListManagementView() {
   // Handle user update (for EditUserModal - matches UserManagement.handleUpdateUser signature)
   const handleUpdateUser = async (userId, updateData) => {
     try {
+      console.log('🔄 handleUpdateUser: Updating user', userId, updateData);
       const result = await secureApi.updateUser(userId, updateData);
+      console.log('✅ handleUpdateUser: Update successful', result);
+      
       setRefreshTrigger(prev => prev + 1);
+      
+      // Fetch fresh user data to update modals
+      try {
+        console.log('🔄 handleUpdateUser: Fetching fresh user data...');
+        const usersResponse = await secureApi.getSystemUsers();
+        const updatedUser = usersResponse.users?.find(u => u.id === userId);
+        console.log('📦 handleUpdateUser: Found updated user', updatedUser);
+        
+        if (updatedUser) {
+          // Update selectedItem if it matches the updated user
+          if (selectedItem?.id === userId) {
+            console.log('🔄 handleUpdateUser: Updating selectedItem');
+            setSelectedItem(updatedUser);
+          }
+          // Update activeModal.itemData if it matches the updated user
+          if (activeModal.itemData?.id === userId) {
+            console.log('🔄 handleUpdateUser: Updating activeModal.itemData');
+            setActiveModal(prev => ({
+              ...prev,
+              itemData: { ...updatedUser } // Create new object reference
+            }));
+          }
+          // Update detailModal.item if it matches the updated user
+          if (detailModal.item?.id === userId) {
+            console.log('🔄 handleUpdateUser: Updating detailModal.item');
+            setDetailModal(prev => ({
+              ...prev,
+              item: { ...updatedUser } // Create new object reference
+            }));
+          }
+        } else {
+          console.warn('⚠️ handleUpdateUser: Updated user not found in response');
+        }
+      } catch (fetchError) {
+        console.error('❌ handleUpdateUser: Could not fetch updated user data:', fetchError);
+        // Continue anyway - the refreshTrigger will cause a reload
+      }
+      
       return result;
     } catch (error) {
       console.error('❌ Error updating user:', error);
@@ -853,6 +982,7 @@ function ListManagementView() {
           />
         ) : (
           <EditUserModal
+            key={activeModal.itemData?.id} // Force re-render when user changes
             user={activeModal.itemData}
             onClose={handleCloseModal}
             onUpdate={handleUpdateUser}
@@ -1032,6 +1162,7 @@ function ListManagementView() {
 
       {/* Item Detail Modal */}
       <ItemDetailModal
+        key={detailModal.item?.id || detailModal.item?.unitId || 'detail-modal'} // Force re-render when item changes
         open={detailModal.isOpen}
         onClose={handleCloseDetailModal}
         onEdit={handleEditFromDetail}

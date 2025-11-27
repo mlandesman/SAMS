@@ -349,7 +349,11 @@ export async function createUser(req, res) {
       clientId, 
       unitId, 
       customPermissions = [],
-      creationMethod = 'manual' // 'invitation' or 'manual'
+      creationMethod = 'manual', // 'invitation' or 'manual'
+      // NEW FIELDS
+      canLogin = true,  // Default true for backward compatibility
+      profile = {},     // { firstName, lastName, phone, taxId, preferredLanguage, preferredCurrency }
+      notifications = { email: true, sms: false, duesReminders: true }
     } = req.body;
     const creatingUser = req.user;
 
@@ -414,7 +418,18 @@ export async function createUser(req, res) {
       let temporaryPassword = null;
       let accountState = 'active';
       
-      if (creationMethod === 'invitation') {
+      if (!canLogin) {
+        // Create disabled Firebase Auth user (contact-only)
+        temporaryPassword = generateSecurePassword(); // Required but never used
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: temporaryPassword,
+          displayName: name,
+          emailVerified: false,
+          disabled: true  // KEY: Cannot log in
+        });
+        accountState = 'contact_only';
+      } else if (creationMethod === 'invitation') {
         // Create user with temporary password for invitation flow (more reliable than disabled users)
         temporaryPassword = generateSecurePassword();
         userRecord = await admin.auth().createUser({
@@ -470,16 +485,32 @@ export async function createUser(req, res) {
       const userProfile = {
         email: email,
         name: name,
+        displayName: name,
         globalRole: globalRole,
         propertyAccess: propertyAccessData,
         preferredClient: role === 'superAdmin' ? null : clientId,
-        // Remove creation metadata - should be in audit log
-        isActive: true, // Both methods create active users now
+        isActive: true,
+        canLogin: canLogin,  // NEW
         accountState: accountState,
-        creationMethod: creationMethod,
-        mustChangePassword: true, // Both methods require password change
+        creationMethod: canLogin ? creationMethod : 'contact',
+        mustChangePassword: canLogin,
         lastLoginDate: null,
-        updated: admin.firestore.Timestamp.now()
+        updated: admin.firestore.Timestamp.now(),
+        // NEW: Profile object
+        profile: {
+          firstName: profile.firstName || name.split(' ')[0] || '',
+          lastName: profile.lastName || name.split(' ').slice(1).join(' ') || '',
+          phone: profile.phone || null,
+          taxId: profile.taxId || null,
+          preferredLanguage: profile.preferredLanguage || 'english',
+          preferredCurrency: profile.preferredCurrency || 'MXN'
+        },
+        // NEW: Notifications object
+        notifications: {
+          email: notifications.email !== false,
+          sms: notifications.sms === true,
+          duesReminders: notifications.duesReminders !== false
+        }
       };
 
       await db.collection('users').doc(userRecord.uid).set(userProfile);
@@ -493,27 +524,29 @@ export async function createUser(req, res) {
         await syncUnitAssignments(userRecord.uid, {}, propertyAccessData, name, userEmail);
       }
 
-      // Send appropriate notification
+      // Send appropriate notification (only for login-enabled users)
       let emailResult = null;
-      if (creationMethod === 'invitation') {
-        // Send invitation email
-        emailResult = await sendUserInvitation({
-          email: email,
-          name: name,
-          clientName: clientId || 'System',
-          role: role,
-          invitedBy: creatingUser.email
-        });
-      } else {
-        // Send password notification email
-        emailResult = await sendPasswordNotification({
-          email: email,
-          name: name,
-          password: temporaryPassword,
-          clientName: clientId || 'System',
-          role: role,
-          createdBy: creatingUser.email
-        });
+      if (canLogin) {
+        if (creationMethod === 'invitation') {
+          // Send invitation email
+          emailResult = await sendUserInvitation({
+            email: email,
+            name: name,
+            clientName: clientId || 'System',
+            role: role,
+            invitedBy: creatingUser.email
+          });
+        } else {
+          // Send password notification email
+          emailResult = await sendPasswordNotification({
+            email: email,
+            name: name,
+            password: temporaryPassword,
+            clientName: clientId || 'System',
+            role: role,
+            createdBy: creatingUser.email
+          });
+        }
       }
 
       // Log user creation
@@ -655,7 +688,19 @@ export async function getUsers(req, res) {
 export async function updateUser(req, res) {
   try {
     const { userId } = req.params;
-    const { name, propertyAccess, isActive, globalRole, resetPassword, newPassword, requirePasswordChange } = req.body;
+    const { 
+      name, 
+      propertyAccess, 
+      isActive, 
+      globalRole, 
+      resetPassword, 
+      newPassword, 
+      requirePasswordChange,
+      // NEW FIELDS
+      canLogin,      // Toggle login ability
+      profile,       // Profile updates
+      notifications  // Notification preferences
+    } = req.body;
     const updatingUser = req.user;
 
     if (!userId) {
@@ -807,6 +852,71 @@ export async function updateUser(req, res) {
     if (nameChanged && !propertyAccess && currentUserData.propertyAccess) {
       const userEmail = currentUserData.email || 'unknown@example.com';
       await updateUserNameInUnits(userId, currentUserData.name, name, userEmail, currentUserData.propertyAccess);
+    }
+
+    // Handle canLogin toggle (enable/disable Firebase Auth)
+    if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+      if (canLogin) {
+        // Promoting contact to user - enable Auth and send password reset
+        await admin.auth().updateUser(userId, { disabled: false });
+        
+        // Generate temporary password and send notification
+        const tempPassword = generateSecurePassword();
+        await admin.auth().updateUser(userId, { password: tempPassword });
+        
+        await sendPasswordNotification({
+          email: currentUserData.email,
+          name: currentUserData.name,
+          password: tempPassword,
+          clientName: Object.keys(currentUserData.propertyAccess || {})[0] || 'System',
+          role: currentUserData.globalRole || 'user',
+          createdBy: updatingUser.email
+        });
+        
+        updateData.canLogin = true;
+        updateData.accountState = 'pending_password_change';
+        updateData.mustChangePassword = true;
+        
+        // Log promotion
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.promoted_to_login',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: `${currentUserData.name} promoted to login user`,
+          notes: `Contact promoted to login user by ${updatingUser.email}`
+        });
+      } else {
+        // Demoting user to contact - disable Auth
+        await admin.auth().updateUser(userId, { disabled: true });
+        updateData.canLogin = false;
+        updateData.accountState = 'contact_only';
+        
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.demoted_to_contact',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: `${currentUserData.name} demoted to contact`,
+          notes: `User demoted to contact-only by ${updatingUser.email}`
+        });
+      }
+    }
+
+    // Handle profile updates
+    if (profile) {
+      updateData.profile = {
+        ...currentUserData.profile,
+        ...profile
+      };
+    }
+
+    // Handle notification preference updates
+    if (notifications) {
+      updateData.notifications = {
+        ...currentUserData.notifications,
+        ...notifications
+      };
     }
 
     // Handle require password change if requested

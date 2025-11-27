@@ -16,8 +16,24 @@ const __dirname = path.dirname(__filename);
 const testUnits = [
   { clientId: 'AVII', unitId: '101' },
   { clientId: 'AVII', unitId: '102' },
+  { clientId: 'AVII', unitId: '103' },
+  { clientId: 'AVII', unitId: '104' },
+  { clientId: 'AVII', unitId: '105' },
+  { clientId: 'AVII', unitId: '106' },
+  { clientId: 'AVII', unitId: '201' },
+  { clientId: 'AVII', unitId: '202' },
+  { clientId: 'AVII', unitId: '203' },
+  { clientId: 'AVII', unitId: '204' },
   { clientId: 'MTC', unitId: '1A' },
-  { clientId: 'MTC', unitId: '2B' }
+  { clientId: 'MTC', unitId: '1B' },
+  { clientId: 'MTC', unitId: '1C' },
+  { clientId: 'MTC', unitId: '2A' },
+  { clientId: 'MTC', unitId: '2B' },
+  { clientId: 'MTC', unitId: '2C' },
+  { clientId: 'MTC', unitId: 'PH1A' },
+  { clientId: 'MTC', unitId: 'PH2B' },
+  { clientId: 'MTC', unitId: 'PH3C' },
+  { clientId: 'MTC', unitId: 'PH4D' }
 ];
 
 const testResultsDir = path.join(__dirname, '../../test-results');

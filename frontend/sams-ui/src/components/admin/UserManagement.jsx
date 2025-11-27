@@ -370,7 +370,22 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
     role: 'unitOwner',
     clientId: selectedClient?.id || '',
     unitId: '',
-    creationMethod: 'invitation' // 'invitation' or 'manual'
+    creationMethod: 'invitation', // 'invitation' or 'manual'
+    // NEW FIELDS
+    canLogin: true,
+    profile: {
+      firstName: '',
+      lastName: '',
+      phone: '',
+      taxId: '',
+      preferredLanguage: 'english',
+      preferredCurrency: 'MXN'
+    },
+    notifications: {
+      email: true,
+      sms: false,
+      duesReminders: true
+    }
   });
   const [submitting, setSubmitting] = useState(false);
   const [creationResult, setCreationResult] = useState(null);
@@ -444,93 +459,114 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
         </div>
 
         <form onSubmit={handleSubmit} className="user-form">
-          {/* Creation Method Selection */}
+          {/* Can Login Toggle */}
           <div className="form-group">
-            <label>Account Setup Method:</label>
-            <div className="creation-method-options">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="creationMethod"
-                  value="invitation"
-                  checked={formData.creationMethod === 'invitation'}
-                  onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
-                />
-                <span className="radio-label">
-                  <strong>📧 Email Invitation</strong>
-                  <small>User receives secure link to set their own password</small>
-                </span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="creationMethod"
-                  value="manual"
-                  checked={formData.creationMethod === 'manual'}
-                  onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
-                />
-                <span className="radio-label">
-                  <strong>🔑 Manual Password</strong>
-                  <small>Generate temporary password (for tech-averse users)</small>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="name">Full Name:</label>
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="role">Role:</label>
-            <select
-              id="role"
-              value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
-              required
-            >
-              <option value="unitOwner">Unit Owner</option>
-              <option value="unitManager">Unit Manager</option>
-              {isSuperAdmin && <option value="admin">Admin</option>}
-              {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
-            </select>
-          </div>
-
-          {formData.role !== 'superAdmin' && (
-            <div className="form-group">
-              <label htmlFor="clientId">Client:</label>
+            <label className="checkbox-label">
               <input
-                type="text"
-                id="clientId"
-                value={formData.clientId}
-                onChange={(e) => setFormData({...formData, clientId: e.target.value})}
-                required
-                placeholder="e.g., MTC, Villa123"
+                type="checkbox"
+                checked={formData.canLogin}
+                onChange={(e) => setFormData({...formData, canLogin: e.target.checked})}
               />
+              <span>Can Login to System</span>
+            </label>
+            <small className="form-help">
+              Uncheck for contact-only records (owners/managers who receive reports but don't log in)
+            </small>
+          </div>
+
+          {/* Creation Method Selection - only show when canLogin is true */}
+          {formData.canLogin && (
+            <div className="form-group">
+              <label>Account Setup Method:</label>
+              <div className="creation-method-options">
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="creationMethod"
+                    value="invitation"
+                    checked={formData.creationMethod === 'invitation'}
+                    onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
+                  />
+                  <span className="radio-label">
+                    <strong>📧 Email Invitation</strong>
+                    <small>User receives secure link to set their own password</small>
+                  </span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="creationMethod"
+                    value="manual"
+                    checked={formData.creationMethod === 'manual'}
+                    onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
+                  />
+                  <span className="radio-label">
+                    <strong>🔑 Manual Password</strong>
+                    <small>Generate temporary password (for tech-averse users)</small>
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 
+          {/* Basic Info Row */}
+          <div className="form-row">
+            <div className="form-group half">
+              <label htmlFor="email">Email:</label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required
+              />
+            </div>
+            <div className="form-group half">
+              <label htmlFor="name">Full Name:</label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Role and Client Row */}
+          <div className="form-row">
+            <div className="form-group half">
+              <label htmlFor="role">Role:</label>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({...formData, role: e.target.value})}
+                required
+              >
+                <option value="unitOwner">Unit Owner</option>
+                <option value="unitManager">Unit Manager</option>
+                {isSuperAdmin && <option value="admin">Admin</option>}
+                {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
+              </select>
+            </div>
+            {formData.role !== 'superAdmin' && (
+              <div className="form-group half">
+                <label htmlFor="clientId">Client:</label>
+                <input
+                  type="text"
+                  id="clientId"
+                  value={formData.clientId}
+                  onChange={(e) => setFormData({...formData, clientId: e.target.value})}
+                  required
+                  placeholder="e.g., MTC, AVII"
+                />
+              </div>
+            )}
+          </div>
+
           {formData.role === 'superAdmin' && (
             <div className="form-group">
-              <p style={{ color: '#666', fontStyle: 'italic' }}>
+              <p style={{ color: '#666', fontStyle: 'italic', fontSize: '0.875rem', margin: 0 }}>
                 SuperAdmin users have global access to all clients
               </p>
             </div>
@@ -570,6 +606,145 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
               )}
             </div>
           )}
+
+          {/* Profile Section */}
+          <fieldset className="form-section">
+            <legend>Profile Information</legend>
+            
+            <div className="form-row">
+              <div className="form-group half">
+                <label>First Name</label>
+                <input
+                  type="text"
+                  value={formData.profile.firstName}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, firstName: e.target.value}
+                  })}
+                  placeholder="First name"
+                />
+              </div>
+              <div className="form-group half">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  value={formData.profile.lastName}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, lastName: e.target.value}
+                  })}
+                  placeholder="Last name"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                value={formData.profile.phone}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  profile: {...formData.profile, phone: e.target.value}
+                })}
+                placeholder="+52 984 123 4567"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Tax ID (RFC)</label>
+              <input
+                type="text"
+                value={formData.profile.taxId}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  profile: {...formData.profile, taxId: e.target.value}
+                })}
+                placeholder="Optional"
+              />
+            </div>
+          </fieldset>
+
+          {/* Preferences Section */}
+          <fieldset className="form-section">
+            <legend>Preferences</legend>
+            
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Preferred Language</label>
+                <select
+                  value={formData.profile.preferredLanguage}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, preferredLanguage: e.target.value}
+                  })}
+                >
+                  <option value="english">English</option>
+                  <option value="spanish">Spanish</option>
+                </select>
+              </div>
+              <div className="form-group half">
+                <label>Preferred Currency</label>
+                <select
+                  value={formData.profile.preferredCurrency}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, preferredCurrency: e.target.value}
+                  })}
+                >
+                  <option value="MXN">MXN (Mexican Peso)</option>
+                  <option value="USD">USD (US Dollar)</option>
+                </select>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Notifications Section */}
+          <fieldset className="form-section">
+            <legend>Notifications</legend>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.email}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, email: e.target.checked}
+                  })}
+                />
+                <span>Email Notifications</span>
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.sms}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, sms: e.target.checked}
+                  })}
+                />
+                <span>SMS Notifications</span>
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.duesReminders}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, duesReminders: e.target.checked}
+                  })}
+                />
+                <span>Dues Reminders</span>
+              </label>
+            </div>
+          </fieldset>
 
           {/* Success/Result Display */}
           {creationResult && (
@@ -650,16 +825,66 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
  */
 const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
   const [formData, setFormData] = useState({
-    name: user.name || '',
-    isActive: user.isActive !== false,
-    globalRole: user.globalRole || 'user',
-    propertyAccess: user.propertyAccess || {},
+    name: user?.name || '',
+    isActive: user?.isActive !== false,
+    globalRole: user?.globalRole || 'user',
+    propertyAccess: user?.propertyAccess || {},
     // Unit assignment form fields
     newClientId: '',
     newUnitId: '',
     newRole: 'unitOwner',
-    requirePasswordChange: user.mustChangePassword || false
+    requirePasswordChange: user?.mustChangePassword || false,
+    canLogin: user?.canLogin !== false,  // Default true for existing users
+    profile: {
+      firstName: user?.profile?.firstName || '',
+      lastName: user?.profile?.lastName || '',
+      phone: user?.profile?.phone || '',
+      taxId: user?.profile?.taxId || '',
+      preferredLanguage: user?.profile?.preferredLanguage || 'english',
+      preferredCurrency: user?.profile?.preferredCurrency || 'MXN'
+    },
+    notifications: {
+      email: user?.notifications?.email !== false,
+      sms: user?.notifications?.sms === true,
+      duesReminders: user?.notifications?.duesReminders !== false
+    }
   });
+  
+  // Update formData when user prop changes (important for refreshed data)
+  useEffect(() => {
+    if (user) {
+      console.log('🔄 EditUserModal: Updating formData from user prop', {
+        userId: user.id,
+        canLogin: user.canLogin,
+        profile: user.profile,
+        notifications: user.notifications
+      });
+      setFormData(prev => ({
+        name: user.name || '',
+        isActive: user.isActive !== false,
+        globalRole: user.globalRole || 'user',
+        propertyAccess: user.propertyAccess || {},
+        newClientId: prev.newClientId, // Preserve form state
+        newUnitId: prev.newUnitId,
+        newRole: prev.newRole,
+        requirePasswordChange: user.mustChangePassword || false,
+        canLogin: user.canLogin !== false,
+        profile: {
+          firstName: user.profile?.firstName || '',
+          lastName: user.profile?.lastName || '',
+          phone: user.profile?.phone || '',
+          taxId: user.profile?.taxId || '',
+          preferredLanguage: user.profile?.preferredLanguage || 'english',
+          preferredCurrency: user.profile?.preferredCurrency || 'MXN'
+        },
+        notifications: {
+          email: user.notifications?.email !== false,
+          sms: user.notifications?.sms === true,
+          duesReminders: user.notifications?.duesReminders !== false
+        }
+      }));
+    }
+  }, [user]);
   
   // Track pending unit assignment changes (not yet saved)
   const [pendingAssignments, setPendingAssignments] = useState({
@@ -851,7 +1076,10 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
       const updateData = {
         name: formData.name,
         isActive: formData.isActive,
-        globalRole: formData.globalRole
+        globalRole: formData.globalRole,
+        canLogin: formData.canLogin,
+        profile: formData.profile,
+        notifications: formData.notifications
         // Note: propertyAccess is now managed via separate API calls
       };
       
@@ -939,39 +1167,80 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="user-form">
-          <div className="form-group">
-            <label>Email:</label>
-            <input type="text" value={user.email} disabled />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="name">Full Name:</label>
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              required
-            />
-          </div>
-
-          {/* Global Role - SuperAdmin only */}
-          {(currentUser?.email === 'michael@landesman.com' || currentUser?.globalRole === 'superAdmin') && (
-            <div className="form-group">
-              <label htmlFor="globalRole">Global Role:</label>
-              <select
-                id="globalRole"
-                value={formData.globalRole}
-                onChange={(e) => setFormData({...formData, globalRole: e.target.value})}
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="unitOwner">Unit Owner</option>
-                <option value="unitManager">Unit Manager</option>
-                <option value="superAdmin">Super Admin</option>
-              </select>
+          {/* Basic Info Row */}
+          <div className="form-row">
+            <div className="form-group half">
+              <label>Email:</label>
+              <input type="text" value={user.email} disabled />
             </div>
-          )}
+            <div className="form-group half">
+              <label htmlFor="name">Full Name:</label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Can Login Toggle */}
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={formData.canLogin}
+                onChange={(e) => {
+                  const newValue = e.target.checked;
+                  if (newValue && !user?.canLogin) {
+                    // Enabling login - show warning
+                    if (window.confirm('Enabling login will send a password reset email to this user. Continue?')) {
+                      setFormData({...formData, canLogin: true});
+                    }
+                  } else {
+                    setFormData({...formData, canLogin: newValue});
+                  }
+                }}
+              />
+              <span>Can Login to System</span>
+            </label>
+            {!formData.canLogin && (
+              <small className="form-help warning">
+                This is a contact-only record. Enable login to allow system access.
+              </small>
+            )}
+          </div>
+
+          {/* Global Role and Active Status Row */}
+          <div className="form-row">
+            {(currentUser?.email === 'michael@landesman.com' || currentUser?.globalRole === 'superAdmin') && (
+              <div className="form-group half">
+                <label htmlFor="globalRole">Global Role:</label>
+                <select
+                  id="globalRole"
+                  value={formData.globalRole}
+                  onChange={(e) => setFormData({...formData, globalRole: e.target.value})}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                  <option value="unitOwner">Unit Owner</option>
+                  <option value="unitManager">Unit Manager</option>
+                  <option value="superAdmin">Super Admin</option>
+                </select>
+              </div>
+            )}
+            <div className="form-group half">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                />
+                Active User
+              </label>
+            </div>
+          </div>
 
           {/* Unit Role Assignments */}
           <div className="form-group">
@@ -1091,55 +1360,187 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
             </small>
           </div>
 
-          {/* Password Reset */}
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-              />
-              Reset Password
-            </label>
-            {showPassword && (
-              <div style={{ marginTop: '10px' }}>
+          {/* Password Reset Section */}
+          <fieldset className="form-section">
+            <legend>Password Management</legend>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                />
+                <span>Reset Password</span>
+              </label>
+              {showPassword && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <input
+                    type="text"
+                    placeholder="New password (leave empty for auto-generated)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <small className="form-help">
+                    If empty, a secure password will be generated and emailed to the user
+                  </small>
+                </div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.requirePasswordChange}
+                  onChange={(e) => setFormData({...formData, requirePasswordChange: e.target.checked})}
+                />
+                <span>Require Password Change on Next Login</span>
+              </label>
+              <small className="form-help">
+                User will be forced to change their password when they next log in
+              </small>
+            </div>
+          </fieldset>
+
+          {/* Profile Section */}
+          <fieldset className="form-section">
+            <legend>Profile Information</legend>
+            
+            <div className="form-row">
+              <div className="form-group half">
+                <label>First Name</label>
                 <input
                   type="text"
-                  placeholder="New password (leave empty for auto-generated)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  value={formData.profile.firstName}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, firstName: e.target.value}
+                  })}
+                  placeholder="First name"
                 />
-                <small style={{ display: 'block', color: '#666' }}>
-                  If empty, a secure password will be generated and emailed to the user
-                </small>
               </div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label>
+              <div className="form-group half">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  value={formData.profile.lastName}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, lastName: e.target.value}
+                  })}
+                  placeholder="Last name"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label>Phone</label>
               <input
-                type="checkbox"
-                checked={formData.requirePasswordChange}
-                onChange={(e) => setFormData({...formData, requirePasswordChange: e.target.checked})}
+                type="tel"
+                value={formData.profile.phone}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  profile: {...formData.profile, phone: e.target.value}
+                })}
+                placeholder="+52 984 123 4567"
               />
-              Require Password Change on Next Login
-            </label>
-            <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
-              User will be forced to change their password when they next log in
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label>
+            </div>
+            
+            <div className="form-group">
+              <label>Tax ID (RFC)</label>
               <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                type="text"
+                value={formData.profile.taxId}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  profile: {...formData.profile, taxId: e.target.value}
+                })}
+                placeholder="Optional"
               />
-              Active User
-            </label>
-          </div>
+            </div>
+          </fieldset>
+
+          {/* Preferences Section */}
+          <fieldset className="form-section">
+            <legend>Preferences</legend>
+            
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Preferred Language</label>
+                <select
+                  value={formData.profile.preferredLanguage}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, preferredLanguage: e.target.value}
+                  })}
+                >
+                  <option value="english">English</option>
+                  <option value="spanish">Spanish</option>
+                </select>
+              </div>
+              <div className="form-group half">
+                <label>Preferred Currency</label>
+                <select
+                  value={formData.profile.preferredCurrency}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    profile: {...formData.profile, preferredCurrency: e.target.value}
+                  })}
+                >
+                  <option value="MXN">MXN (Mexican Peso)</option>
+                  <option value="USD">USD (US Dollar)</option>
+                </select>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Notifications Section */}
+          <fieldset className="form-section">
+            <legend>Notifications</legend>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.email}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, email: e.target.checked}
+                  })}
+                />
+                <span>Email Notifications</span>
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.sms}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, sms: e.target.checked}
+                  })}
+                />
+                <span>SMS Notifications</span>
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.notifications.duesReminders}
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    notifications: {...formData.notifications, duesReminders: e.target.checked}
+                  })}
+                />
+                <span>Dues Reminders</span>
+              </label>
+            </div>
+          </fieldset>
 
           <div className="form-actions">
             <button type="button" onClick={onClose}>Cancel</button>
