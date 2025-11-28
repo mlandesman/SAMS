@@ -271,7 +271,7 @@ async function getCategoryType(clientId, categoryId, categoryName) {
  */
 
 // Create a transaction
-async function createTransaction(clientId, data) {
+async function createTransaction(clientId, data, options = {}) {
   try {
     // Step 0: Prepare data for validation
     const preparedData = {
@@ -516,7 +516,51 @@ async function createTransaction(clientId, data) {
     const txnId = await generateTransactionId(dateString);
     console.log('🕐 [DEBUG] Generated transaction ID:', txnId);
     
-    // Use a transaction to ensure consistency between transaction and account balance
+    // OPTION B: Support batch mode for atomic operations
+    if (options.batch) {
+      // BATCH MODE: Add to existing batch without committing
+      console.log('💾 [BATCH MODE] Adding transaction to batch:', txnId);
+      
+      const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
+      const transactionData = {
+        ...mappedData,
+        documents: mappedData.documents || []
+      };
+      
+      // Add transaction document to batch
+      options.batch.set(txnRef, transactionData);
+      
+      // Add account balance update to batch if applicable
+      // NOTE: In batch mode, we try to update the account balance, but if the account doesn't exist
+      // the batch will fail. For now, we log a warning and skip the account update.
+      // TODO: In the future, we could check if the account exists first.
+      if (mappedData.accountId && typeof mappedData.amount === 'number') {
+        try {
+          const accountRef = db.collection('clients').doc(clientId)
+            .collection('accounts').doc(mappedData.accountId);
+          
+          // Check if account exists before adding to batch
+          const accountDoc = await accountRef.get();
+          if (accountDoc.exists) {
+            options.batch.update(accountRef, {
+              balance: admin.firestore.FieldValue.increment(mappedData.amount),
+              updated: getNow().toISOString()
+            });
+            console.log(`💾 [BATCH MODE] Account balance update queued for ${mappedData.accountId}: ${mappedData.amount}`);
+          } else {
+            console.log(`⚠️  [BATCH MODE] Account ${mappedData.accountId} does not exist - skipping balance update`);
+          }
+        } catch (error) {
+          console.error(`❌ [BATCH MODE] Error checking account ${mappedData.accountId}:`, error.message);
+          console.log(`⚠️  [BATCH MODE] Skipping account balance update for ${mappedData.accountId}`);
+        }
+      }
+      
+      // Return transaction ID immediately (batch will be committed by caller)
+      return txnId;
+    }
+    
+    // NORMAL MODE: Use Firestore transaction for immediate write
     await db.runTransaction(async (transaction) => {
       // Add the transaction with new ID format
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
@@ -552,17 +596,22 @@ async function createTransaction(clientId, data) {
       
     });
 
-    const auditSuccess = await writeAuditLog({
-      module: 'transactions',
-      action: 'create',
-      parentPath: `clients/${clientId}/transactions/${txnId}`,
-      docId: txnId,
-      friendlyName: validation.data.categoryName || 'Unnamed Transaction',
-      notes: `Created transaction record${mappedData.accountName ? ` and updated ${mappedData.accountName} balance` : ''}`,
-    });
+    // Only write audit log in normal mode (batch mode handled by caller)
+    if (!options.batch) {
+      const auditSuccess = await writeAuditLog({
+        module: 'transactions',
+        action: 'create',
+        parentPath: `clients/${clientId}/transactions/${txnId}`,
+        docId: txnId,
+        friendlyName: validation.data.categoryName || 'Unnamed Transaction',
+        notes: `Created transaction record${mappedData.accountName ? ` and updated ${mappedData.accountName} balance` : ''}`,
+      });
 
-    if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for createTransaction.');
+      if (!auditSuccess) {
+        console.error('❌ Failed to write audit log for createTransaction.');
+      }
+    } else {
+      console.log('💾 [BATCH MODE] Audit log deferred to batch commit');
     }
 
     return txnId;
