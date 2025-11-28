@@ -1432,30 +1432,10 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
     // Calculate total paid
     const totalPaid = paymentsArray.reduce((sum, p) => sum + (p?.amount || 0), 0);
     
-    // Update shared credit balance document instead of legacy dues fields
-    const creditDeltaCentavos = pesosToCentavos((creditData.added || 0) - (creditData.used || 0));
-    if (creditDeltaCentavos !== 0) {
-      const creditNoteParts = [];
-      if (creditData.added > 0) {
-        creditNoteParts.push(`overpayment +$${Number(creditData.added).toFixed(2)}`);
-      }
-      if (creditData.used > 0) {
-        creditNoteParts.push(`credit used $${Number(creditData.used).toFixed(2)}`);
-      }
-
-      const creditNote = `Unified HOA payment ${transactionId}${creditNoteParts.length ? ` (${creditNoteParts.join(', ')})` : ''}`;
-      await creditService.updateCreditBalance(
-        clientId,
-        unitId,
-        creditDeltaCentavos,
-        transactionId,
-        creditNote,
-        'hoaDues'
-      );
-      console.log(`💳 [CREDIT] Unified payment adjusted credit by ${creditDeltaCentavos} centavos`);
-    } else {
-      console.log('💳 [CREDIT] Unified payment had no credit delta');
-    }
+    // NOTE: Credit balance update is now handled by UnifiedPaymentWrapper
+    // to ensure atomicity across all payment types (HOA + Water + Credit)
+    // This prevents double credit updates and ensures all-or-nothing semantics
+    console.log(`💳 [HOA] Credit update delegated to UnifiedPaymentWrapper`);
 
     // Update Firestore (payments only)
     const updates = {

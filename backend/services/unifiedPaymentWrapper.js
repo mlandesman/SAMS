@@ -42,6 +42,8 @@ import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUti
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { getDb } from '../firebase.js';
 import { createTransaction } from '../controllers/transactionsController.js';
+import creditService from './creditService.js';
+import admin from 'firebase-admin';
 
 // Import module-specific functions
 import { 
@@ -371,8 +373,9 @@ export class UnifiedPaymentWrapper {
     // Note: Sequence will be added after transaction creation
     const notesWithoutSeq = [paymentHeader, transactionNotes, paymentFooter].join('\n');
     
-    // Step 3: Create unified transaction document FIRST (for the transaction ID)
-    console.log(`   💾 Creating unified transaction document...`);
+    // Step 3: Prepare atomic batch for all writes
+    console.log(`   💾 Preparing atomic batch (transaction + HOA + Water + Credit)...`);
+    const batch = this.db.batch();
     
     // Combine notes with user notes (sequence will be added after transaction creation)
     const combinedNotes = notes 
@@ -566,109 +569,84 @@ export class UnifiedPaymentWrapper {
       }
     };
     
-    console.log(`   💾 Transaction Data Being Sent:`);
+    console.log(`   💾 Transaction Data for Batch:`);
     console.log(`      Amount: ${transactionData.amount} pesos`);
     console.log(`      Account: ${transactionData.accountId} (${transactionData.accountType})`);
     console.log(`      Allocations: ${allocations.length}`);
     console.log(`      AllocationSummary.totalAllocated: ${allocationSummary.totalAllocated}`);
     
-    const transactionId = await createTransaction(clientId, transactionData);
-    console.log(`   ✅ Unified transaction created: ${transactionId}`);
+    // Step 3a: Create transaction using batch mode (Option B)
+    const transactionId = await createTransaction(clientId, transactionData, { batch });
+    console.log(`   ✅ Transaction added to batch: ${transactionId}`);
     
     // Now add the transaction ID to the comprehensive notes
     const comprehensiveNotesWithSeq = `${notesWithoutSeq}\nTxnID: ${transactionId}`;
     
-    // Step 4: Update HOA dues in Firestore (if HOA bills were paid)
+    // Step 3b: Prepare HOA dues updates for batch (if HOA bills were paid)
     if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
-      console.log(`   🏠 Updating ${preview.hoa.monthsAffected.length} HOA entries in Firestore...`);
+      console.log(`   🏠 Preparing ${preview.hoa.monthsAffected.length} HOA entries for batch...`);
       
-      // Group by fiscal year since we might have bills from multiple years
-      const entriesByYear = {};
-      preview.hoa.monthsAffected.forEach(entry => {
-        // Extract year from billPeriod (e.g., "2024-09" -> 2024 or "2024-Q1" -> 2024)
-        const year = parseInt(entry.billPeriod.split('-')[0]);
-        if (!entriesByYear[year]) {
-          entriesByYear[year] = [];
-        }
-        
-        // Prepare data based on whether it's quarterly or monthly
-        const paymentEntry = {
-          basePaid: pesosToCentavos(entry.basePaid), // Convert to centavos
-          penaltyPaid: pesosToCentavos(entry.penaltyPaid), // Convert to centavos
-          notes: comprehensiveNotesWithSeq // Add comprehensive notes
-        };
-        
-        if (entry.isQuarterly) {
-          // Quarterly payment - we need to record payment for all 3 months in the quarter
-          const quarterIndex = entry.quarterIndex || 0;
-          const startMonth = quarterIndex * 3; // 0, 3, 6, 9
-          
-          // Create entries for each month in the quarter
-          for (let i = 0; i < 3; i++) {
-            const monthIndex = startMonth + i;
-            const monthPaymentEntry = {
-              month: monthIndex + 1, // Convert 0-based to 1-based
-              basePaid: pesosToCentavos(entry.basePaid / 3), // Split equally among 3 months
-              penaltyPaid: i === 0 ? pesosToCentavos(entry.penaltyPaid) : 0, // Penalty only on first month
-              notes: comprehensiveNotesWithSeq + ` (Q${quarterIndex + 1} Month ${i + 1}/3)`
-            };
-            entriesByYear[year].push(monthPaymentEntry);
-          }
-        } else {
-          // Monthly payment
-          paymentEntry.month = entry.month;
-          entriesByYear[year].push(paymentEntry);
-        }
-      });
-      
-      // Update each year's document separately
-      for (const [year, paymentsData] of Object.entries(entriesByYear)) {
-        console.log(`      📅 Updating ${paymentsData.length} month entries for year ${year}...`);
-        
-        await updateHOADuesWithPayment(
-          clientId,
-          unitId,
-          year, // Use the specific year for these bills
-          paymentsData,
-          transactionId,
-          paymentDate,
-          paymentMethod,
-          reference,
-          userId,
-          preview.credit // {final, used, added}
-        );
-      }
-      
-      console.log(`      ✅ HOA payments updated in Firestore`);
-    }
-    
-    // Step 5: Update Water bills in Firestore (if Water bills were paid)
-    if (preview.water && preview.water.billsAffected && preview.water.billsAffected.length > 0) {
-      console.log(`   💧 Updating ${preview.water.billsAffected.length} Water bills in Firestore...`);
-      
-      // Build bills data from preview (already calculated, already in PESOS)
-      const billsData = preview.water.billsAffected.map(bill => ({
-        billPeriod: bill.billPeriod,
-        basePaid: bill.basePaid, // In pesos
-        penaltyPaid: bill.penaltyPaid, // In pesos
-        amountPaid: bill.totalPaid // In pesos
-      }));
-      
-      // Call lightweight Firestore update function
-      await waterPaymentsService.updateWaterBillsWithPayment(
+      // Prepare HOA batch updates
+      await this._prepareHOABatchUpdates(
+        batch,
         clientId,
         unitId,
-        billsData,
+        preview.hoa,
+        transactionId,
+        comprehensiveNotesWithSeq,
+        paymentDate,
+        paymentMethod,
+        reference
+      );
+      
+      console.log(`      ✅ HOA updates prepared for batch`);
+    }
+    
+    // Step 3c: Prepare Water bills updates for batch (if Water bills were paid)
+    if (preview.water && preview.water.billsAffected && preview.water.billsAffected.length > 0) {
+      console.log(`   💧 Preparing ${preview.water.billsAffected.length} Water bills for batch...`);
+      
+      // Prepare Water batch updates
+      await this._prepareWaterBatchUpdates(
+        batch,
+        clientId,
+        unitId,
+        preview.water,
         transactionId,
         paymentDate,
         paymentMethod,
         reference
       );
       
-      console.log(`      ✅ Water bills updated in Firestore`);
+      console.log(`      ✅ Water updates prepared for batch`);
     }
     
-    // Step 6: Return result summary
+    // Step 3d: Prepare Credit balance update for batch (if credit changed)
+    const creditChange = (preview.credit?.added || 0) - (preview.credit?.used || 0);
+    if (Math.abs(creditChange) > 0.01) {
+      console.log(`   💰 Preparing credit balance update for batch...`);
+      
+      await this._prepareCreditBatchUpdate(
+        batch,
+        clientId,
+        unitId,
+        preview.credit,
+        transactionId
+      );
+      
+      console.log(`      ✅ Credit update prepared for batch`);
+    }
+    
+    // Step 4: ATOMIC COMMIT - All or nothing
+    const hoaCount = preview.hoa?.monthsAffected?.length || 0;
+    const waterCount = preview.water?.billsAffected?.length || 0;
+    const creditStatus = Math.abs(creditChange) > 0.01 ? 'yes' : 'no';
+    
+    console.log(`   💾 Committing atomic batch: transaction + ${hoaCount} HOA + ${waterCount} Water + credit(${creditStatus})`);
+    await batch.commit();
+    console.log(`   ✅ Atomic batch committed successfully - ALL operations completed`);
+    
+    // Step 5: Return result summary
     const result = {
       success: true,
       transactionId: transactionId,
@@ -1578,6 +1556,225 @@ export class UnifiedPaymentWrapper {
       // Client-level fiscal year config (system-wide)
       fiscalYearStartMonth: hoaConfig.fiscalYearStartMonth || 1
     };
+  }
+
+  /**
+   * Prepare HOA dues updates for batch commit
+   * @private
+   */
+  async _prepareHOABatchUpdates(batch, clientId, unitId, hoaData, transactionId, notes, paymentDate, paymentMethod, reference) {
+    // Group by fiscal year since we might have bills from multiple years
+    const entriesByYear = {};
+    hoaData.monthsAffected.forEach(entry => {
+      // Extract year from billPeriod (e.g., "2024-09" -> 2024 or "2024-Q1" -> 2024)
+      const year = parseInt(entry.billPeriod.split('-')[0]);
+      if (!entriesByYear[year]) {
+        entriesByYear[year] = [];
+      }
+      
+      // Prepare data based on whether it's quarterly or monthly
+      if (entry.isQuarterly) {
+        // Quarterly payment - record payment for all 3 months in the quarter
+        const quarterIndex = entry.quarterIndex || 0;
+        const startMonth = quarterIndex * 3; // 0, 3, 6, 9
+        
+        // Create entries for each month in the quarter
+        for (let i = 0; i < 3; i++) {
+          const monthIndex = startMonth + i;
+          const monthPaymentEntry = {
+            month: monthIndex + 1, // Convert 0-based to 1-based
+            basePaid: pesosToCentavos(entry.basePaid / 3), // Split equally among 3 months
+            penaltyPaid: i === 0 ? pesosToCentavos(entry.penaltyPaid) : 0, // Penalty only on first month
+            notes: notes + ` (Q${quarterIndex + 1} Month ${i + 1}/3)`
+          };
+          entriesByYear[year].push(monthPaymentEntry);
+        }
+      } else {
+        // Monthly payment
+        const paymentEntry = {
+          month: entry.month,
+          basePaid: pesosToCentavos(entry.basePaid),
+          penaltyPaid: pesosToCentavos(entry.penaltyPaid),
+          notes: notes
+        };
+        entriesByYear[year].push(paymentEntry);
+      }
+    });
+    
+    // Prepare batch updates for each year's document
+    for (const [year, paymentsData] of Object.entries(entriesByYear)) {
+      const duesRef = this.db.collection('clients').doc(clientId)
+        .collection('units').doc(unitId)
+        .collection('dues').doc(year.toString());
+      
+      const duesDoc = await duesRef.get();
+      if (!duesDoc.exists) {
+        console.warn(`HOA dues document not found for ${unitId}/${year} - skipping`);
+        continue;
+      }
+      
+      const duesData = duesDoc.data();
+      const currentPayments = Array.isArray(duesData.payments) ? duesData.payments : [];
+      
+      // Update payment entries
+      const updatedPayments = [...currentPayments];
+      paymentsData.forEach(paymentEntry => {
+        const monthIndex = paymentEntry.month - 1; // Convert 1-based to 0-based
+        
+        if (monthIndex < 0 || monthIndex > 11) {
+          console.warn(`Invalid month index ${monthIndex}, skipping`);
+          return;
+        }
+        
+        // Update or create payment entry
+        updatedPayments[monthIndex] = {
+          amount: paymentEntry.basePaid + paymentEntry.penaltyPaid,
+          basePaid: paymentEntry.basePaid,
+          penaltyPaid: paymentEntry.penaltyPaid,
+          date: paymentDate,
+          paid: true,
+          reference: transactionId,
+          paymentMethod: paymentMethod,
+          notes: paymentEntry.notes
+        };
+      });
+      
+      // Calculate new total paid
+      const newTotalPaid = updatedPayments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+      
+      // Add to batch
+      batch.update(duesRef, {
+        payments: updatedPayments,
+        totalPaid: newTotalPaid,
+        creditBalance: admin.firestore.FieldValue.delete(), // Remove legacy field
+        creditBalanceHistory: admin.firestore.FieldValue.delete(), // Remove legacy field
+        updated: getNow().toISOString()
+      });
+      
+      console.log(`      📅 HOA batch update prepared for year ${year}: ${paymentsData.length} months`);
+    }
+  }
+
+  /**
+   * Prepare Water bills updates for batch commit
+   * @private
+   */
+  async _prepareWaterBatchUpdates(batch, clientId, unitId, waterData, transactionId, paymentDate, paymentMethod, reference) {
+    for (const billData of waterData.billsAffected) {
+      const billId = billData.billPeriod;
+      const billRef = this.db.collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills')
+        .collection('bills').doc(billId);
+      
+      const billDoc = await billRef.get();
+      if (!billDoc.exists) {
+        console.warn(`Water bill ${billId} not found - skipping`);
+        continue;
+      }
+      
+      const currentBill = billDoc.data()?.bills?.units?.[unitId];
+      if (!currentBill) {
+        console.warn(`Unit ${unitId} not found in water bill ${billId} - skipping`);
+        continue;
+      }
+      
+      // Calculate new values (amounts in pesos, convert to centavos for storage)
+      const basePaidCentavos = pesosToCentavos(billData.basePaid);
+      const penaltyPaidCentavos = pesosToCentavos(billData.penaltyPaid);
+      const totalPaidCentavos = basePaidCentavos + penaltyPaidCentavos;
+      
+      const newPaidAmount = (currentBill.paidAmount || 0) + totalPaidCentavos;
+      const newBasePaid = (currentBill.basePaid || 0) + basePaidCentavos;
+      const newPenaltyPaid = (currentBill.penaltyPaid || 0) + penaltyPaidCentavos;
+      
+      // Determine new status
+      const totalAmount = currentBill.totalAmount || 0;
+      let newStatus = 'unpaid';
+      if (newPaidAmount >= totalAmount) {
+        newStatus = 'paid';
+      } else if (newPaidAmount > 0) {
+        newStatus = 'partial';
+      }
+      
+      // Create payment record
+      const paymentRecord = {
+        transactionId: transactionId,
+        date: paymentDate,
+        amount: totalPaidCentavos,
+        baseChargePaid: basePaidCentavos,
+        penaltyPaid: penaltyPaidCentavos,
+        paymentMethod: paymentMethod,
+        reference: reference || null
+      };
+      
+      // Get existing payments array
+      const currentPayments = currentBill.payments || [];
+      const updatedPayments = [...currentPayments, paymentRecord];
+      
+      // Add to batch
+      batch.update(billRef, {
+        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
+        [`bills.units.${unitId}.basePaid`]: newBasePaid,
+        [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
+        [`bills.units.${unitId}.status`]: newStatus,
+        [`bills.units.${unitId}.payments`]: updatedPayments
+      });
+      
+      console.log(`      💧 Water batch update prepared for ${billId}: ${billData.totalPaid} pesos`);
+    }
+  }
+
+  /**
+   * Prepare Credit balance update for batch commit
+   * @private
+   */
+  async _prepareCreditBatchUpdate(batch, clientId, unitId, creditData, transactionId) {
+    const creditBalancesRef = this.db.collection('clients').doc(clientId)
+      .collection('units').doc('creditBalances');
+    
+    const creditDoc = await creditBalancesRef.get();
+    const allCreditBalances = creditDoc.exists ? creditDoc.data() : {};
+    
+    const currentUnitData = allCreditBalances[unitId] || { creditBalance: 0, history: [] };
+    const creditChangeCentavos = pesosToCentavos((creditData.added || 0) - (creditData.used || 0));
+    const newBalanceCentavos = (currentUnitData.creditBalance || 0) + creditChangeCentavos;
+    
+    // Validate balance
+    if (newBalanceCentavos < 0) {
+      throw new Error(`Credit balance cannot be negative: ${newBalanceCentavos} centavos`);
+    }
+    
+    // Create history entry
+    const now = getNow();
+    const historyEntry = {
+      id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: now.toISOString(),
+      amount: creditChangeCentavos,
+      balance: newBalanceCentavos,
+      transactionId: transactionId,
+      note: creditData.added > 0 
+        ? `Unified payment overpayment +$${creditData.added.toFixed(2)}`
+        : `Unified payment credit used -$${creditData.used.toFixed(2)}`,
+      source: 'unifiedPayment'
+    };
+    
+    const updatedHistory = [...(currentUnitData.history || []), historyEntry];
+    
+    // Update the credit balances document
+    const fiscalYear = getFiscalYear(now, 7); // AVII uses July start (TODO: get from client config)
+    allCreditBalances[unitId] = {
+      creditBalance: newBalanceCentavos,
+      lastChange: {
+        year: fiscalYear.toString(),
+        historyIndex: updatedHistory.length - 1,
+        timestamp: now.toISOString()
+      },
+      history: updatedHistory
+    };
+    
+    batch.set(creditBalancesRef, allCreditBalances);
+    
+    console.log(`      💰 Credit balance prepared: ${currentUnitData.creditBalance} → ${newBalanceCentavos} centavos ($${(creditChangeCentavos/100).toFixed(2)} change)`);
   }
 }
 
