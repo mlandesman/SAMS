@@ -136,6 +136,9 @@ function createChronologicalTransactionList(
   }
   
   // Extract HOA charges and payments
+  // Track processed transactions across ALL quarters to prevent duplicates
+  const processedTransactionIds = new Set();
+  
   if (duesFrequency === 'quarterly') {
     const quarters = [
       { months: [1, 2, 3], name: 'Q1' },
@@ -181,44 +184,74 @@ function createChronologicalTransactionList(
         });
       }
       
-      // Extract payments for this quarter
-      const quarterTransactionIds = new Set();
+      // Extract payments for this quarter - but only create entry if not already processed
       for (const payment of quarterPayments) {
         if (payment.paid && payment.amount > 0) {
           const txnId = payment.transactionId || payment.reference;
-          if (txnId && txnId !== '-' && !quarterTransactionIds.has(txnId)) {
-            quarterTransactionIds.add(txnId);
+          
+          // Skip if no valid transaction ID or already processed globally
+          if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
+            continue;
+          }
+          
+          processedTransactionIds.add(txnId);
+          
+          const paymentDate = parseDate(payment.date);
+          const transaction = transactionMap.get(txnId);
+          
+          if (paymentDate && !isNaN(paymentDate.getTime())) {
+            let paymentAmount = payment.amount || 0;
+            let description = 'Payment';
             
-            const paymentDate = parseDate(payment.date);
-            const transaction = transactionMap.get(txnId);
-            
-            if (paymentDate && !isNaN(paymentDate.getTime())) {
-              let paymentAmount = payment.amount || 0;
-              if (transaction) {
-                paymentAmount = centavosToPesos(transaction.amount || 0);
+            if (transaction) {
+              paymentAmount = centavosToPesos(transaction.amount || 0);
+              
+              // Build description from allocations
+              const allocations = transaction.allocations || [];
+              const hoaQuarters = [...new Set(allocations
+                .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
+                .map(a => a.targetName))];
+              const waterBills = [...new Set(allocations
+                .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
+                            a.type === 'water_bill' || a.type === 'water-bill' ||
+                            (a.categoryId && a.categoryId.includes('water')))
+                .map(a => {
+                  // Extract quarter from targetName like "Water Bill 2026-Q1"
+                  const match = a.targetName?.match(/Q\d/);
+                  return match ? match[0] : (a.targetName || 'Bill');
+                }))];
+              
+              const parts = [];
+              if (hoaQuarters.length > 0) {
+                parts.push(`HOA ${hoaQuarters.join(', ')}`);
+              }
+              if (waterBills.length > 0) {
+                parts.push(`Water ${waterBills.join(', ')}`);
               }
               
-              transactions.push({
-                type: 'payment',
-                category: 'hoa',
-                date: paymentDate,
-                description: `Payment ${quarter.name}`,
-                amount: -paymentAmount,
-                charge: 0,
-                payment: paymentAmount,
-                transactionId: txnId,
-                month: quarter.months[0],
-                quarter: quarter.name
-              });
+              if (parts.length > 0) {
+                description = `Payment - ${parts.join('; ')}`;
+              }
             }
+            
+            transactions.push({
+              type: 'payment',
+              category: 'hoa',
+              date: paymentDate,
+              description: description,
+              amount: -paymentAmount,
+              charge: 0,
+              payment: paymentAmount,
+              transactionId: txnId,
+              month: quarter.months[0],
+              quarter: quarter.name
+            });
           }
         }
       }
     }
   } else {
-    // Monthly billing
-    const monthlyTransactionIds = new Set();
-    
+    // Monthly billing - use global processedTransactionIds
     for (const payment of payments) {
       if (!payment.month) continue;
       
@@ -239,57 +272,97 @@ function createChronologicalTransactionList(
       const hasPayment = (payment.paid || payment.amount > 0 || payment.transactionId || payment.reference);
       if (hasPayment) {
         const txnId = payment.transactionId || payment.reference;
-        if (txnId && txnId !== '-' && !monthlyTransactionIds.has(txnId)) {
-          monthlyTransactionIds.add(txnId);
+        
+        // Skip if no valid transaction ID or already processed globally
+        if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
+          continue;
+        }
+        
+        processedTransactionIds.add(txnId);
+        
+        const paymentDate = parseDate(payment.date);
+        const transaction = transactionMap.get(txnId);
+        
+        const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
+          ? paymentDate 
+          : (transaction?.date ? parseDate(transaction.date) : null);
+        
+        if (effectiveDate && !isNaN(effectiveDate.getTime())) {
+          let paymentAmount = payment.amount || 0;
+          let description = 'Payment';
           
-          const paymentDate = parseDate(payment.date);
-          const transaction = transactionMap.get(txnId);
-          
-          const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
-            ? paymentDate 
-            : (transaction?.date ? parseDate(transaction.date) : null);
-          
-          if (effectiveDate && !isNaN(effectiveDate.getTime())) {
-            let paymentAmount = payment.amount || 0;
-            if (transaction) {
-              paymentAmount = centavosToPesos(transaction.amount || 0);
+          if (transaction) {
+            paymentAmount = centavosToPesos(transaction.amount || 0);
+            
+            // Build description from allocations
+            const allocations = transaction.allocations || [];
+            const hoaMonths = [...new Set(allocations
+              .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
+              .map(a => a.targetName))];
+            const waterBills = [...new Set(allocations
+              .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
+                          a.type === 'water_bill' || a.type === 'water-bill' ||
+                          (a.categoryId && a.categoryId.includes('water')))
+              .map(a => {
+                const match = a.targetName?.match(/Q\d/);
+                return match ? match[0] : (a.targetName || 'Bill');
+              }))];
+            
+            const parts = [];
+            if (hoaMonths.length > 0) {
+              parts.push(`HOA ${hoaMonths.join(', ')}`);
+            }
+            if (waterBills.length > 0) {
+              parts.push(`Water ${waterBills.join(', ')}`);
             }
             
-            const paymentMonths = payments
-              .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
-              .map(p => p.month)
-              .sort((a, b) => a - b);
-            
-            const monthDescription = paymentMonths.length === 1
-              ? `Payment Month ${payment.month}`
-              : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
-            
-            transactions.push({
-              type: 'payment',
-              category: 'hoa',
-              date: effectiveDate,
-              description: monthDescription,
-              amount: -paymentAmount,
-              charge: 0,
-              payment: paymentAmount,
-              transactionId: txnId,
-              month: paymentMonths[0]
-            });
+            if (parts.length > 0) {
+              description = `Payment - ${parts.join('; ')}`;
+            } else {
+              // Fallback to month-based description
+              const paymentMonths = payments
+                .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
+                .map(p => p.month)
+                .sort((a, b) => a - b);
+              
+              description = paymentMonths.length === 1
+                ? `Payment Month ${payment.month}`
+                : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
+            }
           }
+          
+          transactions.push({
+            type: 'payment',
+            category: 'hoa',
+            date: effectiveDate,
+            description: description,
+            amount: -paymentAmount,
+            charge: 0,
+            payment: paymentAmount,
+            transactionId: txnId,
+            month: payment.month
+          });
         }
       }
     }
   }
   
   // Extract water payments from transactions
+  // Only process transactions that weren't already handled in the HOA section
   const waterTransactionIds = new Set();
   
   for (const [txnId, transaction] of transactionMap.entries()) {
+    // Skip if already processed in HOA section (prevents duplicate entries for combined payments)
+    if (processedTransactionIds.has(txnId)) {
+      continue;
+    }
+    
     const allocations = transaction.allocations || [];
     const waterAllocations = filterWaterAllocations(allocations);
     
     if (waterAllocations.length > 0 && !waterTransactionIds.has(txnId)) {
       waterTransactionIds.add(txnId);
+      processedTransactionIds.add(txnId); // Mark as globally processed
       
       const paymentDate = parseDate(transaction.date);
       if (paymentDate && !isNaN(paymentDate.getTime())) {
@@ -298,14 +371,18 @@ function createChronologicalTransactionList(
         }, 0);
         
         if (totalWaterAmount > 0) {
-          const hoaAllocations = filterHOAAllocations(transaction.allocations || []);
-          const isCombinedPayment = hoaAllocations.length > 0;
+          // Build descriptive label for pure water payments (deduplicate quarter names)
+          const waterBillNames = [...new Set(waterAllocations.map(a => {
+            const match = a.targetName?.match(/Q\d/);
+            return match ? match[0] : (a.targetName || 'Bill');
+          }))];
+          const description = `Water Payment - ${waterBillNames.join(', ')}`;
           
           transactions.push({
             type: 'payment',
-            category: isCombinedPayment ? 'combined' : 'water',
+            category: 'water',
             date: paymentDate,
-            description: isCombinedPayment ? `Payment (HOA+Water)` : `Water Payment`,
+            description: description,
             amount: -totalWaterAmount,
             charge: 0,
             payment: totalWaterAmount,

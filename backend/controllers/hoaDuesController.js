@@ -1698,7 +1698,7 @@ async function getUnitDuesData(clientId, unitId, year) {
       let creditBalanceHistory = [];
       
       try {
-        const creditBalancesRef = db.collection('clients').doc(clientId)
+        const creditBalancesRef = dbInstance.collection('clients').doc(clientId)
           .collection('units').doc('creditBalances');
         const creditBalancesDoc = await creditBalancesRef.get();
         
@@ -1721,12 +1721,24 @@ async function getUnitDuesData(clientId, unitId, year) {
       // NO CONVERSION - Return raw centavos values
       const apiData = {
         ...data,
-        payments: data.payments.map((payment, index) => ({
-          ...payment,
-          month: index + 1, // Add month field (1-based)
-          date: formatDateField(payment.date),
-          transactionId: payment.reference || null
-        })),
+        payments: (data.payments || []).map((payment, index) => {
+          // Handle null payments (unpaid months)
+          if (!payment) {
+            return {
+              month: index + 1,
+              amount: 0,
+              paid: false,
+              date: null,
+              transactionId: null
+            };
+          }
+          return {
+            ...payment,
+            month: index + 1, // Add month field (1-based)
+            date: formatDateField(payment.date),
+            transactionId: payment.reference || null
+          };
+        }),
         creditBalance: creditBalance, // From creditBalances document
         creditBalanceHistory: creditBalanceHistory.map(entry => {
           const dateStr = formatDateField(entry.timestamp);
