@@ -1006,6 +1006,42 @@
 
 ## 📊 TECHNICAL DEBT
 
+### **TD-019: Client Management 404 Error - CRITICAL**
+**Category:** Admin - Core Functionality  
+**Priority:** 🚨 CRITICAL  
+**Created:** November 28, 2025  
+**GitHub Issue:** #43  
+**Context:** List Management → Client Management tab broken
+
+**Description:**
+The Client Management tab in List Management returns a 404 error. UI shows "Unexpected response format: 404" and "No clients found" even though clients (MTC, AVII) exist in the system.
+
+**Current Impact:**
+- 🚨 **Cannot manage client configurations via UI**
+- Cannot update client logos, branding, or settings
+- Blocks Statement of Account report development (needs client branding)
+- SuperAdmin functionality degraded
+
+**Symptoms:**
+- Backend logs show authentication succeeds
+- Route appears missing or misconfigured
+- May have been broken during Nov 26-28 refactoring
+
+**Workaround:**
+- Direct Firestore access for client configuration changes
+- Manual logo setup in Firebase Storage
+
+**Files to Investigate:**
+- `backend/routes/` - Check for client management routes
+- `frontend/sams-ui/src/views/ListManagementView.jsx` - Client tab implementation
+- `backend/controllers/` - Client controller if exists
+
+**Estimated Fix Effort:** 2-4 hours (likely route configuration issue)
+
+**Business Impact:** HIGH - Core admin functionality broken, blocking report development
+
+---
+
 ### **TD-018: Water Bills - Surgical Update Penalty Calculation**
 **Category:** Water Bills - Financial Accuracy  
 **Priority:** 🔥 High  
