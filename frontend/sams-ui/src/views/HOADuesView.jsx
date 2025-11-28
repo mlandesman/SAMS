@@ -3,7 +3,6 @@ import { useHOADues } from '../context/HOADuesContext';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import DuesPaymentModal from '../layout/DuesPaymentModal';
 import CreditBalanceEditModal from '../components/CreditBalanceEditModal';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import { LoadingSpinner } from '../components/common';
@@ -62,7 +61,7 @@ function HOADuesView() {
   console.log('HOA Dues View - Dues Frequency:', duesFrequency);
   console.log('HOA Dues View - Selected Year:', selectedYear);
   
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // Note: selectedUnitId and selectedMonth kept for context menu navigation
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [highlightedUnit, setHighlightedUnit] = useState(null);
@@ -352,17 +351,26 @@ function HOADuesView() {
   };
   
   
-  // Open payment modal when clicking "Add Payment" button
+  // Open unified payment modal when clicking "Add Payment" button
+  // Navigates to Transactions view which hosts the UnifiedPaymentModal
   const handleAddPaymentClick = () => {
-    // Always open the payment modal without pre-selecting a unit
-    setSelectedUnitId(null);
-    setSelectedMonth(null);
-    setShowPaymentModal(true);
-  };
-  
-  // Close payment modal
-  const closePaymentModal = () => {
-    setShowPaymentModal(false);
+    navigate('/transactions', { 
+      state: { 
+        openUnifiedPayment: true,
+        unitId: null,  // No pre-selection
+        monthIndex: null
+      }
+    });
+    
+    // Update sidebar activity
+    try {
+      const event = new CustomEvent('activityChange', { 
+        detail: { activity: 'transactions' } 
+      });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.error('Error dispatching activity change event:', error);
+    }
   };
 
   // Close credit edit modal
@@ -1179,16 +1187,6 @@ function HOADuesView() {
           <div className="legend-text">Hover to read payment notes</div>
         </div>
       </div>
-      
-      {/* Unit selector modal has been removed - now integrated into the payment modal */}
-      
-      {/* Add Payment Modal */}
-      <DuesPaymentModal 
-        isOpen={showPaymentModal}
-        onClose={closePaymentModal}
-        unitId={selectedUnitId}
-        monthIndex={selectedMonth}
-      />
       
       {/* Credit Balance Edit Modal */}
       <CreditBalanceEditModal
