@@ -1,0 +1,55 @@
+================================================================================
+                              STATEMENT OF ACCOUNT
+================================================================================
+
+                               [LOGO PLACEHOLDER]
+
+                              Aventuras Villas II
+         Mza 20 Lote 12-13 Privada Xel-ha, Puerto Aventuras, QR, 77733
+
+--------------------------------------------------------------------------------
+STATEMENT FOR:                          STATEMENT DATE: November 28, 2025
+Unit 102                                FISCAL YEAR: 2026
+Miguel y Estafania Bagnato              PERIOD: July 1, 2025 - June 30, 2026
+bagnatoestefania@hotmail.com            
+--------------------------------------------------------------------------------
+
+ACCOUNT ACTIVITY
+================================================================================
+Date       | Description              | Charge      | Payment     | Balance
+-----------|--------------------------|-------------|-------------|-------------
+           | Opening Balance          |             |             |        0.00
+2025-05-01 | HOA Penalty - Q0 2025    |    3,354.44 |             |    3,354.44
+2025-07-01 | HOA Dues Q1              |   15,565.38 |             |   18,919.82
+2025-08-01 | HOA Penalty - Q1 2025    |      778.27 |             |   19,698.09
+2025-10-01 | Water Bill Q1 2025       |    1,350.00 |             |   21,048.09
+2025-10-01 | HOA Dues Q2              |   15,565.38 |             |   36,613.47
+2025-11-01 | Water Penalty - Q1 2025    |       67.50 |             |   36,680.97
+2025-11-17 | Payment - HOA Q1 2026, Q2 2026; Water Q1    |             |   37,000.00 |     -319.03
+================================================================================
+
+ACCOUNT SUMMARY
+--------------------------------------------------------------------------------
+Total Charges:                                              $   36,680.97 MXN
+Total Payments:                                             $   37,000.00 MXN
+                                                            ---------------
+BALANCE DUE:                                                $     -319.03 MXN
+Credit Balance:                                             $      319.03 MXN
+--------------------------------------------------------------------------------
+
+PAYMENT INSTRUCTIONS
+================================================================================
+Please make payment to:
+
+Bank: SCOTIABANK INVERLAT SA
+Account Name: Asociacion de Propietarios y Vecinos Aventuras Villas II AC
+Account Number: 25600016670
+CLABE: 044694256000166704
+SWIFT Code: BCMRMXMMPYM
+Reference: Unit 102
+
+
+================================================================================
+                       Thank you for your prompt payment!
+================================================================================
+Generated: November 28, 2025 at 11:45 AM

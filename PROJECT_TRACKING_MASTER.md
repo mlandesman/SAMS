@@ -1,25 +1,78 @@
 # SAMS Project Tracking Master Document
 
-**Last Updated**: November 27, 2025 (Statement Data Service Refactor Complete)  
+**Last Updated**: November 28, 2025 (Unified Payment Atomicity + Statement Text Report Complete)  
 **Project**: Sandyland Association Management System (SAMS)  
 **Product Manager**: Michael  
 **Development Team**: Cursor APM Framework  
 
 ---
 
-## 🔄 ACTIVE DEVELOPMENT (November 27, 2025)
+## 🔄 ACTIVE DEVELOPMENT (November 28, 2025)
 
 ### Statement of Account Report - Step 2B: Report Formatting
-**Status**: 🚀 **READY TO BEGIN** - Step 2A Complete  
+**Status**: 🚀 **READY TO BEGIN** - Step 2A + Text Report Complete  
 **Priority**: HIGH - Foundation for all reports  
 **Start Date**: TBD  
 **Documentation**: `SAMS-Docs/apm_session/Implementation_Plan.md`
 
 **Implementation Focus**:
+- HTML generation for web display
 - PDF generation from optimized statement data
-- HTML rendering for web display
 - Bilingual support (English/Spanish)
 - Client branding integration
+
+**Completed Foundation**:
+- ✅ Plain text report generation (via generateTextTable)
+- ✅ Optimized data structure (getStatementData)
+- ✅ User profile enrichment endpoint
+- ✅ Atomic payment system for data integrity
+
+---
+
+## ✅ RECENTLY COMPLETED (November 26-28, 2025)
+
+### ✅ Unified Payment Atomicity Fix - COMPLETE (November 28, 2025)
+**Status**: ✅ **APPROVED** - Manager Review Complete + Merged to Main  
+**Duration**: ~3 hours  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Unified_Payment_Atomicity_2025-11-28/`
+
+**Critical Fix**:
+- Credit balance was never written for water-only payments
+- No atomicity guarantee - partial failures could corrupt data
+- Unified Payment System now uses atomic Firestore batch operations
+
+**Achievements**:
+- `transactionsController.js` - Made `createTransaction` batch-aware
+- `hoaDuesController.js` - Delegated credit updates to wrapper
+- `unifiedPaymentWrapper.js` - Single batch commit for all writes
+- Removed deprecated `DuesPaymentModal` (2,500+ lines deleted)
+- All payments now route through `UnifiedPaymentModal`
+
+### ✅ Statement Text Report Enhancement - COMPLETE (November 27, 2025)
+**Status**: ✅ **APPROVED** - Manager Review Complete  
+**Duration**: ~3 hours  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Statement_Text_Report_Enhancement_2025-11-27/`
+
+**Achievements**:
+- Complete professional statement output with header, transactions, summary
+- Account Activity table with current/future charges separated
+- Account Summary with "Amount Due Now" calculation
+- Payment Instructions with bank details and management contact
+- Footer with generation timestamp
+- Backward compatibility for raw data structure
+
+### ✅ Fix Duplicate Payment Entries - COMPLETE (November 27, 2025)
+**Status**: ✅ **APPROVED** - Manager Review Complete  
+**Duration**: ~2 hours  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Fix_Duplicate_Payment_Entries_2025-11-27/`
+
+**Achievements**:
+- Fixed duplicate payment entries in statement data collector
+- Single payment transactions covering multiple quarters no longer duplicated
+- AVII 102: 1 payment entry for $37,000 (was 3 entries for $75,417.50)
 
 ### ✅ Statement Data Service Refactor - COMPLETE (November 27, 2025)
 **Status**: ✅ **APPROVED** - Manager Review Complete  
@@ -49,6 +102,17 @@
 - Fixed sanitizeUserData() bug (fields were being filtered)
 - UI improvements: 80% wider modals, 2-column grid layout
 - 6 files modified, ~475 lines added
+
+### ✅ User Email Lookup Endpoint - COMPLETE (November 26, 2025)
+**Status**: ✅ **APPROVED** - Manager Review Complete  
+**Duration**: ~1 hour  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/User_Email_Lookup_Endpoint_2025-11-26/`
+
+**Achievements**:
+- New endpoint: `GET /auth/user/by-email/:email`
+- Enables statement data enrichment with user preferences
+- Proper authentication and error handling
 
 ---
 

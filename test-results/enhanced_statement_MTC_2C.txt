@@ -1,0 +1,67 @@
+================================================================================
+                              STATEMENT OF ACCOUNT
+================================================================================
+
+                               [LOGO PLACEHOLDER]
+
+                          Marina Turquesa Condominiums
+             M20 L12-13 Privada Xel-ha, Puerto Aventuras, QR, 77733
+
+--------------------------------------------------------------------------------
+STATEMENT FOR:                          STATEMENT DATE: November 28, 2025
+Unit 2C                                 FISCAL YEAR: 2025
+Lee Kopeika                             PERIOD: January 1, 2025 - December 31, 2025
+leekopeika1957@gmail.com                
+--------------------------------------------------------------------------------
+
+ACCOUNT ACTIVITY
+================================================================================
+Date       | Description              | Charge      | Payment     | Balance
+-----------|--------------------------|-------------|-------------|-------------
+           | Opening Balance          |             |             |        0.00
+2024-12-26 | Payment - HOA Enero 2025, Febrero 2025    |             |   13,188.00 |  -13,188.00
+2025-01-01 | HOA Dues Month 1         |    4,400.00 |             |   -8,788.00
+2025-01-11 | Payment - HOA Marzo 2025    |             |       12.00 |   -8,800.00
+2025-02-01 | HOA Dues Month 2         |    4,400.00 |             |   -4,400.00
+2025-03-01 | HOA Dues Month 3         |    4,400.00 |             |        0.00
+2025-03-26 | Payment - HOA Abril 2025, Mayo 2025, Junio 2025    |             |   13,200.00 |  -13,200.00
+2025-04-01 | HOA Dues Month 4         |    4,400.00 |             |   -8,800.00
+2025-05-01 | HOA Dues Month 5         |    4,400.00 |             |   -4,400.00
+2025-06-01 | HOA Dues Month 6         |    4,400.00 |             |        0.00
+2025-06-19 | Payment - HOA Julio 2025, Agosto 2025, Septiembre 2025    |             |   13,200.00 |  -13,200.00
+2025-07-01 | HOA Dues Month 7         |    4,400.00 |             |   -8,800.00
+2025-08-01 | HOA Dues Month 8         |    4,400.00 |             |   -4,400.00
+2025-09-01 | HOA Dues Month 9         |    4,400.00 |             |        0.00
+2025-09-27 | Payment - HOA Octubre 2025, Noviembre 2025, Diciembre 2025    |             |   13,200.00 |  -13,200.00
+2025-10-01 | HOA Dues Month 10        |    4,400.00 |             |   -8,800.00
+2025-11-01 | HOA Dues Month 11        |    4,400.00 |             |   -4,400.00
+           |                          |             |             |
+           | --- FUTURE CHARGES ---   |             |             |
+2025-12-01 | HOA Dues Month 12        |    4,400.00 |             |        0.00
+================================================================================
+
+ACCOUNT SUMMARY
+--------------------------------------------------------------------------------
+Total Charges (Current + Future):                           $        0.00 MXN
+Total Payments:                                             $   52,800.00 MXN
+                                                            ---------------
+AMOUNT DUE NOW:                                             $   -4,400.00 MXN
+Future Charges (not yet due):                               $    4,400.00 MXN
+Credit Balance:                                             $        0.00 MXN
+--------------------------------------------------------------------------------
+
+PAYMENT INSTRUCTIONS
+================================================================================
+Please make payment to:
+
+Bank: BBVA
+Account Name: Michael Alan Landesman
+CLABE: 012 694 01553632775 6
+SWIFT Code: BCMRMXMMPYM
+Reference: Unit 2C
+
+
+================================================================================
+                       Thank you for your prompt payment!
+================================================================================
+Generated: November 28, 2025 at 11:04 AM
