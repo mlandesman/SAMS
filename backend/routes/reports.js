@@ -11,6 +11,8 @@ import { DateService, getNow } from '../services/DateService.js';
 import statementController from '../controllers/statementController.js';
 import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
 import { generateTextTable } from '../services/statementTextTableService.js';
+import { generateStatementHtml } from '../services/statementHtmlService.js';
+import { generatePdf } from '../services/pdfService.js';
 import axios from 'axios';
 
 // Create date service for formatting API responses
@@ -478,6 +480,121 @@ router.get('/statement/text', authenticateUserWithProfile, async (req, res) => {
     res.send(textOutput);
   } catch (error) {
     console.error('Error generating statement text:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get Statement of Account as HTML
+ * GET /api/clients/:clientId/reports/statement/html
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '102')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Returns professional HTML statement matching prior administrator design
+ */
+router.get('/statement/html', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const language = req.query.language || 'english';
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'unitId query parameter is required' 
+      });
+    }
+    
+    // Create API client with auth token (for internal API calls)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    
+    // Generate HTML statement
+    const htmlOutput = await generateStatementHtml(api, clientId, unitId, {
+      fiscalYear,
+      language
+    });
+    
+    // Return as HTML
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlOutput);
+  } catch (error) {
+    console.error('Error generating statement HTML:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get Statement of Account as PDF
+ * GET /api/clients/:clientId/reports/statement/pdf
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '102')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Returns PDF statement for download or email attachment
+ */
+router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const language = req.query.language || 'english';
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'unitId query parameter is required' 
+      });
+    }
+    
+    // Create API client with auth token (for internal API calls)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    
+    // Generate HTML statement
+    const htmlOutput = await generateStatementHtml(api, clientId, unitId, {
+      fiscalYear,
+      language
+    });
+    
+    // Convert to PDF
+    const pdfBuffer = await generatePdf(htmlOutput);
+    
+    // Return as PDF with download header
+    const fileName = `statement_${clientId}_${unitId}_${fiscalYear || 'current'}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating statement PDF:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,

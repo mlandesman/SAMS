@@ -29,6 +29,7 @@
     "firebase": "^11.9.1",
     "firebase-admin": "^11.11.1",
     "luxon": "^3.7.2",
+    "puppeteer": "^22.0.0",
     "react-router-dom": "^7.6.0"
   },
   "engines": {
