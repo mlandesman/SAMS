@@ -28,11 +28,21 @@ export async function generatePdf(htmlContent, options = {}) {
     
     const page = await browser.newPage();
     
+    // Set viewport to ensure proper rendering
+    await page.setViewport({
+      width: 816, // 8.5 inches at 96 DPI
+      height: 1056, // 11 inches at 96 DPI
+      deviceScaleFactor: 1
+    });
+    
     // Set content and wait for resources to load
     await page.setContent(htmlContent, {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
+    
+    // Wait a moment for any dynamic content to settle
+    await page.waitForTimeout(500);
     
     // Generate PDF
     const pdf = await page.pdf({
@@ -45,7 +55,8 @@ export async function generatePdf(htmlContent, options = {}) {
         left: options.marginLeft || '0.5in'
       },
       displayHeaderFooter: false,
-      preferCSSPageSize: false
+      preferCSSPageSize: false,
+      scale: 1.0
     });
     
     await browser.close();

@@ -1310,6 +1310,105 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   const logoUrl = clientData.branding?.logoUrl;
   const normalizedLogoUrl = logoUrl && logoUrl.trim() !== '' ? logoUrl : null;
   
+  // Calculate allocation summary by category using transaction allocations
+  const categoryMap = new Map();
+  
+  // Process charges and penalties from line items
+  for (const item of lineItems) {
+    // Skip future items
+    if (item.isFuture) continue;
+    
+    // Skip payments (we'll get those from transaction allocations)
+    if (item.type === 'payment') continue;
+    
+    // Determine category from description
+    const desc = (item.description || '').toLowerCase();
+    let categoryName = 'Other';
+    
+    if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
+      categoryName = 'HOA Maintenance';
+    } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
+      categoryName = 'Water Consumption';
+    }
+    
+    // Get or create category entry
+    if (!categoryMap.has(categoryName)) {
+      categoryMap.set(categoryName, { charges: 0, penalties: 0, paid: 0 });
+    }
+    const category = categoryMap.get(categoryName);
+    
+    // Aggregate charges and penalties
+    if (item.type === 'penalty') {
+      category.penalties += item.charge || 0;
+    } else if (item.type === 'charge') {
+      category.charges += item.charge || 0;
+    }
+  }
+  
+  // Process payments from transaction allocations
+  // IMPORTANT: Only include allocations from non-future line items to match displayed transactions
+  const displayedTransactionIds = new Set();
+  for (const item of lineItems) {
+    if (item.isFuture) continue;
+    if (item.transactionId) {
+      displayedTransactionIds.add(item.transactionId);
+    }
+  }
+  
+  for (const transaction of rawData.transactions || []) {
+    if (!transaction.allocations || transaction.allocations.length === 0) continue;
+    
+    // Skip transactions not in displayed line items (includes future transactions)
+    const txnDate = transaction.date instanceof Date ? transaction.date : parseDate(transaction.date);
+    if (!txnDate) continue;
+    
+    const cutoffDate = getNow();
+    cutoffDate.setHours(23, 59, 59, 999);
+    if (txnDate > cutoffDate) continue;
+    
+    // Process each allocation
+    for (const alloc of transaction.allocations) {
+      const allocAmount = centavosToPesos(alloc.amount || 0);
+      if (allocAmount === 0) continue;
+      
+      // Determine category from allocation
+      const categoryId = alloc.categoryId || '';
+      const categoryName = alloc.categoryName || '';
+      const allocType = alloc.type || '';
+      let category = 'Other';
+      
+      // Check for credit allocations
+      if (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit')) {
+        category = 'Credit Balance';
+      } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
+        category = 'HOA Maintenance';
+      } else if (categoryId.includes('water') || categoryName.includes('Water') || categoryName.includes('Agua')) {
+        category = 'Water Consumption';
+      }
+      
+      // Get or create category entry
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, { charges: 0, penalties: 0, paid: 0 });
+      }
+      
+      categoryMap.get(category).paid += allocAmount;
+    }
+  }
+  
+  // Convert map to array and calculate totals
+  const categories = Array.from(categoryMap.entries()).map(([name, data]) => ({
+    name: name,
+    charges: roundTo2Decimals(data.charges),
+    penalties: roundTo2Decimals(data.penalties),
+    paid: roundTo2Decimals(data.paid)
+  }));
+  
+  const allocationTotals = {
+    charges: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.charges, 0)),
+    penalties: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.penalties, 0)),
+    paid: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.paid, 0))
+  };
+  
   // Build optimized return structure
   return {
     clientInfo: {
@@ -1317,7 +1416,14 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       name: clientData.basicInfo?.fullName || clientData.basicInfo?.displayName || clientId,
       logoUrl: normalizedLogoUrl,
       address: address,
-      bankAccountInfo: bankAccountInfo
+      bankAccountInfo: bankAccountInfo,
+      governance: {
+        managementCompany: {
+          name: clientData.governance?.managementCompany?.name || 'Sandyland Properties',
+          email: clientData.governance?.managementCompany?.email || 'pm@sandyland.com.mx',
+          phone: clientData.governance?.managementCompany?.phone || '+52 984 238 8224'
+        }
+      }
     },
     unitInfo: {
       unitId: unitId,
@@ -1342,6 +1448,10 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     creditInfo: {
       currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),
       allocations: creditAllocations
+    },
+    allocationSummary: {
+      categories: categories,
+      totals: allocationTotals
     }
   };
 }
