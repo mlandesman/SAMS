@@ -10,7 +10,7 @@
 ## 🔄 ACTIVE DEVELOPMENT (November 29, 2025)
 
 ### Statement of Account Report - Next Steps
-**Status**: 🚀 **FOUNDATION COMPLETE** - Ready for Integration  
+**Status**: 🚀 **PRODUCTION READY** - Core System Complete  
 **Priority**: MEDIUM - Enhancement tasks  
 **Documentation**: `SAMS-Docs/apm_session/Implementation_Plan.md`
 
@@ -18,36 +18,49 @@
 - Email integration (attach PDF to statement emails)
 - Frontend UI (view/download buttons)
 - Batch generation (all units at once)
+- DATA-001: Investigate Q0 2025 penalty data issue (data service)
 
 **Completed Foundation**:
-- ✅ Data service (getStatementData, getConsolidatedUnitData)
+- ✅ Data service (getStatementData, getConsolidatedUnitData, allocationSummary)
 - ✅ Text report generation (generateTextTable)
-- ✅ HTML generation (generateStatementHtml)
+- ✅ HTML generation (single chronological table format)
 - ✅ PDF generation (generatePdf via Puppeteer)
-- ✅ API endpoints (/statement/html, /statement/pdf)
-- ✅ Bilingual support (English/Spanish)
+- ✅ API endpoints (/statement/html, /statement/pdf, /statement/text)
+- ✅ Bilingual support (English/Spanish with dynamic description translation)
 - ✅ Client branding integration (logos from Firebase Storage)
+- ✅ Allocation Summary (per-category breakdown using transaction allocations)
+- ✅ Smart balance display (BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL)
+- ✅ 7 units tested (100% pass rate)
 
 ---
 
 ## ✅ RECENTLY COMPLETED (November 26-29, 2025)
 
-### ✅ Statement HTML/PDF Generation - COMPLETE (November 29, 2025)
+### ✅ Statement HTML/PDF Generation + Refactor - COMPLETE (November 29, 2025)
 **Status**: ✅ **APPROVED** - Manager Review Complete  
-**Duration**: ~4 hours  
+**Duration**: ~6 hours (Step 2B: 4 hours + Refactor: 2 hours)  
 **Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
-**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Statement_HTML_PDF_2025-11-29/`
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Statement_Report_Refactor_2025-11-29/`
 
 **Achievements**:
-- Professional HTML/PDF statement matching prior admin design
+- **Single chronological table format** - Unified payments appear ONCE (no duplication)
+- **Allocation Summary** - Per-category breakdown (HOA, Water, Credit) with accurate math
+- **Smart balance display** - BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL
+- Professional design matching prior admin quality
 - Bilingual support (English/Spanish) with dynamic description translation
 - Blue headers (#4472C4), red payments (#C00000)
-- Two sections: HOA Maintenance + Water Consumption
 - Timezone-compliant dates (America/Cancun via Luxon)
 - Future items filtering with "Next Payment Due" calculation
 - Client logo integration from Firebase Storage
-- API endpoints: `/statement/html` and `/statement/pdf`
-- Test results: HTML ~13KB, PDF ~1.4MB per statement
+- API endpoints: `/statement/html`, `/statement/pdf`, `/statement/text`
+- **7 units tested** (4 MTC English, 3 AVII Spanish) - 100% pass rate
+- Test results: HTML ~14-18KB, PDF ~370KB (MTC) to ~1.4MB (AVII)
+
+**Technical Debt Documented**:
+- TD-020: PDF Footer Not Rendering (MEDIUM)
+- TD-021: Static Page Numbers (LOW)
+- TD-022: Q0 2025 Historical Data - DATA ISSUE (MEDIUM)
+- TD-023: Large PDF File Size AVII (LOW)
 
 ### ✅ Unified Payment Atomicity Fix - COMPLETE (November 28, 2025)
 **Status**: ✅ **APPROVED** - Manager Review Complete + Merged to Main  
@@ -1057,6 +1070,118 @@ The Client Management tab in List Management returns a 404 error. UI shows "Unex
 **Estimated Fix Effort:** 2-4 hours (likely route configuration issue)
 
 **Business Impact:** HIGH - Core admin functionality broken, blocking report development
+
+---
+
+### **TD-020: PDF Footer Not Rendering (Statement Reports)**
+**Category:** Reports - PDF Generation  
+**Priority:** ⚠️ MEDIUM  
+**Created:** November 29, 2025  
+**Context:** Statement of Account PDF generation
+
+**Description:**
+Statement footer (Statement ID, Page numbers, Contact info) present in HTML but not rendering in PDF output via Puppeteer.
+
+**Current Impact:**
+- HTML version: Footer displays correctly ✅
+- PDF version: Footer missing from rendered output ❌
+- Affects: All generated PDFs
+
+**Root Cause:** Likely Puppeteer rendering issue with page height or print styles
+
+**Workaround:** Footer information not critical for initial rollout
+
+**Future Solutions:**
+1. Investigate alternative PDF libraries (playwright, pdfkit, jsPDF)
+2. Adjust Puppeteer page settings (height, scale, margins)
+3. Use Puppeteer's `displayHeaderFooter` with custom template
+4. Consider server-side PDF generation (wkhtmltopdf)
+
+**Estimated Fix Effort:** 2-4 hours
+
+**Business Impact:** LOW - Footer contains useful information but not essential
+
+---
+
+### **TD-021: Static Page Numbers (Statement Reports)**
+**Category:** Reports - PDF Generation  
+**Priority:** 🟢 LOW  
+**Created:** November 29, 2025  
+**Context:** Statement of Account PDF generation
+
+**Description:**
+Page numbers show "Page 1 of 1" regardless of actual page count.
+
+**Current Impact:**
+- Multi-page statements won't show correct page numbers
+- Most statements currently fit on 1 page
+
+**Future Solutions:**
+1. Use Puppeteer's `displayHeaderFooter: true` with custom template
+2. Post-process PDF to add page numbers
+3. Use alternative PDF library with dynamic page number support
+
+**Estimated Fix Effort:** 1-2 hours
+
+**Business Impact:** LOW - Most statements fit on one page
+
+---
+
+### **TD-022: Q0 2025 Historical Data (DATA ISSUE)**
+**Category:** Reports - Data Service  
+**Priority:** ⚠️ MEDIUM  
+**Created:** November 29, 2025  
+**Context:** Statement data aggregation
+
+**Description:**
+Some statements show "HOA Penalty - Q0 2025" dated 05/01/2025, before fiscal year start (07/01/2025). "Q0" doesn't exist in the quarter system.
+
+**Current Impact:**
+- Confusing to owners
+- Data accuracy concerns
+- Affects statements with historical penalties
+
+**Root Cause:** Data aggregation in `statementDataService.js` includes historical penalties from previous administration that predate the current fiscal year structure.
+
+**Files to Investigate:**
+- `backend/services/statementDataService.js` - Data filtering logic
+- `backend/services/statementDataCollector.js` - Data aggregation
+
+**Future Solutions:**
+1. Filter penalties to only include those within fiscal year bounds
+2. Handle pre-fiscal-year data as "Prior Balance" instead of itemized
+3. Review data import process for historical data handling
+
+**Estimated Fix Effort:** 3-4 hours (investigation + fix)
+
+**Business Impact:** MEDIUM - Affects data accuracy and owner understanding
+
+---
+
+### **TD-023: Large PDF File Size (AVII)**
+**Category:** Reports - Performance  
+**Priority:** 🟢 LOW  
+**Created:** November 29, 2025  
+**Context:** Statement PDF generation
+
+**Description:**
+AVII PDFs are ~1.4 MB (larger than MTC ~370 KB) due to full-resolution logo images from Firebase Storage.
+
+**Current Impact:**
+- Email attachment size concerns
+- Storage costs for bulk generation
+- Slower download times
+
+**Workaround:** Acceptable for current usage
+
+**Future Solutions:**
+1. Image optimization before upload
+2. Compression options in PDF generation
+3. Lazy-load high-res logos only when needed
+
+**Estimated Fix Effort:** 1-2 hours
+
+**Business Impact:** LOW - Not blocking functionality
 
 ---
 

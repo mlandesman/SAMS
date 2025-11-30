@@ -5,6 +5,7 @@
 
 import { getStatementData } from './statementDataService.js';
 import { DateTime } from 'luxon';
+import { getNow } from '../../shared/services/DateService.js';
 
 /**
  * Format currency (pesos)
@@ -124,29 +125,41 @@ function getTranslations(language) {
   const translations = {
     english: {
       title: 'STATEMENT OF ACCOUNT',
+      statementFor: 'STATEMENT FOR',
+      unit: 'Unit',
       bankingInfo: 'BANKING INFORMATION',
       bank: 'Bank',
       account: 'Account',
       clabe: 'CLABE',
       beneficiary: 'Beneficiary',
       reference: 'Reference',
+      address: 'Address',
+      period: 'Period',
       date: 'Date',
-      expirationDate: 'Expiration Date',
-      balanceMaintenance: 'BALANCE MAINTENANCE',
-      unit: 'Unit',
       nextPaymentDue: 'Next Payment Due',
+      accountActivity: 'ACCOUNT ACTIVITY',
+      openingBalance: 'Opening Balance',
       tableHeaders: {
         date: 'DATE',
         description: 'DESCRIPTION',
-        amount: 'AMOUNT',
-        penalty: 'PENALTY',
-        payments: 'PAYMENTS',
+        charge: 'CHARGE',
+        payment: 'PAYMENT',
         balance: 'BALANCE'
       },
-      hoaSubtotal: 'BALANCE MAINTENANCE FEES',
-      waterSection: 'BALANCE WATER CONSUMPTION',
-      waterSubtotal: 'WATER BALANCE',
-      totalBalance: 'TOTAL BALANCE',
+      allocationSummary: 'ALLOCATION SUMMARY',
+      category: 'Category',
+      charges: 'Charges',
+      penalties: 'Penalties',
+      totalPaid: 'Total Paid',
+      totals: 'TOTALS',
+      balanceDue: 'BALANCE DUE',
+      creditBalance: 'CREDIT BALANCE',
+      paidInFull: 'PAID IN FULL',
+      statementId: 'Statement ID',
+      generatedOn: 'Generated',
+      pageOf: 'Page',
+      questionsContact: 'For questions, please contact {name} at {email} or WhatsApp {phone}',
+      confidentialNotice: 'This statement is confidential and intended only for the addressee.',
       paymentTerms: {
         cash: 'We inform you that for security reasons we do not receive cash, so please make your payment in the condominium\'s bank account and send us your receipt.',
         waterDue: '***the water consumption must be paid within the first 10 days of the corresponding month, after the ten days there will be 5% interest per month.**',
@@ -156,29 +169,41 @@ function getTranslations(language) {
     },
     spanish: {
       title: 'ESTADO DE CUENTA',
+      statementFor: 'ESTADO DE CUENTA PARA',
+      unit: 'Depto',
       bankingInfo: 'INFORMACION BANCARIA',
       bank: 'Banco',
       account: 'Cuenta',
       clabe: 'CLABE',
       beneficiary: 'Beneficiario',
       reference: 'Referencia',
+      address: 'Dirección',
+      period: 'Período',
       date: 'Fecha',
-      expirationDate: 'Fecha de Vencimiento',
-      balanceMaintenance: 'BALANCE MANTENIMIENTO',
-      unit: 'Unidad',
       nextPaymentDue: 'Próximo Pago Vencido',
+      accountActivity: 'ACTIVIDAD DE LA CUENTA',
+      openingBalance: 'Balance Inicial',
       tableHeaders: {
         date: 'FECHA',
         description: 'DESCRIPCION',
-        amount: 'MONTO',
-        penalty: 'PENALIZACION',
-        payments: 'PAGOS',
+        charge: 'CARGO',
+        payment: 'PAGO',
         balance: 'BALANCE'
       },
-      hoaSubtotal: 'BALANCE CUOTAS DE MANTENIMIENTO',
-      waterSection: 'ESTADO DE CUENTA CONSUMO DE AGUA',
-      waterSubtotal: 'BALANCE AGUA',
-      totalBalance: 'BALANCE TOTAL',
+      allocationSummary: 'RESUMEN DE ASIGNACIÓN',
+      category: 'Categoría',
+      charges: 'Cargos',
+      penalties: 'Penalizaciones',
+      totalPaid: 'Total Pagado',
+      totals: 'TOTALES',
+      balanceDue: 'SALDO PENDIENTE',
+      creditBalance: 'SALDO A FAVOR',
+      paidInFull: 'PAGADO COMPLETO',
+      statementId: 'ID del Estado de Cuenta',
+      generatedOn: 'Generado',
+      pageOf: 'Página',
+      questionsContact: 'Para preguntas, favor de contactar {name} al {email} o WhatsApp {phone}',
+      confidentialNotice: 'Este estado de cuenta es confidencial y destinado únicamente al destinatario.',
       paymentTerms: {
         cash: 'Les informamos que por razones de seguridad no recibimos efectivo, favor de realizar su pago en la cuenta bancaria del condominio y enviarnos su recibo.',
         waterDue: '***el consumo de agua debe pagarse dentro de los primeros 10 días del mes correspondiente, después de los diez días habrá un interés del 5% mensual.**',
@@ -197,7 +222,7 @@ function getTranslations(language) {
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
  * @param {Object} options - { fiscalYear, language }
- * @returns {string} HTML document
+ * @returns {{ html: string, meta: { statementId: string, generatedAt: string, language: string } }}
  */
 export async function generateStatementHtml(api, clientId, unitId, options = {}) {
   // Get statement data
@@ -207,42 +232,13 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
   const language = options.language || 'english';
   const t = getTranslations(language);
   
-  // Separate line items by module (based on description)
-  // IMPORTANT: Filter out future items - statement shows only current/past transactions
-  const hoaItems = data.lineItems.filter(item => {
-    // Skip future items
-    if (item.isFuture === true) return false;
-    
-    const desc = (item.description || '').toLowerCase();
-    return desc.includes('hoa') || 
-           desc.includes('maintenance') || 
-           desc.includes('dues') ||
-           desc.includes('mantenimiento');
-  });
+  // Filter out future items for display
+  const currentItems = data.lineItems.filter(item => item.isFuture !== true);
   
-  const waterItems = data.lineItems.filter(item => {
-    // Skip future items
-    if (item.isFuture === true) return false;
-    
-    const desc = (item.description || '').toLowerCase();
-    return desc.includes('water') || 
-           desc.includes('agua') ||
-           desc.includes('consumption') ||
-           desc.includes('consumo');
-  });
-  
-  // Calculate section balances
-  let hoaBalance = 0;
-  const hoaRows = hoaItems.map(item => {
-    hoaBalance += (item.charge || 0) - (item.payment || 0);
-    return { ...item, balance: hoaBalance };
-  });
-  
-  let waterBalance = 0;
-  const waterRows = waterItems.map(item => {
-    waterBalance += (item.charge || 0) - (item.payment || 0);
-    return { ...item, balance: waterBalance };
-  });
+  // Get the actual closing balance from the last displayed transaction
+  const actualClosingBalance = currentItems.length > 0 
+    ? currentItems[currentItems.length - 1].balance 
+    : data.summary.openingBalance;
   
   // Calculate expiration date (30 days from statement date) using Luxon
   const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
@@ -251,6 +247,17 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
   // Find next payment due date (first future charge)
   const firstFutureItem = data.lineItems.find(item => item.isFuture === true && item.charge > 0);
   const nextPaymentDue = firstFutureItem ? formatDate(firstFutureItem.date) : 'TBD';
+  
+  // Generate statement ID (clientId-unitId-fiscalYear-statementDate)
+  const statementId = `${clientId}-${unitId}-${data.statementInfo.fiscalYear}-${data.statementInfo.statementDate.replace(/-/g, '')}`;
+  
+  // Get contact info from client governance
+  const contactEmail = data.clientInfo.governance?.managementCompany?.email || 'admin@sandyland.com.mx';
+  const contactPhone = data.clientInfo.governance?.managementCompany?.phone || '+52 984 206 4791';
+  
+  // Get current timestamp in Cancun timezone
+  const generatedNow = getNow();
+  const generatedTimestamp = DateTime.fromJSDate(generatedNow).setZone('America/Cancun');
   
   // Build HTML
   const html = `<!DOCTYPE html>
@@ -273,34 +280,33 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       line-height: 1.4;
       color: #000;
       background: #fff;
-      padding: 0.5in;
+      padding: 0.5in 0.6in 1.1in 0.6in;
     }
     
     /* Page layout */
     .statement-page {
       max-width: 8.5in;
       margin: 0 auto;
+      padding-bottom: 0.35in;
+    }
+
+    .content-bottom-spacer {
+      height: 28px;
+      clear: both;
     }
     
     /* Header section */
     .statement-header {
       margin-bottom: 20px;
-      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 25px;
     }
     
     .header-left {
       text-align: left;
       width: 60%;
-    }
-    
-    .logo-top {
-      margin-bottom: 10px;
-    }
-    
-    .logo-top img {
-      max-width: 150px;
-      max-height: 75px;
-      height: auto;
     }
     
     .statement-title {
@@ -339,10 +345,24 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .header-right {
-      position: absolute;
-      top: 125px;
-      right: 0;
       width: 38%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .logo-top {
+      margin-bottom: 10px;
+    }
+    
+    .logo-top img {
+      max-width: 160px;
+      max-height: 80px;
+      height: auto;
+    }
+    
+    .logo-right {
+      text-align: right;
     }
     
     .banking-info {
@@ -350,6 +370,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       padding: 10px;
       background: #f5f5f5;
       text-align: left;
+      margin-top: 12px;
     }
     
     .banking-info h3 {
@@ -415,13 +436,18 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       background-color: #f9f9f9;
     }
     
-    /* Column alignments (6 columns - removed Apartment and Invoice/Receipt) */
+    /* Column alignments (5 columns - single table format) */
     .col-date { text-align: center; width: 12%; }
-    .col-description { text-align: left; width: 45%; }
-    .col-amount { text-align: right; width: 13%; }
-    .col-penalty { text-align: right; width: 12%; }
-    .col-payment { text-align: right; width: 13%; color: #C00000; }
-    .col-balance { text-align: right; width: 13%; font-weight: bold; }
+    .col-description { text-align: left; width: 50%; }
+    .col-charge { text-align: right; width: 13%; }
+    .col-payment { text-align: right; width: 13%; }
+    .col-balance { text-align: right; width: 12%; font-weight: bold; }
+    
+    /* Payment amounts in red (only in table body, not header) */
+    .transaction-table tbody .payment-red {
+      color: #C00000;
+      font-weight: bold;
+    }
     
     /* Payment amounts in red */
     .payment-red {
@@ -429,26 +455,81 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       font-weight: bold;
     }
     
-    /* Subtotal rows */
-    .subtotal-row {
-      background-color: #fff !important;
-      border: 2px solid #000 !important;
+    /* Balance due box (appears right after transaction table) */
+    .balance-due-box {
+      margin: 15px 0 20px 0;
+      text-align: right;
     }
     
-    .subtotal-row td {
-      padding: 8px;
+    .balance-due-box table {
+      float: right;
+      border: 2px solid #000;
+      background-color: #fff;
+    }
+    
+    .balance-due-box td {
+      padding: 10px 15px;
       font-weight: bold;
-      border: none;
+      font-size: 12pt;
     }
     
-    .subtotal-label {
+    .balance-due-box td:first-child {
       text-align: right;
+      padding-right: 20px;
+    }
+    
+    .balance-due-box td:last-child {
+      text-align: right;
+      min-width: 120px;
+    }
+    
+    /* Allocation summary table */
+    .allocation-summary {
+      margin: 50px 0 20px 0;
+      clear: both;
+    }
+    
+    .allocation-summary h3 {
+      background-color: #4472C4;
+      color: #fff;
+      padding: 5px 10px;
       font-size: 10pt;
+      font-weight: bold;
+      text-align: center;
+      margin: 0 0 0 0;
+      display: table-caption;
+      width: auto;
     }
     
-    .subtotal-amount {
-      text-align: right;
-      font-size: 11pt;
+    .allocation-table {
+      width: auto;
+      max-width: 600px;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin-bottom: 15px;
+    }
+    
+    .allocation-table th {
+      background-color: #f5f5f5;
+      padding: 5px 8px;
+      border: 1px solid #ddd;
+      font-weight: bold;
+      text-align: left;
+    }
+    
+    .allocation-table td {
+      padding: 5px 8px;
+      border: 1px solid #ddd;
+    }
+    
+    .allocation-table .col-category { min-width: 150px; text-align: left; }
+    .allocation-table .col-charges { text-align: right; min-width: 100px; }
+    .allocation-table .col-penalties { text-align: right; min-width: 100px; }
+    .allocation-table .col-total-paid { text-align: right; min-width: 100px; }
+    
+    .allocation-table .totals-row {
+      background-color: #e8f0fe;
+      font-weight: bold;
     }
     
     /* Total balance */
@@ -483,21 +564,144 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       font-size: 8pt;
       line-height: 1.5;
       clear: both;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
     }
     
     .payment-terms p {
       margin-bottom: 8px;
     }
     
+    .statement-footer {
+      margin-top: 30px;
+      padding-top: 12px;
+      padding-bottom: 28px;
+      border-top: 2px solid #000;
+      font-size: 8pt;
+      color: #333;
+      clear: both;
+    }
+    
+    .statement-footer .footer-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      gap: 15px;
+      line-height: 1.2;
+    }
+    
+    .statement-footer .footer-row > div {
+      flex: 1;
+      white-space: nowrap;
+      overflow: visible;
+    }
+    
+    .statement-footer .footer-row > div:first-child {
+      text-align: left;
+      flex: 1.5;
+    }
+    
+    .statement-footer .footer-row > div:nth-child(2) {
+      text-align: center;
+      flex: 0.8;
+    }
+    
+    .statement-footer .footer-row > div:last-child {
+      text-align: right;
+      flex: 1.2;
+    }
+    
+    .statement-footer .footer-center {
+      text-align: center;
+      margin-top: 5px;
+      font-size: 7pt;
+      font-style: italic;
+      line-height: 1.3;
+    }
+    
+    /* PDFShift footers come from pdfService footer.html */
+    
     /* Print styles */
     @media print {
       body {
         padding: 0;
+        margin: 0;
       }
       
       .statement-page {
         max-width: none;
+        padding: 0;
+        margin: 0;
+        padding-bottom: 1.1in;
       }
+      
+      /* Hide legacy footer row (replaced by PDFShift footer) */
+      .statement-footer .footer-row {
+        display: none !important;
+      }
+      
+      .statement-footer {
+        margin-top: 20px;
+        page-break-inside: avoid;
+      }
+      
+      /* Prevent page breaks inside important sections */
+      .statement-header,
+      .banking-info,
+      .client-info-table {
+        page-break-inside: avoid;
+      }
+      
+      /* Try to keep balance box and allocation summary together */
+      .balance-due-box {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+      }
+      
+      .allocation-summary {
+        page-break-before: avoid;
+        page-break-inside: avoid;
+      }
+      
+      /* Keep tables together when possible */
+      .transaction-table {
+        page-break-inside: auto;
+      }
+      
+      .transaction-table thead {
+        display: table-header-group;
+      }
+      
+      .transaction-table tr {
+        page-break-inside: avoid;
+      }
+      
+      /* Prevent orphaned rows */
+      .transaction-table tbody tr {
+        page-break-after: auto;
+      }
+      
+      /* Keep allocation summary together */
+      .allocation-table,
+      .allocation-table tbody {
+        page-break-inside: avoid;
+      }
+      
+      /* Footer spacing in print */
+      .statement-footer {
+        margin-top: 30px;
+        page-break-inside: avoid;
+      }
+      
+      .payment-terms {
+        page-break-inside: avoid;
+      }
+    }
+    
+    /* Additional PDF-specific optimizations */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
   </style>
 </head>
@@ -505,27 +709,16 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
   <div class="statement-page">
     <!-- Header -->
     <div class="statement-header">
-      <!-- Left side: Logo, Title and Client Info -->
+      <!-- Left side: Title and Client Info -->
       <div class="header-left">
-        <div class="logo-top">
-          ${data.clientInfo.logoUrl 
-            ? `<img src="${data.clientInfo.logoUrl}" alt="${data.clientInfo.name}">`
-            : `<div style="font-size: 12pt; font-weight: bold;">${data.clientInfo.name}</div>`
-          }
-        </div>
-        
         <div class="statement-title">${t.title}</div>
         
         <div class="client-info">
-          <div class="owner-name">${data.unitInfo.owners.join(', ')}</div>
+          <div class="owner-name">${t.unit} ${unitId} - ${data.unitInfo.owners.join(', ')}</div>
           
           <table class="client-info-table">
             <tr>
-              <td>${t.unit}:</td>
-              <td>${unitId}</td>
-            </tr>
-            <tr>
-              <td>${language === 'spanish' ? 'Dirección:' : 'Address'}:</td>
+              <td>${t.address}:</td>
               <td>${(() => {
                 const addr = data.clientInfo.address || '';
                 const commaIndex = addr.indexOf(',');
@@ -538,22 +731,35 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
               })()}</td>
             </tr>
             <tr>
-              <td colspan="2" style="height: 8px;"></td>
+              <td colspan="2" style="height: 5px;"></td>
+            </tr>
+            <tr>
+              <td>${t.period}:</td>
+              <td>${data.statementInfo.periodCovered}</td>
             </tr>
             <tr>
               <td>${t.date}:</td>
               <td>${statementDate.toFormat('MM/dd/yyyy')}</td>
             </tr>
+            ${data.summary.closingBalance >= 0 ? `
             <tr>
               <td>${t.nextPaymentDue}:</td>
               <td>${nextPaymentDue}</td>
             </tr>
+            ` : ''}
           </table>
         </div>
       </div>
       
-      <!-- Right side: Banking Info -->
+      <!-- Right side: Logo + Banking Info -->
       <div class="header-right">
+        <div class="logo-top logo-right">
+          ${data.clientInfo.logoUrl 
+            ? `<img src="${data.clientInfo.logoUrl}" alt="${data.clientInfo.name}">`
+            : `<div style="font-size: 12pt; font-weight: bold;">${data.clientInfo.name}</div>`
+          }
+        </div>
+        
         <div class="banking-info">
           <h3>${t.bankingInfo}</h3>
           <table>
@@ -585,87 +791,97 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     <!-- Section divider -->
     <div style="border-top: 2px solid #000; margin: 20px 0 15px 0;"></div>
     
-    ${hoaRows.length > 0 ? `
-    <!-- HOA Maintenance Section -->
+    <!-- Account Activity Section -->
+    <div class="section-header">${t.accountActivity}</div>
     <table class="transaction-table">
       <thead>
         <tr>
           <th class="col-date">${t.tableHeaders.date}</th>
           <th class="col-description">${t.tableHeaders.description}</th>
-          <th class="col-amount">${t.tableHeaders.amount}</th>
-          <th class="col-penalty">${t.tableHeaders.penalty}</th>
-          <th class="col-payment">${t.tableHeaders.payments}</th>
+          <th class="col-charge">${t.tableHeaders.charge}</th>
+          <th class="col-payment">${t.tableHeaders.payment}</th>
           <th class="col-balance">${t.tableHeaders.balance}</th>
         </tr>
       </thead>
       <tbody>
-        ${hoaRows.map(item => `
+        <!-- Opening Balance Row -->
+        <tr style="background-color: #f9f9f9;">
+          <td class="col-date"></td>
+          <td class="col-description" style="font-style: italic;">${t.openingBalance}</td>
+          <td class="col-charge"></td>
+          <td class="col-payment"></td>
+          <td class="col-balance">${formatCurrency(data.summary.openingBalance)}</td>
+        </tr>
+        
+        <!-- All Transaction Rows -->
+        ${currentItems.map(item => `
         <tr>
           <td class="col-date">${formatDate(item.date)}</td>
           <td class="col-description">${translateDescription(item.description, language)}</td>
-          <td class="col-amount">${item.charge ? formatCurrency(item.charge) : ''}</td>
-          <td class="col-penalty">${item.penalty ? formatCurrency(item.penalty) : ''}</td>
-          <td class="col-payment ${item.payment ? 'payment-red' : ''}">${item.payment ? formatCurrency(item.payment) : ''}</td>
+          <td class="col-charge">${item.charge > 0 ? formatCurrency(item.charge) : ''}</td>
+          <td class="col-payment ${item.payment > 0 ? 'payment-red' : ''}">${item.payment > 0 ? formatCurrency(item.payment) : ''}</td>
           <td class="col-balance">${formatCurrency(item.balance)}</td>
         </tr>
         `).join('')}
       </tbody>
-      <tfoot>
-        <tr class="subtotal-row">
-          <td colspan="5" class="subtotal-label">${t.hoaSubtotal}</td>
-          <td class="subtotal-amount">${formatCurrency(hoaBalance)}</td>
-        </tr>
-      </tfoot>
     </table>
-    ` : ''}
     
-    ${waterRows.length > 0 ? `
-    <!-- Water Consumption Section -->
-    <div class="section-header">
-      ${language === 'spanish' 
-        ? 'ESTADO DE CUENTA CONSUMO DE AGUA / BALANCE WATER CONSUMPTION'
-        : 'BALANCE WATER CONSUMPTION / ESTADO DE CUENTA CONSUMO DE AGUA'
-      }
-    </div>
-    <table class="transaction-table">
-      <thead>
-        <tr>
-          <th class="col-date">${t.tableHeaders.date}</th>
-          <th class="col-description">${t.tableHeaders.description}</th>
-          <th class="col-amount">${t.tableHeaders.amount}</th>
-          <th class="col-penalty">${t.tableHeaders.penalty}</th>
-          <th class="col-payment">${t.tableHeaders.payments}</th>
-          <th class="col-balance">${t.tableHeaders.balance}</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${waterRows.map(item => `
-        <tr>
-          <td class="col-date">${formatDate(item.date)}</td>
-          <td class="col-description">${translateDescription(item.description, language)}</td>
-          <td class="col-amount">${item.charge ? formatCurrency(item.charge) : ''}</td>
-          <td class="col-penalty">${item.penalty ? formatCurrency(item.penalty) : ''}</td>
-          <td class="col-payment ${item.payment ? 'payment-red' : ''}">${item.payment ? formatCurrency(item.payment) : ''}</td>
-          <td class="col-balance">${formatCurrency(item.balance)}</td>
-        </tr>
-        `).join('')}
-      </tbody>
-      <tfoot>
-        <tr class="subtotal-row">
-          <td colspan="5" class="subtotal-label">${t.waterSubtotal}</td>
-          <td class="subtotal-amount">${formatCurrency(waterBalance)}</td>
-        </tr>
-      </tfoot>
-    </table>
-    ` : ''}
-    
-    <!-- Total Balance -->
-    <div class="total-balance">
+    <!-- Balance Due/Credit (immediately after activity table) -->
+    <div class="balance-due-box">
       <table>
         <tr>
-          <td>${t.totalBalance}</td>
-          <td>${formatCurrency(data.summary.closingBalance)}</td>
+          <td>
+            ${actualClosingBalance > 0 
+              ? t.balanceDue 
+              : actualClosingBalance < 0 
+                ? t.creditBalance 
+                : t.paidInFull
+            }
+          </td>
+          <td>
+            ${actualClosingBalance > 0 
+              ? formatCurrency(actualClosingBalance)
+              : actualClosingBalance < 0
+                ? formatCurrency(Math.abs(actualClosingBalance))
+                : '$0.00'
+            }
+          </td>
         </tr>
+      </table>
+    </div>
+    
+    <!-- Spacer before Allocation Summary -->
+    <div style="height: 30px; clear: both;"></div>
+    
+    <!-- Allocation Summary -->
+    <div class="allocation-summary">
+      <table class="allocation-table">
+        <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${t.allocationSummary}</caption>
+        <thead>
+          <tr>
+            <th class="col-category">${t.category}</th>
+            <th class="col-charges">${t.charges}</th>
+            <th class="col-penalties">${t.penalties}</th>
+            <th class="col-total-paid">${t.totalPaid}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.allocationSummary.categories.map(cat => `
+          <tr>
+            <td class="col-category">${cat.name}</td>
+            <td class="col-charges">${cat.charges > 0 ? formatCurrency(cat.charges) : ''}</td>
+            <td class="col-penalties">${cat.penalties > 0 ? formatCurrency(cat.penalties) : ''}</td>
+            <td class="col-total-paid">${formatCurrency(Math.abs(cat.paid))}</td>
+          </tr>
+          `).join('')}
+          
+          <tr class="totals-row">
+            <td class="col-category">${t.totals}</td>
+            <td class="col-charges">${formatCurrency(data.allocationSummary.totals.charges)}</td>
+            <td class="col-penalties">${formatCurrency(data.allocationSummary.totals.penalties)}</td>
+            <td class="col-total-paid">${formatCurrency(data.allocationSummary.totals.paid)}</td>
+          </tr>
+        </tbody>
       </table>
     </div>
     
@@ -676,10 +892,36 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       <p>${t.paymentTerms.hoaDue}</p>
       <p>${t.paymentTerms.application}</p>
     </div>
+    
+    <!-- Statement Footer -->
+    <div class="content-bottom-spacer"></div>
+    <div class="statement-footer">
+      <div class="footer-row">
+        <div>${t.statementId}: ${statementId}</div>
+        <div>${t.pageOf} 1 of 1</div>
+        <div>${t.generatedOn}: ${generatedTimestamp.toFormat('MM/dd/yyyy HH:mm')}</div>
+      </div>
+      <div class="footer-center">
+        ${t.questionsContact
+          .replace('{name}', data.clientInfo.governance.managementCompany.name)
+          .replace('{email}', contactEmail)
+          .replace('{phone}', contactPhone)}
+      </div>
+      <div class="footer-center">
+        ${t.confidentialNotice}
+      </div>
+    </div>
   </div>
 </body>
 </html>`;
   
-  return html;
+  return {
+    html,
+    meta: {
+      statementId,
+      generatedAt: generatedTimestamp.toFormat('MM/dd/yyyy HH:mm'),
+      language
+    }
+  };
 }
 

@@ -1,62 +1,109 @@
 /**
  * PDF Service
- * Converts HTML to PDF using Puppeteer
+ * Converts HTML to PDF using PDFShift API
+ * 
+ * PDFShift provides superior paged-media support including:
+ * - Dynamic page numbering (Page n of N)
+ * - Repeating footers on every page
+ * - Better page break control
+ * - @page CSS margin boxes
  */
 
-import puppeteer from 'puppeteer';
+// Using built-in fetch (Node 18+) - no import needed
 
 /**
- * Generate PDF from HTML content
+ * Generate PDF from HTML content using PDFShift.
  * @param {string} htmlContent - Complete HTML document
- * @param {Object} options - PDF generation options
+ * @param {Object} options - { format?: string, footerMeta?: { statementId?: string, generatedAt?: string, language?: string } }
  * @returns {Buffer} PDF buffer
  */
 export async function generatePdf(htmlContent, options = {}) {
-  let browser = null;
-  
   try {
-    // Launch browser in headless mode
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu'
-      ]
-    });
+    const apiKey = process.env.PDFSHIFT_KEY || 'sk_c93fd189fc28f71a4791805e8e3ec5af92672997';
     
-    const page = await browser.newPage();
+    if (!apiKey) {
+      throw new Error('PDFSHIFT_KEY not configured in environment');
+    }
     
-    // Set content and wait for resources to load
-    await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0',
-      timeout: 30000
-    });
+    const {
+      format = 'Letter',
+      footerMeta = {}
+    } = options;
     
-    // Generate PDF
-    const pdf = await page.pdf({
-      format: options.format || 'Letter',
-      printBackground: true,
-      margin: {
-        top: options.marginTop || '0.5in',
-        right: options.marginRight || '0.5in',
-        bottom: options.marginBottom || '0.5in',
-        left: options.marginLeft || '0.5in'
+    const {
+      statementId = '',
+      generatedAt = '',
+      language = 'english'
+    } = footerMeta;
+    
+    const languageCode = (language || '').toLowerCase();
+    const isSpanish = languageCode === 'spanish' || languageCode === 'es';
+    
+    const footerHtml = `
+      <div style="
+        font-size:10px;
+        line-height:1.3;
+        font-family:Arial, sans-serif;
+        border-top:1px solid #bbb;
+        width:calc(100% - 0.6in);
+        max-width:7.4in;
+        margin:0 auto;
+        padding:6px 20px 14px 20px;
+        box-sizing:border-box;
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:18px;
+      ">
+        <span style="white-space:nowrap;">
+          ${isSpanish ? `ID del Estado de Cuenta: ${statementId}` : `Statement ID: ${statementId}`}
+        </span>
+        <span style="text-align:center; flex:0 0 auto;">
+          ${isSpanish ? 'Página <span class="pageNumber"></span> de <span class="totalPages"></span>' : 'Page <span class="pageNumber"></span> of <span class="totalPages"></span>'}
+        </span>
+        <span style="text-align:right; white-space:nowrap;">
+          ${isSpanish ? `Generado: ${generatedAt}` : `Generated: ${generatedAt}`}
+        </span>
+      </div>
+    `.trim();
+    
+    // Call PDFShift API
+    const response = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + Buffer.from('api:' + apiKey).toString('base64')
       },
-      displayHeaderFooter: false,
-      preferCSSPageSize: false
+      body: JSON.stringify({
+        source: htmlContent,
+        use_print: true,
+        landscape: false,
+        format,
+        margin: {
+          top: '15mm',
+          right: '15mm',
+          bottom: '40mm',
+          left: '15mm'
+        },
+        footer: {
+          source: footerHtml,
+          height: '24mm',
+          start_at: 1,
+          spacing: '10mm'
+        }
+      })
     });
     
-    await browser.close();
-    browser = null;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`PDFShift API error ${response.status}: ${errorText}`);
+    }
     
-    return pdf;
+    // Return PDF buffer
+    const pdfBuffer = Buffer.from(await response.arrayBuffer());
+    return pdfBuffer;
     
   } catch (error) {
-    if (browser) {
-      await browser.close();
-    }
     throw new Error(`PDF generation failed: ${error.message}`);
   }
 }
