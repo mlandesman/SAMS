@@ -149,7 +149,8 @@ function createChronologicalTransactionList(
   scheduledAmount, 
   duesFrequency, 
   fiscalYearStartMonth, 
-  fiscalYear, 
+  fiscalYear,
+  fiscalYearBounds,
   waterBills = [], 
   hoaPenalties = [], 
   waterPenalties = []
@@ -326,7 +327,15 @@ function createChronologicalTransactionList(
       if (!payment.month) continue;
       
       // Add charge for this month
-      const dueDate = parseDueDate(payment.dueDate);
+      let dueDate = parseDueDate(payment.dueDate);
+      
+      // Fallback: derive due date from fiscal configuration if missing
+      if ((!dueDate || isNaN(dueDate.getTime())) && fiscalYearBounds?.startDate) {
+        const fallbackDate = new Date(fiscalYearBounds.startDate);
+        fallbackDate.setMonth(fallbackDate.getMonth() + (payment.month - 1));
+        dueDate = fallbackDate;
+      }
+      
       if (dueDate && !isNaN(dueDate.getTime())) {
         transactions.push({
           type: 'charge',
@@ -464,6 +473,46 @@ function createChronologicalTransactionList(
     }
   }
   
+  // Extract water payments from transactions
+  // ... (existing water loop) ...
+  
+  // Extract remaining "Orphaned" or General payments
+  // This catches payments found in Step 6.5 that weren't processed as HOA or Water
+  for (const [txnId, transaction] of transactionMap.entries()) {
+    if (processedTransactionIds.has(txnId)) continue;
+    
+    const paymentDate = parseDate(transaction.date);
+    // Only process if valid date and appears to be a payment (positive amount in our system usually means income/payment)
+    // However, verify logic: payments in this list are displayed with negative amount.
+    // transaction.amount is in centavos.
+    
+    if (paymentDate && !isNaN(paymentDate.getTime())) {
+      const amountPesos = centavosToPesos(transaction.amount || 0);
+      
+      // Skip zero amounts
+      if (Math.abs(amountPesos) < 0.01) continue;
+      
+      // Determine if payment (income) or charge (expense)
+      // Usually transactions fetched are payments. 
+      // If amount > 0, it's a payment.
+      
+      if (amountPesos > 0) {
+        processedTransactionIds.add(txnId);
+        
+        transactions.push({
+          type: 'payment',
+          category: 'other', // Mark as other/general
+          date: paymentDate,
+          description: transaction.description || transaction.notes || 'Payment',
+          amount: -amountPesos, // Negative for credit/payment
+          charge: 0,
+          payment: amountPesos,
+          transactionId: txnId
+        });
+      }
+    }
+  }
+
   // Add penalty charges (passed in from caller)
   transactions.push(...hoaPenalties);
   transactions.push(...waterPenalties);
@@ -737,6 +786,36 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         }
       }
     }
+
+    // Step 6.5: Fetch "Orphaned" transactions (not linked in Dues/Water but belong to unit)
+    // This catches general payments or unallocated transactions
+    try {
+      // Use query endpoint to find transactions by unit and date range
+      const queryResponse = await api.post(`/clients/${clientId}/transactions/query`, {
+        startDate: fiscalYearBounds.startDate,
+        endDate: fiscalYearBounds.endDate,
+        unitId: unitId
+      });
+      
+      const unitTxns = queryResponse.data || [];
+      
+      for (const txn of unitTxns) {
+        if (txn.id && !transactionMap.has(txn.id)) {
+          // If query returns full transaction objects, use them directly
+          // Otherwise fetch details
+          if (txn.allocations) {
+             transactionMap.set(txn.id, txn);
+          } else {
+             const fullTxn = await fetchTransaction(api, clientId, txn.id);
+             if (fullTxn) {
+                transactionMap.set(txn.id, fullTxn);
+             }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Warning: Could not fetch orphaned transactions:', error.message);
+    }
     
     // Step 7: Get all unpaid bills with penalties using unified preview API
     const scheduledAmount = duesData.scheduledAmount || 0;
@@ -787,7 +866,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               
               let description = 'HOA Penalty';
               if (cleanPeriod.includes('-Q')) {
-                const quarter = cleanPeriod.split('-Q')[1];
+                let quarter = parseInt(cleanPeriod.split('-Q')[1]);
+                if (quarter === 0) quarter = 4; // Handle Q0 as previous year's Q4
                 description += ` - Q${quarter} ${dueDate.getFullYear()}`;
               } else {
                 const monthName = dueDate.toLocaleString('en-US', { month: 'short' });
@@ -835,8 +915,9 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               penaltyDate.setMonth(penaltyDate.getMonth() + 1);
               penaltyDate.setDate(1);
               
-              const quarter = cleanPeriod.includes('-Q') ? cleanPeriod.split('-Q')[1] : '';
-              const description = `Water Penalty - Q${quarter} ${dueDate.getFullYear()}`;
+              const quarter = cleanPeriod.includes('-Q') ? parseInt(cleanPeriod.split('-Q')[1]) : '';
+              const displayQuarter = quarter === 0 ? 4 : quarter;
+              const description = `Water Penalty - Q${displayQuarter} ${dueDate.getFullYear()}`;
               
               waterPenalties.push({
                 type: 'penalty',
@@ -904,14 +985,28 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
           
           if (quarter !== undefined) {
             // Quarterly billing
-            const fiscalMonthIndex = (quarter - 1) * 3;
-            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-            const calendarYear = year - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+            // Handle Q0 -> Q4 correction for description
+            const displayQuarter = quarter === 0 ? 4 : quarter;
+            
+            const fiscalMonthIndex = (quarter === 0 ? 3 : quarter - 1) * 3; // Q0 maps to last quarter of previous cycle? No, usually Q0 implies initialization.
+            // Let's stick to safe math: if quarter is 0, we assume it's Q4 of previous year.
+            // But fiscalMonthIndex calculation: (0-1)*3 = -3.
+            
+            const calcQuarter = quarter === 0 ? 0 : quarter - 1; // Use 0 for Q1 (0-1 = -1?) 
+            // Wait, quarter 1 -> index 0. quarter 0 -> index -1?
+            // If quarter=1, (1-1)*3 = 0.
+            // If quarter=0, (0-1)*3 = -3.
+            
+            const fIdx = (quarter === 0) ? -3 : (quarter - 1) * 3;
+            
+            const calendarMonth = ((fiscalYearStartMonth - 1) + fIdx) % 12;
+            const calendarYear = year - 1 + Math.floor(((fiscalYearStartMonth - 1) + fIdx) / 12);
+            
             const dueDate = new Date(calendarYear, calendarMonth, 1);
             penaltyDate = new Date(dueDate);
             penaltyDate.setMonth(penaltyDate.getMonth() + 1);
             penaltyDate.setDate(1);
-            description = `HOA Penalty - Q${quarter} ${dueDate.getFullYear()}`;
+            description = `HOA Penalty - Q${displayQuarter} ${dueDate.getFullYear()}`;
           } else if (month !== undefined) {
             // Monthly billing
             const calendarMonth = ((fiscalYearStartMonth - 1) + (month - 1)) % 12;
@@ -1026,6 +1121,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       duesFrequency,
       fiscalYearStartMonth,
       currentFiscalYear,
+      fiscalYearBounds,
       waterBills,
       hoaPenalties,
       waterPenalties

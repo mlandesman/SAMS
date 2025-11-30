@@ -127,7 +127,7 @@ function getTranslations(language) {
       title: 'STATEMENT OF ACCOUNT',
       statementFor: 'STATEMENT FOR',
       unit: 'Unit',
-      bankingInfo: 'BANKING INFORMATION',
+      bankingInfo: 'PAYMENT INFORMATION',
       bank: 'Bank',
       account: 'Account',
       clabe: 'CLABE',
@@ -136,7 +136,7 @@ function getTranslations(language) {
       address: 'Address',
       period: 'Period',
       date: 'Date',
-      nextPaymentDue: 'Next Payment Due',
+      nextPaymentDue: 'Next Payment',
       accountActivity: 'ACCOUNT ACTIVITY',
       openingBalance: 'Opening Balance',
       tableHeaders: {
@@ -171,7 +171,7 @@ function getTranslations(language) {
       title: 'ESTADO DE CUENTA',
       statementFor: 'ESTADO DE CUENTA PARA',
       unit: 'Depto',
-      bankingInfo: 'INFORMACION BANCARIA',
+      bankingInfo: 'INFORMACIÓN DE PAGO',
       bank: 'Banco',
       account: 'Cuenta',
       clabe: 'CLABE',
@@ -180,7 +180,7 @@ function getTranslations(language) {
       address: 'Dirección',
       period: 'Período',
       date: 'Fecha',
-      nextPaymentDue: 'Próximo Pago Vencido',
+      nextPaymentDue: 'Próximo Pago',
       accountActivity: 'ACTIVIDAD DE LA CUENTA',
       openingBalance: 'Balance Inicial',
       tableHeaders: {
@@ -298,27 +298,33 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     /* Header section */
     .statement-header {
       margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 25px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+      column-gap: 20px;
+      align-items: start;
+      grid-auto-rows: min-content;
+    }
+    
+    .header-left,
+    .header-right {
+      width: 100%;
     }
     
     .header-left {
       text-align: left;
-      width: 60%;
     }
     
     .statement-title {
       font-size: 16pt;
       font-weight: bold;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       text-transform: uppercase;
     }
     
     .client-info {
       font-size: 10pt;
       line-height: 1.5;
+      margin-top: -2px;
     }
     
     .client-info .owner-name {
@@ -334,31 +340,41 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .client-info-table td {
-      padding: 3px 0;
+      padding: 2px 0;
       vertical-align: top;
     }
     
     .client-info-table td:first-child {
       font-weight: bold;
-      width: 140px;
-      padding-right: 10px;
+      width: 105px;
+      padding-right: 4px;
     }
     
     .header-right {
-      width: 38%;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
+      gap: 6px;
+      padding-right: 0;
+      justify-self: start;
+      box-sizing: border-box;
+      max-width: 340px;
+      width: 100%;
+      margin-top: 34px;
     }
     
     .logo-top {
-      margin-bottom: 10px;
+      margin: -4px 0 6px auto;
+      padding: 0;
+      align-self: flex-end;
     }
     
     .logo-top img {
-      max-width: 160px;
-      max-height: 80px;
+      max-width: 200px;
+      max-height: 95px;
       height: auto;
+      display: block;
+      padding-top: 2px;
     }
     
     .logo-right {
@@ -367,10 +383,12 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     
     .banking-info {
       border: 1px solid #000;
-      padding: 10px;
+      padding: 8px 10px;
       background: #f5f5f5;
       text-align: left;
-      margin-top: 12px;
+      margin-top: 6px;
+      width: 100%;
+      box-sizing: border-box;
     }
     
     .banking-info h3 {
@@ -383,16 +401,19 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .banking-info table {
       width: 100%;
       font-size: 8pt;
-      line-height: 1.3;
+      line-height: 1.25;
+      border-collapse: collapse;
     }
     
     .banking-info td {
-      padding: 1px 5px;
+      padding: 2px 4px;
+      vertical-align: top;
     }
     
     .banking-info td:first-child {
       font-weight: bold;
-      width: 40%;
+      width: 32%;
+      white-space: nowrap;
     }
     
     /* Transaction tables */
