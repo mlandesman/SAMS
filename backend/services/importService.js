@@ -789,7 +789,8 @@ export class ImportService {
             }
             
             // Build CrossRef for Water Bills transactions
-            if (transaction.Category === "Water Consumption" && seqNumber) {
+            // Accept both English and Spanish category names
+            if ((transaction.Category === "Water Consumption" || transaction.Category === "Consumo de agua") && seqNumber) {
               // Extract unit ID from "Unit (Name)" format → "Unit"
               const unitMatch = transaction.Unit?.match(/^(\d+)/);
               const unitId = unitMatch ? unitMatch[1] : transaction.Unit;
@@ -1651,9 +1652,6 @@ export class ImportService {
       console.log(`✓ Loaded ${waterCrossRef.length} charge records`);
       const txnCrossRefKeys = Object.keys(txnCrossRef.byPaymentSeq || {});
       console.log(`✓ Loaded transaction CrossRef with ${txnCrossRefKeys.length} payments`);
-      if (txnCrossRefKeys.length > 0) {
-        console.log(`   Sample CrossRef keys: ${txnCrossRefKeys.slice(0, 3).map(k => `"${k}"`).join(', ')}`);
-      }
       
       // Verify CrossRef keys match payment sequences from waterCrossRef
       if (waterCrossRef.length > 0 && txnCrossRefKeys.length > 0) {
@@ -1684,20 +1682,24 @@ export class ImportService {
           const quarterId = `${quarterCycle.fiscalYear}-Q${quarterCycle.fiscalQuarter}`;
           console.log(`\n📅 Processing Quarter ${quarterId}: Fiscal months ${quarterCycle.quarterStartMonth}-${quarterCycle.quarterEndMonth}`);
           
-          // Step 1: Import readings for all months in this quarter
+          // Step 1: Import readings for all months in this quarter (always import, even for prior year)
           for (const monthCycle of quarterCycle.months) {
             await this.importMonthReadings(monthCycle);
             results.readingsImported++;
           }
           
-          // Step 2: Generate quarterly bill (aggregates 3 months)
-          await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth);
-          results.billsGenerated++;
-          
-          // Step 3: Process payments made during this quarter
-          if (quarterCycle.payments && quarterCycle.payments.length > 0) {
-            await this.processQuarterPayments(quarterCycle, txnCrossRef, fiscalYearStartMonth);
-            results.paymentsApplied += quarterCycle.payments.length;
+          // Step 2: Generate quarterly bill (only for fiscal year 2026+, skip prior year quarters)
+          if (quarterCycle.shouldGenerateBill !== false) {
+            await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth);
+            results.billsGenerated++;
+            
+            // Step 3: Process payments made during this quarter (only if bill was generated)
+            if (quarterCycle.payments && quarterCycle.payments.length > 0) {
+              await this.processQuarterPayments(quarterCycle, txnCrossRef, fiscalYearStartMonth);
+              results.paymentsApplied += quarterCycle.payments.length;
+            }
+          } else {
+            console.log(`⏭️  Skipping bill generation for ${quarterId} - prior year quarter (readings imported for starting meter)`);
           }
           
           results.cyclesProcessed++;
@@ -1820,6 +1822,8 @@ export class ImportService {
     }
     
     // For each fiscal year, group into quarters
+    // CRITICAL: Import readings for all years (including prior year for starting meter),
+    // but only create bills for fiscal year 2026+
     for (const [fiscalYearStr, months] of Object.entries(monthsByFiscalYear)) {
       const fiscalYear = parseInt(fiscalYearStr);
       
@@ -1850,6 +1854,10 @@ export class ImportService {
             monthNames.push(monthName);
           }
           
+          // CRITICAL: Only create bills for fiscal year 2026 and later
+          // Prior year quarters (e.g., 2025-Q4) are skipped - readings imported but no bills generated
+          const shouldGenerateBill = fiscalYear >= 2026;
+          
           quarterlyChronology.push({
             fiscalYear,
             fiscalQuarter: quarter,
@@ -1858,7 +1866,8 @@ export class ImportService {
             payments: allPayments,
             quarterMonths: monthNames, // Human-readable month names
             quarterStartMonth,
-            quarterEndMonth
+            quarterEndMonth,
+            shouldGenerateBill // Flag to skip bill generation for prior year quarters
           });
         }
       }
@@ -2270,53 +2279,34 @@ export class ImportService {
     // Apply each payment to quarterly bills
     for (const [paySeq, payment] of Object.entries(paymentGroups)) {
       // Look up transaction ID from CrossRef
-      // The paySeq should match the PaymentSeq from waterCrossRef.json exactly
-      // Format: "PAY-104 (Manuel González)-20250723-26"
-      // This should match the key in Water_Bills_Transaction_CrossRef.json byPaymentSeq
-      console.log(`  🔍 Looking up transaction for payment: "${paySeq}"`);
-      let transactionId = null;
-      
-      // Try exact match first
-      if (txnCrossRef?.byPaymentSeq?.[paySeq]) {
-        transactionId = txnCrossRef.byPaymentSeq[paySeq].transactionId;
-      }
-      // Try bySequence for backwards compatibility
-      else if (txnCrossRef?.bySequence?.[paySeq]) {
-        transactionId = txnCrossRef.bySequence[paySeq].transactionId;
-      }
-      // Try case-insensitive match (in case of formatting differences)
-      else if (txnCrossRef?.byPaymentSeq) {
-        const matchingKey = Object.keys(txnCrossRef.byPaymentSeq).find(
-          key => key.toLowerCase() === paySeq.toLowerCase()
-        );
-        if (matchingKey) {
-          transactionId = txnCrossRef.byPaymentSeq[matchingKey].transactionId;
-          console.log(`  🔍 Found case-insensitive match: "${paySeq}" → "${matchingKey}"`);
-        }
-      }
+      const transactionId = txnCrossRef?.byPaymentSeq?.[paySeq]?.transactionId || null;
       
       if (!transactionId) {
-        console.warn(`⚠️  No transaction ID found in CrossRef for payment "${paySeq}"`);
-        if (txnCrossRef?.byPaymentSeq) {
-          const sampleKeys = Object.keys(txnCrossRef.byPaymentSeq).slice(0, 3);
-          console.warn(`   Sample byPaymentSeq keys: ${sampleKeys.map(k => `"${k}"`).join(', ')}`);
-          // Check if any key contains the payment sequence number
-          const paySeqMatch = paySeq.match(/PAY-(\d+)/);
-          if (paySeqMatch) {
-            const unitNum = paySeqMatch[1];
-            const unitKeys = Object.keys(txnCrossRef.byPaymentSeq).filter(k => k.includes(`PAY-${unitNum}`));
-            if (unitKeys.length > 0) {
-              console.warn(`   Found ${unitKeys.length} keys for unit ${unitNum}: ${unitKeys.slice(0, 3).map(k => `"${k}"`).join(', ')}`);
-            }
-          }
-        }
-      } else {
-        console.log(`  🔗 Found transaction ID for payment "${paySeq}": ${transactionId}`);
+        console.warn(`⚠️  No transaction ID found in CrossRef for payment ${paySeq}`);
       }
       
-      // Find which quarterly bills this payment applies to
+      // Filter charges to only those that belong to the current quarter
+      // A payment might have charges from multiple quarters, but we only process charges for this quarter
+      const chargesForThisQuarter = payment.charges.filter(charge => {
+        const chargeDate = new Date(charge.ChargeDate);
+        const chargeFiscalYear = getFiscalYear(chargeDate, fiscalYearStartMonth);
+        const calendarMonth = chargeDate.getMonth() + 1;
+        let chargeFiscalMonth = calendarMonth - fiscalYearStartMonth;
+        if (chargeFiscalMonth < 0) chargeFiscalMonth += 12;
+        const chargeFiscalQuarter = Math.floor(chargeFiscalMonth / 3) + 1;
+        
+        return chargeFiscalYear === quarterCycle.fiscalYear && 
+               chargeFiscalQuarter === quarterCycle.fiscalQuarter;
+      });
+      
+      if (chargesForThisQuarter.length === 0) {
+        // This payment has no charges for this quarter, skip it
+        continue;
+      }
+      
+      // Find which quarterly bills this payment applies to (should only be the current quarter)
       const billsToUpdate = await this.findQuarterBillsForCharges(
-        payment.charges, 
+        chargesForThisQuarter, 
         quarterCycle.fiscalYear, 
         quarterCycle.fiscalQuarter,
         fiscalYearStartMonth
@@ -2328,11 +2318,12 @@ export class ImportService {
       }
       
       // Update each bill with payment info including transaction ID
+      // Note: For quarterly bills, there should only be one bill per unit per quarter
       for (const billUpdate of billsToUpdate) {
         billUpdate.transactionId = transactionId;
         billUpdate.paymentDate = payment.paymentDate;
         billUpdate.paymentSeq = paySeq;
-        await this.applyPaymentToQuarterBill(billUpdate);
+        await this.applyPaymentToQuarterBill(billUpdate, fiscalYearStartMonth);
       }
       
       // Convert centavos to pesos for logging
@@ -2544,17 +2535,55 @@ export class ImportService {
     // Append to payments array
     const updatedPayments = [...existingPayments, paymentEntry];
     
+    // Determine best transactionId for linking:
+    // - If bill is paid, prefer payment from last month of quarter
+    // - Otherwise, use most recent payment
+    let bestTransactionId = null;
+    if (newStatus === 'paid' && updatedPayments.length > 0) {
+      // Calculate last month of quarter (fiscal months: Q1=0-2, Q2=3-5, Q3=6-8, Q4=9-11)
+      // Last month = (quarter * 3) - 1 (e.g., Q1 last month = 2, Q2 last month = 5)
+      const lastMonthOfQuarter = (billUpdate.fiscalQuarter * 3) - 1;
+      
+      // Find payment from last month of quarter
+      const lastMonthPayment = updatedPayments.find(payment => {
+        if (!payment.date) return false;
+        const paymentDate = new Date(payment.date);
+        const paymentFiscalYear = getFiscalYear(paymentDate, fiscalYearStartMonth);
+        const calendarMonth = paymentDate.getMonth() + 1;
+        let paymentFiscalMonth = calendarMonth - fiscalYearStartMonth;
+        if (paymentFiscalMonth < 0) paymentFiscalMonth += 12;
+        
+        return paymentFiscalYear === billUpdate.fiscalYear && 
+               paymentFiscalMonth === lastMonthOfQuarter &&
+               payment.transactionId;
+      });
+      
+      bestTransactionId = lastMonthPayment?.transactionId || null;
+    }
+    
+    // If no last-month payment found (or bill not paid), use most recent payment with transactionId
+    if (!bestTransactionId && updatedPayments.length > 0) {
+      // Sort by date descending and find first with transactionId
+      const sortedPayments = [...updatedPayments].sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        return dateB - dateA;
+      });
+      bestTransactionId = sortedPayments.find(p => p.transactionId)?.transactionId || null;
+    }
+    
     await billRef.update({
       [`bills.units.${billUpdate.unitId}.paidAmount`]: newPaidAmount,
       [`bills.units.${billUpdate.unitId}.basePaid`]: newBasePaid,
       [`bills.units.${billUpdate.unitId}.penaltyPaid`]: newPenaltyPaid,
       [`bills.units.${billUpdate.unitId}.status`]: newStatus,
-      [`bills.units.${billUpdate.unitId}.payments`]: updatedPayments
+      [`bills.units.${billUpdate.unitId}.payments`]: updatedPayments,
+      [`bills.units.${billUpdate.unitId}.transactionId`]: bestTransactionId
     });
     
     // Convert centavos to pesos for logging
     const amountPesos = centavosToPesos(billUpdate.amountApplied);
-    console.log(`    ✓ Updated bill ${monthStr} unit ${billUpdate.unitId}: +$${amountPesos.toFixed(2)} (${billUpdate.amountApplied} centavos) → ${newStatus} (txn: ${billUpdate.transactionId || 'none'})`);
+    console.log(`    ✓ Updated quarterly bill ${billId} unit ${billUpdate.unitId}: +$${amountPesos.toFixed(2)} (${billUpdate.amountApplied} centavos) → ${newStatus} (txn: ${bestTransactionId || 'none'})`);
   }
   
   /**
@@ -2619,8 +2648,10 @@ export class ImportService {
   
   /**
    * Apply payment to a specific quarterly bill
+   * @param {Object} billUpdate - Payment update data
+   * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12)
    */
-  async applyPaymentToQuarterBill(billUpdate) {
+  async applyPaymentToQuarterBill(billUpdate, fiscalYearStartMonth = 7) {
     const db = await this.getDb();
     
     const billId = `${billUpdate.fiscalYear}-Q${billUpdate.fiscalQuarter}`;
