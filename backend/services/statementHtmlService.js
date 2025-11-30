@@ -222,7 +222,7 @@ function getTranslations(language) {
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
  * @param {Object} options - { fiscalYear, language }
- * @returns {string} HTML document
+ * @returns {{ html: string, meta: { statementId: string, generatedAt: string, language: string } }}
  */
 export async function generateStatementHtml(api, clientId, unitId, options = {}) {
   // Get statement data
@@ -280,34 +280,33 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       line-height: 1.4;
       color: #000;
       background: #fff;
-      padding: 0.5in;
+      padding: 0.5in 0.6in 1.1in 0.6in;
     }
     
     /* Page layout */
     .statement-page {
       max-width: 8.5in;
       margin: 0 auto;
+      padding-bottom: 0.35in;
+    }
+
+    .content-bottom-spacer {
+      height: 28px;
+      clear: both;
     }
     
     /* Header section */
     .statement-header {
       margin-bottom: 20px;
-      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 25px;
     }
     
     .header-left {
       text-align: left;
       width: 60%;
-    }
-    
-    .logo-top {
-      margin-bottom: 10px;
-    }
-    
-    .logo-top img {
-      max-width: 150px;
-      max-height: 75px;
-      height: auto;
     }
     
     .statement-title {
@@ -346,10 +345,24 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .header-right {
-      position: absolute;
-      top: 125px;
-      right: 0;
       width: 38%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .logo-top {
+      margin-bottom: 10px;
+    }
+    
+    .logo-top img {
+      max-width: 160px;
+      max-height: 80px;
+      height: auto;
+    }
+    
+    .logo-right {
+      text-align: right;
     }
     
     .banking-info {
@@ -357,6 +370,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       padding: 10px;
       background: #f5f5f5;
       text-align: left;
+      margin-top: 12px;
     }
     
     .banking-info h3 {
@@ -559,8 +573,9 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .statement-footer {
-      margin-top: 20px;
-      padding-top: 10px;
+      margin-top: 30px;
+      padding-top: 12px;
+      padding-bottom: 28px;
       border-top: 2px solid #000;
       font-size: 8pt;
       color: #333;
@@ -604,14 +619,30 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       line-height: 1.3;
     }
     
+    /* PDFShift footers come from pdfService footer.html */
+    
     /* Print styles */
     @media print {
       body {
-        padding: 0.5in;
+        padding: 0;
+        margin: 0;
       }
       
       .statement-page {
         max-width: none;
+        padding: 0;
+        margin: 0;
+        padding-bottom: 1.1in;
+      }
+      
+      /* Hide legacy footer row (replaced by PDFShift footer) */
+      .statement-footer .footer-row {
+        display: none !important;
+      }
+      
+      .statement-footer {
+        margin-top: 20px;
+        page-break-inside: avoid;
       }
       
       /* Prevent page breaks inside important sections */
@@ -678,19 +709,12 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
   <div class="statement-page">
     <!-- Header -->
     <div class="statement-header">
-      <!-- Left side: Logo, Title and Client Info -->
+      <!-- Left side: Title and Client Info -->
       <div class="header-left">
-        <div class="logo-top">
-          ${data.clientInfo.logoUrl 
-            ? `<img src="${data.clientInfo.logoUrl}" alt="${data.clientInfo.name}">`
-            : `<div style="font-size: 12pt; font-weight: bold;">${data.clientInfo.name}</div>`
-          }
-        </div>
-        
         <div class="statement-title">${t.title}</div>
         
         <div class="client-info">
-          <div class="owner-name">${t.statementFor}: ${t.unit} ${unitId} - ${data.unitInfo.owners.join(', ')}</div>
+          <div class="owner-name">${t.unit} ${unitId} - ${data.unitInfo.owners.join(', ')}</div>
           
           <table class="client-info-table">
             <tr>
@@ -727,8 +751,15 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
         </div>
       </div>
       
-      <!-- Right side: Banking Info -->
+      <!-- Right side: Logo + Banking Info -->
       <div class="header-right">
+        <div class="logo-top logo-right">
+          ${data.clientInfo.logoUrl 
+            ? `<img src="${data.clientInfo.logoUrl}" alt="${data.clientInfo.name}">`
+            : `<div style="font-size: 12pt; font-weight: bold;">${data.clientInfo.name}</div>`
+          }
+        </div>
+        
         <div class="banking-info">
           <h3>${t.bankingInfo}</h3>
           <table>
@@ -863,6 +894,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     </div>
     
     <!-- Statement Footer -->
+    <div class="content-bottom-spacer"></div>
     <div class="statement-footer">
       <div class="footer-row">
         <div>${t.statementId}: ${statementId}</div>
@@ -883,6 +915,13 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
 </body>
 </html>`;
   
-  return html;
+  return {
+    html,
+    meta: {
+      statementId,
+      generatedAt: generatedTimestamp.toFormat('MM/dd/yyyy HH:mm'),
+      language
+    }
+  };
 }
 
