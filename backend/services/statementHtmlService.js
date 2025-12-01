@@ -336,7 +336,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .client-info-table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 5px;
+      margin-top: 45px;
     }
     
     .client-info-table td {
@@ -360,7 +360,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       box-sizing: border-box;
       max-width: 340px;
       width: 100%;
-      margin-top: 34px;
+      margin-top: -5px;
     }
     
     .logo-top {
