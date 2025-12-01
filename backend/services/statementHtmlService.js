@@ -315,10 +315,11 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .statement-title {
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: bold;
       margin-bottom: 12px;
       text-transform: uppercase;
+      grid-column: 1 / span 2;
     }
     
     .client-info {
@@ -336,7 +337,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .client-info-table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 45px;
+      margin-top: 55px;
     }
     
     .client-info-table td {
@@ -360,7 +361,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       box-sizing: border-box;
       max-width: 340px;
       width: 100%;
-      margin-top: -5px;
+      margin-top: 5px;
     }
     
     .logo-top {
