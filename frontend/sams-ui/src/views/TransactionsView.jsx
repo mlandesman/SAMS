@@ -234,6 +234,27 @@ function TransactionsView() {
       // ADVANCED FILTERS MODE: Override quick filters completely
       console.log(`🔧 [FILTER FIX] Applying advanced filters (overriding quick filters)`);
       
+      // Debug counter for unit filter
+      let unitFilterDebugCount = 0;
+      
+      // Helper function to check if any allocation matches a field/value
+      const checkAllocations = (allocations, fieldName, filterValues, extractValue = (alloc, field) => alloc[field]) => {
+        if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
+          return false;
+        }
+        
+        return allocations.some(alloc => {
+          const allocValue = extractValue(alloc, fieldName);
+          if (!allocValue) return false;
+          
+          return filterValues.some(filterValue => {
+            const allocValueStr = String(allocValue).toLowerCase().trim();
+            const filterValueStr = String(filterValue).toLowerCase().trim();
+            return allocValueStr === filterValueStr;
+          });
+        });
+      };
+      
       filtered = filtered.filter(transaction => {
         // Vendor filter (case-insensitive, supports arrays)
         if (advancedFilters.vendor && advancedFilters.vendor.length > 0) {
@@ -246,32 +267,178 @@ function TransactionsView() {
         }
         
         // Category filter (case-insensitive, supports arrays)
+        // Check both transaction-level AND allocations array
         if (advancedFilters.category && advancedFilters.category.length > 0) {
-          const categoryMatches = advancedFilters.category.some(selectedCategory => 
+          // Check transaction-level category
+          const transactionCategoryMatches = advancedFilters.category.some(selectedCategory => 
             transaction.categoryName?.toLowerCase() === selectedCategory?.toLowerCase()
           );
-          if (!categoryMatches) {
+          
+          // Check allocations array for categoryId or categoryName
+          const allocationCategoryMatches = checkAllocations(
+            transaction.allocations,
+            'categoryName',
+            advancedFilters.category,
+            (alloc, field) => alloc.categoryName || alloc.categoryId
+          );
+          
+          // Include if EITHER transaction-level OR any allocation matches
+          if (!transactionCategoryMatches && !allocationCategoryMatches) {
             return false;
           }
         }
         
         // Unit filter (supports arrays)
         if (advancedFilters.unit && advancedFilters.unit.length > 0) {
-          const txUnit = transaction.unitId || transaction.unit;
-          const unitMatches = advancedFilters.unit.some(selectedUnit => 
-            txUnit === selectedUnit
-          );
+          // Log filter values ONCE when first transaction is checked
+          if (unitFilterDebugCount === 0) {
+            console.log('ADV FILTER DEBUG: Filter Applied:', {
+              selectedUnits: advancedFilters.unit,
+              selectedUnitsTypes: advancedFilters.unit.map(u => typeof u),
+              selectedUnitsStringified: advancedFilters.unit.map(u => String(u)),
+              totalTransactionsToCheck: filtered.length
+            });
+          }
+          
+          const currentTxIndex = unitFilterDebugCount;
+          
+          // Log EVERY transaction check for first 5 transactions - EXPAND ALL FIELDS
+          if (currentTxIndex < 5) {
+            // Get ALL keys from transaction object
+            const allKeys = Object.keys(transaction);
+            const unitRelatedKeys = allKeys.filter(k => 
+              k.toLowerCase().includes('unit') || 
+              k.toLowerCase().includes('property')
+            );
+            
+            console.log(`ADV FILTER DEBUG: Testing Transaction #${currentTxIndex + 1}:`, {
+              transactionId: transaction.id,
+              'transaction.unitId': transaction.unitId,
+              'transaction.unit': transaction.unit,
+              'transaction.unitId type': typeof transaction.unitId,
+              'transaction.unit type': typeof transaction.unit,
+              'All unit-related keys': unitRelatedKeys,
+              'unit-related values': unitRelatedKeys.reduce((acc, key) => {
+                acc[key] = transaction[key];
+                return acc;
+              }, {}),
+              'ALL transaction keys': allKeys,
+              'Sample transaction fields': {
+                id: transaction.id,
+                vendorName: transaction.vendorName,
+                categoryName: transaction.categoryName,
+                amount: transaction.amount,
+                date: transaction.date
+              }
+            });
+            
+            // Log the FULL transaction object structure
+            console.log(`ADV FILTER DEBUG: FULL Transaction Object #${currentTxIndex + 1}:`, JSON.stringify(transaction, null, 2));
+          }
+          
+          // Helper function to extract unit ID from a value (handles "1C (Eifler)" format)
+          const extractUnitId = (value) => {
+            if (!value) return null;
+            const strValue = String(value).trim();
+            const unitIdMatch = strValue.match(/^([^\s(]+)/);
+            return unitIdMatch ? unitIdMatch[1].trim() : strValue;
+          };
+          
+          // Try multiple possible field names for unit (DO NOT use propertyId - that's the client ID, not a unit)
+          const txUnit = transaction.unitId || 
+                        transaction.unit || 
+                        transaction.unitNumber ||
+                        (transaction.unit && typeof transaction.unit === 'object' && transaction.unit.unitId) ||
+                        (transaction.unit && typeof transaction.unit === 'object' && transaction.unit.id);
+          
+          // Check allocations for unitId (in data.unitId or directly in allocation)
+          let allocationUnitMatches = false;
+          if (transaction.allocations && Array.isArray(transaction.allocations) && transaction.allocations.length > 0) {
+            allocationUnitMatches = transaction.allocations.some(alloc => {
+              const allocUnitId = alloc.data?.unitId || alloc.unitId || alloc.data?.unit;
+              if (!allocUnitId) return false;
+              
+              return advancedFilters.unit.some(selectedUnit => {
+                const filterValue = extractUnitId(selectedUnit);
+                const allocValue = extractUnitId(allocUnitId);
+                return filterValue === allocValue;
+              });
+            });
+          }
+          
+          // Handle null explicitly (null is falsy but we want to treat it as "no unit")
+          const hasUnit = txUnit !== null && txUnit !== undefined && txUnit !== '';
+          
+          // If transaction has no unit field AND no allocation matches, exclude it when unit filter is active
+          if (!hasUnit && !allocationUnitMatches) {
+            if (currentTxIndex < 5) {
+              console.log(`ADV FILTER DEBUG: Transaction #${currentTxIndex + 1} REJECTED - Missing unit field`);
+              console.log(`ADV FILTER DEBUG: Checked fields: unitId=${transaction.unitId}, unit=${transaction.unit}, unitNumber=${transaction.unitNumber}`);
+              console.log(`ADV FILTER DEBUG: Checked allocations: ${transaction.allocations?.length || 0} allocations, matches=${allocationUnitMatches}`);
+            }
+            unitFilterDebugCount++;
+            return false;
+          }
+          
+          // Check transaction-level unit
+          const transactionUnitMatches = hasUnit ? advancedFilters.unit.some(selectedUnit => {
+            // Normalize both sides to strings for comparison (handles type mismatches)
+            const filterValue = extractUnitId(selectedUnit);
+            const txValue = extractUnitId(txUnit);
+            
+            // Compare: exact match after extraction
+            const matches = filterValue === txValue;
+            
+            // Log EVERY comparison for first 5 transactions
+            if (currentTxIndex < 5) {
+              console.log(`ADV FILTER DEBUG: Comparison Test (Transaction-level):`, {
+                filterValue: `"${filterValue}"`,
+                txValueOriginal: `"${String(txUnit || '').trim()}"`,
+                txValueExtracted: `"${txValue}"`,
+                filterValueType: typeof selectedUnit,
+                txValueType: typeof txUnit,
+                matches: matches
+              });
+            }
+            
+            return matches;
+          }) : false;
+          
+          // Include if EITHER transaction-level OR any allocation matches
+          const unitMatches = transactionUnitMatches || allocationUnitMatches;
+          
+          if (currentTxIndex < 5) {
+            console.log(`ADV FILTER DEBUG: ${unitMatches ? '✅ MATCH' : '❌ NO MATCH'} - Transaction #${currentTxIndex + 1} ${unitMatches ? 'INCLUDED' : 'EXCLUDED'}`);
+            if (allocationUnitMatches) {
+              console.log(`ADV FILTER DEBUG: Match found in allocations array`);
+            }
+          }
+          
+          unitFilterDebugCount++;
+          
           if (!unitMatches) {
             return false;
           }
         }
         
         // Account filter (case-insensitive, supports arrays)
+        // Check both transaction-level AND allocations array (just in case)
         if (advancedFilters.account && advancedFilters.account.length > 0) {
-          const accountMatches = advancedFilters.account.some(selectedAccount => 
+          // Check transaction-level account
+          const transactionAccountMatches = advancedFilters.account.some(selectedAccount => 
             transaction.accountName?.toLowerCase() === selectedAccount?.toLowerCase()
           );
-          if (!accountMatches) {
+          
+          // Check allocations array for accountName or accountId (defensive - unlikely but possible)
+          const allocationAccountMatches = checkAllocations(
+            transaction.allocations,
+            'accountName',
+            advancedFilters.account,
+            (alloc, field) => alloc.accountName || alloc.accountId || alloc.data?.accountName
+          );
+          
+          // Include if EITHER transaction-level OR any allocation matches
+          if (!transactionAccountMatches && !allocationAccountMatches) {
             return false;
           }
         }
