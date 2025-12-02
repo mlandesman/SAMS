@@ -1142,44 +1142,24 @@ Create a unified SAMS Design System standardizing:
 
 ---
 
-### **TD-026: Transaction Filtering - Unit ID Filter Broken**
+### **TD-026: Transaction Filtering - Unit ID Filter Broken** ✅ RESOLVED
 **Category:** Frontend - Transactions View  
-**Priority:** 🔥 HIGH  
+**Priority:** ✅ RESOLVED  
 **Created:** November 30, 2025  
+**Resolved:** December 1, 2025
 **Context:** Transaction list filtering system
 
-**Description:**
-The Unit ID filter in the Transactions view returns no rows regardless of which units are selected. Other filters (date range, category, payment method, etc.) appear to work correctly.
+**Resolution:**
+Fixed the Unit ID filter bug in `TransactionsView.jsx`:
+1. **Root Cause:** Filter incorrectly used `propertyId` (client ID like "MTC") as fallback when `unitId` was null
+2. **Fix:** Removed propertyId fallback, added unit ID extraction for "1C (Eifler)" format
+3. **Bonus:** Added allocations array support for split transaction filtering
 
-**Current Impact:**
-- ❌ Cannot filter transactions by unit
-- Affects transaction review and reconciliation workflows
-- Users must scroll through all transactions to find unit-specific entries
+**Branch:** `fix/transaction-unit-filter` (ready for merge to main)
 
-**Symptoms:**
-- Select any unit(s) from Unit ID filter dropdown
-- Apply filter → Returns 0 rows
-- Clear filter → All transactions return
-- Other filters work correctly
+**Duration:** ~2 hours (as estimated)
 
-**Files to Investigate:**
-- `frontend/sams-ui/src/views/TransactionsView.jsx` - Filter logic
-- `frontend/sams-ui/src/components/transactions/` - Filter components
-- `backend/routes/transactions.js` or `transactionsController.js` - API filtering
-
-**Likely Cause:**
-- Field name mismatch (unitId vs unit vs accountId)
-- Filter parameter not being sent to API
-- API not processing unit filter correctly
-- Recent refactoring may have changed field names
-
-**Workaround:**
-- Use browser search (Ctrl+F) to find unit in transaction list
-- Export transactions and filter in spreadsheet
-
-**Estimated Fix Effort:** 1-2 hours (likely simple field name fix)
-
-**Business Impact:** HIGH - Core transaction management functionality degraded
+**Business Impact:** RESOLVED - Unit filter now works correctly
 
 ---
 
