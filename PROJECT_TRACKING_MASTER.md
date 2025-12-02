@@ -7,42 +7,69 @@
 
 ---
 
-## 🔄 ACTIVE DEVELOPMENT (November 29, 2025)
+## 🔄 ACTIVE DEVELOPMENT (December 1, 2025)
 
-### Statement of Account Report - Next Steps
-**Status**: 🚀 **PRODUCTION READY** - Core System Complete  
-**Priority**: MEDIUM - Enhancement tasks  
+### Statement of Account Report - Step 3 UI Integration
+**Status**: 📋 **READY TO BEGIN** - Task Assignment Created  
+**Priority**: HIGH - Core report functionality  
+**Branch**: `feature/report-system-completion`  
 **Documentation**: `SAMS-Docs/apm_session/Implementation_Plan.md`
 
-**Remaining Tasks**:
-- Email integration (attach PDF to statement emails)
-- Frontend UI (view/download buttons)
-- Batch generation (all units at once)
-- DATA-001: Investigate Q0 2025 penalty data issue (data service)
+**Step 2B: PDF Layout Polish - ✅ COMPLETE (December 1, 2025)**
+- ✅ Resolved page break issue (footer height 24mm → 10mm)
+- ✅ Optimized layout margins in statementHtmlService.js
+- ✅ Sandbox mode enabled by default (credits protected)
+- ✅ Verified English (MTC) and Spanish (AVII) layouts
+- ✅ Single-page and multi-page scenarios verified
+- ✅ Commit: `33e10db` - pushed to `feature/report-system-completion`
+- ✅ Manager Review: ⭐⭐⭐⭐⭐ APPROVED
 
-**Completed Foundation**:
+**Step 3: Frontend UI Integration (Task Assignment Created)**:
+- Task: `/SAMS-Docs/apm_session/Memory/Task_Assignments/Step_3_Statement_UI_Integration_2025-12-01.md`
+- View/download statement buttons in Reports view
+- Unit selection with owner names
+- Language toggle (English/Spanish)
+- Preview HTML and Download PDF functionality
+- Professional, consistent UI styling
+
+**Parallel Work: TD-026 Unit Filter Fix**:
+- Task: `/SAMS-Docs/apm_session/Memory/Task_Assignments/Ad_Hoc_TD_026_Transaction_Unit_Filter_Fix_2025-12-01.md`
+- Branch: `fix/transaction-unit-filter` (new from main)
+- Quick bug fix (1-2 hours estimated)
+
+**Completed Foundation (Step 2B)**:
 - ✅ Data service (getStatementData, getConsolidatedUnitData, allocationSummary)
 - ✅ Text report generation (generateTextTable)
 - ✅ HTML generation (single chronological table format)
-- ✅ PDF generation (generatePdf via Puppeteer)
+- ✅ PDF generation (generatePdf via PDFShift with dynamic footers)
 - ✅ API endpoints (/statement/html, /statement/pdf, /statement/text)
 - ✅ Bilingual support (English/Spanish with dynamic description translation)
 - ✅ Client branding integration (logos from Firebase Storage)
 - ✅ Allocation Summary (per-category breakdown using transaction allocations)
 - ✅ Smart balance display (BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL)
-- ✅ 7 units tested (100% pass rate)
+- ✅ 7+ units tested (100% pass rate)
+- ✅ Sandbox mode for credit protection
 
 ---
 
 ## ✅ RECENTLY COMPLETED (November 26-29, 2025)
 
-### ✅ Statement HTML/PDF Generation + Refactor - COMPLETE (November 29, 2025)
-**Status**: ✅ **APPROVED** - Manager Review Complete  
-**Duration**: ~6 hours (Step 2B: 4 hours + Refactor: 2 hours)  
-**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
-**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Statement_Report_Refactor_2025-11-29/`
+### 🔄 Statement HTML/PDF Generation - IN PROGRESS (November 30, 2025)
+**Status**: 🔄 **70% COMPLETE** - PDF Layout Polish In Progress  
+**Duration**: ~10 hours total (Nov 29: 6 hrs + Nov 30: 4 hrs)  
+**Quality**: ⭐⭐⭐⭐ EXCELLENT (pending final layout polish)  
+**Branch**: `feature/report-system-completion`
 
-**Achievements**:
+**November 30 Progress**:
+- ✅ Swapped Puppeteer for PDFShift with dynamic footer metadata
+- ✅ Reworked header grid: logo alignment, address/payment column widths
+- ✅ Added HOA dues charge fallback for missing `dueDate` scenarios
+- ✅ Tuned body/page padding to remove blank trailing pages
+- ✅ Regenerated baseline PDFs for MTC PH4D, AVII 101, 106
+- 🔄 Fine-tuning footer spacing for short statements
+- ⚠️ PDFShift quota at 90% - limiting additional tests
+
+**November 29 Achievements**:
 - **Single chronological table format** - Unified payments appear ONCE (no duplication)
 - **Allocation Summary** - Per-category breakdown (HOA, Water, Credit) with accurate math
 - **Smart balance display** - BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL
@@ -53,14 +80,57 @@
 - Future items filtering with "Next Payment Due" calculation
 - Client logo integration from Firebase Storage
 - API endpoints: `/statement/html`, `/statement/pdf`, `/statement/text`
-- **7 units tested** (4 MTC English, 3 AVII Spanish) - 100% pass rate
+- **7+ units tested** (4 MTC English, 3 AVII Spanish) - 100% pass rate
 - Test results: HTML ~14-18KB, PDF ~370KB (MTC) to ~1.4MB (AVII)
 
 **Technical Debt Documented**:
-- TD-020: PDF Footer Not Rendering (MEDIUM)
-- TD-021: Static Page Numbers (LOW)
+- TD-020: PDF Footer Not Rendering (MEDIUM) - ✅ RESOLVED via PDFShift
+- TD-021: Static Page Numbers (LOW) - ✅ RESOLVED via PDFShift
 - TD-022: Q0 2025 Historical Data - DATA ISSUE (MEDIUM)
 - TD-023: Large PDF File Size AVII (LOW)
+- TD-024: PDFShift Quota Management (MEDIUM) - NEW
+- TD-025: Water Bills Quarterly Import Transaction Linking (MEDIUM) - NEW
+- TD-026: Transaction Unit ID Filter Broken (HIGH) - NEW
+
+### ✅ Statement PDF Layout Polish - Step 2B Complete (December 1, 2025)
+**Status**: ✅ **APPROVED** - Manager Review Complete  
+**Duration**: ~12 hours total (Nov 29 - Dec 1)  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Branch**: `feature/report-system-completion`  
+**Commit**: `33e10db`
+
+**Achievements**:
+- Resolved PDF page break issue (footer height 24mm → 10mm reclaimed ~0.5" usable space)
+- Optimized layout margins in statementHtmlService.js
+- Configured PDFShift sandbox mode (credits protected during development)
+- Verified layouts for English (MTC) and Spanish (AVII) templates
+- Single-page and multi-page scenarios working correctly
+
+**Technical Fix**:
+- **Root Cause**: PDFShift `footer.height` parameter reserving excessive vertical space
+- **Solution**: Reduced footer height from 24mm to 10mm with minimal spacing
+
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Statement_Step_2B_PDF_Layout_2025-12-01/`
+
+---
+
+### ✅ Branch Cleanup Complete (November 30, 2025)
+**Status**: ✅ **COMPLETE**  
+**Duration**: ~15 minutes
+
+**Achievements**:
+- Deleted 19 merged local branches
+- Deleted 25 merged remote branches (GitHub)
+- Cleaned up 40 old test result files
+- Removed debug scripts from debugging sessions
+- Final branch count: 5 local, 3 remote
+
+**Remaining Branches (Intentionally Kept)**:
+- `main` - Production
+- `feature/report-system-completion` - Active development (Statement Reports)
+- `backup-before-surgical-restore-2025-10-14` - Emergency backup
+- `cursor/review-water-bill-payment-code-for-new-structure-54ba` - Unmerged work
+- `feature/water-bills-split-transactions` - Unmerged work
 
 ### ✅ Unified Payment Atomicity Fix - COMPLETE (November 28, 2025)
 **Status**: ✅ **APPROVED** - Manager Review Complete + Merged to Main  
@@ -1037,6 +1107,134 @@
 
 ## 📊 TECHNICAL DEBT
 
+### **TD-027: System-Wide UI Consistency Refactor**
+**Category:** Frontend - Design System  
+**Priority:** ⚠️ MEDIUM  
+**Created:** December 1, 2025  
+**Context:** Cross-module UI standardization
+
+**Description:**
+SAMS currently has inconsistent layouts, tab styles, and design patterns across modules:
+- ListManagementView uses MUI Tabs with specific styling
+- ReportsView uses custom tabs with different styling
+- HOADuesView uses custom table layouts
+- WaterBillsView uses different patterns
+
+**Current Impact:**
+- Unprofessional appearance
+- Inconsistent user experience
+- Increased maintenance burden
+- Harder onboarding for new developers
+
+**Future Work Required:**
+Create a unified SAMS Design System standardizing:
+- Tab components and styling
+- Header layouts
+- Table/grid components  
+- Modal patterns
+- Color palette
+- Typography scale
+- Spacing system
+
+**Estimated Fix Effort:** 15-20 hours across multiple modules
+
+**Business Impact:** MEDIUM - UX quality issue, not blocking functionality
+
+---
+
+### **TD-026: Transaction Filtering - Unit ID Filter Broken**
+**Category:** Frontend - Transactions View  
+**Priority:** 🔥 HIGH  
+**Created:** November 30, 2025  
+**Context:** Transaction list filtering system
+
+**Description:**
+The Unit ID filter in the Transactions view returns no rows regardless of which units are selected. Other filters (date range, category, payment method, etc.) appear to work correctly.
+
+**Current Impact:**
+- ❌ Cannot filter transactions by unit
+- Affects transaction review and reconciliation workflows
+- Users must scroll through all transactions to find unit-specific entries
+
+**Symptoms:**
+- Select any unit(s) from Unit ID filter dropdown
+- Apply filter → Returns 0 rows
+- Clear filter → All transactions return
+- Other filters work correctly
+
+**Files to Investigate:**
+- `frontend/sams-ui/src/views/TransactionsView.jsx` - Filter logic
+- `frontend/sams-ui/src/components/transactions/` - Filter components
+- `backend/routes/transactions.js` or `transactionsController.js` - API filtering
+
+**Likely Cause:**
+- Field name mismatch (unitId vs unit vs accountId)
+- Filter parameter not being sent to API
+- API not processing unit filter correctly
+- Recent refactoring may have changed field names
+
+**Workaround:**
+- Use browser search (Ctrl+F) to find unit in transaction list
+- Export transactions and filter in spreadsheet
+
+**Estimated Fix Effort:** 1-2 hours (likely simple field name fix)
+
+**Business Impact:** HIGH - Core transaction management functionality degraded
+
+---
+
+### **TD-024: PDFShift Quota Management** ✅ RESOLVED
+**Category:** Reports - External Service  
+**Priority:** ✅ RESOLVED  
+**Created:** November 30, 2025  
+**Resolved:** December 1, 2025
+**Context:** Statement PDF generation via PDFShift API
+
+**Description:**
+PDFShift API quota was at 90% usage on free tier.
+
+**Resolution:**
+1. ✅ Upgraded to paid PDFShift plan with reasonable limits
+2. ✅ Added `sandbox: true` option for development (watermark, no credits used)
+3. Production PDFs will use real credits; development uses sandbox mode
+
+**Implementation:**
+- `pdfService.js` line 34: `const useSandbox = sandboxEnv === undefined ? true : sandboxEnv === 'true';`
+- For production: Set `PDFSHIFT_SANDBOX=false` in environment
+
+**Business Impact:** RESOLVED - No longer blocking PDF development
+
+---
+
+### **TD-025: Water Bills Quarterly Import - Transaction Linking**
+**Category:** Water Bills - Data Import  
+**Priority:** ⚠️ MEDIUM  
+**Created:** November 30, 2025  
+**Context:** Water bills quarterly import (fix/importService branch)
+
+**Description:**
+Water bills quarterly import was completed (branch merged Nov 30) but transaction linking for payments may need verification. The import converts monthly bills to quarterly but existing payment transactions may reference old monthly bill IDs.
+
+**Current Impact:**
+- Water bills now import as quarterly (YYYY-Qx format)
+- Existing payment transactions may have orphaned references
+- Statement reports may show water bills without linked payments
+
+**Files to Investigate:**
+- `backend/services/importService.js` - importWaterBills() method
+- `backend/services/statementDataCollector.js` - Water bill/payment linking
+
+**Future Solutions:**
+1. Verify transaction linking after data re-import
+2. Add migration script for existing payment references
+3. Update statement collector to handle both ID formats
+
+**Estimated Fix Effort:** 2-4 hours (investigation + fix)
+
+**Business Impact:** MEDIUM - Affects statement accuracy for water bills
+
+---
+
 ### **TD-019: Client Management 404 Error - CRITICAL**
 **Category:** Admin - Core Functionality  
 **Priority:** 🚨 CRITICAL  
@@ -1073,57 +1271,25 @@ The Client Management tab in List Management returns a 404 error. UI shows "Unex
 
 ---
 
-### **TD-020: PDF Footer Not Rendering (Statement Reports)**
+### **TD-020: PDF Footer Not Rendering (Statement Reports)** ✅ RESOLVED
 **Category:** Reports - PDF Generation  
-**Priority:** ⚠️ MEDIUM  
+**Priority:** ✅ RESOLVED  
 **Created:** November 29, 2025  
+**Resolved:** December 1, 2025
 **Context:** Statement of Account PDF generation
 
-**Description:**
-Statement footer (Statement ID, Page numbers, Contact info) present in HTML but not rendering in PDF output via Puppeteer.
-
-**Current Impact:**
-- HTML version: Footer displays correctly ✅
-- PDF version: Footer missing from rendered output ❌
-- Affects: All generated PDFs
-
-**Root Cause:** Likely Puppeteer rendering issue with page height or print styles
-
-**Workaround:** Footer information not critical for initial rollout
-
-**Future Solutions:**
-1. Investigate alternative PDF libraries (playwright, pdfkit, jsPDF)
-2. Adjust Puppeteer page settings (height, scale, margins)
-3. Use Puppeteer's `displayHeaderFooter` with custom template
-4. Consider server-side PDF generation (wkhtmltopdf)
-
-**Estimated Fix Effort:** 2-4 hours
-
-**Business Impact:** LOW - Footer contains useful information but not essential
+**Resolution:** Switched from Puppeteer to PDFShift API which provides superior paged-media support including repeating footers on every page.
 
 ---
 
-### **TD-021: Static Page Numbers (Statement Reports)**
+### **TD-021: Static Page Numbers (Statement Reports)** ✅ RESOLVED
 **Category:** Reports - PDF Generation  
-**Priority:** 🟢 LOW  
+**Priority:** ✅ RESOLVED  
 **Created:** November 29, 2025  
+**Resolved:** December 1, 2025
 **Context:** Statement of Account PDF generation
 
-**Description:**
-Page numbers show "Page 1 of 1" regardless of actual page count.
-
-**Current Impact:**
-- Multi-page statements won't show correct page numbers
-- Most statements currently fit on 1 page
-
-**Future Solutions:**
-1. Use Puppeteer's `displayHeaderFooter: true` with custom template
-2. Post-process PDF to add page numbers
-3. Use alternative PDF library with dynamic page number support
-
-**Estimated Fix Effort:** 1-2 hours
-
-**Business Impact:** LOW - Most statements fit on one page
+**Resolution:** PDFShift provides dynamic page numbering via `<span class="pageNumber"></span>` and `<span class="totalPages"></span>` placeholders in footer template.
 
 ---
 

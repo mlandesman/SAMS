@@ -1995,6 +1995,11 @@ async function queryTransactions(clientId, filters = {}) {
       const maxCents = dollarsToCents(filters.maxAmount);
       query = query.where('amount', '<=', maxCents);
     }
+
+    // Apply unitId filter if provided (Phase 4 Task 4.2)
+    if (filters.unitId) {
+      query = query.where('unitId', '==', filters.unitId);
+    }
     
     // Order by date descending by default
     query = query.orderBy('date', 'desc');

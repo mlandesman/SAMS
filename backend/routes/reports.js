@@ -525,7 +525,7 @@ router.get('/statement/html', authenticateUserWithProfile, async (req, res) => {
     });
     
     // Generate HTML statement
-    const htmlOutput = await generateStatementHtml(api, clientId, unitId, {
+    const { html: htmlOutput } = await generateStatementHtml(api, clientId, unitId, {
       fiscalYear,
       language
     });
@@ -580,13 +580,19 @@ router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
     });
     
     // Generate HTML statement
-    const htmlOutput = await generateStatementHtml(api, clientId, unitId, {
+    const { html: htmlOutput, meta: htmlMeta } = await generateStatementHtml(api, clientId, unitId, {
       fiscalYear,
       language
     });
     
     // Convert to PDF
-    const pdfBuffer = await generatePdf(htmlOutput);
+    const pdfBuffer = await generatePdf(htmlOutput, {
+      footerMeta: {
+        statementId: htmlMeta?.statementId,
+        generatedAt: htmlMeta?.generatedAt,
+        language: htmlMeta?.language
+      }
+    });
     
     // Return as PDF with download header
     const fileName = `statement_${clientId}_${unitId}_${fiscalYear || 'current'}.pdf`;
