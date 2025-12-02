@@ -1,26 +1,13 @@
 import React, { useState } from 'react';
 import { useClient } from '../context/ClientContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
+import {
   faFileInvoice,
   faChartLine,
   faHistory
 } from '@fortawesome/free-solid-svg-icons';
+import StatementOfAccountTab from '../components/reports/StatementOfAccountTab';
 import './ReportsView.css';
-
-// Placeholder components for tabs
-function StatementOfAccountTab() {
-  return (
-    <div className="reports-tab-content">
-      <div className="reports-placeholder">
-        <FontAwesomeIcon icon={faFileInvoice} size="3x" className="placeholder-icon" />
-        <h2>Statement of Account</h2>
-        <p>Generate professional Statement of Account reports with detailed breakdown of bills, penalties, and payments.</p>
-        <p className="coming-soon">Coming in Phase 4</p>
-      </div>
-    </div>
-  );
-}
 
 function ActivityTab() {
   return (

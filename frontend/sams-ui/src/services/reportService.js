@@ -8,7 +8,8 @@ import { config } from '../config/index.js';
 
 class ReportService {
   constructor() {
-    this.baseURL = config.api.baseURL || 'http://localhost:3001';
+    // Unified base URL (no /api suffix) - see config/index.js
+    this.baseUrl = config.api.baseUrl;
   }
 
   /**
@@ -30,19 +31,18 @@ class ReportService {
   }
 
   /**
-   * Generate Statement of Account report
-   * @param {string} clientId - Client ID
-   * @param {object} params - Report parameters
-   * @param {string} params.unitId - Unit ID
-   * @param {string} params.userId - User ID (for language preference)
-   * @param {object} params.dateRange - Date range { start: string, end: string }
-   * @returns {Promise<object>} Report generation result
+   * Generate Statement of Account report (legacy API)
+   * NOTE: Current statement implementation uses /api/clients/:clientId/reports/statement/*
+   * endpoints instead of this legacy pattern. This method is retained for
+   * backwards compatibility but is not used by the new Statement UI.
+   *
+   * @deprecated Prefer getStatementData/getStatementHtml/downloadStatementPdf
    */
   async generateStatement(clientId, params) {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(
-        `${this.baseURL}/api/reports/statement/${clientId}/generate`,
+        `${this.baseUrl}/api/reports/statement/${clientId}/generate`,
         {
           method: 'POST',
           headers,
@@ -84,7 +84,7 @@ class ReportService {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(
-        `${this.baseURL}/api/reports/statement/${clientId}/email`,
+        `${this.baseUrl}/api/reports/statement/${clientId}/email`,
         {
           method: 'POST',
           headers,
@@ -118,6 +118,145 @@ class ReportService {
   getReportPreviewUrl(clientId, reportId) {
     // TODO: Implement when PDF storage is set up
     return `${this.baseURL}/api/reports/statement/${clientId}/preview/${reportId}`;
+  }
+
+  /**
+   * Get Statement data (JSON) for a unit
+   * GET /api/clients/:clientId/reports/statement/data
+   *
+   * @param {string} clientId
+   * @param {string} unitId
+   * @param {number|null} fiscalYear - Optional fiscal year (e.g., 2026)
+   * @param {object} options - { excludeFutureBills?: boolean }
+   */
+  async getStatementData(clientId, unitId, fiscalYear = null, options = {}) {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('unitId', unitId);
+    if (fiscalYear) {
+      params.append('fiscalYear', String(fiscalYear));
+    }
+    if (options.excludeFutureBills) {
+      params.append('excludeFutureBills', 'true');
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/data?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to fetch statement data');
+    }
+
+    return json;
+  }
+
+  /**
+   * Get Statement HTML preview for a unit
+   * GET /api/clients/:clientId/reports/statement/html
+   *
+   * @param {string} clientId
+   * @param {string} unitId
+   * @param {string} language - 'english' or 'spanish'
+   * @param {number|null} fiscalYear - Optional fiscal year
+   * @param {object} options - { excludeFutureBills?: boolean }
+   * @returns {Promise<string>} HTML string
+   */
+  async getStatementHtml(
+    clientId,
+    unitId,
+    language = 'english',
+    fiscalYear = null,
+    options = {}
+  ) {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('unitId', unitId);
+    params.append('language', language);
+    if (fiscalYear) {
+      params.append('fiscalYear', String(fiscalYear));
+    }
+    if (options.excludeFutureBills) {
+      params.append('excludeFutureBills', 'true');
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/html?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to generate statement HTML (status ${response.status})`
+      );
+    }
+
+    return response.text();
+  }
+
+  /**
+   * Download Statement PDF for a unit
+   * GET /api/clients/:clientId/reports/statement/pdf
+   *
+   * @param {string} clientId
+   * @param {string} unitId
+   * @param {string} language - 'english' or 'spanish'
+   * @param {number|null} fiscalYear - Optional fiscal year
+   * @param {object} options - { excludeFutureBills?: boolean }
+   */
+  async downloadStatementPdf(
+    clientId,
+    unitId,
+    language = 'english',
+    fiscalYear = null,
+    options = {}
+  ) {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('unitId', unitId);
+    params.append('language', language);
+    if (fiscalYear) {
+      params.append('fiscalYear', String(fiscalYear));
+    }
+    if (options.excludeFutureBills) {
+      params.append('excludeFutureBills', 'true');
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/pdf?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to download statement PDF (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const yearPart = fiscalYear || 'current';
+    a.download = `statement-${clientId}-${unitId}-${yearPart}-${language}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 }
 
