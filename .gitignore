@@ -160,6 +160,8 @@ backend/testing/test-results/*.json
 functions/backend/test-results/*.json
 functions/backend/testing/test-results/*.json
 test-results/*.json
+test-results/*.html
+test-results/*.pdf
 
 # One-off test scripts (keep only versioned tests)
 backend/test-*.js

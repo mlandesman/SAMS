@@ -12,7 +12,7 @@ import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '..
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../firebase.js';
 import { getAllDuesDataForYear } from '../controllers/hoaDuesController.js';
-import { getTransaction } from '../controllers/transactionsController.js';
+import { getTransaction, queryTransactions } from '../controllers/transactionsController.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { UnifiedPaymentWrapper } from './unifiedPaymentWrapper.js';
 import waterBillsService from './waterBillsService.js';
@@ -511,10 +511,41 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
       }
     }
     
-    // Fetch all transactions (using API endpoint)
+    // Step 5.5: Find "Orphaned" transactions (not linked in Dues/Water but belong to unit)
+    // Fetch all transactions for this client in the fiscal year date range
+    // and filter for this unit (handling verbose unit IDs like "PH4D (Landesman)")
+    try {
+      const yearTxns = await queryTransactions(clientId, {
+        startDate: fiscalYearBounds.startDate,
+        endDate: fiscalYearBounds.endDate
+      });
+      
+      const unitTxns = yearTxns.filter(t => {
+        // Check exact match or prefix match (e.g. "PH4D" matches "PH4D (Landesman)")
+        const tUnitId = t.unitId || '';
+        const metaUnitId = t.metadata?.unitId;
+        const allocUnitIds = (t.allocations || []).map(a => a.data?.unitId || a.metadata?.unitId).filter(Boolean);
+        
+        return tUnitId === unitId || 
+               tUnitId.startsWith(unitId + ' ') || 
+               tUnitId.startsWith(unitId + '(') ||
+               metaUnitId === unitId ||
+               allocUnitIds.includes(unitId);
+      });
+      
+      for (const txn of unitTxns) {
+        if (txn.id) {
+          transactionIds.add(txn.id);
+        }
+      }
+    } catch (err) {
+      console.error(`Error fetching orphaned transactions: ${err.message}`);
+    }
+
+    // Fetch all transactions (using controller function directly)
     const transactions = new Map();
     for (const txnId of transactionIds) {
-      const transaction = await fetchTransaction(api, clientId, txnId);
+      const transaction = await getTransaction(clientId, txnId);
       if (transaction) {
         transactions.set(txnId, transaction);
       }
@@ -567,10 +598,11 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
               penaltyDate.setDate(1);
               
               let description = 'HOA Penalty';
-              if (billPeriod.includes('-Q')) {
-                const quarter = billPeriod.split('-Q')[1];
-                description += ` - Q${quarter} ${dueDate.getFullYear()}`;
-              } else {
+            if (billPeriod.includes('-Q')) {
+              let quarter = parseInt(billPeriod.split('-Q')[1]);
+              if (quarter === 0) quarter = 4; // Handle Q0 as previous year's Q4
+              description += ` - Q${quarter} ${dueDate.getFullYear()}`;
+            } else {
                 const monthName = dueDate.toLocaleString('en-US', { month: 'short' });
                 description += ` - ${monthName} ${dueDate.getFullYear()}`;
               }
@@ -614,7 +646,8 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
               penaltyDate.setMonth(penaltyDate.getMonth() + 1);
               penaltyDate.setDate(1);
               
-              const quarter = billPeriod.includes('-Q') ? billPeriod.split('-Q')[1] : '';
+              let quarter = billPeriod.includes('-Q') ? parseInt(billPeriod.split('-Q')[1]) : '';
+              if (quarter === 0) quarter = 4; // Handle Q0 as previous year's Q4
               const description = `Water Penalty - Q${quarter} ${dueDate.getFullYear()}`;
               
               waterPenalties.push({

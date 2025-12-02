@@ -127,7 +127,7 @@ function getTranslations(language) {
       title: 'STATEMENT OF ACCOUNT',
       statementFor: 'STATEMENT FOR',
       unit: 'Unit',
-      bankingInfo: 'BANKING INFORMATION',
+      bankingInfo: 'PAYMENT INFORMATION',
       bank: 'Bank',
       account: 'Account',
       clabe: 'CLABE',
@@ -136,7 +136,7 @@ function getTranslations(language) {
       address: 'Address',
       period: 'Period',
       date: 'Date',
-      nextPaymentDue: 'Next Payment Due',
+      nextPaymentDue: 'Next Payment',
       accountActivity: 'ACCOUNT ACTIVITY',
       openingBalance: 'Opening Balance',
       tableHeaders: {
@@ -171,7 +171,7 @@ function getTranslations(language) {
       title: 'ESTADO DE CUENTA',
       statementFor: 'ESTADO DE CUENTA PARA',
       unit: 'Depto',
-      bankingInfo: 'INFORMACION BANCARIA',
+      bankingInfo: 'INFORMACIÓN DE PAGO',
       bank: 'Banco',
       account: 'Cuenta',
       clabe: 'CLABE',
@@ -180,7 +180,7 @@ function getTranslations(language) {
       address: 'Dirección',
       period: 'Período',
       date: 'Fecha',
-      nextPaymentDue: 'Próximo Pago Vencido',
+      nextPaymentDue: 'Próximo Pago',
       accountActivity: 'ACTIVIDAD DE LA CUENTA',
       openingBalance: 'Balance Inicial',
       tableHeaders: {
@@ -280,45 +280,53 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       line-height: 1.4;
       color: #000;
       background: #fff;
-      padding: 0.5in 0.6in 1.1in 0.6in;
+      padding: 0.5in 0.6in 0.4in 0.6in;
     }
     
     /* Page layout */
     .statement-page {
       max-width: 8.5in;
       margin: 0 auto;
-      padding-bottom: 0.35in;
+      padding-bottom: 0;
     }
 
     .content-bottom-spacer {
-      height: 28px;
+      height: 0;
       clear: both;
+      display: none;
     }
     
     /* Header section */
     .statement-header {
       margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 25px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+      column-gap: 20px;
+      align-items: start;
+      grid-auto-rows: min-content;
+    }
+    
+    .header-left,
+    .header-right {
+      width: 100%;
     }
     
     .header-left {
       text-align: left;
-      width: 60%;
     }
     
     .statement-title {
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: bold;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       text-transform: uppercase;
+      grid-column: 1 / span 2;
     }
     
     .client-info {
       font-size: 10pt;
       line-height: 1.5;
+      margin-top: -2px;
     }
     
     .client-info .owner-name {
@@ -330,35 +338,45 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .client-info-table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 5px;
+      margin-top: 55px;
     }
     
     .client-info-table td {
-      padding: 3px 0;
+      padding: 2px 0;
       vertical-align: top;
     }
     
     .client-info-table td:first-child {
       font-weight: bold;
-      width: 140px;
-      padding-right: 10px;
+      width: 105px;
+      padding-right: 4px;
     }
     
     .header-right {
-      width: 38%;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
+      gap: 6px;
+      padding-right: 0;
+      justify-self: start;
+      box-sizing: border-box;
+      max-width: 340px;
+      width: 100%;
+      margin-top: 5px;
     }
     
     .logo-top {
-      margin-bottom: 10px;
+      margin: -4px 0 6px auto;
+      padding: 0;
+      align-self: flex-end;
     }
     
     .logo-top img {
-      max-width: 160px;
-      max-height: 80px;
+      max-width: 200px;
+      max-height: 95px;
       height: auto;
+      display: block;
+      padding-top: 2px;
     }
     
     .logo-right {
@@ -367,10 +385,12 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     
     .banking-info {
       border: 1px solid #000;
-      padding: 10px;
+      padding: 8px 10px;
       background: #f5f5f5;
       text-align: left;
-      margin-top: 12px;
+      margin-top: 6px;
+      width: 100%;
+      box-sizing: border-box;
     }
     
     .banking-info h3 {
@@ -383,16 +403,19 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .banking-info table {
       width: 100%;
       font-size: 8pt;
-      line-height: 1.3;
+      line-height: 1.25;
+      border-collapse: collapse;
     }
     
     .banking-info td {
-      padding: 1px 5px;
+      padding: 2px 4px;
+      vertical-align: top;
     }
     
     .banking-info td:first-child {
       font-weight: bold;
-      width: 40%;
+      width: 32%;
+      white-space: nowrap;
     }
     
     /* Transaction tables */
@@ -409,7 +432,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     .transaction-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
+      margin-bottom: 2px;
       font-size: 9pt;
     }
     
@@ -457,8 +480,10 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     
     /* Balance due box (appears right after transaction table) */
     .balance-due-box {
-      margin: 15px 0 20px 0;
+      margin: 0;
       text-align: right;
+      /* page-break-before: avoid; */
+      /* page-break-inside: avoid; */
     }
     
     .balance-due-box table {
@@ -468,9 +493,9 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .balance-due-box td {
-      padding: 10px 15px;
+      padding: 3px 15px;
       font-weight: bold;
-      font-size: 12pt;
+      font-size: 11pt;
     }
     
     .balance-due-box td:first-child {
@@ -485,7 +510,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     
     /* Allocation summary table */
     .allocation-summary {
-      margin: 50px 0 20px 0;
+      margin: 20px 0 10px 0;
       clear: both;
     }
     
@@ -560,12 +585,12 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     
     /* Footer */
     .payment-terms {
-      margin-top: 30px;
+      margin-top: 0;
       font-size: 8pt;
       line-height: 1.5;
       clear: both;
       border-top: 1px solid #ddd;
-      padding-top: 15px;
+      padding-top: 5px;
     }
     
     .payment-terms p {
@@ -573,9 +598,9 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     }
     
     .statement-footer {
-      margin-top: 30px;
-      padding-top: 12px;
-      padding-bottom: 28px;
+      margin-top: 0;
+      padding-top: 2px;
+      padding-bottom: 2px;
       border-top: 2px solid #000;
       font-size: 8pt;
       color: #333;
@@ -632,7 +657,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
         max-width: none;
         padding: 0;
         margin: 0;
-        padding-bottom: 1.1in;
+        padding-bottom: 0.1in;
       }
       
       /* Hide legacy footer row (replaced by PDFShift footer) */
@@ -641,31 +666,29 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       }
       
       .statement-footer {
-        margin-top: 20px;
-        page-break-inside: avoid;
+        margin-top: 5px;
+        /* page-break-inside: avoid; */
       }
-      
-      /* Prevent page breaks inside important sections */
       .statement-header,
       .banking-info,
       .client-info-table {
-        page-break-inside: avoid;
+        /* page-break-inside: avoid; */
       }
       
       /* Try to keep balance box and allocation summary together */
       .balance-due-box {
-        page-break-inside: avoid;
-        page-break-after: avoid;
+        /* page-break-inside: avoid; */
+        /* page-break-after: avoid; */
       }
       
       .allocation-summary {
-        page-break-before: avoid;
-        page-break-inside: avoid;
+        /* page-break-before: avoid; */
+        /* page-break-inside: avoid; */
       }
       
       /* Keep tables together when possible */
       .transaction-table {
-        page-break-inside: auto;
+        /* page-break-inside: auto; */
       }
       
       .transaction-table thead {
@@ -673,23 +696,17 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       }
       
       .transaction-table tr {
-        page-break-inside: avoid;
+        /* page-break-inside: avoid; */
       }
       
       /* Prevent orphaned rows */
       .transaction-table tbody tr {
-        page-break-after: auto;
+        /* page-break-after: auto; */
       }
       
       /* Keep allocation summary together */
       .allocation-table,
       .allocation-table tbody {
-        page-break-inside: avoid;
-      }
-      
-      /* Footer spacing in print */
-      .statement-footer {
-        margin-top: 30px;
         page-break-inside: avoid;
       }
       
@@ -851,7 +868,7 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
     </div>
     
     <!-- Spacer before Allocation Summary -->
-    <div style="height: 30px; clear: both;"></div>
+    <div style="height: 20px; clear: both;"></div>
     
     <!-- Allocation Summary -->
     <div class="allocation-summary">
