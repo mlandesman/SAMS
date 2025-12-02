@@ -29,6 +29,9 @@ export async function generatePdf(htmlContent, options = {}) {
       format = 'Letter',
       footerMeta = {}
     } = options;
+    const sandboxEnv = process.env.PDFSHIFT_SANDBOX;
+    // Keep sandbox mode enabled by default per PDFShift guidance (https://docs.pdfshift.io/#sandbox)
+    const useSandbox = sandboxEnv === undefined ? true : sandboxEnv === 'true';
     
     const {
       statementId = '',
@@ -76,20 +79,21 @@ export async function generatePdf(htmlContent, options = {}) {
       },
       body: JSON.stringify({
         source: htmlContent,
+        sandbox: useSandbox,
         use_print: true,
         landscape: false,
         format,
         margin: {
           top: '15mm',
           right: '15mm',
-          bottom: '40mm',
+          bottom: '2mm', // Restored for footer space
           left: '15mm'
         },
         footer: {
           source: footerHtml,
-          height: '24mm',
+          height: '10mm',
           start_at: 1,
-          spacing: '10mm'
+          spacing: '2mm'
         }
       })
     });

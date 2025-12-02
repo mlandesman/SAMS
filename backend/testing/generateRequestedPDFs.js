@@ -11,15 +11,16 @@ import fs from 'fs';
 
 const units = [
   // MTC Units (English)
-  { clientId: 'MTC', unitId: '1B', language: 'english' },
+//  { clientId: 'MTC', unitId: '1B', language: 'english' },
   { clientId: 'MTC', unitId: 'PH2B', language: 'english' },
   { clientId: 'MTC', unitId: 'PH4D', language: 'english' },
-  { clientId: 'MTC', unitId: '2A', language: 'english' },
+//  { clientId: 'MTC', unitId: '2A', language: 'english' },
   
   // AVII Units (Spanish)
-  { clientId: 'AVII', unitId: '106', language: 'spanish' },
-  { clientId: 'AVII', unitId: '203', language: 'spanish' },
-  { clientId: 'AVII', unitId: '201', language: 'spanish' },
+//  { clientId: 'AVII', unitId: '101', language: 'spanish' },
+//  { clientId: 'AVII', unitId: '106', language: 'spanish' },
+//  { clientId: 'AVII', unitId: '203', language: 'spanish' },
+//  { clientId: 'AVII', unitId: '201', language: 'spanish' },
 ];
 
 await testHarness.runTest({
@@ -36,14 +37,20 @@ await testHarness.runTest({
       console.log(`\n📄 ${unit.clientId} Unit ${unit.unitId} (${unit.language})...`);
       
       try {
-        const html = await generateStatementHtml(api, unit.clientId, unit.unitId, { 
+        const { html, meta } = await generateStatementHtml(api, unit.clientId, unit.unitId, { 
           language: unit.language 
         });
         
         const htmlPath = `/Users/michael/Projects/SAMS/test-results/statement_${unit.clientId}_${unit.unitId}_${unit.language}.html`;
         fs.writeFileSync(htmlPath, html);
         
-        const pdf = await generatePdf(html);
+        const pdf = await generatePdf(html, {
+          footerMeta: {
+            statementId: meta?.statementId,
+            generatedAt: meta?.generatedAt,
+            language: meta?.language
+          }
+        });
         const pdfPath = `/Users/michael/Projects/SAMS/test-results/statement_${unit.clientId}_${unit.unitId}_${unit.language}.pdf`;
         fs.writeFileSync(pdfPath, pdf);
         
