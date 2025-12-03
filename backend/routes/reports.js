@@ -11,7 +11,7 @@ import { DateService, getNow } from '../services/DateService.js';
 import statementController from '../controllers/statementController.js';
 import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
 import { generateTextTable } from '../services/statementTextTableService.js';
-import { generateStatementHtml } from '../services/statementHtmlService.js';
+import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import axios from 'axios';
 
@@ -349,7 +349,7 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
-    const excludeFutureBills = req.query.excludeFutureBills === 'true';
+    const language = req.query.language || 'english';
     
     if (!unitId) {
       return res.status(400).json({ 
@@ -358,6 +358,13 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
       });
     }
     
+    if (!unitId) {
+      return res.status(400).json({
+        success: false,
+        error: 'unitId query parameter is required'
+      });
+    }
+
     // Create API client with auth token (for internal API calls)
     const authToken = req.headers.authorization?.replace('Bearer ', '');
     const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
@@ -369,11 +376,14 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
         'Authorization': `Bearer ${authToken}`
       }
     });
+
+    // Single pass: compute statement data (HTML + summary + line items)
+    const statement = await generateStatementData(api, clientId, unitId, {
+      fiscalYear,
+      language
+    });
     
-    // Call the service - returns comprehensive data object
-    const result = await getStatementData(api, clientId, unitId, fiscalYear, excludeFutureBills);
-    
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: statement });
   } catch (error) {
     console.error('Error fetching statement data:', error);
     res.status(500).json({ 
@@ -524,8 +534,8 @@ router.get('/statement/html', authenticateUserWithProfile, async (req, res) => {
       }
     });
     
-    // Generate HTML statement
-    const { html: htmlOutput } = await generateStatementHtml(api, clientId, unitId, {
+    // Generate Statement data
+    const { html: htmlOutput } = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
       language
     });
@@ -579,8 +589,8 @@ router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
       }
     });
     
-    // Generate HTML statement
-    const { html: htmlOutput, meta: htmlMeta } = await generateStatementHtml(api, clientId, unitId, {
+    // Generate Statement data
+    const { html: htmlOutput, meta: htmlMeta } = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
       language
     });
@@ -639,8 +649,95 @@ router.post('/statement/export', authenticateUserWithProfile, async (req, res) =
       language = 'english',
       html,
       meta = {},
-      format = 'pdf'
+      format: bodyFormat
     } = req.body || {};
+
+    const format = (req.query.format || bodyFormat || 'pdf').toLowerCase();
+
+    // CSV export: build from statement data (lineItems) for clean imports
+    if (format === 'csv') {
+      if (!unitId) {
+        return res.status(400).json({
+          success: false,
+          error: 'unitId field is required in request body for CSV export'
+        });
+      }
+
+      // Create API client with auth token (for internal API calls)
+      const authToken = req.headers.authorization?.replace('Bearer ', '');
+      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+
+      const api = axios.create({
+        baseURL: baseURL,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      const statementData = await getStatementData(
+        api,
+        clientId,
+        unitId,
+        fiscalYear,
+        false
+      );
+
+      const lineItems = statementData.lineItems || [];
+      const openingBalance =
+        typeof statementData.summary?.openingBalance === 'number'
+          ? statementData.summary.openingBalance
+          : 0;
+
+      const header = ['Date', 'Description', 'Charge', 'Payment', 'Balance', 'Type'];
+      const rows = [];
+
+      // Opening balance row
+      rows.push([
+        '',
+        'Opening Balance',
+        '',
+        '',
+        openingBalance.toFixed(2),
+        'opening'
+      ]);
+
+      // Transaction rows (exclude future items)
+      for (const item of lineItems) {
+        if (item.isFuture) continue;
+
+        rows.push([
+          item.date || '',
+          item.description || '',
+          typeof item.charge === 'number' ? item.charge.toFixed(2) : '',
+          typeof item.payment === 'number' ? item.payment.toFixed(2) : '',
+          typeof item.balance === 'number' ? item.balance.toFixed(2) : '',
+          item.type || ''
+        ]);
+      }
+
+      const escapeCell = (value) => {
+        const str = value == null ? '' : String(value);
+        const escaped = str.replace(/"/g, '""');
+        return `"${escaped}"`;
+      };
+
+      const csvLines = [header, ...rows].map((row) =>
+        row.map(escapeCell).join(',')
+      );
+      const csvContent = csvLines.join('\r\n');
+
+      const safeClientId = clientId || 'client';
+      const safeUnitId = unitId || 'unit';
+      const fileName = `statement_${safeClientId}_${safeUnitId}_${
+        fiscalYear || 'current'
+      }.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(csvContent);
+      return;
+    }
 
     if (!html) {
       return res.status(400).json({
@@ -649,11 +746,11 @@ router.post('/statement/export', authenticateUserWithProfile, async (req, res) =
       });
     }
 
-    // For now we only support PDF export
+    // For now we only support PDF export for non-CSV formats
     if (format !== 'pdf') {
       return res.status(400).json({
         success: false,
-        error: 'Unsupported export format. Currently only "pdf" is supported.'
+        error: 'Unsupported export format. Supported formats: "pdf", "csv".'
       });
     }
 

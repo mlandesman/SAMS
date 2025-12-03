@@ -79,8 +79,10 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [htmlPreview, setHtmlPreview] = useState(null);
+  const [statementData, setStatementData] = useState(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
   // Initialise language and fiscal year when client or user changes
   useEffect(() => {
@@ -176,23 +178,30 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       setError(null);
 
       try {
-        const html = await reportService.getStatementHtml(
+        const data = await reportService.getStatementData(
           selectedClient.id,
           selectedUnitId,
-          language,
-          fiscalYear
+          fiscalYear,
+          { language }
         );
+
         // Debug: inspect the raw HTML returned from the backend
         try {
-          // Log length and a snippet to avoid flooding the console
-          const snippet = html.slice(0, 800);
-          console.log('🧾 [StatementOfAccountTab] HTML response length:', html.length);
+          const snippet = data.html.slice(0, 800);
+          console.log(
+            '🧾 [StatementOfAccountTab] HTML response length:',
+            data.html.length
+          );
           console.log('🧾 [StatementOfAccountTab] HTML snippet:\n', snippet);
         } catch (logError) {
-          // Swallow logging errors – never break generation for debug
-          console.warn('⚠️ [StatementOfAccountTab] Failed to log HTML snippet:', logError);
+          console.warn(
+            '⚠️ [StatementOfAccountTab] Failed to log HTML snippet:',
+            logError
+          );
         }
-        setHtmlPreview(html);
+
+        setStatementData(data);
+        setHtmlPreview(data.html);
         setHasGenerated(true);
       } catch (err) {
         console.error('Statement generation error:', err);
@@ -242,7 +251,93 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const isGenerateDisabled =
     !selectedUnitId || loading || unitsLoading || !!unitsError;
 
-  const isPdfDisabled = !htmlPreview || loading || downloadingPdf;
+  const hasStatement = !!statementData && !!statementData.html;
+  const isPdfDisabled = !hasStatement || loading || downloadingPdf;
+  const isCsvDisabled =
+    !hasStatement ||
+    !statementData.lineItems ||
+    statementData.lineItems.length === 0 ||
+    loading ||
+    downloadingCsv;
+
+  const handleDownloadCsv = useCallback(
+    async event => {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (!selectedClient || !selectedUnitId || !statementData) {
+        return;
+      }
+
+      setDownloadingCsv(true);
+      try {
+        const openingBalance =
+          typeof statementData.summary?.openingBalance === 'number'
+            ? statementData.summary.openingBalance
+            : 0;
+
+        const header = [
+          'Date',
+          'Description',
+          'Charge',
+          'Payment',
+          'Balance Due',
+          'Type'
+        ];
+
+        const rows = [];
+
+        // Opening balance row
+        rows.push([
+          '',
+          'Opening Balance',
+          '',
+          '',
+          openingBalance.toFixed(2),
+          'opening'
+        ]);
+
+        // Transaction rows (lineItems already exclude future items)
+        for (const item of statementData.lineItems || []) {
+          rows.push([
+            item.date || '',
+            item.description || '',
+            typeof item.charge === 'number' ? item.charge.toFixed(2) : '',
+            typeof item.payment === 'number' ? item.payment.toFixed(2) : '',
+            typeof item.balance === 'number' ? item.balance.toFixed(2) : '',
+            item.type || ''
+          ]);
+        }
+
+        const escapeCell = value => {
+          const str = value == null ? '' : String(value);
+          const escaped = str.replace(/"/g, '""');
+          return `"${escaped}"`;
+        };
+
+        const csvLines = [header, ...rows].map(row =>
+          row.map(escapeCell).join(',')
+        );
+        const csvContent = csvLines.join('\r\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const yearPart = fiscalYear || 'current';
+        a.download = `statement-${selectedClient.id}-${selectedUnitId}-${yearPart}-transactions.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('CSV download failed:', err);
+        setError('Failed to download CSV. Please try again.');
+      } finally {
+        setDownloadingCsv(false);
+      }
+    },
+    [selectedClient, selectedUnitId, fiscalYear, statementData]
+  );
   // Automatically generate statement whenever unit, year, or language changes
   useEffect(() => {
     if (!selectedClient || !selectedUnitId || !fiscalYear) {
@@ -356,6 +451,14 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           <button
             type="button"
             className="secondary-button"
+            onClick={handleDownloadCsv}
+            disabled={isCsvDisabled}
+          >
+            {downloadingCsv ? 'CSV…' : 'CSV'}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
             onClick={handleDownloadPdf}
             disabled={isPdfDisabled}
           >
@@ -373,13 +476,13 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       </div>
 
       <div className="statement-preview">
-        {downloadingPdf && (
+        {(downloadingPdf || downloadingCsv) && (
           <div className="statement-preview-overlay">
             <LoadingSpinner
               show={true}
               variant="logo"
               size="large"
-              message="Preparing PDF..."
+              message={downloadingPdf ? 'Preparing PDF...' : 'Preparing CSV...'}
               fullScreen={false}
             />
           </div>

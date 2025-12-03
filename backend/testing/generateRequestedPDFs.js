@@ -5,7 +5,7 @@
  */
 
 import { testHarness } from './testHarness.js';
-import { generateStatementHtml } from '../services/statementHtmlService.js';
+import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import fs from 'fs';
 
@@ -37,7 +37,7 @@ await testHarness.runTest({
       console.log(`\n📄 ${unit.clientId} Unit ${unit.unitId} (${unit.language})...`);
       
       try {
-        const { html, meta } = await generateStatementHtml(api, unit.clientId, unit.unitId, { 
+        const { html, meta } = await generateStatementData(api, unit.clientId, unit.unitId, { 
           language: unit.language 
         });
         

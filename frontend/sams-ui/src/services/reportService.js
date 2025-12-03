@@ -134,6 +134,8 @@ class ReportService {
 
     const params = new URLSearchParams();
     params.append('unitId', unitId);
+    const language = options.language || 'english';
+    params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
     }
@@ -154,56 +156,12 @@ class ReportService {
       throw new Error(json.error || 'Failed to fetch statement data');
     }
 
-    return json;
+    // Return the core statement object (html, meta, summary, lineItems, ...)
+    return json.data;
   }
 
-  /**
-   * Get Statement HTML preview for a unit
-   * GET /api/clients/:clientId/reports/statement/html
-   *
-   * @param {string} clientId
-   * @param {string} unitId
-   * @param {string} language - 'english' or 'spanish'
-   * @param {number|null} fiscalYear - Optional fiscal year
-   * @param {object} options - { excludeFutureBills?: boolean }
-   * @returns {Promise<string>} HTML string
-   */
-  async getStatementHtml(
-    clientId,
-    unitId,
-    language = 'english',
-    fiscalYear = null,
-    options = {}
-  ) {
-    const headers = await this.getAuthHeaders();
-
-    const params = new URLSearchParams();
-    params.append('unitId', unitId);
-    params.append('language', language);
-    if (fiscalYear) {
-      params.append('fiscalYear', String(fiscalYear));
-    }
-    if (options.excludeFutureBills) {
-      params.append('excludeFutureBills', 'true');
-    }
-
-    const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/statement/html?${params.toString()}`,
-      {
-        method: 'GET',
-        headers
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => null);
-      throw new Error(
-        errorText || `Failed to generate statement HTML (status ${response.status})`
-      );
-    }
-
-    return response.text();
-  }
+  // NOTE: getStatementHtml is deprecated in favor of getStatementData,
+  // which returns { html, meta, summary, lineItems } in a single call.
 
   /**
    * Download Statement PDF for a unit
@@ -316,6 +274,56 @@ class ReportService {
     setTimeout(() => {
       window.URL.revokeObjectURL(url);
     }, 60 * 1000);
+  }
+
+  /**
+   * Export Statement CSV based on server-side statement data
+   * POST /reports/:clientId/statement/export?format=csv
+   *
+   * The backend will recompute statement data and emit a clean CSV with
+   * an opening balance row followed by transaction line items.
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {string} params.unitId
+   * @param {number|null} params.fiscalYear
+   * @param {string} params.language
+   */
+  async exportStatementCsv(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const query = new URLSearchParams();
+    query.append('format', 'csv');
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/export?${query.toString()}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          unitId: params.unitId,
+          fiscalYear: params.fiscalYear,
+          language: params.language || 'english'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export statement CSV (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const yearPart = params.fiscalYear || 'current';
+    const unitPart = params.unitId || 'unit';
+    a.download = `statement-${clientId}-${unitPart}-${yearPart}-transactions.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   }
 }
 
