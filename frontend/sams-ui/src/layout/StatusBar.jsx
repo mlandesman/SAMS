@@ -28,7 +28,7 @@ const StatusBar = ({ children }) => {
   } = useTransactionFilters();
   
   // Generic status bar context
-  const { statusInfo } = useStatusBar();
+  const { statusInfo, centerContent } = useStatusBar();
   
   const handleStatusClick = () => {
     setAboutOpen(true);
@@ -47,6 +47,8 @@ const StatusBar = ({ children }) => {
       <div className="status-bar-center">
         {children ? (
           children
+        ) : centerContent ? (
+          centerContent
         ) : isListManagementPage && statusInfo?.type === 'listManagement' ? (
           <ListManagementStatusContent
             entryCount={statusInfo.entryCount}

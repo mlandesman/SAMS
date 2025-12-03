@@ -19,6 +19,7 @@ import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import creditRoutes from './routes/creditRoutes.js'; // Import credit balance routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
 import paymentRoutes from './routes/paymentRoutes.js'; // Import unified payment routes
+import reportsRoutes from './routes/reports.js'; // Import reports routes for Statement of Account
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // New comment for testing
@@ -124,6 +125,23 @@ app.use('/admin', adminRoutes); // Admin functions under dedicated domain
 // HOA DUES DOMAIN (domain-specific with authentication)
 console.log('Mounting HOA dues domain routes');
 app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues under dedicated domain with auth
+
+// REPORTS DOMAIN (domain-specific Statement of Account endpoints)
+console.log('Mounting reports domain routes');
+app.use(
+  '/reports/:clientId',
+  (req, res, next) => {
+    const clientId = req.params.clientId;
+    console.log('Reports domain route - clientId:', clientId);
+
+    // Preserve existing pattern used by clientRoutes for compatibility
+    req.originalParams = req.originalParams || {};
+    req.originalParams.clientId = clientId;
+
+    next();
+  },
+  reportsRoutes
+);
 
 // CREDIT BALANCE DOMAIN (domain-independent with authentication)
 console.log('Mounting credit balance domain routes');

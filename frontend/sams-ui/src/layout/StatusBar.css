@@ -41,6 +41,28 @@
   padding: 0 20px;
 }
 
+/* Reports zoom control - matches inline style of search/date range */
+.status-zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #447b7b;
+}
+
+.status-zoom-label {
+  font-weight: 600;
+}
+
+.status-zoom-select {
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  background-color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .filter-icon {
   margin-right: 5px;
   font-style: normal;

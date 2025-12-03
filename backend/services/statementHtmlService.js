@@ -144,7 +144,7 @@ function getTranslations(language) {
         description: 'DESCRIPTION',
         charge: 'CHARGE',
         payment: 'PAYMENT',
-        balance: 'BALANCE'
+        balance: 'BALANCE DUE'
       },
       allocationSummary: 'ALLOCATION SUMMARY',
       category: 'Category',
@@ -188,7 +188,7 @@ function getTranslations(language) {
         description: 'DESCRIPCION',
         charge: 'CARGO',
         payment: 'PAGO',
-        balance: 'BALANCE'
+        balance: 'SALDO PENDIENTE'
       },
       allocationSummary: 'RESUMEN DE ASIGNACIÓN',
       category: 'Categoría',
@@ -217,14 +217,21 @@ function getTranslations(language) {
 }
 
 /**
- * Generate HTML statement
+ * Generate Statement data for a unit, including HTML, metadata and line items.
+ * This is the primary entrypoint for building Statement of Account outputs.
+ *
  * @param {Object} api - Axios API instance
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
  * @param {Object} options - { fiscalYear, language }
- * @returns {{ html: string, meta: { statementId: string, generatedAt: string, language: string } }}
+ * @returns {{
+ *   html: string,
+ *   meta: { statementId: string, generatedAt: string, language: string },
+ *   summary: Object,
+ *   lineItems: Array
+ * }}
  */
-export async function generateStatementHtml(api, clientId, unitId, options = {}) {
+export async function generateStatementData(api, clientId, unitId, options = {}) {
   // Get statement data
   const data = await getStatementData(api, clientId, unitId, options.fiscalYear);
   
@@ -938,7 +945,14 @@ export async function generateStatementHtml(api, clientId, unitId, options = {})
       statementId,
       generatedAt: generatedTimestamp.toFormat('MM/dd/yyyy HH:mm'),
       language
-    }
+    },
+    summary: data.summary,
+    // Expose the cleaned-up line items used for the statement table.
+    // We return the same shape as statementData.lineItems but restricted
+    // to the rows actually displayed (non-future items). This will be
+    // useful for future exports and row-level drill-down without needing
+    // to re-run the aggregation pipeline.
+    lineItems: currentItems
   };
 }
 

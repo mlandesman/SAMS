@@ -1,26 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useClient } from '../context/ClientContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
+import {
   faFileInvoice,
   faChartLine,
   faHistory
 } from '@fortawesome/free-solid-svg-icons';
+import { Box, Tabs, Tab } from '@mui/material';
+import { useStatusBar } from '../context/StatusBarContext';
+import StatementOfAccountTab from '../components/reports/StatementOfAccountTab';
 import './ReportsView.css';
-
-// Placeholder components for tabs
-function StatementOfAccountTab() {
-  return (
-    <div className="reports-tab-content">
-      <div className="reports-placeholder">
-        <FontAwesomeIcon icon={faFileInvoice} size="3x" className="placeholder-icon" />
-        <h2>Statement of Account</h2>
-        <p>Generate professional Statement of Account reports with detailed breakdown of bills, penalties, and payments.</p>
-        <p className="coming-soon">Coming in Phase 4</p>
-      </div>
-    </div>
-  );
-}
 
 function ActivityTab() {
   return (
@@ -37,7 +26,40 @@ function ActivityTab() {
 
 function ReportsView() {
   const { selectedClient } = useClient();
-  const [activeTab, setActiveTab] = useState('statement');
+  const [tabIndex, setTabIndex] = useState(0);
+  const [zoom, setZoom] = useState(1.0);
+  const { setCenterContent, clearCenterContent } = useStatusBar();
+
+  const handleZoomChange = useCallback((event) => {
+    const value = Number(event.target.value);
+    setZoom(value);
+  }, []);
+
+  // Register zoom control in the StatusBar center when on Reports
+  useEffect(() => {
+    const zoomControl = (
+      <div className="status-zoom-control">
+        <span className="status-zoom-label">Zoom</span>
+        <select
+          className="status-zoom-select"
+          value={zoom}
+          onChange={handleZoomChange}
+        >
+          <option value={0.75}>75%</option>
+          <option value={1.0}>100%</option>
+          <option value={1.25}>125%</option>
+          <option value={1.5}>150%</option>
+          <option value={2.0}>200%</option>
+        </select>
+      </div>
+    );
+
+    setCenterContent(zoomControl);
+
+    return () => {
+      clearCenterContent();
+    };
+  }, [zoom, setCenterContent, clearCenterContent, handleZoomChange]);
 
   if (!selectedClient) {
     return (
@@ -56,36 +78,37 @@ function ReportsView() {
         <p className="reports-subtitle">Generate and manage financial reports</p>
       </div>
 
-      <div className="reports-tabs">
-        <button
-          className={`reports-tab ${activeTab === 'statement' ? 'active' : ''}`}
-          onClick={() => setActiveTab('statement')}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs
+          value={tabIndex}
+          onChange={(_, newIndex) => setTabIndex(newIndex)}
+          aria-label="reports tabs"
+          className="reports-tabs"
         >
-          <FontAwesomeIcon icon={faFileInvoice} />
-          <span>Statement of Account</span>
-        </button>
-        <button
-          className={`reports-tab ${activeTab === 'activity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('activity')}
-        >
-          <FontAwesomeIcon icon={faChartLine} />
-          <span>Activity</span>
-        </button>
-        <button
-          className={`reports-tab ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-          disabled
-        >
-          <FontAwesomeIcon icon={faHistory} />
-          <span>History</span>
-          <span className="tab-badge">Soon</span>
-        </button>
-      </div>
+          <Tab
+            label="Statement of Account"
+            icon={<FontAwesomeIcon icon={faFileInvoice} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Activity"
+            icon={<FontAwesomeIcon icon={faChartLine} />}
+            iconPosition="start"
+            disabled
+          />
+          <Tab
+            label="History (Soon)"
+            icon={<FontAwesomeIcon icon={faHistory} />}
+            iconPosition="start"
+            disabled
+          />
+        </Tabs>
+      </Box>
 
       <div className="reports-content">
-        {activeTab === 'statement' && <StatementOfAccountTab />}
-        {activeTab === 'activity' && <ActivityTab />}
-        {activeTab === 'history' && (
+        {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} />}
+        {tabIndex === 1 && <ActivityTab />}
+        {tabIndex === 2 && (
           <div className="reports-tab-content">
             <div className="reports-placeholder">
               <FontAwesomeIcon icon={faHistory} size="3x" className="placeholder-icon" />

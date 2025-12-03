@@ -1,83 +1,83 @@
 # SAMS Project Tracking Master Document
 
-**Last Updated**: November 28, 2025 (Unified Payment Atomicity + Statement Text Report Complete)  
+**Last Updated**: December 3, 2025 (Statement of Account Report COMPLETE)  
 **Project**: Sandyland Association Management System (SAMS)  
 **Product Manager**: Michael  
 **Development Team**: Cursor APM Framework  
 
 ---
 
-## 🔄 ACTIVE DEVELOPMENT (December 1, 2025)
+## 🎉 MAJOR MILESTONE: Statement of Account Report COMPLETE
 
-### Statement of Account Report - Step 3 UI Integration
-**Status**: 📋 **READY TO BEGIN** - Task Assignment Created  
-**Priority**: HIGH - Core report functionality  
-**Branch**: `feature/report-system-completion`  
+### ✅ Statement of Account Report - ALL STEPS COMPLETE (December 3, 2025)
+**Status**: ✅ **PRODUCTION READY**  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Branch**: `feature/report-system-completion` → Ready for merge to `main`
 **Documentation**: `SAMS-Docs/apm_session/Implementation_Plan.md`
 
-**Step 2B: PDF Layout Polish - ✅ COMPLETE (December 1, 2025)**
-- ✅ Resolved page break issue (footer height 24mm → 10mm)
-- ✅ Optimized layout margins in statementHtmlService.js
-- ✅ Sandbox mode enabled by default (credits protected)
-- ✅ Verified English (MTC) and Spanish (AVII) layouts
-- ✅ Single-page and multi-page scenarios verified
-- ✅ Commit: `33e10db` - pushed to `feature/report-system-completion`
-- ✅ Manager Review: ⭐⭐⭐⭐⭐ APPROVED
+**All Steps Complete:**
+- ✅ Step 1: Universal Data Service (Nov 18, 2025)
+- ✅ Step 2A: Data Service Refactor (Nov 27, 2025)  
+- ✅ Step 2B: HTML/PDF Generation (Dec 1, 2025)
+- ✅ Step 3: Frontend UI Integration (Dec 3, 2025) ⭐⭐⭐⭐⭐
 
-**Step 3: Frontend UI Integration (Task Assignment Created)**:
-- Task: `/SAMS-Docs/apm_session/Memory/Task_Assignments/Step_3_Statement_UI_Integration_2025-12-01.md`
-- View/download statement buttons in Reports view
-- Unit selection with owner names
-- Language toggle (English/Spanish)
-- Preview HTML and Download PDF functionality
-- Professional, consistent UI styling
+**Step 3 Achievements (December 3, 2025):**
+- Professional Statement of Account tab with control bar layout
+- Unit/Year/Language selection with smart defaults
+- Auto-generate on control change (guarded state)
+- Full-width HTML preview with zoom control
+- PDF export via PDFShift (multi-page, footer on every page)
+- CSV export (bonus feature - client-side from lineItems)
+- Domain routing refactor (`/reports/:clientId`)
+- Unified data pipeline (`generateStatementData`)
+- StatusBar zoom control integration
 
-**Parallel Work: TD-026 Unit Filter Fix**:
-- Task: `/SAMS-Docs/apm_session/Memory/Task_Assignments/Ad_Hoc_TD_026_Transaction_Unit_Filter_Fix_2025-12-01.md`
-- Branch: `fix/transaction-unit-filter` (new from main)
-- Quick bug fix (1-2 hours estimated)
+**Technical Architecture:**
+- Single data pipeline: `generateStatementData` → `{ html, meta, summary, lineItems }`
+- Domain routing: `/reports/:clientId` (aligned with `/water`, `/hoadues`)
+- PDF: PDFShift with dynamic footers, sandbox mode
+- CSV: Client-side generation for instant export
 
-**Completed Foundation (Step 2B)**:
-- ✅ Data service (getStatementData, getConsolidatedUnitData, allocationSummary)
-- ✅ Text report generation (generateTextTable)
-- ✅ HTML generation (single chronological table format)
-- ✅ PDF generation (generatePdf via PDFShift with dynamic footers)
-- ✅ API endpoints (/statement/html, /statement/pdf, /statement/text)
-- ✅ Bilingual support (English/Spanish with dynamic description translation)
-- ✅ Client branding integration (logos from Firebase Storage)
-- ✅ Allocation Summary (per-category breakdown using transaction allocations)
-- ✅ Smart balance display (BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL)
-- ✅ 7+ units tested (100% pass rate)
-- ✅ Sandbox mode for credit protection
+**Merged to Main (Dec 1, 2025):**
+- TD-026 Unit Filter Fix - `1de4164` ✅
+- Step 2B PDF Layout - `9e6eeab` ✅
 
 ---
 
-## ✅ RECENTLY COMPLETED (November 26-29, 2025)
+## 🔄 ACTIVE DEVELOPMENT
 
-### 🔄 Statement HTML/PDF Generation - IN PROGRESS (November 30, 2025)
-**Status**: 🔄 **70% COMPLETE** - PDF Layout Polish In Progress  
-**Duration**: ~10 hours total (Nov 29: 6 hrs + Nov 30: 4 hrs)  
-**Quality**: ⭐⭐⭐⭐ EXCELLENT (pending final layout polish)  
-**Branch**: `feature/report-system-completion`
+### Next Priorities
+1. **Merge Step 3** - `feature/report-system-completion` → `main`
+2. **Deploy to Production** - Statement of Account feature
+3. **Phase 5: Quarterly Billing** - AVII quarterly billing support
 
-**November 30 Progress**:
-- ✅ Swapped Puppeteer for PDFShift with dynamic footer metadata
-- ✅ Reworked header grid: logo alignment, address/payment column widths
-- ✅ Added HOA dues charge fallback for missing `dueDate` scenarios
-- ✅ Tuned body/page padding to remove blank trailing pages
-- ✅ Regenerated baseline PDFs for MTC PH4D, AVII 101, 106
-- 🔄 Fine-tuning footer spacing for short statements
-- ⚠️ PDFShift quota at 90% - limiting additional tests
+---
 
-**November 29 Achievements**:
-- **Single chronological table format** - Unified payments appear ONCE (no duplication)
-- **Allocation Summary** - Per-category breakdown (HOA, Water, Credit) with accurate math
-- **Smart balance display** - BALANCE DUE vs CREDIT BALANCE vs PAID IN FULL
-- Professional design matching prior admin quality
-- Bilingual support (English/Spanish) with dynamic description translation
-- Blue headers (#4472C4), red payments (#C00000)
-- Timezone-compliant dates (America/Cancun via Luxon)
-- Future items filtering with "Next Payment Due" calculation
+## ✅ RECENTLY COMPLETED (December 1-3, 2025)
+
+### TD-026: Transaction Unit Filter Fix ✅ (December 1, 2025)
+**Status**: ✅ MERGED TO MAIN  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Branch**: `fix/transaction-unit-filter` → merged `1de4164`
+
+**Root Cause:** Filter used `propertyId` (client ID like "MTC") as fallback when `unitId` was null.
+
+**Fixes:**
+- Removed propertyId fallback
+- Added unit ID extraction for "Unit (Owner)" format
+- Added allocations array support for split transaction filtering
+- ~200 lines in `TransactionsView.jsx`
+
+### Statement PDF Layout (Step 2B) ✅ (December 1, 2025)
+**Status**: ✅ MERGED TO MAIN  
+**Quality**: ⭐⭐⭐⭐⭐ EXEMPLARY  
+**Branch**: `feature/report-system-completion` → merged `9e6eeab`
+
+**Achievements:**
+- Resolved page break issue (footer height 24mm → 10mm)
+- PDFShift integration with dynamic footers
+- Sandbox mode for credit protection
+- 7+ units tested (100% pass rate)
 - Client logo integration from Firebase Storage
 - API endpoints: `/statement/html`, `/statement/pdf`, `/statement/text`
 - **7+ units tested** (4 MTC English, 3 AVII Spanish) - 100% pass rate
