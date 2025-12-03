@@ -152,6 +152,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  position: relative;
 }
 
 .statement-preview-empty {
@@ -195,6 +196,16 @@
 
 .statement-preview-error p {
   margin-bottom: 12px;
+}
+
+.statement-preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
 }
 
 .statement-preview-frame-container {

@@ -258,6 +258,65 @@ class ReportService {
     a.click();
     window.URL.revokeObjectURL(url);
   }
+
+  /**
+   * Export Statement PDF using pre-generated HTML
+   * POST /reports/:clientId/statement/export?format=pdf
+   *
+   * This endpoint is optimized for interactive UI usage where the HTML
+   * has already been generated for preview. It avoids re-fetching data
+   * from Firestore and simply converts the provided HTML to PDF.
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {string} params.unitId
+   * @param {number|null} params.fiscalYear
+   * @param {string} params.language
+   * @param {string} params.html - Complete HTML document
+   * @param {object} [params.meta] - Optional footer metadata
+   */
+  async exportStatementPdfFromHtml(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const query = new URLSearchParams();
+    query.append('format', 'pdf');
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/export?${query.toString()}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          unitId: params.unitId,
+          fiscalYear: params.fiscalYear,
+          language: params.language || 'english',
+          html: params.html,
+          meta: params.meta || {}
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export statement PDF (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    // Open in a new tab so the browser/OS handles print/save UX
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+      console.warn('Unable to open PDF window (popup blocked?)');
+    }
+
+    // Revoke URL after some time to avoid breaking the viewer immediately
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 60 * 1000);
+  }
 }
 
 // Export singleton instance

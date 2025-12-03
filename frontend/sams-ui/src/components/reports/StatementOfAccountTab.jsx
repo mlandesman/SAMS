@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useClient } from '../../context/ClientContext';
+import { useAuth } from '../../context/AuthContext';
 import { getUnits } from '../../api/units';
 import { getOwnerInfo, sortUnitsByUnitId } from '../../utils/unitUtils';
 import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
@@ -8,24 +9,38 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
 import './StatementOfAccountTab.css';
 
-function getClientDefaultLanguage(selectedClient) {
-  if (!selectedClient) {
-    return 'english';
+function normalizeLanguage(lang) {
+  if (!lang) return null;
+  const lower = String(lang).toLowerCase();
+  if (lower === 'english' || lower === 'en') return 'english';
+  if (lower === 'spanish' || lower === 'es') return 'spanish';
+  return null;
+}
+
+function getDefaultLanguage({ selectedClient, samsUser }) {
+  // 1) User preference takes precedence if available
+  const userPref = normalizeLanguage(samsUser?.preferredLanguage);
+  if (userPref) {
+    return userPref;
   }
 
-  const configLang = selectedClient.configuration?.language;
-  if (configLang === 'english' || configLang === 'spanish') {
-    return configLang;
+  // 2) Client configuration
+  if (selectedClient) {
+    const configLang = normalizeLanguage(selectedClient.configuration?.language);
+    if (configLang) {
+      return configLang;
+    }
   }
 
-  // Explicit defaults for known clients
-  if (selectedClient.id === 'AVII') {
+  // 3) Explicit client defaults
+  if (selectedClient?.id === 'AVII') {
     return 'spanish';
   }
-  if (selectedClient.id === 'MTC') {
+  if (selectedClient?.id === 'MTC') {
     return 'english';
   }
 
+  // 4) System default
   return 'english';
 }
 
@@ -47,8 +62,9 @@ function buildFiscalYearOptions(selectedClient) {
   }));
 }
 
-function StatementOfAccountTab() {
+function StatementOfAccountTab({ zoom = 1.0 }) {
   const { selectedClient } = useClient();
+  const { samsUser } = useAuth();
 
   const [units, setUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -66,19 +82,19 @@ function StatementOfAccountTab() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  // Initialise language and fiscal year when client changes
+  // Initialise language and fiscal year when client or user changes
   useEffect(() => {
     if (!selectedClient) {
       return;
     }
 
-    setLanguage(getClientDefaultLanguage(selectedClient));
+    setLanguage(getDefaultLanguage({ selectedClient, samsUser }));
 
     const options = buildFiscalYearOptions(selectedClient);
     if (options.length > 0) {
       setFiscalYear(options[0].value);
     }
-  }, [selectedClient]);
+  }, [selectedClient, samsUser]);
 
   // Load units for the selected client
   useEffect(() => {
@@ -200,12 +216,15 @@ function StatementOfAccountTab() {
 
       setDownloadingPdf(true);
       try {
-        await reportService.downloadStatementPdf(
-          selectedClient.id,
-          selectedUnitId,
+        await reportService.exportStatementPdfFromHtml(selectedClient.id, {
+          unitId: selectedUnitId,
+          fiscalYear,
           language,
-          fiscalYear
-        );
+          html: htmlPreview,
+          // We don't yet have structured meta on the frontend; allow backend to
+          // accept minimal/default footer metadata for interactive exports.
+          meta: {}
+        });
       } catch (err) {
         console.error('PDF download failed:', err);
         setError('Failed to download PDF. Please try again.');
@@ -224,6 +243,13 @@ function StatementOfAccountTab() {
     !selectedUnitId || loading || unitsLoading || !!unitsError;
 
   const isPdfDisabled = !htmlPreview || loading || downloadingPdf;
+  // Automatically generate statement whenever unit, year, or language changes
+  useEffect(() => {
+    if (!selectedClient || !selectedUnitId || !fiscalYear) {
+      return;
+    }
+    handleGenerate();
+  }, [handleGenerate, selectedClient, selectedUnitId, fiscalYear, language]);
 
   const showUnitFilter = units.length > 20;
 
@@ -347,6 +373,17 @@ function StatementOfAccountTab() {
       </div>
 
       <div className="statement-preview">
+        {downloadingPdf && (
+          <div className="statement-preview-overlay">
+            <LoadingSpinner
+              show={true}
+              variant="logo"
+              size="large"
+              message="Preparing PDF..."
+              fullScreen={false}
+            />
+          </div>
+        )}
         {loading && (
           <div className="statement-preview-loading">
             <LoadingSpinner
@@ -397,6 +434,12 @@ function StatementOfAccountTab() {
               title="Statement of Account Preview"
               srcDoc={htmlPreview}
               className="statement-preview-frame"
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+                width: `${100 / zoom}%`,
+                height: `${100 / zoom}%`
+              }}
             />
           </div>
         )}

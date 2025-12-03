@@ -609,4 +609,78 @@ router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
+/**
+ * Export Statement of Account using pre-generated HTML
+ * POST /reports/:clientId/statement/export?format=pdf
+ *
+ * Body:
+ * {
+ *   unitId: string,
+ *   fiscalYear?: number,
+ *   language?: 'english' | 'spanish',
+ *   html: string,
+ *   meta?: {
+ *     statementId?: string,
+ *     generatedAt?: string,
+ *     language?: string
+ *   }
+ * }
+ *
+ * NOTE: This endpoint assumes the caller has already fetched and formatted
+ * the statement data. It simply converts provided HTML to the requested
+ * export format (currently PDF).
+ */
+router.post('/statement/export', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const {
+      unitId,
+      fiscalYear = null,
+      language = 'english',
+      html,
+      meta = {},
+      format = 'pdf'
+    } = req.body || {};
+
+    if (!html) {
+      return res.status(400).json({
+        success: false,
+        error: 'html field is required in request body'
+      });
+    }
+
+    // For now we only support PDF export
+    if (format !== 'pdf') {
+      return res.status(400).json({
+        success: false,
+        error: 'Unsupported export format. Currently only "pdf" is supported.'
+      });
+    }
+
+    // Convert provided HTML to PDF without additional data fetching
+    const pdfBuffer = await generatePdf(html, {
+      footerMeta: {
+        statementId: meta.statementId || '',
+        generatedAt: meta.generatedAt || '',
+        language: meta.language || language
+      }
+    });
+
+    const safeClientId = clientId || 'client';
+    const safeUnitId = unitId || 'unit';
+    const fileName = `statement_${safeClientId}_${safeUnitId}_${fiscalYear || 'current'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error exporting statement from HTML:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.stack
+    });
+  }
+});
+
 export default router;
