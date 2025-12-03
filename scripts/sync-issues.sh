@@ -91,8 +91,8 @@ function list_markdown_issues() {
     fi
     
     echo ""
-    echo -e "${GREEN}Backlog from PROJECT_TRACKING_MASTER.md:${NC}"
-    grep -A 3 "Status.*BACKLOG" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" 2>/dev/null | head -n 20 || echo "None found"
+    echo -e "${GREEN}Backlog from .apm/Implementation_Plan.md:${NC}"
+    grep -A 3 "Status.*BACKLOG" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null | head -n 20 || echo "None found"
     
     echo ""
     read -p "Press enter to continue..."
@@ -112,7 +112,7 @@ function show_high_priority() {
     
     echo ""
     echo -e "${BLUE}=== Master Tracker ===${NC}"
-    grep -A 2 "CRITICAL\|HIGH PRIORITY" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" | head -n 30
+    grep -A 2 "CRITICAL\|HIGH PRIORITY" "$PROJECT_ROOT/.apm/Implementation_Plan.md" | head -n 30
     
     echo ""
     read -p "Press enter to continue..."
@@ -142,18 +142,18 @@ function show_weekly_summary() {
     gh issue list --state closed --search "closed:>=$seven_days_ago" --limit 10 2>/dev/null || echo "  No issues closed this week"
     
     echo ""
-    echo -e "${BLUE}Technical Debt & Issues from PROJECT_TRACKING_MASTER.md:${NC}"
+    echo -e "${BLUE}Technical Debt & Issues from .apm/Implementation_Plan.md:${NC}"
     # Count CRITICAL issues
-    critical_count=$(grep -c "^### CRITICAL-" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" 2>/dev/null || echo "0")
+    critical_count=$(grep -c "^### CRITICAL-" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null || echo "0")
     echo "  Critical issues: $critical_count"
     # Count HIGH priority issues  
-    high_count=$(grep -c "^### HIGH-\|^### FORMER HIGH-" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" 2>/dev/null || echo "0")
+    high_count=$(grep -c "^### HIGH-\|^### FORMER HIGH-" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null || echo "0")
     echo "  High priority issues: $high_count"
     # Count MEDIUM priority issues
-    medium_count=$(grep -c "^### MEDIUM-" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" 2>/dev/null || echo "0")
+    medium_count=$(grep -c "^### MEDIUM-" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null || echo "0")
     echo "  Medium priority issues: $medium_count"
     # Count ENHANCEMENTS
-    enh_count=$(grep -c "^### ENHANCEMENT-" "$PROJECT_ROOT/PROJECT_TRACKING_MASTER.md" 2>/dev/null || echo "0")
+    enh_count=$(grep -c "^### ENHANCEMENT-" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null || echo "0")
     echo "  Enhancements tracked: $enh_count"
     
     echo ""
@@ -269,7 +269,7 @@ function promote_markdown_to_github() {
                 
                 echo ""
                 echo -e "${GREEN}GitHub issue created successfully!${NC}"
-                echo "You may want to update PROJECT_TRACKING_MASTER.md"
+                echo "You may want to update .apm/Implementation_Plan.md"
             fi
             break
         fi

@@ -155,7 +155,7 @@ echo "  ✅ ACTIVE_MODULES.md (module reference)"
 echo "  ✅ DEPLOYMENT.md (deployment guide)"
 echo "  ✅ QUICK_START.md (developer onboarding)"
 echo "  ✅ APM_PATHS.md (path reference)"
-echo "  ✅ PROJECT_TRACKING_MASTER.md (current status)"
+echo "  ✅ .apm/Implementation_Plan.md (current status)"
 echo "  ✅ .cursorrules (contains doc creation rules)"
 echo "  ✅ tests/ directory (REAL TEST CODE - not docs)"
 

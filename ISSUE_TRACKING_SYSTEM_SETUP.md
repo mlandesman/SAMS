@@ -17,7 +17,7 @@ You now have a **hybrid tracking system** that combines the best of both worlds:
 - Perfect for current sprint work
 
 ### ✅ Markdown System (Long-term Tracking)
-- Your existing `PROJECT_TRACKING_MASTER.md` and `TECHNICAL_DEBT.md`
+- Your existing `.apm/Implementation_Plan.md` and `TECHNICAL_DEBT.md`
 - Comprehensive historical record
 - Rich context and documentation
 - No external dependencies
@@ -92,14 +92,14 @@ gh label create "blocked" --color "9e9e9e" --description "Waiting on dependency"
 # Create your first GitHub issue from current work
 gh issue create \
   --title "[BUG] Client Logos Not Appearing" \
-  --body "From PROJECT_TRACKING_MASTER.md - logos uploaded but not displayed" \
+  --body "From .apm/Implementation_Plan.md - logos uploaded but not displayed" \
   --label bug,high-priority
 ```
 
 **4. Verify Cursor integration**
 - Open Cursor
 - Start a new chat
-- Say: "What are the high priority issues from PROJECT_TRACKING_MASTER.md?"
+- Say: "What are the high priority issues from .apm/Implementation_Plan.md?"
 - Cursor should reference your tracking documents
 
 ---
@@ -120,7 +120,7 @@ gh issue list --state closed --search "closed:>=$(date -d '7 days ago' +%Y-%m-%d
 ```
 
 **2. Prioritize for the Week**
-- Look at `PROJECT_TRACKING_MASTER.md` backlog
+- Look at `.apm/Implementation_Plan.md` backlog
 - Promote items you'll work on to GitHub Issues
 - Update priorities if needed
 
@@ -134,7 +134,7 @@ gh issue list --state closed --search "closed:>=$(date -d '7 days ago' +%Y-%m-%d
 **When you think of something new:**
 ```
 Is it urgent/this week? → Create GitHub Issue
-Is it future work? → Add to PROJECT_TRACKING_MASTER.md
+Is it future work? → Add to .apm/Implementation_Plan.md
 Is it technical debt? → Add to TECHNICAL_DEBT.md
 ```
 
@@ -148,7 +148,7 @@ Is it technical debt? → Add to TECHNICAL_DEBT.md
 # Close the issue
 gh issue close 42 --comment "Fixed by implementing proper logo URL fetching"
 
-# Update PROJECT_TRACKING_MASTER.md
+# Update .apm/Implementation_Plan.md
 # Move from Open to Resolved section
 # Update metrics
 
@@ -163,7 +163,7 @@ Fixes #42"
 **Quick review (5 minutes)**
 - Any issues need priority adjustment?
 - Any technical debt discovered this week?
-- Update `PROJECT_TRACKING_MASTER.md` metrics
+- Update `.apm/Implementation_Plan.md` metrics
 
 ---
 
@@ -187,7 +187,7 @@ New Issue/Enhancement/Debt Discovered
 │     - Priority and effort estimate
 │
 ├─ Is it a future enhancement?
-│  └─ YES → Add to PROJECT_TRACKING_MASTER.md
+│  └─ YES → Add to .apm/Implementation_Plan.md
 │     - In appropriate section (ENHANCEMENTS)
 │     - With priority and effort estimate
 │
@@ -221,7 +221,7 @@ Tested with both MTC and AVII.
 
 Fixes #XX"
 
-# Update PROJECT_TRACKING_MASTER.md
+# Update .apm/Implementation_Plan.md
 # Move to Recently Resolved section
 ```
 
@@ -229,7 +229,7 @@ Fixes #XX"
 
 **What to do:**
 ```markdown
-# Add to PROJECT_TRACKING_MASTER.md under ## 🚀 ENHANCEMENTS
+# Add to .apm/Implementation_Plan.md under ## 🚀 ENHANCEMENTS
 
 ### ENHANCEMENT-017: Bulk Unit Import from CSV
 - **Module**: Frontend Desktop - Unit Management
@@ -489,7 +489,7 @@ gh project create --owner @me --title "SAMS Roadmap"
    - Client logos issue (ISSUE-20250807_1450)
    - Units List Management (ISSUE-20250726_0927)
    - Any other high-priority items
-2. ✅ Update `PROJECT_TRACKING_MASTER.md` to reflect GitHub issues
+2. ✅ Update `.apm/Implementation_Plan.md` to reflect GitHub issues
 3. ✅ Try working on an issue with Cursor: "Fix #XX"
 
 ### Next Week (Ongoing)
@@ -522,7 +522,7 @@ That's fine! Keep using markdown exclusively and:
 ### "What if I have 50+ backlog items?"
 
 Perfect use case for hybrid system:
-- Keep all 50 in `PROJECT_TRACKING_MASTER.md`
+- Keep all 50 in `.apm/Implementation_Plan.md`
 - Create GitHub Issues for the 5-10 you'll work on next
 - Promote items from backlog to GitHub as needed
 - Keeps your active issues list clean and focused
@@ -545,7 +545,7 @@ git commit -m "Emergency fix for API timeout
 
 Fixes #XX"
 
-# Update PROJECT_TRACKING_MASTER.md
+# Update .apm/Implementation_Plan.md
 # Add to Recently Resolved section
 ```
 
@@ -581,7 +581,7 @@ You now have a production-ready issue tracking system that:
 
 **Your tracking system:**
 - GitHub Issues = Active work (this sprint)
-- PROJECT_TRACKING_MASTER.md = Big picture + backlog
+- .apm/Implementation_Plan.md = Big picture + backlog
 - TECHNICAL_DEBT.md = Things to be aware of
 - .cursorrules = Make Cursor aware of it all
 

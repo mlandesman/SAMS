@@ -8,7 +8,7 @@
 
 **Hybrid Approach:**
 - **GitHub Issues** → Active work (current sprint/week)
-- **PROJECT_TRACKING_MASTER.md** → Comprehensive tracking (all priorities)
+- **.apm/Implementation_Plan.md** → Comprehensive tracking (all priorities)
 - **apm_session/Implementation_Plan.md** → APM framework document (detailed task specs)
 
 ---
@@ -36,22 +36,22 @@
 New idea/issue?
 ├─ Critical bug in production? → Create GitHub Issue + label "bug"
 ├─ Need to fix this week? → Create GitHub Issue
-├─ Good idea for later? → Add to PROJECT_TRACKING_MASTER.md backlog
-└─ Technical debt discovered? → Add to PROJECT_TRACKING_MASTER.md
+├─ Good idea for later? → Add to .apm/Implementation_Plan.md backlog
+└─ Technical debt discovered? → Add to .apm/Implementation_Plan.md
 ```
 
 ### When Starting Work
 
 1. **Check GitHub Issues** for assigned/prioritized work (#7, #8 are current)
 2. **Read apm_session/Implementation_Plan.md** for detailed task specifications
-3. **Check PROJECT_TRACKING_MASTER.md** for overall context
+3. **Check .apm/Implementation_Plan.md** for overall context
 4. **Read .cursorrules** to ensure you know critical constraints
 5. **Start work** with full context
 
 ### When Finishing Work
 
 1. **Close GitHub Issue** with resolution notes
-2. **Update PROJECT_TRACKING_MASTER.md:**
+2. **Update .apm/Implementation_Plan.md:**
    - Move from Open to Resolved
    - Update metrics
    - Add to Recently Resolved section
@@ -79,7 +79,7 @@ New idea/issue?
 6. Create quick bug issue
 7. Create quick enhancement issue
 
-**Fixed:** macOS compatibility, updated to use PROJECT_TRACKING_MASTER.md
+**Fixed:** macOS compatibility, updated to use .apm/Implementation_Plan.md
 
 ### Command Line Quick Commands
 
@@ -114,7 +114,7 @@ gh issue view 8
 - **Issue #7:** Production Purge/Import BROKEN (Priority 1)
 - **Issue #8:** Water Bills Code Reversion (Priority 2)
 
-### PROJECT_TRACKING_MASTER.md
+### .apm/Implementation_Plan.md
 **Sections:**
 - 🚨 **CRITICAL ISSUES** (2 Open) - Linked to GitHub #7, #8
 - 🔥 **HIGH PRIORITY ISSUES** (0 Open - reclassified to LOW)
@@ -137,7 +137,7 @@ gh issue view 8
 
 ### Monday Planning
 1. **Review GitHub Issues** - Close completed, re-prioritize
-2. **Update PROJECT_TRACKING_MASTER.md** - Metrics, sprint priorities
+2. **Update .apm/Implementation_Plan.md** - Metrics, sprint priorities
 3. **Sync with Implementation_Plan.md** - Adjust if priorities changed
 4. **Promote items** from markdown backlog to GitHub Issues for this week
 
@@ -180,7 +180,7 @@ gh issue create \
 - [ ] Criteria 2"
 ```
 
-### Add to PROJECT_TRACKING_MASTER.md
+### Add to .apm/Implementation_Plan.md
 ```markdown
 ### ISSUE-XXX: Descriptive Title
 - **Module**: [Module Name]
@@ -200,7 +200,7 @@ gh issue create \
 ### Do's
 - ✅ Create GitHub Issues for THIS WEEK's work only
 - ✅ Keep GitHub Issues list focused (< 10 open issues ideal)
-- ✅ Use PROJECT_TRACKING_MASTER.md for comprehensive backlog
+- ✅ Use .apm/Implementation_Plan.md for comprehensive backlog
 - ✅ Reference issue numbers in commit messages (`Fix #7`, `Closes #8`)
 - ✅ Update both systems when closing issues
 - ✅ Keep Implementation_Plan.md synchronized with priorities
@@ -208,7 +208,7 @@ gh issue create \
 ### Don'ts
 - ❌ Don't create GitHub Issues for distant future work
 - ❌ Don't let GitHub Issues pile up (50+ = too many)
-- ❌ Don't skip updating PROJECT_TRACKING_MASTER.md
+- ❌ Don't skip updating .apm/Implementation_Plan.md
 - ❌ Don't reference TECHNICAL_DEBT.md (archived!)
 - ❌ Don't ignore the Priority 1-15 roadmap in Implementation_Plan.md
 
@@ -240,7 +240,7 @@ gh issue create \
 
 ### Script Errors
 **Problem:** `TECHNICAL_DEBT.md: No such file or directory`  
-**Solution:** File archived - script updated to use PROJECT_TRACKING_MASTER.md
+**Solution:** File archived - script updated to use .apm/Implementation_Plan.md
 
 **Problem:** `date: illegal option -- d`  
 **Solution:** macOS compatibility fixed - script now uses `-v` flag
@@ -263,7 +263,7 @@ gh label create technical-debt --description "Code that needs refactoring" --col
 
 ### Current Active Documents
 - `apm_session/Implementation_Plan.md` - APM framework document
-- `PROJECT_TRACKING_MASTER.md` - Comprehensive tracking
+- `.apm/Implementation_Plan.md` - Comprehensive tracking
 - `.cursorrules` - Critical constraints and GitHub links
 - `scripts/sync-issues.sh` - Sync helper script
 
