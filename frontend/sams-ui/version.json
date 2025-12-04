@@ -3,11 +3,11 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "0.3.0",
-  "buildDate": "2025-12-03T01:57:24.402Z",
-  "buildTimestamp": 1764727044403,
+  "version": "0.4.0",
+  "buildDate": "2025-12-04T02:28:13.445Z",
+  "buildTimestamp": 1764815293446,
   "environment": "development",
-  "gitBranch": "staging",
+  "gitBranch": "main",
   "gitCommit": "local",
   "developers": [
     "Michael Landesman",
@@ -18,23 +18,35 @@
     "Multi-Client Management",
     "Financial Reporting",
     "Document Storage",
-    "Unit Management"
+    "Unit Management",
+    "Statement of Account Reports"
   ],
   "git": {
-    "hash": "9f3335d",
-    "branch": "feature/report-system-completion",
-    "lastCommitDate": "2025-12-02 19:42:57 -0500"
+    "hash": "b3f80ec",
+    "branch": "feature/budget-module",
+    "lastCommitDate": "2025-12-03 21:23:03 -0500"
   },
   "build": {
-    "timestamp": "2025-12-03T01:57:24.402Z",
+    "timestamp": "2025-12-04T02:28:13.445Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251202.2057"
+    "buildNumber": "251203.2128"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-12-03T01:57:24.402Z",
+    "date": "2025-12-04T02:28:13.445Z",
     "automated": true
+  },
+  "releaseNotes": {
+    "version": "0.3.0",
+    "date": "2025-12-03",
+    "highlights": [
+      "Statement of Account Report - Production Ready",
+      "PDF export with PDFShift integration",
+      "CSV export for Excel/Sheets",
+      "Bilingual support (English/Spanish)",
+      "TD-026 Unit filter bug fix"
+    ]
   }
 }
