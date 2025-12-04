@@ -325,6 +325,173 @@ class ReportService {
     a.click();
     window.URL.revokeObjectURL(url);
   }
+
+  /**
+   * Get Budget vs Actual data (JSON) for a client
+   * GET /api/clients/:clientId/reports/budget-actual/data
+   *
+   * @param {string} clientId
+   * @param {number|null} fiscalYear - Optional fiscal year (e.g., 2025)
+   * @param {string} language - 'english' or 'spanish'
+   */
+  async getBudgetActualData(clientId, fiscalYear = null, language = 'english') {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('language', language);
+    if (fiscalYear) {
+      params.append('fiscalYear', String(fiscalYear));
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to fetch budget vs actual data');
+    }
+
+    // Return the data object (income, expenses, specialAssessments, etc.)
+    return json.data;
+  }
+
+  /**
+   * Get Budget vs Actual HTML for a client
+   * GET /api/clients/:clientId/reports/budget-actual/html
+   *
+   * @param {string} clientId
+   * @param {number|null} fiscalYear - Optional fiscal year
+   * @param {string} language - 'english' or 'spanish'
+   */
+  async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english') {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('language', language);
+    if (fiscalYear) {
+      params.append('fiscalYear', String(fiscalYear));
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to fetch budget vs actual HTML (status ${response.status})`
+      );
+    }
+
+    const html = await response.text();
+    return html;
+  }
+
+  /**
+   * Export Budget vs Actual PDF using pre-generated HTML
+   * POST /reports/:clientId/budget-actual/export?format=pdf
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {number|null} params.fiscalYear
+   * @param {string} params.language
+   * @param {string} params.html - Complete HTML document
+   * @param {object} [params.meta] - Optional footer metadata
+   */
+  async exportBudgetActualPdfFromHtml(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const query = new URLSearchParams();
+    query.append('format', 'pdf');
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget-actual/export?${query.toString()}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          fiscalYear: params.fiscalYear,
+          language: params.language || 'english',
+          html: params.html,
+          meta: params.meta || {}
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export budget vs actual PDF (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    // Open in a new tab so the browser/OS handles print/save UX
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+      console.warn('Unable to open PDF window (popup blocked?)');
+    }
+
+    // Revoke URL after some time to avoid breaking the viewer immediately
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 60 * 1000);
+  }
+
+  /**
+   * Export Budget vs Actual CSV based on server-side data
+   * POST /reports/:clientId/budget-actual/export?format=csv
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {number|null} params.fiscalYear
+   * @param {string} params.language
+   */
+  async exportBudgetActualCsv(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const query = new URLSearchParams();
+    query.append('format', 'csv');
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget-actual/export?${query.toString()}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          fiscalYear: params.fiscalYear,
+          language: params.language || 'english'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export budget vs actual CSV (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const yearPart = params.fiscalYear || 'current';
+    a.download = `budget-actual-${clientId}-${yearPart}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
 }
 
 // Export singleton instance

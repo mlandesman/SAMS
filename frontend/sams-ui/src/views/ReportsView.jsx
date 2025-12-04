@@ -4,11 +4,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faFileInvoice,
   faChartLine,
-  faHistory
+  faHistory,
+  faChartPie
 } from '@fortawesome/free-solid-svg-icons';
 import { Box, Tabs, Tab } from '@mui/material';
 import { useStatusBar } from '../context/StatusBarContext';
 import StatementOfAccountTab from '../components/reports/StatementOfAccountTab';
+import BudgetActualTab from '../components/reports/BudgetActualTab';
 import './ReportsView.css';
 
 function ActivityTab() {
@@ -91,6 +93,11 @@ function ReportsView() {
             iconPosition="start"
           />
           <Tab
+            label="Budget vs Actual"
+            icon={<FontAwesomeIcon icon={faChartPie} />}
+            iconPosition="start"
+          />
+          <Tab
             label="Activity"
             icon={<FontAwesomeIcon icon={faChartLine} />}
             iconPosition="start"
@@ -107,8 +114,9 @@ function ReportsView() {
 
       <div className="reports-content">
         {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} />}
-        {tabIndex === 1 && <ActivityTab />}
-        {tabIndex === 2 && (
+        {tabIndex === 1 && <BudgetActualTab zoom={zoom} />}
+        {tabIndex === 2 && <ActivityTab />}
+        {tabIndex === 3 && (
           <div className="reports-tab-content">
             <div className="reports-placeholder">
               <FontAwesomeIcon icon={faHistory} size="3x" className="placeholder-icon" />

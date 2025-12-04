@@ -40,7 +40,12 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     }
 
     const clientData = clientDoc.data();
-    const clientName = clientData.name || clientData.displayName || clientId;
+    // Get client name using same path as Statement service
+    const clientName = clientData.basicInfo?.fullName || clientData.basicInfo?.displayName || clientData.name || clientData.displayName || clientId;
+    // Handle logoUrl (convert empty string to null, check branding path)
+    const logoUrl = clientData.branding?.logoUrl;
+    const normalizedLogoUrl = logoUrl && logoUrl.trim() !== '' ? logoUrl : null;
+    
     const fiscalYearStartMonth = validateFiscalYearConfig(clientData);
 
     // Get fiscal year bounds
@@ -233,6 +238,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
       clientInfo: {
         id: clientId,
         name: clientName,
+        logoUrl: normalizedLogoUrl,
         fiscalYearStartMonth: fiscalYearStartMonth
       },
       reportInfo: {

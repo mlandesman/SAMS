@@ -314,7 +314,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     .client-info-table td:first-child {
       font-weight: bold;
-      width: 105px;
+      width: 135px;
       padding-right: 4px;
     }
     
@@ -339,7 +339,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     .logo-top img {
       max-width: 200px;
-      max-height: 95px;
+      max-height: 125px;
       height: auto;
       display: block;
       padding-top: 2px;
