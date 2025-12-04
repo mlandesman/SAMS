@@ -13,6 +13,9 @@ import { getStatementData, getConsolidatedUnitData } from '../services/statement
 import { generateTextTable } from '../services/statementTextTableService.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
+import { getBudgetActualData } from '../services/budgetActualDataService.js';
+import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
+import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import axios from 'axios';
 
 // Create date service for formatting API responses
@@ -772,6 +775,262 @@ router.post('/statement/export', authenticateUserWithProfile, async (req, res) =
     res.send(pdfBuffer);
   } catch (error) {
     console.error('Error exporting statement from HTML:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.stack
+    });
+  }
+});
+
+/**
+ * Get Budget vs Actual report data
+ * GET /api/clients/:clientId/reports/budget-actual/data
+ * Query params:
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Returns comprehensive data object with budget vs actual data
+ */
+router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+
+    // Verify user has access to this client
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Access denied to this client' 
+      });
+    }
+
+    // Get budget vs actual data
+    const data = await getBudgetActualData(clientId, fiscalYear, user);
+    
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching budget vs actual data:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get Budget vs Actual report as HTML
+ * GET /api/clients/:clientId/reports/budget-actual/html
+ * Query params:
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Returns professional HTML report matching Statement of Account design
+ */
+router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const language = req.query.language || 'english';
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+
+    // Verify user has access to this client
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Access denied to this client' 
+      });
+    }
+
+    // Get budget vs actual data
+    const data = await getBudgetActualData(clientId, fiscalYear, user);
+    
+    // Generate HTML
+    const { html: htmlOutput } = generateBudgetActualHtml(data, { language });
+    
+    // Return as HTML
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlOutput);
+  } catch (error) {
+    console.error('Error generating budget vs actual HTML:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.stack 
+    });
+  }
+});
+
+/**
+ * Export Budget vs Actual report
+ * POST /api/clients/:clientId/reports/budget-actual/export
+ * Query param: format=pdf|csv
+ * Body: { fiscalYear, language, html?, meta? }
+ * 
+ * Returns PDF or CSV export of the report
+ */
+router.post('/budget-actual/export', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const {
+      fiscalYear = null,
+      language = 'english',
+      html,
+      meta = {},
+      format: bodyFormat
+    } = req.body || {};
+
+    const format = (req.query.format || bodyFormat || 'pdf').toLowerCase();
+    const user = req.user;
+
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+
+    // Verify user has access to this client
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Access denied to this client' 
+      });
+    }
+
+    // CSV export: build from data
+    if (format === 'csv') {
+      const data = await getBudgetActualData(clientId, fiscalYear, user);
+      
+      const header = ['Category Name', 'Type', 'Annual Budget', 'YTD Budget', 'YTD Actual', 'Variance ($)', 'Variance (%)'];
+      const rows = [];
+
+      // Income categories
+      data.income.categories.forEach(cat => {
+        rows.push([
+          cat.name,
+          'Income',
+          (cat.annualBudget / 100).toFixed(2),
+          (cat.ytdBudget / 100).toFixed(2),
+          (cat.ytdActual / 100).toFixed(2),
+          (cat.variance / 100).toFixed(2),
+          cat.variancePercent.toFixed(2)
+        ]);
+      });
+
+      // Expense categories
+      data.expenses.categories.forEach(cat => {
+        rows.push([
+          cat.name,
+          'Expense',
+          (cat.annualBudget / 100).toFixed(2),
+          (cat.ytdBudget / 100).toFixed(2),
+          (cat.ytdActual / 100).toFixed(2),
+          (cat.variance / 100).toFixed(2),
+          cat.variancePercent.toFixed(2)
+        ]);
+      });
+
+      // Special Assessments (as separate section)
+      if (data.specialAssessments.collections && data.specialAssessments.collections.amount > 0) {
+        rows.push([
+          data.specialAssessments.collections.categoryName,
+          'Special Assessments - Collections',
+          '0.00',
+          '0.00',
+          (data.specialAssessments.collections.amount / 100).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+      }
+
+      data.specialAssessments.expenditures.forEach(exp => {
+        rows.push([
+          exp.name,
+          'Special Assessments - Expenditure',
+          '0.00',
+          '0.00',
+          (exp.amount / 100).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+      });
+
+      const escapeCell = (value) => {
+        const str = value == null ? '' : String(value);
+        const escaped = str.replace(/"/g, '""');
+        return `"${escaped}"`;
+      };
+
+      const csvLines = [header, ...rows].map((row) =>
+        row.map(escapeCell).join(',')
+      );
+      const csvContent = csvLines.join('\r\n');
+
+      const safeClientId = clientId || 'client';
+      const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(csvContent);
+      return;
+    }
+
+    // PDF export: use provided HTML or generate it
+    if (format !== 'pdf') {
+      return res.status(400).json({
+        success: false,
+        error: 'Unsupported export format. Supported formats: "pdf", "csv".'
+      });
+    }
+
+    let htmlToConvert = html;
+    let metaToUse = meta;
+
+    if (!htmlToConvert) {
+      // Generate HTML if not provided
+      const data = await getBudgetActualData(clientId, fiscalYear, user);
+      const result = generateBudgetActualHtml(data, { language });
+      htmlToConvert = result.html;
+      metaToUse = result.meta;
+    }
+
+    // Convert HTML to PDF
+    const pdfBuffer = await generatePdf(htmlToConvert, {
+      footerMeta: {
+        reportId: metaToUse.reportId || '',
+        generatedAt: metaToUse.generatedAt || '',
+        language: metaToUse.language || language
+      }
+    });
+
+    const safeClientId = clientId || 'client';
+    const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error exporting budget vs actual report:', error);
     res.status(500).json({
       success: false,
       error: error.message,
