@@ -20,6 +20,7 @@ import creditRoutes from './routes/creditRoutes.js'; // Import credit balance ro
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
 import paymentRoutes from './routes/paymentRoutes.js'; // Import unified payment routes
 import reportsRoutes from './routes/reports.js'; // Import reports routes for Statement of Account
+import budgetRoutes from './routes/budgets.js'; // Import budget routes
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // New comment for testing
@@ -150,6 +151,10 @@ app.use('/credit', authenticateUserWithProfile, creditRoutes); // Credit balance
 // UNIFIED PAYMENT DOMAIN (cross-module payments with authentication)
 console.log('Mounting unified payment domain routes');
 app.use('/payments', paymentRoutes); // Unified payment endpoints (authentication handled in routes)
+
+// BUDGET DOMAIN (budget entry and management)
+console.log('Mounting budget domain routes');
+app.use('/budgets', budgetRoutes); // Budget endpoints (authentication handled in routes)
 
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {

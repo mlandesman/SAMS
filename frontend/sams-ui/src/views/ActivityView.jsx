@@ -7,6 +7,7 @@ import WaterBillsSimple from './WaterBillsSimple';
 import ListManagementView from './ListManagementView';
 import SettingsView from './SettingsView';
 import ReportsView from './ReportsView';
+import BudgetView from './BudgetView';
 import { HOADuesProvider } from '../context/HOADuesContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { ListManagementProvider } from '../context/ListManagementContext';
@@ -25,7 +26,7 @@ const ACTIVITY_VIEWS = {
   'reports': () => <ReportsView />,
   // We could dynamically load these, but for now we'll handle unimplemented views with a placeholder
   'projects': () => <PlaceholderView title="Projects" />,
-  'budgets': () => <PlaceholderView title="Budgets" />,
+  'budgets': () => <BudgetView />,
   'listmanagement': () => (
     <ListManagementProvider>
       <ListManagementView />

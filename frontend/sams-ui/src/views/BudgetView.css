@@ -1,0 +1,98 @@
+/* BudgetView.css */
+
+.budget-view {
+  padding: 20px;
+  height: calc(100vh - 140px); /* Adjust based on header/footer height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.budget-tabs {
+  background-color: #f8f9fa;
+  border-radius: 4px 4px 0 0;
+}
+
+.budget-tabpanel {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Placeholder styling */
+.budget-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.budget-placeholder .placeholder-icon {
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.budget-placeholder h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.budget-placeholder p {
+  color: #666;
+  margin: 5px 0;
+}
+
+.budget-placeholder .coming-soon {
+  color: #999;
+  font-style: italic;
+}
+
+/* Table styling - matches list-table pattern */
+.budget-table-container {
+  height: 100%;
+  overflow: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.budget-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.budget-table th {
+  background-color: #f0f0f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+}
+
+.budget-table td {
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.budget-table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.budget-table tr:hover {
+  background-color: #e9ecef;
+}
+
+/* Loading container */
+.budget-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}
+

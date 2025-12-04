@@ -1,11 +1,11 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
-**Memory Strategy:** dynamic-md  
-**Last Modification:** Manager Agent - v0.3.0 Archive Cleanup (December 3, 2025)  
+**Memory Strategy:** dynamic-md
+**Last Modification:** Manager Agent - Task B1.1 Complete, Archived (December 3, 2025)  
 **Current Version:** v0.3.0 - Statement of Account Report Complete  
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
-**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus on PWA/Mobile refactor and remaining technical debt.
+**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Budget Module (urgent), then PWA/Mobile refactor.
 
 **Production URL:** https://sams.sandyland.com.mx  
 **Archive Reference:** Completed work through v0.3.0 is documented in `SAMS-Docs/COMPLETED_WORK_ARCHIVE_v0.3.0.md`
@@ -21,20 +21,145 @@
 - ✅ **Phase 5 Quarterly Billing** - AVII contract-compliant
 - ✅ **Water Bills Quarterly** - Quarterly display for AVII
 
-**Branch:** `feature/report-system-completion` - Ready for merge to `main`  
 **See:** `COMPLETED_WORK_ARCHIVE_v0.3.0.md` for full details
 
 ---
 
-## 🔥 CURRENT PRIORITIES
+## 🚨 CRITICAL PATH TO PRODUCTION (December 2025)
 
-### 🟡 ISSUE #39: Water Bills Import Creates Invalid Bills
-**Status:** 🟡 OPEN - Medium Priority  
-**GitHub Issue:** #39 - Water Bills Import Creates Invalid 2025-11 Bill from Reading Data  
-**Impact:** Creates garbage bills (85,000+ pesos) from reading data on every import  
-**Root Cause:** Import incorrectly creates bill for reading period instead of using it for next period calculation  
-**Manual Workaround:** Delete invalid record after import  
-**Priority:** Medium - Fix before next production data reload
+### Priority 1: Budget Module │ GitHub #45
+**Status:** 🟡 IN PROGRESS - Task B1.1 Complete, B1.2 Pending  
+**Timeline:** Dec 3-6, 2025 (this week)
+
+**Business Need:** MTC new fiscal year budget required by Jan 1, 2026
+
+#### ✅ Task B1.1 - Budget Entry UI (COMPLETE - Dec 3, 2025)
+- Backend: 3 files (routes, controller, registration)
+- Frontend: 6 files (view, component, API, styling)
+- Features: Real-time totals, fiscal year selector, centavos architecture
+- Quality: ⭐⭐⭐⭐⭐ - User confirmed "Perfect"
+- Archive: `SAMS-Docs/apm_session/Memory/Archive/Budget_Module_Task_1_2025-12-03/`
+
+#### 📋 Task B1.2 - Budget vs Actual Report (PENDING)
+- Report tab implementation
+- YTD Budget vs YTD Actual comparison
+- Variance calculation
+
+**Data Structure:**
+```
+/clients/{clientId}/categories/{categoryId}/budget/{year}
+  - amount: number (centavos)
+  - createdAt: timestamp
+  - updatedAt: timestamp
+```
+
+**Implementation Steps:**
+
+**Step 1: Budget Entry UI (Dec 3-4)**
+- Wire existing Budget activity placeholder in sidebar
+- Call categories endpoint (already exists for modal pulldowns)
+- Display table: Category | 2025 Budget | 2026 Budget (editable)
+- Save to Firestore: `/clients/{clientId}/categories/{categoryId}/budget/{year}`
+- Prepopulate 2026 values from 2025 budget
+
+**Step 2: Budget vs Actual Report (Dec 5-6)**
+- Table: Category | Actual YTD | Budget YTD | Variance
+- YTD Budget = Annual Budget × (% of fiscal year elapsed)
+- YTD Actual = Sum of transactions by category (existing filter code)
+- Uses existing fiscal year logic (MTC: Jan-Dec, AVII: Jul-Jun)
+
+**Resources Available:**
+- ✅ Sidebar placeholder for Budget activity
+- ✅ Categories endpoint (used in modal pulldowns)
+- ✅ Transaction filter by category
+- ✅ 2025 budget exists as JSON file
+- ✅ Fiscal year calculation code
+
+**Future Enhancements (NOT Jan 1):**
+- "Create New Budget" with inflation adjustment
+- AI-assisted budget planning from historical data
+- Per-category inflation flags
+- Top 5 over-budget variance drill-down
+
+---
+
+### Priority 2: Data Reconciliation │ Manual Process
+**Status:** 🟡 IN PROGRESS - Due Dec 31, 2025  
+**No development required** - Manual comparison and adjustment
+
+**MTC:** Verify only - data should match 100% (built from import)
+
+**AVII:** Manual comparison required
+- HOA Dues: Compare 10 units with Google Sheets history
+- Water Bills: Compare 10 units × 5 months with historical records
+- Adjust penalty calculations to match previously reported numbers
+- Goal: Establish clean starting point for Jan 1
+
+**Process:**
+1. Run Statement of Account reports for AVII units
+2. Compare with Google Sheets historical figures
+3. Use existing UI to adjust individual fields where needed
+4. Document adjustments made
+
+---
+
+### Priority 3: Firestore Backup Configuration │ GitHub #38
+**Status:** 🟢 READY - Before production go-live  
+**Effort:** Configuration task, minimal development
+
+**Scope:**
+- Configure automated Firestore backups
+- Establish recovery procedures
+- Document backup/restore process
+
+---
+
+## 📱 PWA/MOBILE REFACTOR (Post-Budget Module)
+
+**Timeline:** Starting Dec 7-8, 2025 (this weekend)
+
+### PWA Priority A: Water Meter Entry │ Agent_Mobile
+**Status:** 🔄 READY TO BEGIN after Budget Module  
+**Estimated Effort:** Medium (existing code needs update)
+
+**Context:** Water meter readings were working (in English) through Firebase storage. Needs:
+- Update to current backend endpoints and data structures
+- Spanish-only UI for maintenance workers
+- Simple, quick interface for non-technical field worker
+
+### PWA Priority B: Propane Tank Module │ Agent_Propane
+**Status:** 📋 After Water Meters  
+**Estimated Effort:** Small (new but simple)
+
+**Scope:**
+- Monthly readings (0-100%) for MTC propane tanks
+- PWA maintenance worker interface (Spanish)
+- Simple readings only - NO billing, NO penalties
+- Report: Show trend over time for absent unit owners
+
+### PWA Priority C: Owner/Manager Dashboard │ Agent_Mobile
+**Status:** 📋 After Propane  
+**Estimated Effort:** Medium (existing code needs update)
+
+**Scope:**
+- Current Unit Status Dashboard
+- HOA Dues status, Water Bills/Propane status
+- Exchange Rates with Calculator
+- Update to match new backend endpoints
+
+---
+
+## 🐛 DEPRIORITIZED BUGS (Post-Production)
+
+These bugs are not blocking production go-live and will be addressed after Jan 1:
+
+| GitHub # | Issue | Priority | Notes |
+|----------|-------|----------|-------|
+| #43 | Client Management 404 | Post-prod | No new clients before Jan 1, Firebase console workaround |
+| #39 | Water Bills Import Invalid Bills | Post-prod | Manual delete workaround, manual reconciliation handles |
+| #44 | Credit History Details modal | Post-prod | Nice-to-have UI enhancement |
+| #10 | New Client onboarding progress | Post-prod | No new clients being onboarded |
+| #12 | Transaction Link modal formatting | Post-prod | UI polish |
 
 ---
 
@@ -59,7 +184,7 @@
 **Effort:** 1-2 sessions (including verification)
 
 ### TD-008: Year-End Processing System
-**Priority:** LOW - Not needed until December 2025  
+**Priority:** LOW - Manual process acceptable for now  
 **Scope:** Build new fiscal year files, year-end reports, balance carryover  
 **Impact:** Manual year-end processing currently acceptable  
 **Effort:** 5-6 sessions
@@ -74,13 +199,6 @@
 **Impact:** No production impact - function still works as 1st Gen  
 **Effort:** 0.5-1 hour
 
-### TD-019: Client Management 404 Error
-**Priority:** 🚨 CRITICAL  
-**GitHub Issue:** #43  
-**Impact:** Cannot manage client configurations via UI  
-**Workaround:** Direct Firestore access  
-**Effort:** 2-4 hours
-
 ### TD-023: Large PDF File Size (AVII)
 **Priority:** LOW  
 **Impact:** ~1.4 MB PDFs (larger than MTC ~370 KB)  
@@ -93,113 +211,7 @@
 
 ---
 
-## 📱 PWA/MOBILE REFACTOR (Primary Focus)
-
-### Priority 1: PWA Breaking Changes Assessment │ Agent_Mobile
-**Status:** 🔄 READY TO BEGIN  
-**Estimated Effort:** 2-3 sessions
-
-**Objective:** Document all system changes that broke PWA during 2+ months of desktop development
-- PWA last updated over a month ago
-- Entire system refactored since then
-- Expect extensive breaking changes
-
-### Priority 2: PWA Foundation Update │ Agent_Mobile
-**Status:** Waiting on Assessment  
-**Estimated Effort:** 4-5 sessions
-
-**Scope:**
-- Update to current endpoints, authentication, collection/document structures
-- Focus on core functionality before features
-
-### Priority 3: Maintenance Worker Integration │ Agent_Mobile
-**Status:** Waiting on Foundation  
-**Estimated Effort:** 3-4 sessions
-
-**Scope:**
-- Water meter readings PWA integration
-- Spanish-only UI for maintenance workers
-- Client-specific task routing
-
-### Priority 4: Core Admin Functions │ Agent_Mobile
-**Status:** Waiting on Foundation  
-**Estimated Effort:** 3-4 sessions
-
-**Scope:**
-- Working admin navigation and client switching
-- Read-only functionality before write operations
-
-### Priority 5: Mobile Admin Interface Design │ Agent_Mobile
-**Status:** Waiting on Core Admin  
-**Estimated Effort:** 2-3 sessions
-
-**Scope:**
-- Touch-friendly design optimized for slow connections
-- Data efficiency for field operations
-
-### Priority 6: Field Conditions Optimization │ Agent_Mobile
-**Status:** Waiting on Admin Interface  
-**Estimated Effort:** 2-3 sessions
-
-**Scope:**
-- LTE/poor connectivity optimization
-- Caching and offline capabilities
-
-### Priority 7: Offline Capabilities │ Agent_Mobile
-**Status:** Waiting on Optimization  
-**Estimated Effort:** 3-4 sessions
-
-**Scope:**
-- Offline data entry with sync
-- Essential for field work
-
-**Total PWA Effort:** 20-26 sessions
-
----
-
-## 📊 ADDITIONAL REPORTS (After PWA)
-
-### Monthly Transaction History Report
-**Status:** 📋 BACKLOG  
-**Foundation:** Statement of Account report engine  
-**Effort:** 4-5 sessions
-
-### HOA Dues Update Report
-**Status:** 📋 BACKLOG  
-**Foundation:** Statement of Account report engine  
-**Effort:** 3-4 sessions
-
-### Budget vs Actual Report
-**Status:** 📋 BACKLOG  
-**Dependency:** Requires Budget Module  
-**Effort:** 3-4 hours
-
----
-
-## 🆕 NEW MODULES (After PWA)
-
-### Propane Tanks Module │ Agent_Propane
-**Status:** 📋 BACKLOG  
-**Estimated Effort:** 4-5 sessions
-
-**Scope:**
-- Monthly readings for MTC client propane tanks
-- PWA maintenance worker interface
-- Simple readings only (no billing)
-- Subset of Water Bills functionality
-
----
-
-## 🚀 FUTURE FEATURES
-
-### Budget Module │ Agent_Budget
-**Status:** 📋 BACKLOG  
-**Estimated Effort:** 3-4 sessions
-
-**Scope:**
-- Budget entry system
-- Category-based budget structure
-- Required for Budget vs Actual reports
+## 🚀 FUTURE FEATURES (Backlog)
 
 ### WhatsApp Business Integration │ Agent_Communications
 **Status:** 📋 BACKLOG  
@@ -233,31 +245,45 @@
 - Generic tool to edit configuration collections
 - Eliminates need for domain-specific editing screens
 
+### Additional Reports │ Agent_Reports
+**Status:** 📋 BACKLOG  
+**Estimated Effort:** 8-12 sessions total
+
+**Reports:**
+- Monthly Transaction History Report (Statement of Account engine)
+- HOA Dues Update Report (Statement of Account engine)
+- Additional Budget reports (after Budget Module complete)
+
 ---
 
-## 📋 PRIORITY EXECUTION ROADMAP
+## 📋 EXECUTION TIMELINE (December 2025)
 
-### ✅ Completed (v0.3.0)
-1. ✅ Testing Blockers Resolution
-3. ✅ Statement of Account Report
-4. ✅ HOA Quarterly Collection
-5. ✅ HOA Penalty System
-11. ✅ Export Functions (CSV)
-12. ✅ Multi-Language Support (in reports)
+### Week 1: Dec 3-6 - Budget Module
+| Day | Task |
+|-----|------|
+| Wed Dec 3 | Budget Entry UI - wire sidebar, categories endpoint |
+| Thu Dec 4 | Budget Entry UI - table, save to Firestore |
+| Fri Dec 5 | Budget vs Actual Report - table structure |
+| Sat Dec 6 | Budget vs Actual Report - complete |
 
-### Next Up (v0.4.0 - PWA Focus)
-13. **PWA Breaking Changes Assessment** (2-3 sessions)
-14. **PWA Foundation Update** (4-5 sessions)
-15. **Maintenance Worker Integration** (3-4 sessions)
-16. **Core Admin Functions** (3-4 sessions)
-17. **Mobile Admin Interface** (2-3 sessions)
-18. **Field Conditions Optimization** (2-3 sessions)
+### Week 2: Dec 7-13 - PWA Water Meters
+| Day | Task |
+|-----|------|
+| Weekend | PWA assessment and foundation update |
+| Mid-week | Water meter readings - Spanish UI |
+| End-week | Testing and polish |
 
-### Future (Post-PWA)
-19. Propane Tanks Module (4-5 sessions)
-20. Budget Module (3-4 sessions)
-21. Additional Reports (8-12 sessions)
-22. WhatsApp Integration (6-8 sessions)
+### Week 3: Dec 14-20 - Data Reconciliation
+- Run Statement of Account reports for AVII
+- Compare with Google Sheets historical data
+- Make manual adjustments as needed
+
+### Week 4: Dec 21-31 - Pre-Production
+- Firestore backup configuration
+- Final testing
+- Go-live preparation
+
+### January 1, 2026: MTC New Fiscal Year on SAMS
 
 ---
 
@@ -279,24 +305,28 @@
 - ✅ Multi-language support (in reports)
 - ✅ CSV Export
 
-### Next Development Cycle Focus
-1. **PWA/Mobile Refactor** (20-26 sessions) - Primary focus
-2. **Technical Debt Resolution** (8-12 hours) - Ongoing
-3. **Propane Tanks Module** (4-5 sessions) - After PWA stable
-4. **Additional Reports** (8-12 sessions) - As needed
+### Critical Path to Production (Dec 2025)
+1. **Budget Module** - GitHub #45 (this week)
+2. **Data Reconciliation** - Manual process (Dec 14-20)
+3. **Firestore Backup** - GitHub #38 (Dec 21-31)
 
-### Total Remaining Effort
-- **PWA/Mobile:** 20-26 sessions
-- **Technical Debt:** 8-12 hours
-- **New Modules:** 4-5 sessions
-- **Future Features:** 22-30 sessions (backlog)
+### Post-Production Roadmap (Q1 2026)
+1. **PWA: Water Meter Entry** - Spanish, simple, field worker ready
+2. **Propane Tank Module** - Monthly readings, no billing
+3. **PWA: Owner Dashboard** - Unit status, exchange rates
 
-**Immediate Priority:** PWA refactor to enable field usage of SAMS
+### Deprioritized (Post-Production)
+- GitHub #43: Client Management 404
+- GitHub #39: Water Bills Import Invalid Bills
+- GitHub #44: Credit History Details modal
+- GitHub #10: Onboarding progress bars
+- GitHub #12: Transaction Link modal formatting
 
 ---
 
 ### Success Metrics
 - ✅ **Core Platform:** Fully operational in production
 - ✅ **Statement of Account:** Professional reports replacing Google Sheets
-- 🎯 **Next Milestone (v0.4.0):** PWA Mobile App functional for field operations
-- 🚀 **Long-term Goal:** Comprehensive association management platform with mobile worker support
+- 🎯 **v0.4.0 Milestone:** Budget Module for MTC fiscal year (Jan 1, 2026)
+- 🎯 **v0.5.0 Milestone:** PWA Water Meters for field operations
+- 🚀 **Long-term Goal:** Full Google Sheets replacement with mobile worker support
