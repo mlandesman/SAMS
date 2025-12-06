@@ -188,9 +188,14 @@
 ---
 
 ### PWA Priority A: Water Meter Entry │ ✅ COMPLETE
-**Status:** ✅ COMPLETE (December 6, 2025)  
-**Actual Effort:** 4-5 hours (multi-session)  
+**Status:** ✅ WM-2 + WM-3 COMPLETE (December 6, 2025)  
 **Quality:** ⭐⭐⭐⭐⭐ Outstanding  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Water_Meter_WM-2_2025-12-06/`  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Water_Meter_WM-3_NumericKeypad_2025-12-06/`
+
+**Deliverables:**
+- ✅ WM-2: API compatibility, batch endpoints, 92% API reduction, auth bug fix
+- ✅ WM-3: NumericKeypad integration for rapid mobile data entry  
 **Archive:** `SAMS-Docs/apm_session/Memory/Archive/PWA_Water_Meter_WM-2_2025-12-06/`
 
 **Deliverables:**
@@ -228,20 +233,18 @@
 - [Health App](https://dribbble.com/shots/2062953-Health-App-mobile)
 - [Mobile Dashboard](https://dribbble.com/shots/3224323-Mobile-Dashboard)
 
-### PWA Priority B: Propane Tank Module │ Agent_Propane
-**Status:** 🔄 IN PROGRESS - Task PT-1 Assigned (Phases 1-2 + 3A)  
-**Estimated Effort:** 8-10 hours (PT-1), 4-6 hours remaining (future phases)  
-**Design Doc:** `.apm/Memory/Task_Assignments/Planning/Propane_Tank_Module_Design.md`
-**Task Assignment:** `.apm/Memory/Task_Assignments/Active/Task_PT-1_Propane_Tank_Backend_PWA.md`
+### PWA Priority B: Propane Tank Module │ ✅ PT-1 COMPLETE
+**Status:** ✅ PT-1 COMPLETE (December 6, 2025) - Phases 1-2 + 3A  
+**Actual Effort:** ~10 hours (as estimated)  
+**Quality:** ⭐⭐⭐⭐⭐ Outstanding  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Propane_Tank_PT-1_2025-12-06/`
 
-**Scope:**
-- Monthly readings (0-100%) for MTC propane tanks (9 units - 2B has no tank)
-- Config-driven unit list - mirrors Water Bills pattern
-- PWA maintenance worker interface (Spanish)
-- Desktop History table (months × units with color-coded percentages)
-- CSV seeding with 2 years of historical data
-- Simple readings only - NO billing, NO penalties
-- Thresholds: Red ≤10%, Amber 10-30%, Green 30-100%
+**Deliverables:**
+- ✅ Backend: services, controllers, routes, seeding scripts
+- ✅ PWA: Worker entry with NumericKeypad component (Spanish)
+- ✅ Desktop: History table with color-coded cells
+- ✅ CSV seeding: 25 months historical data imported
+- ✅ Bonus: Reusable NumericKeypad, language preference support
 
 **Data Structure:**
 ```
@@ -250,15 +253,14 @@ clients/MTC/projects/propaneTanks/readings/{year}-{month}
 ```
 
 **Phases:**
-1. 🔄 Backend & Data Structure (2-3 hrs) - PT-1
-2. 🔄 PWA Worker Entry (3-4 hrs) - PT-1
-3. 🔄 Desktop History Table (2 hrs) - PT-1 (3A only)
-4. 📋 Desktop Admin Entry View (2 hrs) - Future (3B)
-5. 📋 PWA Owner Dashboard Card (2-3 hrs) - Future
-6. 📋 Trend Analysis (2-3 hrs) - Future
+1. ✅ Backend & Data Structure - PT-1
+2. ✅ PWA Worker Entry - PT-1
+3. ✅ Desktop History Table - PT-1 (3A)
+4. 📋 Desktop Admin Entry View - Future (3B)
+5. 📋 PWA Owner Dashboard Card - Future
+6. 📋 Trend Analysis - Future
 
-**Historical Data:** 25 months (Jan 2024 - Nov 2025) from Google Sheets CSV
-
+**Code Stats:** 21 files created, ~2,790 lines
 **Related:** TD-028 (Unit-specific association data enhancement)
 
 ### PWA Priority C: Owner/Manager Dashboard │ Agent_Mobile
@@ -377,23 +379,19 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 ---
 
 ### PWA Auto-Login │ GitHub #49
-**Status:** 📋 BACKLOG (Medium Priority)  
-**Estimated Effort:** 1-3 days (Large)  
+**Status:** ✅ BASIC COMPLETE / 📋 BIOMETRICS FUTURE  
 **Module:** Frontend Mobile
 
-**User Story:** Add auto-login capability to speed up entry for workers, admins, and users.
+**Completed (Dec 6, 2025):**
+- ✅ Changed Firebase persistence from `browserSessionPersistence` to `browserLocalPersistence`
+- ✅ Users now stay logged in ~90 days (until explicit logout)
+- ✅ One-line fix in `frontend/mobile-app/src/services/firebase.js`
 
-**Proposed Solutions:**
-1. **Biometrics (Preferred)** - Face ID, Touch ID, or Android equivalent
-2. **Persistent Cookies** - 90-day lifespan fallback
-
-**Business Value:** Maintenance workers (Humberto) can get to task entry faster. Admins and unit owners benefit from seamless re-authentication.
-
-**Technical Considerations:**
-- Firebase Auth persistence options
-- Web Authentication API for biometrics
-- Secure token storage
-- PWA service worker integration
+**Future Enhancement (Biometrics):**
+- 📋 Face ID / Touch ID authentication
+- 📋 Web Authentication API (WebAuthn)
+- 📋 Platform detection and fallback handling
+- 📋 Estimated Effort: 1-2 days
 
 ---
 
@@ -496,7 +494,7 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 
 ### Post-Production Roadmap (Q1 2026)
 1. ~~**PWA: Water Meter Entry**~~ - ✅ COMPLETE (Dec 6, 2025)
-2. **Propane Tank Module** - Monthly readings, no billing (design complete)
+2. ~~**Propane Tank Module**~~ - ✅ PT-1 COMPLETE (Dec 6, 2025)
 3. **PWA: Owner Dashboard** - Unit status, exchange rates
 4. **Budget Status Dashboard Card** - GitHub #46, quick reference widget
 5. **PWA Auto-Login** - GitHub #49, biometrics/cookies

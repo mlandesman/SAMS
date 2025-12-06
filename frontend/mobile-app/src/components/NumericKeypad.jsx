@@ -12,15 +12,29 @@ import {
   Check as CheckIcon
 } from '@mui/icons-material';
 
-const NumericKeypad = ({ open, onClose, onInput, value = '' }) => {
+const NumericKeypad = ({ 
+  open, 
+  onClose, 
+  onInput, 
+  value = '',
+  maxValue = 100,
+  maxDigits = null,
+  suffix = '%',
+  doneLabel = 'Listo'
+}) => {
   const handleNumberPress = (num) => {
     const currentValue = value.toString();
     const newValue = currentValue + num;
     
-    // Validate max value (0-100)
+    // Validate max digits if specified
+    if (maxDigits && newValue.length > maxDigits) {
+      return;
+    }
+    
+    // Validate max value
     const numValue = parseInt(newValue);
-    if (numValue > 100) {
-      return; // Don't allow values over 100
+    if (numValue > maxValue) {
+      return;
     }
     
     onInput(newValue);
@@ -72,7 +86,7 @@ const NumericKeypad = ({ open, onClose, onInput, value = '' }) => {
           {/* Display current value */}
           <Box sx={{ mb: 2, textAlign: 'center' }}>
             <Typography variant="h5" sx={{ fontWeight: 700, color: '#1f2937' }}>
-              {value || '0'}%
+              {value || '0'}{suffix}
             </Typography>
           </Box>
 
@@ -296,7 +310,7 @@ const NumericKeypad = ({ open, onClose, onInput, value = '' }) => {
               }
             }}
           >
-            Listo
+            {doneLabel}
           </Button>
         </Paper>
       </Slide>

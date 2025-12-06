@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   setPersistence,
-  browserSessionPersistence,
+  browserLocalPersistence,
   onAuthStateChanged
 } from 'firebase/auth';
 
@@ -24,10 +24,11 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Set auth persistence to session only
-setPersistence(auth, browserSessionPersistence)
+// Set auth persistence to local storage (persists across browser sessions)
+// Users stay logged in until explicit logout (~90 days)
+setPersistence(auth, browserLocalPersistence)
   .then(() => {
-    console.log('Firebase auth persistence set to browserSessionPersistence');
+    console.log('Firebase auth persistence set to browserLocalPersistence (stay logged in)');
   })
   .catch((error) => {
     console.error('Error setting auth persistence:', error);

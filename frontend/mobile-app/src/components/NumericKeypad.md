@@ -62,6 +62,10 @@ const MyComponent = () => {
 | `onClose` | `function` | Yes | Callback when keypad is closed (via Done button or backdrop) |
 | `onInput` | `function(value: string)` | Yes | Callback when a number is entered, backspace pressed, or cleared |
 | `value` | `string \| number` | No | Current value to display at top of keypad (default: `''`) |
+| `maxValue` | `number` | No | Maximum allowed value (default: `100`) |
+| `maxDigits` | `number` | No | Maximum number of digits allowed (optional, no limit if not specified) |
+| `suffix` | `string` | No | Display suffix shown after value (default: `'%'`) |
+| `doneLabel` | `string` | No | Text for the Done button (default: `'Listo'`) |
 
 ### Features
 
@@ -70,9 +74,9 @@ const MyComponent = () => {
 - **Number Buttons**: Large touch targets (60px) for 0-9
 - **Backspace**: Delete last entered digit
 - **Clear**: Clear entire value
-- **Done Button**: "Listo" button to close keypad
-- **Value Display**: Shows current value at top of keypad
-- **Range Validation**: Built-in validation prevents values over 100 (can be customized)
+- **Done Button**: Customizable button text (default: "Listo") to close keypad
+- **Value Display**: Shows current value at top of keypad with customizable suffix
+- **Range Validation**: Built-in validation for max value and max digits (configurable via props)
 
 ### Styling
 
@@ -86,34 +90,85 @@ The component uses Material-UI theming and includes:
 
 ### Customization
 
-To customize the max value validation, modify the `handleNumberPress` function:
+The component is now fully customizable via props. No code changes needed:
 
 ```jsx
-const handleNumberPress = (num) => {
-  const currentValue = value.toString();
-  const newValue = currentValue + num;
-  
-  // Customize max value here
-  const numValue = parseInt(newValue);
-  if (numValue > YOUR_MAX_VALUE) {
-    return;
-  }
-  
-  onInput(newValue);
-};
+// Propane Tank Entry (0-100%, 3 digits max)
+<NumericKeypad
+  open={keypadOpen}
+  onClose={handleKeypadClose}
+  onInput={handleKeypadInput}
+  value={currentValue}
+  maxValue={100}
+  maxDigits={3}
+  suffix="%"
+  doneLabel="Listo"
+/>
+
+// Water Meter Entry (0-99999, 5 digits max)
+<NumericKeypad
+  open={keypadOpen}
+  onClose={handleKeypadClose}
+  onInput={handleKeypadInput}
+  value={currentValue}
+  maxValue={99999}
+  maxDigits={5}
+  suffix=" m³"
+  doneLabel="Listo"
+/>
 ```
 
-To change the "Done" button text, modify the button label in the component (currently "Listo").
+## Examples
 
-## Example: Propane Reading Entry
+### Propane Tank Entry
 
 See `PropaneReadingEntry.jsx` for a complete implementation:
 
+```jsx
+<NumericKeypad
+  open={keypadOpen}
+  onClose={handleKeypadClose}
+  onInput={handleKeypadInput}
+  value={currentValue}
+  // Uses defaults: maxValue={100}, suffix="%", doneLabel="Listo"
+/>
+```
+
+**Configuration:**
+- `maxValue`: 100 (default, no prop needed)
+- `maxDigits`: 3 (optional, for propane percentages)
+- `suffix`: "%" (default, no prop needed)
+- `doneLabel`: "Listo" (default, no prop needed)
+
+### Water Meter Entry
+
+See `WaterMeterEntryNew.jsx` for a complete implementation:
+
+```jsx
+<NumericKeypad
+  open={keypadOpen}
+  onClose={handleKeypadClose}
+  onInput={handleKeypadInput}
+  value={focusedUnitId ? (currentReadings[focusedUnitId] || '') : ''}
+  maxValue={99999}
+  maxDigits={5}
+  suffix=" m³"
+  doneLabel="Listo"
+/>
+```
+
+**Configuration:**
+- `maxValue`: 99999 (5-digit water meter readings)
+- `maxDigits`: 5 (enforces 5-digit limit)
+- `suffix`: " m³" (cubic meters unit)
+- `doneLabel`: "Listo" (default)
+
+**Integration Pattern:**
 1. State management for keypad visibility and focused field
-2. TextField with `readOnly: true` to prevent native keyboard
-3. `onFocus` handler to open keypad
+2. TextField with `readOnly: true` when `onFieldFocus` is provided
+3. `onFocus` handler to open keypad and track focused field
 4. Value synchronization between TextField and keypad
-5. Validation (0-100 range) in the `handleKeypadInput` callback
+5. Validation handled by keypad props (maxValue, maxDigits)
 
 ## Reusability
 

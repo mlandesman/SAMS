@@ -29,7 +29,8 @@ const MeterReadingTable = ({
   readings = {}, 
   previousReadings = {}, 
   onReadingChange, 
-  disabled = false 
+  disabled = false,
+  onFieldFocus = null
 }) => {
 
   const handleInputChange = (unitId, value) => {
@@ -181,11 +182,13 @@ const MeterReadingTable = ({
                     <TextField
                       value={currentReading}
                       onChange={(e) => handleInputChange(unitId, e.target.value)}
+                      onFocus={() => onFieldFocus && onFieldFocus(unitId, currentReading)}
                       disabled={disabled}
                       size="small"
                       placeholder="-----"
-                      inputMode="tel" // Key feature: numeric keypad on mobile
+                      inputMode="numeric"
                       inputProps={{
+                        readOnly: !!onFieldFocus, // Read-only when using keypad
                         maxLength: 5,
                         style: { 
                           textAlign: 'center',

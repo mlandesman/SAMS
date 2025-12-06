@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import MeterReadingTable from './MeterReadingTable';
 import WashEntryModal from './WashEntryModal';
 import WashSummaryList from './WashSummaryList';
+import NumericKeypad from './NumericKeypad';
 import waterReadingService, { findFirstEditableMonth, isMonthEditable, formatFiscalPeriodForDisplay } from '../services/waterReadingServiceV2.js';
 import { 
   WORKER_ROUTE_ORDER,
@@ -52,6 +53,8 @@ const WaterMeterEntryNew = () => {
   const [unsavedDataKey, setUnsavedDataKey] = useState(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingPeriodSwitch, setPendingPeriodSwitch] = useState(null);
+  const [keypadOpen, setKeypadOpen] = useState(false);
+  const [focusedUnitId, setFocusedUnitId] = useState(null);
 
   // Track if component has been initialized (prevent re-initialization on period switches)
   const [isInitialized, setIsInitialized] = useState(false);
@@ -348,6 +351,25 @@ const WaterMeterEntryNew = () => {
     }));
   };
 
+  // Handle field focus - open keypad
+  const handleFieldFocus = (unitId, currentValue) => {
+    setFocusedUnitId(unitId);
+    setKeypadOpen(true);
+  };
+
+  // Handle keypad input
+  const handleKeypadInput = (value) => {
+    if (focusedUnitId) {
+      handleReadingChange(focusedUnitId, value);
+    }
+  };
+
+  // Handle keypad close
+  const handleKeypadClose = () => {
+    setKeypadOpen(false);
+    setFocusedUnitId(null);
+  };
+
   // Handle wash entry
   const handleWashSave = async (unitId, washEntry) => {
     try {
@@ -621,7 +643,8 @@ const WaterMeterEntryNew = () => {
             readings={currentReadings}
             previousReadings={previousReadings}
             onReadingChange={handleReadingChange}
-            disabled={saving}
+            onFieldFocus={handleFieldFocus}
+            disabled={!isEditable || saving}
           />
         </Box>
 
@@ -833,6 +856,18 @@ const WaterMeterEntryNew = () => {
           </Typography>
         </Box>
       </Backdrop>
+
+      {/* Numeric Keypad for rapid entry */}
+      <NumericKeypad
+        open={keypadOpen}
+        onClose={handleKeypadClose}
+        onInput={handleKeypadInput}
+        value={focusedUnitId ? (currentReadings[focusedUnitId] || '') : ''}
+        maxValue={99999}
+        maxDigits={5}
+        suffix=" m³"
+        doneLabel="Listo"
+      />
     </Box>
   );
 };
