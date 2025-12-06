@@ -26,6 +26,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useExchangeRates } from '../hooks/useExchangeRates';
+import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import { hasWaterBills } from '../utils/clientFeatures';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
@@ -52,6 +53,13 @@ function DashboardView() {
     loading: exchangeLoading, 
     error: exchangeError 
   } = useExchangeRates();
+  
+  // Get budget status for dashboard card
+  const {
+    budgetStatus,
+    loading: budgetLoading,
+    error: budgetError,
+  } = useBudgetStatus();
   
   // Currency calculator modal state
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -562,34 +570,122 @@ function DashboardView() {
           </Card>
         </Grid>
 
-        {/* Budget Card (Placeholder) */}
+        {/* Budget Status Card */}
         <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%',
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(10px)',
-              opacity: 0.7,
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+          <Tooltip
+            title={
+              budgetStatus?.topVariances?.length > 0 ? (
+                <Box sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
+                    Top Variances (FY {budgetStatus.fiscalYear})
+                  </Typography>
+                  {budgetStatus.topVariances.map((item, index) => (
+                    <Box key={index} sx={{ mb: index < budgetStatus.topVariances.length - 1 ? 0.75 : 0 }}>
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, color: 'white' }}>
+                        <span>{item.category}</span>
+                        <strong style={{ color: item.favorable ? '#86efac' : '#fca5a5' }}>
+                          {item.favorable ? '+' : ''}{item.variancePercent}%
+                        </strong>
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              ) : 'View Budget vs Actual Report'
+            }
+            arrow
+            placement="top"
+            PopperProps={{
+              sx: {
+                '& .MuiTooltip-tooltip': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                  maxWidth: 280,
+                  padding: 0,
+                  color: 'white'
+                }
               }
             }}
           >
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <TrendingUpIcon sx={{ color: '#6b7280', mr: 1, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#6b7280' }}>Budget Analysis</Typography>
-              </Box>
-              <Typography variant="h4" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
-                Coming Soon
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Budget vs actual analysis and variance reporting will be available in a future update.
-              </Typography>
-            </CardContent>
-          </Card>
+            <Card 
+              onClick={() => navigate('/reports', { state: { activeTab: 'budget-actual' } })}
+              sx={{ 
+                height: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(10px)',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+                }
+              }}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <TrendingUpIcon sx={{ color: budgetStatus?.statusColor || '#f59e0b', mr: 1, fontSize: 28 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Budget Status</Typography>
+                </Box>
+                {budgetLoading ? (
+                  <Box display="flex" justifyContent="center" py={2}>
+                    <LoadingSpinner size="small" />
+                  </Box>
+                ) : budgetError ? (
+                  <Box>
+                    <Typography variant="h4" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
+                      --
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Unable to load budget data
+                    </Typography>
+                  </Box>
+                ) : budgetStatus ? (
+                  <>
+                    <Typography variant="h4" sx={{ color: budgetStatus.statusColor, fontWeight: 700, mb: 1 }}>
+                      {budgetStatus.statusText}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      FY {budgetStatus.fiscalYear} • {budgetStatus.percentElapsed}% elapsed
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ 
+                        width: '100%', 
+                        backgroundColor: '#e2e8f0', 
+                        borderRadius: '10px',
+                        height: '8px',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{
+                          width: `${budgetStatus.percentElapsed}%`,
+                          backgroundColor: budgetStatus.statusColor,
+                          height: '100%',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <span>Income YTD:</span>
+                        <strong style={{ color: '#059669' }}>${budgetStatus.incomeActual?.toLocaleString() || '0'}</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <span>Expenses YTD:</span>
+                        <strong style={{ color: '#dc2626' }}>${budgetStatus.expenseActual?.toLocaleString() || '0'}</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Net Variance:</span>
+                        <strong style={{ color: budgetStatus.netVariance >= 0 ? '#059669' : '#dc2626' }}>
+                          {budgetStatus.netVariance >= 0 ? '+' : ''}${Math.round(budgetStatus.netVariance)?.toLocaleString() || '0'}
+                        </strong>
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No budget data available
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Tooltip>
         </Grid>
 
       </Grid>

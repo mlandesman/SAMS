@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -27,8 +28,17 @@ function ActivityTab() {
 }
 
 function ReportsView() {
+  const location = useLocation();
   const { selectedClient } = useClient();
-  const [tabIndex, setTabIndex] = useState(0);
+  
+  // Handle navigation state for direct tab selection
+  const getInitialTab = () => {
+    if (location.state?.activeTab === 'budget-actual') return 1;
+    if (location.state?.activeTab === 'activity') return 2;
+    return 0;
+  };
+  
+  const [tabIndex, setTabIndex] = useState(getInitialTab);
   const [zoom, setZoom] = useState(1.0);
   const { setCenterContent, clearCenterContent } = useStatusBar();
 

@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - Task B1.2 COMPLETE, Budget Module DONE (December 4, 2025)  
-**Current Version:** v0.4.0 - Budget Module Complete  
+**Last Modification:** Manager Agent 10 - GitHub Issues Review, PWA Complete (December 6, 2025)  
+**Current Version:** v0.4.1 - PWA Maintenance Tools Complete  
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Budget Module (urgent), then PWA/Mobile refactor.
@@ -13,6 +13,20 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v0.4.1 - PWA Maintenance Tools (December 6, 2025)
+- ✅ **WM-2: Water Meter API Integration** - ~1,500 lines, 92% API call reduction
+- ✅ **WM-3: NumericKeypad Integration** - Generic reusable component, ~150 lines
+- ✅ **PT-1: Propane Tank Module** - Full new module, ~2,790 lines (21 files)
+- ✅ **Auto-Login Basic** - Firebase persistence fix (1 line)
+- ✅ **Bug Fix:** hasClientAccess → hasPropertyAccess (9 files)
+
+**Archives:** 
+- `SAMS-Docs/apm_session/Memory/Archive/Water_Meter_WM-2_2025-12-06/`
+- `SAMS-Docs/apm_session/Memory/Archive/Propane_Tank_PT-1_2025-12-06/`
+- `SAMS-Docs/apm_session/Memory/Archive/Water_Meter_WM-3_NumericKeypad_2025-12-06/`
+
+**Git Commits:** `3081292` (WM-2 + PT-1), `4209606` (WM-3 + Auto-Login)
 
 ### v0.4.0 - Budget Module (December 4, 2025)
 - ✅ **Task B1.1 - Budget Entry UI** - Real-time totals, fiscal year selector, centavos architecture
@@ -281,6 +295,7 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 
 | GitHub # | Issue | Priority | Notes |
 |----------|-------|----------|-------|
+| #48 | Create User maintenance role | Low | Auth bug fixed in WM-2; workaround: create as Admin, edit role in Firebase Console |
 | #43 | Client Management 404 | Post-prod | No new clients before Jan 1, Firebase console workaround |
 | #39 | Water Bills Import Invalid Bills | Post-prod | Manual delete workaround, manual reconciliation handles |
 | #44 | Credit History Details modal | Post-prod | Nice-to-have UI enhancement |
@@ -357,6 +372,30 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 ---
 
 ## 🚀 FUTURE FEATURES (Backlog)
+
+### Bulk Administration Operations │ GitHub #50
+**Status:** 📋 BACKLOG (Medium Priority)  
+**Estimated Effort:** 4-6 sessions total (two enhancements)
+
+**CLI Script Available (Dec 6, 2025):**
+- `backend/testHarness/generateAllStatementPDFs.js` - Developer tool for bulk PDF generation
+- Saves to Firebase Storage: `clients/{clientId}/accountStatements/{FiscalYear-Month}/`
+
+**Enhancement A: Admin Bulk Report Generation (3-4 sessions)**
+- UI in Administration section to generate/save reports for all units
+- Schedule recurring report generation (monthly statements)
+- Manage stored report collections
+- Target users: Admins/Managers
+
+**Enhancement B: User Report Access (2-3 sessions)**
+- UI for owners/managers to retrieve their own stored reports
+- On-demand report generation capability  
+- Download historical statements (PDF)
+- Target users: Unit Owners, Unit Managers
+
+**Suggested Approach:** Enhancement A first (builds storage infrastructure), then B (consumes stored reports)
+
+---
 
 ### Budget Status Dashboard Card │ GitHub #46
 **Status:** 📋 BACKLOG (Medium Priority)  
@@ -445,23 +484,23 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 |-----|---------|--------|
 | Wed Dec 3 | Budget Entry UI - wire sidebar | ✅ B1.1 COMPLETE |
 | Thu Dec 4 | Budget Entry UI - complete | ✅ B1.2 COMPLETE (all 4 steps!) |
-| Fri Dec 5 | Budget vs Actual - table structure | 🎉 FREE - 2 days ahead |
-| Sat Dec 6 | Budget vs Actual - complete | 🎉 FREE - 2 days ahead |
+| Fri Dec 5 | Budget vs Actual - table structure | ✅ PWA Phase 0-1 COMPLETE |
+| Sat Dec 6 | Budget vs Actual - complete | ✅ WM-2, WM-3, PT-1, Auto-Login COMPLETE |
 
-### Week 2: Dec 7-13 - PWA Water Meters
+### Week 2: Dec 7-13 - Data Reconciliation ✅ AHEAD OF SCHEDULE
 | Day | Task |
 |-----|------|
-| Weekend | PWA assessment and foundation update |
-| Mid-week | Water meter readings - Spanish UI |
-| End-week | Testing and polish |
+| Sat Dec 6 | Bulk statement generation script created |
+| Sun Dec 7 | Generate all unit statements for review |
+| Mon-Fri | Manual comparison AVII vs Google Sheets |
 
-### Week 3: Dec 14-20 - Data Reconciliation
-- Run Statement of Account reports for AVII
-- Compare with Google Sheets historical data
+### Week 3: Dec 14-20 - Data Reconciliation (continued)
+- Continue AVII comparison if needed
 - Make manual adjustments as needed
+- Verify MTC data integrity
 
 ### Week 4: Dec 21-31 - Pre-Production
-- Firestore backup configuration
+- Firestore backup configuration (GitHub #38)
 - Final testing
 - Go-live preparation
 
@@ -488,16 +527,17 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 - ✅ CSV Export
 
 ### Critical Path to Production (Dec 2025)
-1. **Budget Module** - GitHub #45 (this week)
-2. **Data Reconciliation** - Manual process (Dec 14-20)
-3. **Firestore Backup** - GitHub #38 (Dec 21-31)
+1. ~~**Budget Module**~~ - ✅ GitHub #45 COMPLETE (Dec 4)
+2. ~~**PWA Maintenance Tools**~~ - ✅ WM-2, WM-3, PT-1 COMPLETE (Dec 6)
+3. **Data Reconciliation** - Manual process (Dec 7-20) 🔄 IN PROGRESS
+4. **Firestore Backup** - GitHub #38 (Dec 21-31)
 
 ### Post-Production Roadmap (Q1 2026)
-1. ~~**PWA: Water Meter Entry**~~ - ✅ COMPLETE (Dec 6, 2025)
-2. ~~**Propane Tank Module**~~ - ✅ PT-1 COMPLETE (Dec 6, 2025)
-3. **PWA: Owner Dashboard** - Unit status, exchange rates
-4. **Budget Status Dashboard Card** - GitHub #46, quick reference widget
-5. **PWA Auto-Login** - GitHub #49, biometrics/cookies
+1. **PWA: Owner Dashboard** - Unit status, exchange rates (GitHub #47 card refactor)
+2. **Budget Status Dashboard Card** - GitHub #46, quick reference widget
+3. **Bulk Admin Operations** - GitHub #50, report generation & storage
+4. **PWA Auto-Login Biometrics** - GitHub #49, Face ID / Touch ID
+5. **Maintenance Role CRUD** - GitHub #48, add to UI picklists
 
 ### Deprioritized (Post-Production)
 - GitHub #43: Client Management 404
@@ -512,5 +552,6 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 - ✅ **Core Platform:** Fully operational in production
 - ✅ **Statement of Account:** Professional reports replacing Google Sheets
 - ✅ **v0.4.0 Milestone:** Budget Module COMPLETE (Dec 4, 2025) - Ready for Jan 1, 2026
-- 🎯 **v0.5.0 Milestone:** PWA Water Meters for field operations
+- ✅ **v0.4.1 Milestone:** PWA Maintenance Tools COMPLETE (Dec 6, 2025) - Water Meter + Propane Tank
+- 🎯 **v0.5.0 Milestone:** Data Reconciliation Complete, Firestore Backup Configured
 - 🚀 **Long-term Goal:** Full Google Sheets replacement with mobile worker support

@@ -7,7 +7,7 @@
 
 import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
-import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
+import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 
@@ -16,14 +16,14 @@ const { convertToTimestamp } = databaseFieldMappings;
 /**
  * Get Budget vs Actual data for a client and fiscal year
  * @param {string} clientId - Client ID
- * @param {number} fiscalYear - Fiscal year
+ * @param {number|null} fiscalYear - Fiscal year (null = current fiscal year)
  * @param {Object} user - User object for propertyAccess validation
  * @returns {Promise<Object>} Budget vs Actual data structure
  */
 export async function getBudgetActualData(clientId, fiscalYear, user) {
   try {
-    if (!clientId || !fiscalYear || !user) {
-      throw new Error('Missing required parameters: clientId, fiscalYear, or user');
+    if (!clientId || !user) {
+      throw new Error('Missing required parameters: clientId or user');
     }
 
     // Validate propertyAccess
@@ -48,14 +48,17 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     
     const fiscalYearStartMonth = validateFiscalYearConfig(clientData);
 
-    // Get fiscal year bounds
-    const { startDate, endDate } = getFiscalYearBounds(fiscalYear, fiscalYearStartMonth);
-    const startTimestamp = convertToTimestamp(startDate);
-    const endTimestamp = convertToTimestamp(endDate);
-
     // Calculate % of fiscal year elapsed
     const now = getNow();
     const reportDate = now;
+    
+    // Calculate current fiscal year if not provided
+    const effectiveFiscalYear = fiscalYear || getFiscalYear(now, fiscalYearStartMonth);
+
+    // Get fiscal year bounds
+    const { startDate, endDate } = getFiscalYearBounds(effectiveFiscalYear, fiscalYearStartMonth);
+    const startTimestamp = convertToTimestamp(startDate);
+    const endTimestamp = convertToTimestamp(endDate);
     const fiscalYearStart = startDate.getTime();
     const fiscalYearEnd = endDate.getTime();
     const fiscalYearDuration = fiscalYearEnd - fiscalYearStart;
@@ -73,7 +76,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     });
 
     // Fetch budgets for fiscal year
-    const budgets = await listBudgetsByYear(clientId, fiscalYear, user);
+    const budgets = await listBudgetsByYear(clientId, effectiveFiscalYear, user);
     const budgetMap = new Map();
     budgets.forEach(budget => {
       budgetMap.set(budget.categoryId, budget.amount || 0);
@@ -232,7 +235,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const netBalance = collectionsAmount - totalExpenditures; // Both positive, so this gives net fund balance
 
     // Generate report ID
-    const reportId = `BUDGET-ACTUAL-${clientId}-${fiscalYear}-${now.getTime()}`;
+    const reportId = `BUDGET-ACTUAL-${clientId}-${effectiveFiscalYear}-${now.getTime()}`;
 
     return {
       clientInfo: {
@@ -242,7 +245,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         fiscalYearStartMonth: fiscalYearStartMonth
       },
       reportInfo: {
-        fiscalYear: fiscalYear,
+        fiscalYear: effectiveFiscalYear,
         reportDate: reportDate.toISOString(),
         percentOfYearElapsed: percentOfYearElapsed,
         reportId: reportId
