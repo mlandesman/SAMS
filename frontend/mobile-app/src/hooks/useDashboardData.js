@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuthStable.jsx';
+import { useClients } from './useClients.jsx';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../services/firebase.js';
+import { db, auth } from '../services/firebase.js';
+import { config } from '../config/index.js';
+import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils.js';
+import { getMexicoDate } from '../utils/timezone.js';
+import { hasWaterBills } from '../utils/clientFeatures.js';
+import waterAPI from '../api/waterAPI.js';
 
 export const useDashboardData = () => {
   const { samsUser, currentClient } = useAuth();
+  const { selectedClient } = useClients();
   
   const [accountBalances, setAccountBalances] = useState({
     total: 0,
@@ -19,7 +26,8 @@ export const useDashboardData = () => {
     outstanding: 0,
     collectionRate: 0,
     overdueCount: 0,
-    pastDueAmount: 0
+    pastDueAmount: 0,
+    pastDueDetails: [] // Array of { unitId, owner, amountDue }
   });
   
   const [exchangeRates, setExchangeRates] = useState({
@@ -29,19 +37,30 @@ export const useDashboardData = () => {
     source: 'Unknown'
   });
   
+  const [waterBillsStatus, setWaterBillsStatus] = useState({
+    totalUnpaid: 0,
+    overdueCount: 0,
+    pastDueDetails: [],
+    totalBilled: 0,
+    totalPaid: 0,
+    collectionRate: 0
+  });
+  
   const [loading, setLoading] = useState({
     accounts: true,
     dues: true,
-    rates: true
+    rates: true,
+    water: false
   });
   
   const [error, setError] = useState({
     accounts: null,
     dues: null,
-    rates: null
+    rates: null,
+    water: null
   });
 
-  // Fetch account balances - simplified version for PWA
+  // Fetch account balances - using API endpoint (matches desktop)
   useEffect(() => {
     const fetchAccountBalances = async () => {
       if (!currentClient || !samsUser) return;
@@ -50,39 +69,43 @@ export const useDashboardData = () => {
         setLoading(prev => ({ ...prev, accounts: true }));
         setError(prev => ({ ...prev, accounts: null }));
         
-        // Get client document directly from Firestore
-        const clientDocRef = doc(db, `clients/${currentClient}`);
-        const clientSnapshot = await getDoc(clientDocRef);
+        // Get authentication token
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
         
-        if (clientSnapshot.exists()) {
-          const clientData = clientSnapshot.data();
-          const accounts = clientData.accounts || [];
-          
-          // Calculate totals by account type
-          let bankBalance = 0;
-          let cashBalance = 0;
-          
-          accounts.forEach(account => {
-            if (account.active !== false) { // Include active accounts
-              const balance = account.balance || 0;
-              if (account.type === 'bank') {
-                bankBalance += balance;
-              } else if (account.type === 'cash') {
-                cashBalance += balance;
-              }
+        // Call API endpoint (same as desktop)
+        const response = await fetch(
+          `${config.api.baseUrl}/clients/${currentClient}/balances/current`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
-          });
-          
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // API returns centavos - convert to dollars (divide by 100)
+          const bankBalance = result.data.bankBalance || 0;
+          const cashBalance = result.data.cashBalance || 0;
           const totalBalance = bankBalance + cashBalance;
           
           setAccountBalances({
-            total: Math.round(totalBalance),
-            bank: Math.round(bankBalance),
-            cash: Math.round(cashBalance),
-            accounts: accounts.filter(acc => acc.active !== false)
+            total: Math.round(totalBalance / 100), // Convert centavos to dollars
+            bank: Math.round(bankBalance / 100),
+            cash: Math.round(cashBalance / 100),
+            accounts: result.data.accounts || []
           });
         } else {
-          throw new Error('Client data not found');
+          throw new Error(result.error || 'Invalid response format');
         }
         
       } catch (err) {
@@ -104,7 +127,7 @@ export const useDashboardData = () => {
     fetchAccountBalances();
   }, [currentClient, samsUser]);
 
-  // Fetch HOA dues status - same logic as Desktop UI
+  // Fetch HOA dues status - using API endpoint (matches desktop)
   useEffect(() => {
     const fetchHOADuesStatus = async () => {
       if (!currentClient || !samsUser) return;
@@ -113,131 +136,311 @@ export const useDashboardData = () => {
         setLoading(prev => ({ ...prev, dues: true }));
         setError(prev => ({ ...prev, dues: null }));
         
-        // Get current year and month for calculations
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1; // 1-12
-        
-        // Fetch units directly from Firestore (same as Desktop UI)
-        const unitsCollectionRef = collection(db, `clients/${currentClient}/units`);
-        const unitsSnapshot = await getDocs(unitsCollectionRef);
-        
-        const units = [];
-        unitsSnapshot.forEach(doc => {
-          const unitData = {
-            id: doc.id,
-            ...doc.data()
-          };
-          units.push(unitData);
-        });
-        
-        if (units.length === 0) {
-          throw new Error('No units found for this client');
+        // Get authentication token
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          throw new Error('Not authenticated');
         }
         
-        // Calculate Annual Dues (total amount each unit should pay x 12)
-        const annualDuesTotal = units.reduce((total, unit) => {
-          const monthlyAmount = unit.monthlyDues || 0;
-          return total + (monthlyAmount * 12);
-        }, 0);
+        // Get client configuration for fiscal year and billing frequency
+        const clientDocRef = doc(db, `clients/${currentClient}`);
+        const clientSnapshot = await getDoc(clientDocRef);
+        const clientData = clientSnapshot.exists() ? clientSnapshot.data() : {};
+        const fiscalYearStartMonth = clientData.configuration?.fiscalYearStartMonth || 1; // Default to calendar year
+        const duesFrequency = clientData.feeStructure?.duesFrequency || 'monthly'; // Default to monthly
         
-        // Calculate current month dues expectations
-        const currentMonthDuesExpected = units.reduce((total, unit) => {
-          const monthlyAmount = unit.monthlyDues || 0;
-          return total + monthlyAmount;
-        }, 0);
+        // Get current fiscal year and month
+        const currentDate = getMexicoDate();
+        const fiscalYear = getFiscalYear(currentDate, fiscalYearStartMonth);
+        const fiscalMonth = getCurrentFiscalMonth(currentDate, fiscalYearStartMonth);
+        const calendarMonth = currentDate.getMonth() + 1; // 1-12
         
-        // Fetch dues data for each unit (same as Desktop UI)
-        let totalCollected = 0;
+        // Calculate how many months are due based on billing frequency (same as desktop)
+        let monthsDue = 0;
+        if (duesFrequency === 'quarterly') {
+          // For quarterly: Count quarters whose due date has passed
+          for (let quarter = 0; quarter < 4; quarter++) {
+            const quarterFirstMonth = quarter * 3 + 1; // Q1=1, Q2=4, Q3=7, Q4=10
+            if (fiscalMonth >= quarterFirstMonth) {
+              monthsDue += 3; // Entire quarter is due
+            }
+          }
+        } else {
+          // Monthly: Each month through current month
+          monthsDue = fiscalMonth;
+        }
+        
+        console.log('🏠 PWA: HOA Dues Configuration:', {
+          clientId: currentClient,
+          fiscalYearStartMonth,
+          duesFrequency,
+          currentDate: currentDate.toISOString(),
+          calendarMonth,
+          fiscalYear,
+          fiscalMonth,
+          monthsDue,
+          apiUrl: `${config.api.baseUrl}/hoadues/${currentClient}/year/${fiscalYear}`
+        });
+        
+        // Call API endpoint (same as desktop)
+        const response = await fetch(
+          `${config.api.baseUrl}/hoadues/${currentClient}/year/${fiscalYear}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            // No HOA dues data for this client (e.g., AVII might be water-only)
+            console.log('⚠️ No HOA dues data found for client (may be water-only)');
+            setHoaDuesStatus({
+              totalDue: 0,
+              collected: 0,
+              outstanding: 0,
+              collectionRate: 0,
+              overdueCount: 0,
+              pastDueAmount: 0,
+              pastDueDetails: [],
+              monthsElapsed: fiscalMonth,
+              unitsCount: 0
+            });
+            return;
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const duesDataFromAPI = await response.json();
+        
+        // Fetch units data to get owner information for past due details
+        let units = [];
+        try {
+          const unitsResponse = await fetch(
+            `${config.api.baseUrl}/clients/${currentClient}/units`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (unitsResponse.ok) {
+            const unitsData = await unitsResponse.json();
+            units = unitsData.data || unitsData;
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch units for owner info:', err);
+        }
+        
+        console.log('🏠 PWA: API Response received:', {
+          hasData: !!duesDataFromAPI,
+          unitCount: duesDataFromAPI ? Object.keys(duesDataFromAPI).length : 0,
+          unitIds: duesDataFromAPI ? Object.keys(duesDataFromAPI).slice(0, 5) : [],
+          sampleUnit: duesDataFromAPI ? Object.values(duesDataFromAPI)[0] : null,
+          unitsLoaded: units.length
+        });
+        
+        if (!duesDataFromAPI || Object.keys(duesDataFromAPI).length === 0) {
+          // Empty response - no dues data
+          console.log('⚠️ Empty API response - no dues data');
+          setHoaDuesStatus({
+            totalDue: 0,
+            collected: 0,
+            outstanding: 0,
+            collectionRate: 0,
+            overdueCount: 0,
+            pastDueAmount: 0,
+            pastDueDetails: [],
+            monthsElapsed: fiscalMonth,
+            unitsCount: 0
+          });
+          return;
+        }
+        
+        // Process API response to calculate dashboard metrics (matching desktop logic)
+        // Filter out creditBalances storage document
+        const unitEntries = Object.entries(duesDataFromAPI)
+          .filter(([unitId]) => unitId !== 'creditBalances');
+        
+        const unitsCount = unitEntries.length;
+        
+        // Calculate summary metrics from backend dues data (matching desktop)
+        let currentPaid = 0; // Payments only (no credit balances)
+        let totalDue = 0;
+        let totalExpectedToDate = 0;
         let currentMonthCollected = 0;
         let pastDueUnits = 0;
         let pastDueAmount = 0;
-        const monthsElapsed = currentMonth; // How many months of the year have passed
+        const pastDueDetails = []; // Array for detailed past due information (matching desktop)
         
-        for (const unit of units) {
-          const duesDocRef = doc(db, `clients/${currentClient}/units/${unit.id}/dues/${currentYear}`);
-          const duesSnapshot = await getDoc(duesDocRef);
+        console.log('🏠 PWA: Processing', unitsCount, 'units for fiscal year', fiscalYear);
+        
+        unitEntries.forEach(([unitId, unitData]) => {
+          const scheduledAmount = unitData?.scheduledAmount || 0;
           
-          let unitDues = null;
-          if (duesSnapshot.exists()) {
-            unitDues = duesSnapshot.data();
-          }
-          
-          const monthlyAmount = unit.monthlyDues || 0;
-          const shouldHavePaidByNow = monthlyAmount * monthsElapsed;
-          let unitPaidTotal = 0;
-          
-          if (unitDues?.payments) {
-            // Sum all payments for this unit in current year
-            unitDues.payments.forEach(payment => {
-              if (payment.paid > 0) {
-                totalCollected += payment.paid;
-                unitPaidTotal += payment.paid;
-              }
-            });
-            console.log(`  💳 Unit ${unit.id} payments: $${unitPaidTotal} (${unitDues.payments.length} payment records)`);
+          // Calculate expected for this unit based on billing frequency
+          let unitTotalDue = 0;
+          if (duesFrequency === 'quarterly') {
+            // For quarterly: Calculate based on complete quarters that have passed
+            const currentQuarter = Math.floor((fiscalMonth - 1) / 3); // Q1=0, Q2=1, Q3=2, Q4=3
+            const monthsInPastQuarters = currentQuarter * 3; // Quarters 0-current (not including current)
             
-            // Check current month payment for collection rate calculation
-            const currentMonthPayment = unitDues.payments.find(p => p.month === currentMonth);
-            if (currentMonthPayment && currentMonthPayment.paid > 0) {
-              currentMonthCollected += currentMonthPayment.paid;
-            }
+            // Add complete past quarters
+            unitTotalDue = scheduledAmount * monthsInPastQuarters;
             
-            // Check if unit is past due (no payment for current month)
-            if (!currentMonthPayment || currentMonthPayment.paid < monthlyAmount) {
-              // Unit is past due if we're past the 5th of the month
-              if (currentDate.getDate() > 5) {
-                pastDueUnits++;
-              }
+            // Add current quarter if its due date has passed
+            const currentQuarterFirstMonth = currentQuarter * 3 + 1;
+            if (fiscalMonth >= currentQuarterFirstMonth) {
+              unitTotalDue += scheduledAmount * 3; // Full quarter expected
             }
           } else {
-            // No payment data found for this unit - consider past due if after 5th
-            if (currentDate.getDate() > 5) {
-              pastDueUnits++;
+            // Monthly: Each month counted individually
+            unitTotalDue = scheduledAmount * monthsDue;
+          }
+          
+          totalDue += unitTotalDue;
+          
+          // Calculate actual BASE payments made (excluding penalties and credits) - matching desktop
+          let unitBasePaid = 0;
+          const payments = unitData?.payments;
+          
+          if (payments && Array.isArray(payments)) {
+            payments.forEach((payment, index) => {
+              // Only count payments that are marked as paid (matching desktop line 335)
+              if (payment?.paid && payment?.amount > 0) {
+                unitBasePaid += payment.amount; // Base payment only
+              }
+            });
+            
+            // Current month collection (fiscal month, 0-based index)
+            const currentMonthIndex = fiscalMonth - 1;
+            const currentMonthPayment = payments[currentMonthIndex];
+            if (currentMonthPayment?.paid && currentMonthPayment?.amount) {
+              currentMonthCollected += currentMonthPayment.amount;
             }
           }
           
-          // Add credit balance to total collected and unit paid total (credits count as payments received)
-          const unitCreditBalance = unitDues?.creditBalance || 0;
-          totalCollected += unitCreditBalance;
-          unitPaidTotal += unitCreditBalance;
+          currentPaid += unitBasePaid; // Use base payments only (matching desktop)
           
-          // Calculate past due amount for this unit (including credits)
-          if (unitPaidTotal < shouldHavePaidByNow) {
-            pastDueAmount += (shouldHavePaidByNow - unitPaidTotal);
+          // Calculate expected to date based on billing frequency (matching desktop)
+          if (duesFrequency === 'quarterly') {
+            const currentQuarter = Math.floor((fiscalMonth - 1) / 3);
+            const monthsInPastQuarters = currentQuarter * 3;
+            totalExpectedToDate += scheduledAmount * monthsInPastQuarters;
+            
+            const currentQuarterFirstMonth = currentQuarter * 3 + 1;
+            if (fiscalMonth >= currentQuarterFirstMonth) {
+              totalExpectedToDate += scheduledAmount * 3;
+            }
+          } else {
+            totalExpectedToDate += scheduledAmount * monthsDue;
           }
-        }
+          
+          // Calculate past due for this unit (matching desktop logic)
+          let unitPastDue = 0;
+          if (payments && Array.isArray(payments)) {
+            if (duesFrequency === 'quarterly') {
+              // Check quarters: If due date passed, count entire quarter
+              for (let quarter = 0; quarter < 4; quarter++) {
+                const quarterFirstMonth = quarter * 3 + 1;
+                if (fiscalMonth >= quarterFirstMonth) {
+                  for (let i = 0; i < 3; i++) {
+                    const monthIndex = quarter * 3 + i;
+                    const payment = payments[monthIndex];
+                    const paidAmount = payment?.amount || 0;
+                    const shortfall = scheduledAmount - paidAmount;
+                    if (shortfall > 0) {
+                      unitPastDue += shortfall;
+                    }
+                  }
+                }
+              }
+            } else {
+              // Monthly billing: Check each month individually
+              for (let m = 1; m <= fiscalMonth; m++) {
+                const monthIndex = m - 1;
+                const payment = payments[monthIndex];
+                const paidAmount = payment?.amount || 0;
+                const shortfall = scheduledAmount - paidAmount;
+                if (shortfall > 0) {
+                  unitPastDue += shortfall;
+                }
+              }
+            }
+          }
+          
+          if (unitPastDue > 0) {
+            pastDueAmount += unitPastDue;
+            pastDueUnits += 1;
+            
+            // Get owner lastName from units array (matching desktop pattern)
+            const unitWithOwner = units.find(u => (u.unitId || u.id) === unitId);
+            const ownerLastName = unitWithOwner?.owners?.[0]?.split(' ').pop() || '';
+            
+            // Add to pastDueDetails array for display (matching desktop pattern)
+            pastDueDetails.push({
+              unitId: unitId,
+              owner: ownerLastName, // Last name for display
+              amountDue: Math.round(unitPastDue)
+            });
+          }
+        });
         
-        // Calculate Outstanding (Annual Dues - Collected = Outstanding)
-        const outstanding = annualDuesTotal - totalCollected;
+        // Calculate pre-paid amounts - sum credit balances + future payment values (matching desktop)
+        let prePaidAmount = 0;
+        let totalCreditBalances = 0;
+        unitEntries.forEach(([unitId, unitData]) => {
+          // Sum credit balances
+          const creditBalance = unitData?.creditBalance || 0;
+          if (creditBalance > 0) {
+            totalCreditBalances += creditBalance;
+          }
+          
+          // Sum future payment amounts (payments for months > current month)
+          if (unitData?.payments && Array.isArray(unitData.payments)) {
+            for (let futureMonth = fiscalMonth + 1; futureMonth <= 12; futureMonth++) {
+              const monthIndex = futureMonth - 1;
+              if (monthIndex < unitData.payments.length) {
+                const payment = unitData.payments[monthIndex];
+                const paymentAmount = payment?.amount || 0;
+                if (paymentAmount > 0) {
+                  prePaidAmount += paymentAmount;
+                }
+              }
+            }
+          }
+        });
+        prePaidAmount += totalCreditBalances;
         
-        // Collection Rate based on CURRENT MONTH performance
-        const collectionRate = currentMonthDuesExpected > 0 ? (currentMonthCollected / currentMonthDuesExpected) * 100 : 0;
+        // Calculate currently due (total expected to date through current month) - matching desktop
+        const currentlyDue = totalExpectedToDate || 0;
         
-        // Debug logging to understand the calculation
-        console.log('🏠 PWA HOA Dues Calculation Debug:');
-        console.log('📅 Current Date:', currentDate.toISOString());
-        console.log('📆 Current Year:', currentYear);
-        console.log('📊 Current Month:', currentMonth);
-        console.log('🏘️ Units Count:', units.length);
-        console.log('💰 Annual Dues Total:', annualDuesTotal.toLocaleString());
-        console.log('✅ Total Collected (YTD):', totalCollected.toLocaleString());
-        console.log('📅 Current Month Expected:', currentMonthDuesExpected.toLocaleString());
-        console.log('💰 Current Month Collected:', currentMonthCollected.toLocaleString());
-        console.log('⚠️ Outstanding (Annual - Collected):', outstanding.toLocaleString());
-        console.log('📊 Collection Rate (Current Month):', collectionRate.toFixed(1) + '%');
-        console.log('🚨 Past Due Units Count:', pastDueUnits);
-        console.log('💸 Past Due Amount:', pastDueAmount.toLocaleString());
+        // Collection rate based on what's been collected vs what's due (matching desktop)
+        const collectionRate = currentlyDue > 0 ? (currentPaid / currentlyDue) * 100 : 0;
+        
+        console.log('🏠 PWA HOA Dues (matching desktop calculation):');
+        console.log('📅 Fiscal Year:', fiscalYear, 'Fiscal Month:', fiscalMonth, 'Months Due:', monthsDue);
+        console.log('🏘️ Units:', unitsCount);
+        console.log('💰 Currently Due (to date):', currentlyDue.toLocaleString());
+        console.log('✅ Current Paid (payments only):', currentPaid.toLocaleString());
+        console.log('💳 Pre-Paid (credits + future):', prePaidAmount.toLocaleString());
+        console.log('📊 Collection Rate:', collectionRate.toFixed(1) + '%');
+        console.log('🚨 Past Due Units:', pastDueUnits, 'Amount:', pastDueAmount.toLocaleString());
         
         setHoaDuesStatus({
-          totalDue: annualDuesTotal,
-          collected: totalCollected,
-          outstanding: outstanding, // Annual - Collected (can be negative if overpaid)
-          collectionRate: Math.min(100, Math.max(0, collectionRate)), // Cap between 0-100%
+          totalDue: Math.round(currentlyDue), // Use currentlyDue for consistency with desktop
+          collected: Math.round(currentPaid), // Payments only (matching desktop)
+          outstanding: Math.round(currentlyDue - currentPaid), // Outstanding = due - paid
+          collectionRate: Math.min(100, Math.max(0, collectionRate)),
           overdueCount: pastDueUnits,
-          pastDueAmount: pastDueAmount, // Amount past due for Past Due Units card
-          monthsElapsed,
-          unitsCount: units.length
+          pastDueAmount: Math.round(pastDueAmount),
+          pastDueDetails: pastDueDetails || [], // Detailed past due information (matching desktop)
+          monthsElapsed: fiscalMonth,
+          unitsCount: unitsCount,
+          prePaid: Math.round(prePaidAmount) // Add pre-paid for future use
         });
         
       } catch (err) {
@@ -251,7 +454,10 @@ export const useDashboardData = () => {
           outstanding: 0,
           collectionRate: 0,
           overdueCount: 0,
-          pastDueAmount: 0
+          pastDueAmount: 0,
+          pastDueDetails: [],
+          monthsElapsed: 0,
+          unitsCount: 0
         });
       } finally {
         setLoading(prev => ({ ...prev, dues: false }));
@@ -272,9 +478,19 @@ export const useDashboardData = () => {
         
         console.log('📊 PWA: Fetching current exchange rate data...');
         
+        // Get authentication token
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+        
         // Use the enhanced exchange rate check endpoint (same as Desktop UI)
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-        const response = await fetch(`${API_BASE_URL}/exchange-rates/check`);
+        const response = await fetch(`${config.api.baseUrl}/system/exchange-rates/check`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         const result = await response.json();
         
         if (result.exists && result.data) {
@@ -342,10 +558,215 @@ export const useDashboardData = () => {
     fetchExchangeRates();
   }, [currentClient, samsUser]);
 
+  // Fetch Water Bills Past Due data (only for clients with water bills enabled)
+  useEffect(() => {
+    const fetchWaterBillsStatus = async () => {
+      if (!currentClient || !samsUser || !selectedClient) {
+        // Clear data when no client selected
+        setWaterBillsStatus({
+          totalUnpaid: 0,
+          overdueCount: 0,
+          pastDueDetails: [],
+          totalBilled: 0,
+          totalPaid: 0,
+          collectionRate: 0
+        });
+        return;
+      }
+      
+      // Check if this client has water bills enabled
+      const clientHasWaterBills = hasWaterBills(selectedClient);
+      
+      if (!clientHasWaterBills) {
+        console.log('💧 PWA: Client does not have water bills enabled, skipping');
+        setWaterBillsStatus({
+          totalUnpaid: 0,
+          overdueCount: 0,
+          pastDueDetails: [],
+          totalBilled: 0,
+          totalPaid: 0,
+          collectionRate: 0
+        });
+        setLoading(prev => ({ ...prev, water: false }));
+        return;
+      }
+      
+      console.log('💧 PWA: Client has water bills enabled, fetching water bills status');
+      
+      try {
+        setLoading(prev => ({ ...prev, water: true }));
+        setError(prev => ({ ...prev, water: null }));
+        
+        // Get current fiscal year for water bills
+        const currentDate = getMexicoDate();
+        // AVII uses July-start fiscal year (month 7), check config first
+        let fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth;
+        
+        // Fallback: AVII specifically uses July-start (month 7)
+        if (!fiscalYearStartMonth && currentClient === 'AVII') {
+          fiscalYearStartMonth = 7;
+          console.log('💧 PWA: Using AVII default fiscal year start month: July (7)');
+        } else if (!fiscalYearStartMonth) {
+          fiscalYearStartMonth = 1; // Default to calendar year
+        }
+        
+        const currentYear = getFiscalYear(currentDate, fiscalYearStartMonth);
+        
+        console.log('💧 PWA Water Bills calculation:', {
+          clientId: currentClient,
+          currentDate: currentDate.toISOString(),
+          fiscalYearStartMonth,
+          fiscalYear: currentYear,
+          calendarYear: currentDate.getFullYear(),
+          calendarMonth: currentDate.getMonth() + 1
+        });
+        
+        // Check billing config first (monthly vs quarterly)
+        let billingPeriod = 'monthly';
+        try {
+          const configResponse = await waterAPI.getBillingConfig(currentClient);
+          billingPeriod = configResponse?.data?.billingPeriod || 'monthly';
+          console.log(`💧 PWA: Billing period is ${billingPeriod}`);
+        } catch (err) {
+          console.warn('⚠️ Could not fetch billing config, defaulting to monthly:', err);
+        }
+        
+        // Fetch bills for the current year
+        let billsResponse;
+        if (billingPeriod === 'quarterly') {
+          // For quarterly, we need to use aggregated data or process differently
+          // For now, use getBillsForYear which should handle both
+          console.log('💧 PWA: Fetching quarterly bills data...');
+          billsResponse = await waterAPI.getBillsForYear(currentClient, currentYear);
+        } else {
+          console.log('💧 PWA: Fetching monthly bills data...');
+          billsResponse = await waterAPI.getBillsForYear(currentClient, currentYear);
+        }
+        
+        console.log('💧 PWA: Bills response received:', {
+          hasResponse: !!billsResponse,
+          hasData: !!billsResponse?.data,
+          hasMonths: !!billsResponse?.data?.months,
+          monthsCount: billsResponse?.data?.months?.length || 0
+        });
+        
+        // Calculate summary from bills data
+        let totalUnpaid = 0;
+        let totalBilled = 0;
+        let totalPaid = 0;
+        const pastDueDetails = [];
+        const unitTotals = {}; // Track unpaid amounts per unit
+        
+        if (billsResponse?.data?.months) {
+          // Process all months
+          billsResponse.data.months.forEach(monthData => {
+            if (monthData.units) {
+              Object.entries(monthData.units).forEach(([unitId, unitBill]) => {
+                const billed = unitBill.totalAmount || 0;
+                const paid = unitBill.paidAmount || 0;
+                const unpaid = billed - paid;
+                
+                totalBilled += billed;
+                totalPaid += paid;
+                totalUnpaid += unpaid;
+                
+                // Track unpaid per unit
+                if (unpaid > 0) {
+                  if (!unitTotals[unitId]) {
+                    unitTotals[unitId] = 0;
+                  }
+                  unitTotals[unitId] += unpaid;
+                }
+              });
+            }
+          });
+          
+          // Build past due details
+          Object.entries(unitTotals).forEach(([unitId, amountDue]) => {
+            pastDueDetails.push({
+              unitId,
+              owner: '', // Will be populated if units are fetched
+              amountDue: Math.round(amountDue)
+            });
+          });
+        }
+        
+        // Fetch units to get owner names for past due details
+        if (pastDueDetails.length > 0) {
+          try {
+            const token = await auth.currentUser?.getIdToken();
+            const unitsResponse = await fetch(
+              `${config.api.baseUrl}/clients/${currentClient}/units`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            if (unitsResponse.ok) {
+              const unitsData = await unitsResponse.json();
+              const units = unitsData.data || unitsData;
+              
+              // Add owner names to past due details
+              pastDueDetails.forEach(detail => {
+                const unit = units.find(u => (u.unitId || u.id) === detail.unitId);
+                if (unit?.owners?.[0]) {
+                  const ownerName = unit.owners[0].split(' ').pop();
+                  detail.owner = ownerName;
+                }
+              });
+            }
+          } catch (err) {
+            console.warn('⚠️ Could not fetch units for owner names:', err);
+          }
+        }
+        
+        const collectionRate = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
+        
+        console.log('💧 PWA Water Bills Summary:', {
+          totalUnpaid: Math.round(totalUnpaid),
+          totalBilled: Math.round(totalBilled),
+          totalPaid: Math.round(totalPaid),
+          collectionRate: Math.round(collectionRate * 100) / 100,
+          overdueCount: pastDueDetails.length
+        });
+        
+        setWaterBillsStatus({
+          totalUnpaid: Math.round(totalUnpaid),
+          overdueCount: pastDueDetails.length,
+          pastDueDetails,
+          totalBilled: Math.round(totalBilled),
+          totalPaid: Math.round(totalPaid),
+          collectionRate: Math.min(100, Math.max(0, collectionRate))
+        });
+        
+      } catch (err) {
+        console.error('💧 PWA: Error fetching water bills status:', err);
+        setError(prev => ({ ...prev, water: err.message }));
+        
+        // Fallback to zero data on error
+        setWaterBillsStatus({
+          totalUnpaid: 0,
+          overdueCount: 0,
+          pastDueDetails: [],
+          totalBilled: 0,
+          totalPaid: 0,
+          collectionRate: 0
+        });
+      } finally {
+        setLoading(prev => ({ ...prev, water: false }));
+      }
+    };
+
+    fetchWaterBillsStatus();
+  }, [currentClient, samsUser, selectedClient]);
+
   return {
     accountBalances,
     hoaDuesStatus,
     exchangeRates,
+    waterBillsStatus,
     loading,
     error,
     refresh: {

@@ -24,6 +24,7 @@
     "version:check": "node scripts/checkVersion.js"
   },
   "dependencies": {
+    "agentic-pm": "^0.5.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "firebase": "^11.9.1",

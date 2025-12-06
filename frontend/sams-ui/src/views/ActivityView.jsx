@@ -8,6 +8,7 @@ import ListManagementView from './ListManagementView';
 import SettingsView from './SettingsView';
 import ReportsView from './ReportsView';
 import BudgetView from './BudgetView';
+import PropaneView from '../components/propane/PropaneView';
 import { HOADuesProvider } from '../context/HOADuesContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { ListManagementProvider } from '../context/ListManagementContext';
@@ -37,20 +38,25 @@ const ACTIVITY_VIEWS = {
     <ListManagementProvider>
       <ListManagementView />
     </ListManagementProvider>
-  ) // User Management is handled by ListManagementView with Users tab
+  ), // User Management is handled by ListManagementView with Users tab
+  'propanetanks': () => <PropaneView />, // Propane Tank Levels history table
+  'propane': () => <PropaneView /> // Also support /propane route
 };
 
 function ActivityView() {
   const { activity } = useParams();
-  const lowerActivity = activity ? activity.toLowerCase() : 'dashboard';
+  // Strip quotes and whitespace from activity name (in case they come through from URL)
+  const lowerActivity = activity 
+    ? activity.toString().replace(/^["']+|["']+$/g, '').trim().toLowerCase()
+    : 'dashboard';
   
   // Get the component for this activity, or default to a placeholder
   const ViewComponent = ACTIVITY_VIEWS[lowerActivity] || (() => <PlaceholderView title={activity} />);
   
   // Use useEffect to log which activity is being rendered
   React.useEffect(() => {
-    console.log(`Rendering activity view for: ${activity}`);
-  }, [activity]);
+    console.log(`Rendering activity view for: ${activity} (normalized: ${lowerActivity})`);
+  }, [activity, lowerActivity]);
   
   return <ViewComponent />;
 }

@@ -359,8 +359,9 @@ if (process.env.NODE_ENV === 'development') {
         test: 'client-access',
         clientId: clientId,
         userEmail: user.email,
-        hasAccess: user.hasClientAccess(clientId),
-        userRole: user.getClientAccess(clientId)?.role || null,
+        // Note: Middleware uses hasPropertyAccess/getPropertyAccess (not hasClientAccess/getClientAccess)
+        hasAccess: user.hasPropertyAccess?.(clientId),
+        userRole: user.getPropertyAccess?.(clientId)?.role || null,
         isSuperAdmin: user.isSuperAdmin()
       });
     }

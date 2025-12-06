@@ -1,8 +1,13 @@
 #!/bin/bash
-# Quick deploy script for SAMS Mobile
+echo "🚀 Deploying SAMS Mobile to Firebase..."
 
-echo "🚀 Deploying SAMS Mobile to Vercel..."
+# Build the PWA
 cd "$(dirname "$0")"
+npm run build
 
-# Use full path to vercel
-/Users/michael/.npm-global/bin/vercel "$@"
+# Deploy to Firebase (mobile target only)
+cd ../..
+firebase deploy --only hosting:mobile
+
+echo "✅ Deployment complete!"
+echo "🌐 URL: https://sams-mobile.web.app"

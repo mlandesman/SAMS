@@ -20,6 +20,11 @@ export function getFiscalYear(date = getMexicoDateTime(), fiscalYearStartMonth =
   const calendarMonth = date.getMonth() + 1; // Convert to 1-based
   const calendarYear = date.getFullYear();
   
+  // Special case: Calendar year (starts in January)
+  if (fiscalYearStartMonth === 1) {
+    return calendarYear;
+  }
+  
   if (calendarMonth >= fiscalYearStartMonth) {
     // We're in the fiscal year that started this calendar year
     // September 2025 with July start = FY 2026 (starts July 2025)
@@ -44,6 +49,11 @@ export function getFiscalYear(date = getMexicoDateTime(), fiscalYearStartMonth =
  */
 export function getCurrentFiscalMonth(date = getMexicoDateTime(), fiscalYearStartMonth = 7) {
   const calendarMonth = date.getMonth() + 1; // Convert to 1-based
+  
+  // Special case: Calendar year (starts in January)
+  if (fiscalYearStartMonth === 1) {
+    return calendarMonth; // January = 1, February = 2, etc.
+  }
   
   if (calendarMonth >= fiscalYearStartMonth) {
     // July = 1, August = 2, etc.

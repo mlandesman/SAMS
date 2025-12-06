@@ -15,6 +15,7 @@ import adminRoutes from './routes/admin.js'; // Import admin routes
 import authRoutes from './routes/auth.js'; // Import auth routes
 import versionRoutes from './routes/version.js'; // Import version routes
 import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
+import propaneRoutes from './routes/propaneRoutes.js'; // Import propane routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import creditRoutes from './routes/creditRoutes.js'; // Import credit balance routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
@@ -94,6 +95,8 @@ app.use('/comm/email', emailRoutesComm); // Communication email routes
 // AUTHENTICATED ROUTES (require auth)
 console.log('Mounting water routes');
 app.use('/water', waterRoutes); // Domain-specific water billing
+console.log('Mounting propane routes');
+app.use('/propane', propaneRoutes); // Domain-specific propane tank readings
 
 // AUTH & USER MANAGEMENT DOMAIN
 console.log('Mounting auth domain routes');

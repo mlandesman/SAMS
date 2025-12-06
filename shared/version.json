@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.4.0",
-  "buildDate": "2025-12-04T02:28:13.445Z",
-  "buildTimestamp": 1764815293446,
+  "buildDate": "2025-12-06T03:18:24.815Z",
+  "buildTimestamp": 1764991104815,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "b3f80ec",
-    "branch": "feature/budget-module",
-    "lastCommitDate": "2025-12-03 21:23:03 -0500"
+    "hash": "b04f2eb",
+    "branch": "feature/water-meter-wm-2-integration",
+    "lastCommitDate": "2025-12-03 21:28:28 -0500"
   },
   "build": {
-    "timestamp": "2025-12-04T02:28:13.445Z",
+    "timestamp": "2025-12-06T03:18:24.815Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251203.2128"
+    "buildNumber": "251205.2218"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-12-04T02:28:13.445Z",
+    "date": "2025-12-06T03:18:24.815Z",
     "automated": true
   },
   "releaseNotes": {

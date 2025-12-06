@@ -152,6 +152,28 @@ router.get('/clients/:clientId/readings/:year', enforceClientAccess, async (req,
   }
 });
 
+// GET /water/clients/:clientId/readings/exists/:year - Batch check which months have readings
+router.get('/clients/:clientId/readings/exists/:year', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    const existenceMap = await waterReadingsService.getReadingsExistenceForYear(
+      clientId,
+      parseInt(year)
+    );
+    
+    res.json({
+      success: true,
+      data: existenceMap // { 0: true, 1: false, 2: true, ... }
+    });
+  } catch (error) {
+    console.error('Error checking readings existence:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /water/clients/:clientId/readings/:year/:month
 router.get('/clients/:clientId/readings/:year/:month', enforceClientAccess, async (req, res) => {
   try {
@@ -274,6 +296,52 @@ router.post('/clients/:clientId/payments/record', enforceClientAccess, recordWat
 router.get('/clients/:clientId/payments/history/:unitId', enforceClientAccess, getWaterPaymentHistory);
 
 // ============= QUARTERLY BILLS =============
+// GET /water/clients/:clientId/bills/exists/:year - Batch check which months have bills
+router.get('/clients/:clientId/bills/exists/:year', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    const existenceMap = await waterBillsService.getBillsExistenceForYear(
+      clientId,
+      parseInt(year)
+    );
+    
+    res.json({
+      success: true,
+      data: existenceMap // { 0: true, 1: false, 2: true, ... }
+    });
+  } catch (error) {
+    console.error('Error checking bills existence:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /water/clients/:clientId/bills/exists/:year/:month - Lightweight check if bill exists (document existence only)
+// CRITICAL: This MUST come BEFORE /bills/:year/:month to prevent Express route conflicts
+router.get('/clients/:clientId/bills/exists/:year/:month', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year, month } = req.params;
+    const exists = await waterBillsService.billExists(
+      clientId,
+      parseInt(year),
+      parseInt(month)
+    );
+    
+    res.json({
+      success: true,
+      exists
+    });
+  } catch (error) {
+    console.error('Error checking if bill exists:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /water/clients/:clientId/bills/quarterly/:year - Get all quarterly bills for a year
 // CRITICAL: This MUST come BEFORE /bills/:year/:month to prevent Express from matching quarterly as :year and 2026 as :month
 router.get('/clients/:clientId/bills/quarterly/:year', enforceClientAccess, getQuarterlyBillsForYear);

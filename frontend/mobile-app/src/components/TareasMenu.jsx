@@ -31,7 +31,7 @@ const clientTaskConfigs = {
         icon: PropaneIcon,
         iconColor: '#ff6b35',
         description: 'Registrar niveles de gas propano',
-        subtitle: 'Tanques de piscina y cocina',
+        subtitle: '9 unidades residenciales',
         route: '/propane-reading',
         component: 'PropaneReadingEntry',
         estimatedTime: '15-20 min',

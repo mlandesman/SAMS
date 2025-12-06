@@ -167,7 +167,8 @@ async function getClient(req, res) {
     console.log(`🔍 Attempting to retrieve client: ${clientId} for user: ${user?.email}`);
 
     // Validate client access (unless SuperAdmin)
-    if (!user?.isSuperAdmin() && !user?.hasClientAccess(clientId)) {
+    // Note: Middleware uses hasPropertyAccess/getPropertyAccess (not hasClientAccess)
+    if (!user?.isSuperAdmin() && !user?.hasPropertyAccess?.(clientId)) {
       console.warn(`🚫 Access denied: ${user?.email} attempted to access client ${clientId}`);
       return res.status(404).json({ error: 'Not found' }); // Generic error - don't reveal if client exists
     }

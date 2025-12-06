@@ -14,7 +14,7 @@ const getUnifiedApiUrl = () => {
   
   // 2. Production environment auto-detection
   if (import.meta.env.PROD) {
-    return 'https://backend-liart-seven.vercel.app';  // Clean base (no /api suffix)
+    return '';  // Empty = same origin (Firebase handles routing)
   }
   
   // 3. Development fallback

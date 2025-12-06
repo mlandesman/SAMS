@@ -1,9 +1,8 @@
-// MINIMAL Water Readings Service - Phase 1 ONLY
+// Propane Readings Service - Data collection only (no billing)
 import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
-import { waterDataService } from './waterDataService.js';
 
-class WaterReadingsService {
+class PropaneReadingsService {
   constructor() {
     this.db = null;
   }
@@ -18,62 +17,46 @@ class WaterReadingsService {
   async saveReadings(clientId, year, month, payload) {
     await this._initializeDb();
     
-    console.log('🔍 Service received payload:', JSON.stringify(payload, null, 2));
+    console.log('🔍 Propane service received payload:', JSON.stringify(payload, null, 2));
     
-    // CRITICAL FIX: Ensure waterBills document has properties to prevent ghost status
-    const waterBillsRef = this.db
+    // CRITICAL: Ensure propaneTanks document has properties to prevent ghost status
+    const propaneTanksRef = this.db
       .collection('clients').doc(clientId)
-      .collection('projects').doc('waterBills');
+      .collection('projects').doc('propaneTanks');
     
-    // Check if waterBills document exists, if not create it with a property
-    const waterBillsDoc = await waterBillsRef.get();
-    if (!waterBillsDoc.exists) {
-      console.log('🔧 Creating waterBills document to prevent ghost status...');
-      await waterBillsRef.set({
+    // Check if propaneTanks document exists, if not create it with a property
+    const propaneTanksDoc = await propaneTanksRef.get();
+    if (!propaneTanksDoc.exists) {
+      console.log('🔧 Creating propaneTanks document to prevent ghost status...');
+      await propaneTanksRef.set({
         _purgeMarker: 'DO_NOT_DELETE',
-        _createdBy: 'waterReadingsService',
+        _createdBy: 'propaneReadingsService',
         _createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        _structure: 'waterBills'
+        _structure: 'propaneTanks'
       });
-      console.log('✅ waterBills document created with properties');
+      console.log('✅ propaneTanks document created with properties');
     }
     
     const docId = `${year}-${String(month).padStart(2, '0')}`;
     const docRef = this.db
       .collection('clients').doc(clientId)
-      .collection('projects').doc('waterBills')
+      .collection('projects').doc('propaneTanks')
       .collection('readings').doc(docId);
     
     // Ensure readings field exists and is not undefined
     const readings = payload.readings || {};
     
-    // Build proper document structure with buildingMeter/commonArea at root level
+    // Build proper document structure
     const data = {
       year,
       month,
-      readings, // Only unit readings (101, 102, etc.)
+      readings, // Unit readings with level percentage (0-100)
       timestamp: admin.firestore.FieldValue.serverTimestamp()
     };
-    
-    // Add buildingMeter and commonArea at root level if provided
-    if (payload.buildingMeter !== undefined && payload.buildingMeter !== null) {
-      data.buildingMeter = payload.buildingMeter;
-    }
-    if (payload.commonArea !== undefined && payload.commonArea !== null) {
-      data.commonArea = payload.commonArea;
-    }
     
     console.log('💾 Final data to save:', JSON.stringify(data, null, 2));
     
     await docRef.set(data);
-    
-    // Invalidate cache for this year
-    waterDataService.invalidate(clientId, year);
-    
-    // Also invalidate next year if this is month 11 (affects month 0 prior reading)
-    if (month === 11) {
-      waterDataService.invalidate(clientId, year + 1);
-    }
     
     return data;
   }
@@ -85,7 +68,7 @@ class WaterReadingsService {
     const docId = `${year}-${String(month).padStart(2, '0')}`;
     const doc = await this.db
       .collection('clients').doc(clientId)
-      .collection('projects').doc('waterBills')
+      .collection('projects').doc('propaneTanks')
       .collection('readings').doc(docId)
       .get();
     
@@ -111,7 +94,7 @@ class WaterReadingsService {
       docRefs.push(
         this.db
           .collection('clients').doc(clientId)
-          .collection('projects').doc('waterBills')
+          .collection('projects').doc('propaneTanks')
           .collection('readings').doc(docId)
       );
       monthKeys.push(month);
@@ -134,82 +117,94 @@ class WaterReadingsService {
     return results;
   }
 
-  // Get all readings for a year with consumption calculations
-  async getYearReadings(clientId, year) {
+  /**
+   * Get aggregated data for a year (all months with prior levels)
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<Object>} Year data with months array
+   */
+  async getAggregatedData(clientId, year) {
     await this._initializeDb();
     
     const readingsRef = this.db
       .collection('clients').doc(clientId)
-      .collection('projects').doc('waterBills')
+      .collection('projects').doc('propaneTanks')
       .collection('readings');
     
-    // Get prior year's last month (June/month 11) for baseline
+    // Get prior year's last month (month 11) for baseline
     const priorYearDoc = await readingsRef.doc(`${year-1}-11`).get();
-    let priorMonthData = priorYearDoc.exists ? priorYearDoc.data() : {};
-    let priorMonthReadings = priorMonthData.readings || {};
-    let priorBuildingMeter = priorMonthData.buildingMeter || 0;
-    let priorCommonArea = priorMonthData.commonArea || 0;
+    let priorMonthReadings = priorYearDoc.exists ? (priorYearDoc.data().readings || {}) : {};
     
     // Get all documents for the fiscal year
-    // Note: Can't use orderBy with where without an index, so we'll sort in memory
     const snapshot = await readingsRef
       .where('year', '==', year)
       .get();
     
-    const readings = {};
+    const months = [];
     
     // Sort documents by month in memory
     const sortedDocs = snapshot.docs.sort((a, b) => {
       return a.data().month - b.data().month;
     });
     
-    // Process each month to calculate consumption
+    // Process each month
     sortedDocs.forEach(doc => {
       const data = doc.data();
-      const currentReadings = data.readings;
+      const currentReadings = data.readings || {};
       const monthData = {};
       
-      // For each unit meter, calculate consumption
+      // For each unit, store level and prior level
       for (const unitId in currentReadings) {
         const current = currentReadings[unitId];
-        const prior = priorMonthReadings[unitId] || 0;
+        const prior = priorMonthReadings[unitId] || null;
         
-        // Store both reading and consumption
         monthData[unitId] = {
-          reading: current,
-          consumption: current - prior,
-          prior: prior
+          level: typeof current === 'object' ? current.level : current,
+          priorLevel: prior ? (typeof prior === 'object' ? prior.level : prior) : null
         };
       }
       
-      // Handle buildingMeter at root level if present
-      if (data.buildingMeter !== undefined) {
-        monthData.buildingMeter = {
-          reading: data.buildingMeter,
-          consumption: data.buildingMeter - priorBuildingMeter,
-          prior: priorBuildingMeter
-        };
-        priorBuildingMeter = data.buildingMeter;
-      }
-      
-      // Handle commonArea at root level if present
-      if (data.commonArea !== undefined) {
-        monthData.commonArea = {
-          reading: data.commonArea,
-          consumption: data.commonArea - priorCommonArea,
-          prior: priorCommonArea
-        };
-        priorCommonArea = data.commonArea;
-      }
-      
-      readings[data.month] = monthData;
+      months.push({
+        month: data.month,
+        year: data.year,
+        fiscalYear: year,
+        readings: monthData
+      });
       
       // Current month becomes prior for next month
       priorMonthReadings = currentReadings;
     });
     
-    return readings;
+    // Build summary
+    const summary = {
+      totalUnits: 0,
+      lowLevelUnits: 0, // 10-30%
+      criticalUnits: 0  // 0-10%
+    };
+    
+    // Calculate summary from last month's data
+    if (months.length > 0) {
+      const lastMonth = months[months.length - 1];
+      const units = Object.keys(lastMonth.readings);
+      summary.totalUnits = units.length;
+      
+      units.forEach(unitId => {
+        const level = lastMonth.readings[unitId].level;
+        if (level <= 10) {
+          summary.criticalUnits++;
+        } else if (level <= 30) {
+          summary.lowLevelUnits++;
+        }
+      });
+    }
+    
+    return {
+      data: {
+        months
+      },
+      summary
+    };
   }
 }
 
-export default new WaterReadingsService();
+export default new PropaneReadingsService();

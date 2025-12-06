@@ -5,7 +5,17 @@
     "staging": "sams-staging-6cdcd",
     "production": "sams-sandyland-prod"
   },
-  "targets": {},
+  "targets": {
+    "sams-sandyland-prod": {
+      "hosting": {
+        "desktop": [
+          "sams-sandyland-prod"
+        ],
+        "mobile": [
+          "sams-mobile-pwa"
+        ]
+      }
+    }
+  },
   "etags": {}
 }
-

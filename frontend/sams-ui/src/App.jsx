@@ -25,6 +25,7 @@ import AuthGuard from './components/guards/AuthGuard';
 import ExchangeRatesView from './views/ExchangeRatesView';
 import AddExpenseView from './views/AddExpenseView';
 import WaterBillsViewV3 from './views/WaterBillsViewV3';
+import PropaneView from './components/propane/PropaneView';
 
 import './App.css';
 import { forceProductionMobileMode } from './utils/mobileDetection';
@@ -205,6 +206,11 @@ function AppContent() {
                   <Route path="/water-bills" element={
                     <ClientProtectedRoute>
                       <WaterBillsViewV3 />
+                    </ClientProtectedRoute>
+                  } />
+                  <Route path="/propane" element={
+                    <ClientProtectedRoute>
+                      <PropaneView />
                     </ClientProtectedRoute>
                   } />
                   <Route path="/add-expense" element={

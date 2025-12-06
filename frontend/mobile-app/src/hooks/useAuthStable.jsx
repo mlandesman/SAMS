@@ -53,15 +53,17 @@ export const AuthProvider = ({ children }) => {
           profileLoadedRef.current = true;
           
           // Set current client from user preferences or auto-select for single client users
+          // Backend returns propertyAccess, but support clientAccess for backwards compatibility
+          const clientAccess = user.clientAccess || user.propertyAccess || {};
           console.log('🎯 STABLE AUTH: Setting client from preferredClient:', user.preferredClient);
-          console.log('🎯 STABLE AUTH: User clientAccess:', user.clientAccess);
+          console.log('🎯 STABLE AUTH: User clientAccess:', clientAccess);
           
           if (user.preferredClient) {
             setCurrentClient(user.preferredClient);
             console.log('✅ STABLE AUTH: Current client set to:', user.preferredClient);
-          } else if (user.clientAccess) {
+          } else if (clientAccess && Object.keys(clientAccess).length > 0) {
             // Auto-select if user has only one client
-            const availableClients = Object.keys(user.clientAccess);
+            const availableClients = Object.keys(clientAccess);
             console.log('🎯 STABLE AUTH: Available clients:', availableClients);
             
             if (availableClients.length === 1) {
@@ -73,7 +75,7 @@ export const AuthProvider = ({ children }) => {
               console.log('⚠️ STABLE AUTH: Multiple clients available, user needs to select');
             }
           } else {
-            console.log('⚠️ STABLE AUTH: No preferredClient or clientAccess found in user profile');
+            console.log('⚠️ STABLE AUTH: No preferredClient or clientAccess/propertyAccess found in user profile');
           }
           
           setError(null);

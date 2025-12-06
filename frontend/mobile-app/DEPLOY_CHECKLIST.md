@@ -6,26 +6,29 @@
 - [ ] Verify offline functionality
 - [ ] Test "Add to Home Screen" flow
 - [ ] Ensure all icons are present
+- [ ] Build PWA: `cd frontend/mobile-app && npm run build`
 
-## Vercel Setup
-- [ ] Run `vercel` in this directory
-- [ ] Set project name: `sams-mobile`
-- [ ] Configure environment variables:
-  - VITE_FIREBASE_API_KEY
-  - VITE_FIREBASE_AUTH_DOMAIN
-  - VITE_FIREBASE_PROJECT_ID
-  - VITE_FIREBASE_STORAGE_BUCKET
-  - VITE_FIREBASE_MESSAGING_SENDER_ID
-  - VITE_FIREBASE_APP_ID
-  - VITE_USE_EMULATOR=false
+## Firebase Setup
+- [ ] Ensure Firebase CLI is installed: `npm install -g firebase-tools`
+- [ ] Login to Firebase: `firebase login`
+- [ ] Select production project: `firebase use sams-sandyland-prod`
+- [ ] Create mobile hosting site (if not exists): `firebase hosting:sites:create sams-mobile`
+- [ ] Apply hosting target: `firebase target:apply hosting mobile sams-mobile`
+- [ ] Verify `.firebaserc` has mobile target configured
 
 ## Domain Configuration
-- [ ] Add custom domain in Vercel: `mobile.sams.sandyland.com.mx`
-- [ ] Update DNS records (CNAME to cname.vercel-dns.com)
-- [ ] Wait for SSL certificate provisioning
+- [ ] Add custom domain in Firebase Console: `mobile.sams.sandyland.com.mx`
+- [ ] Update DNS records (instructions provided by Firebase)
+- [ ] Wait for SSL certificate provisioning (automatic)
 - [ ] Test HTTPS access
 
+## Deployment
+- [ ] Run deployment script: `./frontend/mobile-app/deploy.sh`
+- [ ] OR deploy manually: `firebase deploy --only hosting:mobile`
+- [ ] Verify deployment success in Firebase Console
+
 ## Post-Deployment
+- [ ] Verify PWA loads at: https://sams-mobile.web.app
 - [ ] Verify PWA installation on iOS
 - [ ] Verify PWA installation on Android
 - [ ] Test core features:
@@ -33,4 +36,5 @@
   - [ ] Dashboard view
   - [ ] Exchange rate calculator
   - [ ] Unit reports
+- [ ] Test API connectivity (no CORS errors)
 - [ ] Create user installation guide

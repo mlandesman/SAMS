@@ -37,91 +37,227 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "hosting": {
-    "public": "frontend/sams-ui/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/version",
-        "function": "api"
-      },
-      {
-        "source": "/system/**",
-        "function": "api"
-      },
-      {
-        "source": "/auth/**",
-        "function": "api"
-      },
-      {
-        "source": "/water/**",
-        "function": "api"
-      },
-      {
-        "source": "/comm/**",
-        "function": "api"
-      },
-      {
-        "source": "/admin/**",
-        "function": "api"
-      },
-      {
-        "source": "/hoadues/**",
-        "function": "api"
-      },
-      {
-        "source": "/clients",
-        "function": "api"
-      },
-      {
-        "source": "/clients/**",
-        "function": "api"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(jpg|jpeg|gif|png|svg|ico|webp)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
-          }
-        ]
-      },
-      {
-        "source": "**/*.@(js|css)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=300, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "**",
-        "headers": [
-          {
-            "key": "X-Frame-Options",
-            "value": "DENY"
-          },
-          {
-            "key": "X-Content-Type-Options",
-            "value": "nosniff"
-          },
-          {
-            "key": "Referrer-Policy",
-            "value": "strict-origin-when-cross-origin"
-          }
-        ]
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "desktop",
+      "public": "frontend/sams-ui/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/version",
+          "function": "api"
+        },
+        {
+          "source": "/system/**",
+          "function": "api"
+        },
+        {
+          "source": "/auth/**",
+          "function": "api"
+        },
+        {
+          "source": "/water/**",
+          "function": "api"
+        },
+        {
+          "source": "/comm/**",
+          "function": "api"
+        },
+        {
+          "source": "/admin/**",
+          "function": "api"
+        },
+        {
+          "source": "/hoadues/**",
+          "function": "api"
+        },
+        {
+          "source": "/clients",
+          "function": "api"
+        },
+        {
+          "source": "/clients/**",
+          "function": "api"
+        },
+        {
+          "source": "/reports/**",
+          "function": "api"
+        },
+        {
+          "source": "/credit/**",
+          "function": "api"
+        },
+        {
+          "source": "/payments/**",
+          "function": "api"
+        },
+        {
+          "source": "/budgets/**",
+          "function": "api"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(jpg|jpeg|gif|png|svg|ico|webp)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "mobile",
+      "public": "frontend/mobile-app/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/version",
+          "function": "api"
+        },
+        {
+          "source": "/system/**",
+          "function": "api"
+        },
+        {
+          "source": "/auth/**",
+          "function": "api"
+        },
+        {
+          "source": "/water/**",
+          "function": "api"
+        },
+        {
+          "source": "/comm/**",
+          "function": "api"
+        },
+        {
+          "source": "/admin/**",
+          "function": "api"
+        },
+        {
+          "source": "/hoadues/**",
+          "function": "api"
+        },
+        {
+          "source": "/clients",
+          "function": "api"
+        },
+        {
+          "source": "/clients/**",
+          "function": "api"
+        },
+        {
+          "source": "/reports/**",
+          "function": "api"
+        },
+        {
+          "source": "/credit/**",
+          "function": "api"
+        },
+        {
+          "source": "/payments/**",
+          "function": "api"
+        },
+        {
+          "source": "/budgets/**",
+          "function": "api"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/sw.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            },
+            {
+              "key": "Service-Worker-Allowed",
+              "value": "/"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(jpg|jpeg|gif|png|svg|ico|webp)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(js|css)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "strict-origin-when-cross-origin"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

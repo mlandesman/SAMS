@@ -44,45 +44,51 @@ export const loadClientInfo = async () => {
 };
 
 /**
- * Get aggregated data and extract month readings
+ * Get month readings directly from Firestore (lightweight - NO aggregator)
+ * Pure direct read - returns null if document doesn't exist
  * @param {string} period - Period in format "YYYY-MM" (e.g., "2026-01")
- * @returns {Object} Readings data for the specified period
+ * @returns {Object|null} Readings data for the specified period, or null if not found
  */
 const getMonthReadingsFromAggregated = async (period) => {
-  const [year] = period.split('-');
+  const [year, month] = period.split('-');
+  const monthNum = parseInt(month);
   
   try {
-    // Get all year data using desktop pattern
-    const aggregatedData = await waterAPI.getAggregatedData(CLIENT_ID, year);
+    // Lightweight direct read ONLY (no aggregator/penalty calculations)
+    console.log(`📖 Direct Firestore read for period ${period}...`);
+    const directReadings = await waterAPI.getMonthReadings(CLIENT_ID, parseInt(year), monthNum);
     
-    console.log(`Aggregated data structure for ${year}:`, JSON.stringify(aggregatedData, null, 2));
-    
-    // Extract the specific month from aggregated data
-    if (aggregatedData?.data?.months) {
-      console.log(`Available months:`, aggregatedData.data.months.map(m => ({
-        year: m.year,
-        month: m.month,
-        computedPeriod: `${m.year}-${String(m.month).padStart(2, '0')}`
-      })));
-      
-      const monthData = aggregatedData.data.months.find(m => {
-        // Backend month is already 0-based fiscal month, no need to subtract 1
-        const monthPeriod = `${m.year}-${String(m.month).padStart(2, '0')}`;
-        console.log(`Comparing ${monthPeriod} === ${period}`);
-        return monthPeriod === period;
-      });
-      
-      if (monthData) {
-        console.log(`Found month data for period ${period}:`, monthData);
-        return monthData;
-      }
+    if (directReadings && directReadings.readings && Object.keys(directReadings.readings).length > 0) {
+      console.log(`✅ Direct read successful for period ${period}`);
+      // Convert direct readings format to match expected format for compatibility
+      return {
+        year: parseInt(year),
+        month: monthNum,
+        fiscalYear: parseInt(year),
+        readings: directReadings.readings || {},
+        buildingMeter: directReadings.buildingMeter !== undefined ? { currentReading: directReadings.buildingMeter } : undefined,
+        commonArea: directReadings.commonArea !== undefined ? { currentReading: directReadings.commonArea } : undefined
+      };
     }
     
-    console.log(`No data found for period ${period} - this is expected for future periods that haven't been created yet`);
+    // Also handle case where document exists but has no readings yet
+    if (directReadings && (directReadings.buildingMeter !== undefined || directReadings.commonArea !== undefined)) {
+      console.log(`✅ Direct read successful (building/common only) for period ${period}`);
+      return {
+        year: parseInt(year),
+        month: monthNum,
+        fiscalYear: parseInt(year),
+        readings: directReadings.readings || {},
+        buildingMeter: directReadings.buildingMeter !== undefined ? { currentReading: directReadings.buildingMeter } : undefined,
+        commonArea: directReadings.commonArea !== undefined ? { currentReading: directReadings.commonArea } : undefined
+      };
+    }
+    
+    console.log(`No readings document found for period ${period} - this is expected for future periods`);
     return null;
     
   } catch (error) {
-    console.error(`Error loading aggregated data for period ${period}:`, error);
+    console.error(`Error loading readings for period ${period}:`, error);
     return null;
   }
 };
@@ -91,12 +97,25 @@ const getMonthReadingsFromAggregated = async (period) => {
  * Load Previous Month Readings
  * Extract from previous month's currentReading in aggregated data
  */
-export const loadPreviousReadings = async () => {
+/**
+ * Load previous readings for a specific period
+ * @param {Object} period - Optional period object {year, month, period}. If not provided, uses current period.
+ */
+export const loadPreviousReadings = async (period = null) => {
   try {
     console.log('Loading previous readings from aggregated data...');
     
-    const current = getCurrentFiscalPeriod();
-    const previousPeriod = getPreviousFiscalPeriod(current.period);
+    // Use provided period or get current period
+    let currentPeriod;
+    if (period) {
+      currentPeriod = period.period || `${period.year}-${String(period.month).padStart(2, '0')}`;
+    } else {
+      const current = getCurrentFiscalPeriod();
+      currentPeriod = current.period;
+    }
+    
+    const previousPeriod = getPreviousFiscalPeriod(currentPeriod);
+    console.log(`Loading previous readings: current=${currentPeriod}, previous=${previousPeriod}`);
     
     // Get previous month data from aggregated response
     const previousMonthData = await getMonthReadingsFromAggregated(previousPeriod);
@@ -104,7 +123,20 @@ export const loadPreviousReadings = async () => {
     const previousReadings = {};
     
     if (previousMonthData) {
-      // Extract unit readings from previous month
+      // Handle direct read format: { readings: {...}, buildingMeter: number, commonArea: number }
+      if (previousMonthData.readings) {
+        Object.keys(previousMonthData.readings).forEach(unitId => {
+          const unitData = previousMonthData.readings[unitId];
+          // Direct read format: { reading: 1808 } or just number
+          if (typeof unitData === 'object' && unitData.reading !== undefined) {
+            previousReadings[unitId] = unitData.reading;
+          } else if (typeof unitData === 'number') {
+            previousReadings[unitId] = unitData;
+          }
+        });
+      }
+      
+      // Handle aggregated format: { units: {...}, buildingMeter: {currentReading: ...} }
       if (previousMonthData.units) {
         Object.keys(previousMonthData.units).forEach(unitId => {
           const unitData = previousMonthData.units[unitId];
@@ -117,13 +149,27 @@ export const loadPreviousReadings = async () => {
         });
       }
       
-      // Extract building meter and common area from previous month
-      if (previousMonthData.buildingMeter && previousMonthData.buildingMeter.currentReading) {
-        previousReadings.buildingMeter = previousMonthData.buildingMeter.currentReading;
+      // Extract building meter and common area (handle both formats)
+      if (previousMonthData.buildingMeter !== undefined) {
+        if (typeof previousMonthData.buildingMeter === 'object' && previousMonthData.buildingMeter.currentReading !== undefined) {
+          // Aggregated format: { currentReading: number }
+          const buildingReading = previousMonthData.buildingMeter.currentReading;
+          previousReadings.buildingMeter = typeof buildingReading === 'number' ? buildingReading : (buildingReading.reading || buildingReading);
+        } else if (typeof previousMonthData.buildingMeter === 'number') {
+          // Direct read format: number
+          previousReadings.buildingMeter = previousMonthData.buildingMeter;
+        }
       }
       
-      if (previousMonthData.commonArea && previousMonthData.commonArea.currentReading) {
-        previousReadings.commonArea = previousMonthData.commonArea.currentReading;
+      if (previousMonthData.commonArea !== undefined) {
+        if (typeof previousMonthData.commonArea === 'object' && previousMonthData.commonArea.currentReading !== undefined) {
+          // Aggregated format: { currentReading: number }
+          const commonReading = previousMonthData.commonArea.currentReading;
+          previousReadings.commonArea = typeof commonReading === 'number' ? commonReading : (commonReading.reading || commonReading);
+        } else if (typeof previousMonthData.commonArea === 'number') {
+          // Direct read format: number
+          previousReadings.commonArea = previousMonthData.commonArea;
+        }
       }
     }
     
@@ -299,6 +345,34 @@ export const loadCurrentReadings = async () => {
 };
 
 /**
+ * Load readings for a specific period
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ */
+export const loadCurrentReadingsForPeriod = async (year, month) => {
+  try {
+    const period = `${year}-${String(month).padStart(2, '0')}`;
+    console.log('Loading readings for period:', period);
+    
+    // Try to get month data from aggregated
+    const monthData = await getMonthReadingsFromAggregated(period);
+    
+    if (monthData) {
+      console.log('Found existing readings for period:', period);
+      return monthData;
+    }
+    
+    // No existing data - create empty structure
+    console.log('No existing readings, creating empty structure for period:', period);
+    return createEmptyReadingsDocument(year, month);
+    
+  } catch (error) {
+    console.error('Error loading readings for period:', error);
+    return createEmptyReadingsDocument(year, month);
+  }
+};
+
+/**
  * Save All Meter Readings
  * Uses waterAPI.saveReadings (domain endpoint)
  */
@@ -309,42 +383,74 @@ export const saveAllReadings = async (readingsData) => {
     
     console.log('Saving all readings:', { readingsData, period: current.period });
     
+    return await saveAllReadingsForPeriod(readingsData, parseInt(year), parseInt(month));
+  } catch (error) {
+    console.error('Error saving all readings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Save readings for a specific period
+ * @param {Object} readingsData - Readings data object
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ */
+export const saveAllReadingsForPeriod = async (readingsPayload, year, month) => {
+  try {
+    console.log('Saving all readings for period:', { readingsPayload, year, month });
+    
+    // readingsPayload can be either:
+    // 1. { readings: {...}, buildingMeter: number, commonArea: number } (from component)
+    // 2. { "101": { reading: ... }, buildingMeter: { reading: ... }, ... } (legacy format)
+    
     // Build the complete payload with correct structure
     const apiPayload = {
-      month: parseInt(month),
-      year: parseInt(year),
+      month: month, // Already 0-based
+      year: year,
       readings: {},
       buildingMeter: null,
       commonArea: null
     };
     
-    Object.keys(readingsData).forEach(unitId => {
-      const unitData = readingsData[unitId];
-      
-      if (UNIT_CONFIG[unitId]?.type === 'unit') {
-        // Units: Send reading + washes array (if has washes)
-        const cleanUnit = { reading: unitData.reading };
+    // Handle new format: { readings: {...}, buildingMeter: number, commonArea: number }
+    if (readingsPayload.readings) {
+      apiPayload.readings = readingsPayload.readings;
+      apiPayload.buildingMeter = readingsPayload.buildingMeter;
+      apiPayload.commonArea = readingsPayload.commonArea;
+    } else {
+      // Handle legacy format: { "101": { reading: ... }, ... }
+      Object.keys(readingsPayload).forEach(unitId => {
+        const unitData = readingsPayload[unitId];
         
-        // Only include washes array if there are actual washes
-        if (unitData.washes && unitData.washes.length > 0) {
-          cleanUnit.washes = unitData.washes;
+        if (UNIT_CONFIG[unitId]?.type === 'unit') {
+          // Units: Send reading + washes array (if has washes)
+          const cleanUnit = { reading: unitData.reading || unitData };
+          
+          // Only include washes array if there are actual washes
+          if (unitData.washes && unitData.washes.length > 0) {
+            cleanUnit.washes = unitData.washes;
+          }
+          
+          apiPayload.readings[unitId] = cleanUnit;
+        } else if (unitId === 'buildingMeter') {
+          // Building meter: flat numeric value at root
+          apiPayload.buildingMeter = typeof unitData === 'object' ? (unitData.reading || unitData) : unitData;
+        } else if (unitId === 'commonArea') {
+          // Common area: flat numeric value at root
+          apiPayload.commonArea = typeof unitData === 'object' ? (unitData.reading || unitData) : unitData;
         }
-        
-        apiPayload.readings[unitId] = cleanUnit;
-      } else if (unitId === 'buildingMeter') {
-        // Building meter: flat numeric value at root
-        apiPayload.buildingMeter = unitData.reading;
-      } else if (unitId === 'commonArea') {
-        // Common area: flat numeric value at root
-        apiPayload.commonArea = unitData.reading;
-      }
-    });
+      });
+    }
     
     console.log('Complete payload being sent:', JSON.stringify(apiPayload, null, 2));
     
     // Send the complete payload
     const result = await waterAPI.saveReadings(CLIENT_ID, year, month, apiPayload);
     console.log('All readings saved successfully');
+    
+    // Clear existence cache since we just saved readings
+    clearExistenceCache();
     
     return { success: true, data: result };
     
@@ -423,6 +529,37 @@ export const getFiscalPeriodInfo = () => {
 };
 
 /**
+ * Format fiscal period for display
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11, 0-based)
+ * @returns {Object} Display info with month name and calendar year
+ */
+export const formatFiscalPeriodForDisplay = (year, month) => {
+  const monthNames = [
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'
+  ];
+  
+  // Convert 0-based month to 1-based for lookup
+  const monthIndex = month; // month is already 0-based (0=July, 5=December, 6=January)
+  const monthName = monthNames[monthIndex];
+  
+  // Calculate calendar year
+  // Fiscal year 2026 starts July 2025
+  // Month 0-5 (Jul-Dec) = calendar year (fiscalYear - 1)
+  // Month 6-11 (Jan-Jun) = calendar year (fiscalYear)
+  const calendarYear = month < 6 ? year - 1 : year;
+  
+  return {
+    year,
+    month: monthIndex,
+    monthName,
+    calendarYear,
+    displayText: `${monthName} ${calendarYear}`
+  };
+};
+
+/**
  * Legacy API Integration
  * For compatibility with existing desktop patterns
  */
@@ -460,13 +597,234 @@ export const getAggregatedDataFormat = (readingsData, previousReadings) => {
   };
 };
 
+/**
+ * Check if a month has bills (lightweight - uses cached batch data)
+ * Uses new lightweight batch endpoint that checks all months at once
+ * No aggregator, no penalty calculations, super fast
+ * 
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ * @returns {Promise<boolean>} True if bills exist for this month (can't edit), False if no bills (can edit)
+ */
+export const hasBillsForMonth = async (year, month) => {
+  try {
+    // Use batch endpoint if cache is invalid
+    if (!billsExistenceCache || cacheYear !== year) {
+      console.log(`📦 Batch loading bills existence for year ${year}...`);
+      billsExistenceCache = await waterAPI.getBillsExistenceForYear(CLIENT_ID, year);
+      cacheYear = year;
+    }
+    
+    const exists = billsExistenceCache[month] === true;
+    console.log(`📋 Bill check for ${year}-${month}: ${exists ? 'EXISTS (cannot edit)' : 'NOT EXISTS (can edit)'}`);
+    return exists;
+  } catch (error) {
+    console.error(`Error checking if bill exists for month ${year}-${month}:`, error);
+    // If we can't check, assume no bills (allow editing)
+    return false;
+  }
+};
+
+/**
+ * Batch check which months have readings (lightweight - uses batch endpoint)
+ * Cached per year to avoid repeated calls
+ */
+let readingsExistenceCache = null;
+let billsExistenceCache = null;
+let cacheYear = null;
+
+/**
+ * Clear existence cache (call after saving readings to refresh)
+ */
+export const clearExistenceCache = () => {
+  readingsExistenceCache = null;
+  billsExistenceCache = null;
+  cacheYear = null;
+  console.log('🗑️ Cleared existence cache');
+};
+
+/**
+ * Check if readings exist for a month (lightweight - uses cached batch data)
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ * @returns {Promise<boolean>} True if readings exist
+ */
+const hasReadingsForMonth = async (year, month) => {
+  try {
+    // Use batch endpoint if cache is invalid
+    if (!readingsExistenceCache || cacheYear !== year) {
+      console.log(`📦 Batch loading readings existence for year ${year}...`);
+      readingsExistenceCache = await waterAPI.getReadingsExistenceForYear(CLIENT_ID, year);
+      cacheYear = year;
+    }
+    
+    return readingsExistenceCache[month] === true;
+  } catch (error) {
+    console.error(`Error checking readings for ${year}-${month}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Find the first editable month (no readings, no bills)
+ * Returns the first month that has no readings AND no bills
+ * Also returns the prior month if it's editable (no bills)
+ * Uses lightweight direct Firestore reads instead of aggregator
+ * @param {number} year - Fiscal year to check
+ * @returns {Promise<Object>} { current: {...}, prior: {...} | null }
+ */
+export const findFirstEditableMonth = async (year) => {
+  try {
+    // Pre-load batch data for all months (single API call instead of 24)
+    console.log(`📦 Pre-loading batch existence data for year ${year}...`);
+    await Promise.all([
+      hasReadingsForMonth(year, 0), // This will trigger batch load
+      hasBillsForMonth(year, 0)     // This will trigger batch load
+    ]);
+    
+    let firstEmptyMonth = null;
+    
+    // Check each month (0-11) to find first without readings
+    // Now using cached batch data (no additional API calls)
+    for (let month = 0; month < 12; month++) {
+      const period = `${year}-${String(month).padStart(2, '0')}`;
+      
+      // Lightweight check: does this month have readings? (uses cached batch data)
+      const hasReadings = await hasReadingsForMonth(year, month);
+      
+      // If no readings for this month, check if bills exist (uses cached batch data)
+      if (!hasReadings) {
+        // No readings - check if bills exist (lightweight check)
+        const hasBills = await hasBillsForMonth(year, month);
+        
+        if (!hasBills) {
+          // Found first editable month (no readings, no bills)
+          firstEmptyMonth = {
+            year,
+            month,
+            period
+          };
+          break;
+        }
+        // Has bills but no readings - skip this month (can't edit)
+        continue;
+      }
+    }
+    
+    // If all months have readings, return next month
+    if (!firstEmptyMonth) {
+      const current = getCurrentFiscalPeriod();
+      const [currentYear, currentMonth] = current.period.split('-');
+      const nextMonth = parseInt(currentMonth) + 1;
+      
+      if (nextMonth >= 12) {
+        // Wrap to next fiscal year
+        firstEmptyMonth = {
+          year: parseInt(currentYear) + 1,
+          month: 0,
+          period: `${parseInt(currentYear) + 1}-00`
+        };
+      } else {
+        firstEmptyMonth = {
+          year: parseInt(currentYear),
+          month: nextMonth,
+          period: `${currentYear}-${String(nextMonth).padStart(2, '0')}`
+        };
+      }
+    }
+    
+    // Now check if prior month is editable (has readings but no bills)
+    let priorMonth = null;
+    if (firstEmptyMonth && firstEmptyMonth.month > 0) {
+      const priorMonthNum = firstEmptyMonth.month - 1;
+      const priorPeriod = `${firstEmptyMonth.year}-${String(priorMonthNum).padStart(2, '0')}`;
+      
+      console.log(`Checking prior month ${priorPeriod} for editability...`);
+      
+      // Check if prior month has bills
+      const priorHasBills = await hasBillsForMonth(firstEmptyMonth.year, priorMonthNum);
+      
+      console.log(`Prior month ${priorPeriod} has bills: ${priorHasBills}`);
+      
+      if (!priorHasBills) {
+        // Prior month is editable (may have readings but no bills)
+        priorMonth = {
+          year: firstEmptyMonth.year,
+          month: priorMonthNum,
+          period: priorPeriod
+        };
+        console.log(`Prior month ${priorPeriod} is editable - added to available periods`);
+      } else {
+        console.log(`Prior month ${priorPeriod} has bills - cannot edit`);
+      }
+    } else if (firstEmptyMonth && firstEmptyMonth.month === 0) {
+      // Current month is 0 (July), check prior year month 11 (June)
+      const priorYear = firstEmptyMonth.year - 1;
+      const priorPeriod = `${priorYear}-11`;
+      
+      console.log(`Checking prior year month ${priorPeriod} for editability...`);
+      
+      const priorHasBills = await hasBillsForMonth(priorYear, 11);
+      
+      console.log(`Prior month ${priorPeriod} has bills: ${priorHasBills}`);
+      
+      if (!priorHasBills) {
+        priorMonth = {
+          year: priorYear,
+          month: 11,
+          period: priorPeriod
+        };
+        console.log(`Prior month ${priorPeriod} is editable - added to available periods`);
+      } else {
+        console.log(`Prior month ${priorPeriod} has bills - cannot edit`);
+      }
+    }
+    
+    return {
+      current: firstEmptyMonth,
+      prior: priorMonth
+    };
+    
+  } catch (error) {
+    console.error('Error finding first editable month:', error);
+    // Fallback to current month
+    const current = getCurrentFiscalPeriod();
+    return {
+      current: {
+        year: current.year,
+        month: current.month - 1,
+        period: current.period
+      },
+      prior: null
+    };
+  }
+};
+
+/**
+ * Check if a month is editable (no bills exist)
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ * @returns {Promise<boolean>} True if month can be edited
+ */
+export const isMonthEditable = async (year, month) => {
+  const hasBills = await hasBillsForMonth(year, month);
+  return !hasBills;
+};
+
 export default {
   loadPreviousReadings,
   loadCurrentReadings,
+  loadCurrentReadingsForPeriod,
   saveWashEntry,
   saveAllReadings,
+  saveAllReadingsForPeriod,
   loadClientInfo,
   checkCurrentMonthExists,
   getFiscalPeriodInfo,
-  getAggregatedDataFormat
+  getAggregatedDataFormat,
+  hasBillsForMonth,
+  findFirstEditableMonth,
+  isMonthEditable,
+  formatFiscalPeriodForDisplay,
+  clearExistenceCache
 };

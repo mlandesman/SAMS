@@ -46,6 +46,8 @@ class WaterAPI {
    * Get aggregated water data for a fiscal year
    * This endpoint returns everything: readings, bills, payments, status
    * CACHED for session to minimize re-fetching
+   * 
+   * NOTE: Backend endpoint changed from /data/ to /bills/ in refactor
    */
   async getAggregatedData(clientId, year) {
     const cacheKey = `${clientId}-${year}`;
@@ -59,8 +61,10 @@ class WaterAPI {
     console.log(`Fetching aggregated data for ${clientId} year ${year}`);
     const token = await this.getAuthToken();
     
+    // Backend route: GET /water/clients/:clientId/bills/:year
+    // Returns: { success: true, data: { year, months: [...], summary: {...} } }
     const response = await fetch(
-      `${this.baseUrl}/water/clients/${clientId}/data/${year}`,
+      `${this.baseUrl}/water/clients/${clientId}/bills/${year}`,
       {
         method: 'GET',
         headers: {
@@ -70,7 +74,11 @@ class WaterAPI {
       }
     );
     
-    const data = await handleApiResponse(response);
+    const result = await handleApiResponse(response);
+    
+    // Backend returns { success: true, data: {...} }
+    // Extract data property to match expected format
+    const data = result.data || result;
     
     // Cache the data for session
     this.cache.set(cacheKey, data);
@@ -203,6 +211,130 @@ class WaterAPI {
     });
     
     return handleApiResponse(response);
+  }
+
+  /**
+   * Get all quarterly bills for a fiscal year
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   */
+  async getQuarterlyBillsForYear(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/bills/quarterly/${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    return result.data || [];
+  }
+
+  /**
+   * Get readings for a specific month (lightweight - no aggregator/penalty calculations)
+   * This is much faster than getAggregatedData as it only reads from Firestore
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {number} month - Fiscal month (0-11)
+   */
+  async getMonthReadings(clientId, year, month) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/readings/${year}/${month}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    return result.data || { readings: {} };
+  }
+
+  /**
+   * Check if a bill exists for a month (super lightweight - document existence check only)
+   * No aggregator, no penalty calculations, just checks if document ID exists
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {number} month - Fiscal month (0-11)
+   * @returns {Promise<boolean>} True if bill document exists
+   */
+  async billExists(clientId, year, month) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/bills/exists/${year}/${month}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    return result.exists === true;
+  }
+
+  /**
+   * Batch check which months have readings (lightweight - existence check only)
+   * Returns map of month (0-11) -> boolean
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<Object>} Map of month -> boolean
+   */
+  async getReadingsExistenceForYear(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/readings/exists/${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    return result.data || {};
+  }
+
+  /**
+   * Batch check which months have bills (lightweight - existence check only)
+   * Returns map of month (0-11) -> boolean
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<Object>} Map of month -> boolean
+   */
+  async getBillsExistenceForYear(clientId, year) {
+    const token = await this.getAuthToken();
+    
+    const response = await fetch(
+      `${this.baseUrl}/water/clients/${clientId}/bills/exists/${year}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    
+    const result = await handleApiResponse(response);
+    return result.data || {};
   }
 }
 

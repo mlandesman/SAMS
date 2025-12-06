@@ -283,6 +283,126 @@ class WaterBillsService {
   }
 
   /**
+   * Check if a bill exists for a month (lightweight - document existence only)
+   * For monthly billing: checks if document {year}-{month} exists
+   * For quarterly billing: determines quarter and checks if {year}-Q{quarter} exists
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @param {number} month - Fiscal month (0-11)
+   * @returns {Promise<boolean>} True if bill document exists
+   */
+  async billExists(clientId, year, month) {
+    await this._initializeDb();
+    
+    // Get billing config to determine monthly vs quarterly
+    const config = await this.getBillingConfig(clientId);
+    const billingPeriod = config.billingPeriod || 'monthly';
+    
+    const monthStr = String(month).padStart(2, '0');
+    let docId;
+    
+    if (billingPeriod === 'quarterly') {
+      // Calculate which quarter this month belongs to
+      // Q1 = months 0-2 (July-Sept), Q2 = 3-5 (Oct-Dec), Q3 = 6-8 (Jan-Mar), Q4 = 9-11 (Apr-Jun)
+      const quarter = Math.floor(month / 3) + 1; // Q1=1, Q2=2, Q3=3, Q4=4
+      docId = `${year}-Q${quarter}`;
+    } else {
+      // Monthly billing: document ID is {year}-{month}
+      docId = `${year}-${monthStr}`;
+    }
+    
+    // Just check if document exists (no data loading)
+    const doc = await this.db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc(docId)
+      .get();
+    
+    return doc.exists;
+  }
+
+  /**
+   * Batch check which months have bills (lightweight - document existence only)
+   * Returns a map of month -> boolean indicating if bills exist
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<Object>} Map of month (0-11) -> boolean
+   */
+  async getBillsExistenceForYear(clientId, year) {
+    await this._initializeDb();
+    
+    // Get billing config to determine monthly vs quarterly
+    const config = await this.getBillingConfig(clientId);
+    const billingPeriod = config.billingPeriod || 'monthly';
+    
+    const docRefs = [];
+    const monthKeys = [];
+    
+    if (billingPeriod === 'quarterly') {
+      // For quarterly: check Q1, Q2, Q3, Q4 documents
+      // Map each month to its quarter
+      const quarterMap = {}; // quarter -> months array
+      for (let month = 0; month < 12; month++) {
+        const quarter = Math.floor(month / 3) + 1;
+        if (!quarterMap[quarter]) {
+          quarterMap[quarter] = [];
+          const docId = `${year}-Q${quarter}`;
+          docRefs.push(
+            this.db
+              .collection('clients').doc(clientId)
+              .collection('projects').doc('waterBills')
+              .collection('bills').doc(docId)
+          );
+          monthKeys.push(quarter);
+        }
+        quarterMap[quarter].push(month);
+      }
+      
+      // Batch fetch all quarterly bill documents
+      const snapshots = await this.db.getAll(...docRefs);
+      
+      // Build results map: all months in a quarter get the same value
+      const results = {};
+      snapshots.forEach((snapshot, index) => {
+        const quarter = monthKeys[index];
+        const exists = snapshot.exists;
+        // All months in this quarter have the same bill status
+        const quarterMonths = quarterMap[quarter];
+        quarterMonths.forEach(month => {
+          results[month] = exists;
+        });
+      });
+      
+      return results;
+    } else {
+      // Monthly billing: check each month individually
+      for (let month = 0; month < 12; month++) {
+        const monthStr = String(month).padStart(2, '0');
+        const docId = `${year}-${monthStr}`;
+        docRefs.push(
+          this.db
+            .collection('clients').doc(clientId)
+            .collection('projects').doc('waterBills')
+            .collection('bills').doc(docId)
+        );
+        monthKeys.push(month);
+      }
+      
+      // Batch fetch all monthly bill documents
+      const snapshots = await this.db.getAll(...docRefs);
+      
+      // Build results map
+      const results = {};
+      snapshots.forEach((snapshot, index) => {
+        const month = monthKeys[index];
+        results[month] = snapshot.exists;
+      });
+      
+      return results;
+    }
+  }
+
+  /**
    * Get billing configuration
    */
   async getBillingConfig(clientId) {

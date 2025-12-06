@@ -9,7 +9,6 @@ import {
   Dashboard as DashboardIcon,
   CurrencyExchange as CurrencyIcon,
   Add as AddIcon,
-  Business as BusinessIcon,
   Assessment as ReportIcon,
   Assignment as TaskIcon,
 } from '@mui/icons-material';
@@ -21,11 +20,14 @@ const PWANavigation = () => {
   const location = useLocation();
   const { samsUser } = useAuth();
   
+  // Backend returns propertyAccess, but support clientAccess for backwards compatibility
+  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
+  
   const isAdmin = samsUser?.globalRole === 'admin' || samsUser?.globalRole === 'superAdmin';
   const isMaintenance = samsUser?.globalRole === 'maintenance';
   const isUnitOwner = samsUser?.globalRole === 'unitOwner' || 
-    (samsUser?.clientAccess && 
-     Object.values(samsUser.clientAccess).some(access => 
+    (clientAccess && Object.keys(clientAccess).length > 0 &&
+     Object.values(clientAccess).some(access => 
        access.role === 'unitOwner' || access.role === 'unitManager'
      ));
   
@@ -33,7 +35,8 @@ const PWANavigation = () => {
   console.log('PWANavigation Debug:', {
     samsUser: samsUser,
     globalRole: samsUser?.globalRole,
-    clientAccess: samsUser?.clientAccess,
+    clientAccess: clientAccess,
+    propertyAccess: samsUser?.propertyAccess,
     isAdmin,
     isMaintenance,
     isUnitOwner,
@@ -55,7 +58,6 @@ const PWANavigation = () => {
   const adminNavItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
-    { label: 'Clients', icon: <BusinessIcon />, path: '/clients' },
   ];
 
   const unitOwnerNavItems = [
@@ -65,7 +67,7 @@ const PWANavigation = () => {
 
   const maintenanceNavItems = [
     { label: 'Tareas', icon: <TaskIcon />, path: '/tareas' },
-    { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    // Dashboard removed - maintenance users should not access owner financial data
   ];
 
   // For users with both admin and unit owner roles, show extended nav
@@ -73,7 +75,6 @@ const PWANavigation = () => {
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
     { label: 'Unit Report', icon: <ReportIcon />, path: '/my-report' },
-    { label: 'Clients', icon: <BusinessIcon />, path: '/clients' },
   ];
 
   const getNavItems = () => {

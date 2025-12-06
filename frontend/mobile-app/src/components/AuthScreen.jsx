@@ -47,8 +47,13 @@ const AuthScreen = () => {
     // Only redirect if we have a complete user profile and we're not loading
     // Check for either 'id' or 'uid' since backend returns 'id'
     if (user && (user.id || user.uid) && user.globalRole && !loading) {
-      console.log('✅ STABLE AUTH: User fully authenticated, redirecting to dashboard:', user);
-      navigate('/dashboard');
+      // Maintenance users should go to /tareas, others to /dashboard
+      const redirectPath = user.globalRole === 'maintenance' ? '/tareas' : '/dashboard';
+      console.log(`✅ STABLE AUTH: User fully authenticated, redirecting to ${redirectPath}:`, {
+        globalRole: user.globalRole,
+        redirectPath
+      });
+      navigate(redirectPath);
     } else if (user && !loading) {
       console.log('⚠️ STABLE AUTH: User exists but missing required properties for redirect:', user);
     }

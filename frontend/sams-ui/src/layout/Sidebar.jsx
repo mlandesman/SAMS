@@ -34,7 +34,12 @@ const getVisibleMenuItems = (user, items, selectedClient) => {
     });
     
     return items.filter(item => {
-      const activity = item.activity?.toLowerCase();
+      // Strip quotes and whitespace from activity name
+      const activity = item.activity
+        ?.toString()
+        .replace(/^["']+|["']+$/g, '') // Remove leading/trailing quotes
+        .trim()
+        .toLowerCase();
       const itemName = item.name?.toLowerCase();
       
                   console.log('🔍 MENU DEBUG - Is SuperAdmin:', isSuperAdmin(user));
@@ -88,7 +93,12 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
     let items = selectedClient
       ? (menuConfig && menuConfig.length > 0 
           ? menuConfig.map(item => {
-              const activityName = (item.activity || '').toLowerCase();
+              // Strip quotes and whitespace from activity name
+              const activityName = (item.activity || '')
+                .toString()
+                .replace(/^["']+|["']+$/g, '') // Remove leading/trailing quotes
+                .trim()
+                .toLowerCase();
               // Handle specific route mappings
               let path = `/${activityName}`;
               if (activityName === 'listmanagement') {

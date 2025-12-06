@@ -138,26 +138,128 @@
 
 ## 📱 PWA/MOBILE REFACTOR (Post-Budget Module)
 
-**Timeline:** Starting Dec 7-8, 2025 (this weekend)
+**Timeline:** Started Dec 4, 2025  
+**Current Status:** Phase 0 Complete — Foundation ready for Phase 1
 
-### PWA Priority A: Water Meter Entry │ Agent_Mobile
-**Status:** 🔄 READY TO BEGIN after Budget Module  
-**Estimated Effort:** Medium (existing code needs update)
+### PWA Phase 0: Firebase Migration │ ✅ COMPLETE
+**Status:** ✅ COMPLETE (December 4, 2025)  
+**Actual Effort:** ~3 hours (estimated 4-6 hours)  
+**Quality:** ⭐⭐⭐⭐⭐  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/PWA_Phase_0_Firebase_Migration_2025-12-04/`
 
-**Context:** Water meter readings were working (in English) through Firebase storage. Needs:
-- Update to current backend endpoints and data structures
-- Spanish-only UI for maintenance workers
-- Simple, quick interface for non-technical field worker
+**Deliverables:**
+- ✅ Firebase multi-site hosting configured (desktop + mobile targets)
+- ✅ PWA config fixed (empty string for production = same-origin)
+- ✅ Missing API rewrites added (`/reports/**`, `/credit/**`, `/payments/**`, `/budgets/**`)
+- ✅ Vercel artifacts removed (3 files deleted)
+- ✅ PWA builds successfully
+- ✅ Local connectivity verified (localhost:5001 calls working)
+
+**Key Configuration:**
+- Firebase Site: `sams-mobile-pwa`
+- Deploy Command: `firebase deploy --only hosting:mobile`
+- Custom Domain: `mobile.sams.sandyland.com.mx` (ready to configure)
+
+---
+
+### PWA Phase 1: API & Data Fixes │ ✅ COMPLETE
+**Status:** ✅ COMPLETE (December 4, 2025)  
+**Actual Effort:** ~6 hours (estimated 4-6 hours)  
+**Quality:** ⭐⭐⭐⭐⭐  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/PWA_Phase_1_API_Fixes_2025-12-04/`
+
+**Deliverables:**
+- ✅ Account Balances fixed (API with centavos conversion)
+- ✅ HOA Dues Status fixed (matches desktop calculation)
+- ✅ Exchange Rates fixed (correct endpoint path)
+- ✅ Testing verified (MTC and AVII)
+
+**Additional Achievements:**
+- ✅ Past Due Units Card added with expandable details
+- ✅ Water Bills Card added for AVII client
+- ✅ Client Features utility (`clientFeatures.js`) created
+- ✅ Fiscal Year fix for AVII (July-start)
+- ✅ Client switching enhanced
+
+**Deferred (Low Priority):**
+- ⚠️ Client logos not displaying
+- ⚠️ Admin tag accuracy
+
+---
+
+### PWA Priority A: Water Meter Entry │ ✅ COMPLETE
+**Status:** ✅ COMPLETE (December 6, 2025)  
+**Actual Effort:** 4-5 hours (multi-session)  
+**Quality:** ⭐⭐⭐⭐⭐ Outstanding  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/PWA_Water_Meter_WM-2_2025-12-06/`
+
+**Deliverables:**
+- ✅ Water meter entry interface with period switching
+- ✅ API compatibility fixes for refactored backend
+- ✅ Unsaved changes tracking via localStorage (debounced)
+- ✅ **Performance optimization: 92% reduction in API calls** (24 → 2)
+- ✅ Batch endpoints for readings/bills existence checks
+- ✅ Maintenance role security: Dashboard access blocked
+- ✅ Test user: hdotter@gmail.com (maintenance role)
+
+**Bug Fix During Task:**
+- Fixed `hasClientAccess` → `hasPropertyAccess` naming inconsistency (9 files)
+- See: `SAMS-Docs/apm_session/Memory/Bug_Fixes/BUG_FIX_hasClientAccess_Method_Naming_2025-12-04.md`
+
+**Key Files:**
+- `frontend/mobile-app/src/components/WaterMeterEntryNew.jsx`
+- `frontend/mobile-app/src/services/waterReadingServiceV2.js`
+- `frontend/mobile-app/src/api/waterAPI.js`
+- `backend/routes/waterRoutes.js` (batch endpoints added)
+
+---
+
+### PWA Priority A.1: Dashboard Card Refactor │ GitHub #47
+**Status:** 📋 BACKLOG (Medium Priority)  
+**Estimated Effort:** 4-6 hours  
+**Depends On:** Water Meter Entry complete (Priority A)
+
+**User Story:** Current cards take up the whole screen. Need smaller, summary cards that fit 2-3 across with tap-to-view-more pattern.
+
+**Design References:**
+- [Grocery Mobile Dashboard](https://dribbble.com/shots/25180450-Grocery-Mobile-Dashboard-UI-Design)
+- [Podcast Analytics Dashboard](https://dribbble.com/shots/9808385-Mobile-Dashboard-Podcast-Analytics-App)
+- [Crypto Dashboard](https://dribbble.com/shots/4200700-Crypto-Mobile-Dashboard-White-or-Dark)
+- [Health App](https://dribbble.com/shots/2062953-Health-App-mobile)
+- [Mobile Dashboard](https://dribbble.com/shots/3224323-Mobile-Dashboard)
 
 ### PWA Priority B: Propane Tank Module │ Agent_Propane
-**Status:** 📋 After Water Meters  
-**Estimated Effort:** Small (new but simple)
+**Status:** 🔄 IN PROGRESS - Task PT-1 Assigned (Phases 1-2 + 3A)  
+**Estimated Effort:** 8-10 hours (PT-1), 4-6 hours remaining (future phases)  
+**Design Doc:** `.apm/Memory/Task_Assignments/Planning/Propane_Tank_Module_Design.md`
+**Task Assignment:** `.apm/Memory/Task_Assignments/Active/Task_PT-1_Propane_Tank_Backend_PWA.md`
 
 **Scope:**
-- Monthly readings (0-100%) for MTC propane tanks
+- Monthly readings (0-100%) for MTC propane tanks (9 units - 2B has no tank)
+- Config-driven unit list - mirrors Water Bills pattern
 - PWA maintenance worker interface (Spanish)
+- Desktop History table (months × units with color-coded percentages)
+- CSV seeding with 2 years of historical data
 - Simple readings only - NO billing, NO penalties
-- Report: Show trend over time for absent unit owners
+- Thresholds: Red ≤10%, Amber 10-30%, Green 30-100%
+
+**Data Structure:**
+```
+clients/MTC/projects/propaneTanks/readings/{year}-{month}
+  readings: { "1A": { level: 60 }, "1B": { level: 80 }, ... }
+```
+
+**Phases:**
+1. 🔄 Backend & Data Structure (2-3 hrs) - PT-1
+2. 🔄 PWA Worker Entry (3-4 hrs) - PT-1
+3. 🔄 Desktop History Table (2 hrs) - PT-1 (3A only)
+4. 📋 Desktop Admin Entry View (2 hrs) - Future (3B)
+5. 📋 PWA Owner Dashboard Card (2-3 hrs) - Future
+6. 📋 Trend Analysis (2-3 hrs) - Future
+
+**Historical Data:** 25 months (Jan 2024 - Nov 2025) from Google Sheets CSV
+
+**Related:** TD-028 (Unit-specific association data enhancement)
 
 ### PWA Priority C: Owner/Manager Dashboard │ Agent_Mobile
 **Status:** 📋 After Propane  
@@ -231,9 +333,69 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 **Impact:** Inconsistent layouts, tab styles, design patterns across modules  
 **Effort:** 15-20 hours (future work)
 
+### TD-028: Unit-Specific Association Data Enhancement
+**Priority:** MEDIUM  
+**Impact:** Currently hardcoding which units have propane tanks, future boat dock fees for AVII  
+**Scope:** Add association-specific optional fields to unit configuration:
+```javascript
+// Example unit config enhancement
+{
+  unitId: "1A",
+  // ... existing fields ...
+  propaneTank: { sizeInLiters: 120 } | null,  // null = no tank
+  boatOnDock: { sizeInFeet: 24 } | null       // null = no boat (for AVII)
+}
+```
+**Use Cases:**
+- MTC: Propane tank tracking (unit 2B has no tank)
+- AVII: Future boat dock monthly fees based on boat/dock size
+**Current Workaround:** Hardcode unit lists in propane config  
+**Effort:** 2-3 sessions
+
 ---
 
 ## 🚀 FUTURE FEATURES (Backlog)
+
+### Budget Status Dashboard Card │ GitHub #46
+**Status:** 📋 BACKLOG (Medium Priority)  
+**Estimated Effort:** 2-3 sessions  
+**Depends On:** ✅ Budget Module (v0.4.0 complete)
+
+**Scope:**
+- Quick reference card for Desktop and Mobile dashboards
+- Overall tracking to budget with % of year elapsed
+- Hover tooltip/dropdown showing top 5-10 variance items (+ or -)
+- Follow financial app best practices
+
+**User Story:** With budgets and budget vs actual data now in SAMS, provide a dashboard widget for at-a-glance budget health monitoring.
+
+**Design Considerations:**
+- Color-coded status indicator (green/yellow/red)
+- Year-to-date context (budget prorated by elapsed time)
+- Drill-down to full Budget vs Actual report
+
+---
+
+### PWA Auto-Login │ GitHub #49
+**Status:** 📋 BACKLOG (Medium Priority)  
+**Estimated Effort:** 1-3 days (Large)  
+**Module:** Frontend Mobile
+
+**User Story:** Add auto-login capability to speed up entry for workers, admins, and users.
+
+**Proposed Solutions:**
+1. **Biometrics (Preferred)** - Face ID, Touch ID, or Android equivalent
+2. **Persistent Cookies** - 90-day lifespan fallback
+
+**Business Value:** Maintenance workers (Humberto) can get to task entry faster. Admins and unit owners benefit from seamless re-authentication.
+
+**Technical Considerations:**
+- Firebase Auth persistence options
+- Web Authentication API for biometrics
+- Secure token storage
+- PWA service worker integration
+
+---
 
 ### WhatsApp Business Integration │ Agent_Communications
 **Status:** 📋 BACKLOG  
@@ -333,9 +495,11 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 3. **Firestore Backup** - GitHub #38 (Dec 21-31)
 
 ### Post-Production Roadmap (Q1 2026)
-1. **PWA: Water Meter Entry** - Spanish, simple, field worker ready
-2. **Propane Tank Module** - Monthly readings, no billing
+1. ~~**PWA: Water Meter Entry**~~ - ✅ COMPLETE (Dec 6, 2025)
+2. **Propane Tank Module** - Monthly readings, no billing (design complete)
 3. **PWA: Owner Dashboard** - Unit status, exchange rates
+4. **Budget Status Dashboard Card** - GitHub #46, quick reference widget
+5. **PWA Auto-Login** - GitHub #49, biometrics/cookies
 
 ### Deprioritized (Post-Production)
 - GitHub #43: Client Management 404

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,6 +8,12 @@ import {
   Chip,
   Alert,
   IconButton,
+  Collapse,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Button,
 } from '@mui/material';
 import { LoadingSpinner } from './common';
 import {
@@ -18,31 +24,62 @@ import {
   Home as HomeIcon,
   Assignment as ProjectIcon,
   Calculate as CalculateIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Water as WaterIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useClients } from '../hooks/useClients.jsx';
 import ClientSwitcher from './ClientSwitcher.jsx';
+import { hasWaterBills } from '../utils/clientFeatures.js';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { samsUser, currentClient, isAuthenticated } = useAuth();
-  const { selectedClient } = useClients();
+  const { selectedClient, selectClient } = useClients();
   const { 
     accountBalances, 
     hoaDuesStatus, 
-    exchangeRates, 
+    exchangeRates,
+    waterBillsStatus,
     loading, 
     error 
   } = useDashboardData();
+  
+  const [pastDueExpanded, setPastDueExpanded] = useState(false);
+  const [waterBillsExpanded, setWaterBillsExpanded] = useState(false);
+  
+  // Check if client has water bills enabled
+  const clientHasWaterBills = selectedClient ? hasWaterBills(selectedClient) : false;
 
   if (!isAuthenticated) {
     return <LoadingSpinner message="Authenticating..." size="medium" />;
   }
 
+  // Block maintenance users from accessing Dashboard (contains sensitive financial data)
+  const isMaintenance = samsUser?.globalRole === 'maintenance';
+  if (isMaintenance) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          El Dashboard no está disponible para trabajadores de mantenimiento.
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={() => navigate('/tareas')}
+          sx={{ textTransform: 'none' }}
+        >
+          Ir a Tareas
+        </Button>
+      </Box>
+    );
+  }
+
   const isAdmin = samsUser?.globalRole === 'admin';
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
+  const isAdminOrSuperAdmin = isAdmin || isSuperAdmin; // Combined check for admin features
   const userRole = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Administrator' : 'Unit Owner');
 
   return (
@@ -56,16 +93,22 @@ const Dashboard = () => {
           <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center" mb={1}>
             <Chip 
               label={userRole} 
-              color={isAdmin ? 'primary' : 'secondary'} 
+              color={isAdminOrSuperAdmin ? 'primary' : 'secondary'} 
               size="small" 
             />
           </Box>
           {currentClient && (
             <ClientSwitcher 
               currentClient={currentClient}
-              onClientChange={(newClient) => {
-                // TODO: Implement client change logic
-                console.log('Client change to:', newClient);
+              onClientChange={async (newClientId) => {
+                try {
+                  await selectClient(newClientId);
+                  // Dashboard data will automatically refresh via useDashboardData hook
+                  // which depends on currentClient from useAuth
+                  console.log('✅ Client changed to:', newClientId);
+                } catch (error) {
+                  console.error('❌ Failed to change client:', error);
+                }
               }}
             />
           )}
@@ -77,7 +120,7 @@ const Dashboard = () => {
         sx={{ mb: 3 }}
         icon={<BalanceIcon />}
       >
-        Welcome to Sandyland Asset Management. {isAdmin ? 
+        Welcome to Sandyland Asset Management. {isAdminOrSuperAdmin ? 
           'You have administrator access with full system capabilities.' : 
           'Access your unit information and exchange rates.'
         }
@@ -213,22 +256,35 @@ const Dashboard = () => {
         </Grid>
 
         {/* Past Due Units Card (Admin Only) */}
-        {isAdmin && (
+        {isAdminOrSuperAdmin && (
           <Grid item xs={12} className="dashboard-card">
             <Card 
+              className="mobile-card"
               sx={{ 
                 height: '100%',
+                margin: 0,
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                 }
               }}
             >
               <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <ReceiptIcon sx={{ color: '#dc2626', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Past Due Units</Typography>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center">
+                    <ReceiptIcon sx={{ color: '#dc2626', mr: 1, fontSize: 28 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>Past Due Units</Typography>
+                  </Box>
+                  {hoaDuesStatus.overdueCount > 0 && (
+                    <IconButton
+                      onClick={() => setPastDueExpanded(!pastDueExpanded)}
+                      size="small"
+                      sx={{ color: '#dc2626' }}
+                    >
+                      {pastDueExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  )}
                 </Box>
                 {loading.dues ? (
                   <Box display="flex" justifyContent="center" py={2}>
@@ -248,9 +304,168 @@ const Dashboard = () => {
                         <strong>{hoaDuesStatus.overdueCount || 0}</strong>
                       </Typography>
                       {hoaDuesStatus.overdueCount > 0 && (
-                        <Alert severity="warning" sx={{ mt: 1 }}>
-                          {hoaDuesStatus.overdueCount} unit{hoaDuesStatus.overdueCount !== 1 ? 's' : ''} need attention
-                        </Alert>
+                        <>
+                          <Alert severity="warning" sx={{ mt: 1, mb: 1 }}>
+                            {hoaDuesStatus.overdueCount} unit{hoaDuesStatus.overdueCount !== 1 ? 's' : ''} need attention
+                          </Alert>
+                          <Collapse in={pastDueExpanded}>
+                            <Box sx={{ mt: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#dc2626' }}>
+                                Past Due Details
+                              </Typography>
+                              {hoaDuesStatus.pastDueDetails && hoaDuesStatus.pastDueDetails.length > 0 ? (
+                                <List dense sx={{ bgcolor: 'rgba(220, 38, 38, 0.05)', borderRadius: 1, p: 0 }}>
+                                  {hoaDuesStatus.pastDueDetails.map((unit, index) => (
+                                    <React.Fragment key={unit.unitId}>
+                                      <ListItem sx={{ py: 0.75, px: 1.5 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                {unit.unitId}
+                                                {unit.owner && ` - ${unit.owner}`}
+                                              </Typography>
+                                              <Typography variant="body2" sx={{ fontWeight: 700, color: '#dc2626' }}>
+                                                ${unit.amountDue?.toLocaleString() || '0'}
+                                              </Typography>
+                                            </Box>
+                                          }
+                                        />
+                                      </ListItem>
+                                      {index < hoaDuesStatus.pastDueDetails.length - 1 && <Divider />}
+                                    </React.Fragment>
+                                  ))}
+                                </List>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  No detailed information available
+                                </Typography>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </>
+                      )}
+                    </Box>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Water Bills Past Due Card - Only show for clients with water bills enabled */}
+        {isAdminOrSuperAdmin && clientHasWaterBills && (
+          <Grid item xs={12} className="dashboard-card">
+            <Card 
+              className="mobile-card"
+              sx={{ 
+                height: '100%',
+                margin: 0,
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                }
+              }}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box display="flex" alignItems="center">
+                    <WaterIcon sx={{ color: '#0891b2', mr: 1, fontSize: 28 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>Water Bills Past Due</Typography>
+                  </Box>
+                  {waterBillsStatus.overdueCount > 0 && (
+                    <IconButton
+                      onClick={() => setWaterBillsExpanded(!waterBillsExpanded)}
+                      size="small"
+                      sx={{ color: '#0891b2' }}
+                    >
+                      {waterBillsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  )}
+                </Box>
+                {loading.water ? (
+                  <Box display="flex" justifyContent="center" py={2}>
+                    <LoadingSpinner size="small" />
+                  </Box>
+                ) : error.water ? (
+                  <Box textAlign="center" py={2}>
+                    <Typography variant="body2" color="text.secondary">
+                      Water bills not available
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <Typography variant="h4" sx={{ color: '#0891b2', fontWeight: 700, mb: 1 }}>
+                      ${waterBillsStatus.totalUnpaid?.toLocaleString() || '0'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Past Due Amount
+                    </Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <span>Units Past Due:</span>
+                        <strong>{waterBillsStatus.overdueCount || 0}</strong>
+                      </Typography>
+                      {waterBillsStatus.overdueCount > 0 && (
+                        <>
+                          <Alert severity="warning" sx={{ mt: 1, mb: 1 }}>
+                            {waterBillsStatus.overdueCount} unit{waterBillsStatus.overdueCount !== 1 ? 's' : ''} need attention
+                          </Alert>
+                          <Collapse in={waterBillsExpanded}>
+                            <Box sx={{ mt: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#0891b2' }}>
+                                Water Bills Past Due Details
+                              </Typography>
+                              {waterBillsStatus.pastDueDetails && waterBillsStatus.pastDueDetails.length > 0 ? (
+                                <List dense sx={{ bgcolor: 'rgba(8, 145, 178, 0.05)', borderRadius: 1, p: 0 }}>
+                                  {waterBillsStatus.pastDueDetails.map((unit, index) => (
+                                    <React.Fragment key={unit.unitId}>
+                                      <ListItem sx={{ py: 0.75, px: 1.5 }}>
+                                        <ListItemText
+                                          primary={
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                {unit.unitId}
+                                                {unit.owner && ` - ${unit.owner}`}
+                                              </Typography>
+                                              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0891b2' }}>
+                                                ${unit.amountDue?.toLocaleString() || '0'}
+                                              </Typography>
+                                            </Box>
+                                          }
+                                        />
+                                      </ListItem>
+                                      {index < waterBillsStatus.pastDueDetails.length - 1 && <Divider />}
+                                    </React.Fragment>
+                                  ))}
+                                </List>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  No detailed information available
+                                </Typography>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </>
+                      )}
+                      {waterBillsStatus.totalBilled > 0 && (
+                        <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
+                          <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <span>Total Billed:</span>
+                            <strong>${waterBillsStatus.totalBilled?.toLocaleString() || '0'}</strong>
+                          </Typography>
+                          <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <span>Total Paid:</span>
+                            <strong style={{ color: '#059669' }}>${waterBillsStatus.totalPaid?.toLocaleString() || '0'}</strong>
+                          </Typography>
+                          <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Collection Rate:</span>
+                            <strong style={{ color: waterBillsStatus.collectionRate >= 80 ? '#059669' : '#dc2626' }}>
+                              {waterBillsStatus.collectionRate?.toFixed(1) || '0'}%
+                            </strong>
+                          </Typography>
+                        </Box>
                       )}
                     </Box>
                   </>

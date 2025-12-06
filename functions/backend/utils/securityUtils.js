@@ -22,7 +22,8 @@ export function validateClientAccess(user, clientId) {
   }
   
   // Check client access
-  if (!user.hasClientAccess(clientId)) {
+  // Note: Middleware uses hasPropertyAccess/getPropertyAccess (not hasClientAccess)
+  if (!user.hasPropertyAccess?.(clientId)) {
     return { 
       allowed: false, 
       reason: `User ${user.email} not authorized for client ${clientId}` 
@@ -65,8 +66,9 @@ export function canUserPerformOperation(user, operation, resourceType, clientId,
     return propertyAccess;
   }
   
-  const userClientAccess = user.getClientAccess(clientId);
-  const userRole = userClientAccess.role;
+  // Note: Middleware uses getPropertyAccess (not getClientAccess)
+  const userClientAccess = user.getPropertyAccess?.(clientId);
+  const userRole = userClientAccess?.role;
   
   // Define operation permissions by role
   const operationPermissions = {
@@ -137,8 +139,9 @@ export function getSecureQueryFilters(user, clientId, collectionType) {
     throw new Error(`Unauthorized client access: ${propertyAccess.reason}`);
   }
   
-  const userClientAccess = user.getClientAccess(clientId);
-  const userRole = userClientAccess.role;
+  // Note: Middleware uses getPropertyAccess (not getClientAccess)
+  const userClientAccess = user.getPropertyAccess?.(clientId);
+  const userRole = userClientAccess?.role;
   
   // Add role-based filters
   switch (userRole) {
@@ -240,7 +243,8 @@ export function detectSecurityViolation(user, requestedClientId, resourceType, o
   const violations = [];
   
   // Check for client access violation
-  if (!user.isSuperAdmin() && !user.hasClientAccess(requestedClientId)) {
+  // Note: Middleware uses hasPropertyAccess/getPropertyAccess (not hasClientAccess)
+  if (!user.isSuperAdmin() && !user.hasPropertyAccess?.(requestedClientId)) {
     violations.push({
       type: 'UNAUTHORIZED_CLIENT_ACCESS',
       severity: 'HIGH',

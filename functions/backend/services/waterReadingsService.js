@@ -92,6 +92,48 @@ class WaterReadingsService {
     return doc.exists ? doc.data() : null;
   }
 
+  /**
+   * Batch check which months have readings (lightweight - existence check only)
+   * Returns a map of month -> boolean indicating if readings exist
+   * @param {string} clientId - Client ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<Object>} Map of month (0-11) -> boolean
+   */
+  async getReadingsExistenceForYear(clientId, year) {
+    await this._initializeDb();
+    
+    // Build document references for all 12 months
+    const docRefs = [];
+    const monthKeys = [];
+    
+    for (let month = 0; month < 12; month++) {
+      const docId = `${year}-${String(month).padStart(2, '0')}`;
+      docRefs.push(
+        this.db
+          .collection('clients').doc(clientId)
+          .collection('projects').doc('waterBills')
+          .collection('readings').doc(docId)
+      );
+      monthKeys.push(month);
+    }
+    
+    // Batch fetch all documents (existence check only)
+    const snapshots = await this.db.getAll(...docRefs);
+    
+    // Build results map
+    const results = {};
+    snapshots.forEach((snapshot, index) => {
+      const month = monthKeys[index];
+      // Check if document exists AND has readings data
+      const hasReadings = snapshot.exists && 
+        snapshot.data()?.readings && 
+        Object.keys(snapshot.data().readings).length > 0;
+      results[month] = hasReadings;
+    });
+    
+    return results;
+  }
+
   // Get all readings for a year with consumption calculations
   async getYearReadings(clientId, year) {
     await this._initializeDb();
