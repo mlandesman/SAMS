@@ -66,6 +66,54 @@ function formatDate(dateValue) {
 }
 
 /**
+ * Format centavos to pesos
+ * @param {number} centavos - Amount in centavos
+ * @returns {number} Amount in pesos
+ */
+function centavosToPesos(centavos) {
+  if (!centavos && centavos !== 0) return 0;
+  return centavos / 100;
+}
+
+/**
+ * Format date range for project period
+ * @param {string|Date} startDate - Start date
+ * @param {string|Date} endDate - End date
+ * @returns {string} Formatted date range (e.g., "Jan 2024 - Dec 2024")
+ */
+function formatDateRange(startDate, endDate) {
+  if (!startDate || !endDate) return '';
+  
+  const start = typeof startDate === 'string' 
+    ? DateTime.fromISO(startDate, { zone: 'America/Cancun' })
+    : DateTime.fromJSDate(startDate).setZone('America/Cancun');
+  const end = typeof endDate === 'string'
+    ? DateTime.fromISO(endDate, { zone: 'America/Cancun' })
+    : DateTime.fromJSDate(endDate).setZone('America/Cancun');
+  
+  if (!start.isValid || !end.isValid) return '';
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${monthNames[start.month - 1]} ${start.year} - ${monthNames[end.month - 1]} ${end.year}`;
+}
+
+/**
+ * Capitalize and format project status
+ * @param {string} status - Project status
+ * @returns {string} Formatted status
+ */
+function capitalizeStatus(status) {
+  if (!status) return '';
+  const statusMap = {
+    'completed': 'Complete',
+    'in-progress': 'Started', 
+    'planned': 'Pending'
+  };
+  return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
  * Translate description text for Spanish
  */
 function translateDescription(description, language) {
@@ -152,6 +200,12 @@ function getTranslations(language) {
       penalties: 'Penalties',
       totalPaid: 'Total Paid',
       totals: 'TOTALS',
+      specialAssessments: 'SPECIAL ASSESSMENTS / PROJECTS',
+      yourAssessment: 'Your Assessment',
+      projectPeriod: 'Period',
+      projectStatus: 'Status',
+      projectBudget: 'Budget',
+      totalSpecialAssessments: 'TOTAL SPECIAL ASSESSMENTS PAID',
       balanceDue: 'BALANCE DUE',
       creditBalance: 'CREDIT BALANCE',
       paidInFull: 'PAID IN FULL',
@@ -196,6 +250,12 @@ function getTranslations(language) {
       penalties: 'Penalizaciones',
       totalPaid: 'Total Pagado',
       totals: 'TOTALES',
+      specialAssessments: 'CUOTAS ESPECIALES / PROYECTOS',
+      yourAssessment: 'Su Cuota',
+      projectPeriod: 'Período',
+      projectStatus: 'Estado',
+      projectBudget: 'Presupuesto',
+      totalSpecialAssessments: 'TOTAL CUOTAS ESPECIALES PAGADAS',
       balanceDue: 'SALDO PENDIENTE',
       creditBalance: 'SALDO A FAVOR',
       paidInFull: 'PAGADO COMPLETO',
@@ -720,6 +780,89 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       .payment-terms {
         page-break-inside: avoid;
       }
+      
+      .projects-section {
+        page-break-inside: avoid;
+      }
+    }
+    
+    /* Projects Section */
+    .projects-section {
+      margin: 20px 0;
+      clear: both;
+    }
+    
+    .project-table {
+      border: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+    
+    .project-header {
+      background-color: #4472C4;
+      color: #fff;
+      padding: 8px 12px;
+    }
+    
+    .project-name {
+      font-size: 11pt;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+    
+    .project-meta {
+      font-size: 8pt;
+    }
+    
+    .project-assessment {
+      background-color: #e8f0fe;
+      padding: 6px 12px;
+      font-weight: bold;
+      font-size: 10pt;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .project-collections {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+    
+    .project-collections th {
+      background-color: #f5f5f5;
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+      font-size: 8pt;
+    }
+    
+    .project-collections td {
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+    }
+    
+    .project-collections .col-date { width: 15%; text-align: center; }
+    .project-collections .col-amount { width: 15%; text-align: right; }
+    .project-collections .col-notes { width: 70%; }
+    
+    .project-summary {
+      background-color: #f9f9f9;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 30px;
+      font-weight: bold;
+      font-size: 9pt;
+      border-top: 1px solid #ddd;
+    }
+    
+    .projects-total {
+      background-color: #4472C4;
+      color: #fff;
+      padding: 8px 12px;
+      font-weight: bold;
+      font-size: 10pt;
+      text-align: center;
+      margin-top: 10px;
     }
     
     /* Additional PDF-specific optimizations */
@@ -908,6 +1051,71 @@ export async function generateStatementData(api, clientId, unitId, options = {})
         </tbody>
       </table>
     </div>
+    
+    ${data.projectsData?.hasProjects ? `
+    <!-- Special Assessments / Projects Section -->
+    <div class="projects-section">
+      <div class="section-header">${t.specialAssessments}</div>
+      
+      ${data.projectsData.projects.map(project => `
+        <div class="project-table">
+          <div class="project-header">
+            <div class="project-name">${project.name}</div>
+            <div class="project-meta">
+              ${t.projectPeriod}: ${formatDateRange(project.startDate, project.completionDate)} │ 
+              ${t.projectStatus}: ${capitalizeStatus(project.status)} │ 
+              ${t.projectBudget}: ${formatCurrency(centavosToPesos(project.totalBudget))}
+            </div>
+          </div>
+          
+          <div class="project-assessment">
+            ${t.yourAssessment}: ${formatCurrency(centavosToPesos(project.assessment))}
+          </div>
+          
+          <table class="project-collections">
+            <thead>
+              <tr>
+                <th class="col-date">${t.tableHeaders.date}</th>
+                <th class="col-amount">${t.tableHeaders.charge}</th>
+                <th class="col-notes">${t.tableHeaders.description}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${project.collections.map(c => {
+                // Parse collection date for display
+                let collectionDate = '';
+                if (c.date && typeof c.date.toDate === 'function') {
+                  collectionDate = formatDate(c.date.toDate());
+                } else if (c.date instanceof Date) {
+                  collectionDate = formatDate(c.date);
+                } else if (typeof c.date === 'string') {
+                  collectionDate = formatDate(c.date);
+                }
+                
+                return `
+                <tr>
+                  <td class="col-date">${collectionDate}</td>
+                  <td class="col-amount">${formatCurrency(centavosToPesos(c.amount))}</td>
+                  <td class="col-notes">${c.notes || ''}</td>
+                </tr>
+              `;
+              }).join('')}
+            </tbody>
+          </table>
+          
+          <div class="project-summary">
+            <span>PAID: ${formatCurrency(centavosToPesos(project.totalPaid))}</span>
+            <span>BALANCE: ${formatCurrency(centavosToPesos(project.balance))} ${project.balance <= 0 ? '✅' : '⚠️'}</span>
+          </div>
+        </div>
+      `).join('')}
+      
+      <div class="projects-total">
+        ${t.totalSpecialAssessments} (${data.statementInfo.fiscalYear}): 
+        ${formatCurrency(centavosToPesos(data.projectsData.totalPaid))}
+      </div>
+    </div>
+` : ''}
     
     <!-- Footer - Payment Terms -->
     <div class="payment-terms">

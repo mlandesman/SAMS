@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 10 - GitHub Issues Review, PWA Complete (December 6, 2025)  
-**Current Version:** v0.4.1 - PWA Maintenance Tools Complete  
+**Last Modification:** Manager Agent 11 - Projects Module Complete (December 7, 2025)  
+**Current Version:** v0.4.2 - Projects Module Complete  
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Budget Module (urgent), then PWA/Mobile refactor.
@@ -13,6 +13,31 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v0.4.2 - Projects Module / Special Assessments (December 7, 2025)
+- ✅ **P-1: Analysis & Data Extraction** - 78 transactions mapped, schema defined
+- ✅ **P-2: Seeding Script** - 4 projects seeded to Firestore (~393 lines)
+- ✅ **P-3: Text Table Display** - Validation tool (~301 lines)
+- ✅ **P-4: Statement Integration** - Projects section in Statement of Account (~250 lines)
+
+**Total Duration:** ~5 hours (vs 8-11 hour estimate)  
+**Quality:** ⭐⭐⭐⭐⭐ All tasks received 5-star ratings
+
+**Projects Seeded:**
+- `elevator-refurb-2023-2024` - Elevator Refurbishment (27 transactions)
+- `roof-water-sealing-2024` - Roof Water Sealing (23 transactions)
+- `propane-pipes-2025` - Propane Tank Fill Lines (13 transactions)
+- `column-repairs-2025` - Column Repairs (13 transactions)
+
+**Key Features:**
+- Unit Statement of Account now shows Special Assessments section
+- Projects filtered by unit payments in fiscal year
+- Exempt units correctly excluded (Unit 2B exempt from Propane)
+- Bilingual support (English/Spanish)
+- Allocation Summary includes "Special Assessments" row
+
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Projects_Module_2025-12-07/`  
+**Git Branch:** `feature/projects-module`
 
 ### v0.4.1 - PWA Maintenance Tools (December 6, 2025)
 - ✅ **WM-2: Water Meter API Integration** - ~1,500 lines, 92% API call reduction
@@ -529,8 +554,9 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 ### Critical Path to Production (Dec 2025)
 1. ~~**Budget Module**~~ - ✅ GitHub #45 COMPLETE (Dec 4)
 2. ~~**PWA Maintenance Tools**~~ - ✅ WM-2, WM-3, PT-1 COMPLETE (Dec 6)
-3. **Data Reconciliation** - Manual process (Dec 7-20) 🔄 IN PROGRESS
-4. **Firestore Backup** - GitHub #38 (Dec 21-31)
+3. ~~**Projects Module**~~ - ✅ Special Assessments in Statements COMPLETE (Dec 7)
+4. **Data Reconciliation** - Manual process (Dec 7-20) 🔄 IN PROGRESS
+5. **Firestore Backup** - GitHub #38 (Dec 21-31)
 
 ### Post-Production Roadmap (Q1 2026)
 1. **PWA: Owner Dashboard** - Unit status, exchange rates (GitHub #47 card refactor)
@@ -553,5 +579,6 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 - ✅ **Statement of Account:** Professional reports replacing Google Sheets
 - ✅ **v0.4.0 Milestone:** Budget Module COMPLETE (Dec 4, 2025) - Ready for Jan 1, 2026
 - ✅ **v0.4.1 Milestone:** PWA Maintenance Tools COMPLETE (Dec 6, 2025) - Water Meter + Propane Tank
+- ✅ **v0.4.2 Milestone:** Projects Module COMPLETE (Dec 7, 2025) - Special Assessments in Statements
 - 🎯 **v0.5.0 Milestone:** Data Reconciliation Complete, Firestore Backup Configured
 - 🚀 **Long-term Goal:** Full Google Sheets replacement with mobile worker support

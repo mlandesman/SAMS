@@ -11,6 +11,7 @@
 import axios from 'axios';
 import { getNow } from '../../shared/services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
+import { getDb } from '../firebase.js';
 
 /**
  * Format centavos to pesos
@@ -1205,6 +1206,100 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 }
 
 /**
+ * Get projects where unit made payments during the reporting period
+ * @param {Object} api - API client (not used but kept for consistency)
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID  
+ * @param {Object} fiscalYearBounds - { startDate, endDate }
+ * @returns {Array} Projects with unit's collections
+ */
+async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBounds) {
+  const db = await getDb();
+  const projectsRef = db.collection('clients').doc(clientId).collection('projects');
+  const projectsSnapshot = await projectsRef.get();
+  
+  if (projectsSnapshot.empty) return [];
+  
+  const unitProjects = [];
+  const fyStart = fiscalYearBounds.startDate;
+  const fyEnd = fiscalYearBounds.endDate;
+  
+  for (const doc of projectsSnapshot.docs) {
+    const project = doc.data();
+    
+    // Check if unit is exempt
+    const unitAssessment = project.unitAssessments?.[unitId];
+    if (unitAssessment?.exempt) continue;
+    
+    // Filter collections for this unit within fiscal year
+    const unitCollections = (project.collections || []).filter(c => {
+      if (c.unitId !== unitId) return false;
+      
+      // Parse collection date - handle Firestore Timestamp, Date, or string
+      let collectionDate;
+      if (c.date && typeof c.date.toDate === 'function') {
+        // Firestore Timestamp
+        collectionDate = c.date.toDate();
+      } else if (c.date instanceof Date) {
+        collectionDate = c.date;
+      } else if (typeof c.date === 'string') {
+        collectionDate = new Date(c.date);
+      } else {
+        return false; // Skip if date is invalid
+      }
+      
+      // Check if collection is within fiscal year bounds
+      return collectionDate >= fyStart && collectionDate <= fyEnd;
+    });
+    
+    // Only include if unit has payments in this period
+    if (unitCollections.length === 0) continue;
+    
+    // Sort collections by date
+    unitCollections.sort((a, b) => {
+      const dateA = a.date && typeof a.date.toDate === 'function' 
+        ? a.date.toDate() 
+        : a.date instanceof Date 
+          ? a.date 
+          : new Date(a.date);
+      const dateB = b.date && typeof b.date.toDate === 'function' 
+        ? b.date.toDate() 
+        : b.date instanceof Date 
+          ? b.date 
+          : new Date(b.date);
+      return dateA - dateB;
+    });
+    
+    // Calculate unit's totals
+    const totalPaid = unitCollections.reduce((sum, c) => sum + (c.amount || 0), 0);
+    const assessmentAmount = unitAssessment?.expectedAmount || 0;
+    const balance = assessmentAmount - totalPaid;
+    
+    unitProjects.push({
+      projectId: project.projectId,
+      name: project.name,
+      status: project.status,
+      startDate: project.startDate,
+      completionDate: project.completionDate,
+      totalBudget: project.totalCost || 0,
+      assessment: assessmentAmount,
+      collections: unitCollections,
+      totalPaid: totalPaid,
+      balance: balance
+    });
+  }
+  
+  // Sort projects by start date
+  unitProjects.sort((a, b) => {
+    const dateA = a.startDate ? new Date(a.startDate) : new Date(0);
+    const dateB = b.startDate ? new Date(b.startDate) : new Date(0);
+    return dateA - dateB;
+  });
+  
+  return unitProjects;
+}
+
+/**
  * Get optimized statement data for a unit (presentation layer)
  * Transforms raw consolidated data into lightweight, presentation-ready structure
  * 
@@ -1218,6 +1313,14 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 export async function getStatementData(api, clientId, unitId, fiscalYear = null, excludeFutureBills = false) {
   // Get raw consolidated data
   const rawData = await getConsolidatedUnitData(api, clientId, unitId, fiscalYear, excludeFutureBills);
+  
+  // Query projects for this unit during fiscal year
+  const projectsData = await getUnitProjectsForStatement(
+    api, 
+    clientId, 
+    unitId, 
+    rawData.clientConfig.fiscalYearBounds
+  );
   
   // Get client data for clientInfo
   const clientResponse = await api.get(`/clients/${clientId}`);
@@ -1491,6 +1594,18 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     }
   }
   
+  // Add Special Assessments to allocation summary
+  if (projectsData.length > 0) {
+    const totalProjectAssessments = projectsData.reduce((sum, p) => sum + centavosToPesos(p.assessment), 0);
+    const totalProjectPaid = projectsData.reduce((sum, p) => sum + centavosToPesos(p.totalPaid), 0);
+    
+    categoryMap.set('Special Assessments', {
+      charges: totalProjectAssessments,
+      penalties: 0,
+      paid: totalProjectPaid
+    });
+  }
+  
   // Convert map to array and calculate totals
   const categories = Array.from(categoryMap.entries()).map(([name, data]) => ({
     name: name,
@@ -1548,6 +1663,11 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     allocationSummary: {
       categories: categories,
       totals: allocationTotals
+    },
+    projectsData: {
+      projects: projectsData,
+      totalPaid: projectsData.reduce((sum, p) => sum + p.totalPaid, 0),
+      hasProjects: projectsData.length > 0
     }
   };
 }
