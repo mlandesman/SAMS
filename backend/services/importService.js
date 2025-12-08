@@ -306,6 +306,98 @@ export class ImportService {
   }
 
   /**
+   * Import projects collection (optional)
+   * Projects are special assessments - direct Firestore export format
+   */
+  async importProjects(user) {
+    console.log('🏗️ Importing projects collection...');
+    const results = { success: 0, failed: 0, errors: [], total: 0, skipped: false };
+    
+    try {
+      // Try to load Projects.json - it's optional
+      let projectsData;
+      try {
+        projectsData = await this.loadJsonFile('Projects.json');
+      } catch (error) {
+        // Projects.json is optional - skip if not found
+        console.log('ℹ️ Projects.json not found - skipping projects import');
+        results.skipped = true;
+        results.reason = 'Projects.json not found (optional)';
+        return results;
+      }
+      
+      // Projects should be an object where each key is a project ID
+      const projectKeys = Object.keys(projectsData);
+      results.total = projectKeys.length;
+      
+      // Skip the propaneTanks marker if present (it's config, not a project)
+      const actualProjects = projectKeys.filter(key => key !== 'propaneTanks');
+      results.total = actualProjects.length;
+      
+      if (actualProjects.length === 0) {
+        console.log('ℹ️ No projects to import');
+        return results;
+      }
+      
+      // Report starting
+      if (this.onProgress) {
+        this.onProgress('projects', 'importing', { total: results.total, processed: 0 });
+      }
+      
+      const db = await this.getDb();
+      const projectsRef = db.collection(`clients/${this.clientId}/projects`);
+      
+      for (let i = 0; i < actualProjects.length; i++) {
+        const projectKey = actualProjects[i];
+        const projectData = projectsData[projectKey];
+        
+        try {
+          // Clean the project data - preserve structure but update metadata
+          const cleanProjectData = {
+            ...projectData,
+            metadata: {
+              ...(projectData.metadata || {}),
+              updatedAt: getNow().toISOString(),
+              updatedBy: 'import-script'
+            }
+          };
+          
+          // Remove any _id field as we use the key as doc ID
+          delete cleanProjectData._id;
+          
+          // Use the project key as the document ID
+          const docId = projectKey;
+          await projectsRef.doc(docId).set(cleanProjectData);
+          
+          results.success++;
+          console.log(`✅ Imported project: ${projectData.name || docId}`);
+          
+          // Create metadata record
+          await this.createMetadataRecord(
+            'projects',
+            docId,
+            `clients/${this.clientId}/projects/${docId}`,
+            projectData
+          );
+          
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Error importing project ${projectKey}: ${error.message}`);
+          console.error(`❌ Failed to import project ${projectKey}:`, error.message);
+        }
+        
+        // Report progress
+        this.reportProgress('projects', i, results.total, results);
+      }
+      
+    } catch (error) {
+      throw new Error(`Projects collection import failed: ${error.message}`);
+    }
+    
+    return results;
+  }
+
+  /**
    * Import payment types collection
    */
   async importPaymentTypes(user) {
@@ -714,16 +806,35 @@ export class ImportService {
           
           const augmentedData = augmentTransaction(transaction, vendorId, categoryId, accountId, vendorName, accountMap, this.clientId);
           
-          // Parse date properly - handle ISO format
-          // NOTE: createTransaction expects string dates, not Firestore timestamps
-          if (transaction.Date.includes('T') && transaction.Date.includes('Z')) {
-            // ISO format: 2024-01-03T05:00:00.000Z - extract date part only
-            // Split on 'T' to get just the date part: 2024-01-03
-            augmentedData.date = transaction.Date.split('T')[0];
+          // Parse date properly using Luxon via DateService
+          // CRITICAL: Always interpret dates in Cancun timezone to prevent day shifts
+          // JSON.stringify() converts JS Dates to UTC ISO strings, so we parse as UTC
+          // then convert to Cancun to get the correct local date
+          let parsedDate;
+          if (transaction.Date.includes('T')) {
+            // Full ISO timestamp (e.g., 2025-01-01T00:52:34.948Z) - parse as UTC, convert to Cancun
+            // This handles the case where a Dec 31 evening timestamp in Cancun
+            // gets exported as Jan 1 UTC - we convert back to get the correct Cancun date
+            parsedDate = DateTime.fromISO(transaction.Date, { zone: 'utc' })
+                                 .setZone('America/Cancun');
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(transaction.Date)) {
+            // YYYY-MM-DD format - parse in Cancun timezone
+            parsedDate = DateTime.fromISO(transaction.Date, { zone: 'America/Cancun' });
+          } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(transaction.Date)) {
+            // Legacy format: M/d/yyyy - parse with explicit format in Cancun timezone
+            parsedDate = DateTime.fromFormat(transaction.Date, 'M/d/yyyy', { zone: 'America/Cancun' });
           } else {
-            // Legacy format: M/d/yyyy - pass as-is to createTransaction
-            augmentedData.date = transaction.Date;
+            // Unknown format - try ISO parse as fallback
+            parsedDate = DateTime.fromISO(transaction.Date, { zone: 'America/Cancun' });
           }
+          
+          if (!parsedDate.isValid) {
+            console.warn(`⚠️ Invalid date "${transaction.Date}" for transaction ${i}, using current date`);
+            parsedDate = DateTime.now().setZone('America/Cancun');
+          }
+          
+          // Output as ISO date string (YYYY-MM-DD) for createTransaction
+          augmentedData.date = parsedDate.toISODate();
           
           // Remove createdAt as controller adds it
           delete augmentedData.createdAt;

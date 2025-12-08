@@ -1082,6 +1082,7 @@ async function executeImport(user, clientId, options = {}) {
       { id: 'vendors', name: 'Vendors', independent: true },
       { id: 'units', name: 'Units', independent: true },
       { id: 'yearEndBalances', name: 'Year End Balances', independent: true },
+      { id: 'projects', name: 'Projects', independent: true, optional: true },
       { id: 'transactions', name: 'Transactions', independent: false, buildsCrossRef: true },
       { id: 'hoadues', name: 'HOA Dues', independent: false, requiresCrossRef: true },
       { id: 'waterbills', name: 'Water Bills', independent: false, requiresCrossRef: true, optional: true }
@@ -1179,6 +1180,9 @@ async function executeImport(user, clientId, options = {}) {
                     break;
                   case 'yearEndBalances':
                     result = await importService.importYearEndBalances(user, { dryRun, maxErrors });
+                    break;
+                  case 'projects':
+                    result = await importService.importProjects(user, { dryRun, maxErrors });
                     break;
                   case 'transactions':
                     result = await importService.importTransactions(user, { dryRun, maxErrors });

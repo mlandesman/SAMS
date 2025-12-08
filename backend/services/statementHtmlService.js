@@ -208,6 +208,7 @@ function getTranslations(language) {
       totalSpecialAssessments: 'TOTAL SPECIAL ASSESSMENTS PAID',
       balanceDue: 'BALANCE DUE',
       creditBalance: 'CREDIT BALANCE',
+      accountCredit: 'ACCOUNT CREDIT',
       paidInFull: 'PAID IN FULL',
       statementId: 'Statement ID',
       generatedOn: 'Generated',
@@ -258,6 +259,7 @@ function getTranslations(language) {
       totalSpecialAssessments: 'TOTAL CUOTAS ESPECIALES PAGADAS',
       balanceDue: 'SALDO PENDIENTE',
       creditBalance: 'SALDO A FAVOR',
+      accountCredit: 'CRÉDITO EN CUENTA',
       paidInFull: 'PAGADO COMPLETO',
       statementId: 'ID del Estado de Cuenta',
       generatedOn: 'Generado',
@@ -306,6 +308,9 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   const actualClosingBalance = currentItems.length > 0 
     ? currentItems[currentItems.length - 1].balance 
     : data.summary.openingBalance;
+  
+  // Get account credit balance (separately tracked credits)
+  const accountCreditBalance = data.creditInfo?.currentBalance || 0;
   
   // Calculate expiration date (30 days from statement date) using Luxon
   const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
@@ -573,6 +578,15 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     .balance-due-box td:last-child {
       text-align: right;
       min-width: 120px;
+    }
+    
+    .balance-due-box .account-credit-row {
+      background-color: #e8f5e9;
+      border-top: 1px solid #4CAF50;
+    }
+    
+    .balance-due-box .account-credit-row td {
+      color: #2E7D32;
     }
     
     /* Allocation summary table */
@@ -1014,6 +1028,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
             }
           </td>
         </tr>
+        ${accountCreditBalance > 0 ? `
+        <tr class="account-credit-row">
+          <td>${t.accountCredit}</td>
+          <td>${formatCurrency(accountCreditBalance)}</td>
+        </tr>
+        ` : ''}
       </table>
     </div>
     

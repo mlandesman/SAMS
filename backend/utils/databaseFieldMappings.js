@@ -27,20 +27,43 @@ export const databaseFieldMappings = {
       return dateValue;
     }
 
-    // Convert to Date first
-    let date;
+    // Use Luxon for proper timezone handling - NEVER use new Date() directly
+    let dt;
+    
     if (dateValue instanceof Date) {
-      date = dateValue;
-    } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
-      date = new Date(dateValue);
+      // JavaScript Date - convert to Luxon DateTime in Cancun timezone
+      dt = DateTime.fromJSDate(dateValue).setZone(CANCUN_TIMEZONE);
+    } else if (typeof dateValue === 'string') {
+      // Handle M/d/yyyy legacy format (from Google Sheets)
+      const legacyMatch = dateValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (legacyMatch) {
+        // Parse legacy format in Cancun timezone
+        dt = DateTime.fromFormat(dateValue, 'M/d/yyyy', { zone: CANCUN_TIMEZONE });
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        // YYYY-MM-DD format - parse in Cancun timezone (not UTC!)
+        dt = DateTime.fromISO(dateValue, { zone: CANCUN_TIMEZONE });
+      } else {
+        // Try ISO parse (handles full ISO strings with timezone)
+        dt = DateTime.fromISO(dateValue, { zone: CANCUN_TIMEZONE });
+        if (!dt.isValid) {
+          // Fallback to SQL format
+          dt = DateTime.fromSQL(dateValue, { zone: CANCUN_TIMEZONE });
+        }
+      }
+    } else if (typeof dateValue === 'number') {
+      // Unix timestamp in milliseconds
+      dt = DateTime.fromMillis(dateValue).setZone(CANCUN_TIMEZONE);
     } else {
       return null;
     }
 
     // Check for valid date
-    if (isNaN(date.getTime())) {
+    if (!dt || !dt.isValid) {
       return null;
     }
+    
+    // Convert Luxon DateTime to JavaScript Date for Firestore
+    const date = dt.toJSDate();
 
     // Convert to Cancun timezone components
     const cancunDateStr = date.toLocaleDateString("en-CA", {
