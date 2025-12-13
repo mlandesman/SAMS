@@ -2397,11 +2397,14 @@ export class ImportService {
     }
     
     for (const [unitId, totals] of Object.entries(unitTotals)) {
+      // Normalize unitId for matching (penalties use normalized IDs like "102", not "102 (Moguel)")
+      const normalizedUnitId = this.normalizeUnitId(unitId);
+      
       // Check for imported penalty for this unit and quarter
-      const penaltyKey = `${unitId}_${quarterKey}`;
+      const penaltyKey = `${normalizedUnitId}_${quarterKey}`;
       const penaltyData = penalties[penaltyKey];
       if (penaltyData) {
-        console.log(`  ✅ Found penalty for unit ${unitId}: ${centavosToPesos(penaltyData.totalPenaltyCentavos).toFixed(2)} pesos`);
+        console.log(`  ✅ Found penalty for unit ${normalizedUnitId} (${unitId}): ${centavosToPesos(penaltyData.totalPenaltyCentavos).toFixed(2)} pesos`);
       }
       
       // Find lavado charges for this unit in this quarter's date range
@@ -2410,9 +2413,9 @@ export class ImportService {
       quarterEndDate.setMonth(quarterEndDate.getMonth() + 1); // End of last month
       
       const unitLavadoCharges = lavadoCharges.filter(lavado => {
-        const normalizedUnitId = this.normalizeUnitId(lavado.originalUnitId || lavado.unitId);
+        const lavadoNormalizedUnitId = this.normalizeUnitId(lavado.originalUnitId || lavado.unitId);
         const lavadoDate = lavado.date instanceof Date ? lavado.date : new Date(lavado.date);
-        return normalizedUnitId === unitId && 
+        return lavadoNormalizedUnitId === normalizedUnitId && 
                lavadoDate >= quarterStartDate && 
                lavadoDate < quarterEndDate;
       });
