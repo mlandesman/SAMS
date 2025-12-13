@@ -301,7 +301,9 @@ async function createTransaction(clientId, data, options = {}) {
       // Ensure payment method is included
       paymentMethod: validation.data.paymentMethod || null,
       // Include unit if provided (for multi-unit properties)
-      unitId: validation.data.unit || validation.data.unitId || null
+      unitId: validation.data.unit || validation.data.unitId || null,
+      // Preserve normalizedUnitId if provided (not in schema, but needed for statement queries)
+      normalizedUnitId: data.normalizedUnitId || null
     };
     
     // Remove old createdAt field if present
