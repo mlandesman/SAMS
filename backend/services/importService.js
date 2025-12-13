@@ -1926,6 +1926,14 @@ export class ImportService {
         }
       }
       
+      // Load client config FIRST to get fiscal year configuration (needed for penalty extraction)
+      const clientConfig = await this.getClientConfig();
+      const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+      const waterBillsConfig = clientConfig.config?.waterBills || clientConfig.waterBills || {};
+      const paymentDueDay = waterBillsConfig.paymentDueDate || 10; // Day of month when payment is due
+      console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
+      console.log(`📅 Water bills due date: Day ${paymentDueDay} of bill month`);
+      
       // Load unitAccounting.json for penalties and lavado charges
       let penalties = {};
       let lavadoCharges = [];
@@ -1943,14 +1951,6 @@ export class ImportService {
         console.warn(`⚠️  unitAccounting.json not found or error loading: ${error.message}`);
         console.warn(`   Penalties and lavado charges will not be imported`);
       }
-      
-      // Load client config to get fiscal year and water bills configuration
-      const clientConfig = await this.getClientConfig();
-      const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
-      const waterBillsConfig = clientConfig.config?.waterBills || clientConfig.waterBills || {};
-      const paymentDueDay = waterBillsConfig.paymentDueDate || 10; // Day of month when payment is due
-      console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
-      console.log(`📅 Water bills due date: Day ${paymentDueDay} of bill month`);
       
       // Parse readings chronologically and group into quarters
       const chronology = this.buildWaterBillsChronology(readingsData, waterCrossRef, txnCrossRef, fiscalYearStartMonth);
