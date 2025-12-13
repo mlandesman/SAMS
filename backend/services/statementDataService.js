@@ -87,6 +87,9 @@ function filterWaterAllocations(allocations) {
            categoryId === 'water-consumption-bill' ||
            categoryId === 'water-penalties' ||
            categoryId === 'water' ||
+           categoryId === 'consumo-de-agua' ||
+           categoryId === 'lavado-de-autos' ||
+           categoryId === 'lavado-de-barcos' ||
            type === 'water_bill' ||
            type === 'water-bill' ||
            type === 'water_consumption' ||
@@ -94,6 +97,9 @@ function filterWaterAllocations(allocations) {
            type === 'water-consumption' ||
            type === 'water' ||
            categoryName.includes('water') ||
+           categoryName.includes('agua') ||
+           categoryName.includes('consumo') ||
+           categoryName.includes('lavado') ||
            targetName.includes('water') ||
            targetId.includes('water');
   });
@@ -132,11 +138,14 @@ function filterPenaltyAllocations(allocations) {
     
     return categoryId === 'hoa-penalties' ||
            categoryId === 'water-penalties' ||
+           categoryId === 'cargo-por-pago-atrasado' ||
            type === 'hoa_penalty' ||
            type === 'hoa-penalty' ||
            type === 'water_penalty' ||
            type === 'water-penalty' ||
-           categoryName.includes('penalty');
+           categoryName.includes('penalty') ||
+           categoryName.includes('cargo') ||
+           categoryName.includes('atrasado');
   });
 }
 
@@ -287,7 +296,7 @@ function createChronologicalTransactionList(
               const waterBills = [...new Set(allocations
                 .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
                             a.type === 'water_bill' || a.type === 'water-bill' ||
-                            (a.categoryId && a.categoryId.includes('water')))
+                            (a.categoryId && (a.categoryId.includes('water') || a.categoryId.includes('consumo') || a.categoryId.includes('lavado'))))
                 .map(a => {
                   // Extract quarter from targetName like "Water Bill 2026-Q1"
                   const match = a.targetName?.match(/Q\d/);
@@ -383,7 +392,7 @@ function createChronologicalTransactionList(
             const waterBills = [...new Set(allocations
               .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
                           a.type === 'water_bill' || a.type === 'water-bill' ||
-                          (a.categoryId && a.categoryId.includes('water')))
+                          (a.categoryId && (a.categoryId.includes('water') || a.categoryId.includes('consumo') || a.categoryId.includes('lavado'))))
               .map(a => {
                 const match = a.targetName?.match(/Q\d/);
                 return match ? match[0] : (a.targetName || 'Bill');
@@ -792,10 +801,12 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // This catches general payments or unallocated transactions
     try {
       // Use query endpoint to find transactions by unit and date range
-      const queryResponse = await api.post(`/clients/${clientId}/transactions/query`, {
-        startDate: fiscalYearBounds.startDate,
-        endDate: fiscalYearBounds.endDate,
-        unitId: unitId
+      const queryResponse = await api.get(`/clients/${clientId}/transactions`, {
+        params: {
+          startDate: fiscalYearBounds.startDate,
+          endDate: fiscalYearBounds.endDate,
+          unitId: unitId
+        }
       });
       
       const unitTxns = queryResponse.data || [];
@@ -969,7 +980,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         const allocData = alloc.data || {};
         const categoryId = alloc.categoryId || '';
         const isHOA = categoryId === 'hoa-penalties' || categoryId.includes('hoa');
-        const isWater = categoryId === 'water-penalties' || categoryId.includes('water');
+        const isWater = categoryId === 'water-penalties' || categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado');
         
         if (!isHOA && !isWater) continue;
         
@@ -1581,7 +1592,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
         category = 'Credit Balance';
       } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
         category = 'HOA Maintenance';
-      } else if (categoryId.includes('water') || categoryName.includes('Water') || categoryName.includes('Agua')) {
+      } else if (categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado') || categoryName.includes('Water') || categoryName.includes('Agua') || categoryName.includes('Lavado')) {
         category = 'Water Consumption';
       }
       

@@ -1875,9 +1875,24 @@ export class ImportService {
 
   /**
    * Import Water Bills - Chronological processing of readings, bills, and payments
+   * 
+   * NEW: If bills.json exists in the import folder, uses pre-built water bills
+   * instead of calculating from meter readings. This preserves manually adjusted
+   * water bill data from Sheets reconciliation.
    */
   async importWaterBills(user) {
     console.log('🌊 Starting Water Bills Import...');
+    
+    // NEW: Check for pre-built bills.json first
+    try {
+      const prebuiltBills = await this.loadJsonFile('bills.json');
+      console.log('📦 Found pre-built bills.json - using pre-built water bills instead of calculating from readings');
+      return await this.importPrebuiltWaterBills(prebuiltBills, user);
+    } catch (error) {
+      // No pre-built bills, continue with normal flow
+      console.log('📊 No pre-built bills.json found - will calculate bills from meter readings');
+    }
+    
     const results = {
       readingsImported: 0,
       billsGenerated: 0,
@@ -2011,6 +2026,269 @@ export class ImportService {
       console.error('❌ Water Bills import failed:', error.message);
       throw new Error(`Water Bills import failed: ${error.message}`);
     }
+  }
+  
+  /**
+   * Import pre-built water bills from bills.json
+   * 
+   * This method imports water bills that were exported after manual reconciliation
+   * with Sheets data, bypassing the normal calculation from meter readings.
+   * 
+   * After import, it re-links payment records to their corresponding transactions
+   * by matching on unitId + date + amount.
+   * 
+   * @param {Object} prebuiltBills - The bills.json content with quarter IDs as keys
+   * @param {Object} user - User context for the import
+   * @returns {Object} Import results
+   */
+  async importPrebuiltWaterBills(prebuiltBills, user) {
+    console.log('📦 Starting Pre-built Water Bills Import...');
+    const db = await this.getDb();
+    
+    const results = {
+      quartersImported: 0,
+      unitsProcessed: 0,
+      paymentsRelinked: 0,
+      readingsImported: 0,
+      errors: []
+    };
+    
+    try {
+      // Still import readings if available (needed for future bill generation)
+      try {
+        const readingsData = await this.loadJsonFile('waterMeterReadings.json');
+        console.log('📊 Found meter readings - importing for future bill generation...');
+        
+        // Import readings using existing logic
+        const clientConfig = await this.getClientConfig();
+        const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
+        
+        // Get all date keys from first unit
+        const firstUnit = readingsData[0];
+        const dateKeys = Object.keys(firstUnit).filter(k => k !== 'Unit');
+        
+        for (const dateKey of dateKeys) {
+          const date = new Date(dateKey);
+          const calendarYear = date.getFullYear();
+          const calendarMonth = date.getMonth() + 1;
+          
+          // Calculate fiscal month
+          let fiscalMonth = calendarMonth - fiscalYearStartMonth + 1;
+          if (fiscalMonth <= 0) fiscalMonth += 12;
+          
+          // Create a simple month cycle for importing
+          const monthCycle = {
+            fiscalYear: calendarMonth >= fiscalYearStartMonth ? calendarYear + 1 : calendarYear,
+            fiscalMonth: fiscalMonth,
+            readings: {}
+          };
+          
+          // Extract readings for all units for this date
+          for (const unitData of readingsData) {
+            const unitId = this.normalizeUnitId(unitData.Unit);
+            const reading = unitData[dateKey];
+            if (reading !== '' && unitId) {
+              monthCycle.readings[unitId] = reading;
+            }
+          }
+          
+          if (Object.keys(monthCycle.readings).length > 0) {
+            await this.importMonthReadings(monthCycle);
+            results.readingsImported++;
+          }
+        }
+        
+        console.log(`   ✅ Imported ${results.readingsImported} months of readings`);
+      } catch (error) {
+        console.log('   ⏭️  No waterMeterReadings.json found - skipping readings import');
+      }
+      
+      // Process each quarter in the pre-built bills
+      for (const [quarterId, billData] of Object.entries(prebuiltBills)) {
+        console.log(`\n📅 Importing pre-built bill: ${quarterId}`);
+        
+        try {
+          // Get the bill reference
+          const billRef = db.collection('clients').doc(this.clientId)
+            .collection('projects').doc('waterBills')
+            .collection('bills').doc(quarterId);
+          
+          // Prepare the bill document
+          const billDocument = {
+            ...billData,
+            _id: quarterId,
+            quarterId: quarterId,
+            clientId: this.clientId,
+            importedAt: new Date().toISOString(),
+            importedFrom: 'prebuilt-bills-json',
+            dataSource: 'sheets_reconciliation'
+          };
+          
+          // Remove the outer _id if it exists (we set it above)
+          delete billDocument._id;
+          
+          // Count units
+          const unitCount = billDocument.bills?.units ? Object.keys(billDocument.bills.units).length : 0;
+          console.log(`   Units in bill: ${unitCount}`);
+          
+          // Write the bill document
+          await billRef.set(billDocument);
+          console.log(`   ✅ Written ${quarterId} to Firestore`);
+          
+          results.quartersImported++;
+          results.unitsProcessed += unitCount;
+          
+        } catch (error) {
+          console.error(`   ❌ Error importing ${quarterId}:`, error.message);
+          results.errors.push({
+            quarter: quarterId,
+            error: error.message
+          });
+        }
+      }
+      
+      // Ensure waterBills document exists (prevents ghost status)
+      const waterBillsRef = db.collection('clients').doc(this.clientId)
+        .collection('projects').doc('waterBills');
+      
+      const waterBillsDoc = await waterBillsRef.get();
+      if (!waterBillsDoc.exists) {
+        console.log('🔧 Creating waterBills document...');
+        await waterBillsRef.set({
+          createdAt: new Date().toISOString(),
+          clientId: this.clientId,
+          _structure: 'waterBills'
+        });
+      }
+      
+      // Re-link payments to transactions
+      console.log('\n🔗 Re-linking payments to transactions...');
+      const relinkResults = await this.relinkWaterBillPayments(prebuiltBills);
+      results.paymentsRelinked = relinkResults.relinked;
+      
+      console.log('\n✅ Pre-built Water Bills Import Complete');
+      console.log(`   Readings Imported: ${results.readingsImported} months`);
+      console.log(`   Quarters Imported: ${results.quartersImported}`);
+      console.log(`   Units Processed: ${results.unitsProcessed}`);
+      console.log(`   Payments Re-linked: ${results.paymentsRelinked}`);
+      
+      if (results.errors.length > 0) {
+        console.log(`   Errors: ${results.errors.length}`);
+      }
+      
+      return results;
+      
+    } catch (error) {
+      console.error('❌ Pre-built Water Bills import failed:', error.message);
+      throw new Error(`Pre-built Water Bills import failed: ${error.message}`);
+    }
+  }
+  
+  /**
+   * Re-link water bill payments to their corresponding transaction documents
+   * 
+   * After a purge/import cycle, transaction document IDs change. This method
+   * finds matching transactions by (unitId + date + amount) and updates the
+   * payment.transactionId references in the water bills.
+   * 
+   * @param {Object} prebuiltBills - The bills.json content
+   * @returns {Object} Results with count of relinked payments
+   */
+  async relinkWaterBillPayments(prebuiltBills) {
+    const db = await this.getDb();
+    const results = { relinked: 0, notFound: 0, errors: [] };
+    
+    // Get all water-related transactions for this client
+    const txSnapshot = await db.collection('clients').doc(this.clientId)
+      .collection('transactions')
+      .get();
+    
+    // Build a lookup map by unitId + date (YYYY-MM-DD) + amount
+    const txLookup = {};
+    for (const doc of txSnapshot.docs) {
+      const tx = doc.data();
+      const unitId = this.normalizeUnitId(tx.unitId);
+      if (!unitId) continue;
+      
+      // Get date in YYYY-MM-DD format
+      let dateStr;
+      if (tx.date?.toDate) {
+        dateStr = tx.date.toDate().toISOString().split('T')[0];
+      } else if (tx.date) {
+        dateStr = new Date(tx.date).toISOString().split('T')[0];
+      } else {
+        continue;
+      }
+      
+      const amount = tx.amount; // In centavos
+      const key = `${unitId}|${dateStr}|${amount}`;
+      
+      txLookup[key] = {
+        docId: doc.id,
+        unitId,
+        date: dateStr,
+        amount,
+        categoryName: tx.categoryName
+      };
+    }
+    
+    console.log(`   Built transaction lookup with ${Object.keys(txLookup).length} entries`);
+    
+    // Process each quarter's payments
+    for (const [quarterId, billData] of Object.entries(prebuiltBills)) {
+      const units = billData.bills?.units || {};
+      
+      for (const [unitId, unitData] of Object.entries(units)) {
+        const payments = unitData.payments || [];
+        let updated = false;
+        
+        for (const payment of payments) {
+          // Get payment date in YYYY-MM-DD format
+          let paymentDate;
+          if (payment.date) {
+            paymentDate = new Date(payment.date).toISOString().split('T')[0];
+          } else {
+            continue;
+          }
+          
+          const amount = payment.amount; // In centavos
+          const key = `${unitId}|${paymentDate}|${amount}`;
+          
+          const matchingTx = txLookup[key];
+          
+          if (matchingTx) {
+            const oldId = payment.transactionId;
+            payment.transactionId = matchingTx.docId;
+            
+            if (oldId !== matchingTx.docId) {
+              console.log(`   ✅ Relinked Unit ${unitId} payment ${paymentDate} $${(amount/100).toFixed(2)}: ${oldId?.substring(0,15) || 'none'}... → ${matchingTx.docId.substring(0,15)}...`);
+              updated = true;
+              results.relinked++;
+            }
+          } else {
+            console.log(`   ⚠️  No matching transaction for Unit ${unitId} payment ${paymentDate} $${(amount/100).toFixed(2)}`);
+            results.notFound++;
+          }
+        }
+        
+        // Update the bill document if payments were relinked
+        if (updated) {
+          const billRef = db.collection('clients').doc(this.clientId)
+            .collection('projects').doc('waterBills')
+            .collection('bills').doc(quarterId);
+          
+          await billRef.update({
+            [`bills.units.${unitId}.payments`]: payments
+          });
+        }
+      }
+    }
+    
+    if (results.notFound > 0) {
+      console.log(`   ⚠️  ${results.notFound} payments could not be matched to transactions`);
+    }
+    
+    return results;
   }
   
   /**
