@@ -2072,6 +2072,18 @@ async function queryTransactions(clientId, filters = {}) {
       });
     }
     
+    // Sort combined results by date descending (if we combined multiple queries)
+    if (filters.unitId && allDocs.length > 0) {
+      allDocs.sort((a, b) => {
+        const dateA = a.data().date;
+        const dateB = b.data().date;
+        if (!dateA || !dateB) return 0;
+        const timeA = dateA._seconds || (dateA instanceof Date ? dateA.getTime() / 1000 : 0);
+        const timeB = dateB._seconds || (dateB instanceof Date ? dateB.getTime() / 1000 : 0);
+        return timeB - timeA; // Descending order
+      });
+    }
+    
     const transactions = [];
     
     allDocs.forEach(doc => {
