@@ -1999,17 +1999,82 @@ async function queryTransactions(clientId, filters = {}) {
     }
 
     // Apply unitId filter if provided (Phase 4 Task 4.2)
+    // Query using normalizedUnitId to handle ownership changes (e.g., "102 (Moguel)" -> "102")
+    let allDocIds = new Set();
+    let allDocs = [];
+    
     if (filters.unitId) {
+      // Normalize unitId for matching (handles ownership changes)
+      function normalizeUnitId(unitLabel) {
+        if (!unitLabel) return null;
+        const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
+        return match ? match[1] : unitLabel;
+      }
+      
+      const normalizedUnitId = normalizeUnitId(filters.unitId);
+      
+      // Query 1: normalizedUnitId field (new transactions with ownership change support)
+      if (normalizedUnitId) {
+        let normalizedQuery = db.collection(`clients/${clientId}/transactions`)
+          .where('normalizedUnitId', '==', normalizedUnitId);
+        
+        // Apply other filters to normalized query
+        if (filters.startDate) {
+          const startTimestamp = convertToTimestamp(filters.startDate);
+          normalizedQuery = normalizedQuery.where('date', '>=', startTimestamp);
+        }
+        if (filters.endDate) {
+          const endTimestamp = convertToTimestamp(filters.endDate);
+          normalizedQuery = normalizedQuery.where('date', '<=', endTimestamp);
+        }
+        if (filters.category) {
+          normalizedQuery = normalizedQuery.where('category', '==', filters.category);
+        }
+        if (filters.vendor) {
+          normalizedQuery = normalizedQuery.where('vendor', '==', filters.vendor);
+        }
+        if (filters.minAmount !== undefined) {
+          const minCents = dollarsToCents(filters.minAmount);
+          normalizedQuery = normalizedQuery.where('amount', '>=', minCents);
+        }
+        if (filters.maxAmount !== undefined) {
+          const maxCents = dollarsToCents(filters.maxAmount);
+          normalizedQuery = normalizedQuery.where('amount', '<=', maxCents);
+        }
+        normalizedQuery = normalizedQuery.orderBy('date', 'desc');
+        
+        const normalizedSnapshot = await normalizedQuery.get();
+        normalizedSnapshot.docs.forEach(doc => {
+          if (!allDocIds.has(doc.id)) {
+            allDocIds.add(doc.id);
+            allDocs.push(doc);
+          }
+        });
+        console.log(`[TRANSACTION QUERY] Query for normalizedUnitId='${normalizedUnitId}' found ${normalizedSnapshot.size} transactions`);
+      }
+      
+      // Query 2: unitId field (exact match for backwards compatibility)
       query = query.where('unitId', '==', filters.unitId);
+      const unitIdSnapshot = await query.get();
+      unitIdSnapshot.docs.forEach(doc => {
+        if (!allDocIds.has(doc.id)) {
+          allDocIds.add(doc.id);
+          allDocs.push(doc);
+        }
+      });
+      console.log(`[TRANSACTION QUERY] Query for unitId='${filters.unitId}' found ${unitIdSnapshot.size} transactions`);
+    } else {
+      // No unitId filter - use original query logic
+      query = query.orderBy('date', 'desc');
+      const snapshot = await query.get();
+      snapshot.forEach(doc => {
+        allDocs.push(doc);
+      });
     }
     
-    // Order by date descending by default
-    query = query.orderBy('date', 'desc');
-    
-    const snapshot = await query.get();
     const transactions = [];
     
-    snapshot.forEach(doc => {
+    allDocs.forEach(doc => {
       const data = doc.data();
       
       // Build transaction with proper field mapping (same as listTransactions)
