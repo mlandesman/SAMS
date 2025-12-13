@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 11 - Projects Module Complete (December 7, 2025)  
-**Current Version:** v0.4.2 - Projects Module Complete  
+**Last Modification:** Manager Agent 11 - Import Timezone Fix & Balance Reconciliation (December 7, 2025)  
+**Current Version:** v0.4.3 - Import Fixes & Balance Reconciliation  
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Budget Module (urgent), then PWA/Mobile refactor.
@@ -13,6 +13,26 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v0.4.3 - Import Timezone Fix & Balance Reconciliation (December 7, 2025)
+- ✅ **Import Timezone Handling** - Fixed UTC→Cancun conversion preventing Dec 31 → Jan 1 date shifts
+- ✅ **Projects.json Import** - Added to standard import sequence (optional)
+- ✅ **Luxon Date Handling** - Updated databaseFieldMappings.js per project standards
+- ✅ **Credit Balance Display** - Added to Statement of Account reports
+- ✅ **Balance Diagnostic Tool** - diagnose-monthly-balances.js script for troubleshooting
+
+**Issue Resolved:** ~$70K balance discrepancy from timezone-shifted transactions  
+**Commit:** `536f173`  
+**Archive:** `SAMS-Docs/apm_session/Memory/Task_Completion_Logs/Import_Timezone_Fix_2025-12-07.md`
+
+**Technical Details:**
+- JSON.stringify() converts dates to UTC ISO strings
+- Previous code extracted date portion before timezone conversion
+- Fix: Parse as UTC, convert to Cancun, then extract date
+- 4 Dec 31, 2024 transactions correctly moved back from Jan 2025
+- Remaining $10K resolved via Year-End 2024 balance adjustment
+
+---
 
 ### v0.4.2 - Projects Module / Special Assessments (December 7, 2025)
 - ✅ **P-1: Analysis & Data Extraction** - 78 transactions mapped, schema defined
@@ -145,10 +165,14 @@
 ---
 
 ### Priority 2: Data Reconciliation │ Manual Process
-**Status:** 🟡 IN PROGRESS - Due Dec 31, 2025  
-**No development required** - Manual comparison and adjustment
+**Status:** ✅ MTC COMPLETE / 🟡 AVII IN PROGRESS - Due Dec 31, 2025  
 
-**MTC:** Verify only - data should match 100% (built from import)
+**MTC:** ✅ COMPLETE (December 7, 2025)
+- Fixed import timezone bug (UTC→Cancun) resolving ~$70K discrepancy
+- Identified historical $10K adjustment from March 2025
+- Corrected via Year-End 2024 balance adjustment
+- Final balances verified: Bank $182,086 ✓, Cash $4,600 ✓
+- Reconciled to actual bank statements
 
 **AVII:** Manual comparison required
 - HOA Dues: Compare 10 units with Google Sheets history
@@ -502,6 +526,90 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 
 ---
 
+### Single Unit Client Implementation │ GitHub #54
+**Status:** 📋 BACKLOG (Strategic Enhancement)  
+**Estimated Effort:** 10-15 sessions (leverages existing code)  
+**Target:** 2026 - After Tasks/Calendar, Projects expansion, and Additional Reports  
+**Can Run In Parallel:** Yes - same underlying code, different filters/presentation
+
+**Executive Summary:**
+Extend SAMS to support individual homes/condos managed by Sandyland Properties (SLP). Currently 10+ properties with 4 owners. Leverages existing modules with minimal modification.
+
+**Architecture Principle: Square = Special Rectangle**
+Single unit clients are modeled as a special case of Associations, not a separate system:
+- Same underlying code and data structures
+- Different filters and limited function visibility within common modules
+- One "owner" to report to (vs. multiple unit owners in HOA)
+- Presentation differences only - nothing structural changes
+
+**Business Value:**
+- Single point of entry for all SLP business activities
+- Common interface accessible from anywhere
+- Proper logging and backup
+- Foundation for Tasks/Calendar features across all clients
+- Shared vendor database with notes and skill sets
+
+**Client Type: Single Unit**
+- No HOA Dues concept (vs. Association fixed schedule)
+- Owner sends funds on-demand to cover scheduled bills ("burn down" model)
+- Client can switch between units (like Admin switches between Associations)
+- Enables rollup and individual reporting
+
+**Modules Reusable (Identical/Near-Identical):**
+- ✅ Client
+- ✅ Transactions
+- ✅ Budgets
+- ✅ Projects (when developed)
+- ✅ Tasks (when developed)
+- ✅ Vendors
+- ✅ Categories
+- ✅ Reports
+
+**PWA/Mobile Support:**
+- Account balances, projects, upcoming bills, exchange rates
+- Communication to SLP (requests, status updates)
+- Maintenance worker tasks
+
+**Key Differences from Associations:**
+| Aspect | Association | Single Unit |
+|--------|-------------|-------------|
+| Dues | Fixed annual schedule | On-demand "burn down" |
+| Users | Multiple unit owners | Single owner (with multiple properties) |
+| Navigation | Switch Clients (admin) | Switch Units (owner) |
+| Reporting | Per unit + association rollup | Per property + owner rollup |
+
+**Pilot Client: SLP (Sandyland Properties)**
+Perfect test case with two distinct scenarios:
+- **Aventuras Club Marina 102** - Condo in building SLP does NOT manage
+- **MTC PH4D** - Condo within MTC client (SLP does manage building)
+
+This tests both standalone and "nested" single-unit scenarios.
+
+**Rental Tracking (Future Phase - 2026):**
+- Dates, names, amounts, contracts
+- Currently handled via Google Sheets + Forms + Web App
+- Will be phased into this enhancement when further defined
+- Not blocking initial single-unit implementation
+
+**Implementation Phases (Proposed):**
+1. **Analysis:** Presentation layer changes, filter patterns
+2. **Client Configuration:** Add "single-unit" flag to client config
+3. **Navigation:** Switch Units UI pattern for owners
+4. **On-Demand Billing:** "Burn down" funding model display
+5. **PWA Integration:** Owner dashboard for single units
+6. **Pilot:** Create SLP client with ACM-102 and MTC-PH4D
+7. **Rental Tracking:** Phase 2 - detailed requirements TBD 2026
+
+**Dependencies:**
+- ✅ Core platform stable (achieved)
+- ✅ Budget Module (v0.4.0)
+- ✅ Projects Module (v0.4.2)
+- 📋 Tasks/Calendar system (prerequisite)
+- 📋 Additional Reports (prerequisite)
+- 📋 Production go-live complete
+
+---
+
 ## 📋 EXECUTION TIMELINE (December 2025)
 
 ### Week 1: Dec 3-6 - Budget Module ✅ COMPLETE
@@ -555,8 +663,9 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 1. ~~**Budget Module**~~ - ✅ GitHub #45 COMPLETE (Dec 4)
 2. ~~**PWA Maintenance Tools**~~ - ✅ WM-2, WM-3, PT-1 COMPLETE (Dec 6)
 3. ~~**Projects Module**~~ - ✅ Special Assessments in Statements COMPLETE (Dec 7)
-4. **Data Reconciliation** - Manual process (Dec 7-20) 🔄 IN PROGRESS
-5. **Firestore Backup** - GitHub #38 (Dec 21-31)
+4. ~~**Import Timezone Fix**~~ - ✅ UTC→Cancun, MTC reconciled (Dec 7)
+5. **Data Reconciliation** - ✅ MTC COMPLETE / AVII pending (Dec 7-20)
+6. **Firestore Backup** - GitHub #38 (Dec 21-31)
 
 ### Post-Production Roadmap (Q1 2026)
 1. **PWA: Owner Dashboard** - Unit status, exchange rates (GitHub #47 card refactor)
@@ -564,6 +673,7 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 3. **Bulk Admin Operations** - GitHub #50, report generation & storage
 4. **PWA Auto-Login Biometrics** - GitHub #49, Face ID / Touch ID
 5. **Maintenance Role CRUD** - GitHub #48, add to UI picklists
+6. **Single Unit Client Support** - GitHub #54, after Tasks/Calendar complete; pilot with SLP (ACM-102, MTC-PH4D)
 
 ### Deprioritized (Post-Production)
 - GitHub #43: Client Management 404
@@ -580,5 +690,6 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 - ✅ **v0.4.0 Milestone:** Budget Module COMPLETE (Dec 4, 2025) - Ready for Jan 1, 2026
 - ✅ **v0.4.1 Milestone:** PWA Maintenance Tools COMPLETE (Dec 6, 2025) - Water Meter + Propane Tank
 - ✅ **v0.4.2 Milestone:** Projects Module COMPLETE (Dec 7, 2025) - Special Assessments in Statements
+- ✅ **v0.4.3 Milestone:** Import Timezone Fix COMPLETE (Dec 7, 2025) - MTC Balance Reconciled
 - 🎯 **v0.5.0 Milestone:** Data Reconciliation Complete, Firestore Backup Configured
 - 🚀 **Long-term Goal:** Full Google Sheets replacement with mobile worker support

@@ -168,46 +168,71 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     // Get transaction history for this unit
     // Note: Removed orderBy to avoid index requirement, will sort in memory
     
-    // First try to get transactions with unitId field
-    let transactionsSnapshot = await db.collection('clients').doc(clientId)
+    // Normalize unitId to handle ownership changes (e.g., "102 (Moguel)" → "102")
+    function normalizeUnitId(unitLabel) {
+      if (!unitLabel) return null;
+      const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
+      return match ? match[1] : unitLabel;
+    }
+    
+    const normalizedUnitId = normalizeUnitId(unitId);
+    
+    // Query for transactions using normalizedUnitId (handles ownership changes)
+    // Also query unitId and unit fields for backwards compatibility
+    const allDocIds = new Set();
+    const allDocs = [];
+    
+    // Query 1: normalizedUnitId field (new transactions with ownership change support)
+    if (normalizedUnitId) {
+      const normalizedSnapshot = await db.collection('clients').doc(clientId)
+        .collection('transactions')
+        .where('normalizedUnitId', '==', normalizedUnitId)
+        .get();
+      
+      normalizedSnapshot.docs.forEach(doc => {
+        if (!allDocIds.has(doc.id)) {
+          allDocIds.add(doc.id);
+          allDocs.push(doc);
+        }
+      });
+      console.log(`[UNIT REPORT] Query for normalizedUnitId='${normalizedUnitId}' found ${normalizedSnapshot.size} transactions`);
+    }
+    
+    // Query 2: unitId field (exact match)
+    const unitIdSnapshot = await db.collection('clients').doc(clientId)
       .collection('transactions')
       .where('unitId', '==', unitId)
       .get();
-
-    // Debug: Log initial query results
-    console.log(`[UNIT REPORT] Initial query for unitId='${unitId}' found ${transactionsSnapshot.size} transactions`);
     
-    // If no results, also check for transactions with unit field (legacy format)
-    if (transactionsSnapshot.size === 0) {
-      console.log(`[UNIT REPORT] No transactions found with unitId field, checking unit field for unit ${unitId}`);
-      transactionsSnapshot = await db.collection('clients').doc(clientId)
-        .collection('transactions')
-        .where('unit', '==', unitId)
-        .get();
-      console.log(`[UNIT REPORT] Query for unit='${unitId}' found ${transactionsSnapshot.size} transactions`);
-    }
-    
-    // If we still have no results but found some with the first query, combine both
-    // This handles the case where some transactions use unitId and others use unit
-    else {
-      const legacySnapshot = await db.collection('clients').doc(clientId)
-        .collection('transactions')
-        .where('unit', '==', unitId)
-        .get();
-      
-      if (legacySnapshot.size > 0) {
-        // Combine both result sets
-        const allDocs = [...transactionsSnapshot.docs, ...legacySnapshot.docs];
-        // Remove duplicates based on document ID
-        const uniqueDocs = Array.from(new Map(allDocs.map(doc => [doc.id, doc])).values());
-        
-        // Create a combined snapshot-like object
-        transactionsSnapshot = {
-          docs: uniqueDocs,
-          size: uniqueDocs.length
-        };
+    unitIdSnapshot.docs.forEach(doc => {
+      if (!allDocIds.has(doc.id)) {
+        allDocIds.add(doc.id);
+        allDocs.push(doc);
       }
-    }
+    });
+    console.log(`[UNIT REPORT] Query for unitId='${unitId}' found ${unitIdSnapshot.size} transactions`);
+    
+    // Query 3: unit field (legacy format)
+    const unitSnapshot = await db.collection('clients').doc(clientId)
+      .collection('transactions')
+      .where('unit', '==', unitId)
+      .get();
+    
+    unitSnapshot.docs.forEach(doc => {
+      if (!allDocIds.has(doc.id)) {
+        allDocIds.add(doc.id);
+        allDocs.push(doc);
+      }
+    });
+    console.log(`[UNIT REPORT] Query for unit='${unitId}' found ${unitSnapshot.size} transactions`);
+    
+    // Create combined snapshot-like object
+    const transactionsSnapshot = {
+      docs: allDocs,
+      size: allDocs.length
+    };
+    
+    console.log(`[UNIT REPORT] Total unique transactions found: ${transactionsSnapshot.size}`);
 
     const allTransactions = transactionsSnapshot.docs.map(doc => {
       const data = doc.data();

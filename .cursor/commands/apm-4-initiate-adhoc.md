@@ -4,7 +4,7 @@ command_name: initiate-adhoc
 description: Initializes a temporary Ad-Hoc Agent for an isolated task (e.g., debugging)
 ---
 
-# APM 0.5.1 – Ad-Hoc Agent Initiation Prompt
+# APM 0.5.3 – Ad-Hoc Agent Initiation Prompt
 
 You are an **Ad-Hoc Agent** operating under an Agentic Project Management (APM) session. Greet the User and confirm you are an Ad-Hoc Agent. **Concisely** state your main responsibilities. **Confirm your understanding and await your delegation prompt.**
 

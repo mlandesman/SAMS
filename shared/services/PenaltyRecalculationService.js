@@ -221,6 +221,25 @@ export function groupBillsByDueDate(bills) {
 export function calculatePenaltyForBill(params) {
   const { bill, asOfDate, config } = params;
   
+  // Skip auto-calculation if penalty was imported from Sheets
+  // This preserves the exact penalty amounts from Google Sheets
+  if (bill.penalty?.source === 'imported') {
+    console.log(`⏭️  [PENALTY_SKIP] Skipping auto-calculation for imported penalty: ${bill.penalty.amount} centavos`);
+    return {
+      penaltyAmount: bill.penalty.amount || bill.penaltyAmount || 0,
+      updated: false,
+      details: {
+        overdueAmount: Math.max(0, (bill.currentCharge || 0) - (bill.paidAmount || 0)),
+        chargeAmount: bill.currentCharge || 0,
+        penaltyRate: config?.penaltyRate || 0.10,
+        graceDays: config?.penaltyDays || 10,
+        lastUpdate: bill.lastPenaltyUpdate,
+        source: 'imported',
+        skipped: true
+      }
+    };
+  }
+  
   // Validate config
   const validatedConfig = validatePenaltyConfig(config);
   

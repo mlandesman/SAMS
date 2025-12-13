@@ -806,6 +806,11 @@ export class ImportService {
           
           const augmentedData = augmentTransaction(transaction, vendorId, categoryId, accountId, vendorName, accountMap, this.clientId);
           
+          // Add normalized unit ID for statement generation (handles ownership changes)
+          if (transaction.Unit) {
+            augmentedData.normalizedUnitId = this.normalizeUnitId(transaction.Unit);
+          }
+          
           // Parse date properly using Luxon via DateService
           // CRITICAL: Always interpret dates in Cancun timezone to prevent day shifts
           // JSON.stringify() converts JS Dates to UTC ISO strings, so we parse as UTC
@@ -1538,6 +1543,152 @@ export class ImportService {
   }
 
   /**
+   * Extract numeric unit ID from full unit label
+   * "102 (Moguel)" → "102"
+   * "PH2B (Rosania)" → "PH2B"
+   * @param {string} unitLabel - Full unit label with owner name
+   * @returns {string} Normalized unit ID
+   */
+  normalizeUnitId(unitLabel) {
+    if (!unitLabel) return null;
+    const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
+    return match ? match[1] : unitLabel;
+  }
+
+  /**
+   * Get fiscal quarter from date (fiscal year starts July)
+   * Q1 = Jul-Sep (months 6-8), Q2 = Oct-Dec (months 9-11),
+   * Q3 = Jan-Mar (months 0-2), Q4 = Apr-Jun (months 3-5)
+   * @param {Date|string} date - Date to calculate quarter for
+   * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12, default 7 for July)
+   * @returns {Object} { quarter: number, year: number } - year is fiscal year
+   */
+  getFiscalQuarter(date, fiscalYearStartMonth = 7) {
+    const dateObj = date instanceof Date ? date : new Date(date + 'T12:00:00');
+    const month = dateObj.getMonth(); // 0-11
+    
+    // Calculate fiscal year using getFiscalYear utility
+    const fiscalYear = getFiscalYear(dateObj, fiscalYearStartMonth);
+    
+    if (month >= 6 && month <= 8) {
+      // Jul, Aug, Sep = Q1
+      return { quarter: 1, year: fiscalYear };
+    } else if (month >= 9 && month <= 11) {
+      // Oct, Nov, Dec = Q2
+      return { quarter: 2, year: fiscalYear };
+    } else if (month >= 0 && month <= 2) {
+      // Jan, Feb, Mar = Q3
+      return { quarter: 3, year: fiscalYear };
+    } else {
+      // Apr, May, Jun = Q4
+      return { quarter: 4, year: fiscalYear };
+    }
+  }
+
+  /**
+   * Extract penalty charges from unitAccounting.json
+   * @param {Array} unitAccounting - Raw unitAccounting data
+   * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12, default 7 for July)
+   * @returns {Object} Penalties grouped by unit and fiscal quarter
+   */
+  extractPenalties(unitAccounting, fiscalYearStartMonth = 7) {
+    const penalties = {};
+    
+    if (!Array.isArray(unitAccounting)) {
+      console.warn('⚠️  unitAccounting is not an array, skipping penalty extraction');
+      return penalties;
+    }
+    
+    for (const entry of unitAccounting) {
+      const category = entry['Categoría'] || entry.Category || '';
+      if (category !== 'Cargo por pago atrasado') continue;
+      
+      const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
+      if (!unitId) continue;
+      
+      const date = new Date(entry.Fecha || entry.Date);
+      if (isNaN(date.getTime())) {
+        console.warn(`⚠️  Invalid date for penalty entry:`, entry);
+        continue;
+      }
+      
+      const amount = parseFloat(entry.Cantidad || entry.Amount || 0);
+      if (isNaN(amount) || amount === 0) continue;
+      
+      const isPaid = entry['✓'] === true || entry.Paid === true;
+      
+      // Calculate fiscal quarter (using fiscal year, not calendar year)
+      const fiscalQ = this.getFiscalQuarter(date, fiscalYearStartMonth);
+      const key = `${unitId}_${fiscalQ.year}_Q${fiscalQ.quarter}`;
+      
+      if (!penalties[key]) {
+        penalties[key] = { 
+          unitId, 
+          fiscalYear: fiscalQ.year,
+          fiscalQuarter: fiscalQ.quarter, 
+          totalPenalty: 0, 
+          entries: [] 
+        };
+      }
+      penalties[key].totalPenalty += amount;
+      penalties[key].entries.push({ date, amount, isPaid });
+    }
+    
+    // Convert totals to centavos
+    for (const key in penalties) {
+      penalties[key].totalPenaltyCentavos = validateCentavos(
+        pesosToCentavos(penalties[key].totalPenalty),
+        `penalty[${key}].totalPenalty`
+      );
+    }
+    
+    return penalties;
+  }
+
+  /**
+   * Extract lavado (car/boat wash) charges from unitAccounting.json
+   * @param {Array} unitAccounting - Raw unitAccounting data
+   * @returns {Array} Lavado charges with normalized unit IDs
+   */
+  extractLavadoCharges(unitAccounting) {
+    const lavado = [];
+    
+    if (!Array.isArray(unitAccounting)) {
+      console.warn('⚠️  unitAccounting is not an array, skipping lavado extraction');
+      return lavado;
+    }
+    
+    for (const entry of unitAccounting) {
+      const category = entry['Categoría'] || entry.Category || '';
+      if (!category.startsWith('Lavado')) continue;
+      
+      const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
+      if (!unitId) continue;
+      
+      const date = new Date(entry.Fecha || entry.Date);
+      if (isNaN(date.getTime())) {
+        console.warn(`⚠️  Invalid date for lavado entry:`, entry);
+        continue;
+      }
+      
+      const amount = parseFloat(entry.Cantidad || entry.Amount || 0);
+      if (isNaN(amount) || amount === 0) continue;
+      
+      lavado.push({
+        unitId: unitId,
+        originalUnitId: entry.Depto || entry.Unit,
+        date: date,
+        category: category,
+        amount: validateCentavos(pesosToCentavos(amount), `lavado[${lavado.length}].amount`),
+        isPaid: entry['✓'] === true || entry.Paid === true,
+        paidBy: entry.Pagado || null  // Payment reference if exists
+      });
+    }
+    
+    return lavado;
+  }
+
+  /**
    * Get or create accounts mapping
    */
   async getAccountsMapping() {
@@ -1775,6 +1926,24 @@ export class ImportService {
         }
       }
       
+      // Load unitAccounting.json for penalties and lavado charges
+      let penalties = {};
+      let lavadoCharges = [];
+      try {
+        const unitAccountingData = await this.loadJsonFile('unitAccounting.json');
+        // Pass fiscalYearStartMonth to extractPenalties so it calculates fiscal year correctly
+        penalties = this.extractPenalties(unitAccountingData, fiscalYearStartMonth);
+        lavadoCharges = this.extractLavadoCharges(unitAccountingData);
+        console.log(`✓ Loaded penalties: ${Object.keys(penalties).length} unit-quarter groups`);
+        if (Object.keys(penalties).length > 0) {
+          console.log(`   Penalty keys: ${Object.keys(penalties).join(', ')}`);
+        }
+        console.log(`✓ Loaded lavado charges: ${lavadoCharges.length} entries`);
+      } catch (error) {
+        console.warn(`⚠️  unitAccounting.json not found or error loading: ${error.message}`);
+        console.warn(`   Penalties and lavado charges will not be imported`);
+      }
+      
       // Load client config to get fiscal year and water bills configuration
       const clientConfig = await this.getClientConfig();
       const fiscalYearStartMonth = validateFiscalYearConfig(clientConfig);
@@ -1801,7 +1970,7 @@ export class ImportService {
           
           // Step 2: Generate quarterly bill (only for fiscal year 2026+, skip prior year quarters)
           if (quarterCycle.shouldGenerateBill !== false) {
-            await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth);
+            await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, penalties, lavadoCharges);
             results.billsGenerated++;
             
             // Step 3: Process payments made during this quarter (only if bill was generated)
@@ -2058,8 +2227,13 @@ export class ImportService {
   /**
    * Generate quarterly bills by aggregating 3 months of data
    * Creates bill documents with ID format: {fiscalYear}-Q{quarter} (e.g., 2026-Q1)
+   * @param {Object} quarterCycle - Quarter cycle data
+   * @param {number} paymentDueDay - Day of month when payment is due
+   * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12)
+   * @param {Object} penalties - Penalties grouped by unit and fiscal quarter
+   * @param {Array} lavadoCharges - Lavado charges array
    */
-  async generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth) {
+  async generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, penalties = {}, lavadoCharges = []) {
     const waterBillsService = (await import('./waterBillsService.js')).default;
     const { waterDataService } = await import('./waterDataService.js');
     const db = await this.getDb();
@@ -2215,9 +2389,61 @@ export class ImportService {
     let totalNewCharges = 0;
     let unitsWithBills = 0;
     
+    // Match penalties and lavado charges to this quarter
+    const quarterKey = `${quarterCycle.fiscalYear}_Q${quarterCycle.fiscalQuarter}`;
+    console.log(`  🔍 Looking for penalties with quarter key: ${quarterKey}`);
+    if (Object.keys(penalties).length > 0) {
+      console.log(`  📋 Available penalty keys: ${Object.keys(penalties).join(', ')}`);
+    }
+    
     for (const [unitId, totals] of Object.entries(unitTotals)) {
-      if (totals.totalAmount > 0) {
-        bills[unitId] = {
+      // Check for imported penalty for this unit and quarter
+      const penaltyKey = `${unitId}_${quarterKey}`;
+      const penaltyData = penalties[penaltyKey];
+      if (penaltyData) {
+        console.log(`  ✅ Found penalty for unit ${unitId}: ${centavosToPesos(penaltyData.totalPenaltyCentavos).toFixed(2)} pesos`);
+      }
+      
+      // Find lavado charges for this unit in this quarter's date range
+      const quarterStartDate = new Date(quarterCycle.months[0].billingMonth + '-01');
+      const quarterEndDate = new Date(quarterCycle.months[quarterCycle.months.length - 1].billingMonth + '-01');
+      quarterEndDate.setMonth(quarterEndDate.getMonth() + 1); // End of last month
+      
+      const unitLavadoCharges = lavadoCharges.filter(lavado => {
+        const normalizedUnitId = this.normalizeUnitId(lavado.originalUnitId || lavado.unitId);
+        const lavadoDate = lavado.date instanceof Date ? lavado.date : new Date(lavado.date);
+        return normalizedUnitId === unitId && 
+               lavadoDate >= quarterStartDate && 
+               lavadoDate < quarterEndDate;
+      });
+      
+      // Calculate total lavado charge from unitAccounting.json (in addition to washes from readings)
+      let importedLavadoCharge = 0;
+      for (const lavado of unitLavadoCharges) {
+        importedLavadoCharge = validateCentavos(
+          importedLavadoCharge + lavado.amount,
+          `lavado[${unitId}].total`
+        );
+      }
+      
+      // Base amount includes water charge, car wash, boat wash, and imported lavado
+      const baseAmount = validateCentavos(
+        totals.totalAmount + importedLavadoCharge,
+        `baseAmount[${unitId}]`
+      );
+      
+      // Apply imported penalty if available
+      const importedPenaltyAmount = penaltyData?.totalPenaltyCentavos || 0;
+      
+      // Total amount includes base + imported penalty
+      const totalAmountWithPenalty = validateCentavos(
+        baseAmount + importedPenaltyAmount,
+        `totalAmountWithPenalty[${unitId}]`
+      );
+      
+      if (baseAmount > 0 || importedPenaltyAmount > 0) {
+        // Build bill object
+        const billData = {
           // Consumption summary
           totalConsumption: totals.totalConsumption,
           
@@ -2235,11 +2461,12 @@ export class ImportService {
           waterCharge: totals.totalWaterCharge,
           carWashCharge: totals.totalCarWashCharge,
           boatWashCharge: totals.totalBoatWashCharge,
+          importedLavadoCharge: importedLavadoCharge, // Lavado from unitAccounting.json
           
           // Core financial fields (ALL IN CENTAVOS)
-          currentCharge: totals.totalAmount,
-          penaltyAmount: 0, // New bills start with no penalty
-          totalAmount: totals.totalAmount,
+          currentCharge: baseAmount,
+          penaltyAmount: importedPenaltyAmount, // Imported penalty from unitAccounting.json
+          totalAmount: totalAmountWithPenalty,
           status: 'unpaid',
           paidAmount: 0,
           
@@ -2249,11 +2476,33 @@ export class ImportService {
           payments: [],
           
           // Timestamp
-          lastPenaltyUpdate: getNow().toISOString()
+          lastPenaltyUpdate: getNow().toISOString(),
+          
+          // Import metadata
+          dataSource: 'sheets_import',
+          importedAt: getNow().toISOString()
         };
         
-        totalNewCharges += totals.totalAmount;
+        // Only add penalty field if there's an imported penalty (Firestore doesn't allow undefined)
+        if (importedPenaltyAmount > 0) {
+          billData.penalty = {
+            amount: importedPenaltyAmount,
+            source: 'imported', // Mark as imported, not calculated
+            entries: penaltyData?.entries || []
+          };
+        }
+        
+        bills[unitId] = billData;
+        
+        totalNewCharges += totalAmountWithPenalty;
         unitsWithBills++;
+        
+        if (importedPenaltyAmount > 0) {
+          console.log(`  💰 Applied imported penalty to unit ${unitId}: ${centavosToPesos(importedPenaltyAmount).toFixed(2)} pesos`);
+        }
+        if (importedLavadoCharge > 0) {
+          console.log(`  🚿 Applied imported lavado charges to unit ${unitId}: ${centavosToPesos(importedLavadoCharge).toFixed(2)} pesos`);
+        }
       }
     }
     

@@ -4,7 +4,7 @@ command_name: delegate-debug
 description: Provides the template for delegating a complex debugging task to an Ad-Hoc agent
 ---
 
-# APM 0.5.1 - Debug Delegation Guide
+# APM 0.5.3 - Debug Delegation Guide
 This guide defines how Implementation Agents delegate complex debugging work to Ad-Hoc Debug agents. Use this guide when encountering major bugs (> 2 exchanges OR immediately complex/systemic issues) as defined in Implementation Agent Initiation Prompt or if explicitly defined in Task Assignment Prompt.
 
 ---

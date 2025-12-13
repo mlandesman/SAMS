@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.4.0",
-  "buildDate": "2025-12-06T17:15:17.793Z",
-  "buildTimestamp": 1765041317794,
+  "buildDate": "2025-12-13T02:48:13.408Z",
+  "buildTimestamp": 1765594093409,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "4209606",
-    "branch": "main",
-    "lastCommitDate": "2025-12-05 23:07:05 -0500"
+    "hash": "2cde731",
+    "branch": "fix/avii-import-reconciliation",
+    "lastCommitDate": "2025-12-08 20:54:45 -0500"
   },
   "build": {
-    "timestamp": "2025-12-06T17:15:17.793Z",
+    "timestamp": "2025-12-13T02:48:13.408Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251206.1215"
+    "buildNumber": "251212.2148"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-12-06T17:15:17.793Z",
+    "date": "2025-12-13T02:48:13.408Z",
     "automated": true
   },
   "releaseNotes": {

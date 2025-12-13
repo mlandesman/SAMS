@@ -4,7 +4,7 @@ command_name: delegate-research
 description: Provides the template for delegating a research task to an Ad-Hoc agent
 ---
 
-# APM 0.5.1 - Research Delegation Guide
+# APM 0.5.3 - Research Delegation Guide
 This guide defines how Implementation Agents delegate research work to Ad-Hoc Research agents. Use this guide when encountering knowledge gaps about current documentation, APIs, SDKs, or technical specifications required for task completion.
 
 ---

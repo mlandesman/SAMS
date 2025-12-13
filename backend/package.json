@@ -26,6 +26,7 @@
   "author": "SAMS Team",
   "license": "ISC",
   "dependencies": {
+    "@pomgui/pdf-tables-parser": "^0.1.0",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
@@ -36,7 +37,8 @@
     "js-yaml": "^4.1.0",
     "luxon": "^3.7.1",
     "multer": "^2.0.1",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0",
