@@ -167,38 +167,12 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
 
     // Get transaction history for this unit
     // Note: Removed orderBy to avoid index requirement, will sort in memory
-    
-    // Normalize unitId to handle ownership changes (e.g., "102 (Moguel)" → "102")
-    function normalizeUnitId(unitLabel) {
-      if (!unitLabel) return null;
-      const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
-      return match ? match[1] : unitLabel;
-    }
-    
-    const normalizedUnitId = normalizeUnitId(unitId);
-    
-    // Query for transactions using normalizedUnitId (handles ownership changes)
-    // Also query unitId and unit fields for backwards compatibility
+    // unitId is normalized at import time, so we use simple exact matching
+    // Also query legacy 'unit' field for backwards compatibility with older data
     const allDocIds = new Set();
     const allDocs = [];
     
-    // Query 1: normalizedUnitId field (new transactions with ownership change support)
-    if (normalizedUnitId) {
-      const normalizedSnapshot = await db.collection('clients').doc(clientId)
-        .collection('transactions')
-        .where('normalizedUnitId', '==', normalizedUnitId)
-        .get();
-      
-      normalizedSnapshot.docs.forEach(doc => {
-        if (!allDocIds.has(doc.id)) {
-          allDocIds.add(doc.id);
-          allDocs.push(doc);
-        }
-      });
-      console.log(`[UNIT REPORT] Query for normalizedUnitId='${normalizedUnitId}' found ${normalizedSnapshot.size} transactions`);
-    }
-    
-    // Query 2: unitId field (exact match)
+    // Query 1: unitId field (primary - normalized at import)
     const unitIdSnapshot = await db.collection('clients').doc(clientId)
       .collection('transactions')
       .where('unitId', '==', unitId)
@@ -212,7 +186,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     });
     console.log(`[UNIT REPORT] Query for unitId='${unitId}' found ${unitIdSnapshot.size} transactions`);
     
-    // Query 3: unit field (legacy format)
+    // Query 2: unit field (legacy format for backwards compatibility)
     const unitSnapshot = await db.collection('clients').doc(clientId)
       .collection('transactions')
       .where('unit', '==', unitId)

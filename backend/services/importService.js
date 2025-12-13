@@ -806,9 +806,10 @@ export class ImportService {
           
           const augmentedData = augmentTransaction(transaction, vendorId, categoryId, accountId, vendorName, accountMap, this.clientId);
           
-          // Add normalized unit ID for statement generation (handles ownership changes)
-          if (transaction.Unit) {
-            augmentedData.normalizedUnitId = this.normalizeUnitId(transaction.Unit);
+          // Normalize unitId at import time - extract just the unit number, not owner metadata
+          // "102 (Moguel)" → "102" - owner info is display metadata, not part of identifier
+          if (augmentedData.unitId && transaction.Unit) {
+            augmentedData.unitId = this.normalizeUnitId(transaction.Unit);
           }
           
           // Parse date properly using Luxon via DateService
@@ -881,21 +882,23 @@ export class ImportService {
             if (transaction.Category === "HOA Dues" && seqNumber) {
               // Convert to string for consistent lookup
               const seqKey = String(seqNumber);
+              // Normalize unitId - extract just the unit number
+              const normalizedUnit = this.normalizeUnitId(transaction.Unit);
               hoaCrossRef.bySequence[seqKey] = {
                 transactionId: transactionId,
-                unitId: transaction.Unit,
+                unitId: normalizedUnit,
                 amount: transaction.Amount,
                 date: transaction.Date
               };
               hoaCrossRef.totalRecords++;
               
-              // Also track by unit
-              if (!hoaCrossRef.byUnit[transaction.Unit]) {
-                hoaCrossRef.byUnit[transaction.Unit] = [];
+              // Also track by unit (using normalized ID as key)
+              if (!hoaCrossRef.byUnit[normalizedUnit]) {
+                hoaCrossRef.byUnit[normalizedUnit] = [];
               }
-              hoaCrossRef.byUnit[transaction.Unit].push({
+              hoaCrossRef.byUnit[normalizedUnit].push({
                 transactionId: transactionId,
-                unitId: transaction.Unit,
+                unitId: normalizedUnit,
                 amount: transaction.Amount,
                 date: transaction.Date,
                 sequenceNumber: seqNumber
@@ -2037,10 +2040,11 @@ export class ImportService {
       
       // Extract readings for all units
       for (const unitData of readingsData) {
-        const unitId = unitData.Unit;
+        // Normalize unitId - extract just the unit number
+        const unitId = this.normalizeUnitId(unitData.Unit);
         const reading = unitData[dateKey];
         
-        if (reading !== '') {
+        if (reading !== '' && unitId) {
           readingsByMonth[monthStr].readings[unitId] = reading;
         }
       }
@@ -2606,7 +2610,7 @@ export class ImportService {
       if (!paymentGroups[paySeq]) {
         paymentGroups[paySeq] = {
           paymentSeq: paySeq,
-          unit: charge.Unit,
+          unit: this.normalizeUnitId(charge.Unit),
           paymentDate: charge.PaymentDate,
           charges: [],
           totalAmount: 0,
@@ -2714,7 +2718,7 @@ export class ImportService {
       if (!paymentGroups[paySeq]) {
         paymentGroups[paySeq] = {
           paymentSeq: paySeq,
-          unit: charge.Unit,
+          unit: this.normalizeUnitId(charge.Unit),
           paymentDate: charge.PaymentDate,
           charges: [],
           totalAmount: 0,
@@ -2791,16 +2795,19 @@ export class ImportService {
       let fiscalMonth = calendarMonth - fiscalYearStartMonth;
       if (fiscalMonth < 0) fiscalMonth += 12;
       
+      // Normalize unitId - extract just the unit number
+      const normalizedUnit = this.normalizeUnitId(charge.Unit);
+      
       // Find existing bill update or create new one
       let billUpdate = billUpdates.find(
-        b => b.fiscalYear === fiscalYear && b.fiscalMonth === fiscalMonth && b.unitId === charge.Unit.toString()
+        b => b.fiscalYear === fiscalYear && b.fiscalMonth === fiscalMonth && b.unitId === normalizedUnit
       );
       
       if (!billUpdate) {
         billUpdate = {
           fiscalYear,
           fiscalMonth,
-          unitId: charge.Unit.toString(),
+          unitId: normalizedUnit,
           amountApplied: 0,
           basePaid: 0,
           penaltyPaid: 0
@@ -2968,16 +2975,19 @@ export class ImportService {
       
       // Only include if charge belongs to the target quarter
       if (chargeFiscalYear === fiscalYear && chargeQuarter === fiscalQuarter) {
+        // Normalize unitId - extract just the unit number
+        const normalizedUnit = this.normalizeUnitId(charge.Unit);
+        
         // Find existing bill update or create new one
         let billUpdate = billUpdates.find(
-          b => b.fiscalYear === fiscalYear && b.fiscalQuarter === fiscalQuarter && b.unitId === charge.Unit.toString()
+          b => b.fiscalYear === fiscalYear && b.fiscalQuarter === fiscalQuarter && b.unitId === normalizedUnit
         );
         
         if (!billUpdate) {
           billUpdate = {
             fiscalYear,
             fiscalQuarter,
-            unitId: charge.Unit.toString(),
+            unitId: normalizedUnit,
             amountApplied: 0,
             basePaid: 0,
             penaltyPaid: 0

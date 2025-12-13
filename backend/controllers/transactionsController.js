@@ -301,9 +301,7 @@ async function createTransaction(clientId, data, options = {}) {
       // Ensure payment method is included
       paymentMethod: validation.data.paymentMethod || null,
       // Include unit if provided (for multi-unit properties)
-      unitId: validation.data.unit || validation.data.unitId || null,
-      // Preserve normalizedUnitId if provided (not in schema, but needed for statement queries)
-      normalizedUnitId: data.normalizedUnitId || null
+      unitId: validation.data.unit || validation.data.unitId || null
     };
     
     // Remove old createdAt field if present
@@ -1999,90 +1997,20 @@ async function queryTransactions(clientId, filters = {}) {
     }
 
     // Apply unitId filter if provided (Phase 4 Task 4.2)
-    // Query using normalizedUnitId to handle ownership changes (e.g., "102 (Moguel)" -> "102")
-    let allDocIds = new Set();
-    let allDocs = [];
-    
+    // unitId is normalized at import time, so we can use simple exact matching
     if (filters.unitId) {
-      // Normalize unitId for matching (handles ownership changes)
-      function normalizeUnitId(unitLabel) {
-        if (!unitLabel) return null;
-        const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
-        return match ? match[1] : unitLabel;
-      }
-      
-      const normalizedUnitId = normalizeUnitId(filters.unitId);
-      
-      // Query 1: normalizedUnitId field (new transactions with ownership change support)
-      if (normalizedUnitId) {
-        let normalizedQuery = db.collection(`clients/${clientId}/transactions`)
-          .where('normalizedUnitId', '==', normalizedUnitId);
-        
-        // Apply other filters to normalized query
-        if (filters.startDate) {
-          const startTimestamp = convertToTimestamp(filters.startDate);
-          normalizedQuery = normalizedQuery.where('date', '>=', startTimestamp);
-        }
-        if (filters.endDate) {
-          const endTimestamp = convertToTimestamp(filters.endDate);
-          normalizedQuery = normalizedQuery.where('date', '<=', endTimestamp);
-        }
-        if (filters.category) {
-          normalizedQuery = normalizedQuery.where('category', '==', filters.category);
-        }
-        if (filters.vendor) {
-          normalizedQuery = normalizedQuery.where('vendor', '==', filters.vendor);
-        }
-        if (filters.minAmount !== undefined) {
-          const minCents = dollarsToCents(filters.minAmount);
-          normalizedQuery = normalizedQuery.where('amount', '>=', minCents);
-        }
-        if (filters.maxAmount !== undefined) {
-          const maxCents = dollarsToCents(filters.maxAmount);
-          normalizedQuery = normalizedQuery.where('amount', '<=', maxCents);
-        }
-        normalizedQuery = normalizedQuery.orderBy('date', 'desc');
-        
-        const normalizedSnapshot = await normalizedQuery.get();
-        normalizedSnapshot.docs.forEach(doc => {
-          if (!allDocIds.has(doc.id)) {
-            allDocIds.add(doc.id);
-            allDocs.push(doc);
-          }
-        });
-        console.log(`[TRANSACTION QUERY] Query for normalizedUnitId='${normalizedUnitId}' found ${normalizedSnapshot.size} transactions`);
-      }
-      
-      // Query 2: unitId field (exact match for backwards compatibility)
       query = query.where('unitId', '==', filters.unitId);
-      const unitIdSnapshot = await query.get();
-      unitIdSnapshot.docs.forEach(doc => {
-        if (!allDocIds.has(doc.id)) {
-          allDocIds.add(doc.id);
-          allDocs.push(doc);
-        }
-      });
-      console.log(`[TRANSACTION QUERY] Query for unitId='${filters.unitId}' found ${unitIdSnapshot.size} transactions`);
-    } else {
-      // No unitId filter - use original query logic
-      query = query.orderBy('date', 'desc');
-      const snapshot = await query.get();
-      snapshot.forEach(doc => {
-        allDocs.push(doc);
-      });
     }
     
-    // Sort combined results by date descending (if we combined multiple queries)
-    if (filters.unitId && allDocs.length > 0) {
-      allDocs.sort((a, b) => {
-        const dateA = a.data().date;
-        const dateB = b.data().date;
-        if (!dateA || !dateB) return 0;
-        const timeA = dateA._seconds || (dateA instanceof Date ? dateA.getTime() / 1000 : 0);
-        const timeB = dateB._seconds || (dateB instanceof Date ? dateB.getTime() / 1000 : 0);
-        return timeB - timeA; // Descending order
-      });
-    }
+    // Execute query with ordering
+    query = query.orderBy('date', 'desc');
+    const snapshot = await query.get();
+    const allDocs = [];
+    snapshot.forEach(doc => {
+      allDocs.push(doc);
+    });
+    
+    console.log(`[TRANSACTION QUERY] Query for unitId='${filters.unitId || 'all'}' found ${allDocs.length} transactions`);
     
     const transactions = [];
     
