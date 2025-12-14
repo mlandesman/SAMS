@@ -491,7 +491,9 @@ function createChronologicalTransactionList(
                 amount: transaction.amount,
                 method: transaction.method,
                 reference: transaction.reference,
-                notes: transaction.notes
+                notes: transaction.notes,
+                categoryId: transaction.categoryId || null,
+                categoryName: transaction.categoryName || null
               } : null,
               allocations: transaction 
                 ? (transaction.allocations || []).map(alloc => ({
@@ -634,7 +636,9 @@ function createChronologicalTransactionList(
               amount: transaction.amount,
               method: transaction.method,
               reference: transaction.reference,
-              notes: transaction.notes
+              notes: transaction.notes,
+              categoryId: transaction.categoryId || null,
+              categoryName: transaction.categoryName || null
             } : null,
             allocations: transaction 
               ? (transaction.allocations || []).map(alloc => ({
@@ -707,7 +711,9 @@ function createChronologicalTransactionList(
               amount: transaction.amount,
               method: transaction.method,
               reference: transaction.reference,
-              notes: transaction.notes
+              notes: transaction.notes,
+              categoryId: transaction.categoryId || null,
+              categoryName: transaction.categoryName || null
             },
             allocations: waterAllocations.map(alloc => ({
               categoryId: alloc.categoryId,
