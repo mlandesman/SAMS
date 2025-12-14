@@ -1044,7 +1044,6 @@ export async function generateStatementData(api, clientId, unitId, options = {})
             <th class="col-category">${t.category}</th>
             <th class="col-charges">${t.charges}</th>
             <th class="col-penalties">${t.penalties}</th>
-            <th class="col-total-paid">${t.totalPaid}</th>
           </tr>
         </thead>
         <tbody>
@@ -1053,7 +1052,6 @@ export async function generateStatementData(api, clientId, unitId, options = {})
             <td class="col-category">${cat.name}</td>
             <td class="col-charges">${cat.charges > 0 ? formatCurrency(cat.charges) : ''}</td>
             <td class="col-penalties">${cat.penalties > 0 ? formatCurrency(cat.penalties) : ''}</td>
-            <td class="col-total-paid">${formatCurrency(Math.abs(cat.paid))}</td>
           </tr>
           `).join('')}
           
@@ -1061,7 +1059,6 @@ export async function generateStatementData(api, clientId, unitId, options = {})
             <td class="col-category">${t.totals}</td>
             <td class="col-charges">${formatCurrency(data.allocationSummary.totals.charges)}</td>
             <td class="col-penalties">${formatCurrency(data.allocationSummary.totals.penalties)}</td>
-            <td class="col-total-paid">${formatCurrency(data.allocationSummary.totals.paid)}</td>
           </tr>
         </tbody>
       </table>
