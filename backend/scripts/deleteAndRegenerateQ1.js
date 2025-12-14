@@ -293,7 +293,20 @@ async function deleteAndRegenerate() {
     const result = await waterBillsService.generateQuarterlyBill(CLIENT_ID, FISCAL_YEAR, DUE_DATE);
     console.log('✅ Bill generated\n');
     
-    // Step 3: Apply imported charges and penalties from unitAccounting.json to match Sheets
+    // Step 3: Load the generated bill document
+    const billRef = db.collection('clients').doc(CLIENT_ID)
+      .collection('projects').doc('waterBills')
+      .collection('bills').doc('2026-Q1');
+    
+    const billDoc = await billRef.get();
+    if (!billDoc.exists) {
+      throw new Error('Bill document not found after generation');
+    }
+    
+    const billData = billDoc.data();
+    const bills = billData.bills?.units || {};
+    
+    // Step 4: Apply imported charges and penalties from unitAccounting.json to match Sheets
     // CRITICAL: unitAccounting.json is the source of truth for historical data
     console.log('📝 Applying imported charges and penalties from unitAccounting.json (source of truth)...');
     
@@ -330,17 +343,6 @@ async function deleteAndRegenerate() {
     // Then, apply penalties from Sheets (or clear if none exist)
     if (Object.keys(waterPenalties).length > 0 || Object.keys(bills).length > 0) {
       console.log(`  Applying penalties for ${Object.keys(waterPenalties).length} units with penalties...`);
-      const billRef = db.collection('clients').doc(CLIENT_ID)
-        .collection('projects').doc('waterBills')
-        .collection('bills').doc('2026-Q1');
-      
-      const billDoc = await billRef.get();
-      if (!billDoc.exists) {
-        throw new Error('Bill document not found after generation');
-      }
-      
-      const billData = billDoc.data();
-      const bills = billData.bills?.units || {};
       const quarterKey = `${FISCAL_YEAR}_Q${FISCAL_QUARTER}`;
       
       let updatedCount = 0;
@@ -402,20 +404,6 @@ async function deleteAndRegenerate() {
       }
       
       if (updatedCount > 0) {
-        // Update summary totals
-        const summary = billData.summary || {};
-        const newTotalBilled = validateCentavos(
-          (summary.totalBilled || 0) - (summary.totalPenalties || 0) + totalPenaltyApplied,
-          'newTotalBilled'
-        );
-        
-        // Update the bill document
-        await billRef.update({
-          'bills.units': bills,
-          'summary.totalPenalties': totalPenaltyApplied,
-          'summary.totalBilled': newTotalBilled
-        });
-        
         console.log(`  ✅ Applied penalties to ${updatedCount} units`);
         console.log(`     Total penalties applied: ${centavosToPesos(totalPenaltyApplied).toFixed(2)} pesos`);
       } else {
@@ -423,7 +411,29 @@ async function deleteAndRegenerate() {
       }
     }
     
-    // Step 4: Extract and apply payments from unitAccounting.json to update bill status
+    // Update summary totals after all charge and penalty changes
+    // Recalculate totals from all unit bills (in case charges were updated too)
+    let newTotalCharges = 0;
+    let newTotalPenalties = 0;
+    
+    for (const [unitId, unitBill] of Object.entries(bills)) {
+      newTotalCharges = validateCentavos(newTotalCharges + (unitBill.currentCharge || unitBill.waterCharge || 0), 'newTotalCharges');
+      newTotalPenalties = validateCentavos(newTotalPenalties + (unitBill.penaltyAmount || 0), 'newTotalPenalties');
+    }
+    
+    const newTotalBilled = validateCentavos(newTotalCharges + newTotalPenalties, 'newTotalBilled');
+    
+    // Update the bill document with all changes (charges and penalties)
+    await billRef.update({
+      'bills.units': bills,
+      'summary.totalPenalties': newTotalPenalties,
+      'summary.totalBilled': newTotalBilled,
+      'summary.totalNewCharges': newTotalCharges
+    });
+    
+    console.log(`\n✅ Updated bill totals: Charges ${centavosToPesos(newTotalCharges).toFixed(2)}, Penalties ${centavosToPesos(newTotalPenalties).toFixed(2)}, Total ${centavosToPesos(newTotalBilled).toFixed(2)}`);
+    
+    // Step 5: Extract and apply payments from unitAccounting.json to update bill status
     console.log('\n💳 Extracting water bill payments from unitAccounting.json...');
     let waterPayments = {};
     
