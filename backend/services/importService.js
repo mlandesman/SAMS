@@ -37,6 +37,26 @@ import {
   recordDuesPayment
 } from '../controllers/hoaDuesController.js';
 
+/**
+ * Spanish to English category name translations
+ * Maps Spanish category names used in Sheets exports to their English equivalents in SAMS
+ */
+const SPANISH_CATEGORY_TRANSLATIONS = {
+  // Penalty categories
+  'Cargo por consumo atrasado': 'Water Late Fee',           // Water consumption penalty
+  'Cargo por mantenimiento atrasado': 'HOA Late Fee',       // HOA maintenance penalty
+  'Cargo por pago atrasado': 'Late Payment Fee',            // Legacy unified penalty (deprecated)
+  
+  // Common transaction categories  
+  'Consumo de agua': 'Water Consumption',
+  'Mantenimiento trimestral': 'HOA Dues',
+  'Lavado de autos': 'Car Wash',
+  'Lavado de lancha': 'Boat Wash',
+  'Saldo de crédito aplicado': 'Credit Balance Applied',
+  
+  // Add more translations as needed
+};
+
 export class ImportService {
   constructor(clientId, dataPath, user = null) {
     this.clientId = clientId;
@@ -1043,6 +1063,20 @@ export class ImportService {
         console.warn(`⚠️ No cross-reference file found, will try to match sequences manually`);
       }
       
+      // Load HOA penalties from unitAccounting.json
+      let hoaPenalties = {};
+      try {
+        const unitAccountingData = await this.loadJsonFile('unitAccounting.json');
+        hoaPenalties = this.extractHoaPenalties(unitAccountingData, fiscalYearStartMonth);
+        console.log(`✅ Loaded HOA penalties: ${Object.keys(hoaPenalties).length} unit-year groups`);
+        if (Object.keys(hoaPenalties).length > 0) {
+          console.log(`   HOA penalty keys: ${Object.keys(hoaPenalties).join(', ')}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ unitAccounting.json not found or error loading: ${error.message}`);
+        console.warn(`   HOA penalties will not be imported`);
+      }
+      
       // Step 1: Build HOADues CrossRef from HOADues.json
       console.log('📋 Building HOA Dues CrossRef...');
       const hoaCrossRef = {};
@@ -1453,6 +1487,25 @@ export class ImportService {
           duesDocument.scheduledAmount = validatedScheduledAmount;
           duesDocument.totalPaid = totalPaid;
           
+          // Add HOA penalties for this unit/year from unitAccounting.json
+          const normalizedUnitId = this.normalizeUnitId(unitId);
+          const penaltyKey = `${normalizedUnitId}_${year}`;
+          const unitHoaPenalties = hoaPenalties[penaltyKey];
+          
+          if (unitHoaPenalties && unitHoaPenalties.entries.length > 0) {
+            duesDocument.penalties = {
+              totalAmount: unitHoaPenalties.totalPenaltyCentavos,
+              source: 'imported',
+              entries: unitHoaPenalties.entries.map(entry => ({
+                date: entry.date,
+                amount: validateCentavos(pesosToCentavos(entry.amount), `hoaPenalty.entry`),
+                isPaid: entry.isPaid,
+                notes: entry.notes || ''
+              }))
+            };
+            console.log(`  📋 Added ${unitHoaPenalties.entries.length} HOA penalties totaling ${centavosToPesos(unitHoaPenalties.totalPenaltyCentavos).toFixed(2)} pesos`);
+          }
+          
           // Write the complete dues document (use set with merge to handle existing docs)
           // NOTE: creditBalance is deprecated in dues document - use new structure instead
           await duesRef.set(duesDocument, { merge: true });
@@ -1589,29 +1642,31 @@ export class ImportService {
   }
 
   /**
-   * Extract penalty charges from unitAccounting.json
+   * Extract WATER consumption penalty charges from unitAccounting.json
+   * Category: "Cargo por consumo atrasado"
    * @param {Array} unitAccounting - Raw unitAccounting data
    * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12, default 7 for July)
-   * @returns {Object} Penalties grouped by unit and fiscal quarter
+   * @returns {Object} Water penalties grouped by unit and fiscal quarter
    */
-  extractPenalties(unitAccounting, fiscalYearStartMonth = 7) {
+  extractWaterPenalties(unitAccounting, fiscalYearStartMonth = 7) {
     const penalties = {};
     
     if (!Array.isArray(unitAccounting)) {
-      console.warn('⚠️  unitAccounting is not an array, skipping penalty extraction');
+      console.warn('⚠️  unitAccounting is not an array, skipping water penalty extraction');
       return penalties;
     }
     
     for (const entry of unitAccounting) {
       const category = entry['Categoría'] || entry.Category || '';
-      if (category !== 'Cargo por pago atrasado') continue;
+      // Match new category for water consumption penalties
+      if (category !== 'Cargo por consumo atrasado') continue;
       
       const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
       if (!unitId) continue;
       
       const date = new Date(entry.Fecha || entry.Date);
       if (isNaN(date.getTime())) {
-        console.warn(`⚠️  Invalid date for penalty entry:`, entry);
+        console.warn(`⚠️  Invalid date for water penalty entry:`, entry);
         continue;
       }
       
@@ -1619,6 +1674,7 @@ export class ImportService {
       if (isNaN(amount) || amount === 0) continue;
       
       const isPaid = entry['✓'] === true || entry.Paid === true;
+      const notes = entry.Notas || entry.Notes || '';
       
       // Calculate fiscal quarter (using fiscal year, not calendar year)
       const fiscalQ = this.getFiscalQuarter(date, fiscalYearStartMonth);
@@ -1634,18 +1690,91 @@ export class ImportService {
         };
       }
       penalties[key].totalPenalty += amount;
-      penalties[key].entries.push({ date, amount, isPaid });
+      penalties[key].entries.push({ date, amount, isPaid, notes });
     }
     
     // Convert totals to centavos
     for (const key in penalties) {
       penalties[key].totalPenaltyCentavos = validateCentavos(
         pesosToCentavos(penalties[key].totalPenalty),
-        `penalty[${key}].totalPenalty`
+        `waterPenalty[${key}].totalPenalty`
       );
     }
     
     return penalties;
+  }
+
+  /**
+   * Extract HOA/Maintenance penalty charges from unitAccounting.json
+   * Category: "Cargo por mantenimiento atrasado"
+   * @param {Array} unitAccounting - Raw unitAccounting data
+   * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12, default 7 for July)
+   * @returns {Object} HOA penalties grouped by unit and fiscal year
+   */
+  extractHoaPenalties(unitAccounting, fiscalYearStartMonth = 7) {
+    const penalties = {};
+    
+    if (!Array.isArray(unitAccounting)) {
+      console.warn('⚠️  unitAccounting is not an array, skipping HOA penalty extraction');
+      return penalties;
+    }
+    
+    for (const entry of unitAccounting) {
+      const category = entry['Categoría'] || entry.Category || '';
+      // Match new category for HOA maintenance penalties
+      if (category !== 'Cargo por mantenimiento atrasado') continue;
+      
+      const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
+      if (!unitId) continue;
+      
+      const date = new Date(entry.Fecha || entry.Date);
+      if (isNaN(date.getTime())) {
+        console.warn(`⚠️  Invalid date for HOA penalty entry:`, entry);
+        continue;
+      }
+      
+      const amount = parseFloat(entry.Cantidad || entry.Amount || 0);
+      if (isNaN(amount) || amount === 0) continue;
+      
+      const isPaid = entry['✓'] === true || entry.Paid === true;
+      const notes = entry.Notas || entry.Notes || '';
+      
+      // Calculate fiscal year for grouping (HOA penalties are stored per year, not quarter)
+      const fiscalQ = this.getFiscalQuarter(date, fiscalYearStartMonth);
+      const key = `${unitId}_${fiscalQ.year}`;
+      
+      if (!penalties[key]) {
+        penalties[key] = { 
+          unitId, 
+          fiscalYear: fiscalQ.year,
+          totalPenalty: 0, 
+          entries: [] 
+        };
+      }
+      penalties[key].totalPenalty += amount;
+      penalties[key].entries.push({ date, amount, isPaid, notes });
+    }
+    
+    // Convert totals to centavos
+    for (const key in penalties) {
+      penalties[key].totalPenaltyCentavos = validateCentavos(
+        pesosToCentavos(penalties[key].totalPenalty),
+        `hoaPenalty[${key}].totalPenalty`
+      );
+    }
+    
+    return penalties;
+  }
+
+  /**
+   * DEPRECATED: Use extractWaterPenalties() or extractHoaPenalties() instead
+   * This method is kept for backward compatibility but will be removed in a future version.
+   * @deprecated
+   */
+  extractPenalties(unitAccounting, fiscalYearStartMonth = 7) {
+    console.warn('⚠️  extractPenalties() is deprecated. Use extractWaterPenalties() or extractHoaPenalties()');
+    // Fall back to water penalties for backward compatibility
+    return this.extractWaterPenalties(unitAccounting, fiscalYearStartMonth);
   }
 
   /**
@@ -1835,6 +1964,7 @@ export class ImportService {
 
   /**
    * Get category lookup map (name -> id)
+   * Includes Spanish translations for Sheets imports
    */
   async getCategoryLookupMap(db) {
     console.log('📁 Loading category lookup map...');
@@ -1848,7 +1978,14 @@ export class ImportService {
       categoryMap[category.name] = doc.id;
     });
     
-    console.log(`✅ Loaded ${Object.keys(categoryMap).length} category mappings`);
+    // Add Spanish translations - map Spanish names to existing English category IDs
+    for (const [spanishName, englishName] of Object.entries(SPANISH_CATEGORY_TRANSLATIONS)) {
+      if (categoryMap[englishName]) {
+        categoryMap[spanishName] = categoryMap[englishName];
+      }
+    }
+    
+    console.log(`✅ Loaded ${Object.keys(categoryMap).length} category mappings (including Spanish translations)`);
     return categoryMap;
   }
 
@@ -1952,22 +2089,23 @@ export class ImportService {
       console.log(`📅 Using fiscal year start month: ${fiscalYearStartMonth}`);
       console.log(`📅 Water bills due date: Day ${paymentDueDay} of bill month`);
       
-      // Load unitAccounting.json for penalties and lavado charges
-      let penalties = {};
+      // Load unitAccounting.json for water penalties and lavado charges
+      // NOTE: HOA penalties are handled separately in importHOADues()
+      let waterPenalties = {};
       let lavadoCharges = [];
       try {
         const unitAccountingData = await this.loadJsonFile('unitAccounting.json');
-        // Pass fiscalYearStartMonth to extractPenalties so it calculates fiscal year correctly
-        penalties = this.extractPenalties(unitAccountingData, fiscalYearStartMonth);
+        // Extract ONLY water consumption penalties (Cargo por consumo atrasado)
+        waterPenalties = this.extractWaterPenalties(unitAccountingData, fiscalYearStartMonth);
         lavadoCharges = this.extractLavadoCharges(unitAccountingData);
-        console.log(`✓ Loaded penalties: ${Object.keys(penalties).length} unit-quarter groups`);
-        if (Object.keys(penalties).length > 0) {
-          console.log(`   Penalty keys: ${Object.keys(penalties).join(', ')}`);
+        console.log(`✓ Loaded water penalties: ${Object.keys(waterPenalties).length} unit-quarter groups`);
+        if (Object.keys(waterPenalties).length > 0) {
+          console.log(`   Water penalty keys: ${Object.keys(waterPenalties).join(', ')}`);
         }
         console.log(`✓ Loaded lavado charges: ${lavadoCharges.length} entries`);
       } catch (error) {
         console.warn(`⚠️  unitAccounting.json not found or error loading: ${error.message}`);
-        console.warn(`   Penalties and lavado charges will not be imported`);
+        console.warn(`   Water penalties and lavado charges will not be imported`);
       }
       
       // Parse readings chronologically and group into quarters
@@ -1988,7 +2126,7 @@ export class ImportService {
           
           // Step 2: Generate quarterly bill (only for fiscal year 2026+, skip prior year quarters)
           if (quarterCycle.shouldGenerateBill !== false) {
-            await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, penalties, lavadoCharges);
+            await this.generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, waterPenalties, lavadoCharges);
             results.billsGenerated++;
             
             // Step 3: Process payments made during this quarter (only if bill was generated)
@@ -2512,10 +2650,10 @@ export class ImportService {
    * @param {Object} quarterCycle - Quarter cycle data
    * @param {number} paymentDueDay - Day of month when payment is due
    * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12)
-   * @param {Object} penalties - Penalties grouped by unit and fiscal quarter
+   * @param {Object} waterPenalties - Water consumption penalties grouped by unit and fiscal quarter
    * @param {Array} lavadoCharges - Lavado charges array
    */
-  async generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, penalties = {}, lavadoCharges = []) {
+  async generateQuarterBills(quarterCycle, paymentDueDay, fiscalYearStartMonth, waterPenalties = {}, lavadoCharges = []) {
     const waterBillsService = (await import('./waterBillsService.js')).default;
     const { waterDataService } = await import('./waterDataService.js');
     const db = await this.getDb();
@@ -2671,22 +2809,22 @@ export class ImportService {
     let totalNewCharges = 0;
     let unitsWithBills = 0;
     
-    // Match penalties and lavado charges to this quarter
+    // Match water penalties and lavado charges to this quarter
     const quarterKey = `${quarterCycle.fiscalYear}_Q${quarterCycle.fiscalQuarter}`;
-    console.log(`  🔍 Looking for penalties with quarter key: ${quarterKey}`);
-    if (Object.keys(penalties).length > 0) {
-      console.log(`  📋 Available penalty keys: ${Object.keys(penalties).join(', ')}`);
+    console.log(`  🔍 Looking for water penalties with quarter key: ${quarterKey}`);
+    if (Object.keys(waterPenalties).length > 0) {
+      console.log(`  📋 Available water penalty keys: ${Object.keys(waterPenalties).join(', ')}`);
     }
     
     for (const [unitId, totals] of Object.entries(unitTotals)) {
       // Normalize unitId for matching (penalties use normalized IDs like "102", not "102 (Moguel)")
       const normalizedUnitId = this.normalizeUnitId(unitId);
       
-      // Check for imported penalty for this unit and quarter
+      // Check for imported water penalty for this unit and quarter
       const penaltyKey = `${normalizedUnitId}_${quarterKey}`;
-      const penaltyData = penalties[penaltyKey];
+      const penaltyData = waterPenalties[penaltyKey];
       if (penaltyData) {
-        console.log(`  ✅ Found penalty for unit ${normalizedUnitId} (${unitId}): ${centavosToPesos(penaltyData.totalPenaltyCentavos).toFixed(2)} pesos`);
+        console.log(`  ✅ Found water penalty for unit ${normalizedUnitId} (${unitId}): ${centavosToPesos(penaltyData.totalPenaltyCentavos).toFixed(2)} pesos`);
       }
       
       // Find lavado charges for this unit in this quarter's date range
