@@ -2035,6 +2035,11 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     categoryMap.delete('Water Penalties');
   }
   
+  // Remove Credit Balance from Allocation Summary - it's not a charge category
+  // Credit balance is already displayed above the Allocation Summary and comes from creditBalances document
+  // The "Credit Balance" row here would show cumulative credit additions, not the actual available balance, which is confusing
+  categoryMap.delete('Credit Balance');
+  
   // Convert map to array, filter out zero categories, and calculate totals
   const categories = Array.from(categoryMap.entries())
     .filter(([name, data]) => {
