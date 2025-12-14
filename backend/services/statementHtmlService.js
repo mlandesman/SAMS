@@ -1008,13 +1008,14 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     </table>
     
     <!-- Balance Due/Credit (immediately after activity table) -->
+    <!-- Use credit balance from creditBalances document as single source of truth -->
     <div class="balance-due-box">
       <table>
         <tr>
           <td>
             ${actualClosingBalance > 0 
               ? t.balanceDue 
-              : actualClosingBalance < 0 
+              : accountCreditBalance > 0
                 ? t.creditBalance 
                 : t.paidInFull
             }
@@ -1022,18 +1023,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
           <td>
             ${actualClosingBalance > 0 
               ? formatCurrency(actualClosingBalance)
-              : actualClosingBalance < 0
-                ? formatCurrency(Math.abs(actualClosingBalance))
+              : accountCreditBalance > 0
+                ? formatCurrency(accountCreditBalance)
                 : '$0.00'
             }
           </td>
         </tr>
-        ${accountCreditBalance > 0 ? `
-        <tr class="account-credit-row">
-          <td>${t.accountCredit}</td>
-          <td>${formatCurrency(accountCreditBalance)}</td>
-        </tr>
-        ` : ''}
       </table>
     </div>
     
