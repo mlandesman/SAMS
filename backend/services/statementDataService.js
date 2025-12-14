@@ -171,7 +171,11 @@ function calculateCategoryBreakdown(allocations) {
     const allocType = alloc.type || '';
     
     // Categorize allocation
-    if (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit')) {
+    // NOTE: credit_used/credit-used means credit was applied to pay bills, NOT a credit addition
+    // Only count actual credit additions as Credit Balance, not credit usage
+    const isCreditUsed = allocType === 'credit_used' || allocType === 'credit-used';
+    if (!isCreditUsed && (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit'))) {
+      // This is a credit addition/payment, not credit usage
       breakdown['Credit Balance'] += allocAmount;
     } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
       breakdown['HOA Maintenance'] += allocAmount;
@@ -1823,13 +1827,42 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   for (const item of lineItems) {
     if (item.isFuture) continue;
     
-    if (item.type === 'payment' && item.categoryBreakdown && Object.keys(item.categoryBreakdown).length > 0) {
-      // Use pre-calculated category breakdown from allocations
-      for (const [categoryName, amount] of Object.entries(item.categoryBreakdown)) {
-        if (!categoryMap.has(categoryName)) {
-          categoryMap.set(categoryName, { charges: 0, penalties: 0, paid: 0 });
+    if (item.type === 'payment' && item.payment > 0) {
+      if (item.categoryBreakdown && Object.keys(item.categoryBreakdown).length > 0) {
+        // Use pre-calculated category breakdown from allocations
+        for (const [categoryName, amount] of Object.entries(item.categoryBreakdown)) {
+          if (!categoryMap.has(categoryName)) {
+            categoryMap.set(categoryName, { charges: 0, penalties: 0, paid: 0 });
+          }
+          categoryMap.get(categoryName).paid += amount;
         }
-        categoryMap.get(categoryName).paid += amount;
+      } else {
+        // Fallback: Use category field or description to categorize payment
+        const desc = (item.description || '').toLowerCase();
+        let paymentCategory = 'Other';
+        
+        // Use category field if available
+        if (item.category) {
+          const cat = item.category.toLowerCase();
+          if (cat === 'hoa' || cat.includes('hoa') || cat.includes('maintenance')) {
+            paymentCategory = 'HOA Maintenance';
+          } else if (cat === 'water' || cat.includes('water')) {
+            paymentCategory = 'Water Consumption';
+          } else if (cat.includes('credit')) {
+            paymentCategory = 'Credit Balance';
+          }
+        } else if (desc.includes('credit') || desc.includes('saldo')) {
+          paymentCategory = 'Credit Balance';
+        } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || desc.includes('bill')) {
+          paymentCategory = 'Water Consumption';
+        } else if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
+          paymentCategory = 'HOA Maintenance';
+        }
+        
+        if (!categoryMap.has(paymentCategory)) {
+          categoryMap.set(paymentCategory, { charges: 0, penalties: 0, paid: 0 });
+        }
+        categoryMap.get(paymentCategory).paid += item.payment || 0;
       }
     }
   }
@@ -1846,13 +1879,18 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     });
   }
   
-  // Convert map to array and calculate totals
-  const categories = Array.from(categoryMap.entries()).map(([name, data]) => ({
-    name: name,
-    charges: roundTo2Decimals(data.charges),
-    penalties: roundTo2Decimals(data.penalties),
-    paid: roundTo2Decimals(data.paid)
-  }));
+  // Convert map to array, filter out zero categories, and calculate totals
+  const categories = Array.from(categoryMap.entries())
+    .filter(([name, data]) => {
+      // Filter out categories with all zeros
+      return data.charges !== 0 || data.penalties !== 0 || data.paid !== 0;
+    })
+    .map(([name, data]) => ({
+      name: name,
+      charges: roundTo2Decimals(data.charges),
+      penalties: roundTo2Decimals(data.penalties),
+      paid: roundTo2Decimals(data.paid)
+    }));
   
   const allocationTotals = {
     charges: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.charges, 0)),
