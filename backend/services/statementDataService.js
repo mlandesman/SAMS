@@ -1921,10 +1921,27 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           }
         } else if (desc.includes('credit') || desc.includes('saldo') || desc.includes('account credit')) {
           paymentCategory = 'Credit Balance';
-        } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || desc.includes('bill')) {
+        } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || 
+                   desc.includes('bill') || desc.includes('q1') || desc.includes('q2') || desc.includes('q3') || desc.includes('q4')) {
+          // Check for water-related payments (including quarterly bill references)
           paymentCategory = 'Water Consumption';
         } else if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
           paymentCategory = 'HOA Dues';
+        } else {
+          // If description doesn't clearly indicate category, check if payment has water-related allocations
+          // This helps catch payments that might have been categorized incorrectly
+          if (item.allocations && Array.isArray(item.allocations)) {
+            const hasWaterAllocation = item.allocations.some(alloc => {
+              const allocType = (alloc.type || '').toLowerCase();
+              const allocCategoryId = (alloc.categoryId || '').toLowerCase();
+              const allocCategoryName = (alloc.categoryName || '').toLowerCase();
+              return allocType.includes('water') || allocCategoryId.includes('water') || 
+                     allocCategoryName.includes('water') || allocCategoryName.includes('consumption');
+            });
+            if (hasWaterAllocation) {
+              paymentCategory = 'Water Consumption';
+            }
+          }
         }
         
         if (!categoryMap.has(paymentCategory)) {
@@ -1945,6 +1962,30 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       penalties: 0,
       paid: totalProjectPaid
     });
+  }
+  
+  // Merge penalty categories into parent categories (HOA Penalties → HOA Dues, Water Penalties → Water Consumption)
+  // This ensures penalties appear in the Penalties column of the parent row, not as separate rows
+  if (categoryMap.has('HOA Penalties')) {
+    const hoaPenalties = categoryMap.get('HOA Penalties');
+    if (!categoryMap.has('HOA Dues')) {
+      categoryMap.set('HOA Dues', { charges: 0, penalties: 0, paid: 0 });
+    }
+    const hoaDues = categoryMap.get('HOA Dues');
+    hoaDues.penalties += hoaPenalties.penalties;
+    hoaDues.paid += hoaPenalties.paid; // In case penalty payments exist
+    categoryMap.delete('HOA Penalties');
+  }
+  
+  if (categoryMap.has('Water Penalties')) {
+    const waterPenalties = categoryMap.get('Water Penalties');
+    if (!categoryMap.has('Water Consumption')) {
+      categoryMap.set('Water Consumption', { charges: 0, penalties: 0, paid: 0 });
+    }
+    const waterConsumption = categoryMap.get('Water Consumption');
+    waterConsumption.penalties += waterPenalties.penalties;
+    waterConsumption.paid += waterPenalties.paid; // In case penalty payments exist
+    categoryMap.delete('Water Penalties');
   }
   
   // Convert map to array, filter out zero categories, and calculate totals
