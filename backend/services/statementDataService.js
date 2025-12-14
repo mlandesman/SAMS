@@ -156,8 +156,10 @@ function filterPenaltyAllocations(allocations) {
  */
 function calculateCategoryBreakdown(allocations) {
   const breakdown = {
-    'HOA Maintenance': 0,
+    'HOA Dues': 0,
+    'HOA Penalties': 0,
     'Water Consumption': 0,
+    'Water Penalties': 0,
     'Credit Balance': 0,
     'Other': 0
   };
@@ -174,15 +176,38 @@ function calculateCategoryBreakdown(allocations) {
     // NOTE: credit_used/credit-used means credit was applied to pay bills, NOT a credit addition
     // Only count actual credit additions as Credit Balance, not credit usage
     const isCreditUsed = allocType === 'credit_used' || allocType === 'credit-used';
-    if (!isCreditUsed && (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit'))) {
-      // This is a credit addition/payment, not credit usage
+    
+    // Check for credit first (Account Credit)
+    if (!isCreditUsed && (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit') || categoryName === 'Account Credit')) {
       breakdown['Credit Balance'] += allocAmount;
-    } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
-      breakdown['HOA Maintenance'] += allocAmount;
-    } else if (categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado') || 
-               categoryName.includes('Water') || categoryName.includes('Agua') || categoryName.includes('Lavado')) {
+    }
+    // Check for HOA Penalties (must check before general HOA)
+    else if (categoryId.includes('hoa-penalties') || categoryId.includes('hoa_penalties') || 
+             allocType === 'hoa-penalties' || allocType === 'hoa_penalties' ||
+             categoryName === 'HOA Penalties' || categoryName.includes('HOA Penalties')) {
+      breakdown['HOA Penalties'] += allocAmount;
+    }
+    // Check for Water Penalties (must check before general Water)
+    else if (categoryId.includes('water-penalties') || categoryId.includes('water_penalties') ||
+             allocType === 'water-penalties' || allocType === 'water_penalties' ||
+             categoryName === 'Water Penalties' || categoryName.includes('Water Penalties')) {
+      breakdown['Water Penalties'] += allocAmount;
+    }
+    // Check for HOA Dues (general HOA)
+    else if (categoryId.includes('hoa') || categoryId.includes('dues') ||
+             allocType === 'hoa_month' || allocType === 'hoa-month' ||
+             categoryName === 'HOA Dues' || categoryName.includes('HOA Dues') || 
+             categoryName.includes('Maintenance') && !categoryName.includes('Penalties')) {
+      breakdown['HOA Dues'] += allocAmount;
+    }
+    // Check for Water Consumption (general Water, excluding penalties)
+    else if (categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado') || 
+             allocType === 'water_consumption' || allocType === 'water-consumption' || allocType === 'water_bill' ||
+             categoryName === 'Water Consumption' || categoryName.includes('Water Consumption') ||
+             categoryName.includes('Agua') || categoryName.includes('Lavado')) {
       breakdown['Water Consumption'] += allocAmount;
-    } else {
+    }
+    else {
       breakdown['Other'] += allocAmount;
     }
   }
@@ -1791,21 +1816,51 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     if (item.isFuture) continue;
     
     // Determine category from description or category field
+    // Separate HOA Dues from HOA Penalties and Water Consumption from Water Penalties
     const desc = (item.description || '').toLowerCase();
     let categoryName = 'Other';
+    
+    // Check if this is a penalty first
+    const isPenalty = item.type === 'penalty';
     
     // Use category field if available
     if (item.category) {
       const cat = (item.category || '').toLowerCase();
-      if (cat === 'hoa' || cat.includes('hoa') || cat.includes('maintenance')) {
-        categoryName = 'HOA Maintenance';
-      } else if (cat === 'water' || cat.includes('water') || cat.includes('consumption')) {
-        categoryName = 'Water Consumption';
+      
+      if (isPenalty) {
+        // Penalty categorization
+        if (cat === 'hoa' || cat.includes('hoa') || (cat.includes('maintenance') && !cat.includes('dues'))) {
+          categoryName = 'HOA Penalties';
+        } else if (cat === 'water' || cat.includes('water')) {
+          categoryName = 'Water Penalties';
+        }
+      } else {
+        // Regular charge categorization
+        if (cat === 'hoa' || cat.includes('hoa') || cat.includes('maintenance') || cat.includes('dues')) {
+          categoryName = 'HOA Dues';
+        } else if (cat === 'water' || cat.includes('water') || cat.includes('consumption')) {
+          categoryName = 'Water Consumption';
+        }
       }
-    } else if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
-      categoryName = 'HOA Maintenance';
-    } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
-      categoryName = 'Water Consumption';
+    } else {
+      // Fallback to description-based categorization
+      if (isPenalty) {
+        // Penalty categorization
+        if (desc.includes('hoa') || (desc.includes('maintenance') && desc.includes('penalty'))) {
+          categoryName = 'HOA Penalties';
+        } else if (desc.includes('water') && desc.includes('penalty')) {
+          categoryName = 'Water Penalties';
+        } else if (desc.includes('penalty') && (desc.includes('hoa') || desc.includes('maintenance'))) {
+          categoryName = 'HOA Penalties';
+        }
+      } else {
+        // Regular charge categorization
+        if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
+          categoryName = 'HOA Dues';
+        } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
+          categoryName = 'Water Consumption';
+        }
+      }
     }
     
     // Get or create category entry
@@ -1838,25 +1893,38 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
         }
       } else {
         // Fallback: Use category field or description to categorize payment
+        // Note: Without allocations, we can't perfectly distinguish dues from penalties
+        // This fallback should be rare if transactions have proper allocations
         const desc = (item.description || '').toLowerCase();
         let paymentCategory = 'Other';
         
-        // Use category field if available
+        // Use category field if available (should match SAMS category names from Sheets)
+        // Category field comes from getPrimaryCategory() which converts to lowercase with underscores
+        // e.g., "HOA Penalties" → "hoa_penalties", "Water Consumption" → "water_consumption"
         if (item.category) {
           const cat = item.category.toLowerCase();
-          if (cat === 'hoa' || cat.includes('hoa') || cat.includes('maintenance')) {
-            paymentCategory = 'HOA Maintenance';
-          } else if (cat === 'water' || cat.includes('water')) {
+          // Check for penalties first (exact matches or includes)
+          if (cat === 'hoa_penalties' || cat.includes('hoa') && cat.includes('penalties')) {
+            paymentCategory = 'HOA Penalties';
+          } else if (cat === 'water_penalties' || cat.includes('water') && cat.includes('penalties')) {
+            paymentCategory = 'Water Penalties';
+          }
+          // Check for dues/consumption
+          else if (cat === 'hoa' || cat === 'hoa_dues' || cat === 'hoa_maintenance' || 
+                   (cat.includes('hoa') && !cat.includes('penalties'))) {
+            paymentCategory = 'HOA Dues';
+          } else if (cat === 'water' || cat === 'water_consumption' || 
+                     (cat.includes('water') && !cat.includes('penalties'))) {
             paymentCategory = 'Water Consumption';
           } else if (cat.includes('credit')) {
             paymentCategory = 'Credit Balance';
           }
-        } else if (desc.includes('credit') || desc.includes('saldo')) {
+        } else if (desc.includes('credit') || desc.includes('saldo') || desc.includes('account credit')) {
           paymentCategory = 'Credit Balance';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || desc.includes('bill')) {
           paymentCategory = 'Water Consumption';
         } else if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
-          paymentCategory = 'HOA Maintenance';
+          paymentCategory = 'HOA Dues';
         }
         
         if (!categoryMap.has(paymentCategory)) {
