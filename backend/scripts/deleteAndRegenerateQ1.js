@@ -250,15 +250,19 @@ async function deleteAndRegenerate() {
         return match ? match[1] : String(unitId).trim();
       };
       
-      // Update each unit's penalty if found in imported data
+      // Update each unit's penalty based on imported data
+      // CRITICAL: If unitAccounting.json has no penalty entry for a unit, clear any calculated penalties
+      // This ensures we match Sheets exactly - if Sheets shows no penalty, bill should show no penalty
       for (const [unitId, unitBill] of Object.entries(bills)) {
         const normalizedUnitId = normalizeUnitId(unitId);
         const penaltyKey = `${normalizedUnitId}_${quarterKey}`;
         const penaltyData = waterPenalties[penaltyKey];
         
+        const currentBaseCharge = validateCentavos(unitBill.currentCharge || 0, 'currentCharge');
+        
         if (penaltyData) {
+          // Sheets has penalty data - apply it
           const importedPenalty = validateCentavos(penaltyData.totalPenaltyCentavos || 0, 'importedPenalty');
-          const currentBaseCharge = validateCentavos(unitBill.currentCharge || 0, 'currentCharge');
           const newTotalAmount = validateCentavos(currentBaseCharge + importedPenalty, 'newTotalAmount');
           
           // Update the unit bill with imported penalty
@@ -276,6 +280,21 @@ async function deleteAndRegenerate() {
           totalPenaltyApplied = validateCentavos(totalPenaltyApplied + importedPenalty, 'totalPenaltyApplied');
           updatedCount++;
           console.log(`  ✅ Unit ${normalizedUnitId}: Applied penalty ${centavosToPesos(importedPenalty).toFixed(2)} pesos`);
+        } else {
+          // Sheets has NO penalty entry - clear any calculated penalties to match Sheets
+          // Check if there was a calculated penalty that needs to be cleared
+          const currentPenalty = unitBill.penaltyAmount || 0;
+          if (currentPenalty > 0) {
+            const newTotalAmount = validateCentavos(currentBaseCharge, 'newTotalAmount');
+            bills[unitId] = {
+              ...unitBill,
+              penaltyAmount: 0,
+              totalAmount: newTotalAmount,
+              penalty: undefined // Remove penalty object entirely
+            };
+            console.log(`  ✅ Unit ${normalizedUnitId}: Cleared calculated penalty ${centavosToPesos(currentPenalty).toFixed(2)} pesos (Sheets shows none)`);
+            updatedCount++;
+          }
         }
       }
       
