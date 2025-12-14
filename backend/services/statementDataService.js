@@ -1502,6 +1502,9 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     }
     
     // Step 8: Create chronological transaction list
+    // NOTE: Special Assessments (projectsData) are NOT included in chronologicalTransactions
+    // They only appear in Allocation Summary currently
+    // TODO/FUTURE: Add Special Assessment charges/payments to chronologicalTransactions when Projects feature is complete
     let chronologicalTransactions = createChronologicalTransactionList(
       payments,
       transactionMap,
@@ -1599,6 +1602,15 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
  * @param {string} unitId - Unit ID  
  * @param {Object} fiscalYearBounds - { startDate, endDate }
  * @returns {Array} Projects with unit's collections
+ */
+/**
+ * Get projects/special assessments for a unit during fiscal year
+ * TODO/FUTURE ENHANCEMENT: Projects feature screens/code are not built yet
+ * Currently Special Assessments only appear in Allocation Summary, NOT in Account Activity
+ * When Projects feature is complete, need to:
+ * 1. Add Special Assessment charges to chronologicalTransactions (Account Activity)
+ * 2. Link Special Assessment payments to transactions via allocations
+ * 3. Support Special Assessment penalties if applicable
  */
 async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBounds) {
   const db = await getDb();
@@ -2052,6 +2064,15 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   }
   
   // Add Special Assessments to allocation summary
+  // TODO/FUTURE ENHANCEMENT: Currently Special Assessments only appear in Allocation Summary
+  // They are NOT included in Account Activity (chronologicalTransactions/lineItems) yet
+  // Future work needed:
+  // 1. Add Special Assessment charges to chronologicalTransactions with proper dates
+  // 2. Link Special Assessment payments to transactions via allocations
+  // 3. Display Special Assessment charges and payments in Account Activity table
+  // 4. Support Special Assessment penalties (if applicable)
+  // Projects data exists (projectsData) but Projects screens/code are not built yet
+  // This is a placeholder until full Projects feature is implemented
   if (projectsData.length > 0) {
     const totalProjectAssessments = projectsData.reduce((sum, p) => sum + centavosToPesos(p.assessment), 0);
     const totalProjectPaid = projectsData.reduce((sum, p) => sum + centavosToPesos(p.totalPaid), 0);
