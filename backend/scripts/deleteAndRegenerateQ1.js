@@ -20,6 +20,71 @@ const DUE_DATE = '2025-10-01';
 const FISCAL_QUARTER = 1; // Q1
 
 /**
+ * Extract water consumption charges from unitAccounting.json
+ * Returns charges grouped by unit and quarter
+ */
+function extractWaterCharges(unitAccounting, fiscalYear, fiscalQuarter, fiscalYearStartMonth, importService) {
+  const charges = {};
+  
+  if (!Array.isArray(unitAccounting)) {
+    return charges;
+  }
+  
+  // Helper to normalize unit ID
+  const normalizeUnitId = (unitId) => {
+    if (!unitId) return '';
+    const match = String(unitId).match(/^(\d+)/);
+    return match ? match[1] : String(unitId).trim();
+  };
+  
+  for (const entry of unitAccounting) {
+    const category = entry['Categoría'] || entry.Category || '';
+    
+    // Only process Water Consumption charges (NOT payments - those are handled separately)
+    // Skip payments (entries with ✓ = true are payments, charges are entries without checkmark OR negative amounts indicate credit usage)
+    // Actually, for charges, we want entries where category is Water Consumption
+    // The checkmark indicates if it was paid, but it's still a charge entry
+    if (category !== 'Water Consumption') continue;
+    
+    const unitId = normalizeUnitId(entry.Depto || entry.Unit);
+    if (!unitId) continue;
+    
+    const date = new Date(entry.Fecha || entry.Date);
+    if (isNaN(date.getTime())) continue;
+    
+    const amount = parseFloat(entry.Cantidad || entry.Amount || 0);
+    if (isNaN(amount) || amount === 0) continue;
+    
+    // Skip negative amounts (those are credit usage, not charges)
+    if (amount < 0) continue;
+    
+    // Check if this charge belongs to the target quarter using ImportService method
+    const fiscalQ = importService.getFiscalQuarter(date, fiscalYearStartMonth);
+    
+    // Only include if charge belongs to target fiscal year and quarter
+    if (fiscalQ.year !== fiscalYear || fiscalQ.quarter !== fiscalQuarter) continue;
+    
+    const key = `${unitId}_${fiscalYear}_Q${fiscalQuarter}`;
+    if (!charges[key]) {
+      charges[key] = {
+        fiscalYear,
+        fiscalQuarter,
+        unitId,
+        totalCharge: 0
+      };
+    }
+    
+    const amountCentavos = validateCentavos(pesosToCentavos(amount), `charge[${key}].amount`);
+    charges[key].totalCharge = validateCentavos(
+      charges[key].totalCharge + amountCentavos,
+      `charge[${key}].totalCharge`
+    );
+  }
+  
+  return charges;
+}
+
+/**
  * Extract water bill payments from unitAccounting.json
  * Returns payments grouped by unit and quarter, matching UPS format
  */
@@ -191,9 +256,10 @@ async function deleteAndRegenerate() {
       .delete();
     console.log('✅ Deleted\n');
     
-    // Step 1: Load and extract water penalties from unitAccounting.json
-    console.log('📋 Loading water penalties from unitAccounting.json...');
+    // Step 1: Load and extract water data from unitAccounting.json (source of truth)
+    console.log('📋 Loading water data from unitAccounting.json (source of truth)...');
     let waterPenalties = {};
+    let waterCharges = {};
     let fiscalYearStartMonth = 7; // Default July
     
     try {
@@ -204,11 +270,14 @@ async function deleteAndRegenerate() {
         fiscalYearStartMonth = configData.startMonth || 7;
       }
       
-      // Use ImportService to load from Firebase Storage and extract penalties
+      // Use ImportService to load from Firebase Storage
       // Pass 'firebase_storage' as dataPath to use Firebase Storage instead of filesystem
       const importService = new ImportService(CLIENT_ID, 'firebase_storage', null);
       const unitAccountingData = await importService.loadJsonFile('unitAccounting.json');
+      
+      // Extract penalties, charges, and payments from unitAccounting.json (historical source of truth)
       waterPenalties = importService.extractWaterPenalties(unitAccountingData, fiscalYearStartMonth);
+      waterCharges = extractWaterCharges(unitAccountingData, FISCAL_YEAR, FISCAL_QUARTER, fiscalYearStartMonth, importService);
       
       console.log(`✅ Loaded ${Object.keys(waterPenalties).length} water penalty entries from unitAccounting.json`);
       if (Object.keys(waterPenalties).length > 0) {
@@ -224,9 +293,43 @@ async function deleteAndRegenerate() {
     const result = await waterBillsService.generateQuarterlyBill(CLIENT_ID, FISCAL_YEAR, DUE_DATE);
     console.log('✅ Bill generated\n');
     
-    // Step 3: Apply imported penalties from unitAccounting.json to match Sheets
-    if (Object.keys(waterPenalties).length > 0) {
-      console.log('📝 Applying imported penalties from unitAccounting.json to match Sheets...');
+    // Step 3: Apply imported charges and penalties from unitAccounting.json to match Sheets
+    // CRITICAL: unitAccounting.json is the source of truth for historical data
+    console.log('📝 Applying imported charges and penalties from unitAccounting.json (source of truth)...');
+    
+    // First, apply water consumption charges from Sheets (override calculated amounts)
+    if (Object.keys(waterCharges).length > 0) {
+      console.log(`  Applying water charges for ${Object.keys(waterCharges).length} units...`);
+      let chargesUpdated = 0;
+      
+      for (const [key, chargeData] of Object.entries(waterCharges)) {
+        const unitId = chargeData.unitId;
+        const unitBill = bills[unitId];
+        
+        if (unitBill) {
+          const importedCharge = validateCentavos(chargeData.totalCharge, 'importedCharge');
+          const currentPenalty = validateCentavos(unitBill.penaltyAmount || 0, 'currentPenalty');
+          const newTotalAmount = validateCentavos(importedCharge + currentPenalty, 'newTotalAmount');
+          
+          // Update the unit bill with imported charge (override calculated amount)
+          bills[unitId] = {
+            ...unitBill,
+            waterCharge: importedCharge,
+            currentCharge: importedCharge,
+            totalAmount: newTotalAmount
+          };
+          
+          chargesUpdated++;
+          console.log(`    ✅ Unit ${unitId}: Applied charge ${centavosToPesos(importedCharge).toFixed(2)} pesos (from Sheets)`);
+        }
+      }
+      
+      console.log(`  ✅ Applied water charges to ${chargesUpdated} units`);
+    }
+    
+    // Then, apply penalties from Sheets (or clear if none exist)
+    if (Object.keys(waterPenalties).length > 0 || Object.keys(bills).length > 0) {
+      console.log(`  Applying penalties for ${Object.keys(waterPenalties).length} units with penalties...`);
       const billRef = db.collection('clients').doc(CLIENT_ID)
         .collection('projects').doc('waterBills')
         .collection('bills').doc('2026-Q1');
@@ -313,10 +416,10 @@ async function deleteAndRegenerate() {
           'summary.totalBilled': newTotalBilled
         });
         
-        console.log(`\n✅ Applied imported penalties to ${updatedCount} units`);
-        console.log(`   Total penalties applied: ${centavosToPesos(totalPenaltyApplied).toFixed(2)} pesos`);
+        console.log(`  ✅ Applied penalties to ${updatedCount} units`);
+        console.log(`     Total penalties applied: ${centavosToPesos(totalPenaltyApplied).toFixed(2)} pesos`);
       } else {
-        console.log('\n⚠️  No matching penalties found in unitAccounting.json for Q1');
+        console.log('  ℹ️  No penalties found in unitAccounting.json for Q1 (checked all units)');
       }
     }
     
