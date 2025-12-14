@@ -950,6 +950,47 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       // Silently handle errors - penalties will be empty arrays
     }
     
+    // Step 7.1: Add stored HOA penalties from dues document (for paid historical penalties)
+    // These are imported from Sheets as "Cargo por mantenimiento atrasado"
+    if (duesData.penalties && Array.isArray(duesData.penalties.entries)) {
+      for (const entry of duesData.penalties.entries) {
+        // Convert entry date from Firestore timestamp
+        let penaltyDate = entry.date;
+        if (entry.date?._seconds) {
+          penaltyDate = new Date(entry.date._seconds * 1000);
+        } else if (typeof entry.date === 'string') {
+          penaltyDate = new Date(entry.date);
+        }
+        
+        // Convert amount from centavos to pesos
+        const penaltyAmount = centavosToPesos(entry.amount || 0);
+        if (penaltyAmount <= 0) continue;
+        
+        // Check for duplicate (same date and amount already from unified preview)
+        const key = `hoa-${penaltyDate.getTime()}-${penaltyAmount}`;
+        const existingKey = hoaPenalties.find(p => 
+          Math.abs(p.date.getTime() - penaltyDate.getTime()) < 86400000 && // Within 1 day
+          Math.abs(p.amount - penaltyAmount) < 0.01 // Same amount (floating point tolerance)
+        );
+        
+        if (!existingKey) {
+          const description = entry.notes || `HOA Late Fee - ${penaltyDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+
+          hoaPenalties.push({
+            type: 'penalty',
+            category: 'hoa',
+            date: penaltyDate,
+            description: description,
+            amount: penaltyAmount,
+            charge: penaltyAmount,
+            payment: entry.isPaid ? penaltyAmount : 0,
+            isPaid: entry.isPaid || false,
+            source: 'stored'
+          });
+        }
+      }
+    }
+    
     // Step 7.5: Extract historical (paid) penalties from transaction allocations
     // This supplements the unpaid penalties from unified preview API
     // We need to include penalties that were already paid to show complete history
