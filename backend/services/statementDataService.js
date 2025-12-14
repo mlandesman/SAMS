@@ -173,14 +173,14 @@ function calculateCategoryBreakdown(transaction) {
   
   const categoryId = (transaction.categoryId || '').toLowerCase();
   const categoryName = (transaction.categoryName || '').toLowerCase();
-  const description = (transaction.description || '').toLowerCase();
   const transactionAmount = centavosToPesos(Math.abs(transaction.amount || 0));
   
-  // Check if this is a split transaction (uses allocations)
-  const isSplit = categoryId === '-split-' || categoryId === '-split';
+  // Determine if this is a split transaction: has allocations array with data
+  // Split transactions have allocations that break down the payment into categories
+  const hasAllocations = transaction.allocations && Array.isArray(transaction.allocations) && transaction.allocations.length > 0;
   
-  if (isSplit && transaction.allocations && transaction.allocations.length > 0) {
-    // Split transaction: use allocations array
+  if (hasAllocations) {
+    // Split transaction: use allocations array (each allocation has its own categoryId/categoryName)
     for (const alloc of transaction.allocations) {
       const allocAmount = centavosToPesos(alloc.amount || 0);
       if (allocAmount === 0) continue;
@@ -189,13 +189,12 @@ function calculateCategoryBreakdown(transaction) {
       const allocCategoryName = alloc.categoryName || '';
       const allocType = alloc.type || '';
       
-      // Categorize allocation (no description needed for allocations)
-      categorizeAmount(breakdown, allocAmount, allocCategoryId, allocCategoryName, allocType, '');
+      // Categorize allocation using its own categoryId/categoryName
+      categorizeAmount(breakdown, allocAmount, allocCategoryId, allocCategoryName, allocType);
     }
   } else {
     // Single-purpose transaction: use transaction's categoryId/categoryName directly
-    // Also pass description for fallback categorization if categoryId/categoryName doesn't match
-    categorizeAmount(breakdown, transactionAmount, categoryId, categoryName, '', description);
+    categorizeAmount(breakdown, transactionAmount, categoryId, categoryName, '');
   }
   
   // Remove zero categories
@@ -208,20 +207,19 @@ function calculateCategoryBreakdown(transaction) {
 
 /**
  * Helper function to categorize an amount into the breakdown object
+ * Uses categoryId, categoryName, and type fields only (no description parsing)
  * @param {Object} breakdown - Breakdown object to update
  * @param {number} amount - Amount to categorize (in pesos)
- * @param {string} categoryId - Category ID
- * @param {string} categoryName - Category name
- * @param {string} type - Allocation type (optional)
- * @param {string} description - Transaction description (optional, for fallback)
+ * @param {string} categoryId - Category ID (e.g., "hoa-dues", "water-consumption")
+ * @param {string} categoryName - Category name (e.g., "HOA Dues", "Water Consumption")
+ * @param {string} type - Allocation type (optional, e.g., "hoa-month", "water_consumption")
  */
-function categorizeAmount(breakdown, amount, categoryId, categoryName, type, description = '') {
+function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
   if (amount === 0) return;
   
   const catId = (categoryId || '').toLowerCase();
   const catName = (categoryName || '').toLowerCase();
   const allocType = (type || '').toLowerCase();
-  const desc = (description || '').toLowerCase();
   
   // NOTE: credit_used/credit-used means credit was applied to pay bills, NOT a credit addition
   // Only count actual credit additions as Credit Balance, not credit usage
@@ -244,15 +242,11 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type, des
     breakdown['Water Penalties'] += amount;
   }
   // Check for HOA Dues (general HOA)
-  // More comprehensive matching: check categoryId, categoryName, type, and description
+  // Match on categoryId, categoryName, or type (e.g., "hoa-dues", "HOA Dues", "hoa-month")
   else if (catId.includes('hoa') || catId.includes('dues') || catId.includes('maintenance') ||
            allocType.includes('hoa_month') || allocType.includes('hoa-month') ||
            catName === 'hoa dues' || catName.includes('hoa dues') || 
-           (catName.includes('maintenance') && !catName.includes('penalties')) ||
-           // Description-based fallback: check for HOA keywords and month references
-           (desc.includes('hoa') && (desc.includes('payment') || desc.includes('dues') || desc.includes('enero') || 
-            desc.includes('febrero') || desc.includes('marzo') || desc.includes('abril') || 
-            desc.includes('mayo') || desc.includes('junio')))) {
+           (catName.includes('maintenance') && !catName.includes('penalties'))) {
     breakdown['HOA Dues'] += amount;
   }
   // Check for Water Consumption (general Water, excluding penalties)
