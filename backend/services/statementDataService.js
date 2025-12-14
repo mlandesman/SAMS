@@ -150,6 +150,68 @@ function filterPenaltyAllocations(allocations) {
 }
 
 /**
+ * Calculate category breakdown from transaction allocations
+ * @param {Array} allocations - Transaction allocations array
+ * @returns {Object} Category breakdown: { 'HOA Maintenance': amount, 'Water Consumption': amount, ... }
+ */
+function calculateCategoryBreakdown(allocations) {
+  const breakdown = {
+    'HOA Maintenance': 0,
+    'Water Consumption': 0,
+    'Credit Balance': 0,
+    'Other': 0
+  };
+  
+  for (const alloc of allocations || []) {
+    const allocAmount = centavosToPesos(alloc.amount || 0);
+    if (allocAmount === 0) continue;
+    
+    const categoryId = alloc.categoryId || '';
+    const categoryName = alloc.categoryName || '';
+    const allocType = alloc.type || '';
+    
+    // Categorize allocation
+    if (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit')) {
+      breakdown['Credit Balance'] += allocAmount;
+    } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
+      breakdown['HOA Maintenance'] += allocAmount;
+    } else if (categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado') || 
+               categoryName.includes('Water') || categoryName.includes('Agua') || categoryName.includes('Lavado')) {
+      breakdown['Water Consumption'] += allocAmount;
+    } else {
+      breakdown['Other'] += allocAmount;
+    }
+  }
+  
+  // Remove zero categories
+  Object.keys(breakdown).forEach(key => {
+    if (breakdown[key] === 0) delete breakdown[key];
+  });
+  
+  return breakdown;
+}
+
+/**
+ * Determine primary category from breakdown
+ * Returns the category with the highest amount, or 'other' if all zero
+ * @param {Object} breakdown - Category breakdown object
+ * @returns {string} Primary category name (lowercase, spaces replaced with underscores)
+ */
+function getPrimaryCategory(breakdown) {
+  let maxAmount = 0;
+  let primaryCategory = 'other';
+  
+  for (const [category, amount] of Object.entries(breakdown)) {
+    if (amount > maxAmount) {
+      maxAmount = amount;
+      primaryCategory = category.toLowerCase().replace(/\s+/g, '_');
+    }
+  }
+  
+  return primaryCategory;
+}
+
+/**
  * Create chronological transaction list with running balance
  * COPIED EXACTLY FROM PROTOTYPE (lines 129-401)
  */
@@ -203,7 +265,17 @@ function createChronologicalTransactionList(
           amount: bill.totalAmount, // In pesos (already converted by API)
           charge: bill.totalAmount,
           payment: 0,
+          balance: 0, // Will be set later when calculating running balance
           billId: bill.billId,
+          billRef: {
+            billId: bill.billId,
+            fiscalYear: bill.fiscalYear,
+            fiscalQuarter: bill.fiscalQuarter,
+            dueDate: bill.dueDate,
+            totalAmount: bill.totalAmount,
+            consumption: bill.consumption,
+            penaltyAmount: bill.penaltyAmount || 0
+          },
           consumption: bill.consumption,
           penaltyAmount: bill.penaltyAmount || 0
         });
@@ -256,13 +328,21 @@ function createChronologicalTransactionList(
       if (quarterDueDate && !isNaN(quarterDueDate.getTime())) {
         transactions.push({
           type: 'charge',
+          category: 'hoa',
           date: quarterDueDate,
           description: `HOA Dues ${quarter.name}`,
           amount: quarterChargeAmount,
           charge: quarterChargeAmount,
           payment: 0,
+          balance: 0, // Will be set later when calculating running balance
           month: quarter.months[0], // Use first month for reference
-          quarter: quarter.name
+          quarter: quarter.name,
+          chargeRef: {
+            month: quarter.months[0],
+            quarter: quarter.name,
+            scheduledAmount: scheduledAmount,
+            fiscalYear: fiscalYear
+          }
         });
       }
       
@@ -316,14 +396,45 @@ function createChronologicalTransactionList(
               }
             }
             
+            // Calculate category breakdown from allocations
+            const categoryBreakdown = transaction 
+              ? calculateCategoryBreakdown(transaction.allocations)
+              : {};
+            const primaryCategory = transaction 
+              ? getPrimaryCategory(categoryBreakdown)
+              : 'other';
+            
             transactions.push({
               type: 'payment',
+              category: primaryCategory,
               date: paymentDate,
               description: description,
               amount: -paymentAmount,
               charge: 0,
               payment: paymentAmount,
+              balance: 0, // Will be set later when calculating running balance
               transactionId: txnId,
+              transactionRef: transaction ? {
+                id: txnId,
+                date: transaction.date,
+                description: transaction.description,
+                amount: transaction.amount,
+                method: transaction.method,
+                reference: transaction.reference,
+                notes: transaction.notes
+              } : null,
+              allocations: transaction 
+                ? (transaction.allocations || []).map(alloc => ({
+                    categoryId: alloc.categoryId,
+                    categoryName: alloc.categoryName,
+                    type: alloc.type,
+                    amount: centavosToPesos(alloc.amount || 0),
+                    targetId: alloc.targetId,
+                    targetName: alloc.targetName,
+                    notes: alloc.notes
+                  }))
+                : [],
+              categoryBreakdown: categoryBreakdown,
               month: quarter.months[0],
               quarter: quarter.name
             });
@@ -349,12 +460,19 @@ function createChronologicalTransactionList(
       if (dueDate && !isNaN(dueDate.getTime())) {
         transactions.push({
           type: 'charge',
+          category: 'hoa',
           date: dueDate,
           description: `HOA Dues Month ${payment.month}`,
           amount: scheduledAmount,
           charge: scheduledAmount,
           payment: 0,
-          month: payment.month
+          balance: 0, // Will be set later when calculating running balance
+          month: payment.month,
+          chargeRef: {
+            month: payment.month,
+            scheduledAmount: scheduledAmount,
+            fiscalYear: fiscalYear
+          }
         });
       }
       
@@ -421,14 +539,45 @@ function createChronologicalTransactionList(
             }
           }
           
+          // Calculate category breakdown from allocations
+          const categoryBreakdown = transaction 
+            ? calculateCategoryBreakdown(transaction.allocations)
+            : {};
+          const primaryCategory = transaction 
+            ? getPrimaryCategory(categoryBreakdown)
+            : 'other';
+          
           transactions.push({
             type: 'payment',
+            category: primaryCategory,
             date: effectiveDate,
             description: description,
             amount: -paymentAmount,
             charge: 0,
             payment: paymentAmount,
+            balance: 0, // Will be set later when calculating running balance
             transactionId: txnId,
+            transactionRef: transaction ? {
+              id: txnId,
+              date: transaction.date,
+              description: transaction.description,
+              amount: transaction.amount,
+              method: transaction.method,
+              reference: transaction.reference,
+              notes: transaction.notes
+            } : null,
+            allocations: transaction 
+              ? (transaction.allocations || []).map(alloc => ({
+                  categoryId: alloc.categoryId,
+                  categoryName: alloc.categoryName,
+                  type: alloc.type,
+                  amount: centavosToPesos(alloc.amount || 0),
+                  targetId: alloc.targetId,
+                  targetName: alloc.targetName,
+                  notes: alloc.notes
+                }))
+              : [],
+            categoryBreakdown: categoryBreakdown,
             month: payment.month
           });
         }
@@ -468,6 +617,9 @@ function createChronologicalTransactionList(
           }))];
           const description = `Water Payment - ${waterBillNames.join(', ')}`;
           
+          // Calculate category breakdown for water payments
+          const categoryBreakdown = { 'Water Consumption': totalWaterAmount };
+          
           transactions.push({
             type: 'payment',
             category: 'water',
@@ -476,7 +628,27 @@ function createChronologicalTransactionList(
             amount: -totalWaterAmount,
             charge: 0,
             payment: totalWaterAmount,
-            transactionId: txnId
+            balance: 0, // Will be set later when calculating running balance
+            transactionId: txnId,
+            transactionRef: {
+              id: txnId,
+              date: transaction.date,
+              description: transaction.description,
+              amount: transaction.amount,
+              method: transaction.method,
+              reference: transaction.reference,
+              notes: transaction.notes
+            },
+            allocations: waterAllocations.map(alloc => ({
+              categoryId: alloc.categoryId,
+              categoryName: alloc.categoryName,
+              type: alloc.type,
+              amount: centavosToPesos(alloc.amount || 0),
+              targetId: alloc.targetId,
+              targetName: alloc.targetName,
+              notes: alloc.notes
+            })),
+            categoryBreakdown: categoryBreakdown
           });
         }
       }
@@ -509,15 +681,39 @@ function createChronologicalTransactionList(
       if (amountPesos > 0) {
         processedTransactionIds.add(txnId);
         
+        // Calculate category breakdown from allocations
+        const categoryBreakdown = calculateCategoryBreakdown(transaction.allocations);
+        const primaryCategory = getPrimaryCategory(categoryBreakdown);
+        
         transactions.push({
           type: 'payment',
-          category: 'other', // Mark as other/general
+          category: primaryCategory, // Calculated from allocations
           date: paymentDate,
           description: transaction.description || transaction.notes || 'Payment',
           amount: -amountPesos, // Negative for credit/payment
           charge: 0,
           payment: amountPesos,
-          transactionId: txnId
+          balance: 0, // Will be set later when calculating running balance
+          transactionId: txnId,
+          transactionRef: {
+            id: txnId,
+            date: transaction.date,
+            description: transaction.description,
+            amount: transaction.amount,
+            method: transaction.method,
+            reference: transaction.reference,
+            notes: transaction.notes
+          },
+          allocations: (transaction.allocations || []).map(alloc => ({
+            categoryId: alloc.categoryId,
+            categoryName: alloc.categoryName,
+            type: alloc.type,
+            amount: centavosToPesos(alloc.amount || 0), // Convert to pesos
+            targetId: alloc.targetId,
+            targetName: alloc.targetName,
+            notes: alloc.notes
+          })),
+          categoryBreakdown: categoryBreakdown
         });
       }
     }
@@ -894,6 +1090,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
                 amount: bill.totalPenaltyDue,
                 charge: bill.totalPenaltyDue,
                 payment: 0,
+                balance: 0, // Will be set later when calculating running balance
                 billId: cleanPeriod,
                 baseAmount: bill.totalBaseDue || 0
               });
@@ -939,6 +1136,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
                 amount: bill.totalPenaltyDue,
                 charge: bill.totalPenaltyDue,
                 payment: 0,
+                balance: 0, // Will be set later when calculating running balance
                 billId: cleanPeriod,
                 baseAmount: bill.totalBaseDue || 0
               });
@@ -983,9 +1181,17 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             description: description,
             amount: penaltyAmount,
             charge: penaltyAmount,
-            payment: entry.isPaid ? penaltyAmount : 0,
+            payment: 0, // Payment will be recorded separately via actual payment transactions
+            balance: 0, // Will be set later when calculating running balance
             isPaid: entry.isPaid || false,
-            source: 'stored'
+            source: 'stored',
+            penaltyRef: {
+              date: entry.date,
+              amount: entry.amount, // in centavos
+              isPaid: entry.isPaid,
+              notes: entry.notes,
+              source: 'imported'
+            }
           });
         }
       }
@@ -1157,6 +1363,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
                 amount: penaltyAmount,
                 charge: penaltyAmount,
                 payment: 0,
+                balance: 0, // Will be set later when calculating running balance
                 billId: allocData.billId || allocData.billPeriod || '',
                 baseAmount: 0
               });
@@ -1521,7 +1728,17 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       payment: roundTo2Decimals(txn.payment || 0),
       balance: roundTo2Decimals(txn.balance || 0),
       type: txn.type || 'charge', // 'charge', 'payment', 'penalty'
-      isFuture: isFuture
+      category: txn.category || null,
+      transactionId: txn.transactionId || null,
+      isFuture: isFuture,
+      
+      // Preserve all reference data for UI drill-down and reconciliation
+      transactionRef: txn.transactionRef || null,
+      allocations: txn.allocations || [],
+      categoryBreakdown: txn.categoryBreakdown || {},
+      billRef: txn.billRef || null,
+      chargeRef: txn.chargeRef || null,
+      penaltyRef: txn.penaltyRef || null
     };
   });
   
@@ -1569,14 +1786,19 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     // Skip future items
     if (item.isFuture) continue;
     
-    // Skip payments (we'll get those from transaction allocations)
-    if (item.type === 'payment') continue;
-    
-    // Determine category from description
+    // Determine category from description or category field
     const desc = (item.description || '').toLowerCase();
     let categoryName = 'Other';
     
-    if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
+    // Use category field if available
+    if (item.category) {
+      const cat = (item.category || '').toLowerCase();
+      if (cat === 'hoa' || cat.includes('hoa') || cat.includes('maintenance')) {
+        categoryName = 'HOA Maintenance';
+      } else if (cat === 'water' || cat.includes('water') || cat.includes('consumption')) {
+        categoryName = 'Water Consumption';
+      }
+    } else if (desc.includes('hoa') || desc.includes('maintenance') || desc.includes('dues') || desc.includes('mantenimiento')) {
       categoryName = 'HOA Maintenance';
     } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
       categoryName = 'Water Consumption';
@@ -1596,53 +1818,19 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     }
   }
   
-  // Process payments from transaction allocations
-  // IMPORTANT: Only include allocations from non-future line items to match displayed transactions
-  const displayedTransactionIds = new Set();
+  // Process payments from categoryBreakdown (already calculated from allocations!)
+  // This is much simpler since we preserved the breakdown when creating chronologicalTransactions
   for (const item of lineItems) {
     if (item.isFuture) continue;
-    if (item.transactionId) {
-      displayedTransactionIds.add(item.transactionId);
-    }
-  }
-  
-  for (const transaction of rawData.transactions || []) {
-    if (!transaction.allocations || transaction.allocations.length === 0) continue;
     
-    // Skip transactions not in displayed line items (includes future transactions)
-    const txnDate = transaction.date instanceof Date ? transaction.date : parseDate(transaction.date);
-    if (!txnDate) continue;
-    
-    const cutoffDate = getNow();
-    cutoffDate.setHours(23, 59, 59, 999);
-    if (txnDate > cutoffDate) continue;
-    
-    // Process each allocation
-    for (const alloc of transaction.allocations) {
-      const allocAmount = centavosToPesos(alloc.amount || 0);
-      if (allocAmount === 0) continue;
-      
-      // Determine category from allocation
-      const categoryId = alloc.categoryId || '';
-      const categoryName = alloc.categoryName || '';
-      const allocType = alloc.type || '';
-      let category = 'Other';
-      
-      // Check for credit allocations
-      if (categoryId.includes('credit') || allocType.includes('credit') || categoryName.includes('Credit')) {
-        category = 'Credit Balance';
-      } else if (categoryId.includes('hoa') || categoryName.includes('HOA') || categoryName.includes('Maintenance')) {
-        category = 'HOA Maintenance';
-      } else if (categoryId.includes('water') || categoryId.includes('consumo') || categoryId.includes('lavado') || categoryName.includes('Water') || categoryName.includes('Agua') || categoryName.includes('Lavado')) {
-        category = 'Water Consumption';
+    if (item.type === 'payment' && item.categoryBreakdown && Object.keys(item.categoryBreakdown).length > 0) {
+      // Use pre-calculated category breakdown from allocations
+      for (const [categoryName, amount] of Object.entries(item.categoryBreakdown)) {
+        if (!categoryMap.has(categoryName)) {
+          categoryMap.set(categoryName, { charges: 0, penalties: 0, paid: 0 });
+        }
+        categoryMap.get(categoryName).paid += amount;
       }
-      
-      // Get or create category entry
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, { charges: 0, penalties: 0, paid: 0 });
-      }
-      
-      categoryMap.get(category).paid += allocAmount;
     }
   }
   
