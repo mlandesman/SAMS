@@ -1596,15 +1596,13 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 }
 
 /**
- * Get projects where unit made payments during the reporting period
+ * Get projects/special assessments for a unit during fiscal year
  * @param {Object} api - API client (not used but kept for consistency)
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID  
  * @param {Object} fiscalYearBounds - { startDate, endDate }
  * @returns {Array} Projects with unit's collections
- */
-/**
- * Get projects/special assessments for a unit during fiscal year
+ * 
  * TODO/FUTURE ENHANCEMENT: Projects feature screens/code are not built yet
  * Currently Special Assessments only appear in Allocation Summary, NOT in Account Activity
  * When Projects feature is complete, need to:
