@@ -1658,8 +1658,8 @@ export class ImportService {
     
     for (const entry of unitAccounting) {
       const category = entry['Categoría'] || entry.Category || '';
-      // Match new category for water consumption penalties
-      if (category !== 'Cargo por consumo atrasado') continue;
+      // Match category for water consumption penalties (both old Spanish and new SAMS-approved English names)
+      if (category !== 'Cargo por consumo atrasado' && category !== 'Water Penalties') continue;
       
       const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
       if (!unitId) continue;
@@ -1721,8 +1721,8 @@ export class ImportService {
     
     for (const entry of unitAccounting) {
       const category = entry['Categoría'] || entry.Category || '';
-      // Match new category for HOA maintenance penalties
-      if (category !== 'Cargo por mantenimiento atrasado') continue;
+      // Match category for HOA maintenance penalties (both old Spanish and new SAMS-approved English names)
+      if (category !== 'Cargo por mantenimiento atrasado' && category !== 'HOA Penalties') continue;
       
       const unitId = this.normalizeUnitId(entry.Depto || entry.Unit);
       if (!unitId) continue;
