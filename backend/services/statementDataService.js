@@ -1449,6 +1449,58 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       }
     }
     
+    // Step 7.6: Extract water penalties from water bill documents (for paid historical penalties)
+    // These penalties are stored in the bill document's penaltyAmount field
+    // We need to extract them as separate penalty charges for the Allocation Summary
+    for (const bill of waterBills) {
+      const penaltyAmount = bill.penaltyAmount || 0;
+      if (penaltyAmount > 0) {
+        // Calculate penalty date (typically 1 month after bill due date)
+        let penaltyDate = null;
+        const dueDate = bill.dueDate ? parseDate(bill.dueDate) : null;
+        if (dueDate && !isNaN(dueDate.getTime())) {
+          penaltyDate = new Date(dueDate);
+          penaltyDate.setMonth(penaltyDate.getMonth() + 1);
+          penaltyDate.setDate(1);
+        } else if (bill.fiscalQuarter) {
+          // Fallback: calculate from fiscal quarter
+          const fiscalMonthIndex = bill.fiscalQuarter * 3;
+          const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+          const calendarYear = currentFiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+          penaltyDate = new Date(calendarYear, calendarMonth, 1);
+        }
+        
+        if (penaltyDate && !isNaN(penaltyDate.getTime())) {
+          // Check if this penalty already exists (from unified preview or allocations)
+          const existingPenalty = waterPenalties.find(p => 
+            Math.abs(p.date.getTime() - penaltyDate.getTime()) < 86400000 && // Within 1 day
+            Math.abs(p.amount - penaltyAmount) < 0.01 // Same amount (floating point tolerance)
+          );
+          
+          if (!existingPenalty) {
+            const quarterName = bill.fiscalQuarter ? `Q${bill.fiscalQuarter}` : '';
+            const description = quarterName 
+              ? `Water Penalty - ${quarterName} ${bill.fiscalYear || currentFiscalYear}`
+              : `Water Penalty - ${penaltyDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+            
+            waterPenalties.push({
+              type: 'penalty',
+              category: 'water',
+              date: penaltyDate,
+              description: description,
+              amount: penaltyAmount,
+              charge: penaltyAmount,
+              payment: 0, // Payment will be recorded separately via actual payment transactions
+              balance: 0, // Will be set later when calculating running balance
+              billId: bill.billId,
+              baseAmount: bill.currentCharge || 0,
+              source: 'bill_document'
+            });
+          }
+        }
+      }
+    }
+    
     // Step 8: Create chronological transaction list
     let chronologicalTransactions = createChronologicalTransactionList(
       payments,
