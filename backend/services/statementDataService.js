@@ -295,7 +295,9 @@ function createChronologicalTransactionList(
   fiscalYearBounds,
   waterBills = [], 
   hoaPenalties = [], 
-  waterPenalties = []
+  waterPenalties = [],
+  openingBalance = 0,
+  creditAdjustments = []
 ) {
   const transactions = [];
   
@@ -322,7 +324,8 @@ function createChronologicalTransactionList(
         // For quarterly bills, show quarter name
         const quarterName = bill.fiscalQuarter ? `Q${bill.fiscalQuarter}` : '';
         const monthName = billDate.toLocaleString('en-US', { month: 'short' });
-        const displayYear = billDate.getFullYear();
+        // Use fiscal year from bill (stored as 'year' field) if available, otherwise use calendar year of bill date
+        const displayYear = bill.year || bill.fiscalYear || billDate.getFullYear();
         const description = quarterName 
           ? `Water Bill ${quarterName} ${displayYear}` 
           : `Water Bill ${monthName} ${displayYear}`;
@@ -799,6 +802,9 @@ function createChronologicalTransactionList(
   transactions.push(...hoaPenalties);
   transactions.push(...waterPenalties);
   
+  // Add credit adjustments (manual credit changes not associated with transactions)
+  transactions.push(...creditAdjustments);
+  
   // Sort chronologically by date
   transactions.sort((a, b) => {
     const dateA = a.date.getTime();
@@ -814,11 +820,11 @@ function createChronologicalTransactionList(
     return 0;
   });
   
-  // Calculate running balance
-  let runningBalance = 0;
+  // Calculate running balance starting from opening balance
+  let runningBalance = openingBalance;
   transactions.forEach(txn => {
     runningBalance += txn.amount; // amount is positive for charges, negative for payments
-    txn.balance = runningBalance;
+    txn.balance = runningBalance; // Allow balance to go negative (no Math.max(0, ...) clamping)
   });
   
   return transactions;
@@ -896,6 +902,77 @@ async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth
       return [];
     }
     return [];
+  }
+}
+
+/**
+ * Get credit balance at a specific date from credit history
+ * @param {Firestore} db - Firestore instance
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID  
+ * @param {Date} asOfDate - Date to get balance as of
+ * @returns {Promise<number>} Balance in pesos (negative = credit)
+ */
+async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate) {
+  try {
+    // Fetch creditBalances document
+    const creditBalancesRef = db.collection('clients').doc(clientId)
+      .collection('units').doc('creditBalances');
+    const creditBalancesDoc = await creditBalancesRef.get();
+    
+    if (!creditBalancesDoc.exists) {
+      return 0; // No credit balance document = no credit
+    }
+    
+    const creditBalancesData = creditBalancesDoc.data();
+    const unitCreditData = creditBalancesData[unitId];
+    
+    if (!unitCreditData || !unitCreditData.history || !Array.isArray(unitCreditData.history)) {
+      return 0; // No history = no credit
+    }
+    
+    const history = unitCreditData.history;
+    const asOfTimestamp = asOfDate.getTime() / 1000; // Convert to seconds
+    
+    // Find the last entry with timestamp <= asOfDate
+    let lastEntry = null;
+    for (const entry of history) {
+      let entryTimestamp = null;
+      
+      // Handle Firestore Timestamp format
+      if (entry.timestamp && entry.timestamp._seconds !== undefined) {
+        entryTimestamp = entry.timestamp._seconds;
+      } else if (entry.timestamp && typeof entry.timestamp.toDate === 'function') {
+        entryTimestamp = entry.timestamp.toDate().getTime() / 1000;
+      } else if (entry.timestamp instanceof Date) {
+        entryTimestamp = entry.timestamp.getTime() / 1000;
+      } else if (typeof entry.timestamp === 'number') {
+        entryTimestamp = entry.timestamp;
+      }
+      
+      if (entryTimestamp !== null && entryTimestamp <= asOfTimestamp) {
+        lastEntry = entry;
+      } else {
+        // History is sorted chronologically, so we can break once we pass the date
+        break;
+      }
+    }
+    
+    // If no history before date, return 0
+    if (!lastEntry || lastEntry.balanceAfter === undefined) {
+      return 0;
+    }
+    
+    // Convert from centavos to pesos
+    const balanceInPesos = centavosToPesos(lastEntry.balanceAfter);
+    
+    // Credit balance is always positive (represents available credit)
+    // For running balance: credit reduces what's owed, so it should be negative
+    // Negate positive credit balance for running balance (credit reduces debt)
+    return -1 * balanceInPesos;
+  } catch (error) {
+    console.warn(`Warning: Could not fetch credit balance for ${clientId}/${unitId} as of ${asOfDate.toISOString()}:`, error.message);
+    return 0; // Graceful degradation - return 0 on error
   }
 }
 
@@ -1501,6 +1578,109 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       }
     }
     
+    // Step 7.9: Get opening balance from credit history at fiscal year start
+    const db = await getDb();
+    const openingBalance = await getCreditBalanceAsOf(db, clientId, unitId, fiscalYearBounds.startDate);
+    
+    // Step 7.10: Fetch credit history entries for manual credit adjustments
+    // These are credit changes not associated with money transactions
+    const creditAdjustments = [];
+    try {
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      const creditBalancesDoc = await creditBalancesRef.get();
+      
+      if (creditBalancesDoc.exists) {
+        const creditBalancesData = creditBalancesDoc.data();
+        const unitCreditData = creditBalancesData[unitId];
+        
+        if (unitCreditData && unitCreditData.history && Array.isArray(unitCreditData.history)) {
+          const fyStartTimestamp = fiscalYearBounds.startDate.getTime() / 1000;
+          const fyEndTimestamp = fiscalYearBounds.endDate.getTime() / 1000;
+          
+          // Get all credit history entries within fiscal year (excluding starting_balance)
+          for (const entry of unitCreditData.history) {
+            let entryTimestamp = null;
+            
+            // Handle Firestore Timestamp format
+            if (entry.timestamp && entry.timestamp._seconds !== undefined) {
+              entryTimestamp = entry.timestamp._seconds;
+            } else if (entry.timestamp && typeof entry.timestamp.toDate === 'function') {
+              entryTimestamp = entry.timestamp.toDate().getTime() / 1000;
+            } else if (entry.timestamp instanceof Date) {
+              entryTimestamp = entry.timestamp.getTime() / 1000;
+            } else if (typeof entry.timestamp === 'number') {
+              entryTimestamp = entry.timestamp;
+            }
+            
+            // Skip if outside fiscal year or is starting_balance (already handled as opening balance)
+            if (!entryTimestamp || entryTimestamp < fyStartTimestamp || entryTimestamp > fyEndTimestamp) {
+              continue;
+            }
+            
+            if (entry.type === 'starting_balance') {
+              continue; // Already handled as opening balance
+            }
+            
+            // Only include entries that don't have a transactionId (manual adjustments)
+            // Entries with transactionId are already represented in the transaction list
+            if (!entry.transactionId) {
+              // Check if this credit change is already represented in a payment transaction
+              // If description mentions "Deposit" or matches a payment pattern, it's likely already in transactions
+              const description = (entry.description || '').toLowerCase();
+              const isFromTransaction = description.includes('deposit of mxn') || 
+                                       description.includes('payment') ||
+                                       description.includes('overpayment') ||
+                                       description.includes('underpayment');
+              
+              // Only include if it's NOT from a transaction (true manual adjustment)
+              // Examples of manual adjustments: "conversion of monthly water bills to quarterly", 
+              // "refund", "adjustment", etc.
+              if (!isFromTransaction) {
+                const entryDate = new Date(entryTimestamp * 1000);
+                const balanceBefore = centavosToPesos(entry.balanceBefore || 0);
+                const balanceAfter = centavosToPesos(entry.balanceAfter || 0);
+                
+                // Calculate the change amount (difference between before and after)
+                // credit_added: balance increases (e.g., 4871.12 -> 5371.12 = +500)
+                // credit_used: balance decreases (e.g., 5371.12 -> 4871.12 = -500)
+                // For running balance: credit_added = negative (reduces debt), credit_used = positive (increases debt)
+                const changeAmount = balanceAfter - balanceBefore;
+                const adjustmentAmount = -changeAmount; // Negate because credit reduces debt
+                
+                // For credit adjustments:
+                // credit_added = negative amount (reduces debt) = show as payment (negative in running balance)
+                // credit_used = positive amount (increases debt) = show as charge (positive in running balance)
+                const isCreditAdded = entry.type === 'credit_added';
+                
+                creditAdjustments.push({
+                  type: 'credit_adjustment',
+                  category: 'credit',
+                  date: entryDate,
+                  description: entry.description || `Credit ${entry.type === 'credit_added' ? 'Added' : 'Used'}`,
+                  amount: adjustmentAmount, // Negative for credit_added, positive for credit_used
+                  charge: isCreditAdded ? 0 : Math.abs(adjustmentAmount), // credit_used shows as charge
+                  payment: isCreditAdded ? Math.abs(adjustmentAmount) : 0, // credit_added shows as payment
+                  balance: 0, // Will be set later when calculating running balance
+                  creditAdjustmentRef: {
+                    id: entry.id,
+                    type: entry.type,
+                    amount: entry.amount,
+                    balanceBefore: entry.balanceBefore,
+                    balanceAfter: entry.balanceAfter,
+                    description: entry.description,
+                    notes: entry.notes
+                  }
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not fetch credit adjustments for ${clientId}/${unitId}:`, error.message);
+    }
+    
     // Step 8: Create chronological transaction list
     // NOTE: Special Assessments (projectsData) are NOT included in chronologicalTransactions
     // They only appear in Allocation Summary currently
@@ -1515,16 +1695,28 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       fiscalYearBounds,
       waterBills,
       hoaPenalties,
-      waterPenalties
+      waterPenalties,
+      openingBalance,
+      creditAdjustments
     );
     
-    // Filter future transactions if requested
+    // Filter future CHARGES if requested (but always include payments - they're real activity)
+    // Payments should always show even if the bill hasn't been sent yet
     if (excludeFutureBills) {
       const cutoffDate = getNow();
       // Include transactions for the current day
       cutoffDate.setHours(23, 59, 59, 999);
       
       chronologicalTransactions = chronologicalTransactions.filter(txn => {
+        // Always include payments (real activity)
+        if (txn.type === 'payment' || txn.payment > 0) {
+          return true;
+        }
+        // Always include credit adjustments (real activity)
+        if (txn.type === 'credit_adjustment') {
+          return true;
+        }
+        // Filter out future charges/bills/penalties
         return txn.date <= cutoffDate;
       });
     }
@@ -1538,9 +1730,32 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const totalPaid = duesData.totalPaid || 0;
     
     // Determine final balance from the last transaction
-    const finalBalance = chronologicalTransactions.length > 0 
+    let finalBalance = chronologicalTransactions.length > 0 
       ? chronologicalTransactions[chronologicalTransactions.length - 1].balance 
-      : 0;
+      : openingBalance;
+    
+    // Tick and Tie: If final balance is negative (credit), it should match the credit balance
+    // The credit balance is the source of truth for credit amounts
+    const currentCreditBalance = creditBalanceData.creditBalance || 0;
+    const expectedFinalBalance = -currentCreditBalance; // Negate because credit reduces debt
+    
+    // Reconcile: If final balance is negative (indicating credit), use credit balance as source of truth
+    // This ensures the statement "ticks and ties" correctly
+    // Exception: If there's both credit AND positive balance due (not enough credit to cover all charges),
+    // we use the calculated balance (which will be positive or less negative than credit balance)
+    if (finalBalance < 0 && finalBalance <= expectedFinalBalance) {
+      // Final balance is negative and matches or is more negative than credit balance
+      // This means we have credit, and it should match the credit balance exactly
+      // Use credit balance as source of truth to ensure reconciliation
+      finalBalance = expectedFinalBalance;
+    } else if (finalBalance < 0 && Math.abs(finalBalance - expectedFinalBalance) > 0.01) {
+      // There's a discrepancy - log warning
+      // This can happen if there are unbilled items or timing differences
+      console.warn(`Balance reconciliation check for ${clientId}/${unitId}: ` +
+        `Final balance (${finalBalance.toFixed(2)}) doesn't match credit balance (${expectedFinalBalance.toFixed(2)}). ` +
+        `Difference: ${Math.abs(finalBalance - expectedFinalBalance).toFixed(2)}. ` +
+        `This may be due to unbilled items or timing differences.`);
+    }
 
     // If filtering future bills, totalOutstanding should reflect current reality (finalBalance)
     // Otherwise use the annual calculation
@@ -1585,6 +1800,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         totalPaid: totalPaid,
         totalOutstanding: totalOutstanding,
         finalBalance: finalBalance,
+        openingBalance: openingBalance,
         scheduledAmount: scheduledAmount,
         transactionCount: chronologicalTransactions.length
       }
@@ -2162,7 +2378,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       totalDue: roundTo2Decimals(rawData.summary.totalDue),
       totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
       totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
-      openingBalance: 0, // Always starts at 0
+      openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
       closingBalance: roundTo2Decimals(rawData.summary.finalBalance)
     },
     lineItems: lineItems,

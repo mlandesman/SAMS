@@ -1942,7 +1942,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
           reference: null
         })),
         totalPaid: 0,
-        updated: convertToTimestamp(getNow())
+        updated: admin.firestore.Timestamp.now()
       }, { merge: true });
     }
     
@@ -1972,7 +1972,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       await duesRef.update({
         creditBalance: admin.firestore.FieldValue.delete(),
         creditBalanceHistory: admin.firestore.FieldValue.delete(),
-        updated: convertToTimestamp(getNow())
+        updated: admin.firestore.Timestamp.now()
       });
     } catch (updateError) {
       if (updateError.code !== 'not-found') {
