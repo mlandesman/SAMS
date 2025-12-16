@@ -19,8 +19,9 @@
  */
 
 import admin from 'firebase-admin';
-import { getDb } from '../../firebase.js';
-import { normalizeOwners } from '../../utils/unitContactUtils.js';
+import { normalizeOwners } from '../utils/unitContactUtils.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const stats = {
   clientsProcessed: 0,
@@ -96,17 +97,53 @@ function migrateUnitEmails(unitData) {
 }
 
 /**
+ * Initialize Firebase Admin SDK for the script
+ */
+function initializeFirebaseForScript(isProduction = false) {
+  if (admin.apps.length > 0) {
+    return admin.firestore(); // Already initialized
+  }
+
+  console.log('🔥 Initializing Firebase Admin SDK...');
+  
+  if (isProduction) {
+    // Production - use production service account (from project root)
+    const serviceAccountPath = '../../serviceAccountKey-prod.json';
+    const serviceAccount = require(serviceAccountPath);
+    console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
+    
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: 'sams-sandyland-prod.firebasestorage.app',
+    });
+  } else {
+    // Dev - use dev service account (from project root)
+    const serviceAccountPath = '../../serviceAccountKey.json';
+    const serviceAccount = require(serviceAccountPath);
+    console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
+    
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: 'sandyland-management-system.firebasestorage.app',
+    });
+  }
+  
+  console.log('✅ Firebase Admin SDK initialized successfully');
+  return admin.firestore();
+}
+
+/**
  * Migrate emails for all units in a client
  */
 async function migrateClientUnits(clientId, options = {}) {
-  const { dryRun = false } = options;
+  const { dryRun = false, isProduction = false } = options;
   
   console.log(`\n${'='.repeat(80)}`);
   console.log(`📧 MIGRATING EMAILS TO OWNER OBJECTS - Client: ${clientId}`);
   console.log(`Mode: ${dryRun ? 'DRY RUN' : 'LIVE'}`);
   console.log(`${'='.repeat(80)}\n`);
 
-  const db = await getDb();
+  const db = initializeFirebaseForScript(isProduction);
   stats.clientsProcessed++;
 
   try {
@@ -179,15 +216,16 @@ async function migrateClientUnits(clientId, options = {}) {
  * Main migration function
  */
 async function migrateEmailsToOwnerObjects(options = {}) {
-  const { clients = ['MTC', 'AVII'], dryRun = true } = options;
+  const { clients = ['MTC', 'AVII'], dryRun = true, isProduction = false } = options;
   
   console.log('\n🚀 Starting Email Migration to Owner Objects');
   console.log(`Mode: ${dryRun ? 'DRY RUN (no changes will be made)' : 'LIVE (changes will be saved)'}`);
+  console.log(`Environment: ${isProduction ? 'PRODUCTION' : 'DEV'}`);
   console.log(`Clients: ${clients.join(', ')}\n`);
 
   for (const clientId of clients) {
     try {
-      await migrateClientUnits(clientId, { dryRun });
+      await migrateClientUnits(clientId, { dryRun, isProduction });
     } catch (error) {
       console.error(`❌ Failed to process client ${clientId}:`, error);
       stats.errors.push({ clientId, error: error.message });
@@ -226,11 +264,12 @@ async function migrateEmailsToOwnerObjects(options = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const dryRun = !args.includes('--live');
+  const isProduction = args.includes('--prod');
   const clients = args.includes('--client') 
     ? [args[args.indexOf('--client') + 1]]
     : ['MTC', 'AVII'];
   
-  migrateEmailsToOwnerObjects({ clients, dryRun })
+  migrateEmailsToOwnerObjects({ clients, dryRun, isProduction })
     .then(() => {
       console.log('Migration script completed');
       process.exit(0);
