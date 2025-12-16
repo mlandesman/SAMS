@@ -29,9 +29,22 @@ export async function generatePdf(htmlContent, options = {}) {
       format = 'Letter',
       footerMeta = {}
     } = options;
+    
+    // Sandbox mode logic:
+    // - Production: sandbox OFF (no watermarks)
+    // - Dev/Staging: sandbox ON by default (protects credits)
+    // - PDFSHIFT_SANDBOX env var can override either behavior
     const sandboxEnv = process.env.PDFSHIFT_SANDBOX;
-    // Keep sandbox mode enabled by default per PDFShift guidance (https://docs.pdfshift.io/#sandbox)
-    const useSandbox = sandboxEnv === undefined ? true : sandboxEnv === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    let useSandbox;
+    if (sandboxEnv !== undefined) {
+      // Explicit env var override
+      useSandbox = sandboxEnv === 'true';
+    } else {
+      // Default behavior: OFF in production, ON in dev/staging
+      useSandbox = !isProduction;
+    }
     
     const {
       statementId = '',

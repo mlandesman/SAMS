@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "0.4.0",
-  "buildDate": "2025-12-15T11:54:37.656Z",
-  "buildTimestamp": 1765799677656,
+  "buildDate": "2025-12-15T23:30:25.230Z",
+  "buildTimestamp": 1765841425231,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "4fbab8a",
-    "branch": "fix/credit-balance-statement-integration",
-    "lastCommitDate": "2025-12-14 12:49:45 -0500"
+    "hash": "72f70f8",
+    "branch": "feature/bulk-statement-generation-storage",
+    "lastCommitDate": "2025-12-15 13:53:30 -0500"
   },
   "build": {
-    "timestamp": "2025-12-15T11:54:37.656Z",
+    "timestamp": "2025-12-15T23:30:25.230Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "251215.0654"
+    "buildNumber": "251215.1830"
   },
   "deployment": {
     "target": "development",
-    "date": "2025-12-15T11:54:37.656Z",
+    "date": "2025-12-15T23:30:25.230Z",
     "automated": true
   },
   "releaseNotes": {

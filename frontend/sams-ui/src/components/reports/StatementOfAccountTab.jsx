@@ -7,6 +7,7 @@ import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
 import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
+import { bulkGenerateStatements } from '../../api/admin';
 import './StatementOfAccountTab.css';
 
 function normalizeLanguage(lang) {
@@ -83,6 +84,12 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+
+  // Bulk generation state
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [bulkResults, setBulkResults] = useState(null);
+  const [bulkError, setBulkError] = useState(null);
 
   // Initialise language and fiscal year when client or user changes
   useEffect(() => {
@@ -164,13 +171,67 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     [selectedClient]
   );
 
+  // Handle bulk generation (defined before handleGenerate so it can be called)
+  const handleBulkGenerate = useCallback(async () => {
+    if (!selectedClient) {
+      return;
+    }
+
+    setBulkGenerating(true);
+    setBulkError(null);
+    setBulkProgress(null);
+    setBulkResults(null);
+
+    try {
+      const result = await bulkGenerateStatements(
+        selectedClient.id,
+        fiscalYear,
+        language,
+        (progress) => {
+          // Update progress as we receive updates
+          setBulkProgress({
+            current: progress.current,
+            total: progress.total,
+            generated: progress.generated,
+            failed: progress.failed,
+            message: progress.message,
+            status: progress.status
+          });
+        }
+      );
+
+      if (result.success && result.data) {
+        setBulkResults(result.data);
+        setBulkProgress({
+          total: result.data.totalUnits,
+          generated: result.data.generated,
+          failed: result.data.failed,
+          current: result.data.totalUnits
+        });
+      } else {
+        throw new Error(result.error || 'Bulk generation failed');
+      }
+    } catch (err) {
+      console.error('Bulk generation error:', err);
+      setBulkError(err.message || 'Failed to generate bulk statements. Please try again.');
+    } finally {
+      setBulkGenerating(false);
+    }
+  }, [selectedClient, fiscalYear, language]);
+
   const handleGenerate = useCallback(
     async event => {
       if (event) {
         event.preventDefault();
       }
 
-      if (!selectedClient || !selectedUnitId) {
+      if (!selectedClient) {
+        return;
+      }
+
+      // If no unit selected, trigger bulk generation instead
+      if (!selectedUnitId) {
+        await handleBulkGenerate();
         return;
       }
 
@@ -249,7 +310,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   }, [handleGenerate]);
 
   const isGenerateDisabled =
-    !selectedUnitId || loading || unitsLoading || !!unitsError;
+    loading || unitsLoading || !!unitsError || bulkGenerating;
 
   const hasStatement = !!statementData && !!statementData.html;
   const isPdfDisabled = !hasStatement || loading || downloadingPdf;
@@ -339,6 +400,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     [selectedClient, selectedUnitId, fiscalYear, statementData]
   );
   // Automatically generate statement whenever unit, year, or language changes
+  // Only auto-generate if a unit is selected (not for bulk generation)
   useEffect(() => {
     if (!selectedClient || !selectedUnitId || !fiscalYear) {
       return;
@@ -347,6 +409,21 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   }, [handleGenerate, selectedClient, selectedUnitId, fiscalYear, language]);
 
   const showUnitFilter = units.length > 20;
+
+  // Check if user is Admin or SuperAdmin
+  const isAdminOrSuperAdmin = useMemo(() => {
+    if (!samsUser) return false;
+    // SuperAdmin check
+    if (samsUser.globalRole === 'superAdmin' || samsUser.email === 'michael@landesman.com') {
+      return true;
+    }
+    // Admin check (client-specific)
+    if (selectedClient) {
+      const propertyAccess = samsUser.propertyAccess?.[selectedClient.id];
+      return propertyAccess?.role === 'admin' || propertyAccess?.role === 'superAdmin';
+    }
+    return false;
+  }, [samsUser, selectedClient]);
 
   if (!selectedClient) {
     return (
@@ -444,7 +521,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           onClick={handleGenerate}
           disabled={isGenerateDisabled}
         >
-          {loading ? 'Generating...' : 'Generate'}
+          {loading ? 'Generating...' : selectedUnitId ? 'Generate' : 'Generate All'}
         </button>
 
         <div className="action-buttons">
@@ -487,7 +564,32 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             />
           </div>
         )}
-        {loading && (
+        {/* Bulk generation loading */}
+        {bulkGenerating && (
+          <div className="statement-preview-loading">
+            <LoadingSpinner
+              show={true}
+              variant="logo"
+              size="large"
+              message={
+                bulkProgress?.message 
+                  ? `${bulkProgress.message}...`
+                  : "Generating statements for all units... This may take several minutes."
+              }
+              fullScreen={false}
+            />
+            {bulkProgress && (
+              <div style={{ marginTop: '1rem', textAlign: 'center', color: '#666' }}>
+                <p style={{ fontSize: '0.9rem', color: '#888' }}>
+                  Completed: {bulkProgress.generated || 0} | Failed: {bulkProgress.failed || 0} | Remaining: {(bulkProgress.total || 0) - (bulkProgress.current || 0)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Individual statement loading */}
+        {loading && !bulkGenerating && (
           <div className="statement-preview-loading">
             <LoadingSpinner
               show={true}
@@ -503,7 +605,25 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
 
-        {!loading && error && (
+        {/* Bulk generation error */}
+        {bulkError && !bulkGenerating && (
+          <div className="statement-preview-error">
+            <p>{bulkError}</p>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setBulkError(null);
+                setBulkResults(null);
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Individual statement error */}
+        {!loading && !bulkGenerating && error && !bulkError && (
           <div className="statement-preview-error">
             <p>{error}</p>
             <button
@@ -516,9 +636,66 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
 
-        {!loading && !error && !hasGenerated && (
+        {/* Bulk generation results */}
+        {!loading && !bulkGenerating && !error && !bulkError && bulkResults && (
           <div className="statement-preview-empty">
-            <h3>📋 Select a unit above to generate statement</h3>
+            <h3>✅ Bulk Generation Complete</h3>
+            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', marginBottom: '1rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Total Units</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>{bulkResults.totalUnits}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Successful</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#28a745' }}>{bulkResults.generated}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Failed</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#dc3545' }}>{bulkResults.failed}</div>
+                </div>
+              </div>
+              {bulkResults.failed > 0 && bulkResults.statements && (
+                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8d7da', borderRadius: '4px', textAlign: 'left' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#721c24' }}>Failed Units:</h5>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#721c24' }}>
+                    {bulkResults.statements
+                      .filter(s => s.status === 'failed' || s.status === 'error')
+                      .map((statement, idx) => (
+                        <li key={idx} style={{ margin: '0.25rem 0' }}>
+                          {statement.unitId || statement.unitNumber}: {statement.error || 'Unknown error'}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setBulkResults(null);
+                  setBulkProgress(null);
+                }}
+                style={{ marginTop: '1rem' }}
+              >
+                Clear Results
+              </button>
+            </div>
+            <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              Statements have been saved to Firebase Storage with metadata for easy retrieval.
+            </p>
+          </div>
+        )}
+
+        {/* Empty state - show when no unit selected and no bulk generation */}
+        {!loading && !bulkGenerating && !error && !bulkError && !hasGenerated && !bulkResults && (
+          <div className="statement-preview-empty">
+            <h3>📋 {selectedUnitId ? 'Generating statement...' : 'Select a unit above to generate statement'}</h3>
+            {!selectedUnitId && isAdminOrSuperAdmin && (
+              <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+                Or click "Generate All" to generate statements for all units in this client.
+              </p>
+            )}
             <p>
               The statement will show:
             </p>

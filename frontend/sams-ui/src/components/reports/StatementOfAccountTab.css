@@ -233,3 +233,145 @@
 }
 
 
+
+/* Bulk Generation Section */
+.bulk-generation-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.bulk-generation-header h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.25rem;
+}
+
+.bulk-generation-description {
+  margin: 0 0 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.bulk-generation-controls {
+  margin-bottom: 1rem;
+}
+
+.bulk-generate-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.bulk-generate-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.bulk-generate-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.bulk-generation-progress {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.bulk-progress-info {
+  margin-top: 1rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.bulk-generation-error {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  color: #721c24;
+}
+
+.bulk-generation-results {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.bulk-generation-results h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.bulk-results-summary {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.result-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.result-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.result-stat.success .result-value {
+  color: #28a745;
+}
+
+.result-stat.error .result-value {
+  color: #dc3545;
+}
+
+.bulk-failed-units {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.bulk-failed-units h5 {
+  margin: 0 0 0.5rem 0;
+  color: #dc3545;
+  font-size: 0.95rem;
+}
+
+.bulk-failed-units ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.bulk-failed-units li {
+  margin: 0.25rem 0;
+}
