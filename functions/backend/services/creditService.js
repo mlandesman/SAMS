@@ -40,7 +40,7 @@ class CreditService {
       
       const doc = await creditBalancesRef.get();
       
-      if (!doc.exists || !doc.data()[unitId]) {
+      if (!doc.exists) {
         return {
           clientId,
           unitId,
@@ -50,7 +50,19 @@ class CreditService {
         };
       }
       
-      const unitData = doc.data()[unitId];
+      const docData = doc.data();
+      
+      if (!docData[unitId]) {
+        return {
+          clientId,
+          unitId,
+          creditBalance: 0,
+          creditBalanceDisplay: '$0.00',
+          lastUpdated: null
+        };
+      }
+      
+      const unitData = docData[unitId];
       const creditBalanceInCents = unitData.creditBalance || 0;
       const creditBalanceInDollars = creditBalanceInCents / 100;
       

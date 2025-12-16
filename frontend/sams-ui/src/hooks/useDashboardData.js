@@ -10,6 +10,7 @@ import debug from '../utils/debug';
 import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils';
 import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDate } from '../utils/timezone';
+import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 
 // Cache utility functions (same as HOADuesContext)
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -387,7 +388,7 @@ export const useDashboardData = () => {
                 
                 // Get owner lastName from units array (same pattern as Water Bills)
                 const unitWithOwner = units.find(u => u.unitId === unitId);
-                const ownerLastName = unitWithOwner?.owners?.[0]?.split(' ').pop() || '';
+                const ownerLastName = getFirstOwnerLastName(unitWithOwner?.owners) || '';
                 
                 // Add to pastDueDetails array for hover tooltip (same pattern as Water Bills)
                 pastDueDetails.push({

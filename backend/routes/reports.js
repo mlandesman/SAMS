@@ -16,6 +16,7 @@ import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
 import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
 import { generateBudgetActualText } from '../services/budgetActualTextService.js';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import axios from 'axios';
 
 // Create date service for formatting API responses
@@ -77,9 +78,9 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
 
     const unitData = unitDoc.data();
 
-    // Get owners and managers directly from the unit document
-    const owners = (unitData.owners || []).map(ownerName => ({ name: ownerName }));
-    const managers = (unitData.managers || []).map(managerName => ({ name: managerName }));
+    // Get owners and managers directly from the unit document (normalized to new structure)
+    const owners = normalizeOwners(unitData.owners);
+    const managers = normalizeManagers(unitData.managers);
 
     // Get HOA dues information using the same approach as desktop UI
     const currentDate = getNow();

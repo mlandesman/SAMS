@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
+import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -11,9 +12,8 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     unitId: '',
     unitName: '',
-    owners: '',  // Will be converted to/from array
-    managers: '', // Will be converted to/from array
-    emails: '',  // Will be converted to/from array
+    owners: [],  // Array of {name, email} objects
+    managers: [], // Array of {name, email} objects
     address: '',
     status: 'active',
     squareFeet: '',
@@ -26,15 +26,67 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   
   const [errors, setErrors] = useState({});
 
+  // Migrate emails from legacy field to owner objects (aggressive migration)
+  const migrateEmailsToOwners = (owners, emails) => {
+    const normalizedOwners = normalizeOwners(owners);
+    // Parse emails and clean them (remove empty strings, trim whitespace, remove non-printable chars)
+    const emailArray = Array.isArray(emails) 
+      ? emails.map(e => String(e).trim().replace(/[\x00-\x1F\x7F-\x9F]/g, '')).filter(e => e) 
+      : (emails ? String(emails).split(',').map(e => e.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, '')).filter(e => e) : []);
+    
+    if (emailArray.length === 0) {
+      return normalizedOwners;
+    }
+    
+    // Migrate ALL emails to owners by index (overwrite existing emails)
+    let migratedOwners = normalizedOwners.map((owner, index) => {
+      if (emailArray[index]) {
+        // Clean the email before assigning (trim and remove non-printable characters)
+        const cleanEmail = emailArray[index].trim().replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        return { ...owner, email: cleanEmail };
+      }
+      return owner;
+    });
+    
+    // If there are more emails than owners, create new owner entries
+    if (emailArray.length > migratedOwners.length) {
+      const extraEmails = emailArray.slice(migratedOwners.length);
+      extraEmails.forEach(email => {
+        const cleanEmail = email.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        migratedOwners.push({ name: '', email: cleanEmail });
+      });
+    }
+    
+    return migratedOwners;
+  };
+
   // When a unit is provided for editing, populate the form
   useEffect(() => {
     if (unit) {
+      // Normalize owners/managers to new structure
+      let normalizedOwners = normalizeOwners(unit.owners);
+      const normalizedManagers = normalizeManagers(unit.managers);
+      
+      // Migrate emails from legacy field to owner objects (if emails field exists)
+      if (unit.emails && (Array.isArray(unit.emails) || typeof unit.emails === 'string')) {
+        normalizedOwners = migrateEmailsToOwners(unit.owners, unit.emails);
+      }
+      
+      // Clean up owners/managers emails (trim whitespace)
+      const cleanedOwners = normalizedOwners.map(owner => ({
+        ...owner,
+        email: owner.email ? owner.email.trim() : ''
+      }));
+      const cleanedManagers = normalizedManagers.map(manager => ({
+        ...manager,
+        email: manager.email ? manager.email.trim() : ''
+      }));
+      
       setFormData({
         unitId: unit.unitId || '',
         unitName: unit.unitName || '',
-        owners: Array.isArray(unit.owners) ? unit.owners.join(', ') : (unit.owners || ''),
-        managers: Array.isArray(unit.managers) ? unit.managers.join(', ') : (unit.managers || ''),
-        emails: Array.isArray(unit.emails) ? unit.emails.join(', ') : (unit.emails || ''),
+        owners: cleanedOwners.length > 0 ? cleanedOwners : [{ name: '', email: '' }],
+        managers: cleanedManagers.length > 0 ? cleanedManagers : [],
         address: unit.address || '',
         status: unit.status || 'Occupied',
         squareFeet: unit.squareFeet || '',
@@ -49,9 +101,8 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       setFormData({
         unitId: '',
         unitName: '',
-        owners: '',
-        managers: '',
-        emails: '',
+        owners: [{ name: '', email: '' }], // Start with one empty owner row
+        managers: [],
         address: '',
         status: 'active',
         squareFeet: '',
@@ -99,52 +150,129 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       newErrors.unitId = 'Unit ID is required';
     }
     
-    if (!formData.owners.trim()) {
-      newErrors.owners = 'At least one owner is required';
+    // Validate owners - at least one owner with name required
+    const validOwners = formData.owners.filter(owner => owner.name && owner.name.trim());
+    if (validOwners.length === 0) {
+      newErrors.owners = 'At least one owner name is required';
     }
     
-    // Validate email format if provided
-    if (formData.emails.trim()) {
-      const emailArray = formData.emails.split(',').map(email => email.trim());
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const invalidEmails = emailArray.filter(email => email && !emailRegex.test(email));
-      
-      if (invalidEmails.length > 0) {
-        newErrors.emails = `Invalid email format: ${invalidEmails.join(', ')}`;
+    // Validate email formats for owners (only validate if email is provided)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    formData.owners.forEach((owner, index) => {
+      // Ensure email is a string and clean it
+      let email = '';
+      if (owner.email) {
+        email = String(owner.email).trim();
       }
-    }
+      // Only validate if email is provided and not empty
+      if (email) {
+        // Remove any non-printable characters that might cause issues
+        const cleanEmail = email.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        if (!emailRegex.test(cleanEmail)) {
+          newErrors[`ownerEmail${index}`] = `Invalid email format: "${email}"`;
+          console.warn(`Invalid email format detected for owner ${index}:`, {
+            original: owner.email,
+            cleaned: cleanEmail,
+            emailType: typeof owner.email
+          });
+        }
+      }
+    });
+    
+    // Validate email formats for managers (only validate if email is provided)
+    formData.managers.forEach((manager, index) => {
+      // Ensure email is a string and clean it
+      let email = '';
+      if (manager.email) {
+        email = String(manager.email).trim();
+      }
+      // Only validate if email is provided and not empty
+      if (email) {
+        // Remove any non-printable characters that might cause issues
+        const cleanEmail = email.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        if (!emailRegex.test(cleanEmail)) {
+          newErrors[`managerEmail${index}`] = `Invalid email format: "${email}"`;
+          console.warn(`Invalid email format detected for manager ${index}:`, {
+            original: manager.email,
+            cleaned: cleanEmail,
+            emailType: typeof manager.email
+          });
+        }
+      }
+    });
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Helper functions for managing owners/managers arrays
+  const updateOwner = (index, field, value) => {
+    const newOwners = [...formData.owners];
+    newOwners[index] = { ...newOwners[index], [field]: value };
+    setFormData({ ...formData, owners: newOwners });
+  };
+
+  const addOwner = () => {
+    setFormData({
+      ...formData,
+      owners: [...formData.owners, { name: '', email: '' }]
+    });
+  };
+
+  const removeOwner = (index) => {
+    const newOwners = formData.owners.filter((_, i) => i !== index);
+    // Ensure at least one owner row exists
+    if (newOwners.length === 0) {
+      newOwners.push({ name: '', email: '' });
+    }
+    setFormData({ ...formData, owners: newOwners });
+  };
+
+  const updateManager = (index, field, value) => {
+    const newManagers = [...formData.managers];
+    newManagers[index] = { ...newManagers[index], [field]: value };
+    setFormData({ ...formData, managers: newManagers });
+  };
+
+  const addManager = () => {
+    setFormData({
+      ...formData,
+      managers: [...formData.managers, { name: '', email: '' }]
+    });
+  };
+
+  const removeManager = (index) => {
+    const newManagers = formData.managers.filter((_, i) => i !== index);
+    setFormData({ ...formData, managers: newManagers });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Convert comma-separated strings back to arrays
+      // Filter out empty owners/managers and normalize
       const ownersArray = formData.owners
-        .split(',')
-        .map(owner => owner.trim())
-        .filter(owner => owner.length > 0);
+        .map(owner => ({
+          name: (owner.name || '').trim(),
+          email: (owner.email || '').trim()
+        }))
+        .filter(owner => owner.name); // Remove entries without names
       
       const managersArray = formData.managers
-        .split(',')
-        .map(manager => manager.trim())
-        .filter(manager => manager.length > 0);
-      
-      const emailsArray = formData.emails
-        .split(',')
-        .map(email => email.trim())
-        .filter(email => email.length > 0);
+        .map(manager => ({
+          name: (manager.name || '').trim(),
+          email: (manager.email || '').trim()
+        }))
+        .filter(manager => manager.name); // Remove entries without names
       
       // Don't store square meters - calculate on display only
       // Remove active field - doesn't make sense
+      // Note: emails field is removed - emails are now in owner objects
+      const { emails, ...formDataWithoutEmails } = formData; // Explicitly exclude emails field
       const submitData = {
-        ...formData,
+        ...formDataWithoutEmails,
         owners: ownersArray,
         managers: managersArray,
-        emails: emailsArray,
         squareFeet: formData.squareFeet ? parseFloat(formData.squareFeet) : undefined,
         squareMeters: formData.squareFeet ? Math.round(parseFloat(formData.squareFeet) * 0.092903) : undefined,
         percentOwned: formData.percentOwned ? parseFloat(formData.percentOwned) : undefined,
@@ -207,49 +335,127 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                 </div>
               </div>
               
+              {/* Owners Section */}
               <div className="sandyland-form-row full-width">
                 <div className="sandyland-form-field">
-                  <label htmlFor="owners" className="required">Owner Names</label>
-                  <input
-                    id="owners"
-                    name="owners"
-                    value={formData.owners}
-                    onChange={handleChange}
-                    placeholder="e.g., John Doe, Jane & John Smith"
-                    required
-                  />
-                  <span className="sandyland-helper-text">Enter multiple names separated by commas (e.g., John Doe, Jane Smith)</span>
+                  <label className="required">Owners</label>
+                  {formData.owners.map((owner, index) => (
+                    <div key={index} className="sandyland-form-row" style={{ marginBottom: '8px', alignItems: 'flex-end' }}>
+                      <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
+                        <input
+                          type="text"
+                          placeholder="Owner Name"
+                          value={owner.name}
+                          onChange={(e) => updateOwner(index, 'name', e.target.value)}
+                          required={index === 0}
+                        />
+                      </div>
+                      <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
+                        <input
+                          type="email"
+                          placeholder="Email (optional)"
+                          value={owner.email || ''}
+                          onChange={(e) => updateOwner(index, 'email', e.target.value)}
+                          onBlur={(e) => {
+                            // Trim email on blur to clean up whitespace
+                            const trimmedEmail = e.target.value.trim();
+                            if (trimmedEmail !== (owner.email || '')) {
+                              updateOwner(index, 'email', trimmedEmail);
+                            }
+                            // Clear error if email is now valid
+                            if (trimmedEmail && errors[`ownerEmail${index}`]) {
+                              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                              if (emailRegex.test(trimmedEmail)) {
+                                const newErrors = { ...errors };
+                                delete newErrors[`ownerEmail${index}`];
+                                setErrors(newErrors);
+                              }
+                            }
+                          }}
+                        />
+                        {errors[`ownerEmail${index}`] && (
+                          <span className="sandyland-error-text" style={{ display: 'block', marginTop: '4px' }}>
+                            {errors[`ownerEmail${index}`]}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeOwner(index)}
+                        className="sandyland-btn sandyland-btn-secondary"
+                        style={{ padding: '8px 12px', minWidth: 'auto' }}
+                        disabled={formData.owners.length === 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addOwner}
+                    className="sandyland-btn sandyland-btn-secondary"
+                    style={{ marginTop: '8px', padding: '8px 16px' }}
+                  >
+                    + Add Owner
+                  </button>
                   {errors.owners && <span className="sandyland-error-text">{errors.owners}</span>}
+                  <span className="sandyland-helper-text">At least one owner name is required. Email is optional.</span>
                 </div>
               </div>
               
+              {/* Managers Section */}
               <div className="sandyland-form-row full-width">
                 <div className="sandyland-form-field">
-                  <label htmlFor="managers">Unit Managers</label>
-                  <input
-                    id="managers"
-                    name="managers"
-                    value={formData.managers}
-                    onChange={handleChange}
-                    placeholder="e.g., Property Manager, Assistant Manager"
-                  />
-                  <span className="sandyland-helper-text">Enter multiple managers separated by commas</span>
+                  <label>Unit Managers</label>
+                  {formData.managers.length > 0 ? (
+                    <>
+                      {formData.managers.map((manager, index) => (
+                        <div key={index} className="sandyland-form-row" style={{ marginBottom: '8px', alignItems: 'flex-end' }}>
+                          <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Manager Name"
+                              value={manager.name}
+                              onChange={(e) => updateManager(index, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
+                            <input
+                              type="email"
+                              placeholder="Email (optional)"
+                              value={manager.email}
+                              onChange={(e) => updateManager(index, 'email', e.target.value)}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeManager(index)}
+                            className="sandyland-btn sandyland-btn-secondary"
+                            style={{ padding: '8px 12px', minWidth: 'auto' }}
+                          >
+                            Remove
+                          </button>
+                          {errors[`managerEmail${index}`] && (
+                            <span className="sandyland-error-text" style={{ width: '100%', marginTop: '4px' }}>
+                              {errors[`managerEmail${index}`]}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <p style={{ fontStyle: 'italic', color: '#666', marginBottom: '8px' }}>No managers added</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={addManager}
+                    className="sandyland-btn sandyland-btn-secondary"
+                    style={{ marginTop: '8px', padding: '8px 16px' }}
+                  >
+                    + Add Manager
+                  </button>
                   {errors.managers && <span className="sandyland-error-text">{errors.managers}</span>}
-                </div>
-              </div>
-              
-              <div className="sandyland-form-row full-width">
-                <div className="sandyland-form-field">
-                  <label htmlFor="emails">Email Addresses</label>
-                  <input
-                    id="emails"
-                    name="emails"
-                    value={formData.emails}
-                    onChange={handleChange}
-                    placeholder="e.g., john@email.com, jane@email.com"
-                  />
-                  <span className="sandyland-helper-text">Enter multiple emails separated by commas</span>
-                  {errors.emails && <span className="sandyland-error-text">{errors.emails}</span>}
+                  <span className="sandyland-helper-text">Managers are optional. Email is optional.</span>
                 </div>
               </div>
               

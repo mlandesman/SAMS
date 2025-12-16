@@ -7,6 +7,8 @@ import penaltyRecalculationService from './penaltyRecalculationService.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
+import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 
 class WaterDataService {
   constructor() {
@@ -321,16 +323,7 @@ class WaterDataService {
     }
     
     // 3. Extract owner last name
-    let ownerLastName = 'Unknown';
-    if (unit.owners && unit.owners.length > 0) {
-      const ownerInfo = unit.owners[0];
-      const nameParts = ownerInfo.split(' ');
-      if (nameParts.length >= 2) {
-        ownerLastName = nameParts[nameParts.length - 1];
-      } else if (nameParts.length === 1) {
-        ownerLastName = nameParts[0];
-      }
-    }
+    const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
     
     // 4. Calculate bill amounts (ALL IN CENTAVOS - integers)
     const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -417,16 +410,25 @@ class WaterDataService {
           return 0; // Within grace period
         }
         
-        // Calculate months past due
-        let monthsPastDue = (today.getFullYear() - dueDateObj.getFullYear()) * 12;
-        monthsPastDue += today.getMonth() - dueDateObj.getMonth();
-        if (today.getDate() >= dueDateObj.getDate()) monthsPastDue += 1;
-        monthsPastDue = Math.max(1, monthsPastDue);
+        // CRITICAL: Penalties start immediately after grace period ends
+        // Calculate days past GRACE END (not just due date)
+        const graceEndDate = new Date(dueDateObj);
+        graceEndDate.setDate(graceEndDate.getDate() + gracePeriodDays);
+        const daysPastGrace = Math.floor((today.getTime() - graceEndDate.getTime()) / (24 * 60 * 60 * 1000));
         
-        // Calculate penalty on UNPAID base amount (current bill only)
+        // Calculate fractional months (30 days = 1 month) and round UP
+        const monthsPastDue = Math.max(1, Math.ceil(daysPastGrace / 30));
+        
+        // Calculate COMPOUNDING penalty on UNPAID base amount
+        // Use shared service to ensure consistent logic across all modules
         const unpaidBaseAmount = billAmount - (bill.basePaid || 0);
         const penaltyRate = config?.penaltyRate || 0.05;
-        const calculatedPenalty = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
+        const calculatedPenalty = calculateCompoundingPenalty(
+          unpaidBaseAmount,
+          0, // Start fresh (no previous penalty for compounding in display)
+          monthsPastDue,
+          penaltyRate
+        );
         
         console.log(`   monthsPastDue=${monthsPastDue}, unpaidBase=${unpaidBaseAmount}, rate=${penaltyRate}, penalty=${calculatedPenalty}`);
         
@@ -575,16 +577,7 @@ class WaterDataService {
       }
       
       // Extract owner last name from owners array (following HOA pattern)
-      let ownerLastName = 'Unknown';
-      if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-        const ownerName = unit.owners[0];
-        const nameParts = ownerName.trim().split(/\s+/);
-        if (nameParts.length > 1) {
-          ownerLastName = nameParts[nameParts.length - 1];
-        } else if (nameParts.length === 1) {
-          ownerLastName = nameParts[0];
-        }
-      }
+      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
       
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -878,16 +871,7 @@ class WaterDataService {
       }
       
       // Extract owner last name from owners array (following HOA pattern)
-      let ownerLastName = 'Unknown';
-      if (unit.owners && unit.owners.length > 0) {
-        const ownerInfo = unit.owners[0];
-        const nameParts = ownerInfo.split(' ');
-        if (nameParts.length >= 2) {
-          ownerLastName = nameParts[nameParts.length - 1];
-        } else if (nameParts.length === 1) {
-          ownerLastName = nameParts[0];
-        }
-      }
+      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
       
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService

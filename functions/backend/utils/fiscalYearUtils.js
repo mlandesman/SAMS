@@ -194,6 +194,51 @@ function getCurrentFiscalMonth(clientConfig, date = getNow()) {
 }
 
 /**
+ * Convert calendar month to fiscal month position
+ * @param {number} calendarMonth - Calendar month (1-12)
+ * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12)
+ * @returns {number} Fiscal month position (1-12)
+ * @example
+ * // For July-June fiscal year (start month = 7)
+ * calendarToFiscalMonth(7, 7) => 1   // July is month 1
+ * calendarToFiscalMonth(6, 7) => 12  // June is month 12
+ * calendarToFiscalMonth(1, 7) => 7   // January is month 7
+ */
+function calendarToFiscalMonth(calendarMonth, fiscalYearStartMonth) {
+  validateMonth(calendarMonth, 'calendarMonth');
+  validateMonth(fiscalYearStartMonth, 'fiscalYearStartMonth');
+  
+  let fiscalMonth = calendarMonth - fiscalYearStartMonth + 1;
+  if (fiscalMonth <= 0) {
+    fiscalMonth += 12;
+  }
+  
+  return fiscalMonth;
+}
+
+/**
+ * Convert fiscal month position to calendar month
+ * @param {number} fiscalMonth - Fiscal month position (1-12)
+ * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12)
+ * @returns {number} Calendar month (1-12)
+ * @example
+ * // For July-June fiscal year (start month = 7)
+ * fiscalToCalendarMonth(1, 7) => 7   // Month 1 = July
+ * fiscalToCalendarMonth(12, 7) => 6  // Month 12 = June
+ */
+function fiscalToCalendarMonth(fiscalMonth, fiscalYearStartMonth) {
+  validateMonth(fiscalMonth, 'fiscalMonth');
+  validateMonth(fiscalYearStartMonth, 'fiscalYearStartMonth');
+  
+  let calendarMonth = fiscalMonth + fiscalYearStartMonth - 1;
+  if (calendarMonth > 12) {
+    calendarMonth -= 12;
+  }
+  
+  return calendarMonth;
+}
+
+/**
  * Get month name for a fiscal month
  * @param {number} month - Month number (1-12, can be fiscal or calendar month)
  * @param {number} fiscalYearStartMonth - First month of fiscal year (1-12)
@@ -214,10 +259,7 @@ function getFiscalMonthName(month, fiscalYearStartMonth, options = {}) {
   
   // If fiscal year starts in another month, convert fiscal month to calendar month
   if (fiscalYearStartMonth !== 1) {
-    calendarMonth = month + fiscalYearStartMonth - 1;
-    if (calendarMonth > 12) {
-      calendarMonth -= 12;
-    }
+    calendarMonth = fiscalToCalendarMonth(month, fiscalYearStartMonth);
   }
   
   const monthNames = options.short ? MONTH_NAMES_SHORT : MONTH_NAMES_FULL;
@@ -263,6 +305,8 @@ export {
   getFiscalYearLabel,
   isFiscalYear,
   validateFiscalYearConfig,
+  calendarToFiscalMonth,
+  fiscalToCalendarMonth,
   // Export validation functions for testing
   validateMonth,
   validateDate

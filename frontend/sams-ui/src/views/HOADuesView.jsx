@@ -10,6 +10,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { getOwnerInfo } from '../utils/unitUtils';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
+import { getFirstOwnerName } from '../utils/unitContactUtils.js';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
@@ -849,7 +850,7 @@ function HOADuesView() {
                 // Find unit config from unitsWithOwners (has owner data from API)
                 const unitWithOwner = unitsWithOwners.find(u => u.unitId === unit.unitId);
                 const { lastName } = getOwnerInfo(unitWithOwner || {});
-                const ownerName = unitWithOwner?.owners?.[0] || unitWithOwner?.owner || 'No Name';
+                const ownerName = getFirstOwnerName(unitWithOwner?.owners) || unitWithOwner?.owner || 'No Name';
                 
                 return (
                   <th 

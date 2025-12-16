@@ -16,13 +16,18 @@ export function formatUnitIdWithOwner(unit) {
   // Check for owner information in different possible properties
   let ownerName = '';
   
-  // First try the owners array (primary data structure)
+  // First try the owners array (primary data structure) - handle both old format ["name"] and new format [{name, email}]
   if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-    ownerName = unit.owners[0];
+    const firstOwner = unit.owners[0];
+    if (typeof firstOwner === 'string') {
+      ownerName = firstOwner;
+    } else if (firstOwner && typeof firstOwner === 'object') {
+      ownerName = firstOwner.name || '';
+    }
   } 
   // Fall back to owner property if owners array isn't available
   else if (unit.owner) {
-    ownerName = unit.owner;
+    ownerName = typeof unit.owner === 'string' ? unit.owner : (unit.owner.name || '');
   }
   
   // Extract last name from the owner's full name
@@ -57,23 +62,30 @@ export function getOwnerInfo(unit) {
   let ownerName = '';
   let email = '';
   
-  // First try the owners array
+  // First try the owners array (handle both old format ["name"] and new format [{name, email}])
   if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-    ownerName = unit.owners[0];
+    const firstOwner = unit.owners[0];
+    if (typeof firstOwner === 'string') {
+      ownerName = firstOwner;
+    } else if (firstOwner && typeof firstOwner === 'object') {
+      ownerName = firstOwner.name || '';
+      email = firstOwner.email || '';
+    }
   } 
   // Fall back to owner property if owners array isn't available
   else if (unit.owner) {
-    ownerName = unit.owner;
+    ownerName = typeof unit.owner === 'string' ? unit.owner : (unit.owner.name || '');
   }
   
-  // Get email (might be in emails array or email property)
-  if (Array.isArray(unit.emails) && unit.emails.length > 0) {
-    email = unit.emails[0];
-  } else if (unit.email) {
-    email = unit.email;
+  // Get email from owner objects (emails field removed - emails are now in owner objects)
+  if (!email && normalizedOwners.length > 0 && normalizedOwners[0].email) {
+    email = normalizedOwners[0].email;
   }
   
-  // Extract first and last name
+  // Extract first and last name (handle case where ownerName might be empty or not a string)
+  if (!ownerName || typeof ownerName !== 'string') {
+    ownerName = '';
+  }
   const nameParts = ownerName.trim().split(/\s+/);
   let firstName = '';
   let lastName = '';

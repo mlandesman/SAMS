@@ -105,98 +105,10 @@ class WaterPaymentsService {
   }
   
   /**
-   * Recalculate penalties for bills as of a specific date (for backdated payments)
-   * @param {string} clientId - Client ID
-   * @param {Array} bills - Array of bill objects
-   * @param {Date} asOfDate - Date to calculate penalties as of
-   * @returns {Array} Bills with recalculated penalties
-   */
-  async _recalculatePenaltiesAsOfDate(clientId, bills, asOfDate) {
-    console.log(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
-    
-    // Get billing config for penalty rate
-    const config = await this._getBillingConfig(clientId);
-    const penaltyRate = config.penaltyRate || 0.05; // 5% per month default
-    const gracePeriodDays = config.penaltyDays || 10; // 10 days grace period default (penaltyDays is the grace period)
-    
-    const recalculatedBills = [];
-    
-    for (const bill of bills) {
-      const billDate = new Date(bill.billDate || bill.createdAt);
-      
-      // Get due date from bill period or use default grace period
-      let dueDate;
-      if (bill.dueDate) {
-        dueDate = new Date(bill.dueDate);
-      } else {
-        // Calculate due date based on bill period (e.g., "2026-00" = July 2025)
-        // Default: 15th of the month + 7 days grace period = 22nd
-        const billPeriod = bill.billPeriod || bill.period;
-        if (billPeriod) {
-          const [fiscalYear, month] = billPeriod.split('-');
-          const calendarYear = fiscalYear === '2026' ? 2025 : parseInt(fiscalYear);
-          const monthIndex = parseInt(month) + 6; // Convert fiscal year months to calendar year months (July = 0 in fiscal, 6 in calendar)
-          dueDate = new Date(calendarYear, monthIndex, 15 + gracePeriodDays); // 15th + grace period
-        } else {
-          // Fallback: use bill date + grace period
-          dueDate = new Date(billDate.getTime() + (gracePeriodDays * 24 * 60 * 60 * 1000));
-        }
-      }
-      
-      // Calculate days past due as of the payment date
-      const daysPastDue = Math.max(0, Math.floor((asOfDate - dueDate) / (1000 * 60 * 60 * 24)));
-      
-      let recalculatedPenaltyAmount = 0;
-      
-      if (daysPastDue > gracePeriodDays) {
-        // Calculate penalty based on actual calendar months past due
-        const dueDateObj = new Date(dueDate);
-        const paymentDateObj = new Date(asOfDate);
-        
-        // Calculate actual calendar months between dates
-        let monthsPastDue = (paymentDateObj.getFullYear() - dueDateObj.getFullYear()) * 12;
-        monthsPastDue += paymentDateObj.getMonth() - dueDateObj.getMonth();
-        
-        // If payment date is on or after the same day of the month as due date, add 1 month
-        if (paymentDateObj.getDate() >= dueDateObj.getDate()) {
-          monthsPastDue += 1;
-        }
-        
-        // Ensure minimum of 1 month if past grace period
-        monthsPastDue = Math.max(1, monthsPastDue);
-        
-        console.log(`   Calendar months calculation: ${dueDateObj.toDateString()} to ${paymentDateObj.toDateString()} = ${monthsPastDue} months`);
-        
-        // CRITICAL: Calculate penalty on UNPAID base amount, not full original charge
-        // For partial payments, only charge penalty on the remaining unpaid balance
-        const unpaidBaseAmount = bill.currentCharge - (bill.basePaid || 0);
-        recalculatedPenaltyAmount = Math.round(unpaidBaseAmount * penaltyRate * monthsPastDue);
-        
-        console.log(`   Penalty calculation: unpaidBase=$${unpaidBaseAmount/100} × ${penaltyRate} × ${monthsPastDue} months = $${recalculatedPenaltyAmount/100}`);
-      }
-      
-      const recalculatedTotalAmount = bill.currentCharge + recalculatedPenaltyAmount;
-      
-      console.log(`   Bill ${bill.billId}: ${daysPastDue} days past due, penalty: ${bill.penaltyAmount} → ${recalculatedPenaltyAmount}`);
-      
-      recalculatedBills.push({
-        ...bill,
-        penaltyAmount: recalculatedPenaltyAmount,
-        totalAmount: recalculatedTotalAmount
-        // CRITICAL: DO NOT reset paidAmount/basePaid/penaltyPaid!
-        // These track actual payments made and are needed for unpaid calculation
-        // The spread operator (...bill) preserves these fields
-      });
-    }
-    
-    return recalculatedBills;
-  }
-  
-  /**
    * Calculate payment distribution for preview or actual payment
    * 
-   * PHASE 3B: Now uses shared PaymentDistributionService
-   * This is a wrapper that delegates to the shared service
+   * PHASE 4 REFACTOR: Module-specific wrapper for shared PaymentDistributionService
+   * Loads Water Bills data from native storage, prepares bills array, calls shared service
    * 
    * @param {string} clientId - Client ID
    * @param {string} unitId - Unit ID
@@ -207,18 +119,45 @@ class WaterPaymentsService {
    * @returns {object} Distribution breakdown with allocations (all amounts in PESOS)
    */
   async calculatePaymentDistribution(clientId, unitId, paymentAmount, currentCreditBalance = 0, payOnDate = null, selectedMonth = null) {
-    // PHASE 3B: Delegate to shared PaymentDistributionService
-    const distribution = await calculatePaymentDistributionShared({
-      clientId,
-      unitId,
+    console.log(`💧 [WATER WRAPPER] Loading bills for unit ${unitId}`);
+    
+    // PHASE 4: Load Water Bills data from native storage
+    const db = await getDb();  // getDb() is async - must await
+    const { getUnpaidWaterBillsForUnit, filterBillsByMonth, recalculatePenaltiesAsOfDate, getBillingConfig } = await import('../../shared/services/BillDataService.js');
+    
+    // 1. Load unpaid bills from Water Bills storage structure
+    let bills = await getUnpaidWaterBillsForUnit(db, clientId, unitId);
+    console.log(`📋 [WATER WRAPPER] Loaded ${bills.length} unpaid bills`);
+    
+    // 2. Filter by selectedMonth if provided
+    if (selectedMonth !== null && selectedMonth !== undefined) {
+      bills = filterBillsByMonth(bills, selectedMonth);
+      console.log(`📋 [WATER WRAPPER] Filtered to ${bills.length} bills (up to month ${selectedMonth})`);
+    }
+    
+    // 3. Recalculate penalties if backdated payment
+    if (payOnDate) {
+      const paymentDate = typeof payOnDate === 'string' ? new Date(payOnDate) : payOnDate;
+      const config = await getBillingConfig(db, clientId, 'water');
+      bills = await recalculatePenaltiesAsOfDate(clientId, bills, paymentDate, config);
+      console.log(`📋 [WATER WRAPPER] Recalculated penalties for ${bills.length} bills`);
+    }
+    
+    // 4. Call shared PaymentDistributionService with prepared bills
+    const distribution = calculatePaymentDistributionShared({
+      bills: bills,
       paymentAmount,
       currentCreditBalance,
-      moduleType: 'water',
-      payOnDate,
-      selectedMonth
+      unitId
     });
     
-    // Add allocations using shared services
+    console.log(`✅ [WATER WRAPPER] Distribution calculated:`, {
+      billPayments: distribution.billPayments?.length || 0,
+      creditUsed: distribution.creditUsed,
+      overpayment: distribution.overpayment
+    });
+    
+    // 5. Add allocations using shared services
     const paymentDataForAllocations = {
       creditUsed: distribution.creditUsed,
       overpayment: distribution.overpayment,
@@ -303,7 +242,11 @@ class WaterPaymentsService {
       // For backdated payments, ALWAYS recalculate penalties based on the payment date
       // This overrides any stored penalty data to ensure accurate backdated calculations
       console.log(`📅 Recalculating penalties for all ${unpaidBills.length} bills based on payment date`);
-      const recalculatedBills = await this._recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate);
+      
+      // Use shared BillDataService for consistent penalty calculation
+      const { recalculatePenaltiesAsOfDate, getBillingConfig } = await import('../../shared/services/BillDataService.js');
+      const config = await getBillingConfig(this.db, clientId, 'water');
+      const recalculatedBills = await recalculatePenaltiesAsOfDate(clientId, unpaidBills, paymentDate, config);
       
       console.log(`📅 AFTER recalculation - sample bill:`, recalculatedBills[0] ? {
         billId: recalculatedBills[0].billId,
@@ -492,8 +435,13 @@ class WaterPaymentsService {
   /**
    * Record a payment against water bills using credit balance integration
    * Follows identical logic to HOA Dues payment system
+   * 
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {object} paymentData - Payment data
+   * @param {string|null} transactionId - Optional: Pre-created transaction ID (for unified payments)
    */
-  async recordPayment(clientId, unitId, paymentData) {
+  async recordPayment(clientId, unitId, paymentData, transactionId = null) {
     await this._initializeDb();
     
     const { 
@@ -563,7 +511,13 @@ class WaterPaymentsService {
         allocationSummary: distribution.allocationSummary
       };
       
-      const transactionResult = await createTransaction(clientId, transactionData);
+      // Use provided transaction ID or create new one
+      let finalTransactionId = transactionId;
+      if (!finalTransactionId) {
+        finalTransactionId = await createTransaction(clientId, transactionData);
+      } else {
+        console.log(`Using existing transaction ${finalTransactionId} for water payment (unified payment)`);
+      }
       
       return {
         success: true,
@@ -573,7 +527,7 @@ class WaterPaymentsService {
         newCreditBalance: distribution.newCreditBalance,
         creditUsed: 0,
         overpayment: amount,
-        transactionId: transactionResult
+        transactionId: finalTransactionId
       };
     }
     
@@ -594,55 +548,65 @@ class WaterPaymentsService {
     
     // Note: Credit balance will be updated AFTER transaction creation so we can include transaction ID
     
-    // STEP 5: Use allocations from distribution (already generated by calculatePaymentDistribution)
-    const { default: waterBillsService } = await import('./waterBillsService.js');
+    // Use provided transaction ID or create new one
+    let finalTransactionId = transactionId;
     
-    console.log(`📊 Using ${distribution.allocations.length} allocations from distribution calculation`);
-    
-    // Enhanced transaction data with water bill details AND allocations
-    const transactionData = {
-      amount: amount, // In pesos - transactionController converts to centavos
-      type: 'income',
-      categoryId: 'water-consumption',
-      categoryName: 'Water Consumption',
-      vendorId: 'deposit',
-      description: await this._generateEnhancedTransactionDescription(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, clientId, waterBillsService),
-      unitId: unitId,
-      accountId: accountId,
-      accountType: accountType,
-      paymentMethod: paymentMethod,
-      paymentMethodId: paymentMethodId,
-      reference: reference,
-      notes: await this._generateEnhancedTransactionNotes(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, notes, amount, clientId, waterBillsService),
-      date: paymentDate,
+    if (!finalTransactionId) {
+      // No transaction ID provided - create new transaction (standard flow)
       
-      // Use allocations from distribution calculation
-      allocations: distribution.allocations,
-      allocationSummary: distribution.allocationSummary,
+      // STEP 5: Use allocations from distribution (already generated by calculatePaymentDistribution)
+      const { default: waterBillsService } = await import('./waterBillsService.js');
       
-      // Add metadata for water bills context to support future receipt generation
-      metadata: {
-        billPayments: distribution.billPayments.map(bp => ({
-          period: bp.billPeriod,
-          amountPaid: bp.amountPaid,
-          baseChargePaid: bp.baseChargePaid,
-          penaltyPaid: bp.penaltyPaid
-        })),
-        totalBaseCharges: distribution.totalBaseCharges,
-        totalPenalties: distribution.totalPenalties,
-        paymentType: distribution.billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
+      console.log(`📊 Using ${distribution.allocations.length} allocations from distribution calculation`);
+      
+      // Enhanced transaction data with water bill details AND allocations
+      const transactionData = {
+        amount: amount, // In pesos - transactionController converts to centavos
+        type: 'income',
+        categoryId: 'water-consumption',
+        categoryName: 'Water Consumption',
+        vendorId: 'deposit',
+        description: await this._generateEnhancedTransactionDescription(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, clientId, waterBillsService),
+        unitId: unitId,
+        accountId: accountId,
+        accountType: accountType,
+        paymentMethod: paymentMethod,
+        paymentMethodId: paymentMethodId,
+        reference: reference,
+        notes: await this._generateEnhancedTransactionNotes(distribution.billPayments, distribution.totalBaseCharges, distribution.totalPenalties, unitId, notes, amount, clientId, waterBillsService),
+        date: paymentDate,
+        
+        // Use allocations from distribution calculation
+        allocations: distribution.allocations,
+        allocationSummary: distribution.allocationSummary,
+        
+        // Add metadata for water bills context to support future receipt generation
+        metadata: {
+          billPayments: distribution.billPayments.map(bp => ({
+            period: bp.billPeriod,
+            amountPaid: bp.amountPaid,
+            baseChargePaid: bp.baseChargePaid,
+            penaltyPaid: bp.penaltyPaid
+          })),
+          totalBaseCharges: distribution.totalBaseCharges,
+          totalPenalties: distribution.totalPenalties,
+          paymentType: distribution.billPayments.length > 0 ? 'bills_and_credit' : 'credit_only'
+        }
+      };
+      
+      // Set category to "-Split-" when multiple allocations exist (following HOA Dues pattern)
+      if (distribution.allocations.length > 1) {
+        transactionData.categoryName = "-Split-";
+        transactionData.categoryId = "-split-";
+        console.log(`✂️ Multiple allocations detected - setting category to "-Split-"`);
       }
-    };
-    
-    // Set category to "-Split-" when multiple allocations exist (following HOA Dues pattern)
-    if (distribution.allocations.length > 1) {
-      transactionData.categoryName = "-Split-";
-      transactionData.categoryId = "-split-";
-      console.log(`✂️ Multiple allocations detected - setting category to "-Split-"`);
+      
+      finalTransactionId = await createTransaction(clientId, transactionData);
+      console.log(`💳 Transaction created:`, { transactionId: finalTransactionId, vendorId: transactionData.vendorId });
+    } else {
+      // Transaction ID provided - skip transaction creation (unified payment flow)
+      console.log(`Using existing transaction ${finalTransactionId} for water payment (unified payment)`);
     }
-    
-    const transactionResult = await createTransaction(clientId, transactionData);
-    console.log(`💳 Transaction created:`, { transactionId: transactionResult, vendorId: transactionData.vendorId });
     
     // STEP 7: Update credit balance with actual transaction ID (moved here from before transaction creation)
     await this._updateCreditBalance(clientId, unitId, fiscalYear, {
@@ -650,12 +614,12 @@ class WaterPaymentsService {
       changeAmount: overpayment > 0 ? overpayment : -creditUsed,
       changeType: overpayment > 0 ? 'water_overpayment' : 'water_credit_used',
       description: this._generateCreditDescription(billPayments, centavosToPesos(totalBaseChargesPaidCentavos), centavosToPesos(totalPenaltiesPaidCentavos)),
-      transactionId: transactionResult // Now we have the actual transaction ID!
+      transactionId: finalTransactionId // Now we have the actual transaction ID!
     });
-    console.log(`✅ Credit balance updated with transaction ID: ${transactionResult}`);
+    console.log(`✅ Credit balance updated with transaction ID: ${finalTransactionId}`);
     
     // STEP 8: Update water bills with payment info (billPayments are in centavos)
-    await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, transactionResult, amount);
+    await this._updateBillsWithPayments(clientId, unitId, billPayments, paymentMethod, paymentDate, reference, finalTransactionId, amount);
     
     // Payment complete - frontend will fetch fresh data on next read
     console.log(`✅ [PAYMENT] Payment recorded successfully - bill documents updated`);
@@ -670,10 +634,99 @@ class WaterPaymentsService {
       overpayment: overpayment, // In pesos
       totalBaseChargesPaid: centavosToPesos(totalBaseChargesPaidCentavos), // Convert to pesos for response
       totalPenaltiesPaid: centavosToPesos(totalPenaltiesPaidCentavos), // Convert to pesos for response
-      transactionId: transactionResult
+      transactionId: finalTransactionId
     };
   }
   
+  /**
+   * Update water bills in Firestore (bypasses all calculations)
+   * Used by unified payment system when calculations are already done
+   * 
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {Array} billsData - Array of {billPeriod, basePaid, penaltyPaid, amountPaid} objects in PESOS
+   * @param {string} transactionId - Pre-created transaction ID
+   * @param {string} paymentDate - Payment date (ISO string)
+   * @param {string} paymentMethod - Payment method
+   * @param {string|null} reference - Payment reference
+   * @returns {object} Success status
+   */
+  async updateWaterBillsWithPayment(clientId, unitId, billsData, transactionId, paymentDate, paymentMethod, reference) {
+    await this._initializeDb();
+    
+    console.log(`💧 [WATER UPDATE] Updating ${billsData.length} bills for unit ${unitId}`);
+    
+    const batch = this.db.batch();
+    
+    for (const billData of billsData) {
+      // Extract bill ID from billPeriod (e.g., "2026-01" -> "2026-01")
+      const billId = billData.billPeriod.includes(':') ? billData.billPeriod.split(':')[1] : billData.billPeriod;
+      
+      const billRef = this.db.collection('clients').doc(clientId)
+        .collection('projects').doc('waterBills')
+        .collection('bills').doc(billId);
+      
+      // Get current bill data
+      const billDoc = await billRef.get();
+      if (!billDoc.exists) {
+        console.warn(`Bill ${billId} not found, skipping`);
+        continue;
+      }
+      
+      const currentBill = billDoc.data()?.bills?.units?.[unitId];
+      if (!currentBill) {
+        console.warn(`Unit ${unitId} not found in bill ${billId}, skipping`);
+        continue;
+      }
+      
+      // Convert pesos to centavos
+      const baseChargePaidCentavos = pesosToCentavos(billData.basePaid);
+      const penaltyPaidCentavos = pesosToCentavos(billData.penaltyPaid);
+      
+      // Calculate new totals (ALL IN CENTAVOS)
+      const newBasePaid = (currentBill.basePaid || 0) + baseChargePaidCentavos;
+      const newPenaltyPaid = (currentBill.penaltyPaid || 0) + penaltyPaidCentavos;
+      const newPaidAmount = newBasePaid + newPenaltyPaid;
+      
+      // Get existing payments array
+      const existingPayments = currentBill.payments || [];
+      
+      // Create payment entry
+      const paymentEntry = {
+        amount: pesosToCentavos(billData.amountPaid),
+        baseChargePaid: baseChargePaidCentavos,
+        penaltyPaid: penaltyPaidCentavos,
+        date: paymentDate,
+        method: paymentMethod,
+        reference: reference,
+        transactionId: transactionId,
+        recordedAt: getNow().toISOString()
+      };
+      
+      const updatedPayments = [...existingPayments, paymentEntry];
+      
+      // Determine status
+      const totalDue = currentBill.totalAmount || 0;
+      const newStatus = newPaidAmount >= totalDue ? 'paid' : 'partial';
+      
+      // Update bill document
+      batch.update(billRef, {
+        [`bills.units.${unitId}.paidAmount`]: newPaidAmount,
+        [`bills.units.${unitId}.basePaid`]: newBasePaid,
+        [`bills.units.${unitId}.penaltyPaid`]: newPenaltyPaid,
+        [`bills.units.${unitId}.status`]: newStatus,
+        [`bills.units.${unitId}.payments`]: updatedPayments
+      });
+      
+      console.log(`   Bill ${billId}: $${billData.basePaid} base + $${billData.penaltyPaid} penalty`);
+    }
+    
+    await batch.commit();
+    console.log(`✅ [WATER UPDATE] Updated ${billsData.length} bills`);
+    
+    return { success: true, transactionId };
+  }
+
   /**
    * Get credit balance using new /credit endpoint (Task 2 Issue 1 fix)
    */

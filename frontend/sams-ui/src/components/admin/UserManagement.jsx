@@ -370,6 +370,9 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
     role: 'unitOwner',
     clientId: selectedClient?.id || '',
     unitId: '',
+    // Contact fields for unit owners/managers (defaults to user name/email, can be overridden)
+    contactName: '',
+    contactEmail: '',
     creationMethod: 'invitation', // 'invitation' or 'manual'
     // NEW FIELDS
     canLogin: true,
@@ -387,6 +390,19 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
       duesReminders: true
     }
   });
+  
+  // Auto-populate contact fields when name/email changes (for unitOwner/unitManager roles)
+  useEffect(() => {
+    if ((formData.role === 'unitOwner' || formData.role === 'unitManager') && formData.unitId) {
+      // Only auto-populate if contact fields are empty or match previous name/email
+      if (!formData.contactName || formData.contactName === formData.name) {
+        setFormData(prev => ({ ...prev, contactName: formData.name }));
+      }
+      if (!formData.contactEmail || formData.contactEmail === formData.email) {
+        setFormData(prev => ({ ...prev, contactEmail: formData.email }));
+      }
+    }
+  }, [formData.name, formData.email, formData.role, formData.unitId]);
   const [submitting, setSubmitting] = useState(false);
   const [creationResult, setCreationResult] = useState(null);
   const [availableUnits, setAvailableUnits] = useState([]);
@@ -425,7 +441,15 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
     setCreationResult(null);
 
     try {
-      const result = await onCreate(formData);
+      // Prepare form data - include contactName/contactEmail for unitOwner/unitManager roles
+      const submitData = { ...formData };
+      if ((formData.role === 'unitOwner' || formData.role === 'unitManager') && formData.unitId) {
+        // Use contactName/contactEmail if provided, otherwise use name/email
+        submitData.contactName = formData.contactName || formData.name;
+        submitData.contactEmail = formData.contactEmail || formData.email;
+      }
+      
+      const result = await onCreate(submitData);
       setCreationResult(result);
       
       // For manual password method, show the temporary password
@@ -573,38 +597,76 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
           )}
 
           {(formData.role === 'unitOwner' || formData.role === 'unitManager') && (
-            <div className="form-group">
-              <label htmlFor="unitId">Unit:</label>
-              {loadingUnits ? (
-                <div style={{ padding: '12px', fontStyle: 'italic', color: '#666', border: '1px solid #ddd', borderRadius: '4px' }}>
-                  Loading units for {formData.clientId}...
+            <>
+              <div className="form-group">
+                <label htmlFor="unitId">Unit:</label>
+                {loadingUnits ? (
+                  <div style={{ padding: '12px', fontStyle: 'italic', color: '#666', border: '1px solid #ddd', borderRadius: '4px' }}>
+                    Loading units for {formData.clientId}...
+                  </div>
+                ) : availableUnits.length > 0 ? (
+                  <select
+                    id="unitId"
+                    value={formData.unitId}
+                    onChange={(e) => setFormData({...formData, unitId: e.target.value})}
+                  >
+                    <option value="">Select Unit...</option>
+                    {availableUnits.map(unit => (
+                      <option key={unit.unitId} value={unit.unitId}>
+                        {formatUnitDisplay(unit)}
+                      </option>
+                    ))}
+                  </select>
+                ) : formData.clientId ? (
+                  <div style={{ padding: '12px', fontStyle: 'italic', color: '#999', border: '1px solid #ddd', borderRadius: '4px' }}>
+                    No units found for {formData.clientId}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Enter client ID first"
+                    disabled
+                    style={{ backgroundColor: '#f5f5f5' }}
+                  />
+                )}
+              </div>
+              
+              {formData.unitId && (
+                <div className="form-group" style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #ddd' }}>
+                  <label style={{ fontWeight: 'bold', marginBottom: '8px', display: 'block' }}>
+                    Unit Contact Information
+                  </label>
+                  <small style={{ display: 'block', marginBottom: '12px', color: '#666' }}>
+                    This information will appear in the unit's {formData.role === 'unitOwner' ? 'owners' : 'managers'} array
+                  </small>
+                  
+                  <div className="form-row">
+                    <div className="form-group half">
+                      <label htmlFor="contactName">Contact Name:</label>
+                      <input
+                        type="text"
+                        id="contactName"
+                        value={formData.contactName}
+                        onChange={(e) => setFormData({...formData, contactName: e.target.value})}
+                        placeholder={formData.name || 'Contact name'}
+                      />
+                      <small className="form-help">Defaults to user's name, can be overridden</small>
+                    </div>
+                    <div className="form-group half">
+                      <label htmlFor="contactEmail">Contact Email:</label>
+                      <input
+                        type="email"
+                        id="contactEmail"
+                        value={formData.contactEmail}
+                        onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                        placeholder={formData.email || 'Contact email'}
+                      />
+                      <small className="form-help">Defaults to user's email, can be overridden</small>
+                    </div>
+                  </div>
                 </div>
-              ) : availableUnits.length > 0 ? (
-                <select
-                  id="unitId"
-                  value={formData.unitId}
-                  onChange={(e) => setFormData({...formData, unitId: e.target.value})}
-                >
-                  <option value="">Select Unit...</option>
-                  {availableUnits.map(unit => (
-                    <option key={unit.unitId} value={unit.unitId}>
-                      {formatUnitDisplay(unit)}
-                    </option>
-                  ))}
-                </select>
-              ) : formData.clientId ? (
-                <div style={{ padding: '12px', fontStyle: 'italic', color: '#999', border: '1px solid #ddd', borderRadius: '4px' }}>
-                  No units found for {formData.clientId}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="Enter client ID first"
-                  disabled
-                  style={{ backgroundColor: '#f5f5f5' }}
-                />
               )}
-            </div>
+            </>
           )}
 
           {/* Profile Section */}
@@ -833,6 +895,8 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
     newClientId: '',
     newUnitId: '',
     newRole: 'unitOwner',
+    newContactName: '',  // Contact name for new unit assignment
+    newContactEmail: '', // Contact email for new unit assignment
     requirePasswordChange: user?.mustChangePassword || false,
     canLogin: user?.canLogin !== false,  // Default true for existing users
     profile: {
@@ -1013,6 +1077,19 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
     fetchUnitsForClient();
   }, [formData.newClientId, formData.newRole]);
 
+  // Auto-populate contact fields when unit is selected
+  useEffect(() => {
+    if ((formData.newRole === 'unitOwner' || formData.newRole === 'unitManager') && formData.newUnitId) {
+      // Auto-populate contact fields from user's name/email if empty
+      if (!formData.newContactName) {
+        setFormData(prev => ({ ...prev, newContactName: user?.name || '' }));
+      }
+      if (!formData.newContactEmail) {
+        setFormData(prev => ({ ...prev, newContactEmail: user?.email || '' }));
+      }
+    }
+  }, [formData.newUnitId, formData.newRole, user?.name, user?.email]);
+
   // Add unit role assignment to pending changes (not saved until form submit)
   const addUnitRoleAssignment = () => {
     if (!formData.newClientId.trim() || !formData.newUnitId.trim() || !formData.newRole) return;
@@ -1020,7 +1097,9 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
     const newAssignment = {
       clientId: formData.newClientId,
       unitId: formData.newUnitId,
-      role: formData.newRole
+      role: formData.newRole,
+      contactName: formData.newContactName || user?.name || '',
+      contactEmail: formData.newContactEmail || user?.email || ''
     };
     
     // Check if this assignment already exists or is already pending
@@ -1052,7 +1131,9 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
       ...formData,
       newClientId: '',
       newUnitId: '',
-      newRole: 'unitOwner'
+      newRole: 'unitOwner',
+      newContactName: '',
+      newContactEmail: ''
     });
   };
 
@@ -1105,7 +1186,14 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
       }
       
       for (const addition of pendingAssignments.toAdd) {
-        await secureApi.addUnitRoleAssignment(user.id, addition.clientId, addition.unitId, addition.role);
+        await secureApi.addUnitRoleAssignment(
+          user.id, 
+          addition.clientId, 
+          addition.unitId, 
+          addition.role,
+          addition.contactName || null,
+          addition.contactEmail || null
+        );
       }
       
       // Show success message if password was reset
@@ -1355,6 +1443,41 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                 Add Assignment
               </button>
             </div>
+            
+            {/* Contact fields for unit assignment */}
+            {formData.newUnitId && (formData.newRole === 'unitOwner' || formData.newRole === 'unitManager') && (
+              <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #ddd' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', display: 'block' }}>
+                  Unit Contact Information (Optional)
+                </label>
+                <small style={{ display: 'block', marginBottom: '8px', color: '#666' }}>
+                  This information will appear in the unit's {formData.newRole === 'unitOwner' ? 'owners' : 'managers'} array. Defaults to user's name/email if not specified.
+                </small>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <label style={{ fontSize: '12px', color: '#666' }}>Contact Name</label>
+                    <input
+                      type="text"
+                      value={formData.newContactName}
+                      onChange={(e) => setFormData({...formData, newContactName: e.target.value})}
+                      placeholder={user?.name || 'Contact name'}
+                      style={{ width: '100%', padding: '6px' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <label style={{ fontSize: '12px', color: '#666' }}>Contact Email</label>
+                    <input
+                      type="email"
+                      value={formData.newContactEmail}
+                      onChange={(e) => setFormData({...formData, newContactEmail: e.target.value})}
+                      placeholder={user?.email || 'Contact email'}
+                      style={{ width: '100%', padding: '6px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <small style={{ display: 'block', color: '#666', marginTop: '5px' }}>
               This allows users to have different roles for different units within the same client
             </small>
