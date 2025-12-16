@@ -1,5 +1,5 @@
 // Service worker for SAMS PWA with version-based cache busting
-const CACHE_VERSION = '5.0.0-firebase';
+const CACHE_VERSION = '5.0.2-revert-simple-render';
 const CACHE_NAME = `sams-v${CACHE_VERSION}-${new Date().getTime()}`;
 const urlsToCache = [
   '/',

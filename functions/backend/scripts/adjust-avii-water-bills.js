@@ -13,26 +13,33 @@
  * - Convert October payments for 102, 103 to credits
  * 
  * Usage: 
- *   DRY RUN: node backend/scripts/adjust-avii-water-bills.js
- *   EXECUTE: node backend/scripts/adjust-avii-water-bills.js --execute
+ *   DEV DRY RUN:  node backend/scripts/adjust-avii-water-bills.js
+ *   DEV EXECUTE:  node backend/scripts/adjust-avii-water-bills.js --execute
+ *   PROD DRY RUN: node backend/scripts/adjust-avii-water-bills.js --prod
+ *   PROD EXECUTE: node backend/scripts/adjust-avii-water-bills.js --prod --execute
  */
 
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import fs from 'fs';
-import path from 'path';
+import admin from 'firebase-admin';
 
-// Initialize Firebase
-const serviceAccountPath = path.resolve('./backend/serviceAccountKey.json');
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-
-initializeApp({
-  credential: cert(serviceAccount)
-});
-
-const db = getFirestore();
-const CLIENT_ID = 'AVII';
+// Determine environment
+const ENV = process.argv.includes('--prod') ? 'prod' : 'dev';
 const DRY_RUN = !process.argv.includes('--execute');
+
+// Initialize Firebase with ADC
+if (ENV === 'prod') {
+  admin.initializeApp({
+    projectId: 'sams-sandyland-prod',
+  });
+  console.log('🔥 Connected to PRODUCTION');
+} else {
+  admin.initializeApp({
+    projectId: 'sandyland-management-system',
+  });
+  console.log('🔥 Connected to DEV');
+}
+
+const db = admin.firestore();
+const CLIENT_ID = 'AVII';
 
 console.log('═'.repeat(70));
 console.log('  AVII WATER BILLS ADJUSTMENT SCRIPT');

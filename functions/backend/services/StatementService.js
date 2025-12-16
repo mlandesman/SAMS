@@ -11,13 +11,13 @@ import { createDate as createCancunDate, parseDate as parseCancunDate } from '..
 import { DateTime } from 'luxon';
 import { getDb } from '../firebase.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
+import { getFirstOwnerName } from '../utils/unitContactUtils.js';
 import { 
   getFiscalYear, 
   getFiscalYearBounds, 
   validateFiscalYearConfig 
 } from '../utils/fiscalYearUtils.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
-import { getFirstOwnerName } from '../utils/unitContactUtils.js';
 
 export class StatementService extends ReportEngine {
   constructor(clientId) {

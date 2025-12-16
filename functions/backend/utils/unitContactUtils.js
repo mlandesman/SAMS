@@ -10,18 +10,21 @@
 
 /**
  * Normalize owners array to new structure [{name, email}]
- * Handles both old format (["name"]) and new format ([{name, email}])
+ * Assumes new format only - converts string format if found (should not happen after migration)
  * 
- * @param {Array<string|Object>|undefined} owners - Owners array (old or new format)
+ * @param {Array<Object>|undefined} owners - Owners array in [{name, email}] format
  * @returns {Array<{name: string, email: string}>} Normalized owners array
  */
 export function normalizeOwners(owners) {
   if (!Array.isArray(owners)) return [];
   
   return owners.map(owner => {
+    // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof owner === 'string') {
+      console.warn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
+    // New format: {name, email}
     return {
       name: (owner.name || '').trim(),
       email: (owner.email || '').trim()
@@ -31,18 +34,21 @@ export function normalizeOwners(owners) {
 
 /**
  * Normalize managers array to new structure [{name, email}]
- * Handles both old format (["name"]) and new format ([{name, email}])
+ * Assumes new format only - converts string format if found (should not happen after migration)
  * 
- * @param {Array<string|Object>|undefined} managers - Managers array (old or new format)
+ * @param {Array<Object>|undefined} managers - Managers array in [{name, email}] format
  * @returns {Array<{name: string, email: string}>} Normalized managers array
  */
 export function normalizeManagers(managers) {
   if (!Array.isArray(managers)) return [];
   
   return managers.map(manager => {
+    // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof manager === 'string') {
+      console.warn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
+    // New format: {name, email}
     return {
       name: (manager.name || '').trim(),
       email: (manager.email || '').trim()
