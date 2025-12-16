@@ -44,10 +44,11 @@ export async function getUnits(clientId) {
     const headers = await getAuthHeaders();
     console.log('🔑 [API] Auth headers prepared:', { Authorization: headers.Authorization ? 'Bearer [token]' : 'missing' });
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units`, {
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units?t=${Date.now()}`, {
       method: 'GET',
       headers,
       credentials: 'include',
+      cache: 'no-store',
     });
     
     console.log(`📡 [API] Response status: ${response.status}`);

@@ -42,17 +42,21 @@ const ModernBaseList = ({
 
   // Fetch items on component mount and when refreshTrigger changes
   useEffect(() => {
+    console.log('🔄 ModernBaseList: refreshTrigger changed, fetching items...', { refreshTrigger });
     const loadItems = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        console.log('📡 ModernBaseList: Calling fetchItems...');
         const data = await fetchItems();
+        console.log('✅ ModernBaseList: Received data:', data?.length || 0, 'items');
         const sortedData = sortItems(data);
         setItems(sortedData);
         setFilteredItems(sortedData);
+        console.log('✅ ModernBaseList: State updated with', sortedData.length, 'items');
       } catch (err) {
-        console.error('Error fetching items:', err);
+        console.error('❌ ModernBaseList: Error fetching items:', err);
         setError(err.message || 'Failed to load items');
       } finally {
         setLoading(false);

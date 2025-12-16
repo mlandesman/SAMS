@@ -824,18 +824,24 @@ function ListManagementView() {
       if (activeModal.action === 'edit' && activeModal.itemData?.unitId) {
         // Update existing unit - use unitId as the document ID
         await updateUnit(selectedClient.id, activeModal.itemData.unitId, unitData);
+        console.log('✅ Unit updated successfully');
       } else {
         // Create new unit
         await createUnit(selectedClient.id, unitData);
         console.log('✅ Unit created successfully');
       }
       
+      // Close modal first
+      handleCloseModal();
+      
+      // Brief pause to allow database write to complete
+      console.log('⏳ Waiting for database write to complete...');
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+      
       // Refresh the list by triggering a re-render
+      console.log('🔄 Triggering data refresh...');
       setRefreshTrigger(prev => prev + 1);
       setSelectedItem(null); // Clear selection after save
-      
-      // Close modal
-      handleCloseModal();
       
     } catch (error) {
       console.error('❌ Error saving unit:', error);
