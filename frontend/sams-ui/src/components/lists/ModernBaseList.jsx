@@ -23,7 +23,8 @@ const ModernBaseList = ({
   onItemSelect,
   onItemCountChange,
   searchTerm = '',
-  sortField = 'name' // New prop for specifying which field to sort by
+  sortField = 'name', // New prop for specifying which field to sort by
+  refreshTrigger = 0 // Trigger to force refresh when data changes
 }) => {
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
@@ -39,7 +40,7 @@ const ModernBaseList = ({
     });
   }, [sortField]);
 
-  // Fetch items on component mount
+  // Fetch items on component mount and when refreshTrigger changes
   useEffect(() => {
     const loadItems = async () => {
       try {
@@ -59,7 +60,7 @@ const ModernBaseList = ({
     };
     
     loadItems();
-  }, [fetchItems, sortItems]);
+  }, [fetchItems, sortItems, refreshTrigger]);
 
   // Filter items based on search term
   useEffect(() => {

@@ -5,7 +5,7 @@ import { useClient } from '../../context/ClientContext';
 import { getUnits } from '../../api/units';
 import { getOwnerNames, getManagerNames, normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils';
 
-const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
+const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailUnit, setDetailUnit] = useState(null);
@@ -142,6 +142,7 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
         columns={columns}
         emptyMessage="No units found. Click 'Add New' to create your first unit."
         sortField="unitId"
+        refreshTrigger={refreshTrigger}
       />
 
       {/* Detail Modal */}
