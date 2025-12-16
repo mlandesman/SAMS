@@ -183,7 +183,7 @@
 ---
 
 ### Priority 2: Data Reconciliation │ Manual Process
-**Status:** ✅ MTC COMPLETE / 🟡 AVII IN PROGRESS - Due Dec 31, 2025  
+**Status:** ✅ MTC COMPLETE / 🟡 AVII MANUAL TASKS PENDING - Non-blocking  
 
 **MTC:** ✅ COMPLETE (December 7, 2025)
 - Fixed import timezone bug (UTC→Cancun) resolving ~$70K discrepancy
@@ -192,11 +192,12 @@
 - Final balances verified: Bank $182,086 ✓, Cash $4,600 ✓
 - Reconciled to actual bank statements
 
-**AVII:** Manual comparison required
-- HOA Dues: Compare 10 units with Google Sheets history
-- Water Bills: Compare 10 units × 5 months with historical records
-- Adjust penalty calculations to match previously reported numbers
-- Goal: Establish clean starting point for Jan 1
+**AVII:** Manual tasks pending (non-blocking for go-live)
+- 🟡 Unit contact structure changes (update owners/managers to match Dev)
+- 🟡 Budget entry (build AVII budget for fiscal year)
+- Optional: HOA Dues comparison with Google Sheets (if needed)
+- Optional: Water Bills comparison (if needed)
+- Goal: Complete before Jan 1, 2026
 
 **Process:**
 1. Run Statement of Account reports for AVII units
@@ -207,8 +208,9 @@
 ---
 
 ### Priority 3: Firestore Backup Configuration │ GitHub #38
-**Status:** 🟢 READY - Before production go-live  
-**Effort:** Configuration task, minimal development
+**Status:** 🟢 READY - Recommended before Jan 1, 2026  
+**Effort:** Configuration task, minimal development  
+**Blocking:** ❌ No - Recommended but not required for go-live
 
 **Scope:**
 - Configure automated Firestore backups
@@ -682,8 +684,21 @@ This tests both standalone and "nested" single-unit scenarios.
 2. ~~**PWA Maintenance Tools**~~ - ✅ WM-2, WM-3, PT-1 COMPLETE (Dec 6)
 3. ~~**Projects Module**~~ - ✅ Special Assessments in Statements COMPLETE (Dec 7)
 4. ~~**Import Timezone Fix**~~ - ✅ UTC→Cancun, MTC reconciled (Dec 7)
-5. **Data Reconciliation** - ✅ MTC COMPLETE / AVII pending (Dec 7-20)
-6. **Firestore Backup** - GitHub #38 (Dec 21-31)
+5. ~~**Data Reconciliation**~~ - ✅ MTC COMPLETE / 🟡 AVII manual tasks pending (Dec 7-20)
+6. ~~**Production Deployment**~~ - ✅ v1.0.0 COMPLETE (Dec 16), v1.0.1 COMPLETE (Dec 16)
+7. **Firestore Backup** - 🟢 GitHub #38 READY (recommended before Jan 1)
+
+**🎉 PRODUCTION GO-LIVE STATUS: ✅ READY**
+
+**Remaining Manual Tasks (Non-Blocking):**
+- 🟡 AVII Unit Contact Changes (manual data entry)
+- 🟡 AVII Budget Entry (manual data entry)
+- 🟢 Firestore Backup Configuration (GitHub #38)
+
+**Post-Go-Live Tasks (Immediate Follow-Up):**
+- 📋 Statement Enhancements (future HOA bills after 15th of last month of quarter)
+- 📋 Email Integration (automated statement delivery)
+- 📋 PWA/Mobile App (bare-bones for unit owners/managers)
 
 ### Post-Production Roadmap (Q1 2026)
 1. **PWA: Owner Dashboard** - Unit status, exchange rates (GitHub #47 card refactor)
