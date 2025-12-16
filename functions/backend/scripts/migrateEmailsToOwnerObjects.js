@@ -3,13 +3,15 @@
  * 
  * Migrates email addresses from unit.emails array to unit.owners[].email fields
  * 
- * FROM: unit.emails = ["email1@example.com", "email2@example.com"]
+ * FROM: unit.emails = "email1@example.com;email2@example.com" (semicolon-separated for email "Send To:" fields)
  * TO:   unit.owners = [{name: "Owner 1", email: "email1@example.com"}, {name: "Owner 2", email: "email2@example.com"}]
  * 
  * Migration Logic:
- * - If unit has emails array and owners array:
+ * - If unit has emails array or semicolon/comma-separated string:
+ *   - Split on semicolons (primary) or commas (fallback)
  *   - Match emails to owners by index (first email to first owner, etc.)
- *   - Only assign email if owner doesn't already have one
+ *   - Overwrite existing owner emails
+ *   - Create new owner entries for extra emails
  * - After migration, remove the emails field
  * 
  * Date: December 16, 2025
@@ -35,7 +37,12 @@ const stats = {
  */
 function migrateUnitEmails(unitData) {
   const emails = unitData.emails || [];
-  const emailArray = Array.isArray(emails) ? emails : (typeof emails === 'string' ? emails.split(',').map(e => e.trim()).filter(e => e) : []);
+  // Split on semicolons (primary) or commas (fallback) - semicolons used for email "Send To:" fields
+  const emailArray = Array.isArray(emails) 
+    ? emails 
+    : (typeof emails === 'string' 
+        ? emails.split(/[;,]/).map(e => e.trim()).filter(e => e) 
+        : []);
   
   if (emailArray.length === 0) {
     // No emails to migrate, but still remove emails field if it exists
