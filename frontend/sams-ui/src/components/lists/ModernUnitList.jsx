@@ -19,8 +19,34 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       searchable: true, 
       width: '25%',
       render: (item) => {
-        const ownerNames = getOwnerNames(item.owners);
-        return ownerNames.length > 0 ? ownerNames.join(', ') : '';
+        try {
+          if (!item || !item.owners) return '';
+          if (!getOwnerNames) {
+            console.error('getOwnerNames function is not defined!');
+            // Fallback: try to extract names manually
+            if (Array.isArray(item.owners)) {
+              return item.owners.map(o => typeof o === 'string' ? o : (o?.name || '')).filter(Boolean).join(', ');
+            }
+            return '';
+          }
+          const ownerNames = getOwnerNames(item.owners);
+          if (!Array.isArray(ownerNames)) {
+            console.error('getOwnerNames returned non-array:', ownerNames, 'for item:', item);
+            // Fallback: try to extract names manually
+            if (Array.isArray(item.owners)) {
+              return item.owners.map(o => typeof o === 'string' ? o : (o?.name || '')).filter(Boolean).join(', ');
+            }
+            return '';
+          }
+          return ownerNames.length > 0 ? ownerNames.join(', ') : '';
+        } catch (error) {
+          console.error('Error rendering owners:', error, 'item:', item);
+          // Fallback: try to extract names manually
+          if (Array.isArray(item?.owners)) {
+            return item.owners.map(o => typeof o === 'string' ? o : (o?.name || '')).filter(Boolean).join(', ');
+          }
+          return '';
+        }
       }
     },
     { 
@@ -29,8 +55,34 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       searchable: true, 
       width: '25%',
       render: (item) => {
-        const managerNames = getManagerNames(item.managers);
-        return managerNames.length > 0 ? managerNames.join(', ') : '';
+        try {
+          if (!item || !item.managers) return '';
+          if (!getManagerNames) {
+            console.error('getManagerNames function is not defined!');
+            // Fallback: try to extract names manually
+            if (Array.isArray(item.managers)) {
+              return item.managers.map(m => typeof m === 'string' ? m : (m?.name || '')).filter(Boolean).join(', ');
+            }
+            return '';
+          }
+          const managerNames = getManagerNames(item.managers);
+          if (!Array.isArray(managerNames)) {
+            console.error('getManagerNames returned non-array:', managerNames, 'for item:', item);
+            // Fallback: try to extract names manually
+            if (Array.isArray(item.managers)) {
+              return item.managers.map(m => typeof m === 'string' ? m : (m?.name || '')).filter(Boolean).join(', ');
+            }
+            return '';
+          }
+          return managerNames.length > 0 ? managerNames.join(', ') : '';
+        } catch (error) {
+          console.error('Error rendering managers:', error, 'item:', item);
+          // Fallback: try to extract names manually
+          if (Array.isArray(item?.managers)) {
+            return item.managers.map(m => typeof m === 'string' ? m : (m?.name || '')).filter(Boolean).join(', ');
+          }
+          return '';
+        }
       }
     },
     { 
