@@ -16,8 +16,11 @@
       ],
       "predeploy": [
         "rm -rf \"$RESOURCE_DIR/backend\" 2>/dev/null || true",
+        "rm -rf \"$RESOURCE_DIR/shared\" 2>/dev/null || true",
         "mkdir -p \"$RESOURCE_DIR/backend\"",
+        "mkdir -p \"$RESOURCE_DIR/shared\"",
         "cp -r ./backend/* \"$RESOURCE_DIR/backend/\"",
+        "cp -r ./shared/* \"$RESOURCE_DIR/shared/\"",
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
