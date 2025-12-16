@@ -21,7 +21,11 @@
 import admin from 'firebase-admin';
 import { normalizeOwners } from '../utils/unitContactUtils.js';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const stats = {
   clientsProcessed: 0,
@@ -107,25 +111,17 @@ function initializeFirebaseForScript(isProduction = false) {
   console.log('🔥 Initializing Firebase Admin SDK...');
   
   if (isProduction) {
-    // Production - use production service account (from project root)
-    const serviceAccountPath = '../../serviceAccountKey-prod.json';
-    const serviceAccount = require(serviceAccountPath);
-    console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
-    
+    // Production - use Application Default Credentials (same as analyzeUnitEmails.js)
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: 'sams-sandyland-prod.firebasestorage.app',
+      projectId: 'sams-sandyland-prod',
     });
+    console.log('🔑 Connected to PRODUCTION (sams-sandyland-prod)');
   } else {
-    // Dev - use dev service account (from project root)
-    const serviceAccountPath = '../../serviceAccountKey.json';
-    const serviceAccount = require(serviceAccountPath);
-    console.log(`🔑 Using Firebase project: ${serviceAccount.project_id}`);
-    
+    // Dev - use dev project
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: 'sandyland-management-system.firebasestorage.app',
+      projectId: 'sandyland-management-system',
     });
+    console.log('🔑 Connected to DEV (sandyland-management-system)');
   }
   
   console.log('✅ Firebase Admin SDK initialized successfully');
