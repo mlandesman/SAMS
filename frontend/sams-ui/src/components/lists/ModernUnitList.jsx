@@ -3,7 +3,7 @@ import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
 import { getUnits } from '../../api/units';
-import { getOwnerNames, getManagerNames, normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils';
+import { getOwnerNames, getManagerNames, normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
 
 const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
   const { selectedClient } = useClient();
