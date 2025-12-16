@@ -21,6 +21,8 @@
         "mkdir -p \"$RESOURCE_DIR/shared\"",
         "cp -r ./backend/* \"$RESOURCE_DIR/backend/\"",
         "cp -r ./shared/* \"$RESOURCE_DIR/shared/\"",
+        "cp ./serviceAccountKey-prod.json \"$RESOURCE_DIR/sams-production-serviceAccountKey.json\"",
+        "cp ./serviceAccountKey-staging.json \"$RESOURCE_DIR/serviceAccountKey-staging.json\" 2>/dev/null || true",
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
