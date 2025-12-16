@@ -3,6 +3,7 @@ import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
 import { getUnits } from '../../api/units';
+import { getOwnerNames, getManagerNames, normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils';
 
 const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
   const { selectedClient } = useClient();
@@ -18,8 +19,8 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       searchable: true, 
       width: '25%',
       render: (item) => {
-        if (!item.owners || !Array.isArray(item.owners)) return '';
-        return item.owners.join(', ');
+        const ownerNames = getOwnerNames(item.owners);
+        return ownerNames.length > 0 ? ownerNames.join(', ') : '';
       }
     },
     { 
@@ -28,8 +29,8 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
       searchable: true, 
       width: '25%',
       render: (item) => {
-        if (!item.managers || !Array.isArray(item.managers)) return '';
-        return item.managers.join(', ');
+        const managerNames = getManagerNames(item.managers);
+        return managerNames.length > 0 ? managerNames.join(', ') : '';
       }
     },
     { 
@@ -63,26 +64,28 @@ const ModernUnitList = ({ selectedItem, onItemSelect, onItemCountChange, searchT
     { key: 'address', label: 'Address' },
     { 
       key: 'owners', 
-      label: 'Owner Names',
-      render: (value) => {
-        if (!value || !Array.isArray(value)) return 'Not specified';
-        return value.join(', ');
-      }
-    },
-    { 
-      key: 'emails', 
-      label: 'Email Addresses',
-      render: (value) => {
-        if (!value || !Array.isArray(value)) return 'Not specified';
-        return value.join(', ');
+      label: 'Owners',
+      render: (value, item) => {
+        const owners = normalizeOwners(item.owners || []);
+        if (owners.length === 0) return 'Not specified';
+        return owners.map(owner => {
+          const parts = [owner.name];
+          if (owner.email) parts.push(`(${owner.email})`);
+          return parts.join(' ');
+        }).join(', ');
       }
     },
     { 
       key: 'managers', 
       label: 'Unit Managers',
-      render: (value) => {
-        if (!value || !Array.isArray(value)) return 'None assigned';
-        return value.join(', ');
+      render: (value, item) => {
+        const managers = normalizeManagers(item.managers || []);
+        if (managers.length === 0) return 'None assigned';
+        return managers.map(manager => {
+          const parts = [manager.name];
+          if (manager.email) parts.push(`(${manager.email})`);
+          return parts.join(' ');
+        }).join(', ');
       }
     },
     { key: 'status', label: 'Status', type: 'status' },

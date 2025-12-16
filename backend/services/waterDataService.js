@@ -8,6 +8,7 @@ import penaltyRecalculationService from './penaltyRecalculationService.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
+import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 
 class WaterDataService {
   constructor() {
@@ -322,16 +323,7 @@ class WaterDataService {
     }
     
     // 3. Extract owner last name
-    let ownerLastName = 'Unknown';
-    if (unit.owners && unit.owners.length > 0) {
-      const ownerInfo = unit.owners[0];
-      const nameParts = ownerInfo.split(' ');
-      if (nameParts.length >= 2) {
-        ownerLastName = nameParts[nameParts.length - 1];
-      } else if (nameParts.length === 1) {
-        ownerLastName = nameParts[0];
-      }
-    }
+    const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
     
     // 4. Calculate bill amounts (ALL IN CENTAVOS - integers)
     const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -585,16 +577,7 @@ class WaterDataService {
       }
       
       // Extract owner last name from owners array (following HOA pattern)
-      let ownerLastName = 'Unknown';
-      if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-        const ownerName = unit.owners[0];
-        const nameParts = ownerName.trim().split(/\s+/);
-        if (nameParts.length > 1) {
-          ownerLastName = nameParts[nameParts.length - 1];
-        } else if (nameParts.length === 1) {
-          ownerLastName = nameParts[0];
-        }
-      }
+      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
       
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -888,16 +871,7 @@ class WaterDataService {
       }
       
       // Extract owner last name from owners array (following HOA pattern)
-      let ownerLastName = 'Unknown';
-      if (unit.owners && unit.owners.length > 0) {
-        const ownerInfo = unit.owners[0];
-        const nameParts = ownerInfo.split(' ');
-        if (nameParts.length >= 2) {
-          ownerLastName = nameParts[nameParts.length - 1];
-        } else if (nameParts.length === 1) {
-          ownerLastName = nameParts[0];
-        }
-      }
+      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
       
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService

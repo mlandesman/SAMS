@@ -102,18 +102,18 @@ export const transactionSchema = {
       description: 'Payment method display name'
     },
     notes: { 
-      type: 'string', 
+      type: ['string', 'null'], 
       required: false,
       maxLength: 500,
       description: 'Transaction notes'
     },
     checkNumber: { 
-      type: 'string', 
+      type: ['string', 'null'], 
       required: false,
       description: 'Check number if payment method is check'
     },
     reference: {
-      type: 'string',
+      type: ['string', 'null'],
       required: false,
       description: 'External reference number'
     },

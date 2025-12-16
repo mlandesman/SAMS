@@ -27,6 +27,7 @@ import clientOnboardingRoutes from './clientOnboarding.js';
 import clientManagementRoutes from './clientManagement.js';
 import importRoutes from './import.js';
 import { getNow } from '../services/DateService.js';
+import { bulkGenerateStatements } from '../controllers/bulkStatementController.js';
 
 const router = express.Router();
 
@@ -109,6 +110,17 @@ router.use('/client-management', clientManagementRoutes);
 
 // Mount import routes (for data import/purge operations)
 router.use('/import', importRoutes);
+
+/**
+ * Bulk Statement Generation Routes
+ */
+
+// Bulk generate statements for all units in a client
+router.post('/bulk-statements/generate',
+  requirePermission('system.admin'), // SuperAdmin only
+  logSecurityEvent('ADMIN_BULK_STATEMENTS_GENERATE'),
+  bulkGenerateStatements
+);
 
 /**
  * Production Configuration Routes (Public access for deployment)

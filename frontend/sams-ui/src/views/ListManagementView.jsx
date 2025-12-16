@@ -28,6 +28,7 @@ import { useStatusBar } from '../context/StatusBarContext';
 import { useAuth } from '../context/AuthContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils';
 import { createVendor, updateVendor, deleteVendor } from '../api/vendors';
 import { createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../api/paymentMethods';
@@ -343,18 +344,29 @@ function ListManagementView() {
           { key: 'unitName', label: 'Unit Name' },
           { 
             key: 'owners', 
-            label: 'Owner Names',
-            render: (value) => Array.isArray(value) ? value.join(', ') : value
-          },
-          { 
-            key: 'emails', 
-            label: 'Email Addresses',
-            render: (value) => Array.isArray(value) ? value.join(', ') : value
+            label: 'Owners',
+            render: (value, item) => {
+              const owners = normalizeOwners(item.owners || []);
+              if (owners.length === 0) return 'Not specified';
+              return owners.map(owner => {
+                const parts = [owner.name];
+                if (owner.email) parts.push(`(${owner.email})`);
+                return parts.join(' ');
+              }).join(', ');
+            }
           },
           { 
             key: 'managers', 
             label: 'Unit Managers',
-            render: (value) => Array.isArray(value) ? value.join(', ') : (value || 'None assigned')
+            render: (value, item) => {
+              const managers = normalizeManagers(item.managers || []);
+              if (managers.length === 0) return 'None assigned';
+              return managers.map(manager => {
+                const parts = [manager.name];
+                if (manager.email) parts.push(`(${manager.email})`);
+                return parts.join(' ');
+              }).join(', ');
+            }
           },
           { key: 'status', label: 'Status' },
           { key: 'type', label: 'Type' },

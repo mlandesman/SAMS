@@ -19,6 +19,9 @@ import propaneRoutes from './routes/propaneRoutes.js'; // Import propane routes
 import hoaDuesRoutes from './routes/hoaDues.js'; // Import HOA dues routes
 import creditRoutes from './routes/creditRoutes.js'; // Import credit balance routes
 import emailRoutesComm from './routes/emailRoutes.js'; // Import communication email routes
+import paymentRoutes from './routes/paymentRoutes.js'; // Import unified payment routes
+import reportsRoutes from './routes/reports.js'; // Import reports routes for Statement of Account
+import budgetRoutes from './routes/budgets.js'; // Import budget routes
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // New comment for testing
@@ -127,9 +130,34 @@ app.use('/admin', adminRoutes); // Admin functions under dedicated domain
 console.log('Mounting HOA dues domain routes');
 app.use('/hoadues', authenticateUserWithProfile, hoaDuesRoutes); // HOA dues under dedicated domain with auth
 
+// REPORTS DOMAIN (domain-specific Statement of Account endpoints)
+console.log('Mounting reports domain routes');
+app.use(
+  '/reports/:clientId',
+  (req, res, next) => {
+    const clientId = req.params.clientId;
+    console.log('Reports domain route - clientId:', clientId);
+
+    // Preserve existing pattern used by clientRoutes for compatibility
+    req.originalParams = req.originalParams || {};
+    req.originalParams.clientId = clientId;
+
+    next();
+  },
+  reportsRoutes
+);
+
 // CREDIT BALANCE DOMAIN (domain-independent with authentication)
 console.log('Mounting credit balance domain routes');
 app.use('/credit', authenticateUserWithProfile, creditRoutes); // Credit balance operations (domain-independent)
+
+// UNIFIED PAYMENT DOMAIN (cross-module payments with authentication)
+console.log('Mounting unified payment domain routes');
+app.use('/payments', paymentRoutes); // Unified payment endpoints (authentication handled in routes)
+
+// BUDGET DOMAIN (budget entry and management)
+console.log('Mounting budget domain routes');
+app.use('/budgets', budgetRoutes); // Budget endpoints (authentication handled in routes)
 
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {
@@ -153,6 +181,7 @@ app.get('/', (req, res) => {
       '/comm/*',       // Communications & email
       '/admin/*',      // Admin functions (users, clients, onboarding, management)
       '/hoadues/*',    // HOA dues & assessments
+      '/payments/*',   // Unified payments (cross-module)
     ],
     legacy: [
       '/api/clients/*',          // LEGACY: Being migrated to domain-specific

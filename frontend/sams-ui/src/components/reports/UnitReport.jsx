@@ -12,6 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
 import './UnitReport.css';
 
 const UnitReport = ({ unitId, onClose }) => {
@@ -47,6 +48,11 @@ const UnitReport = ({ unitId, onClose }) => {
       }
 
       const data = await response.json();
+      // Normalize owners/managers to ensure consistent structure
+      if (data.unit) {
+        data.unit.owners = normalizeOwners(data.unit.owners);
+        data.unit.managers = normalizeManagers(data.unit.managers);
+      }
       setReportData(data);
     } catch (err) {
       console.error('Error fetching unit report:', err);

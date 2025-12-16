@@ -7,6 +7,7 @@ import unifiedPaymentAPI from '../../api/unifiedPaymentAPI';
 import { formatAsMXN } from '../../utils/hoaDuesUtils';
 import { getMexicoDateString } from '../../utils/timezone';
 import { LoadingSpinner } from '../common';
+import { getOwnerNames } from '../../utils/unitContactUtils.js';
 import './UnifiedPaymentModal.css';
 
 /**
@@ -114,8 +115,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
           console.log(`🔵 [UnifiedPaymentModal] Processing unit:`, unit);
           return {
             unitId: unit.unitId || unit.id,
-            // Use owners array if available, fallback to ownerNames, then Unknown Owner
-            ownerNames: unit.owners || unit.ownerNames || ['Unknown Owner']
+            // Use owners array if available (normalized to names), fallback to ownerNames, then Unknown Owner
+            ownerNames: getOwnerNames(unit.owners) || unit.ownerNames || ['Unknown Owner']
           };
         });
         

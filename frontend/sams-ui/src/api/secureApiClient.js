@@ -365,12 +365,16 @@ export class SecureApiClient {
     );
   }
 
-  async addUnitRoleAssignment(userId, clientId, unitId, role) {
+  async addUnitRoleAssignment(userId, clientId, unitId, role, contactName = null, contactEmail = null) {
+    const body = { clientId, unitId, role };
+    if (contactName) body.contactName = contactName;
+    if (contactEmail) body.contactEmail = contactEmail;
+    
     return secureApiCall(
       `/admin/users/${userId}/unit-roles`,
       {
         method: 'POST',
-        body: JSON.stringify({ clientId, unitId, role })
+        body: JSON.stringify(body)
       }
     );
   }

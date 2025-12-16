@@ -8,6 +8,7 @@ import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils.j
 import { getMexicoDate } from '../utils/timezone.js';
 import { hasWaterBills } from '../utils/clientFeatures.js';
 import waterAPI from '../api/waterAPI.js';
+import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 
 export const useDashboardData = () => {
   const { samsUser, currentClient } = useAuth();
@@ -378,7 +379,7 @@ export const useDashboardData = () => {
             
             // Get owner lastName from units array (matching desktop pattern)
             const unitWithOwner = units.find(u => (u.unitId || u.id) === unitId);
-            const ownerLastName = unitWithOwner?.owners?.[0]?.split(' ').pop() || '';
+            const ownerLastName = getFirstOwnerLastName(unitWithOwner?.owners) || '';
             
             // Add to pastDueDetails array for display (matching desktop pattern)
             pastDueDetails.push({
@@ -711,9 +712,9 @@ export const useDashboardData = () => {
               // Add owner names to past due details
               pastDueDetails.forEach(detail => {
                 const unit = units.find(u => (u.unitId || u.id) === detail.unitId);
-                if (unit?.owners?.[0]) {
-                  const ownerName = unit.owners[0].split(' ').pop();
-                  detail.owner = ownerName;
+                const ownerLastName = getFirstOwnerLastName(unit?.owners);
+                if (ownerLastName) {
+                  detail.owner = ownerLastName;
                 }
               });
             }

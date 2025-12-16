@@ -9,7 +9,11 @@ import './BudgetActualTab.css';
 
 function normalizeLanguage(lang) {
   if (!lang) return null;
-  const lower = String(lang).toLowerCase();
+  // Handle case where lang might be an object (defensive coding)
+  if (typeof lang !== 'string') {
+    lang = String(lang);
+  }
+  const lower = lang.toLowerCase().trim();
   if (lower === 'english' || lower === 'en') return 'english';
   if (lower === 'spanish' || lower === 'es') return 'spanish';
   return null;
@@ -47,8 +51,12 @@ function buildFiscalYearOptions(selectedClient) {
     return [];
   }
 
-  const fiscalYearStartMonth =
-    selectedClient.configuration?.fiscalYearStartMonth || 1;
+  // Defensive: Ensure fiscalYearStartMonth is a valid number
+  let fiscalYearStartMonth = selectedClient.configuration?.fiscalYearStartMonth;
+  if (typeof fiscalYearStartMonth !== 'number' || isNaN(fiscalYearStartMonth)) {
+    fiscalYearStartMonth = 1; // Default to calendar year
+  }
+  
   const todayMexico = getMexicoDate();
   const currentFiscalYear = getFiscalYear(todayMexico, fiscalYearStartMonth);
 

@@ -873,7 +873,23 @@ async function countAllDocuments(docRef, excludeCollections = []) {
   let count = 1; // Count the document itself
   
   try {
+    // Only call listCollections on documents that might have subcollections
+    // For client docs and unit docs, we need to discover subcollections
+    // For other docs (transactions, categories, etc.), they never have subcollections
+    const pathParts = docRef.path.split('/');
+    const depth = pathParts.length; // clients/X = 2, clients/X/units/Y = 4, etc.
+    
+    // Only recurse for client doc (depth 2) or unit docs (depth 4 under 'units' collection)
+    const shouldRecurse = depth === 2 || (depth === 4 && pathParts[2] === 'units');
+    
+    if (!shouldRecurse) {
+      return count; // Leaf document, no subcollections possible
+    }
+    
+    console.log(`🔍 [DEBUG] listCollections() for: ${docRef.path}`);
+    const startTime = Date.now();
     const collections = await docRef.listCollections();
+    console.log(`🔍 [DEBUG] listCollections() completed for ${docRef.path} in ${Date.now() - startTime}ms - found ${collections.length} collections`);
     
     for (const subCollection of collections) {
       // Skip excluded collections
@@ -1082,6 +1098,7 @@ async function executeImport(user, clientId, options = {}) {
       { id: 'vendors', name: 'Vendors', independent: true },
       { id: 'units', name: 'Units', independent: true },
       { id: 'yearEndBalances', name: 'Year End Balances', independent: true },
+      { id: 'projects', name: 'Projects', independent: true, optional: true },
       { id: 'transactions', name: 'Transactions', independent: false, buildsCrossRef: true },
       { id: 'hoadues', name: 'HOA Dues', independent: false, requiresCrossRef: true },
       { id: 'waterbills', name: 'Water Bills', independent: false, requiresCrossRef: true, optional: true }
@@ -1179,6 +1196,9 @@ async function executeImport(user, clientId, options = {}) {
                     break;
                   case 'yearEndBalances':
                     result = await importService.importYearEndBalances(user, { dryRun, maxErrors });
+                    break;
+                  case 'projects':
+                    result = await importService.importProjects(user, { dryRun, maxErrors });
                     break;
                   case 'transactions':
                     result = await importService.importTransactions(user, { dryRun, maxErrors });

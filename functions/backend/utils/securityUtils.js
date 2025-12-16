@@ -173,7 +173,12 @@ export function sanitizeUserData(userData, requestingUser) {
     name: userData.name,
     isActive: userData.isActive,
     lastLoginDate: userData.lastLoginDate,
-    firebaseMetadata: userData.firebaseMetadata
+    firebaseMetadata: userData.firebaseMetadata,
+    // Include new profile fields
+    canLogin: userData.canLogin,
+    accountState: userData.accountState,
+    profile: userData.profile,
+    notifications: userData.notifications
   };
   
   // Only SuperAdmin or the user themselves can see full profile
@@ -183,6 +188,8 @@ export function sanitizeUserData(userData, requestingUser) {
     sanitized.preferredClient = userData.preferredClient;
     sanitized.createdDate = userData.createdDate;
     sanitized.createdBy = userData.createdBy;
+    sanitized.creationMethod = userData.creationMethod;
+    sanitized.mustChangePassword = userData.mustChangePassword;
   } else {
     // Other users only see basic info
     sanitized.role = 'user'; // Generic role for privacy

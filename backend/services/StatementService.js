@@ -11,6 +11,7 @@ import { createDate as createCancunDate, parseDate as parseCancunDate } from '..
 import { DateTime } from 'luxon';
 import { getDb } from '../firebase.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
+import { getFirstOwnerName } from '../utils/unitContactUtils.js';
 import { 
   getFiscalYear, 
   getFiscalYearBounds, 
@@ -87,7 +88,7 @@ export class StatementService extends ReportEngine {
     return {
       unitId: unitId,
       unitNumber: unitData.unitNumber || unitId,
-      ownerName: unitData.owners?.[0] || 'N/A'
+      ownerName: getFirstOwnerName(unitData.owners) || 'N/A'
     };
   }
 

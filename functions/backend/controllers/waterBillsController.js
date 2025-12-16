@@ -1,10 +1,12 @@
 // controllers/waterBillsController.js
+console.log(`[waterBillsController] module loaded from ${import.meta.url}`);
+
 import waterBillsService from '../services/waterBillsService.js';
 import { waterDataService } from '../services/waterDataService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
-import { getNow } from '../../shared/services/DateService.js';
-import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { getNow } from '../services/DateService.js';
+import { centavosToPesos } from '../utils/currencyUtils.js';
 
 /**
  * Convert bills from centavos (backend storage) to pesos (frontend display)
@@ -82,30 +84,72 @@ export const getBillingConfig = async (req, res) => {
 };
 
 /**
- * Generate bills for a specific month
+ * Generate bills for a specific month (or quarterly bill)
  * POST /api/clients/:clientId/water/bills/generate
+ * 
+ * For monthly billing: { year, month, dueDate }
+ * For quarterly billing: { year, dueDate } (no month parameter)
  */
 export const generateBills = async (req, res) => {
   try {
     const { clientId } = req.params;
     const { year, month, dueDate } = req.body;
     
-    if (!year || month === undefined) {
+    if (!year) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: year, month'
+        error: 'Missing required field: year'
       });
     }
     
-    const result = await waterBillsService.generateBills(
-      clientId,
-      parseInt(year),
-      parseInt(month),
-      dueDate ? { dueDate } : undefined
-    );
+    // Get config to determine billing period
+    const config = await waterBillsService.getBillingConfig(clientId);
     
-    // Bills generated successfully - frontend will fetch fresh data
-    console.log(`✅ [GENERATE_BILLS] Bills generated successfully`);
+    let result;
+    let docId;
+    let friendlyName;
+    
+    if (config.billingPeriod === 'quarterly') {
+      // Quarterly billing - no month parameter required
+      if (!dueDate) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field for quarterly billing: dueDate'
+        });
+      }
+      
+      result = await waterBillsService.generateQuarterlyBill(
+        clientId,
+        parseInt(year),
+        dueDate
+      );
+      
+      // Extract bill ID from result
+      docId = result._billId || 'bill-unknown';
+      friendlyName = `Quarterly water bill (Q${result.fiscalQuarter + 1} FY${result.fiscalYear})`;
+      
+      console.log(`✅ [GENERATE_BILLS] Quarterly bill generated successfully: ${docId}`);
+    } else {
+      // Monthly billing - month parameter required
+      if (month === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field for monthly billing: month'
+        });
+      }
+      
+      result = await waterBillsService.generateBills(
+        clientId,
+        parseInt(year),
+        parseInt(month),
+        dueDate ? { dueDate } : undefined
+      );
+      
+      docId = `${year}-${String(month).padStart(2, '0')}`;
+      friendlyName = `Water bills for ${result.billingPeriod}`;
+      
+      console.log(`✅ [GENERATE_BILLS] Monthly bills generated successfully`);
+    }
     
     // Convert bills from centavos to pesos for frontend compatibility
     const convertedResult = convertBillsToPesos(result);
@@ -115,8 +159,8 @@ export const generateBills = async (req, res) => {
       module: 'waterBills',
       action: 'generateBills',
       parentPath: `clients/${clientId}/projects/waterBills/bills`,
-      docId: `${year}-${String(month).padStart(2, '0')}`,
-      friendlyName: `Water bills for ${convertedResult.billingPeriod}`,
+      docId: docId,
+      friendlyName: friendlyName,
       notes: `Generated bills for ${convertedResult.summary.totalUnits} units, total: ${convertedResult.summary.currencySymbol}${convertedResult.summary.totalBilled}`,
       clientId
     });
@@ -191,6 +235,35 @@ export const getConfig = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting config:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get all quarterly bills for a fiscal year
+ * GET /api/clients/:clientId/water/bills/quarterly/:year
+ */
+export const getQuarterlyBillsForYear = async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    
+    const bills = await waterBillsService.getQuarterlyBillsForYear(
+      clientId,
+      parseInt(year)
+    );
+    
+    // Convert each bill from centavos to pesos
+    const convertedBills = (bills || []).map(bill => convertBillsToPesos(bill));
+    
+    res.json({
+      success: true,
+      data: convertedBills
+    });
+  } catch (error) {
+    console.error('Error getting quarterly bills:', error);
     res.status(500).json({
       success: false,
       error: error.message

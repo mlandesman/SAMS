@@ -1,0 +1,52 @@
+{
+  "appName": "SAMS",
+  "shortName": "SAMS",
+  "companyName": "Sandyland Properties",
+  "copyright": "2025",
+  "version": "1.0.0",
+  "buildDate": "2025-12-16T03:13:28.607Z",
+  "buildTimestamp": 1765854808607,
+  "environment": "staging",
+  "gitBranch": "main",
+  "gitCommit": "local",
+  "developers": [
+    "Michael Landesman",
+    "Claude AI"
+  ],
+  "features": [
+    "PWA Support",
+    "Multi-Client Management",
+    "Financial Reporting",
+    "Document Storage",
+    "Unit Management",
+    "Statement of Account Reports"
+  ],
+  "git": {
+    "hash": "53451e4",
+    "branch": "main",
+    "lastCommitDate": "2025-12-15 22:13:28 -0500"
+  },
+  "build": {
+    "timestamp": "2025-12-16T03:13:28.607Z",
+    "environment": "staging",
+    "nodeVersion": "v22.15.0",
+    "platform": "darwin",
+    "buildNumber": "251215.2213"
+  },
+  "deployment": {
+    "target": "staging",
+    "date": "2025-12-16T03:13:28.607Z",
+    "automated": true
+  },
+  "releaseNotes": {
+    "version": "0.3.0",
+    "date": "2025-12-03",
+    "highlights": [
+      "Statement of Account Report - Production Ready",
+      "PDF export with PDFShift integration",
+      "CSV export for Excel/Sheets",
+      "Bilingual support (English/Spanish)",
+      "TD-026 Unit filter bug fix"
+    ]
+  }
+}

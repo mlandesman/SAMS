@@ -12,6 +12,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
 import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 
 /**
  * Generate secure random password
@@ -47,38 +48,34 @@ async function addPersonToUnit(batch, clientId, unitId, personName, personEmail,
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      // Handle owners array
-      const owners = unitData.owners || [];
-      if (!owners.includes(personName)) {
-        owners.push(personName);
-        updateData.owners = owners;
+      // Handle owners array (normalize to new structure)
+      const normalizedOwners = normalizeOwners(unitData.owners);
+      // Check if person already exists (by name or email)
+      const exists = normalizedOwners.some(owner => 
+        owner.name === personName || owner.email === personEmail
+      );
+      if (!exists) {
+        normalizedOwners.push({ name: personName, email: personEmail });
+        updateData.owners = normalizedOwners;
         hasChanges = true;
       }
       
-      // Handle emails array for owners
-      const emails = unitData.emails || [];
-      if (!emails.includes(personEmail)) {
-        emails.push(personEmail);
-        updateData.emails = emails;
-        hasChanges = true;
-      }
+      // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      // Handle managers array
-      const managers = unitData.managers || [];
-      if (!managers.includes(personName)) {
-        managers.push(personName);
-        updateData.managers = managers;
+      // Handle managers array (normalize to new structure)
+      const normalizedManagers = normalizeManagers(unitData.managers);
+      // Check if person already exists (by name or email)
+      const exists = normalizedManagers.some(manager => 
+        manager.name === personName || manager.email === personEmail
+      );
+      if (!exists) {
+        normalizedManagers.push({ name: personName, email: personEmail });
+        updateData.managers = normalizedManagers;
         hasChanges = true;
       }
       
-      // Handle emails array for managers (needed for unit reports and messages)
-      const emails = unitData.emails || [];
-      if (!emails.includes(personEmail)) {
-        emails.push(personEmail);
-        updateData.emails = emails;
-        hasChanges = true;
-      }
+      // Note: emails field removed - emails are now in manager objects
     }
     
     if (hasChanges) {
@@ -110,51 +107,32 @@ async function removePersonFromUnit(batch, clientId, unitId, personName, personE
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      // Handle owners array
-      const oldOwners = unitData.owners || [];
-      const owners = oldOwners.filter(name => name !== personName);
+      // Handle owners array (normalize to new structure, then filter)
+      const normalizedOwners = normalizeOwners(unitData.owners);
+      const owners = normalizedOwners.filter(owner => 
+        owner.name !== personName && owner.email !== personEmail
+      );
       
-      if (oldOwners.length !== owners.length) {
+      if (normalizedOwners.length !== owners.length) {
         updateData.owners = owners;
         hasChanges = true;
       }
       
-      // Handle emails array for owners
-      const oldEmails = unitData.emails || [];
-      const emails = oldEmails.filter(email => email !== personEmail);
-      
-      if (oldEmails.length !== emails.length) {
-        updateData.emails = emails;
-        hasChanges = true;
-      }
+      // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      // Handle managers array
-      const oldManagers = unitData.managers || [];
-      const managers = oldManagers.filter(name => name !== personName);
+      // Handle managers array (normalize to new structure, then filter)
+      const normalizedManagers = normalizeManagers(unitData.managers);
+      const managers = normalizedManagers.filter(manager => 
+        manager.name !== personName && manager.email !== personEmail
+      );
       
-      if (oldManagers.length !== managers.length) {
+      if (normalizedManagers.length !== managers.length) {
         updateData.managers = managers;
         hasChanges = true;
       }
       
-      // Handle emails array for managers
-      // Only remove email if this person is not also an owner
-      const oldEmails = unitData.emails || [];
-      const owners = unitData.owners || [];
-      
-      // Check if this person is also an owner by checking if their name is in owners array
-      const isAlsoOwner = owners.includes(personName);
-      
-      if (!isAlsoOwner) {
-        // Safe to remove email since they're not an owner
-        const emails = oldEmails.filter(email => email !== personEmail);
-        
-        if (oldEmails.length !== emails.length) {
-          updateData.emails = emails;
-          hasChanges = true;
-        }
-      }
+      // Note: emails field removed - emails are now in manager objects
     }
     
     if (hasChanges) {
@@ -348,8 +326,14 @@ export async function createUser(req, res) {
       role, 
       clientId, 
       unitId, 
+      contactName,  // Optional: contact name for unit owners/managers array (defaults to name)
+      contactEmail, // Optional: contact email for unit owners/managers array (defaults to email)
       customPermissions = [],
-      creationMethod = 'manual' // 'invitation' or 'manual'
+      creationMethod = 'manual', // 'invitation' or 'manual'
+      // NEW FIELDS
+      canLogin = true,  // Default true for backward compatibility
+      profile = {},     // { firstName, lastName, phone, taxId, preferredLanguage, preferredCurrency }
+      notifications = { email: true, sms: false, duesReminders: true }
     } = req.body;
     const creatingUser = req.user;
 
@@ -414,7 +398,18 @@ export async function createUser(req, res) {
       let temporaryPassword = null;
       let accountState = 'active';
       
-      if (creationMethod === 'invitation') {
+      if (!canLogin) {
+        // Create disabled Firebase Auth user (contact-only)
+        temporaryPassword = generateSecurePassword(); // Required but never used
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: temporaryPassword,
+          displayName: name,
+          emailVerified: false,
+          disabled: true  // KEY: Cannot log in
+        });
+        accountState = 'contact_only';
+      } else if (creationMethod === 'invitation') {
         // Create user with temporary password for invitation flow (more reliable than disabled users)
         temporaryPassword = generateSecurePassword();
         userRecord = await admin.auth().createUser({
@@ -458,9 +453,16 @@ export async function createUser(req, res) {
           };
         }
       } else {
+        // Create propertyAccess with unitAssignments[] structure (current standard)
         propertyAccessData[clientId] = {
           role: role,
-          unitId: unitId || null,
+          unitId: unitId || null, // Keep for backward compatibility
+          unitAssignments: unitId ? [{
+            unitId: unitId,
+            role: role,
+            addedDate: getNow().toISOString(),
+            addedBy: creatingUser.email
+          }] : [],
           permissions: customPermissions,
           addedDate: getNow().toISOString(),
           addedBy: creatingUser.email
@@ -470,50 +472,69 @@ export async function createUser(req, res) {
       const userProfile = {
         email: email,
         name: name,
+        displayName: name,
         globalRole: globalRole,
         propertyAccess: propertyAccessData,
         preferredClient: role === 'superAdmin' ? null : clientId,
-        // Remove creation metadata - should be in audit log
-        isActive: true, // Both methods create active users now
+        isActive: true,
+        canLogin: canLogin,  // NEW
         accountState: accountState,
-        creationMethod: creationMethod,
-        mustChangePassword: true, // Both methods require password change
+        creationMethod: canLogin ? creationMethod : 'contact',
+        mustChangePassword: canLogin,
         lastLoginDate: null,
-        updated: admin.firestore.Timestamp.now()
+        updated: admin.firestore.Timestamp.now(),
+        // NEW: Profile object
+        profile: {
+          firstName: profile.firstName || name.split(' ')[0] || '',
+          lastName: profile.lastName || name.split(' ').slice(1).join(' ') || '',
+          phone: profile.phone || null,
+          taxId: profile.taxId || null,
+          preferredLanguage: profile.preferredLanguage || 'english',
+          preferredCurrency: profile.preferredCurrency || 'MXN'
+        },
+        // NEW: Notifications object
+        notifications: {
+          email: notifications.email !== false,
+          sms: notifications.sms === true,
+          duesReminders: notifications.duesReminders !== false
+        }
       };
 
       await db.collection('users').doc(userRecord.uid).set(userProfile);
 
-      // Sync manager assignments for newly created user
-      if (role === 'unitManager' && clientId && unitId) {
-        console.log(`🔄 [CREATE] Syncing manager assignment for new user: ${name} → ${clientId}/${unitId}`);
+      // Sync unit assignments for newly created user (both unitOwner and unitManager)
+      if ((role === 'unitOwner' || role === 'unitManager') && clientId && unitId) {
+        console.log(`🔄 [CREATE] Syncing ${role} assignment for new user: ${name} → ${clientId}/${unitId}`);
         // For new users, oldClientAccess is empty
-        // Get user email for unit sync
-        const userEmail = email;
-        await syncUnitAssignments(userRecord.uid, {}, propertyAccessData, name, userEmail);
+        // Use contactName/contactEmail if provided, otherwise use user name/email
+        const unitContactName = contactName || name;
+        const unitContactEmail = contactEmail || email;
+        await syncUnitAssignments(userRecord.uid, {}, propertyAccessData, unitContactName, unitContactEmail);
       }
 
-      // Send appropriate notification
+      // Send appropriate notification (only for login-enabled users)
       let emailResult = null;
-      if (creationMethod === 'invitation') {
-        // Send invitation email
-        emailResult = await sendUserInvitation({
-          email: email,
-          name: name,
-          clientName: clientId || 'System',
-          role: role,
-          invitedBy: creatingUser.email
-        });
-      } else {
-        // Send password notification email
-        emailResult = await sendPasswordNotification({
-          email: email,
-          name: name,
-          password: temporaryPassword,
-          clientName: clientId || 'System',
-          role: role,
-          createdBy: creatingUser.email
-        });
+      if (canLogin) {
+        if (creationMethod === 'invitation') {
+          // Send invitation email
+          emailResult = await sendUserInvitation({
+            email: email,
+            name: name,
+            clientName: clientId || 'System',
+            role: role,
+            invitedBy: creatingUser.email
+          });
+        } else {
+          // Send password notification email
+          emailResult = await sendPasswordNotification({
+            email: email,
+            name: name,
+            password: temporaryPassword,
+            clientName: clientId || 'System',
+            role: role,
+            createdBy: creatingUser.email
+          });
+        }
       }
 
       // Log user creation
@@ -655,7 +676,19 @@ export async function getUsers(req, res) {
 export async function updateUser(req, res) {
   try {
     const { userId } = req.params;
-    const { name, propertyAccess, isActive, globalRole, resetPassword, newPassword, requirePasswordChange } = req.body;
+    const { 
+      name, 
+      propertyAccess, 
+      isActive, 
+      globalRole, 
+      resetPassword, 
+      newPassword, 
+      requirePasswordChange,
+      // NEW FIELDS
+      canLogin,      // Toggle login ability
+      profile,       // Profile updates
+      notifications  // Notification preferences
+    } = req.body;
     const updatingUser = req.user;
 
     if (!userId) {
@@ -807,6 +840,71 @@ export async function updateUser(req, res) {
     if (nameChanged && !propertyAccess && currentUserData.propertyAccess) {
       const userEmail = currentUserData.email || 'unknown@example.com';
       await updateUserNameInUnits(userId, currentUserData.name, name, userEmail, currentUserData.propertyAccess);
+    }
+
+    // Handle canLogin toggle (enable/disable Firebase Auth)
+    if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+      if (canLogin) {
+        // Promoting contact to user - enable Auth and send password reset
+        await admin.auth().updateUser(userId, { disabled: false });
+        
+        // Generate temporary password and send notification
+        const tempPassword = generateSecurePassword();
+        await admin.auth().updateUser(userId, { password: tempPassword });
+        
+        await sendPasswordNotification({
+          email: currentUserData.email,
+          name: currentUserData.name,
+          password: tempPassword,
+          clientName: Object.keys(currentUserData.propertyAccess || {})[0] || 'System',
+          role: currentUserData.globalRole || 'user',
+          createdBy: updatingUser.email
+        });
+        
+        updateData.canLogin = true;
+        updateData.accountState = 'pending_password_change';
+        updateData.mustChangePassword = true;
+        
+        // Log promotion
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.promoted_to_login',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: `${currentUserData.name} promoted to login user`,
+          notes: `Contact promoted to login user by ${updatingUser.email}`
+        });
+      } else {
+        // Demoting user to contact - disable Auth
+        await admin.auth().updateUser(userId, { disabled: true });
+        updateData.canLogin = false;
+        updateData.accountState = 'contact_only';
+        
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.demoted_to_contact',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: `${currentUserData.name} demoted to contact`,
+          notes: `User demoted to contact-only by ${updatingUser.email}`
+        });
+      }
+    }
+
+    // Handle profile updates
+    if (profile) {
+      updateData.profile = {
+        ...currentUserData.profile,
+        ...profile
+      };
+    }
+
+    // Handle notification preference updates
+    if (notifications) {
+      updateData.notifications = {
+        ...currentUserData.notifications,
+        ...notifications
+      };
     }
 
     // Handle require password change if requested
@@ -1072,7 +1170,7 @@ export async function removeClientAccess(req, res) {
 export async function addUnitRoleAssignment(req, res) {
   try {
     const { userId } = req.params;
-    const { clientId, unitId, role } = req.body;
+    const { clientId, unitId, role, contactName, contactEmail } = req.body;
     const assigningUser = req.user;
 
     // Validate inputs
@@ -1151,7 +1249,10 @@ export async function addUnitRoleAssignment(req, res) {
     });
 
     // Sync unit assignments to unit records (for all roles: owners and managers)
-    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, userData.name, userData.email);
+    // Use contactName/contactEmail if provided, otherwise use user name/email
+    const unitContactName = contactName || userData.name;
+    const unitContactEmail = contactEmail || userData.email;
+    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, unitContactName, unitContactEmail);
 
     // Log the assignment
     await writeAuditLog({

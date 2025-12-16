@@ -3,6 +3,7 @@ import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -33,10 +34,10 @@ async function createUnit(clientId, unitData, docId = null) {
       propertyType: restData.propertyType || 'condo',
       status: restData.status || 'active',
       
-      // New array fields (denormalized for display)
-      owners: restData.owners || [],
-      managers: restData.managers || [],
-      emails: restData.emails || [],
+      // New array fields (denormalized for display, normalized to new structure)
+      owners: normalizeOwners(restData.owners || []),
+      managers: normalizeManagers(restData.managers || []),
+      // Note: emails field removed - emails are now in owner objects
       
       // Physical data
       squareFeet: restData.squareFeet || null,
@@ -85,6 +86,7 @@ async function updateUnit(clientId, unitId, newData) {
     delete updates.unitNumber;
     delete updates.id;
     delete updates.unitId;
+    delete updates.emails; // Remove emails field - emails are now in owner objects
     
     // Handle timestamp updates
     if (updates.created) {
@@ -164,9 +166,9 @@ async function listUnits(clientId) {
       const unit = {
         unitId: doc.id, // Document ID is the unit identifier
         ...data,
-        // Handle owner/owners field mapping
-        owners: data.owners || (data.owner ? [data.owner] : []),
-        managers: data.managers || [],
+        // Handle owner/owners field mapping (normalized to new structure)
+        owners: normalizeOwners(data.owners || (data.owner ? [data.owner] : [])),
+        managers: normalizeManagers(data.managers || []),
         // Ensure other expected fields exist
         status: data.status || 'active',
         notes: data.notes || ''
@@ -209,33 +211,14 @@ async function updateUnitManagers(clientId, unitId, managers) {
   }
 }
 
-// Add email to unit
+// DEPRECATED: Add email to unit
+// This function is deprecated - emails should be added via owner objects in UnitFormModal
+// Keeping for backward compatibility but it will no longer work (emails field removed)
 async function addUnitEmail(clientId, unitId, email) {
-  try {
-    const db = await getDb();
-    const admin = (await import('firebase-admin')).default;
-    const unitRef = db.doc(`clients/${clientId}/units/${unitId}`);
-    
-    // Add to emails array
-    await unitRef.update({
-      emails: admin.firestore.FieldValue.arrayUnion(email),
-      updated: convertToTimestamp(getNow())
-    });
-    
-    await writeAuditLog({
-      module: 'units',
-      action: 'update',
-      parentPath: `clients/${clientId}/units/${unitId}`,
-      docId: unitId,
-      friendlyName: `Unit ${unitId}`,
-      notes: `Added email: ${email}`,
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error adding unit email:', error);
-    return false;
-  }
+  console.warn('⚠️  addUnitEmail is deprecated - emails should be added via owner objects');
+  // This function is no longer functional - emails field has been removed
+  // Use UnitFormModal to add emails to owner objects instead
+  return false;
 }
 
 export {
