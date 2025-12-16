@@ -69,6 +69,10 @@
           "function": "api"
         },
         {
+          "source": "/propane/**",
+          "function": "api"
+        },
+        {
           "source": "/comm/**",
           "function": "api"
         },
@@ -170,6 +174,10 @@
         },
         {
           "source": "/water/**",
+          "function": "api"
+        },
+        {
+          "source": "/propane/**",
           "function": "api"
         },
         {
