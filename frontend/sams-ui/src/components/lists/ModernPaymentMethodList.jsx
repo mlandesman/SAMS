@@ -4,7 +4,7 @@ import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
 import { getPaymentMethods } from '../../api/paymentMethods';
 
-const ModernPaymentMethodList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
+const ModernPaymentMethodList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailPaymentMethod, setDetailPaymentMethod] = useState(null);
@@ -73,6 +73,7 @@ const ModernPaymentMethodList = ({ selectedItem, onItemSelect, onItemCountChange
         searchTerm={searchTerm}
         columns={columns}
         emptyMessage="No payment methods found. Click 'Add New' to create your first payment method."
+        refreshTrigger={refreshTrigger}
       />
 
       {/* Detail Modal */}

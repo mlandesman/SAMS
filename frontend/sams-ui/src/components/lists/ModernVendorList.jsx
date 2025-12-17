@@ -4,7 +4,7 @@ import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
 import { getVendors } from '../../api/vendors';
 
-const ModernVendorList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
+const ModernVendorList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailVendor, setDetailVendor] = useState(null);
@@ -74,6 +74,7 @@ const ModernVendorList = ({ selectedItem, onItemSelect, onItemCountChange, searc
         searchTerm={searchTerm}
         columns={columns}
         emptyMessage="No vendors found. Click 'Add New' to create your first vendor."
+        refreshTrigger={refreshTrigger}
       />
 
       {/* Detail Modal */}

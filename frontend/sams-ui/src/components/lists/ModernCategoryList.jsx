@@ -4,7 +4,7 @@ import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
 import { getCategories } from '../../api/categories';
 
-const ModernCategoryList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '' }) => {
+const ModernCategoryList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailCategory, setDetailCategory] = useState(null);
@@ -71,6 +71,7 @@ const ModernCategoryList = ({ selectedItem, onItemSelect, onItemCountChange, sea
         searchTerm={searchTerm}
         columns={columns}
         emptyMessage="No categories found. Click 'Add New' to create your first category."
+        refreshTrigger={refreshTrigger}
       />
 
       {/* Detail Modal */}

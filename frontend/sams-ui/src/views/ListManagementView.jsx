@@ -251,6 +251,31 @@ function ListManagementView() {
     setTabIndex(newValue);
     setSelectedItem(null); // Clear selection when switching tabs
   };
+
+  // Helper function to handle CRUD operations with proper refresh delay
+  // Ensures database write completes before triggering refresh
+  const handleSaveWithRefresh = async (saveOperation, itemName = 'item') => {
+    try {
+      // Execute the save operation (create or update)
+      await saveOperation();
+      
+      // Close modal first for immediate UI feedback
+      handleCloseModal();
+      
+      // Brief pause to allow database write to complete
+      console.log(`⏳ Waiting for database write to complete for ${itemName}...`);
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+      
+      // Refresh the list by triggering a re-render
+      console.log(`🔄 Triggering data refresh for ${itemName}...`);
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedItem(null); // Clear selection after save
+      
+    } catch (error) {
+      console.error(`❌ Error saving ${itemName}:`, error);
+      throw error; // Re-throw so caller can handle error display
+    }
+  };
   
   // Handle add new item action for modern lists
   const handleAddNew = () => {
@@ -625,36 +650,36 @@ function ListManagementView() {
     }
 
     try {
-      console.log(`🗑️ Deleting ${currentList.id}: ${itemName}`);
+      const deleteOperation = async () => {
+        console.log(`🗑️ Deleting ${currentList.id}: ${itemName}`);
+        
+        switch (currentList.id) {
+          case 'vendor':
+            await deleteVendor(selectedClient.id, selectedItem.id);
+            break;
+          case 'category':
+            await deleteCategory(selectedClient.id, selectedItem.id);
+            break;
+          case 'method':
+            await deletePaymentMethod(selectedClient.id, selectedItem.id);
+            break;
+          case 'unit':
+            // Units use unitId as their document ID, not id
+            await deleteUnit(selectedClient.id, selectedItem.unitId || selectedItem.id);
+            break;
+          case 'users':
+            await secureApi.deleteUser(selectedItem.id);
+            break;
+          default:
+            console.error('Unknown list type:', currentList.id);
+            alert('Unknown list type');
+            return;
+        }
+        
+        console.log('✅ Item deleted successfully');
+      };
       
-      switch (currentList.id) {
-        case 'vendor':
-          await deleteVendor(selectedClient.id, selectedItem.id);
-          break;
-        case 'category':
-          await deleteCategory(selectedClient.id, selectedItem.id);
-          break;
-        case 'method':
-          await deletePaymentMethod(selectedClient.id, selectedItem.id);
-          break;
-        case 'unit':
-          // Units use unitId as their document ID, not id
-          await deleteUnit(selectedClient.id, selectedItem.unitId || selectedItem.id);
-          break;
-        case 'users':
-          await secureApi.deleteUser(selectedItem.id);
-          break;
-        default:
-          console.error('Unknown list type:', currentList.id);
-          alert('Unknown list type');
-          return;
-      }
-      
-      console.log('✅ Item deleted successfully');
-      
-      // Refresh the list by triggering a re-render
-      setRefreshTrigger(prev => prev + 1);
-      setSelectedItem(null); // Clear selection after delete
+      await handleSaveWithRefresh(deleteOperation, currentList.label.slice(0, -1).toLowerCase());
       
     } catch (error) {
       console.error('❌ Error deleting item:', error);
@@ -723,18 +748,15 @@ function ListManagementView() {
     }
 
     try {
-      if (activeModal.action === 'edit') {
-        await updateVendor(selectedClient.id, activeModal.itemData.id, vendorData);
-      } else {
-        await createVendor(selectedClient.id, vendorData);
-      }
+      const saveOperation = async () => {
+        if (activeModal.action === 'edit') {
+          await updateVendor(selectedClient.id, activeModal.itemData.id, vendorData);
+        } else {
+          await createVendor(selectedClient.id, vendorData);
+        }
+      };
       
-      // Refresh the list by triggering a re-render
-      setRefreshTrigger(prev => prev + 1);
-      setSelectedItem(null); // Clear selection after save
-      
-      // Close modal
-      handleCloseModal();
+      await handleSaveWithRefresh(saveOperation, 'vendor');
       
     } catch (error) {
       console.error('❌ Error saving vendor:', error);
@@ -751,24 +773,21 @@ function ListManagementView() {
     }
 
     try {
-      if (activeModal.action === 'edit') {
-        // Update existing category - use the original category's document ID
-        console.log(`✏️ Updating category: ${categoryData.name}`);
-        await updateCategory(selectedClient.id, activeModal.itemData.id, categoryData);
-        console.log('✅ Category updated successfully');
-      } else {
-        // Create new category
-        console.log(`➕ Creating category: ${categoryData.name}`);
-        await createCategory(selectedClient.id, categoryData);
-        console.log('✅ Category created successfully');
-      }
+      const saveOperation = async () => {
+        if (activeModal.action === 'edit') {
+          // Update existing category - use the original category's document ID
+          console.log(`✏️ Updating category: ${categoryData.name}`);
+          await updateCategory(selectedClient.id, activeModal.itemData.id, categoryData);
+          console.log('✅ Category updated successfully');
+        } else {
+          // Create new category
+          console.log(`➕ Creating category: ${categoryData.name}`);
+          await createCategory(selectedClient.id, categoryData);
+          console.log('✅ Category created successfully');
+        }
+      };
       
-      // Refresh the list by triggering a re-render
-      setRefreshTrigger(prev => prev + 1);
-      setSelectedItem(null); // Clear selection after save
-      
-      // Close modal
-      handleCloseModal();
+      await handleSaveWithRefresh(saveOperation, 'category');
       
     } catch (error) {
       console.error('❌ Error saving category:', error);
@@ -785,24 +804,21 @@ function ListManagementView() {
     }
 
     try {
-      if (activeModal.action === 'edit') {
-        // Update existing payment method - use the original method's document ID
-        console.log(`✏️ Updating payment method: ${methodData.name}`);
-        await updatePaymentMethod(selectedClient.id, activeModal.itemData.id, methodData);
-        console.log('✅ Payment method updated successfully');
-      } else {
-        // Create new payment method
-        console.log(`➕ Creating payment method: ${methodData.name}`);
-        await createPaymentMethod(selectedClient.id, methodData);
-        console.log('✅ Payment method created successfully');
-      }
+      const saveOperation = async () => {
+        if (activeModal.action === 'edit') {
+          // Update existing payment method - use the original method's document ID
+          console.log(`✏️ Updating payment method: ${methodData.name}`);
+          await updatePaymentMethod(selectedClient.id, activeModal.itemData.id, methodData);
+          console.log('✅ Payment method updated successfully');
+        } else {
+          // Create new payment method
+          console.log(`➕ Creating payment method: ${methodData.name}`);
+          await createPaymentMethod(selectedClient.id, methodData);
+          console.log('✅ Payment method created successfully');
+        }
+      };
       
-      // Refresh the list by triggering a re-render
-      setRefreshTrigger(prev => prev + 1);
-      setSelectedItem(null); // Clear selection after save
-      
-      // Close modal
-      handleCloseModal();
+      await handleSaveWithRefresh(saveOperation, 'payment method');
       
     } catch (error) {
       console.error('❌ Error saving payment method:', error);
@@ -819,29 +835,21 @@ function ListManagementView() {
     }
 
     try {
-      // For units, we need to use unitId as the document ID (since units don't have an 'id' field)
-      // The activeModal.itemData will have unitId from the backend's listUnits function
-      if (activeModal.action === 'edit' && activeModal.itemData?.unitId) {
-        // Update existing unit - use unitId as the document ID
-        await updateUnit(selectedClient.id, activeModal.itemData.unitId, unitData);
-        console.log('✅ Unit updated successfully');
-      } else {
-        // Create new unit
-        await createUnit(selectedClient.id, unitData);
-        console.log('✅ Unit created successfully');
-      }
+      const saveOperation = async () => {
+        // For units, we need to use unitId as the document ID (since units don't have an 'id' field)
+        // The activeModal.itemData will have unitId from the backend's listUnits function
+        if (activeModal.action === 'edit' && activeModal.itemData?.unitId) {
+          // Update existing unit - use unitId as the document ID
+          await updateUnit(selectedClient.id, activeModal.itemData.unitId, unitData);
+          console.log('✅ Unit updated successfully');
+        } else {
+          // Create new unit
+          await createUnit(selectedClient.id, unitData);
+          console.log('✅ Unit created successfully');
+        }
+      };
       
-      // Close modal first
-      handleCloseModal();
-      
-      // Brief pause to allow database write to complete
-      console.log('⏳ Waiting for database write to complete...');
-      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
-      
-      // Refresh the list by triggering a re-render
-      console.log('🔄 Triggering data refresh...');
-      setRefreshTrigger(prev => prev + 1);
-      setSelectedItem(null); // Clear selection after save
+      await handleSaveWithRefresh(saveOperation, 'unit');
       
     } catch (error) {
       console.error('❌ Error saving unit:', error);

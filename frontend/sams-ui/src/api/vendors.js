@@ -42,10 +42,11 @@ export async function getVendors(clientId) {
     
     const headers = await getAuthHeaders();
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/vendors`, {
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/vendors?t=${Date.now()}`, {
       method: 'GET',
       headers,
       credentials: 'include',
+      cache: 'no-store',
     });
     
     const result = await response.json();

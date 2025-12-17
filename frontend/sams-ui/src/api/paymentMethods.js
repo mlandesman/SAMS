@@ -49,10 +49,11 @@ export async function getPaymentMethods(clientId, authToken = null) {
         }
       : await getAuthHeaders();
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/paymentMethods`, {
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/paymentMethods?t=${Date.now()}`, {
       method: 'GET',
       headers,
       credentials: 'include',
+      cache: 'no-store',
     });
     
     const result = await response.json();

@@ -42,10 +42,11 @@ export async function getCategories(clientId) {
     
     const headers = await getAuthHeaders();
     
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/categories`, {
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/categories?t=${Date.now()}`, {
       method: 'GET',
       headers,
       credentials: 'include',
+      cache: 'no-store',
     });
     
     const result = await response.json();
