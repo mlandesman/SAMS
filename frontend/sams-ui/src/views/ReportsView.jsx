@@ -40,11 +40,27 @@ function ReportsView() {
   
   const [tabIndex, setTabIndex] = useState(getInitialTab);
   const [zoom, setZoom] = useState(1.0);
+  const [zoomMode, setZoomMode] = useState('custom'); // 'custom', 'page-width', 'single-page'
   const { setCenterContent, clearCenterContent } = useStatusBar();
 
   const handleZoomChange = useCallback((event) => {
-    const value = Number(event.target.value);
-    setZoom(value);
+    const value = event.target.value;
+    
+    if (value === 'page-width' || value === 'single-page') {
+      setZoomMode(value);
+      // Calculate zoom based on container and content width
+      // For now, use reasonable defaults - will be calculated dynamically when iframe loads
+      if (value === 'page-width') {
+        // Assume standard 8.5" page width (816px) fits in ~1000px container
+        setZoom(0.8);
+      } else if (value === 'single-page') {
+        // Assume standard 11" page height (1056px) fits in ~600px container
+        setZoom(0.5);
+      }
+    } else {
+      setZoomMode('custom');
+      setZoom(Number(value));
+    }
   }, []);
 
   // Register zoom control in the StatusBar center when on Reports
@@ -54,14 +70,20 @@ function ReportsView() {
         <span className="status-zoom-label">Zoom</span>
         <select
           className="status-zoom-select"
-          value={zoom}
+          value={zoomMode === 'custom' ? zoom : zoomMode}
           onChange={handleZoomChange}
         >
-          <option value={0.75}>75%</option>
-          <option value={1.0}>100%</option>
-          <option value={1.25}>125%</option>
-          <option value={1.5}>150%</option>
-          <option value={2.0}>200%</option>
+          <optgroup label="Fit">
+            <option value="page-width">Page Width</option>
+            <option value="single-page">Single Page</option>
+          </optgroup>
+          <optgroup label="Percentage">
+            <option value={0.75}>75%</option>
+            <option value={1.0}>100%</option>
+            <option value={1.25}>125%</option>
+            <option value={1.5}>150%</option>
+            <option value={2.0}>200%</option>
+          </optgroup>
         </select>
       </div>
     );
@@ -71,7 +93,7 @@ function ReportsView() {
     return () => {
       clearCenterContent();
     };
-  }, [zoom, setCenterContent, clearCenterContent, handleZoomChange]);
+  }, [zoom, zoomMode, setCenterContent, clearCenterContent, handleZoomChange]);
 
   if (!selectedClient) {
     return (
@@ -123,8 +145,8 @@ function ReportsView() {
       </Box>
 
       <div className="reports-content">
-        {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} />}
-        {tabIndex === 1 && <BudgetActualTab zoom={zoom} />}
+        {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} zoomMode={zoomMode} />}
+        {tabIndex === 1 && <BudgetActualTab zoom={zoom} zoomMode={zoomMode} />}
         {tabIndex === 2 && <ActivityTab />}
         {tabIndex === 3 && (
           <div className="reports-tab-content">

@@ -492,6 +492,84 @@ class ReportService {
     a.click();
     window.URL.revokeObjectURL(url);
   }
+
+  /**
+   * Get Budget Report HTML for a client
+   * GET /api/clients/:clientId/reports/budget/:year
+   *
+   * @param {string} clientId
+   * @param {number} fiscalYear - Fiscal year (e.g., 2026)
+   * @param {string} language - 'english' or 'spanish'
+   */
+  async getBudgetReportHtml(clientId, fiscalYear, language = 'english') {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('language', language);
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget/${fiscalYear}?${params.toString()}`,
+      {
+        method: 'GET',
+        headers
+      }
+    );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to fetch budget report HTML');
+    }
+
+    return json.html;
+  }
+
+  /**
+   * Export Budget Report PDF using pre-generated HTML
+   * POST /reports/:clientId/budget/:year/pdf
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {number} params.fiscalYear
+   * @param {string} params.language
+   * @param {string} params.html - Complete HTML document
+   */
+  async exportBudgetReportPdf(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget/${params.fiscalYear}/pdf`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          fiscalYear: params.fiscalYear,
+          language: params.language || 'english',
+          html: params.html
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export budget report PDF (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    // Open in a new tab so the browser/OS handles print/save UX
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+      console.warn('Unable to open PDF window (popup blocked?)');
+    }
+
+    // Revoke URL after some time to avoid breaking the viewer immediately
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 60 * 1000);
+  }
 }
 
 // Export singleton instance

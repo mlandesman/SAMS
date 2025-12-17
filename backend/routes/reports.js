@@ -16,6 +16,7 @@ import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
 import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
 import { generateBudgetActualText } from '../services/budgetActualTextService.js';
+import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import axios from 'axios';
 
@@ -1035,6 +1036,113 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       success: false,
       error: error.message,
       details: error.stack
+    });
+  }
+});
+
+/**
+ * Get Budget Report HTML for a client
+ * GET /api/clients/:clientId/reports/budget/:year
+ * Query params:
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Returns professional HTML report with year-over-year comparison
+ */
+router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = parseInt(req.params.year);
+    const language = req.query.language || 'english';
+    const user = req.user;
+    
+    if (!clientId || !fiscalYear || isNaN(fiscalYear)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID and valid fiscal year are required'
+      });
+    }
+    
+    // Validate propertyAccess
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+    
+    const { html, meta } = await generateBudgetReportHtml(clientId, fiscalYear, language, user);
+    
+    res.json({
+      success: true,
+      html,
+      meta
+    });
+  } catch (error) {
+    console.error('Budget report error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Export Budget Report PDF
+ * POST /api/clients/:clientId/reports/budget/:year/pdf
+ * Body: { html, language }
+ * 
+ * Returns PDF export of the budget report
+ */
+router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = parseInt(req.params.year);
+    const { html, language = 'english' } = req.body;
+    const user = req.user;
+    
+    if (!clientId || !fiscalYear || isNaN(fiscalYear)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID and valid fiscal year are required'
+      });
+    }
+    
+    if (!html) {
+      return res.status(400).json({
+        success: false,
+        error: 'html field is required in request body'
+      });
+    }
+    
+    // Validate propertyAccess
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+    
+    // Generate PDF from HTML
+    const pdfBuffer = await generatePdf(html, {
+      format: 'Letter',
+      footerMeta: {
+        statementId: `BUDGET-${clientId}-${fiscalYear}`,
+        generatedAt: new Date().toLocaleDateString(),
+        language
+      }
+    });
+    
+    const safeClientId = clientId || 'client';
+    const fileName = `Budget-${safeClientId}-FY${fiscalYear}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Budget PDF error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
