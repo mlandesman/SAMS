@@ -8,7 +8,27 @@ import { getMexicoDate } from '../../utils/timezone';
 import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
 import { bulkGenerateStatements } from '../../api/admin';
+import { sendStatementEmail } from '../../api/email';
 import './StatementOfAccountTab.css';
+
+import { getAuthInstance } from '../../firebaseClient';
+
+// Get authentication headers with Firebase ID token
+const getAuthHeaders = async () => {
+  const auth = getAuthInstance();
+  const user = auth.currentUser;
+  
+  if (!user) {
+    throw new Error('No authenticated user');
+  }
+  
+  const token = await user.getIdToken();
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+};
+
 
 function normalizeLanguage(lang) {
   if (!lang) return null;
@@ -92,6 +112,8 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState(null);
 
   // Bulk generation state
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -272,6 +294,34 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         setStatementData(data);
         setHtmlPreview(data.html);
         setHasGenerated(true);
+
+        
+        // Generate and store both English and Spanish PDFs for email links
+        try {
+          const pdfResponse = await fetch(
+            `${process.env.REACT_APP_API_BASE_URL || ''}/api/clients/${selectedClient.id}/email/generate-pdfs`,
+            {
+              method: 'POST',
+              headers: {
+                ...await getAuthHeaders(),
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include',
+              body: JSON.stringify({ unitId: selectedUnitId, fiscalYear })
+            }
+          );
+          
+          if (pdfResponse.ok) {
+            const result = await pdfResponse.json();
+            console.log('✅ PDFs generated and stored:', result.pdfUrls);
+          } else {
+            console.warn('⚠️ PDF generation warning (non-critical)');
+          }
+        } catch (pdfError) {
+          console.warn('⚠️ PDF generation warning (non-critical):', pdfError);
+          // Don't fail the whole operation if PDF generation fails
+        }
+
       } catch (err) {
         console.error('Statement generation error:', err);
         setError('Failed to generate statement. Please try again.');
@@ -310,8 +360,31 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         setDownloadingPdf(false);
       }
     },
-    [selectedClient, selectedUnitId, language, fiscalYear, htmlPreview]
+    [selectedClient, selectedUnitId, htmlPreview, fiscalYear, language]
   );
+
+  const handleSendEmail = async () => {
+    if (!selectedUnitId || !selectedClient) {
+      setEmailResult({ success: false, message: 'Please select a unit first' });
+      return;
+    }
+    
+    setEmailSending(true);
+    setEmailResult(null);
+    
+    try {
+      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear);
+      setEmailResult({ 
+        success: true, 
+        message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''}` 
+      });
+    } catch (error) {
+      console.error('Failed to send statement email:', error);
+      setEmailResult({ success: false, message: error.message });
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const handleRetry = useCallback(() => {
     handleGenerate();
@@ -552,13 +625,33 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           <button
             type="button"
             className="secondary-button"
-            disabled
-            title="Coming soon"
+            onClick={handleSendEmail}
+            disabled={!selectedUnitId || emailSending || !htmlPreview}
           >
-            Email
+            {emailSending ? 'Sending...' : 'Email'}
           </button>
         </div>
+        
+        {emailSending && (
+          <div className="statement-preview-overlay">
+            <LoadingSpinner
+              show={true}
+              variant="logo"
+              size="large"
+              message="Generating and sending statement email... This may take several seconds."
+              fullScreen={false}
+            />
+          </div>
+        )}
+        
+        {emailResult && (
+          <div style={{ marginTop: '8px', padding: '8px', borderRadius: '4px', backgroundColor: emailResult.success ? '#d4edda' : '#f8d7da', color: emailResult.success ? '#155724' : '#721c24', fontSize: '14px' }}>
+            {emailResult.message}
+            <button onClick={() => setEmailResult(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>×</button>
+          </div>
+        )}
       </div>
+
 
       <div className="statement-preview">
         {(downloadingPdf || downloadingCsv) && (
@@ -732,7 +825,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
       </div>
-    </div>
+      </div>
   );
 }
 

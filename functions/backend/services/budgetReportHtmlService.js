@@ -7,13 +7,6 @@ import { getDb } from '../firebase.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { DateTime } from 'luxon';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 import { getFiscalYear, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 
 /**
@@ -205,10 +198,7 @@ async function getBudgetsForYear(db, clientId, year, user) {
   const budgets = await listBudgetsByYear(clientId, year, user);
   const budgetMap = new Map();
   budgets.forEach(budget => {
-    budgetMap.set(budget.categoryId, {
-      amount: budget.amount || 0, // amount in centavos
-      notes: budget.notes || ''
-    });
+    budgetMap.set(budget.categoryId, budget.amount || 0); // amount in centavos
   });
   return budgetMap;
 }
@@ -226,10 +216,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
     throw new Error(`Client ${clientId} not found`);
   }
   
-  // Read responsive CSS file
-  const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
-  const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
-
   const clientData = clientDoc.data();
   const clientName = clientData.basicInfo?.fullName || clientData.basicInfo?.displayName || clientData.name || clientData.displayName || clientId;
   const logoUrl = clientData.branding?.logoUrl;
@@ -270,17 +256,13 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   let totalExpenseCurrent = 0, totalExpensePrior = 0;
   
   incomeCategories.forEach(cat => {
-    const currentData = currentBudgets.get(cat.id) || { amount: 0 };
-    const priorData = priorBudgets.get(cat.id) || { amount: 0 };
-    totalIncomeCurrent += currentData.amount || 0;
-    totalIncomePrior += priorData.amount || 0;
+    totalIncomeCurrent += currentBudgets.get(cat.id) || 0;
+    totalIncomePrior += priorBudgets.get(cat.id) || 0;
   });
   
   expenseCategories.forEach(cat => {
-    const currentData = currentBudgets.get(cat.id) || { amount: 0 };
-    const priorData = priorBudgets.get(cat.id) || { amount: 0 };
-    totalExpenseCurrent += currentData.amount || 0;
-    totalExpensePrior += priorData.amount || 0;
+    totalExpenseCurrent += currentBudgets.get(cat.id) || 0;
+    totalExpensePrior += priorBudgets.get(cat.id) || 0;
   });
   
   // Labels
@@ -292,7 +274,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
     currentYear: isSpanish ? `Año ${currentYear}` : `FY ${currentYear}`,
     change: isSpanish ? 'Cambio' : 'Change',
     percentChange: isSpanish ? '% Cambio' : '% Change',
-    notes: isSpanish ? 'Notas' : 'Notes',
     income: isSpanish ? 'Ingresos' : 'Income',
     expenses: isSpanish ? 'Gastos' : 'Expenses',
     totalIncome: isSpanish ? 'Total Ingresos' : 'Total Income',
@@ -306,34 +287,22 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   // Generate category rows
   const generateCategoryRows = (cats, budgetsCurrent, budgetsPrior) => {
     return cats.map(cat => {
-      const currentData = budgetsCurrent.get(cat.id) || { amount: 0, notes: '' };
-      const priorData = budgetsPrior.get(cat.id) || { amount: 0, notes: '' };
-      const currentCentavos = currentData.amount;
-      const priorCentavos = priorData.amount;
+      const currentCentavos = budgetsCurrent.get(cat.id) || 0;
+      const priorCentavos = budgetsPrior.get(cat.id) || 0;
       const current = toPesos(currentCentavos);
       const prior = toPesos(priorCentavos);
-      const notes = currentData.notes || '';
       const { change, percentChange } = calculateChange(current, prior);
       
       const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : '';
       const categoryName = translateCategoryName(cat.name || cat.id, language);
       
-      // Escape HTML special characters in notes
-      const escapedNotes = notes
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-      
       return `
         <tr>
-          <td class="category-name">${categoryName}</td>
+          <td>${categoryName}</td>
           <td class="amount">${formatCurrency(prior)}</td>
           <td class="amount">${formatCurrency(current)}</td>
           <td class="amount ${changeClass}">${formatCurrency(change, true)}</td>
           <td class="amount ${changeClass}">${formatPercent(percentChange)}</td>
-          <td class="notes">${escapedNotes}</td>
         </tr>
       `;
     }).join('');
@@ -365,7 +334,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="format-detection" content="telephone=no">
   <title>${labels.title} - FY ${fiscalYear}</title>
   <style>
     * { box-sizing: border-box; }
@@ -425,7 +393,7 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
     }
     
     th, td {
-      padding: 6px 8px;
+      padding: 8px 10px;
       text-align: left;
       border-bottom: 1px solid #eee;
     }
@@ -438,30 +406,8 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
       color: #666;
     }
     
-    td.category-name, th:first-child {
-      max-width: 180px;
-      min-width: 120px;
-      width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    
     td.amount, th.amount {
       text-align: right;
-      white-space: nowrap;
-      min-width: 70px;
-      width: 90px;
-    }
-    
-    td.notes {
-      font-size: 11px;
-      max-width: 200px;
-      min-width: 150px;
-      width: 200px;
-      word-wrap: break-word;
-      color: #666;
-      white-space: normal;
     }
     
     .total-row {
@@ -528,18 +474,14 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
       body { padding: 0; }
       .no-print { display: none; }
     }
-    /* =====================================================
-       Responsive Report Common CSS (from reportCommon.css)
-       ===================================================== */
-    ${reportCommonCss}
   </style>
 </head>
 <body>
-  <div class="report-container header">
+  <div class="header">
     ${normalizedLogoUrl ? `<img src="${normalizedLogoUrl}" alt="${clientName}" class="logo" />` : ''}
     <h1>${labels.title}</h1>
-    <div class="report-container client-name">${clientName}</div>
-    <div class="report-container fiscal-year">${labels.fiscalYear}: ${currentYear}</div>
+    <div class="client-name">${clientName}</div>
+    <div class="fiscal-year">${labels.fiscalYear}: ${currentYear}</div>
   </div>
   
   <h2>${labels.income}</h2>
@@ -551,7 +493,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
         <th class="amount">${labels.currentYear}</th>
         <th class="amount">${labels.change}</th>
         <th class="amount">${labels.percentChange}</th>
-        <th>${labels.notes}</th>
       </tr>
     </thead>
     <tbody>
@@ -562,7 +503,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
         <td class="amount">${formatCurrency(toPesos(totalIncomeCurrent))}</td>
         <td class="amount ${incomeChange.change > 0 ? 'positive' : incomeChange.change < 0 ? 'negative' : ''}">${formatCurrency(incomeChange.change, true)}</td>
         <td class="amount ${incomeChange.change > 0 ? 'positive' : incomeChange.change < 0 ? 'negative' : ''}">${formatPercent(incomeChange.percentChange)}</td>
-        <td></td>
       </tr>
     </tbody>
   </table>
@@ -576,7 +516,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
         <th class="amount">${labels.currentYear}</th>
         <th class="amount">${labels.change}</th>
         <th class="amount">${labels.percentChange}</th>
-        <th>${labels.notes}</th>
       </tr>
     </thead>
     <tbody>
@@ -587,25 +526,24 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
         <td class="amount">${formatCurrency(toPesos(totalExpenseCurrent))}</td>
         <td class="amount ${expenseChange.change > 0 ? 'positive' : expenseChange.change < 0 ? 'negative' : ''}">${formatCurrency(expenseChange.change, true)}</td>
         <td class="amount ${expenseChange.change > 0 ? 'positive' : expenseChange.change < 0 ? 'negative' : ''}">${formatPercent(expenseChange.percentChange)}</td>
-        <td></td>
       </tr>
     </tbody>
   </table>
   
-  <div class="report-container summary">
+  <div class="summary">
     <h2>${labels.summary}</h2>
-    <div class="report-container summary-grid">
-      <div class="report-container summary-item">
-        <div class="report-container label">${labels.reserve}</div>
-        <div class="report-container value">${formatCurrency(reserveCurrent)}</div>
-        <div class="report-container change ${reserveChange > 0 ? 'positive' : reserveChange < 0 ? 'negative' : ''}">
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="label">${labels.reserve}</div>
+        <div class="value">${formatCurrency(reserveCurrent)}</div>
+        <div class="change ${reserveChange > 0 ? 'positive' : reserveChange < 0 ? 'negative' : ''}">
           ${formatCurrency(reserveChange, true)} (${formatPercent(reservePercentChange)})
         </div>
       </div>
     </div>
   </div>
   
-  <div class="report-container footer">
+  <div class="footer">
     <p>${labels.generated}: ${formattedDate}</p>
   </div>
 </body>

@@ -6,7 +6,7 @@
 import express from 'express';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getEmailConfig, setEmailConfig, initializeMTCEmailConfig } from '../controllers/emailConfigController.js';
-import { sendReceiptEmail, testEmailConfig, sendWaterBillEmail, testWaterBillEmail } from '../controllers/emailService.js';
+import { sendReceiptEmail, testEmailConfig, sendWaterBillEmail, testWaterBillEmail, sendStatementEmail, generateAndUploadPdfs } from '../controllers/emailService.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -273,5 +273,111 @@ router.post('/test-water-bill', async (req, res) => {
     });
   }
 });
+
+
+// POST /api/clients/:clientId/email/send-statement - Send Statement of Account email
+
+
+// POST /api/clients/:clientId/email/generate-pdfs - Generate and store PDFs for statement
+router.post('/generate-pdfs', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitId, fiscalYear } = req.body;
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Unit ID is required' 
+      });
+    }
+    
+    if (!fiscalYear) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Fiscal year is required' 
+      });
+    }
+    
+    // Extract auth token from request headers
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    const authToken = authHeader ? authHeader.replace('Bearer ', '') : null;
+    
+    // Generate and store PDFs (reuse existing function)
+    const pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+    
+    res.json({ 
+      success: true, 
+      message: 'PDFs generated and stored successfully',
+      pdfUrls 
+    });
+  } catch (error) {
+    console.error('❌ Error generating PDFs:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate PDFs',
+      details: error.message 
+    });
+  }
+});
+
+
+router.post('/send-statement', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitId, fiscalYear } = req.body;
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Unit ID is required' 
+      });
+    }
+    
+    if (!fiscalYear) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Fiscal year is required' 
+      });
+    }
+    
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})`);
+    
+    // Extract auth token from request headers
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    const authToken = authHeader ? authHeader.replace('Bearer ', '') : null;
+    
+    const result = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken);
+    
+    if (result.success) {
+      res.json({ success: true, message: 'Statement email sent successfully', ...result });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ Error sending statement email:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send statement email',
+      details: error.message 
+    });
+  }
+});
+
 
 export default router;

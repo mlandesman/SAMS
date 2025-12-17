@@ -16,6 +16,7 @@ function BudgetEntryTab() {
   const [error, setError] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
   const [editingAmounts, setEditingAmounts] = useState({}); // { categoryId: amountInPesos }
+  const [editingNotes, setEditingNotes] = useState({}); // { categoryId: notesString }
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -58,13 +59,16 @@ function BudgetEntryTab() {
 
         // Initialize editing amounts (convert centavos to pesos for display)
         const editingMap = {};
+        const notesMap = {};
         categoriesList.forEach(category => {
           const budget = budgetsMap[category.id];
           editingMap[category.id] = budget && budget.amount > 0 
             ? centavosToPesos(budget.amount) 
             : '';
+          notesMap[category.id] = budget?.notes || '';
         });
         setEditingAmounts(editingMap);
+        setEditingNotes(notesMap);
 
       } catch (err) {
         console.error('Error fetching budget data:', err);
@@ -105,6 +109,15 @@ function BudgetEntryTab() {
     }
   };
 
+  // Handle notes input change
+  const handleNotesChange = (categoryId, value) => {
+    setEditingNotes(prev => ({
+      ...prev,
+      [categoryId]: value
+    }));
+    setSaveSuccess(false);
+  };
+
   // Save single budget entry
   const handleSaveSingle = async (categoryId) => {
     if (!selectedClient || !selectedYear) return;
@@ -116,7 +129,7 @@ function BudgetEntryTab() {
       setError(null);
       
       try {
-        await saveBudget(selectedClient.id, categoryId, selectedYear, 0);
+        await saveBudget(selectedClient.id, categoryId, selectedYear, 0, editingNotes[categoryId] || '');
         
         // Refresh budgets
         const budgetsResult = await fetchBudgetsByYear(selectedClient.id, selectedYear);
@@ -150,7 +163,7 @@ function BudgetEntryTab() {
 
     try {
       const amountInCentavos = pesosToCentavos(numValue);
-      await saveBudget(selectedClient.id, categoryId, selectedYear, amountInCentavos);
+      await saveBudget(selectedClient.id, categoryId, selectedYear, amountInCentavos, editingNotes[categoryId] || '');
       
       // Refresh budgets
       const budgetsResult = await fetchBudgetsByYear(selectedClient.id, selectedYear);
@@ -202,7 +215,7 @@ function BudgetEntryTab() {
         const amountInCentavos = amount === '' || amount === undefined 
           ? 0 
           : pesosToCentavos(parseFloat(amount));
-        return saveBudget(selectedClient.id, categoryId, selectedYear, amountInCentavos);
+        return saveBudget(selectedClient.id, categoryId, selectedYear, amountInCentavos, editingNotes[categoryId] || '');
       });
 
       await Promise.all(savePromises);
@@ -336,6 +349,7 @@ function BudgetEntryTab() {
               <th>Category Name</th>
               <th>Type</th>
               <th>Budget Amount (MXN)</th>
+              <th>Notes</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -365,6 +379,18 @@ function BudgetEntryTab() {
                         step: 0.01
                       }}
                       sx={{ width: '150px' }}
+                      size="small"
+                    />
+                  </td>
+                  <td>
+                    <TextField
+                      value={editingNotes[category.id] || ''}
+                      onChange={(e) => handleNotesChange(category.id, e.target.value)}
+                      placeholder="Budget notes..."
+                      multiline
+                      minRows={1}
+                      maxRows={3}
+                      sx={{ width: '200px' }}
                       size="small"
                     />
                   </td>

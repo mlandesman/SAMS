@@ -76,11 +76,12 @@ export async function fetchBudgetsByYear(clientId, year) {
  * @param {string} categoryId - The category ID
  * @param {number} year - The fiscal year
  * @param {number} amount - The budget amount in centavos (integer)
+ * @param {string} notes - Optional notes string
  * @returns {Promise<Object>} Response with saved budget data
  */
-export async function saveBudget(clientId, categoryId, year, amount) {
+export async function saveBudget(clientId, categoryId, year, amount, notes = '') {
   try {
-    console.log(`💰 Saving budget for client: ${clientId}, category: ${categoryId}, year: ${year}, amount: ${amount} centavos`);
+    console.log(`💰 Saving budget for client: ${clientId}, category: ${categoryId}, year: ${year}, amount: ${amount} centavos, notes: ${notes ? 'provided' : 'none'}`);
     
     // Validate amount is integer (centavos)
     if (!Number.isInteger(amount) || amount < 0) {
@@ -93,7 +94,7 @@ export async function saveBudget(clientId, categoryId, year, amount) {
       method: 'PUT',
       headers,
       credentials: 'include',
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, notes }),
     });
     
     if (!response.ok) {

@@ -41,6 +41,37 @@ async function getAuthHeaders() {
  * @param {string} configType - Type of config (default: 'receiptEmail')
  * @returns {Promise<Object>} Response with email configuration
  */
+
+/**
+ * Send statement email for a single unit
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} fiscalYear - Fiscal year
+ * @returns {Promise<Object>} Result with success status and recipient info
+ */
+export async function sendStatementEmail(clientId, unitId, fiscalYear) {
+  const headers = await getAuthHeaders();
+  
+  const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-statement`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify({ unitId, fiscalYear })
+  });
+  
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error || 'Failed to send statement email');
+  }
+  
+  return result;
+}
+
+
 export async function getEmailConfig(clientId, configType = 'receiptEmail') {
   try {
     console.log(`📋 Fetching email config for client: ${clientId}, type: ${configType}`);

@@ -1,0 +1,458 @@
+{
+  "generatedAt": "2025-12-16T06:33:23.336Z",
+  "environment": "prod",
+  "emails": [
+    {
+      "email": "athomerivieramaya@gmail.com",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "201",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "automorphosis@hotmail.com",
+      "names": [
+        "Martin Marquez"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "203",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Martin Marquez",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "bagnatoestefania@hotmail.com",
+      "names": [
+        "Miguel y Estafania Bagnato"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "102",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Miguel y Estafania Bagnato",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "cfbestfriends@gmail.com",
+      "names": [
+        "Cindy Friend"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "2A",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Cindy Friend",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "cobias05@hotmail.com",
+      "names": [
+        "Sergio Fernández"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "103",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Sergio Fernández",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "crismk3@outlook.com",
+      "names": [
+        "Christian Nieto"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "106",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Christian Nieto",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "daniel@januj.cz",
+      "names": [
+        "Daniel Januj"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "204",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Daniel Januj",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "e.manjarrezr@gema.mx",
+      "names": [
+        "Ernesto Antonio Manjarrez"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "105",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Ernesto Antonio Manjarrez",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "gary@centralmainedrywall.com",
+      "names": [
+        "Gary Violette"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "202",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Gary Violette",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "gluchows@gmail.com",
+      "names": [
+        "Josh Gluchowski"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "PH1A",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Josh Gluchowski",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "gonzzpp@gmail.com",
+      "names": [
+        "José Manuel González"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "104",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "José Manuel González",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "jeff081965@gmail.com",
+      "names": [
+        "Jeff Ische"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "201",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Jeff Ische",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "leekopeika1957@gmail.com",
+      "names": [
+        "Lee Kopeika"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "2C",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Lee Kopeika",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "mandmgarcia@hotmail.co.uk",
+      "names": [
+        "Malena Garcia Reyes"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "2B",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Malena Garcia Reyes",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "meifler@gmail.com",
+      "names": [
+        "Mark Eifler"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "1C",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Mark Eifler",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "michelekinnon67@gmail.com",
+      "names": [
+        "Michele Kinnon"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "1B",
+          "isPrimary": true
+        },
+        {
+          "clientId": "MTC",
+          "unitId": "PH3C",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "Michele Kinnon",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "ms@landesman.com",
+      "names": [
+        "Michael Landesman"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "PH4D",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Michael Landesman",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "nancy@centralmainedrywall.com",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "202",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "patsy.ffexpress@gmail.com",
+      "names": [
+        "Patsy Fletcher"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "1A",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Patsy Fletcher",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "pyrojim1961@gmail.com",
+      "names": [
+        "Jim Harting"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "PH3C",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Jim Harting",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "realestatemaya@gmail.com",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "105",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "rl@massive.ag",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "101",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "robert.rosania@sbcglobal.net",
+      "names": [
+        "Robert Rosania"
+      ],
+      "properties": [
+        {
+          "clientId": "MTC",
+          "unitId": "PH2B",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Robert Rosania",
+      "suggestedRole": "owner"
+    },
+    {
+      "email": "salespuertoaventuras@gmail.com",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "204",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "salimgrayebd@gmail.com",
+      "names": [],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "202",
+          "isPrimary": false
+        }
+      ],
+      "suggestedName": "❓ NEEDS NAME",
+      "suggestedRole": "manager"
+    },
+    {
+      "email": "szerbarini@gmail.com",
+      "names": [
+        "Ramiro de Lisarreta y Sofia Zerbarini"
+      ],
+      "properties": [
+        {
+          "clientId": "AVII",
+          "unitId": "101",
+          "isPrimary": true
+        }
+      ],
+      "suggestedName": "Ramiro de Lisarreta y Sofia Zerbarini",
+      "suggestedRole": "owner"
+    }
+  ],
+  "dataIssues": [
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "AVII",
+      "unitId": "101",
+      "field": "emails[0]",
+      "value": "szerbarini@gmail.com;rl@massive.ag",
+      "parsed": [
+        "szerbarini@gmail.com",
+        "rl@massive.ag"
+      ]
+    },
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "AVII",
+      "unitId": "105",
+      "field": "emails[0]",
+      "value": "e.manjarrezr@gema.mx;realestatemaya@gmail.com",
+      "parsed": [
+        "e.manjarrezr@gema.mx",
+        "realestatemaya@gmail.com"
+      ]
+    },
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "AVII",
+      "unitId": "201",
+      "field": "emails[0]",
+      "value": "jeff081965@gmail.com;athomerivieramaya@gmail.com",
+      "parsed": [
+        "jeff081965@gmail.com",
+        "athomerivieramaya@gmail.com"
+      ]
+    },
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "AVII",
+      "unitId": "202",
+      "field": "emails[0]",
+      "value": "Gary@centralmainedrywall.com;nancy@centralmainedrywall.com;salimgrayebd@gmail.com",
+      "parsed": [
+        "gary@centralmainedrywall.com",
+        "nancy@centralmainedrywall.com",
+        "salimgrayebd@gmail.com"
+      ]
+    },
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "AVII",
+      "unitId": "204",
+      "field": "emails[0]",
+      "value": "daniel@januj.cz;salespuertoaventuras@gmail.com",
+      "parsed": [
+        "daniel@januj.cz",
+        "salespuertoaventuras@gmail.com"
+      ]
+    },
+    {
+      "type": "MULTI_EMAIL_IN_SLOT",
+      "clientId": "MTC",
+      "unitId": "PH3C",
+      "field": "emails[0]",
+      "value": "pyrojim1961@gmail.com;michelekinnon67@gmail.com",
+      "parsed": [
+        "pyrojim1961@gmail.com",
+        "michelekinnon67@gmail.com"
+      ]
+    }
+  ]
+}
