@@ -494,26 +494,53 @@ class ReportService {
   }
 
   /**
-   * Get Budget Report HTML for a client
-   * GET /api/clients/:clientId/reports/budget/:year
+   * Get available budget years for a client
+   * GET /api/clients/:clientId/reports/budget/years
    *
    * @param {string} clientId
-   * @param {number} fiscalYear - Fiscal year (e.g., 2026)
-   * @param {string} language - 'english' or 'spanish'
+   * @returns {Promise<number[]>} Array of years sorted descending
    */
-  async getBudgetReportHtml(clientId, fiscalYear, language = 'english') {
+  async getAvailableBudgetYears(clientId) {
     const headers = await this.getAuthHeaders();
 
-    const params = new URLSearchParams();
-    params.append('language', language);
-
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget/${fiscalYear}?${params.toString()}`,
+      `${this.baseUrl}/reports/${clientId}/budget/years`,
       {
         method: 'GET',
         headers
       }
     );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to fetch available budget years');
+    }
+
+    return json.years || [];
+  }
+
+  /**
+   * Get Budget Report HTML for a client
+   * GET /api/clients/:clientId/reports/budget/:year
+   *
+   * @param {string} clientId
+   * @param {number|null} fiscalYear - Fiscal year (optional - uses highest available if not provided)
+   * @param {string} language - 'english' or 'spanish'
+   */
+  async getBudgetReportHtml(clientId, fiscalYear = null, language = 'english') {
+    const headers = await this.getAuthHeaders();
+
+    const params = new URLSearchParams();
+    params.append('language', language);
+
+    const url = fiscalYear 
+      ? `${this.baseUrl}/reports/${clientId}/budget/${fiscalYear}?${params.toString()}`
+      : `${this.baseUrl}/reports/${clientId}/budget/0?${params.toString()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers
+    });
 
     const json = await response.json();
     if (!response.ok || json.success === false) {
@@ -529,20 +556,23 @@ class ReportService {
    *
    * @param {string} clientId
    * @param {object} params
-   * @param {number} params.fiscalYear
+   * @param {number|null} params.fiscalYear - Optional, uses highest available if not provided
    * @param {string} params.language
    * @param {string} params.html - Complete HTML document
    */
   async exportBudgetReportPdf(clientId, params) {
     const headers = await this.getAuthHeaders();
 
+    // Use 0 as placeholder if fiscalYear not provided - backend will use highest available
+    const yearParam = params.fiscalYear || 0;
+
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget/${params.fiscalYear}/pdf`,
+      `${this.baseUrl}/reports/${clientId}/budget/${yearParam}/pdf`,
       {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          fiscalYear: params.fiscalYear,
+          fiscalYear: params.fiscalYear || null,
           language: params.language || 'english',
           html: params.html
         })

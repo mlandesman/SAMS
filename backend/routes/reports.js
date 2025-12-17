@@ -1041,24 +1041,20 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
 });
 
 /**
- * Get Budget Report HTML for a client
- * GET /api/clients/:clientId/reports/budget/:year
- * Query params:
- *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * Get available budget years for a client
+ * GET /api/clients/:clientId/reports/budget/years
  * 
- * Returns professional HTML report with year-over-year comparison
+ * Returns array of years that have budget entries, sorted descending
  */
-router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
+router.get('/budget/years', authenticateUserWithProfile, async (req, res) => {
   try {
     const clientId = req.originalParams?.clientId || req.params.clientId;
-    const fiscalYear = parseInt(req.params.year);
-    const language = req.query.language || 'english';
     const user = req.user;
     
-    if (!clientId || !fiscalYear || isNaN(fiscalYear)) {
+    if (!clientId) {
       return res.status(400).json({
         success: false,
-        error: 'Client ID and valid fiscal year are required'
+        error: 'Client ID is required'
       });
     }
     
@@ -1070,6 +1066,54 @@ router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
       });
     }
     
+    const { findAvailableBudgetYears } = await import('../services/budgetReportHtmlService.js');
+    const years = await findAvailableBudgetYears(clientId);
+    
+    res.json({
+      success: true,
+      years
+    });
+  } catch (error) {
+    console.error('Budget years error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get Budget Report HTML for a client
+ * GET /api/clients/:clientId/reports/budget/:year
+ * Query params:
+ *   - language (optional): 'english' or 'spanish' (defaults to 'english')
+ * 
+ * Note: The :year parameter is optional - if not provided or invalid, uses highest available year
+ * Returns professional HTML report with year-over-year comparison
+ */
+router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = req.params.year ? parseInt(req.params.year) : null;
+    const language = req.query.language || 'english';
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+    
+    // Validate propertyAccess
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+    
+    // fiscalYear parameter is now optional - service will use highest available year
     const { html, meta } = await generateBudgetReportHtml(clientId, fiscalYear, language, user);
     
     res.json({
@@ -1089,21 +1133,21 @@ router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
 /**
  * Export Budget Report PDF
  * POST /api/clients/:clientId/reports/budget/:year/pdf
- * Body: { html, language }
+ * Body: { html, language, fiscalYear? }
  * 
+ * Note: fiscalYear in body is optional - if not provided, uses highest available year
  * Returns PDF export of the budget report
  */
 router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) => {
   try {
     const clientId = req.originalParams?.clientId || req.params.clientId;
-    const fiscalYear = parseInt(req.params.year);
-    const { html, language = 'english' } = req.body;
+    const { html, language = 'english', fiscalYear: bodyFiscalYear } = req.body;
     const user = req.user;
     
-    if (!clientId || !fiscalYear || isNaN(fiscalYear)) {
+    if (!clientId) {
       return res.status(400).json({
         success: false,
-        error: 'Client ID and valid fiscal year are required'
+        error: 'Client ID is required'
       });
     }
     
@@ -1120,6 +1164,20 @@ router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) =
         success: false,
         error: 'Access denied to this client'
       });
+    }
+    
+    // Determine fiscal year - use body fiscalYear if provided, otherwise find highest available
+    let fiscalYear = bodyFiscalYear ? parseInt(bodyFiscalYear) : null;
+    if (!fiscalYear || isNaN(fiscalYear)) {
+      const { findAvailableBudgetYears } = await import('../services/budgetReportHtmlService.js');
+      const availableYears = await findAvailableBudgetYears(clientId);
+      if (availableYears.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No budget entries found for this client'
+        });
+      }
+      fiscalYear = availableYears[0]; // Use highest available year
     }
     
     // Generate PDF from HTML

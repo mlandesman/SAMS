@@ -50,8 +50,8 @@ function getDefaultLanguage({ selectedClient, samsUser }) {
   return 'english';
 }
 
-function buildFiscalYearOptions(selectedClient) {
-  if (!selectedClient) {
+function buildFiscalYearOptions(availableYears, selectedClient) {
+  if (!selectedClient || !availableYears || availableYears.length === 0) {
     return [];
   }
 
@@ -59,13 +59,9 @@ function buildFiscalYearOptions(selectedClient) {
   if (typeof fiscalYearStartMonth !== 'number' || isNaN(fiscalYearStartMonth)) {
     fiscalYearStartMonth = 1;
   }
-  
-  const todayMexico = getMexicoDate();
-  const currentFiscalYear = getFiscalYear(todayMexico, fiscalYearStartMonth);
 
-  const years = [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2];
-
-  return years.map(year => ({
+  // Use available budget years, sorted descending (highest first)
+  return availableYears.map(year => ({
     value: year,
     label: getFiscalYearLabel(year, fiscalYearStartMonth)
   }));
@@ -77,6 +73,8 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
 
   const [fiscalYear, setFiscalYear] = useState(null);
   const [language, setLanguage] = useState('english');
+  const [availableYears, setAvailableYears] = useState([]);
+  const [loadingYears, setLoadingYears] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -84,23 +82,48 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  // Initialize language and fiscal year when client or user changes
+  // Load available budget years when client changes
+  useEffect(() => {
+    const loadAvailableYears = async () => {
+      if (!selectedClient) {
+        setAvailableYears([]);
+        setFiscalYear(null);
+        return;
+      }
+
+      setLoadingYears(true);
+      try {
+        const years = await reportService.getAvailableBudgetYears(selectedClient.id);
+        setAvailableYears(years);
+        
+        // Set to highest available year (first in sorted descending array)
+        if (years.length > 0) {
+          setFiscalYear(years[0]);
+        }
+      } catch (err) {
+        console.error('Failed to load available budget years:', err);
+        setError('Failed to load available budget years. Please try again.');
+        setAvailableYears([]);
+      } finally {
+        setLoadingYears(false);
+      }
+    };
+
+    loadAvailableYears();
+  }, [selectedClient]);
+
+  // Initialize language when client or user changes
   useEffect(() => {
     if (!selectedClient) {
       return;
     }
 
     setLanguage(getDefaultLanguage({ selectedClient, samsUser }));
-
-    const options = buildFiscalYearOptions(selectedClient);
-    if (options.length > 0) {
-      setFiscalYear(options[0].value);
-    }
   }, [selectedClient, samsUser]);
 
   const fiscalYearOptions = useMemo(
-    () => buildFiscalYearOptions(selectedClient),
-    [selectedClient]
+    () => buildFiscalYearOptions(availableYears, selectedClient),
+    [availableYears, selectedClient]
   );
 
   const handleGenerate = useCallback(
@@ -109,7 +132,7 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
         event.preventDefault();
       }
 
-      if (!selectedClient || !fiscalYear) {
+      if (!selectedClient) {
         return;
       }
 
@@ -117,6 +140,7 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
       setError(null);
 
       try {
+        // Pass fiscalYear (or null to use highest available)
         const html = await reportService.getBudgetReportHtml(
           selectedClient.id,
           fiscalYear,
@@ -166,18 +190,18 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
     handleGenerate();
   }, [handleGenerate]);
 
-  const isGenerateDisabled = !fiscalYear || loading;
+  const isGenerateDisabled = !fiscalYear || loading || loadingYears || availableYears.length === 0;
 
   const hasReport = !!htmlPreview;
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
 
   // Automatically generate report whenever fiscal year or language changes
   useEffect(() => {
-    if (!selectedClient || !fiscalYear) {
+    if (!selectedClient || !fiscalYear || loadingYears) {
       return;
     }
     handleGenerate();
-  }, [handleGenerate, selectedClient, fiscalYear, language]);
+  }, [handleGenerate, selectedClient, fiscalYear, language, loadingYears]);
 
   if (!selectedClient) {
     return (
@@ -211,12 +235,19 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
             className="budget-report-select"
             value={fiscalYear ?? ''}
             onChange={e => setFiscalYear(e.target.value ? Number(e.target.value) : null)}
+            disabled={loadingYears || availableYears.length === 0}
           >
-            {fiscalYearOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            {loadingYears ? (
+              <option>Loading years...</option>
+            ) : availableYears.length === 0 ? (
+              <option>No budget years available</option>
+            ) : (
+              fiscalYearOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))
+            )}
           </select>
         </div>
 

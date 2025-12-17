@@ -132,6 +132,66 @@ function translateCategoryName(categoryName, language) {
 }
 
 /**
+ * Find all years that have budget entries for a client
+ * Returns array of years sorted descending (highest first)
+ */
+export async function findAvailableBudgetYears(clientId) {
+  const db = await getDb();
+  const categoriesSnapshot = await db.collection('clients').doc(clientId)
+    .collection('categories').get();
+  
+  const yearsSet = new Set();
+  
+  // Check each category for budget years
+  for (const categoryDoc of categoriesSnapshot.docs) {
+    const budgetCollection = categoryDoc.ref.collection('budget');
+    const budgetDocs = await budgetCollection.get();
+    
+    budgetDocs.forEach(budgetDoc => {
+      const year = parseInt(budgetDoc.id);
+      if (!isNaN(year)) {
+        const budgetData = budgetDoc.data();
+        // Only include years that have actual budget entries (amount > 0)
+        if (budgetData.amount && budgetData.amount > 0) {
+          yearsSet.add(year);
+        }
+      }
+    });
+  }
+  
+  return Array.from(yearsSet).sort((a, b) => b - a); // Sort descending
+}
+
+/**
+ * Find all years that have budget entries for a client (internal helper)
+ */
+async function findAvailableBudgetYearsInternal(db, clientId) {
+  const categoriesSnapshot = await db.collection('clients').doc(clientId)
+    .collection('categories').get();
+  
+  const yearsSet = new Set();
+  
+  // Check each category for budget years
+  for (const categoryDoc of categoriesSnapshot.docs) {
+    const budgetCollection = categoryDoc.ref.collection('budget');
+    const budgetDocs = await budgetCollection.get();
+    
+    budgetDocs.forEach(budgetDoc => {
+      const year = parseInt(budgetDoc.id);
+      if (!isNaN(year)) {
+        const budgetData = budgetDoc.data();
+        // Only include years that have actual budget entries (amount > 0)
+        if (budgetData.amount && budgetData.amount > 0) {
+          yearsSet.add(year);
+        }
+      }
+    });
+  }
+  
+  return Array.from(yearsSet).sort((a, b) => b - a); // Sort descending
+}
+
+/**
  * Get budgets for a fiscal year
  */
 async function getBudgetsForYear(db, clientId, year, user) {
@@ -161,6 +221,18 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   const logoUrl = clientData.branding?.logoUrl;
   const normalizedLogoUrl = logoUrl && logoUrl.trim() !== '' ? logoUrl : null;
   
+  // Find available budget years and determine the highest year
+  const availableYears = await findAvailableBudgetYearsInternal(db, clientId);
+  
+  if (availableYears.length === 0) {
+    throw new Error(`No budget entries found for client ${clientId}`);
+  }
+  
+  // Use the highest available year as current year (ignore fiscalYear parameter)
+  // Always compare highest year to prior year
+  const currentYear = availableYears[0];
+  const priorYear = currentYear - 1;
+  
   // Get categories
   const categoriesSnapshot = await db.collection('clients').doc(clientId)
     .collection('categories').get();
@@ -169,10 +241,6 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   categoriesSnapshot.forEach(doc => {
     categories.push({ id: doc.id, ...doc.data() });
   });
-  
-  // Get budgets for current and prior year
-  const currentYear = fiscalYear;
-  const priorYear = fiscalYear - 1;
   
   const currentBudgets = await getBudgetsForYear(db, clientId, currentYear, user);
   const priorBudgets = await getBudgetsForYear(db, clientId, priorYear, user);
