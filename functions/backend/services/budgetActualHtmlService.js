@@ -4,6 +4,13 @@
  */
 
 import { DateTime } from 'luxon';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import { getNow } from '../../shared/services/DateService.js';
 
 /**
@@ -249,6 +256,7 @@ export function generateBudgetActualHtml(data, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no">
   <title>${t.title} - ${clientInfo.name}</title>
   <style>
     /* Reset and base styles */
@@ -520,17 +528,21 @@ export function generateBudgetActualHtml(data, options = {}) {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
+    /* =====================================================
+       Responsive Report Common CSS (from reportCommon.css)
+       ===================================================== */
+    ${reportCommonCss}
   </style>
 </head>
 <body>
-  <div class="report-page">
+  <div class="report-container report-page">
     <!-- Header -->
     <div class="report-header">
       <div class="header-left">
         <div class="report-title">${t.title}</div>
         
         <div class="client-info">
-          <table class="client-info-table">
+          <div class="report-table-container"><table class="report-table client-info-table">
             <tr>
               <td>${t.reportFor}:</td>
               <td>${clientInfo.name}</td>
@@ -564,7 +576,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     <!-- Income Table -->
     <div class="section-header">${t.incomeTable}</div>
-    <table class="budget-table">
+    <div class="report-table-container"><table class="report-table budget-table">
       <thead>
         <tr>
           <th class="col-category">${t.tableHeaders.category}</th>
@@ -606,7 +618,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     <!-- Expense Table -->
     <div class="section-header">${t.expenseTable}</div>
-    <table class="budget-table">
+    <div class="report-table-container"><table class="report-table budget-table">
       <thead>
         <tr>
           <th class="col-category">${t.tableHeaders.category}</th>
@@ -648,7 +660,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     <!-- Special Assessments Fund -->
     <div class="section-header-special">${t.specialAssessmentsTable}</div>
-    <table class="special-assessments-table">
+    <div class="report-table-container"><table class="report-table special-assessments-table">
       <tbody>
         <!-- Collections Section -->
         <tr class="section-row">

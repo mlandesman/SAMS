@@ -58,6 +58,7 @@ export async function listBudgetsByYear(clientId, year, user) {
           categoryType: category.type || 'expense',
           year: year,
           amount: budgetData.amount || 0,
+          notes: budgetData.notes || '',
           createdAt: budgetData.createdAt,
           updatedAt: budgetData.updatedAt,
           createdBy: budgetData.createdBy,
@@ -71,6 +72,7 @@ export async function listBudgetsByYear(clientId, year, user) {
           categoryType: category.type || 'expense',
           year: year,
           amount: 0,
+          notes: '',
           createdAt: null,
           updatedAt: null,
           createdBy: null,
@@ -93,10 +95,11 @@ export async function listBudgetsByYear(clientId, year, user) {
  * @param {string} categoryId - Category ID
  * @param {number} year - Fiscal year
  * @param {number} amount - Budget amount in centavos (integer)
+ * @param {string} notes - Optional notes string
  * @param {Object} user - User object for propertyAccess validation
  * @returns {Promise<boolean>} Success status
  */
-export async function upsertBudget(clientId, categoryId, year, amount, user) {
+export async function upsertBudget(clientId, categoryId, year, amount, notes, user) {
   try {
     // Validate propertyAccess
     if (!user) {
@@ -126,6 +129,7 @@ export async function upsertBudget(clientId, categoryId, year, amount, user) {
       // Update existing budget
       await budgetRef.update({
         amount: amount,
+        notes: notes || '',  // Save empty string if null/undefined
         updatedAt: timestamp,
         updatedBy: user.uid
       });
@@ -135,13 +139,17 @@ export async function upsertBudget(clientId, categoryId, year, amount, user) {
       const categoryDoc = await categoryRef.get();
       const categoryName = categoryDoc.exists ? categoryDoc.data().name : categoryId;
       
+      const auditNotes = notes && notes.trim() 
+        ? `Updated budget amount to ${amount} centavos and notes by ${user.email}`
+        : `Updated budget amount to ${amount} centavos by ${user.email}`;
+      
       const auditSuccess = await writeAuditLog({
         module: 'budgets',
         action: 'update',
         parentPath: `clients/${clientId}/categories/${categoryId}/budget/${year}`,
         docId: String(year),
         friendlyName: `${categoryName} - FY ${year}`,
-        notes: `Updated budget amount to ${amount} centavos by ${user.email}`,
+        notes: auditNotes,
         userId: user.uid,
       });
 
@@ -152,6 +160,7 @@ export async function upsertBudget(clientId, categoryId, year, amount, user) {
       // Create new budget
       await budgetRef.set({
         amount: amount,
+        notes: notes || '',
         createdAt: timestamp,
         updatedAt: timestamp,
         createdBy: user.uid,
@@ -163,13 +172,17 @@ export async function upsertBudget(clientId, categoryId, year, amount, user) {
       const categoryDoc = await categoryRef.get();
       const categoryName = categoryDoc.exists ? categoryDoc.data().name : categoryId;
       
+      const auditNotes = notes && notes.trim()
+        ? `Created budget with amount ${amount} centavos and notes by ${user.email}`
+        : `Created budget with amount ${amount} centavos by ${user.email}`;
+      
       const auditSuccess = await writeAuditLog({
         module: 'budgets',
         action: 'create',
         parentPath: `clients/${clientId}/categories/${categoryId}/budget/${year}`,
         docId: String(year),
         friendlyName: `${categoryName} - FY ${year}`,
-        notes: `Created budget with amount ${amount} centavos by ${user.email}`,
+        notes: auditNotes,
         userId: user.uid,
       });
 

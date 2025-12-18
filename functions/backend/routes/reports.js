@@ -18,6 +18,7 @@ import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js
 import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import crypto from 'crypto';
 import axios from 'axios';
 
 // Create date service for formatting API responses
@@ -657,6 +658,111 @@ router.post('/statement/export', authenticateUserWithProfile, async (req, res) =
     } = req.body || {};
 
     const format = (req.query.format || bodyFormat || 'pdf').toLowerCase();
+
+
+
+/**
+ * Verify download token for PDF access
+ */
+function verifyDownloadToken(token, clientId, unitId, fiscalYear, language) {
+  // crypto is imported at top of file
+  const secret = process.env.DOWNLOAD_TOKEN_SECRET || 'sams-statement-download-secret-change-in-production';
+  
+  try {
+    // Split token into payload and signature
+    const [payloadB64, signature] = token.split('.');
+    if (!payloadB64 || !signature) {
+      return false;
+    }
+    
+    // Decode payload
+    const payloadStr = Buffer.from(payloadB64, 'base64url').toString('utf8');
+    const payload = JSON.parse(payloadStr);
+    
+    // Verify expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return false;
+    }
+    
+    // Verify payload matches request
+    if (payload.clientId !== clientId || 
+        payload.unitId !== unitId || 
+        payload.fiscalYear !== fiscalYear || 
+        payload.language !== language) {
+      return false;
+    }
+    
+    // Verify signature
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(payloadStr);
+    const expectedSignature = hmac.digest('base64url');
+    
+    return signature === expectedSignature;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return false;
+  }
+}
+
+/**
+ * GET /api/clients/:clientId/reports/statement/pdf-download
+ * Token-based PDF download (no authentication required)
+ * Query params:
+ *   - unitId: Unit ID
+ *   - fiscalYear: Fiscal year
+ *   - language: 'en' or 'es'
+ *   - token: Download token
+ */
+router.get('/statement/pdf-download', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitId, fiscalYear, language, token } = req.query;
+    
+    if (!clientId || !unitId || !fiscalYear || !language || !token) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters' 
+      });
+    }
+    
+    // Verify token
+    if (!verifyDownloadToken(token, clientId, unitId, parseInt(fiscalYear), language)) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid or expired download token' 
+      });
+    }
+    
+    // Generate PDF using existing logic
+    const api = axios.create({
+      baseURL: process.env.API_BASE_URL || 'http://localhost:5001',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    });
+    
+    const statement = await generateStatementData(api, clientId, unitId, {
+      fiscalYear: parseInt(fiscalYear),
+      language
+    });
+    
+    // Generate PDF
+    const pdfBuffer = await generatePdf(statement.html);
+    
+    const fileName = `statement_${clientId}_${unitId}_${fiscalYear}_${language}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating PDF download:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate PDF',
+      details: error.message 
+    });
+  }
+});
 
     // CSV export: build from statement data (lineItems) for clean imports
     if (format === 'csv') {

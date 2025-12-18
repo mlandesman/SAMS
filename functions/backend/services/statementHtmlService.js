@@ -3,6 +3,13 @@
  * Generates professional HTML statements matching prior administrator's design
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import { getStatementData } from './statementDataService.js';
 import { DateTime } from 'luxon';
 import { getNow } from '../../shared/services/DateService.js';
@@ -297,6 +304,10 @@ function getTranslations(language) {
 export async function generateStatementData(api, clientId, unitId, options = {}) {
   // Get statement data
   const data = await getStatementData(api, clientId, unitId, options.fiscalYear);
+  // Read responsive CSS file
+  const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
+  const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
+
   
   // Determine language
   const language = options.language || 'english';
@@ -338,6 +349,7 @@ export async function generateStatementData(api, clientId, unitId, options = {})
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no">
   <title>${t.title} - ${data.clientInfo.name} - ${t.unit} ${unitId}</title>
   <style>
     /* Reset and base styles */
@@ -885,12 +897,16 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
+    /* =====================================================
+       Responsive Report Common CSS (from reportCommon.css)
+       ===================================================== */
+    ${reportCommonCss}
   </style>
 </head>
 <body>
-  <div class="statement-page">
+  <div class="report-container statement-page">
     <!-- Header -->
-    <div class="statement-header">
+    <div class="report-header statement-header">
       <!-- Left side: Title and Client Info -->
       <div class="header-left">
         <div class="statement-title">${t.title}</div>
@@ -975,7 +991,7 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     
     <!-- Account Activity Section -->
     <div class="section-header">${t.accountActivity}</div>
-    <table class="transaction-table">
+    <div class="report-table-container"><table class="report-table transaction-table">
       <thead>
         <tr>
           <th class="col-date">${t.tableHeaders.date}</th>
@@ -990,23 +1006,24 @@ export async function generateStatementData(api, clientId, unitId, options = {})
         <tr style="background-color: #f9f9f9;">
           <td class="col-date"></td>
           <td class="col-description" style="font-style: italic;">${t.openingBalance}</td>
-          <td class="col-charge"></td>
-          <td class="col-payment"></td>
-          <td class="col-balance">${formatCurrency(data.summary.openingBalance)}</td>
+          <td class="col-charge amount"></td>
+          <td class="col-payment amount"></td>
+          <td class="col-balance amount">${formatCurrency(data.summary.openingBalance)}</td>
         </tr>
         
         <!-- All Transaction Rows -->
         ${currentItems.map(item => `
-        <tr>
+        <tr class="clickable" data-transaction-id="${item.transactionId || ''}">
           <td class="col-date">${formatDate(item.date)}</td>
           <td class="col-description">${translateDescription(item.description, language)}</td>
-          <td class="col-charge">${item.charge > 0 ? formatCurrency(item.charge) : ''}</td>
-          <td class="col-payment ${item.payment > 0 ? 'payment-red' : ''}">${item.payment > 0 ? formatCurrency(item.payment) : ''}</td>
-          <td class="col-balance">${formatCurrency(item.balance)}</td>
+          <td class="col-charge amount">${item.charge > 0 ? formatCurrency(item.charge) : ''}</td>
+          <td class="col-payment amount ${item.payment > 0 ? 'payment-red' : ''}">${item.payment > 0 ? formatCurrency(item.payment) : ''}</td>
+          <td class="col-balance amount">${formatCurrency(item.balance)}</td>
         </tr>
         `).join('')}
       </tbody>
     </table>
+    </div>
     
     <!-- Balance Due/Credit (immediately after activity table) -->
     <!-- Use credit balance from creditBalances document as single source of truth -->
@@ -1037,7 +1054,7 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     <div style="height: 20px; clear: both;"></div>
     
     <!-- Allocation Summary -->
-    <div class="allocation-summary">
+    <div class="report-summary allocation-summary">
       <table class="allocation-table">
         <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${t.allocationSummary}</caption>
         <thead>
@@ -1106,8 +1123,8 @@ export async function generateStatementData(api, clientId, unitId, options = {})
                 }
                 
                 return `
-                <tr>
-                  <td class="col-date">${collectionDate}</td>
+                <tr class="clickable" data-transaction-id="${c.id || c.transactionId || ''}">
+          <td class="col-date">${collectionDate}</td>
                   <td class="col-amount">${formatCurrency(centavosToPesos(c.amount))}</td>
                   <td class="col-notes">${c.notes || ''}</td>
                 </tr>

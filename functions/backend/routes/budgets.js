@@ -49,9 +49,9 @@ router.put('/clients/:clientId/categories/:categoryId/budget/:year', enforceClie
     const clientId = req.authorizedClientId;
     const categoryId = req.params.categoryId;
     const year = parseInt(req.params.year);
-    const { amount } = req.body;
+    const { amount, notes } = req.body;
     
-    console.log('✏️ Budgets route - upserting budget for category:', categoryId, 'year:', year, 'amount:', amount);
+    console.log('✏️ Budgets route - upserting budget for category:', categoryId, 'year:', year, 'amount:', amount, 'notes:', notes ? 'provided' : 'none');
     
     if (isNaN(year) || year < 2000 || year > 2100) {
       return res.status(400).json({
@@ -67,7 +67,15 @@ router.put('/clients/:clientId/categories/:categoryId/budget/:year', enforceClie
       });
     }
     
-    const success = await upsertBudget(clientId, categoryId, year, amount, req.user);
+    // Validate notes if provided (should be string or undefined/null)
+    if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Notes must be a string'
+      });
+    }
+    
+    const success = await upsertBudget(clientId, categoryId, year, amount, notes, req.user);
     
     if (success) {
       // Fetch the updated budget to return complete data

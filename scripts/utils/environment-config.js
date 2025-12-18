@@ -16,19 +16,20 @@ const __dirname = path.dirname(__filename);
 const ENVIRONMENTS = {
   dev: {
     projectId: 'sandyland-management-system',
-    serviceAccountPath: 'backend/serviceAccountKey.json',
+    serviceAccountPath: 'functions/serviceAccountKey-dev.json',
+    altServiceAccountPath: 'backend/serviceAccountKey.json',  // Fallback
     name: 'Development',
     color: '\x1b[33m' // Yellow
   },
   staging: {
     projectId: 'sams-staging-6cdcd',
-    serviceAccountPath: 'backend/serviceAccountKey-staging.json',
+    serviceAccountPath: 'functions/serviceAccountKey-staging.json',
     name: 'Staging',
     color: '\x1b[36m' // Cyan
   },
   prod: {
     projectId: 'sams-sandyland-prod',
-    serviceAccountPath: 'backend/sams-production-serviceAccountKey.json',
+    serviceAccountPath: 'functions/serviceAccountKey-prod.json',
     name: 'Production',
     color: '\x1b[31m' // Red
   }
@@ -64,11 +65,14 @@ function getEnvironmentConfig(env = null) {
 
 /**
  * Initializes Firebase Admin SDK for the specified environment
+ * Supports both service account keys and Application Default Credentials (ADC)
  * @param {string} env - Environment name (optional)
+ * @param {Object} options - Options { useADC: boolean }
  * @returns {Object} - Initialized Firebase Admin instance
  */
-async function initializeFirebase(env = null) {
+async function initializeFirebase(env = null, options = {}) {
   const config = getEnvironmentConfig(env);
+  const useADC = options.useADC || process.env.USE_ADC === 'true';
   
   // Check if already initialized
   if (admin.apps.length > 0) {
@@ -76,12 +80,36 @@ async function initializeFirebase(env = null) {
     return { db: admin.firestore(), admin };
   }
   
-  // Try multiple paths to find service account file
+  // Option 1: Use Application Default Credentials (from gcloud auth)
+  if (useADC) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        projectId: config.projectId
+      });
+      
+      const db = admin.firestore();
+      
+      console.log(`${config.color}✅ Firebase initialized for ${config.name} (${config.projectId})\x1b[0m`);
+      console.log(`${config.color}📁 Using Application Default Credentials (gcloud auth)\x1b[0m`);
+      
+      return { db, admin };
+    } catch (adcError) {
+      console.error('❌ Application Default Credentials failed:', adcError.message);
+      console.error('💡 Run: gcloud auth application-default login');
+      throw adcError;
+    }
+  }
+  
+  // Option 2: Use service account key file
   const possiblePaths = [
+    path.join(process.cwd(), config.serviceAccountPath),
     path.join(__dirname, '../..', config.serviceAccountPath),
     path.join(__dirname, '../../..', config.serviceAccountPath),
-    path.join(process.cwd(), config.serviceAccountPath),
-    path.join(process.cwd(), '..', config.serviceAccountPath)
+    path.join(process.cwd(), '..', config.serviceAccountPath),
+    // Also try backend folder as fallback
+    path.join(process.cwd(), 'backend/serviceAccountKey.json'),
+    path.join(process.cwd(), 'functions/serviceAccountKey.json')
   ];
   
   let serviceAccount = null;

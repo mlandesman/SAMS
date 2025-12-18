@@ -9,6 +9,16 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
 import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
 import { getNow } from '../services/DateService.js';
+import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { generateStatementData } from '../services/statementHtmlService.js';
+import { generatePdf } from '../services/pdfService.js';
+import crypto from 'crypto';
+import axios from 'axios';
+import { getApp } from '../firebase.js';
+
+import { DateTime } from 'luxon';
+
+
 
 /**
  * Create Gmail transporter for sending emails
@@ -526,9 +536,411 @@ async function testWaterBillEmail(unitNumber = '101', userLanguage = 'en', testE
   );
 }
 
+
+/**
+ * Get email language preference for a unit
+ * Checks owner[0]'s preferredLanguage from users collection
+ * Falls back to client default language
+ */
+async function getUnitEmailLanguage(unit, clientId) {
+  const db = await getDb();
+  const owners = normalizeOwners(unit.owners);
+  
+  if (!owners.length || !owners[0].email) {
+    // Fallback to client default
+    const clientDoc = await db.collection('clients').doc(clientId).get();
+    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
+  }
+  
+  // Look up owner[0] in users collection
+  const userSnapshot = await db.collection('users')
+    .where('email', '==', owners[0].email)
+    .limit(1)
+    .get();
+  
+  if (userSnapshot.empty) {
+    // Fallback to client default
+    const clientDoc = await db.collection('clients').doc(clientId).get();
+    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
+  }
+  
+  const preferredLang = userSnapshot.docs[0].data().preferredLanguage;
+  return preferredLang === 'spanish' || preferredLang === 'es' ? 'spanish' : 'english';
+}
+
+
+/**
+ * Generate PDF URLs for statement (both languages)
+ * PDFs may already exist from preview/generate, so we construct URLs
+ * In future, can generate on-demand if needed
+ */
+
+/**
+ * Generate a secure download token for PDF access
+ * Token expires after 30 days
+ */
+function generateDownloadToken(clientId, unitId, fiscalYear, language) {
+  // crypto is imported at top of file
+  const secret = process.env.DOWNLOAD_TOKEN_SECRET || 'sams-statement-download-secret-change-in-production';
+  
+  // Create payload
+  const payload = {
+    clientId,
+    unitId,
+    fiscalYear,
+    language,
+    exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
+  };
+  
+  // Create token: base64(hmac-sha256(payload, secret))
+  const payloadStr = JSON.stringify(payload);
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(payloadStr);
+  const signature = hmac.digest('base64url');
+  
+  // Combine payload and signature
+  const token = Buffer.from(payloadStr).toString('base64url') + '.' + signature;
+  
+  return token;
+}
+
+
+
+function getStorageBucketName() {
+  if (process.env.NODE_ENV === 'production') {
+    return 'sams-sandyland-prod.firebasestorage.app';
+  } else if (process.env.NODE_ENV === 'staging') {
+    return 'sams-staging-6cdcd.firebasestorage.app';
+  }
+  return 'sandyland-management-system.firebasestorage.app';
+}
+
+
+export async function generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken = null) {
+  const now = getNow();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  
+  const basePath = `clients/${clientId}/accountStatements/${fiscalYear}`;
+  const fileNameEn = `${year}-${month}-${unitId}-EN.PDF`;
+  const fileNameEs = `${year}-${month}-${unitId}-ES.PDF`;
+  const storagePathEn = `${basePath}/${fileNameEn}`;
+  const storagePathEs = `${basePath}/${fileNameEs}`;
+  
+  // Generate PDFs
+  const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+  const api = axios.create({
+    baseURL: baseURL,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+    },
+    timeout: 60000
+  });
+  
+  // Get Firebase app and bucket
+  const app = await getApp();
+  const bucketName = getStorageBucketName();
+  const bucket = app.storage().bucket(bucketName);
+  
+  // Generate and upload English PDF
+  const statementEn = await generateStatementData(api, clientId, unitId, {
+    fiscalYear,
+    language: 'english'
+  });
+  const pdfBufferEn = await generatePdf(statementEn.html);
+  
+  const fileEn = bucket.file(storagePathEn);
+  await fileEn.save(pdfBufferEn, {
+    metadata: {
+      contentType: 'application/pdf',
+      metadata: {
+        clientId,
+        unitId,
+        fiscalYear: fiscalYear.toString(),
+        language: 'english',
+        generatedAt: new Date().toISOString()
+      }
+    }
+  });
+  
+  // Generate and upload Spanish PDF
+  const statementEs = await generateStatementData(api, clientId, unitId, {
+    fiscalYear,
+    language: 'spanish'
+  });
+  const pdfBufferEs = await generatePdf(statementEs.html);
+  
+  const fileEs = bucket.file(storagePathEs);
+  await fileEs.save(pdfBufferEs, {
+    metadata: {
+      contentType: 'application/pdf',
+      metadata: {
+        clientId,
+        unitId,
+        fiscalYear: fiscalYear.toString(),
+        language: 'spanish',
+        generatedAt: new Date().toISOString()
+      }
+    }
+  });
+  
+  // Make files publicly readable
+  await fileEn.makePublic();
+  await fileEs.makePublic();
+  
+  // Get signed URLs with download tokens (expires far in future)
+  const [urlEn] = await fileEn.getSignedUrl({
+    action: 'read',
+    expires: '03-01-2500' // Far future expiration
+  });
+  
+  const [urlEs] = await fileEs.getSignedUrl({
+    action: 'read',
+    expires: '03-01-2500' // Far future expiration
+  });
+  
+  // Return Firebase Storage URLs with download tokens
+  return {
+    en: urlEn,
+    es: urlEs
+  };
+
+}
+
+
+
+
+/**
+ * Get default statement email template if client doesn't have custom one
+ */
+function getDefaultStatementTemplate() {
+  return {
+    subject_en: 'Statement of Account - Unit __UnitNumber__ - FY __FiscalYearLabel__',
+    subject_es: 'Estado de Cuenta - Unidad __UnitNumber__ - Año Fiscal __FiscalYearLabel__',
+    body_en: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+  <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+      <p>Dear __OwnerName__,</p>
+      <p>Please find below your Statement of Account for Fiscal Year __FiscalYearLabel__. This statement reflects all charges, payments, and your current balance as of __StatementDate__.</p>
+      <p>Your current balance due is: <strong>__BalanceDue__</strong></p>
+    </div>
+    
+    <div style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+      __StatementHtml__
+    </div>
+    
+    <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+      <a href="__PdfLinkEn__" style="display: inline-block; margin: 5px 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">📄 Download PDF (English)</a>
+      <a href="__PdfLinkEs__" style="display: inline-block; margin: 5px 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">📄 Descargar PDF (Español)</a>
+    </div>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+      <p>If you have any questions about your statement, please don't hesitate to contact us.</p>
+      <p>Best regards,</p>
+      <p><strong>__ClientName__ Administrators</strong><br>
+      Sandyland Properties<br>
+      <a href="mailto:pm@sandyland.com.mx">pm@sandyland.com.mx</a></p>
+    </div>
+  </div>
+</body>
+</html>`,
+    body_es: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+  <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+      <p>Estimado/a __OwnerName__,</p>
+      <p>A continuación encontrará su Estado de Cuenta para el Año Fiscal __FiscalYearLabel__. Este estado refleja todos los cargos, pagos y su saldo actual al __StatementDate__.</p>
+      <p>Su saldo pendiente es: <strong>__BalanceDue__</strong></p>
+    </div>
+    
+    <div style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+      __StatementHtml__
+    </div>
+    
+    <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+      <a href="__PdfLinkEn__" style="display: inline-block; margin: 5px 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">📄 Download PDF (English)</a>
+      <a href="__PdfLinkEs__" style="display: inline-block; margin: 5px 10px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">📄 Descargar PDF (Español)</a>
+    </div>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+      <p>Si tiene alguna pregunta sobre su estado de cuenta, no dude en contactarnos.</p>
+      <p>Atentamente,</p>
+      <p><strong>Administradores de __ClientName__</strong><br>
+      Sandyland Properties<br>
+      <a href="mailto:pm@sandyland.com.mx">pm@sandyland.com.mx</a></p>
+    </div>
+  </div>
+</body>
+</html>`
+  };
+}
+
+
+/**
+ * Send Statement of Account email to unit owners/managers
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} fiscalYear - Fiscal year
+ * @param {Object} user - Authenticated user
+ * @returns {Promise<Object>} Result with success status
+ */
+
+
+/**
+ * Send Statement of Account email to unit owners/managers
+ */
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null) {
+  try {
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})`);
+    
+    const db = await getDb();
+    
+    // Get unit data
+    const unitDoc = await db.collection('clients').doc(clientId)
+      .collection('units').doc(unitId).get();
+    
+    if (!unitDoc.exists) {
+      return { success: false, error: `Unit ${unitId} not found` };
+    }
+    
+    const unit = { id: unitDoc.id, ...unitDoc.data() };
+    
+    // Extract recipients
+    const owners = normalizeOwners(unit.owners);
+    const managers = normalizeManagers(unit.managers);
+    
+    const toEmails = owners.filter(o => o.email).map(o => o.email);
+    const ccEmails = managers.filter(m => m.email).map(m => m.email);
+    
+    if (toEmails.length === 0) {
+      return { success: false, error: 'No owner email addresses found for this unit' };
+    }
+    
+    // Get language preference
+    const language = await getUnitEmailLanguage(unit, clientId);
+    
+    // Get client info
+    const clientDoc = await db.collection('clients').doc(clientId).get();
+    if (!clientDoc.exists) {
+      return { success: false, error: `Client ${clientId} not found` };
+    }
+    const clientData = clientDoc.data();
+    const clientName = clientData.basicInfo?.fullName || clientData.name || clientId;
+    const clientLogoUrl = clientData.branding?.logoUrl || '';
+    
+    // Create API client for generateStatementData
+    // Note: For internal calls, we create a minimal API client
+    // generateStatementData uses api for some operations but can work with minimal client
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    const api = axios.create({
+      baseURL: baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+      },
+      timeout: 60000
+    });
+    
+    // Generate statement HTML
+    const statementResult = await generateStatementData(api, clientId, unitId, { fiscalYear, language });
+    const statementHtml = statementResult.html;
+    
+    // Generate PDF URLs
+    const pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+    
+    // Get email template
+    const templateDoc = await db.collection('clients').doc(clientId)
+      .collection('config').doc('emailTemplates').get();
+    
+    let template;
+    if (templateDoc.exists && templateDoc.data().statementOfAccount) {
+      template = templateDoc.data().statementOfAccount;
+    } else {
+      template = getDefaultStatementTemplate();
+    }
+    
+    // Build template variables
+    const ownerName = owners[0]?.name || 'Owner';
+    const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun').toFormat('MM/dd/yyyy');
+    const balanceDue = statementResult.summary?.closingBalance || 0;
+    const balanceDueFormatted = balanceDue >= 0 
+      ? `$${Math.abs(balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `-$${Math.abs(balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    
+    const variables = {
+      __OwnerName__: ownerName,
+      __UnitNumber__: unitId,
+      __FiscalYearLabel__: `${fiscalYear}`,
+      __StatementDate__: statementDate,
+      __BalanceDue__: balanceDueFormatted,
+      __ClientName__: clientName,
+      __ClientLogoUrl__: clientLogoUrl,
+      __StatementHtml__: statementHtml,
+      __PdfLinkEn__: pdfUrls.en,
+      __PdfLinkEs__: pdfUrls.es
+    };
+    
+    // Process template
+    const isSpanish = language === 'spanish' || language === 'es';
+    const subject = processWaterBillTemplate(isSpanish ? template.subject_es : template.subject_en, variables);
+    const body = processWaterBillTemplate(isSpanish ? template.body_es : template.body_en, variables);
+    
+    // Send email
+    const transporter = createGmailTransporter();
+    const info = await transporter.sendMail({
+      from: { name: `${clientName} Administrators`, address: 'pm@sandyland.com.mx' },
+      to: toEmails,
+      cc: ccEmails.length > 0 ? ccEmails : undefined,
+      subject: subject,
+      html: body,
+      replyTo: 'pm@sandyland.com.mx'
+    });
+    
+    // Audit log
+    await writeAuditLog({
+      module: 'email',
+      action: 'send_statement',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: `Statement email for Unit ${unitId}`,
+      notes: `Sent to: ${toEmails.join(', ')}. CC: ${ccEmails.join(', ') || 'none'}. Language: ${language}`,
+      userId: user.uid
+    });
+    
+    return { success: true, to: toEmails, cc: ccEmails, language, messageId: info.messageId };
+    
+  } catch (error) {
+    console.error('❌ Error sending statement email:', error);
+    await writeAuditLog({
+      module: 'email',
+      action: 'send_statement_failed',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: `Failed Statement Email: Unit ${unitId}`,
+      notes: `Failed: ${error.message}`,
+      userId: user?.uid
+    });
+    return { success: false, error: error.message };
+  }
+}
+
 export {
   sendReceiptEmail,
   sendWaterBillEmail,
+  
+  
   testWaterBillEmail,
   testEmailConfig,
   createGmailTransporter,
