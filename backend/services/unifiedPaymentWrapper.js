@@ -161,18 +161,20 @@ export class UnifiedPaymentWrapper {
     console.log(`   💰 Current credit balance: $${currentCredit}`);
     
     // Step 4: MULTI-PASS PRIORITY ALGORITHM
-    // Simple approach: Pass payment and credit separately to distribution service
-    // Let it handle the combination and track remaining funds
+    // CRITICAL FIX: Track payment and credit separately to prevent credit reuse
+    // Credit can only be used once across all priority levels
     console.log(`   🔄 Starting multi-pass priority processing`);
     
     const allPaidBills = [];
-    let remainingFunds = paymentAmount + currentCredit;  // Total available
-    let paymentForNextLevel = paymentAmount;  // Track payment portion for distribution service
-    let creditForNextLevel = currentCredit;   // Track credit portion for distribution service
+    let remainingPayment = paymentAmount;  // Track remaining payment amount
+    let remainingCredit = currentCredit;    // Track remaining credit balance (can only decrease)
+    let totalCreditUsed = 0;                // Track total credit used across all levels
+    let totalOverpayment = 0;               // Track total overpayment across all levels
     
     // Process priority levels 1-5 sequentially
     for (let priorityLevel = 1; priorityLevel <= 5; priorityLevel++) {
-      if (remainingFunds <= 0) break;
+      const totalRemainingFunds = remainingPayment + remainingCredit;
+      if (totalRemainingFunds <= 0) break;
       
       const billsAtThisLevel = billsWithUniquePeroids.filter(
         b => b._metadata.priority === priorityLevel
@@ -180,13 +182,13 @@ export class UnifiedPaymentWrapper {
       
       if (billsAtThisLevel.length === 0) continue;
       
-      console.log(`   💸 Priority ${priorityLevel}: ${billsAtThisLevel.length} bills, $${remainingFunds.toFixed(2)} available`);
+      console.log(`   💸 Priority ${priorityLevel}: ${billsAtThisLevel.length} bills, Payment: $${remainingPayment.toFixed(2)}, Credit: $${remainingCredit.toFixed(2)}, Total: $${totalRemainingFunds.toFixed(2)}`);
       
-      // Call PaymentDistributionService with payment and credit separate
+      // Call PaymentDistributionService with remaining payment and credit
       const levelDistribution = calculatePaymentDistribution({
         bills: billsAtThisLevel,
-        paymentAmount: paymentForNextLevel,
-        currentCreditBalance: creditForNextLevel,
+        paymentAmount: remainingPayment,
+        currentCreditBalance: remainingCredit,
         unitId
       });
       
@@ -198,36 +200,76 @@ export class UnifiedPaymentWrapper {
       });
       
       // Update remaining funds for next level
-      // The newCreditBalance from PaymentDistributionService is the total remaining
-      remainingFunds = levelDistribution.newCreditBalance || 0;
+      // CRITICAL: Track payment and credit separately
+      // PaymentDistributionService returns:
+      // - totalApplied: total bills paid
+      // - creditUsed: credit used for this level
+      // - overpayment: excess payment that becomes credit
+      // - newCreditBalance: final credit after this level (currentCredit - creditUsed + overpayment)
       
-      // For next level: all remaining funds become "payment" with 0 credit
-      // This simplifies tracking while maintaining correct total
-      paymentForNextLevel = remainingFunds;
-      creditForNextLevel = 0;
+      const levelBillsPaid = levelDistribution.totalApplied || 0;
+      const levelCreditUsed = levelDistribution.creditUsed || 0;
+      const levelOverpayment = levelDistribution.overpayment || 0;
+      const levelNewCreditBalance = levelDistribution.newCreditBalance || 0;
       
-      console.log(`      ✓ Paid ${levelDistribution.billPayments.filter(b => b.amountPaid > 0).length} bills, $${remainingFunds.toFixed(2)} remaining`);
+      // Update total credit used and overpayment (cumulative across all levels)
+      totalCreditUsed += levelCreditUsed;
+      totalOverpayment += levelOverpayment;
+      
+      // CRITICAL FIX: Calculate payment used correctly
+      // Payment used = bills paid - credit used
+      // But we need to account for the fact that overpayment means less payment was actually used
+      // Actually: paymentUsed = paymentAmount - (remainingPayment after this level)
+      // But PaymentDistributionService doesn't return remainingPayment, so we calculate:
+      // paymentUsed = levelBillsPaid - levelCreditUsed
+      // This is correct because: billsPaid = paymentUsed + creditUsed
+      const paymentUsed = levelBillsPaid - levelCreditUsed;
+      
+      // Update remaining payment: subtract payment used
+      remainingPayment = Math.max(0, remainingPayment - paymentUsed);
+      
+      // Update remaining credit: use the newCreditBalance from PaymentDistributionService
+      // This already accounts for: currentCredit - creditUsed + overpayment
+      // But we need to track it relative to our starting credit
+      // Actually, we should use: remainingCredit = levelNewCreditBalance
+      // But that's the credit balance AFTER this level, which includes overpayment
+      // We want: remainingCredit = originalCredit - totalCreditUsed + totalOverpayment
+      // So: remainingCredit = remainingCredit - levelCreditUsed + levelOverpayment
+      remainingCredit = Math.max(0, remainingCredit - levelCreditUsed + levelOverpayment);
+      
+      // CRITICAL VALIDATION: Ensure credit never exceeds original
+      remainingCredit = Math.min(remainingCredit, currentCredit + totalOverpayment);
+      
+      console.log(`      ✓ Paid ${levelDistribution.billPayments.filter(b => b.amountPaid > 0).length} bills, Payment remaining: $${remainingPayment.toFixed(2)}, Credit remaining: $${remainingCredit.toFixed(2)}`);
     }
     
     // Calculate final results
     const totalPaidAmount = allPaidBills.reduce((sum, bp) => sum + bp.amountPaid, 0);
-    const finalCreditBalance = remainingFunds;
     
-    // NET credit change calculation (as per your logic):
-    // New Credit Added = Remaining Total - Original Credit Balance
+    // Final credit balance = remaining credit + any remaining payment (which becomes credit)
+    // This matches PaymentDistributionService logic: newCreditBalance = remainingCredit + remainingPayment
+    const finalCreditBalance = roundCurrency(remainingCredit + remainingPayment);
+    
+    // NET credit change calculation:
+    // Final credit = original credit - total credit used + total overpayment + remaining payment
+    // netCreditAdded = finalCreditBalance - currentCredit
     const netCreditAdded = finalCreditBalance - currentCredit;
     
+    // Total overpayment = cumulative overpayment from all levels + any remaining payment
+    // Remaining payment becomes credit (overpayment)
+    const finalOverpayment = totalOverpayment + remainingPayment;
+    
     console.log(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid`);
-    console.log(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit change $${netCreditAdded.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
+    console.log(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit used $${totalCreditUsed.toFixed(2)}, Credit added $${finalOverpayment.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
     
     // Reconstruct distribution object for splitting
     const distribution = {
       totalAvailableFunds: paymentAmount + currentCredit,
       currentCreditBalance: currentCredit,
       newCreditBalance: roundCurrency(finalCreditBalance),
-      creditUsed: netCreditAdded < 0 ? roundCurrency(-netCreditAdded) : 0,  // If negative, credit was used
-      overpayment: netCreditAdded > 0 ? roundCurrency(netCreditAdded) : 0,  // If positive, credit was added
-      netCreditAdded: roundCurrency(netCreditAdded),  // Can be positive or negative
+      creditUsed: roundCurrency(totalCreditUsed),  // Total credit used across all levels
+      overpayment: roundCurrency(finalOverpayment),  // Total overpayment (excess payment + remaining payment)
+      netCreditAdded: roundCurrency(netCreditAdded),  // Net change: final - current
       totalApplied: roundCurrency(totalPaidAmount),
       billPayments: allPaidBills
     };
@@ -483,14 +525,14 @@ export class UnifiedPaymentWrapper {
       });
     }
     
-    // Add Credit allocations
-    // SIMPLIFIED ALLOCATION LOGIC:
-    // - Payment allocations must sum to the payment amount
-    // - If netCreditAdded is negative, credit was used (negative allocation)
-    // - If netCreditAdded is positive, credit was added (positive allocation)
-    
+    // CRITICAL FIX: Allocations must sum to payment amount
+    // When credit is used, allocations should be: bill allocations (full) + credit allocation (negative) = payment amount
     const totalBillsPaid = (preview.hoa?.totalPaid || 0) + (preview.water?.totalPaid || 0);
+    const creditUsed = preview.credit?.used || 0;
     
+    // Add Credit allocations BEFORE calculating totals
+    // CRITICAL: Credit allocation is negative, so: bills + credit = payment
+    // Example: $26,504.78 (bills) + (-$4,504.78 credit) = $22,000 (payment)
     if (preview.credit && preview.netCreditAdded !== undefined && preview.netCreditAdded !== 0) {
       if (preview.netCreditAdded < 0) {
         // Credit was used (negative allocation)
@@ -534,6 +576,25 @@ export class UnifiedPaymentWrapper {
     // (createTransaction converts individual allocation.amount but not the summary total)
     const totalAllocatedPesos = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
     const totalAllocatedCentavos = pesosToCentavos(totalAllocatedPesos);
+    
+    // CRITICAL VALIDATION: Allocations must sum to payment amount
+    // Logic: Full bill amounts + negative credit = payment amount
+    // Example: $26,504.78 (bills) + (-$4,504.78 credit) = $22,000 (payment)
+    const paymentAmountCentavos = pesosToCentavos(amount);
+    const difference = Math.abs(totalAllocatedCentavos - paymentAmountCentavos);
+    
+    if (difference > 1) { // Allow 1 centavos difference for rounding
+      console.error(`❌ Allocation mismatch:`, {
+        allocations: allocations.map(a => ({ category: a.categoryName, amount: pesosToCentavos(a.amount) })),
+        allocationsTotal: totalAllocatedCentavos,
+        transactionAmount: paymentAmountCentavos,
+        difference,
+        expectedLogic: `Bills (${totalBillsPaid}) + Credit (${creditUsed > 0 ? '-' : '+'}${creditUsed}) = Payment (${amount})`
+      });
+      throw new Error(`Allocations total (${totalAllocatedCentavos} cents / $${totalAllocatedPesos.toFixed(2)}) does not equal transaction amount (${paymentAmountCentavos} cents / $${amount.toFixed(2)}). Difference: ${difference} cents`);
+    }
+    
+    console.log(`   ✅ Allocation validation passed: $${totalAllocatedPesos.toFixed(2)} = $${amount.toFixed(2)}`);
     
     const allocationSummary = {
       totalAllocated: totalAllocatedCentavos, // In centavos to match allocation amounts
@@ -913,14 +974,24 @@ export class UnifiedPaymentWrapper {
         let quarterPenaltyPaid = 0;
         let allMonthsPaid = true;
         
+        let quarterBasePaid = 0; // Track base payments separately
         for (let monthIndex = quarterStartMonth; monthIndex <= quarterEndMonth; monthIndex++) {
           const payment = paymentsArray[monthIndex] || null;
           quarterBaseCharge += monthlyAmount;
-          quarterPaidAmount += payment?.amount || 0;
-          quarterPenaltyPaid += payment?.penaltyPaid || 0;
           
-          if (!payment || payment.amount < monthlyAmount) {
-            allMonthsPaid = false;
+          // CRITICAL FIX: payment.amount is total (base + penalty), payment.basePaid is base only
+          // If payment.basePaid exists, use it; otherwise calculate from amount - penaltyPaid
+          if (payment) {
+            const basePaidForMonth = payment.basePaid !== undefined 
+              ? payment.basePaid 
+              : (payment.amount || 0) - (payment.penaltyPaid || 0);
+            quarterBasePaid += basePaidForMonth;
+            quarterPaidAmount += payment.amount || 0;
+            quarterPenaltyPaid += payment.penaltyPaid || 0;
+            
+            if (payment.amount < monthlyAmount) {
+              allMonthsPaid = false;
+            }
           }
         }
         
@@ -935,6 +1006,9 @@ export class UnifiedPaymentWrapper {
         
         const totalDue = quarterBaseCharge; // Penalty calculated fresh later
         const totalPaid = quarterPaidAmount + quarterPenaltyPaid;
+        
+        // basePaid is the base portion of payments (excluding penalties)
+        const basePaid = quarterBasePaid;
         
         let billStatus;
         if (allMonthsPaid && totalPaid >= totalDue && totalDue > 0) {
@@ -951,6 +1025,7 @@ export class UnifiedPaymentWrapper {
           unitId: unitId,
           currentCharge: quarterBaseCharge,
           baseCharge: quarterBaseCharge,
+          basePaid: basePaid, // CRITICAL: Set basePaid for partial payment support
           penaltyAmount: 0, // Calculated fresh later
           totalCharge: quarterBaseCharge,
           paidAmount: quarterPaidAmount,
@@ -1565,6 +1640,11 @@ export class UnifiedPaymentWrapper {
   async _prepareHOABatchUpdates(batch, clientId, unitId, hoaData, transactionId, notes, paymentDate, paymentMethod, reference) {
     // Group by fiscal year since we might have bills from multiple years
     const entriesByYear = {};
+    
+    // CRITICAL FIX: For quarterly payments, we need to check payment status per month
+    // Group entries by year first, then process quarterly entries with async lookups
+    const quarterlyEntriesByYear = {};
+    
     hoaData.monthsAffected.forEach(entry => {
       // Extract year from billPeriod (e.g., "2024-09" -> 2024 or "2024-Q1" -> 2024)
       const year = parseInt(entry.billPeriod.split('-')[0]);
@@ -1574,23 +1654,13 @@ export class UnifiedPaymentWrapper {
       
       // Prepare data based on whether it's quarterly or monthly
       if (entry.isQuarterly) {
-        // Quarterly payment - record payment for all 3 months in the quarter
-        const quarterIndex = entry.quarterIndex || 0;
-        const startMonth = quarterIndex * 3; // 0, 3, 6, 9
-        
-        // Create entries for each month in the quarter
-        for (let i = 0; i < 3; i++) {
-          const monthIndex = startMonth + i;
-          const monthPaymentEntry = {
-            month: monthIndex + 1, // Convert 0-based to 1-based
-            basePaid: pesosToCentavos(entry.basePaid / 3), // Split equally among 3 months
-            penaltyPaid: i === 0 ? pesosToCentavos(entry.penaltyPaid) : 0, // Penalty only on first month
-            notes: notes + ` (Q${quarterIndex + 1} Month ${i + 1}/3)`
-          };
-          entriesByYear[year].push(monthPaymentEntry);
+        // Queue quarterly entries for async processing
+        if (!quarterlyEntriesByYear[year]) {
+          quarterlyEntriesByYear[year] = [];
         }
+        quarterlyEntriesByYear[year].push(entry);
       } else {
-        // Monthly payment
+        // Monthly payment - process immediately
         const paymentEntry = {
           month: entry.month,
           basePaid: pesosToCentavos(entry.basePaid),
@@ -1600,6 +1670,78 @@ export class UnifiedPaymentWrapper {
         entriesByYear[year].push(paymentEntry);
       }
     });
+    
+    // Process quarterly entries with async lookups
+    for (const [year, quarterlyEntries] of Object.entries(quarterlyEntriesByYear)) {
+      // Get the dues document to check current payment status
+      const duesRef = this.db.collection('clients').doc(clientId)
+        .collection('units').doc(unitId)
+        .collection('dues').doc(year.toString());
+      const duesDoc = await duesRef.get();
+      
+      if (!duesDoc.exists) {
+        console.warn(`HOA dues document not found for ${unitId}/${year} - skipping quarterly entries`);
+        continue;
+      }
+      
+      const duesData = duesDoc.data();
+      const currentPayments = Array.isArray(duesData.payments) ? duesData.payments : [];
+      const monthlyAmount = duesData.scheduledAmount || 0; // Monthly amount in centavos
+      
+      for (const entry of quarterlyEntries) {
+        const quarterIndex = entry.quarterIndex || 0;
+        const startMonth = quarterIndex * 3; // 0, 3, 6, 9
+        
+        const totalUnpaidBase = pesosToCentavos(entry.basePaid); // Total unpaid base for quarter
+        const totalUnpaidPenalty = pesosToCentavos(entry.penaltyPaid); // Total unpaid penalty
+        
+        // Determine which months need payment (unpaid months only)
+        const unpaidMonths = [];
+        for (let i = 0; i < 3; i++) {
+          const monthIndex = startMonth + i;
+          const existingPayment = currentPayments[monthIndex];
+          const existingBasePaid = existingPayment?.basePaid || 0;
+          
+          // Check if month is fully paid (needs monthlyAmount)
+          if (existingBasePaid < monthlyAmount) {
+            unpaidMonths.push({
+              monthIndex: monthIndex,
+              month: monthIndex + 1,
+              remainingBase: monthlyAmount - existingBasePaid,
+              isFirstMonth: i === 0 // Penalty only on first month
+            });
+          }
+        }
+        
+        // Distribute payment to unpaid months only
+        // Since we don't allow partial month payments, pay full months first
+        let remainingBaseToDistribute = totalUnpaidBase;
+        let remainingPenaltyToDistribute = totalUnpaidPenalty;
+        
+        for (const unpaidMonth of unpaidMonths) {
+          if (remainingBaseToDistribute <= 0) break;
+          
+          // Pay the full remaining amount for this month (or whatever is left)
+          const baseToPay = Math.min(unpaidMonth.remainingBase, remainingBaseToDistribute);
+          const penaltyToPay = unpaidMonth.isFirstMonth ? Math.min(totalUnpaidPenalty, remainingPenaltyToDistribute) : 0;
+          
+          if (baseToPay > 0) {
+            const monthPaymentEntry = {
+              month: unpaidMonth.month,
+              basePaid: baseToPay,
+              penaltyPaid: penaltyToPay,
+              notes: notes + ` (Q${quarterIndex + 1} Month ${unpaidMonth.monthIndex - startMonth + 1}/3)`
+            };
+            entriesByYear[year].push(monthPaymentEntry);
+            
+            remainingBaseToDistribute -= baseToPay;
+            if (unpaidMonth.isFirstMonth) {
+              remainingPenaltyToDistribute -= penaltyToPay;
+            }
+          }
+        }
+      }
+    }
     
     // Prepare batch updates for each year's document
     for (const [year, paymentsData] of Object.entries(entriesByYear)) {
@@ -1626,12 +1768,24 @@ export class UnifiedPaymentWrapper {
           return;
         }
         
+        // CRITICAL FIX: For quarterly bills with partial payments, ADD to existing payment
+        // entry.basePaid is the unpaid amount that needs to be paid, not the total
+        const existingPayment = updatedPayments[monthIndex];
+        const existingBasePaid = existingPayment?.basePaid || 0;
+        const existingPenaltyPaid = existingPayment?.penaltyPaid || 0;
+        const existingAmount = existingPayment?.amount || 0;
+        
+        // Add new payment to existing payment
+        const newBasePaid = existingBasePaid + paymentEntry.basePaid;
+        const newPenaltyPaid = existingPenaltyPaid + paymentEntry.penaltyPaid;
+        const newAmount = newBasePaid + newPenaltyPaid;
+        
         // Update or create payment entry
         updatedPayments[monthIndex] = {
-          amount: paymentEntry.basePaid + paymentEntry.penaltyPaid,
-          basePaid: paymentEntry.basePaid,
-          penaltyPaid: paymentEntry.penaltyPaid,
-          date: paymentDate,
+          amount: newAmount,
+          basePaid: newBasePaid,
+          penaltyPaid: newPenaltyPaid,
+          date: paymentDate, // Use latest payment date
           paid: true,
           reference: transactionId,
           paymentMethod: paymentMethod,
