@@ -1095,7 +1095,22 @@ export class UnifiedPaymentWrapper {
     const totalPenalties = result.totalPenaltiesAdded;
     console.log(`      ✅ Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
     
-    return result.updatedBills;
+    // CRITICAL: Recalculate *Owed fields after penalty recalculation
+    // Penalty recalculation updates bill.penaltyAmount, so we need to update penaltyOwed and totalOwed
+    const billsWithUpdatedOwed = result.updatedBills.map(bill => {
+      // Recalculate penaltyOwed based on new penaltyAmount
+      const penaltyOwed = (bill.penaltyAmount || 0) - (bill.penaltyPaid || 0);
+      // Recalculate totalOwed = baseOwed + penaltyOwed
+      const totalOwed = (bill.baseOwed || 0) + penaltyOwed;
+      
+      return {
+        ...bill,
+        penaltyOwed: penaltyOwed,
+        totalOwed: totalOwed
+      };
+    });
+    
+    return billsWithUpdatedOwed;
   }
 
   /**
