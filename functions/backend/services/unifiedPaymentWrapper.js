@@ -910,15 +910,17 @@ export class UnifiedPaymentWrapper {
         
         // Sum up payments and charges for the quarter
         let quarterBaseCharge = 0;
-        let quarterPaidAmount = 0;
+        let quarterBasePaid = 0;
         let quarterPenaltyPaid = 0;
+        let quarterTotalPaid = 0;
         let allMonthsPaid = true;
         
         for (let monthIndex = quarterStartMonth; monthIndex <= quarterEndMonth; monthIndex++) {
           const payment = paymentsArray[monthIndex] || null;
           quarterBaseCharge += monthlyAmount;
-          quarterPaidAmount += payment?.amount || 0;
+          quarterBasePaid += payment?.basePaid || 0;
           quarterPenaltyPaid += payment?.penaltyPaid || 0;
+          quarterTotalPaid += payment?.amount || 0;
           
           if (!payment || payment.amount < monthlyAmount) {
             allMonthsPaid = false;
@@ -934,13 +936,19 @@ export class UnifiedPaymentWrapper {
         );
         const dueDate = parseDate(dueDateISO);
         
-        const totalDue = quarterBaseCharge; // Penalty calculated fresh later
-        const totalPaid = quarterPaidAmount + quarterPenaltyPaid;
+        const penaltyAmount = 0; // Calculated fresh later
+        const totalDue = quarterBaseCharge + penaltyAmount;
         
+        // Calculate what's still owed (for partial payments)
+        const baseOwed = quarterBaseCharge - quarterBasePaid;
+        const penaltyOwed = penaltyAmount - quarterPenaltyPaid; // Will be recalculated with penalties
+        const totalOwed = totalDue - quarterTotalPaid;
+        
+        // Determine bill status based on payment state
         let billStatus;
-        if (allMonthsPaid && totalPaid >= totalDue && totalDue > 0) {
+        if (quarterTotalPaid >= totalDue && totalDue > 0) {
           billStatus = 'paid';
-        } else if (totalPaid > 0) {
+        } else if (quarterTotalPaid > 0) {
           billStatus = 'partial';
         } else {
           billStatus = 'unpaid';
@@ -952,14 +960,18 @@ export class UnifiedPaymentWrapper {
           unitId: unitId,
           currentCharge: quarterBaseCharge,
           baseCharge: quarterBaseCharge,
-          penaltyAmount: 0, // Calculated fresh later
-          totalCharge: quarterBaseCharge,
-          paidAmount: quarterPaidAmount,
+          penaltyAmount: penaltyAmount,
+          totalCharge: totalDue,
+          paidAmount: quarterTotalPaid,
+          basePaid: quarterBasePaid,
           penaltyPaid: quarterPenaltyPaid,
+          baseOwed: baseOwed,
+          penaltyOwed: penaltyOwed,
+          totalOwed: totalOwed,
           status: billStatus,
           billDate: dueDate.toISOString(),
           dueDate: dueDate.toISOString(),  // Required for penalty calculation
-          paidDate: allMonthsPaid && totalPaid > 0 ? dueDate.toISOString() : null,
+          paidDate: allMonthsPaid && quarterTotalPaid > 0 ? dueDate.toISOString() : null,
           _hoaMetadata: {
             monthIndex: quarterStartMonth, // First month of quarter
             quarterIndex: quarter,
