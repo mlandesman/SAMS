@@ -44,6 +44,7 @@ import { getDb } from '../firebase.js';
 import { createTransaction } from '../controllers/transactionsController.js';
 import creditService from './creditService.js';
 import admin from 'firebase-admin';
+import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
 
 // Import module-specific functions
 import { 
@@ -988,14 +989,21 @@ export class UnifiedPaymentWrapper {
       );
       const dueDate = parseDate(dueDateISO);
       
-      const paidAmount = payment?.amount || 0;
+      // Read existing partial payment state from payment entry
+      const basePaid = payment?.basePaid || 0;
+      const penaltyPaid = payment?.penaltyPaid || 0;
+      const totalPaid = payment?.amount || 0;
+      
       const baseCharge = monthlyAmount;
       const penaltyAmount = 0; // Calculated fresh later
-      const penaltyPaid = payment?.penaltyPaid || 0;
       
+      // Calculate what's still owed (for partial payments)
+      const baseOwed = baseCharge - basePaid;
+      const penaltyOwed = penaltyAmount - penaltyPaid; // Will be recalculated with penalties
       const totalDue = baseCharge + penaltyAmount;
-      const totalPaid = paidAmount + penaltyPaid;
+      const totalOwed = totalDue - totalPaid;
       
+      // Determine bill status based on payment state
       let billStatus;
       if (totalPaid >= totalDue && totalDue > 0) {
         billStatus = 'paid';
@@ -1012,11 +1020,14 @@ export class UnifiedPaymentWrapper {
         period: `${year}-${String(fiscalMonth).padStart(2, '0')}`,
         unitId: unitId,
         currentCharge: baseCharge,
-        paidAmount: paidAmount,
-        basePaid: paidAmount,
+        paidAmount: totalPaid,
+        basePaid: basePaid,
         penaltyAmount: penaltyAmount,
         penaltyPaid: penaltyPaid,
         totalAmount: totalDue,
+        baseOwed: baseOwed,
+        penaltyOwed: penaltyOwed,
+        totalOwed: totalOwed,
         status: billStatus,
         paid: isPaid,
         dueDate: dueDate.toISOString(),
@@ -1616,8 +1627,10 @@ export class UnifiedPaymentWrapper {
       const duesData = duesDoc.data();
       const currentPayments = Array.isArray(duesData.payments) ? duesData.payments : [];
       
-      // Update payment entries
+      // Update payment entries - MERGE logic for partial payment support
       const updatedPayments = [...currentPayments];
+      const monthlyAmount = duesData.scheduledAmount || 0; // Base monthly charge
+      
       paymentsData.forEach(paymentEntry => {
         const monthIndex = paymentEntry.month - 1; // Convert 1-based to 0-based
         
@@ -1626,16 +1639,57 @@ export class UnifiedPaymentWrapper {
           return;
         }
         
-        // Update or create payment entry
-        updatedPayments[monthIndex] = {
+        // Get existing payment or initialize with zeros
+        const existingPayment = updatedPayments[monthIndex] || {
+          amount: 0,
+          basePaid: 0,
+          penaltyPaid: 0,
+          notes: []
+        };
+        
+        // ACCUMULATE amounts (MERGE, not overwrite)
+        const newAmount = (existingPayment.amount || 0) + paymentEntry.basePaid + paymentEntry.penaltyPaid;
+        const newBasePaid = (existingPayment.basePaid || 0) + paymentEntry.basePaid;
+        const newPenaltyPaid = (existingPayment.penaltyPaid || 0) + paymentEntry.penaltyPaid;
+        
+        // Calculate status based on accumulated totals vs monthly due
+        // Note: Penalty calculation happens on read, so we compare against base charge here
+        let status;
+        if (newBasePaid >= monthlyAmount && newPenaltyPaid >= 0) {
+          // Base is fully paid and any penalties are covered
+          status = 'paid';
+        } else if (newAmount > 0) {
+          // Some payment made but not complete
+          status = 'partial';
+        } else {
+          status = 'unpaid';
+        }
+        
+        // Build notes entry with full audit details
+        const noteEntry = createNotesEntry({
+          transactionId: transactionId,
+          timestamp: paymentDate,
+          text: paymentEntry.notes || 'Payment',
           amount: paymentEntry.basePaid + paymentEntry.penaltyPaid,
           basePaid: paymentEntry.basePaid,
-          penaltyPaid: paymentEntry.penaltyPaid,
-          date: paymentDate,
-          paid: true,
-          reference: transactionId,
+          penaltyPaid: paymentEntry.penaltyPaid
+        });
+        
+        // Merge notes arrays (handle legacy string format)
+        const existingNotes = getNotesArray(existingPayment.notes);
+        const mergedNotes = [...existingNotes, noteEntry];
+        
+        // Update payment entry with accumulated values
+        updatedPayments[monthIndex] = {
+          amount: newAmount,                    // ACCUMULATED total
+          basePaid: newBasePaid,                // ACCUMULATED base
+          penaltyPaid: newPenaltyPaid,          // ACCUMULATED penalty
+          status: status,                       // Calculated status
+          date: paymentDate,                    // Most recent payment date
+          paid: status === 'paid',              // Legacy boolean for compatibility
+          reference: transactionId,             // Most recent transaction ID
           paymentMethod: paymentMethod,
-          notes: paymentEntry.notes
+          notes: mergedNotes                    // ARRAY of payment notes
         };
       });
       

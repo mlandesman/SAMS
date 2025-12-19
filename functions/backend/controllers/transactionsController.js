@@ -28,6 +28,7 @@ import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
+import { getNotesArray } from '../../shared/utils/formatUtils.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import creditService from '../services/creditService.js';
 
@@ -1471,15 +1472,16 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
 
   console.log(`🧹 [BACKEND] Processing HOA cleanup write operations for transaction ${txnId}`);
 
-  // Clear payment entries for this transaction
+  // Reverse payment entries for this transaction (support partial payments)
   let monthsCleared = 0;
   const updatedPayments = [...currentPayments];
+  const monthlyAmount = duesData.scheduledAmount || 0; // Base monthly charge for status calculation
   
   // Get the months this transaction paid for - check allocations first, fallback to duesDistribution
   const monthsData = getHOAMonthsFromTransaction(originalData);
   console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months:`, monthsData);
   
-  // Clear each month that was paid by this transaction
+  // Reverse each month that was paid by this transaction
   monthsData.forEach(monthData => {
     // Task 3 now correctly stores FISCAL month index (0-11) in data.month
     const monthIndex = monthData.month; // Already 0-based fiscal month index
@@ -1494,27 +1496,69 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     console.log(`🔍 [BACKEND] Checking month ${monthIndex}:`, {
       hasPayment: !!payment,
       paymentReference: payment?.reference,
-      paymentTransactionId: payment?.transactionId,
       targetTxnId: txnId,
-      matchesReference: payment?.reference === txnId,
-      matchesTransactionId: payment?.transactionId === txnId
+      notesType: Array.isArray(payment?.notes) ? 'array' : typeof payment?.notes
     });
     
-    // Task 3's updateHOADuesWithPayment stores transaction ID in 'reference' field (line 1436)
-    if (payment && payment.reference === txnId) {
-      console.log(`🗑️ [BACKEND] Clearing payment for fiscal month ${monthIndex} (year ${monthData.year})`);
+    // Check if this payment has notes array (new format) or reference matches (legacy format)
+    const notesArray = getNotesArray(payment?.notes);
+    const noteEntry = notesArray.find(n => n.transactionId === txnId);
+    const isLegacyMatch = payment?.reference === txnId && !noteEntry;
+    
+    if (noteEntry || isLegacyMatch) {
+      console.log(`🔄 [BACKEND] Reversing payment for fiscal month ${monthIndex} (year ${monthData.year})`);
       monthsCleared++;
       
-      // Clear the payment entry
-      updatedPayments[monthIndex] = {
-        amount: 0,
-        date: null,
-        notes: null,
-        paid: false,
-        reference: null
-      };
+      if (noteEntry) {
+        // New format: Subtract this transaction's contribution
+        const newAmount = Math.max(0, (payment.amount || 0) - (noteEntry.amount || 0));
+        const newBasePaid = Math.max(0, (payment.basePaid || 0) - (noteEntry.basePaid || 0));
+        const newPenaltyPaid = Math.max(0, (payment.penaltyPaid || 0) - (noteEntry.penaltyPaid || 0));
+        
+        // Remove this note from the array
+        const newNotes = notesArray.filter(n => n.transactionId !== txnId);
+        
+        // Recalculate status based on remaining payment
+        let status;
+        if (newAmount <= 0) {
+          status = 'unpaid';
+        } else if (newBasePaid >= monthlyAmount) {
+          status = 'paid';
+        } else {
+          status = 'partial';
+        }
+        
+        // Update payment entry with reversed amounts
+        updatedPayments[monthIndex] = {
+          amount: newAmount,
+          basePaid: newBasePaid,
+          penaltyPaid: newPenaltyPaid,
+          status: status,
+          date: newNotes.length > 0 ? newNotes[newNotes.length - 1].timestamp : null,
+          paid: status === 'paid',
+          reference: newNotes.length > 0 ? newNotes[newNotes.length - 1].transactionId : null,
+          paymentMethod: payment.paymentMethod,
+          notes: newNotes
+        };
+        
+        console.log(`✅ [BACKEND] Reversed partial payment: amount ${noteEntry.amount} → remaining ${newAmount}, status: ${status}`);
+      } else {
+        // Legacy format: Clear completely (old behavior for backwards compatibility)
+        updatedPayments[monthIndex] = {
+          amount: 0,
+          basePaid: 0,
+          penaltyPaid: 0,
+          status: 'unpaid',
+          date: null,
+          notes: [],
+          paid: false,
+          reference: null
+        };
+        
+        console.log(`🗑️ [BACKEND] Cleared legacy payment completely`);
+      }
     } else {
-      console.log(`⚠️ [BACKEND] Month ${monthData.month} payment reference doesn't match: expected ${txnId}, found ${payment?.reference}`);
+      console.log(`⚠️ [BACKEND] Month ${monthData.month} payment doesn't contain transaction ${txnId}`);
     }
   });
   
