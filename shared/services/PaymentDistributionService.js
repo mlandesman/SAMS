@@ -116,9 +116,7 @@ export function calculatePaymentDistribution(params) {
   console.log(`📦 [PAYMENT DIST] Grouped ${unpaidBills.length} bills into ${groups.length} due date group(s)`);
   
   // Apply funds to bill groups (in CENTAVOS for precision)
-  // CRITICAL FIX: Track payment and credit separately to enforce credit constraint
-  let remainingPaymentCentavos = paymentAmountCentavos;
-  let remainingCreditCentavos = pesosToCentavos(currentCreditBalance);
+  let remainingFundsCentavos = totalAvailableFundsCentavos;
   const billPayments = [];
   let totalBaseChargesPaidCentavos = 0;
   let totalPenaltiesPaidCentavos = 0;
@@ -138,10 +136,8 @@ export function calculatePaymentDistribution(params) {
   
   // Apply funds to bill groups (entire group must be paid together)
   // RULE FOR GROUPED BILLS: Pay entire group or skip entire group (no partial groups)
-  // CRITICAL: Only use credit if payment is insufficient AND credit is available
   for (const group of groups) {
-    const totalRemainingFundsCentavos = remainingPaymentCentavos + remainingCreditCentavos;
-    if (totalRemainingFundsCentavos <= 0) break;
+    if (remainingFundsCentavos <= 0) break;
     
     // Calculate total for this group
     const groupTotalCentavos = group.reduce((sum, bill) => {
@@ -152,33 +148,9 @@ export function calculatePaymentDistribution(params) {
     const groupDueDate = group[0].dueDate?.split('T')[0] || 'unknown';
     
     console.log(`📦 Group (due: ${groupDueDate}): ${group.length} bill(s), Total $${groupTotalPesos} (${groupTotalCentavos} centavos)`);
-    console.log(`   💰 Available: Payment ${remainingPaymentCentavos} centavos, Credit ${remainingCreditCentavos} centavos, Total ${totalRemainingFundsCentavos} centavos`);
     
-    // CRITICAL FIX: Check if group contains partially paid bills
-    // For partial bills, we can complete them by paying the remaining amount
-    // For unpaid bills, we still require full payment (no new partial payments)
-    const hasPartialBills = group.some(bill => bill.status === 'partial');
-    
-    if (hasPartialBills) {
-      console.log(`   🔄 Group contains partially paid bills - allowing completion of remaining balance`);
-    }
-    
-    // Check if we can afford this group with available funds (payment + credit)
-    if (totalRemainingFundsCentavos >= groupTotalCentavos) {
+    if (remainingFundsCentavos >= groupTotalCentavos) {
       // Can afford entire group - pay all bills in this group!
-      // Use payment first, then credit if needed
-      let paymentUsedForGroup = Math.min(remainingPaymentCentavos, groupTotalCentavos);
-      let creditUsedForGroup = groupTotalCentavos - paymentUsedForGroup;
-      
-      // CRITICAL: Cap credit used to available credit
-      creditUsedForGroup = Math.min(creditUsedForGroup, remainingCreditCentavos);
-      
-      // If we still can't afford it after capping credit, skip the group
-      if (paymentUsedForGroup + creditUsedForGroup < groupTotalCentavos) {
-        console.log(`⏭️  Group skipped - insufficient funds after credit cap ($${centavosToPesos(paymentUsedForGroup + creditUsedForGroup)} < $${groupTotalPesos})`);
-        break;
-      }
-      
       for (const bill of group) {
         const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
         const billPayment = billPayments[billIndex];
@@ -198,72 +170,13 @@ export function calculatePaymentDistribution(params) {
         console.log(`  ✅ Bill ${bill.period} paid: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
       }
       
-      // Update remaining funds
-      remainingPaymentCentavos -= paymentUsedForGroup;
-      remainingCreditCentavos -= creditUsedForGroup;
-      
+      remainingFundsCentavos -= groupTotalCentavos;
       console.log(`✅ Group paid in full: ${groupTotalCentavos} centavos ($${groupTotalPesos})`);
-      console.log(`   💰 Payment used: ${paymentUsedForGroup} centavos, Credit used: ${creditUsedForGroup} centavos`);
-      
-    } else if (hasPartialBills) {
-      // CRITICAL FIX: Group has partially paid bills - allow completion if we can pay FULL remaining amount
-      // Business rule: "no partial payments" means we can't make NEW partial payments
-      // But we CAN complete existing partial bills by paying the FULL remaining amount
-      // Check if we have enough total funds (payment + credit) to pay the full remaining amount
-      
-      if (totalRemainingFundsCentavos >= groupTotalCentavos) {
-        // We have enough to complete the partial bills - pay them in full
-        console.log(`   💳 Completing partially paid bills: $${centavosToPesos(totalRemainingFundsCentavos)} available, need $${groupTotalPesos}`);
-        
-        // Use payment first, then credit if needed
-        let paymentUsedForGroup = Math.min(remainingPaymentCentavos, groupTotalCentavos);
-        let creditUsedForGroup = groupTotalCentavos - paymentUsedForGroup;
-        
-        // CRITICAL: Cap credit used to available credit
-        creditUsedForGroup = Math.min(creditUsedForGroup, remainingCreditCentavos);
-        
-        // If we still can't afford it after capping credit, skip the group
-        if (paymentUsedForGroup + creditUsedForGroup < groupTotalCentavos) {
-          console.log(`⏭️  Partial bills skipped - insufficient funds after credit cap ($${centavosToPesos(paymentUsedForGroup + creditUsedForGroup)} < $${groupTotalPesos})`);
-          break;
-        }
-        
-        // Pay all bills in the group (completing the partial payments)
-        for (const bill of group) {
-          const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
-          const billPayment = billPayments[billIndex];
-          
-          const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
-          const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
-          const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
-          
-          billPayment.amountPaid = unpaidAmount;
-          billPayment.baseChargePaid = baseUnpaid;
-          billPayment.penaltyPaid = penaltyUnpaid;
-          billPayment.newStatus = 'paid';
-          
-          totalBaseChargesPaidCentavos += baseUnpaid;
-          totalPenaltiesPaidCentavos += penaltyUnpaid;
-          
-          console.log(`  ✅ Bill ${bill.period} completed: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
-        }
-        
-        // Update remaining funds
-        remainingPaymentCentavos -= paymentUsedForGroup;
-        remainingCreditCentavos -= creditUsedForGroup;
-        
-        console.log(`✅ Partially paid bills completed: ${groupTotalCentavos} centavos ($${groupTotalPesos})`);
-        console.log(`   💰 Payment used: ${paymentUsedForGroup} centavos, Credit used: ${creditUsedForGroup} centavos`);
-      } else {
-        // Don't have enough to complete partial bills - skip (maintain "no new partial payments" rule)
-        console.log(`⏭️  Partial bills skipped - insufficient funds to complete ($${centavosToPesos(totalRemainingFundsCentavos)} < $${groupTotalPesos}), remainder becomes credit`);
-        break;
-      }
       
     } else {
-      // Can't afford this entire group and no partial bills - SKIP IT
-      // Remainder becomes credit (no partial group payment for unpaid bills)
-      console.log(`⏭️  Group skipped - insufficient funds ($${centavosToPesos(totalRemainingFundsCentavos)} < $${groupTotalPesos}), remainder becomes credit`);
+      // Can't afford this entire group - SKIP IT
+      // Remainder becomes credit (no partial group payment)
+      console.log(`⏭️  Group skipped - insufficient funds ($${centavosToPesos(remainingFundsCentavos)} < $${groupTotalPesos}), remainder becomes credit`);
       break;
     }
   }
@@ -273,26 +186,27 @@ export function calculatePaymentDistribution(params) {
   const totalBillsPaidCentavos = totalBaseChargesPaidCentavos + totalPenaltiesPaidCentavos;
   const totalBillsPaidPesos = roundCurrency(centavosToPesos(totalBillsPaidCentavos));
   
-  // Calculate credit used and overpayment from tracked values
-  // Credit used = original credit - remaining credit
-  const creditUsedCentavos = pesosToCentavos(currentCreditBalance) - remainingCreditCentavos;
-  const creditUsed = roundCurrency(centavosToPesos(creditUsedCentavos));
+  // Key distinction: overpayment is ONLY from payment amount, not from existing credit
+  // If payment > bills paid: overpayment = payment - bills (credit not used)
+  // If payment < bills paid: credit was used to make up difference, no overpayment
+  let creditUsed = 0;
+  let overpayment = 0;
   
-  // Overpayment = remaining payment (excess payment becomes credit)
-  const overpayment = roundCurrency(centavosToPesos(remainingPaymentCentavos));
-  
-  // New credit balance = remaining credit + overpayment (excess payment)
-  // Final credit = original credit - credit used + overpayment
-  const newCreditBalance = roundCurrency(centavosToPesos(remainingCreditCentavos + remainingPaymentCentavos));
-  
-  // CRITICAL: Ensure credit balance never goes negative (shouldn't happen with new logic, but safety check)
-  if (newCreditBalance < 0) {
-    console.warn(`⚠️ [PAYMENT DIST] Credit balance would be negative (${newCreditBalance}), capping to 0`);
-    newCreditBalance = 0;
+  if (paymentAmountCentavos >= totalBillsPaidCentavos) {
+    // Payment covered all bills - no credit needed
+    creditUsed = 0;
+    overpayment = roundCurrency(centavosToPesos(paymentAmountCentavos - totalBillsPaidCentavos));
+  } else {
+    // Payment didn't cover all bills - used credit to make up difference
+    const creditNeededCentavos = totalBillsPaidCentavos - paymentAmountCentavos;
+    creditUsed = roundCurrency(centavosToPesos(creditNeededCentavos));
+    overpayment = 0;
   }
   
-  const totalRemainingFundsCentavos = remainingPaymentCentavos + remainingCreditCentavos;
-  console.log(`💰 [PAYMENT DIST] Calculations: Bills paid $${totalBillsPaidPesos}, Payment remaining $${centavosToPesos(remainingPaymentCentavos)}, Credit remaining $${centavosToPesos(remainingCreditCentavos)}, Total remaining $${centavosToPesos(totalRemainingFundsCentavos)}, Credit used $${creditUsed}, Overpayment $${overpayment}`);
+  // New credit balance = current balance - credit used + overpayment
+  const newCreditBalance = roundCurrency(currentCreditBalance - creditUsed + overpayment);
+  
+  console.log(`💰 [PAYMENT DIST] Calculations: Bills paid $${totalBillsPaidPesos}, Remaining $${centavosToPesos(remainingFundsCentavos)}, Credit used $${creditUsed}, Overpayment $${overpayment}`);
   
   console.log(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
   
