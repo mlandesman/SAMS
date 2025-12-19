@@ -94,8 +94,10 @@ export function calculatePaymentDistribution(params) {
   console.log(`📋 [PAYMENT DIST] Received ${unpaidBills.length} unpaid bills from wrapper`);
   
   // Calculate total bills due in centavos
+  // Use totalOwed (pre-calculated by wrapper) instead of calculating ourselves
   const totalBillsDueCentavos = unpaidBills.reduce((sum, bill) => {
-    const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
+    // Phase 1: Wrappers now provide totalOwed = totalDue - totalPaid (for partial payment support)
+    const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
     return sum + unpaidAmount;
   }, 0);
   
@@ -140,8 +142,10 @@ export function calculatePaymentDistribution(params) {
     if (remainingFundsCentavos <= 0) break;
     
     // Calculate total for this group
+    // Use totalOwed (pre-calculated by wrapper) for partial payment support
     const groupTotalCentavos = group.reduce((sum, bill) => {
-      return sum + (bill.totalAmount - (bill.paidAmount || 0));
+      const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
+      return sum + unpaidAmount;
     }, 0);
     
     const groupTotalPesos = centavosToPesos(groupTotalCentavos);
@@ -155,9 +159,11 @@ export function calculatePaymentDistribution(params) {
         const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
         const billPayment = billPayments[billIndex];
         
-        const unpaidAmount = bill.totalAmount - (bill.paidAmount || 0);
-        const baseUnpaid = bill.currentCharge - (bill.basePaid || 0);
-        const penaltyUnpaid = bill.penaltyAmount - (bill.penaltyPaid || 0);
+        // Phase 1: Use pre-calculated *Owed fields for partial payment support
+        // These fields represent the REMAINING amount to pay, not the full bill
+        const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
+        const baseUnpaid = bill.baseOwed ?? (bill.currentCharge - (bill.basePaid || 0));
+        const penaltyUnpaid = bill.penaltyOwed ?? (bill.penaltyAmount - (bill.penaltyPaid || 0));
         
         billPayment.amountPaid = unpaidAmount;
         billPayment.baseChargePaid = baseUnpaid;
@@ -213,8 +219,9 @@ export function calculatePaymentDistribution(params) {
   // Convert billPayments to PESOS for return
   const billPaymentsForReturn = billPayments.map(bp => {
     const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
-    const unpaidBaseDue = originalBill ? originalBill.currentCharge - (originalBill.basePaid || 0) : bp.baseChargePaid;
-    const unpaidPenaltyDue = originalBill ? originalBill.penaltyAmount - (originalBill.penaltyPaid || 0) : bp.penaltyPaid;
+    // Phase 1: Use pre-calculated *Owed fields for partial payment support
+    const unpaidBaseDue = originalBill ? (originalBill.baseOwed ?? (originalBill.currentCharge - (originalBill.basePaid || 0))) : bp.baseChargePaid;
+    const unpaidPenaltyDue = originalBill ? (originalBill.penaltyOwed ?? (originalBill.penaltyAmount - (originalBill.penaltyPaid || 0))) : bp.penaltyPaid;
     const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
     
     return {
