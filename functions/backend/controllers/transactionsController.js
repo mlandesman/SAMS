@@ -31,6 +31,7 @@ import { validateCentavos } from '../utils/centavosValidation.js';
 import { getNotesArray } from '../../shared/utils/formatUtils.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import creditService from '../services/creditService.js';
+import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
 
@@ -1016,7 +1017,8 @@ async function deleteTransaction(clientId, txnId) {
           creditData = creditDoc.data();
           unitCreditData = creditData[originalData.unitId];
           if (unitCreditData) {
-            console.log(`📊 [BACKEND] Current credit balance: ${unitCreditData.creditBalance} centavos`);
+            const currentBalance = getCreditBalance(unitCreditData);
+            console.log(`📊 [BACKEND] Current credit balance: ${currentBalance} centavos (calculated from ${unitCreditData.history?.length || 0} history entries)`);
           } else {
             console.warn(`⚠️ [BACKEND] No credit data found for unit ${originalData.unitId}`);
           }
@@ -1109,48 +1111,34 @@ async function deleteTransaction(clientId, txnId) {
       
       // Reverse credit balance changes (ATOMIC within transaction)
       if (creditDoc && unitCreditData && originalData.unitId) {
-        const history = unitCreditData.history || [];
+        const currentHistory = unitCreditData.history || [];
         
         // Find and remove entries with matching transaction ID
-        const entriesToDelete = history.filter(entry => entry.transactionId === txnId);
+        const entriesToDelete = currentHistory.filter(entry => entry.transactionId === txnId);
         const entriesDeleted = entriesToDelete.length;
         
         if (entriesDeleted > 0) {
           console.log(`💳 [BACKEND] Reversing ${entriesDeleted} credit history entries for transaction ${txnId}`);
           
-          // Remove entries from history
-          const newHistory = history.filter(entry => entry.transactionId !== txnId);
+          // Simply remove the history entry for this transaction
+          const newHistory = currentHistory.filter(entry => entry.transactionId !== txnId);
           
-          // Recalculate balance by replaying history
-          let recalculatedBalance = 0;
-          newHistory.forEach(entry => {
-            if (typeof entry.balance === 'number' && !isNaN(entry.balance)) {
-              recalculatedBalance = entry.balance;
-            }
-          });
+          // Calculate new balance using getter (always correct)
+          const newBalance = getCreditBalance({ history: newHistory });
           
-          // If no history left, balance should be 0
-          if (newHistory.length === 0) {
-            recalculatedBalance = 0;
-          }
+          // Calculate change amount for logging
+          const currentBalance = getCreditBalance(unitCreditData);
+          creditBalanceBefore = currentBalance;
+          creditReversalAmount = newBalance - currentBalance;
           
-          // Validate recalculated balance
-          if (typeof recalculatedBalance !== 'number' || isNaN(recalculatedBalance)) {
-            console.warn(`⚠️ [BACKEND] Invalid balance calculated: ${recalculatedBalance}, defaulting to 0`);
-            recalculatedBalance = 0;
-          }
-          
-          creditBalanceBefore = unitCreditData.creditBalance;
-          creditReversalAmount = recalculatedBalance - unitCreditData.creditBalance;
-          
-          console.log(`💳 [BACKEND] Credit balance: ${unitCreditData.creditBalance} → ${recalculatedBalance} centavos (change: ${creditReversalAmount})`);
+          console.log(`💳 [BACKEND] Credit balance: ${currentBalance} → ${newBalance} centavos (change: ${creditReversalAmount})`);
           
           // Update credit data in-place (this will be written atomically)
+          // DO NOT write creditBalance field - it becomes stale
           const now = getNow();
           const currentYear = now.getFullYear().toString();
           
           creditData[originalData.unitId] = {
-            creditBalance: recalculatedBalance,
             lastChange: {
               year: currentYear,
               historyIndex: Math.max(0, newHistory.length - 1),
@@ -1166,6 +1154,7 @@ async function deleteTransaction(clientId, txnId) {
           
           creditReversalExecuted = true;
           console.log(`✅ [BACKEND] Credit reversal prepared (will commit atomically)`);
+          console.log(`✅ Credit balance after delete: ${newBalance / 100} (calculated from ${newHistory.length} history entries)`);
         } else {
           console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
         }

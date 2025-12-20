@@ -8,6 +8,7 @@ import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { formatCurrency } from '../utils/currencyUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
+import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import admin from 'firebase-admin';
 
 class CreditService {
@@ -63,7 +64,8 @@ class CreditService {
       }
       
       const unitData = docData[unitId];
-      const creditBalanceInCents = unitData.creditBalance || 0;
+      // Use getter to calculate balance from history (always fresh)
+      const creditBalanceInCents = getCreditBalance(unitData);
       const creditBalanceInDollars = creditBalanceInCents / 100;
       
       return {
@@ -102,10 +104,12 @@ class CreditService {
       
       const doc = await creditBalancesRef.get();
       const allData = doc.exists ? doc.data() : {};
-      const unitData = allData[unitId] || { creditBalance: 0, history: [] };
+      const unitData = allData[unitId] || { history: [] };
+      
+      // Calculate current balance using getter (always fresh)
+      const currentBalance = getCreditBalance(unitData);
       
       // CRITICAL: Validate all centavos values are integers before calculation
-      const currentBalance = validateCentavos(unitData.creditBalance || 0, 'currentBalance');
       const validAmount = validateCentavos(amount, 'amount');
       const newBalance = validateCentavos(currentBalance + validAmount, 'newBalance');
       
@@ -114,25 +118,23 @@ class CreditService {
         throw new Error(`Insufficient credit balance. Current: ${formatCurrency(currentBalance, 'MXN', true)}, Requested: ${formatCurrency(validAmount, 'MXN', true)}`);
       }
       
-      // Add history entry with proper date serialization (FIX: [object Object] bug)
-      const now = getNow();
-      const historyEntry = {
-        id: this._generateId(),
-        timestamp: now.toISOString(), // FIX: Use toISOString() instead of Timestamp object
-        amount: validAmount, // Use validated amount
-        balance: newBalance, // Already validated above
+      // Create clean history entry (no stale balance fields)
+      const historyEntry = createCreditHistoryEntry({
+        amount: validAmount,
         transactionId,
         note,
+        type: validAmount > 0 ? 'credit_added' : 'credit_used',
         source
-      };
+      });
       
       // Initialize or update history array
       const history = unitData.history || [];
       history.push(historyEntry);
       
       // Update unit data
+      // DO NOT write creditBalance field - it becomes stale
+      const now = getNow();
       allData[unitId] = {
-        creditBalance: newBalance,
         lastChange: {
           year: fiscalYear.toString(),
           historyIndex: history.length - 1,
@@ -200,7 +202,8 @@ class CreditService {
       }
       
       const unitData = doc.data()[unitId];
-      const creditBalanceInCents = unitData.creditBalance || 0;
+      // Use getter to calculate balance from history (always fresh)
+      const creditBalanceInCents = getCreditBalance(unitData);
       const creditBalanceInDollars = creditBalanceInCents / 100;
       const creditHistory = unitData.history || [];
       
@@ -263,29 +266,29 @@ class CreditService {
       
       const doc = await creditBalancesRef.get();
       const allData = doc.exists ? doc.data() : {};
-      const unitData = allData[unitId] || { creditBalance: 0, history: [] };
+      const unitData = allData[unitId] || { history: [] };
       
-      const currentBalance = unitData.creditBalance || 0;
+      // Calculate current balance using getter (always fresh)
+      const currentBalance = getCreditBalance(unitData);
       const newBalance = currentBalance + amount;
       
-      // Add history entry with proper date serialization
-      const historyEntry = {
-        id: this._generateId(),
-        timestamp: new Date(dateMillis).toISOString(), // Use provided date
+      // Create clean history entry (no stale balance fields)
+      const historyEntry = createCreditHistoryEntry({
         amount,
-        balance: newBalance,
         transactionId,
         note,
+        type: amount > 0 ? 'credit_added' : 'credit_used',
+        timestamp: new Date(dateMillis).toISOString(), // Use provided date
         source
-      };
+      });
       
       // Initialize or update history array
       const history = unitData.history || [];
       history.push(historyEntry);
       
       // Update unit data
+      // DO NOT write creditBalance field - it becomes stale
       allData[unitId] = {
-        creditBalance: newBalance,
         lastChange: {
           year: fiscalYear.toString(),
           historyIndex: history.length - 1,
@@ -357,43 +360,28 @@ class CreditService {
       const entriesDeleted = entriesToDelete.length;
       
       if (entriesDeleted === 0) {
+        const currentBalance = getCreditBalance(unitData);
         console.log(`ℹ️ [CREDIT] No history entries found for transaction ${transactionId}`);
         return {
           success: true,
           entriesDeleted: 0,
-          newBalance: unitData.creditBalance
+          newBalance: currentBalance
         };
       }
       
-      // Remove entries
+      // Simply remove the history entry for this transaction
       const newHistory = history.filter(entry => entry.transactionId !== transactionId);
       
-      // Recalculate balance by replaying history
-      let recalculatedBalance = 0;
-      newHistory.forEach(entry => {
-        // Ensure balance is a valid number
-        if (typeof entry.balance === 'number' && !isNaN(entry.balance)) {
-          recalculatedBalance = entry.balance;
-        }
-      });
-      
-      // If no history left, balance should be 0
-      if (newHistory.length === 0) {
-        recalculatedBalance = 0;
-      }
-      
-      // CRITICAL FIX: Ensure recalculatedBalance is never undefined
-      if (typeof recalculatedBalance !== 'number' || isNaN(recalculatedBalance)) {
-        console.warn(`⚠️ [CREDIT] Invalid balance calculated: ${recalculatedBalance}, defaulting to 0`);
-        recalculatedBalance = 0;
-      }
+      // Calculate new balance using getter (always correct)
+      const newBalance = getCreditBalance({ history: newHistory });
+      const currentBalance = getCreditBalance(unitData);
       
       console.log(`🗑️ [CREDIT] Deleting ${entriesDeleted} history entries for transaction ${transactionId}`);
-      console.log(`💰 [CREDIT] Balance: ${unitData.creditBalance} → ${recalculatedBalance} centavos`);
+      console.log(`💰 [CREDIT] Balance: ${currentBalance} → ${newBalance} centavos`);
       
-      // Update unit data with validation
+      // Update unit data
+      // DO NOT write creditBalance field - it becomes stale
       allData[unitId] = {
-        creditBalance: recalculatedBalance, // Already validated above
         lastChange: {
           year: fiscalYear.toString(),
           historyIndex: Math.max(0, newHistory.length - 1), // Ensure non-negative
@@ -401,11 +389,6 @@ class CreditService {
         },
         history: newHistory
       };
-      
-      // CRITICAL FIX: Validate all data before writing to Firestore
-      if (typeof allData[unitId].creditBalance !== 'number' || isNaN(allData[unitId].creditBalance)) {
-        throw new Error(`Invalid creditBalance: ${allData[unitId].creditBalance}`);
-      }
       
       // Write back to Firestore
       await creditBalancesRef.set(allData);

@@ -21,6 +21,7 @@ import { validateCentavos, validateCentavosInObject } from '../../shared/utils/c
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
 import { createModuleAllocations, createAllocationSummary as createAllocationSummaryShared } from '../../shared/services/TransactionAllocationService.js';
 import { calculateCreditUsage, updateCreditBalance as updateCreditBalanceShared, getCreditBalance } from '../../shared/services/CreditBalanceService.js';
+import { getCreditBalance as getCreditBalanceFromHistory } from '../../shared/utils/creditBalanceUtils.js';
 import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
@@ -1687,7 +1688,8 @@ async function getUnitDuesData(clientId, unitId, year) {
           const unitCreditData = allCreditData[unitId];
           
           if (unitCreditData) {
-            creditBalance = unitCreditData.creditBalance || 0;
+            // Use getter to calculate balance from history (always fresh)
+            creditBalance = getCreditBalanceFromHistory(unitCreditData);
             creditBalanceHistory = unitCreditData.history || [];
           }
         }
@@ -1806,7 +1808,8 @@ async function getAllDuesDataForYear(clientId, year) {
           
           // Get credit data from centralized location
           const unitCreditData = allCreditBalances[unitId] || {};
-          const creditBalance = unitCreditData.creditBalance || 0;
+          // Use getter to calculate balance from history (always fresh)
+          const creditBalance = getCreditBalanceFromHistory(unitCreditData);
           const creditBalanceHistory = unitCreditData.history || [];
           
           // Convert amounts from cents to dollars for API response
@@ -1962,7 +1965,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
         changeAmountCentavos,
         null,
         adjustmentNote,
-        'hoaDues'
+        'manual'  // Use 'manual' source so Statement of Account shows these adjustments
       );
       console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos`);
     }
@@ -2133,7 +2136,26 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
     }
     
     const hoaDuesDoc = duesSnap.data();
-    const currentCredit = centavosToPesos(hoaDuesDoc.creditBalance || 0);
+    
+    // Fetch credit balance from centralized location (always fresh)
+    let currentCredit = 0;
+    try {
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      const creditBalancesDoc = await creditBalancesRef.get();
+      
+      if (creditBalancesDoc.exists) {
+        const allCreditData = creditBalancesDoc.data();
+        const unitCreditData = allCreditData[unitId] || {};
+        // Use getter to calculate balance from history (always fresh)
+        const creditBalanceInCents = getCreditBalanceFromHistory(unitCreditData);
+        currentCredit = centavosToPesos(creditBalanceInCents);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
+      currentCredit = 0;
+    }
+    
     const config = await getHOABillingConfig(clientId);
     
     console.log(`📋 [HOA WRAPPER] Loaded HOA dues for unit ${unitId}, year ${year}`);
