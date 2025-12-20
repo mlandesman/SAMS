@@ -18,6 +18,7 @@ import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js
 import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
 import axios from 'axios';
 
@@ -106,7 +107,23 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       const duesData = duesSnapshot.data();
       const payments = duesData.payments || [];
       const scheduledAmount = duesData.scheduledAmount || 0;
-      creditBalance = duesData.creditBalance || 0;
+      
+      // Fetch credit balance from centralized location (always fresh)
+      try {
+        const creditBalancesRef = db.collection('clients').doc(clientId)
+          .collection('units').doc('creditBalances');
+        const creditBalancesDoc = await creditBalancesRef.get();
+        
+        if (creditBalancesDoc.exists) {
+          const allCreditData = creditBalancesDoc.data();
+          const unitCreditData = allCreditData[unitId] || {};
+          // Use getter to calculate balance from history (always fresh)
+          creditBalance = getCreditBalance(unitCreditData);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
+        creditBalance = 0;
+      }
 
       // Calculate YTD paid amount
       ytdPaid = payments.reduce((sum, payment) => {
