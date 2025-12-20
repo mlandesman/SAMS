@@ -291,11 +291,18 @@ function generateSummary(summary, lineItems, creditInfo) {
   let output = 'ACCOUNT SUMMARY\n';
   output += '-'.repeat(80) + '\n';
   
+  const creditBalance = creditInfo?.currentBalance || 0;
+  const netAmountDue = Math.max(0, amountDue - creditBalance);
+  
   output += `Total Charges:                                              $${formatPesos(currentCharges).padStart(12)} MXN\n`;
   output += `Total Payments:                                             $${formatPesos(currentPayments).padStart(12)} MXN\n`;
   output += '                                                            ---------------\n';
   output += `BALANCE DUE:                                                $${formatPesos(amountDue).padStart(12)} MXN\n`;
-  output += `Credit Balance:                                             $${formatPesos(creditInfo?.currentBalance || 0).padStart(12)} MXN\n`;
+  if (creditBalance > 0) {
+    output += `Less: Credit on Account:                                   ($${formatPesos(creditBalance).padStart(11)}) MXN\n`;
+    output += '                                                            ===============\n';
+    output += `NET AMOUNT DUE:                                             $${formatPesos(netAmountDue).padStart(12)} MXN\n`;
+  }
   output += '-'.repeat(80) + '\n\n';
   
   return output;

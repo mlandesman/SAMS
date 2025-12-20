@@ -431,6 +431,22 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           ]);
         }
 
+        // Credit Balance Summary Footer
+        const closingBalance = statementData.summary?.closingBalance || 0;
+        const creditBalance = statementData.summary?.creditBalance || 0;
+        const netAmountDue = statementData.summary?.netAmountDue || 0;
+
+        // Add blank row before summary
+        rows.push(['', '', '', '', '', '']);
+        
+        // Summary rows
+        rows.push(['', 'BALANCE DUE', '', '', closingBalance.toFixed(2), 'summary']);
+        
+        if (creditBalance > 0) {
+          rows.push(['', 'Less: Credit on Account', '', '', `(${creditBalance.toFixed(2)})`, 'summary']);
+          rows.push(['', 'NET AMOUNT DUE', '', '', netAmountDue.toFixed(2), 'summary']);
+        }
+
         const escapeCell = value => {
           const str = value == null ? '' : String(value);
           const escaped = str.replace(/"/g, '""');

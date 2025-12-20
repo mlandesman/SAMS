@@ -217,6 +217,8 @@ function getTranslations(language) {
       balanceDue: 'BALANCE DUE',
       creditBalance: 'CREDIT BALANCE',
       accountCredit: 'ACCOUNT CREDIT',
+      lessCredit: 'Less: Credit on Account',
+      netAmountDue: 'NET AMOUNT DUE',
       paidInFull: 'PAID IN FULL',
       statementId: 'Statement ID',
       generatedOn: 'Generated',
@@ -268,6 +270,8 @@ function getTranslations(language) {
       balanceDue: 'SALDO PENDIENTE',
       creditBalance: 'SALDO A FAVOR',
       accountCredit: 'CRÉDITO EN CUENTA',
+      lessCredit: 'Menos: Crédito en Cuenta',
+      netAmountDue: 'IMPORTE NETO ADEUDADO',
       paidInFull: 'PAGADO COMPLETO',
       statementId: 'ID del Estado de Cuenta',
       generatedOn: 'Generado',
@@ -1025,28 +1029,29 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     </table>
     </div>
     
-    <!-- Balance Due/Credit (immediately after activity table) -->
+    <!-- Balance Due/Credit Summary (immediately after activity table) -->
     <!-- Use credit balance from creditBalances document as single source of truth -->
     <div class="balance-due-box">
       <table>
         <tr>
-          <td>
-            ${actualClosingBalance > 0 
-              ? t.balanceDue 
-              : accountCreditBalance > 0
-                ? t.creditBalance 
-                : t.paidInFull
-            }
-          </td>
-          <td>
-            ${actualClosingBalance > 0 
-              ? formatCurrency(actualClosingBalance)
-              : accountCreditBalance > 0
-                ? formatCurrency(accountCreditBalance)
-                : '$0.00'
-            }
-          </td>
+          <td>${t.balanceDue}</td>
+          <td>${formatCurrency(actualClosingBalance)}</td>
         </tr>
+        ${accountCreditBalance > 0 ? `
+        <tr>
+          <td>${t.lessCredit}</td>
+          <td>(${formatCurrency(accountCreditBalance)})</td>
+        </tr>
+        <tr style="border-top: 1px solid #333; font-weight: bold;">
+          <td>${t.netAmountDue}</td>
+          <td>${formatCurrency(Math.max(0, actualClosingBalance - accountCreditBalance))}</td>
+        </tr>
+        ` : ''}
+        ${actualClosingBalance <= 0 && accountCreditBalance <= 0 ? `
+        <tr>
+          <td colspan="2" style="text-align: center;">${t.paidInFull}</td>
+        </tr>
+        ` : ''}
       </table>
     </div>
     

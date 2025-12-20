@@ -9,10 +9,11 @@
  */
 
 import axios from 'axios';
-import { getNow } from '../../shared/services/DateService.js';
+import { getNow, parseDate as parseDateFromService } from '../../shared/services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
+import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 
 /**
  * Format centavos to pesos
@@ -803,8 +804,9 @@ function createChronologicalTransactionList(
   transactions.push(...hoaPenalties);
   transactions.push(...waterPenalties);
   
-  // Add credit adjustments (manual credit changes not associated with transactions)
-  transactions.push(...creditAdjustments);
+  // REMOVED: Credit adjustments should NOT appear as line items on Statement
+  // Credit is a separate ledger - show in summary footer, not as transaction lines
+  // transactions.push(...creditAdjustments);
   
   // Sort chronologically by date
   transactions.sort((a, b) => {
@@ -908,6 +910,7 @@ async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth
 
 /**
  * Get credit balance at a specific date from credit history
+ * Uses the new architecture: calculates balance by summing history entries up to asOfDate
  * @param {Firestore} db - Firestore instance
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID  
@@ -935,8 +938,9 @@ async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate) {
     const history = unitCreditData.history;
     const asOfTimestamp = asOfDate.getTime() / 1000; // Convert to seconds
     
-    // Find the last entry with timestamp <= asOfDate
-    let lastEntry = null;
+    // Calculate balance by summing all history entries up to asOfDate
+    // This matches the new architectural pattern: calculate from history, don't read stale fields
+    let balanceInCentavos = 0;
     for (const entry of history) {
       let entryTimestamp = null;
       
@@ -947,25 +951,25 @@ async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate) {
         entryTimestamp = entry.timestamp.toDate().getTime() / 1000;
       } else if (entry.timestamp instanceof Date) {
         entryTimestamp = entry.timestamp.getTime() / 1000;
+      } else if (typeof entry.timestamp === 'string') {
+        // Handle ISO string timestamps
+        entryTimestamp = new Date(entry.timestamp).getTime() / 1000;
       } else if (typeof entry.timestamp === 'number') {
         entryTimestamp = entry.timestamp;
       }
       
+      // Only include entries up to asOfDate
       if (entryTimestamp !== null && entryTimestamp <= asOfTimestamp) {
-        lastEntry = entry;
-      } else {
+        const amount = typeof entry.amount === 'number' ? entry.amount : 0;
+        balanceInCentavos += amount;
+      } else if (entryTimestamp !== null && entryTimestamp > asOfTimestamp) {
         // History is sorted chronologically, so we can break once we pass the date
         break;
       }
     }
     
-    // If no history before date, return 0
-    if (!lastEntry || lastEntry.balanceAfter === undefined) {
-      return 0;
-    }
-    
     // Convert from centavos to pesos
-    const balanceInPesos = centavosToPesos(lastEntry.balanceAfter);
+    const balanceInPesos = centavosToPesos(balanceInCentavos);
     
     // Credit balance is always positive (represents available credit)
     // For running balance: credit reduces what's owed, so it should be negative
@@ -1602,20 +1606,52 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
           // Get all credit history entries within fiscal year (excluding starting_balance)
           for (const entry of unitCreditData.history) {
             let entryTimestamp = null;
+            let entryDate = null;
             
-            // Handle Firestore Timestamp format
+            // Handle different timestamp formats
             if (entry.timestamp && entry.timestamp._seconds !== undefined) {
+              // Firestore Timestamp with _seconds
               entryTimestamp = entry.timestamp._seconds;
+              entryDate = new Date(entryTimestamp * 1000);
             } else if (entry.timestamp && typeof entry.timestamp.toDate === 'function') {
-              entryTimestamp = entry.timestamp.toDate().getTime() / 1000;
+              // Firestore Timestamp object
+              entryDate = entry.timestamp.toDate();
+              entryTimestamp = entryDate.getTime() / 1000;
             } else if (entry.timestamp instanceof Date) {
-              entryTimestamp = entry.timestamp.getTime() / 1000;
+              // JavaScript Date object
+              entryDate = entry.timestamp;
+              entryTimestamp = entryDate.getTime() / 1000;
+            } else if (typeof entry.timestamp === 'string') {
+              // ISO string timestamp (new architecture format)
+              // Extract date part (YYYY-MM-DD) to avoid timezone conversion issues with time components
+              const isoStr = entry.timestamp;
+              const datePart = isoStr.split('T')[0]; // Extract YYYY-MM-DD part
+              
+              // Use DateService.parseDate which handles Cancun timezone correctly
+              // Parse just the date part to ensure we get the correct date regardless of time component
+              entryDate = parseDateFromService(datePart);
+              if (entryDate && !isNaN(entryDate.getTime())) {
+                entryTimestamp = entryDate.getTime() / 1000;
+              } else {
+                // Fallback to full ISO string if datePart extraction fails
+                entryDate = parseDateFromService(entry.timestamp);
+                if (entryDate && !isNaN(entryDate.getTime())) {
+                  entryTimestamp = entryDate.getTime() / 1000;
+                }
+              }
             } else if (typeof entry.timestamp === 'number') {
+              // Unix timestamp in seconds
               entryTimestamp = entry.timestamp;
+              entryDate = new Date(entryTimestamp * 1000);
+            }
+            
+            // Skip if we couldn't parse the timestamp
+            if (!entryTimestamp || !entryDate || isNaN(entryDate.getTime())) {
+              continue;
             }
             
             // Skip if outside fiscal year or is starting_balance (already handled as opening balance)
-            if (!entryTimestamp || entryTimestamp < fyStartTimestamp || entryTimestamp > fyEndTimestamp) {
+            if (entryTimestamp < fyStartTimestamp || entryTimestamp > fyEndTimestamp) {
               continue;
             }
             
@@ -1623,58 +1659,55 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // Only include entries that don't have a transactionId (manual adjustments)
-            // Entries with transactionId are already represented in the transaction list
-            if (!entry.transactionId) {
-              // Check if this credit change is already represented in a payment transaction
-              // If description mentions "Deposit" or matches a payment pattern, it's likely already in transactions
-              const description = (entry.description || '').toLowerCase();
-              const isFromTransaction = description.includes('deposit of mxn') || 
-                                       description.includes('payment') ||
-                                       description.includes('overpayment') ||
-                                       description.includes('underpayment');
-              
-              // Only include if it's NOT from a transaction (true manual adjustment)
-              // Examples of manual adjustments: "conversion of monthly water bills to quarterly", 
-              // "refund", "adjustment", etc.
-              if (!isFromTransaction) {
-                const entryDate = new Date(entryTimestamp * 1000);
-                const balanceBefore = centavosToPesos(entry.balanceBefore || 0);
-                const balanceAfter = centavosToPesos(entry.balanceAfter || 0);
-                
-                // Calculate the change amount (difference between before and after)
-                // credit_added: balance increases (e.g., 4871.12 -> 5371.12 = +500)
-                // credit_used: balance decreases (e.g., 5371.12 -> 4871.12 = -500)
-                // For running balance: credit_added = negative (reduces debt), credit_used = positive (increases debt)
-                const changeAmount = balanceAfter - balanceBefore;
-                const adjustmentAmount = -changeAmount; // Negate because credit reduces debt
-                
-                // For credit adjustments:
-                // credit_added = negative amount (reduces debt) = show as payment (negative in running balance)
-                // credit_used = positive amount (increases debt) = show as charge (positive in running balance)
-                const isCreditAdded = entry.type === 'credit_added';
-                
-                creditAdjustments.push({
-                  type: 'credit_adjustment',
-                  category: 'credit',
-                  date: entryDate,
-                  description: entry.description || `Credit ${entry.type === 'credit_added' ? 'Added' : 'Used'}`,
-                  amount: adjustmentAmount, // Negative for credit_added, positive for credit_used
-                  charge: isCreditAdded ? 0 : Math.abs(adjustmentAmount), // credit_used shows as charge
-                  payment: isCreditAdded ? Math.abs(adjustmentAmount) : 0, // credit_added shows as payment
-                  balance: 0, // Will be set later when calculating running balance
-                  creditAdjustmentRef: {
-                    id: entry.id,
-                    type: entry.type,
-                    amount: entry.amount,
-                    balanceBefore: entry.balanceBefore,
-                    balanceAfter: entry.balanceAfter,
-                    description: entry.description,
-                    notes: entry.notes
-                  }
-                });
-              }
+            // ONLY include credit entries explicitly marked as manual admin adjustments
+            // All other credit entries (from payments, migrations, etc.) are already reflected in:
+            // - Payment transaction amounts (deposits include overpayments)
+            // - Opening balance calculation (sums all history up to fiscal year start)
+            // Including non-manual entries causes double-counting
+            if (entry.source !== 'manual') {
+              continue; // Skip ALL non-manual entries - only show admin adjustments
             }
+            
+            // Use amount field as single source of truth (new architecture)
+            // amount is in centavos: positive = credit added, negative = credit used
+            const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
+            const entryAmountPesos = centavosToPesos(entryAmountCentavos);
+            
+            // For running balance: credit reduces debt
+            // credit_added (positive amount) = negative in running balance (reduces debt)
+            // credit_used (negative amount) = positive in running balance (increases debt)
+            const adjustmentAmount = -entryAmountPesos; // Negate because credit reduces debt
+            
+            // For credit adjustments:
+            // credit_added = negative amount (reduces debt) = show as payment (negative in running balance)
+            // credit_used = positive amount (increases debt) = show as charge (positive in running balance)
+            const isCreditAdded = entry.type === 'credit_added';
+            
+            // Build description - include transaction reference if available
+            let description = entry.note || entry.description || `Credit ${entry.type === 'credit_added' ? 'Added' : 'Used'}`;
+            if (entry.transactionId) {
+              description += ` (Transaction ${entry.transactionId})`;
+            }
+            
+            creditAdjustments.push({
+              type: 'credit_adjustment',
+              category: 'credit',
+              date: entryDate,
+              description: description,
+              amount: adjustmentAmount, // Negative for credit_added, positive for credit_used
+              charge: isCreditAdded ? 0 : Math.abs(adjustmentAmount), // credit_used shows as charge
+              payment: isCreditAdded ? Math.abs(adjustmentAmount) : 0, // credit_added shows as payment
+              balance: 0, // Will be set later when calculating running balance
+              transactionId: entry.transactionId || null, // Include transactionId for reference
+              creditAdjustmentRef: {
+                id: entry.id,
+                type: entry.type,
+                amount: entry.amount,
+                note: entry.note,
+                description: entry.description,
+                source: entry.source
+              }
+            });
           }
         }
       }
@@ -2485,16 +2518,25 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       periodCovered: periodCovered,
       generatedAt: getNow().toISOString()
     },
-    summary: {
-      totalDue: roundTo2Decimals(rawData.summary.totalDue),
-      totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
-      totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
-      openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
-      closingBalance: roundTo2Decimals(rawData.summary.finalBalance)
-    },
+    summary: (() => {
+      const closingBalance = roundTo2Decimals(rawData.summary.finalBalance);
+      // Use getter function to calculate credit from history (never trust stale stored value)
+      const creditBalance = roundTo2Decimals(getCreditBalance(rawData.creditBalance) / 100); // getter returns centavos
+      const netAmountDue = roundTo2Decimals(Math.max(0, closingBalance - creditBalance));
+      return {
+        totalDue: roundTo2Decimals(rawData.summary.totalDue),
+        totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
+        totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
+        openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
+        closingBalance: closingBalance,
+        creditBalance: creditBalance,
+        netAmountDue: netAmountDue
+      };
+    })(),
     lineItems: lineItems,
     creditInfo: {
-      currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),
+      // Use getter function to calculate credit from history (never trust stale stored value)
+      currentBalance: roundTo2Decimals(getCreditBalance(rawData.creditBalance) / 100),
       allocations: creditAllocations
     },
     allocationSummary: {
