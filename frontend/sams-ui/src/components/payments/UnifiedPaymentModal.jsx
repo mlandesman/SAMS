@@ -43,6 +43,11 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   const [creditUsed, setCreditUsed] = useState(0);
   const [creditRemaining, setCreditRemaining] = useState(0);
   
+  // Penalty waiver state
+  const [waivedPenalties, setWaivedPenalties] = useState([]);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [waiverDialog, setWaiverDialog] = useState(null);
+  
   // UI state
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
@@ -51,6 +56,15 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   
   // Prevent duplicate calculations
   const isCalculating = useRef(false);
+  
+  // Recalculate when waived penalties change
+  useEffect(() => {
+    if (selectedUnit && waivedPenalties.length > 0) {
+      // Trigger recalculation after waiver state updates
+      calculatePaymentDistribution();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waivedPenalties]);
   
   // Load units when modal opens
   useEffect(() => {
@@ -81,6 +95,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setCreditUsed(0);
       setCreditRemaining(0);
       setError(null);
+      setWaivedPenalties([]); // Clear waived penalties when unit changes
       
       console.log('🔵 [UnifiedPaymentModal] Unit selected, loading preview with null amount');
       
@@ -246,7 +261,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
         selectedUnit,
         {
           amount: isZeroAmountRequest ? null : amount,
-          paymentDate: dateToUse
+          paymentDate: dateToUse,
+          waivedPenalties: waivedPenalties
         }
       );
       
@@ -283,9 +299,15 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setUnpaidBills(billsToDisplay);
       setPreview(previewData);
       
-      // Calculate and display total due from filtered bills
+      // Calculate and display total due from filtered bills, excluding waived penalties
       const calculatedTotalDue = billsToDisplay.reduce(
-        (sum, bill) => sum + (bill.totalDue || 0), 
+        (sum, bill) => {
+          const baseTotal = bill.totalDue || 0;
+          // Subtract waived penalty if this bill has one
+          const waived = waivedPenalties.find(w => w.billId === bill.billPeriod);
+          const waivedAmount = waived ? waived.amount : 0;
+          return sum + (baseTotal - waivedAmount);
+        }, 
         0
       );
       setTotalDue(calculatedTotalDue);
@@ -362,7 +384,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
           accountId: accountToCredit.id,
           accountType: accountToCredit.type,
           reference: reference,
-          notes: notes
+          notes: notes,
+          waivedPenalties: waivedPenalties
         },
         preview
       );
@@ -460,6 +483,86 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     } else {
       return { text: 'UNPAID', className: 'status-unpaid' };
     }
+  };
+  
+  /**
+   * Handle right-click on penalties cell
+   */
+  const handlePenaltyRightClick = (e, bill) => {
+    e.preventDefault();
+    
+    // Only show menu if penalty > 0
+    if (bill.penaltyDue <= 0) return;
+    
+    // Check if already waived
+    const isWaived = waivedPenalties.some(w => w.billId === bill.billPeriod);
+    if (isWaived) return; // Already waived, don't show menu
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      bill: bill
+    });
+  };
+  
+  /**
+   * Handle waive penalty click from context menu
+   */
+  const handleWaivePenaltyClick = () => {
+    if (!contextMenu) return;
+    
+    setWaiverDialog({
+      bill: contextMenu.bill,
+      reason: 'Property sale',
+      notes: ''
+    });
+    setContextMenu(null);
+  };
+  
+  /**
+   * Handle waiver dialog confirm
+   */
+  const handleWaiverConfirm = () => {
+    if (!waiverDialog) return;
+    
+    const { bill, reason, notes } = waiverDialog;
+    
+    // Add to waived penalties
+    setWaivedPenalties(prev => [
+      ...prev,
+      {
+        billId: bill.billPeriod,
+        billType: bill.billType,
+        amount: bill.penaltyDue,
+        reason: reason,
+        notes: notes
+      }
+    ]);
+    
+    setWaiverDialog(null);
+    
+    // Note: Recalculation happens automatically via useEffect when waivedPenalties updates
+  };
+  
+  /**
+   * Handle waiver dialog cancel
+   */
+  const handleWaiverCancel = () => {
+    setWaiverDialog(null);
+  };
+  
+  /**
+   * Check if a bill's penalty is waived
+   */
+  const isPenaltyWaived = (billPeriod) => {
+    return waivedPenalties.some(w => w.billId === billPeriod);
+  };
+  
+  /**
+   * Get waived penalty for a bill
+   */
+  const getWaivedPenalty = (billPeriod) => {
+    return waivedPenalties.find(w => w.billId === billPeriod);
   };
   
   if (!isOpen) {
@@ -574,12 +677,34 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                       {unpaidBills.map((bill, index) => {
                         // Bills are already sorted by priority in the API layer
                           const statusInfo = getStatusInfo(bill);
+                          const penaltyWaived = isPenaltyWaived(bill.billPeriod);
+                          const waivedPenalty = getWaivedPenalty(bill.billPeriod);
+                          
+                          // Calculate adjusted total due (subtract waived penalty if applicable)
+                          const adjustedTotalDue = penaltyWaived 
+                            ? bill.totalDue - waivedPenalty.amount 
+                            : bill.totalDue;
+                          
                           return (
                             <tr key={index}>
                               <td>{formatBillPeriod(bill.billPeriod, bill.billType, bill.monthData)}</td>
                               <td>{formatAsMXN(bill.baseChargeDue)}</td>
-                              <td>{formatAsMXN(bill.penaltyDue)}</td>
-                              <td><strong>{formatAsMXN(bill.totalDue)}</strong></td>
+                              <td
+                                onContextMenu={(e) => handlePenaltyRightClick(e, bill)}
+                                style={{
+                                  cursor: bill.penaltyDue > 0 && !penaltyWaived ? 'context-menu' : 'default',
+                                  position: 'relative'
+                                }}
+                                title={penaltyWaived ? `Penalty waived: ${waivedPenalty.reason}` : ''}
+                              >
+                                {penaltyWaived && (
+                                  <span style={{ color: 'red', marginRight: '4px', fontWeight: 'bold' }}>✗</span>
+                                )}
+                                <span style={{ textDecoration: penaltyWaived ? 'line-through' : 'none' }}>
+                                  {formatAsMXN(bill.penaltyDue)}
+                                </span>
+                              </td>
+                              <td><strong>{formatAsMXN(adjustedTotalDue)}</strong></td>
                               <td className={statusInfo.className}>{statusInfo.text}</td>
                             </tr>
                           );
@@ -726,6 +851,120 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
             </>
           )}
         </div>
+        
+        {/* Context Menu for Penalty Waiver */}
+        {contextMenu && (
+          <>
+            <div 
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9998
+              }}
+              onClick={() => setContextMenu(null)}
+            />
+            <div
+              style={{
+                position: 'fixed',
+                top: contextMenu.y,
+                left: contextMenu.x,
+                backgroundColor: 'white',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                zIndex: 9999,
+                minWidth: '150px'
+              }}
+            >
+              <div
+                onClick={handleWaivePenaltyClick}
+                style={{
+                  padding: '10px 15px',
+                  cursor: 'pointer',
+                  borderRadius: '4px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+              >
+                Waive Penalty
+              </div>
+            </div>
+          </>
+        )}
+        
+        {/* Waiver Dialog */}
+        {waiverDialog && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '20px',
+              minWidth: '400px',
+              maxWidth: '500px'
+            }}>
+              <h3 style={{ marginTop: 0 }}>Waive Penalty</h3>
+              <p>Bill: {formatBillPeriod(waiverDialog.bill.billPeriod, waiverDialog.bill.billType, waiverDialog.bill.monthData)}</p>
+              <p>Penalty Amount: {formatAsMXN(waiverDialog.bill.penaltyDue)}</p>
+              
+              <div className="form-group" style={{ marginTop: '15px' }}>
+                <label>Reason: <span style={{ color: 'red' }}>*</span></label>
+                <select
+                  value={waiverDialog.reason}
+                  onChange={(e) => setWaiverDialog({ ...waiverDialog, reason: e.target.value })}
+                  style={{ width: '100%', padding: '8px', fontSize: '14px' }}
+                >
+                  <option value="Property sale">Property sale</option>
+                  <option value="Board decision">Board decision</option>
+                  <option value="Billing error">Billing error</option>
+                  <option value="Management discretion">Management discretion</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div className="form-group" style={{ marginTop: '15px' }}>
+                <label>Additional Notes (optional):</label>
+                <textarea
+                  value={waiverDialog.notes}
+                  onChange={(e) => setWaiverDialog({ ...waiverDialog, notes: e.target.value })}
+                  rows={3}
+                  style={{ width: '100%', padding: '8px', fontSize: '14px' }}
+                  placeholder="Optional additional details..."
+                />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  onClick={handleWaiverCancel}
+                  className="btn-cancel"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleWaiverConfirm}
+                  className="btn-primary"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Confirm Waiver
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

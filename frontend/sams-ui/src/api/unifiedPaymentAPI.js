@@ -81,6 +81,7 @@ const unifiedPaymentAPI = {
    * @param {Object} paymentData - Payment preview data
    * @param {number} paymentData.amount - Payment amount in PESOS
    * @param {string} paymentData.paymentDate - Payment date (YYYY-MM-DD)
+   * @param {Array} paymentData.waivedPenalties - Optional array of waived penalties
    * @returns {Promise<Object>} Preview data with bills and allocations
    */
   async previewUnifiedPayment(clientId, unitId, paymentData) {
@@ -103,7 +104,8 @@ const unifiedPaymentAPI = {
         unitId,
         amount: amountInCentavos,
         paymentDate: paymentData.paymentDate,
-        preview: true
+        preview: true,
+        waivedPenalties: paymentData.waivedPenalties || []
       };
       
       console.log('📤 Unified Payment Preview Request:', {
@@ -166,6 +168,7 @@ const unifiedPaymentAPI = {
    * @param {string} paymentData.accountType - Account type (bank/cash)
    * @param {string} [paymentData.reference] - Optional reference
    * @param {string} [paymentData.notes] - Optional notes
+   * @param {Array} [paymentData.waivedPenalties] - Optional array of waived penalties
    * @param {Object} preview - Preview object from previewUnifiedPayment
    * @returns {Promise<Object>} Payment result
    */
@@ -190,6 +193,7 @@ const unifiedPaymentAPI = {
         accountType: paymentData.accountType,
         reference: paymentData.reference || null,  // Use null instead of empty string
         notes: paymentData.notes || null,          // Use null instead of empty string
+        waivedPenalties: paymentData.waivedPenalties || [],
         preview: preview  // Pass the actual preview object from the preview call
       };
       

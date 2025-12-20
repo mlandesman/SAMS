@@ -175,7 +175,7 @@ export const previewUnifiedPayment = async (req, res) => {
     console.log('🌐 [UNIFIED PAYMENT CONTROLLER] Preview request received');
     
     // Extract parameters from request body
-    const { clientId, unitId, amount, paymentDate } = req.body;
+    const { clientId, unitId, amount, paymentDate, waivedPenalties } = req.body;
     
     // Validate all required fields
     const clientValidation = validateClientId(clientId);
@@ -239,7 +239,8 @@ export const previewUnifiedPayment = async (req, res) => {
       unitId,
       amountInPesos,
       paymentDate,
-      zeroAmountRequest // Pass flag to wrapper
+      zeroAmountRequest, // Pass flag to wrapper
+      waivedPenalties || [] // Pass waived penalties array
     );
     
     // Return successful preview
@@ -297,6 +298,7 @@ export const recordUnifiedPayment = async (req, res) => {
       paymentMethod, 
       reference, 
       notes,
+      waivedPenalties,
       preview 
     } = req.body;
     
@@ -371,6 +373,7 @@ export const recordUnifiedPayment = async (req, res) => {
       paymentMethod,
       reference: reference || null,
       notes: notes || null,
+      waivedPenalties: waivedPenalties || [],
       preview,
       userId: req.user?.uid || 'system',
       accountId: req.body.accountId || 'bank-001', // Required for account balance updates

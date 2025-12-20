@@ -38,8 +38,9 @@
 
 import { getNow, createDate, toISOString } from '../../shared/services/DateService.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
-import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
-import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
+import { pesosToCentavos, centavosToPesos, formatCurrency } from '../../shared/utils/currencyUtils.js';
+import { getCreditBalance as getCreditBalanceFromAPI } from '../../shared/services/CreditBalanceService.js';
+import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import { getDb } from '../firebase.js';
 import { createTransaction } from '../controllers/transactionsController.js';
 import creditService from './creditService.js';
@@ -104,9 +105,11 @@ export class UnifiedPaymentWrapper {
    * @param {string} unitId - Unit ID
    * @param {number} paymentAmount - Payment amount in PESOS
    * @param {Date|string} paymentDate - Payment date (for penalty calculation)
+   * @param {boolean} zeroAmountRequest - Whether this is a zero-amount request
+   * @param {Array} waivedPenalties - Array of penalty waivers {billId, amount, reason, notes}
    * @returns {object} Unified payment distribution preview
    */
-  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, zeroAmountRequest = false) {
+  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, zeroAmountRequest = false, waivedPenalties = []) {
     await this._initializeDb();
     
     console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}${zeroAmountRequest ? ' (zero-amount request)' : ''}`);
@@ -118,10 +121,22 @@ export class UnifiedPaymentWrapper {
     // Step 1: Aggregate bills from both modules
     const { allBills, configs } = await this._aggregateBills(clientId, unitId, calculationDate);
     
+    // Step 1.5: Apply penalty waivers to bills
+    if (waivedPenalties && waivedPenalties.length > 0) {
+      console.log(`   🚫 Applying ${waivedPenalties.length} penalty waivers`);
+      waivedPenalties.forEach(waiver => {
+        const bill = allBills.find(b => b.period === waiver.billId);
+        if (bill) {
+          console.log(`      ✗ Waiving penalty for ${bill.period}: ${formatCurrency(bill.penaltyAmount)} (${waiver.reason})`);
+          bill.penaltyAmount = 0; // Zero out the penalty
+        }
+      });
+    }
+    
     if (allBills.length === 0) {
       console.log(`   ℹ️  No unpaid bills found for unit ${unitId}`);
       // Get current credit balance
-      const creditData = await getCreditBalance(clientId, unitId);
+      const creditData = await getCreditBalanceFromAPI(clientId, unitId);
       
       return {
         totalAmount: paymentAmount,
@@ -158,7 +173,7 @@ export class UnifiedPaymentWrapper {
     }));
     
     // Step 3: Get current credit balance
-    const creditData = await getCreditBalance(clientId, unitId);
+    const creditData = await getCreditBalanceFromAPI(clientId, unitId);
     const currentCredit = creditData.creditBalance || 0;
     console.log(`   💰 Current credit balance: $${currentCredit}`);
     
@@ -405,6 +420,7 @@ export class UnifiedPaymentWrapper {
       paymentMethod, 
       reference = null, 
       notes = null,
+      waivedPenalties = [],
       preview,
       userId = 'system',
       accountId, // Required - no default
@@ -461,8 +477,13 @@ export class UnifiedPaymentWrapper {
     const transactionNotes = this._generateConsolidatedNotes(preview, configs.fiscalYearStartMonth || 1);
     const paymentFooter = `Payment: ${paymentMethod}`;
     
+    // Add penalty waiver notes if any
+    const waiverNotes = this._generateWaiverNotes(waivedPenalties);
+    
     // Note: Sequence will be added after transaction creation
-    const notesWithoutSeq = [paymentHeader, transactionNotes, paymentFooter].join('\n');
+    const notesWithoutSeq = waiverNotes
+      ? [paymentHeader, transactionNotes, waiverNotes, paymentFooter].join('\n')
+      : [paymentHeader, transactionNotes, paymentFooter].join('\n');
     
     // Step 3: Prepare atomic batch for all writes
     console.log(`   💾 Preparing atomic batch (transaction + HOA + Water + Credit)...`);
@@ -1588,6 +1609,30 @@ export class UnifiedPaymentWrapper {
   }
 
   /**
+   * Generate penalty waiver notes
+   * 
+   * Format: "Penalties waived: Q1 2026 ($1,532.59) - Property sale"
+   * 
+   * @private
+   * @param {Array} waivedPenalties - Array of waived penalties
+   * @returns {string|null} Waiver notes string or null if no waivers
+   */
+  _generateWaiverNotes(waivedPenalties) {
+    if (!waivedPenalties || waivedPenalties.length === 0) {
+      return null;
+    }
+    
+    const waiverLines = waivedPenalties.map(waiver => {
+      // Frontend sends amount in pesos, not centavos
+      const amountStr = `$${waiver.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const notesStr = waiver.notes ? ` (${waiver.notes})` : '';
+      return `${waiver.billId} (${amountStr}) - ${waiver.reason}${notesStr}`;
+    });
+    
+    return `Penalties waived: ${waiverLines.join('; ')}`;
+  }
+
+  /**
    * Generate consolidated transaction notes
    * 
    * Format: "HOA: Jan - Feb 2026. Water: Jul - Oct 2026. Credit: +$200"
@@ -2064,35 +2109,35 @@ export class UnifiedPaymentWrapper {
     const creditDoc = await creditBalancesRef.get();
     const allCreditBalances = creditDoc.exists ? creditDoc.data() : {};
     
-    const currentUnitData = allCreditBalances[unitId] || { creditBalance: 0, history: [] };
+    const currentUnitData = allCreditBalances[unitId] || { history: [] };
     const creditChangeCentavos = pesosToCentavos((creditData.added || 0) - (creditData.used || 0));
-    const newBalanceCentavos = (currentUnitData.creditBalance || 0) + creditChangeCentavos;
+    
+    // Calculate current balance using getter (always fresh)
+    const currentBalanceCentavos = getCreditBalance(currentUnitData);
+    const newBalanceCentavos = currentBalanceCentavos + creditChangeCentavos;
     
     // Validate balance
     if (newBalanceCentavos < 0) {
       throw new Error(`Credit balance cannot be negative: ${newBalanceCentavos} centavos`);
     }
     
-    // Create history entry
-    const now = getNow();
-    const historyEntry = {
-      id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: now.toISOString(),
+    // Create history entry (clean - no stale balance fields)
+    const historyEntry = createCreditHistoryEntry({
       amount: creditChangeCentavos,
-      balance: newBalanceCentavos,
       transactionId: transactionId,
       note: creditData.added > 0 
-        ? `Unified payment overpayment +$${creditData.added.toFixed(2)}`
-        : `Unified payment credit used -$${creditData.used.toFixed(2)}`,
-      source: 'unifiedPayment'
-    };
+        ? `Overpayment of ${formatCurrency(creditChangeCentavos)} added to credit`
+        : `Credit of ${formatCurrency(Math.abs(creditChangeCentavos))} applied to payment`,
+      type: creditData.added > 0 ? 'credit_added' : 'credit_used'
+    });
     
     const updatedHistory = [...(currentUnitData.history || []), historyEntry];
     
     // Update the credit balances document
+    // DO NOT write creditBalance field - it becomes stale
+    const now = getNow();
     const fiscalYear = getFiscalYear(now, 7); // AVII uses July start (TODO: get from client config)
     allCreditBalances[unitId] = {
-      creditBalance: newBalanceCentavos,
       lastChange: {
         year: fiscalYear.toString(),
         historyIndex: updatedHistory.length - 1,
@@ -2103,7 +2148,7 @@ export class UnifiedPaymentWrapper {
     
     batch.set(creditBalancesRef, allCreditBalances);
     
-    console.log(`      💰 Credit balance prepared: ${currentUnitData.creditBalance} → ${newBalanceCentavos} centavos ($${(creditChangeCentavos/100).toFixed(2)} change)`);
+    console.log(`      💰 Credit balance prepared: ${currentBalanceCentavos} → ${newBalanceCentavos} centavos ($${(creditChangeCentavos/100).toFixed(2)} change)`);
   }
 }
 
