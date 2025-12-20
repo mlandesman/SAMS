@@ -46,6 +46,8 @@ const dateService = new DateService({ timezone: 'America/Cancun' });
  * @returns {*} Cleaned object with all Timestamps as ISO strings
  */
 function cleanTimestamps(obj) {
+  // Convert undefined to null for Firestore compatibility
+  if (obj === undefined) return null;
   if (!obj) return obj;
   
   // Direct Timestamp object (has toDate() method)
@@ -53,16 +55,17 @@ function cleanTimestamps(obj) {
     return obj.toDate().toISOString();
   }
   
-  // Array of values
+  // Array of values - filter nulls but handle undefined
   if (Array.isArray(obj)) {
-    return obj.map(cleanTimestamps);
+    return obj.map(item => cleanTimestamps(item));
   }
   
   // Nested object (plain objects only, not class instances)
   if (typeof obj === 'object' && obj.constructor === Object) {
     const cleaned = {};
     for (const [key, value] of Object.entries(obj)) {
-      cleaned[key] = cleanTimestamps(value);
+      // Convert undefined values to null for Firestore compatibility
+      cleaned[key] = value === undefined ? null : cleanTimestamps(value);
     }
     return cleaned;
   }
@@ -1529,15 +1532,17 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
         }
         
         // Update payment entry with reversed amounts
+        // IMPORTANT: Use null instead of undefined for Firestore compatibility
+        const lastNote = newNotes.length > 0 ? newNotes[newNotes.length - 1] : null;
         updatedPayments[monthIndex] = {
           amount: newAmount,
           basePaid: newBasePaid,
           penaltyPaid: newPenaltyPaid,
           status: status,
-          date: newNotes.length > 0 ? newNotes[newNotes.length - 1].timestamp : null,
+          date: lastNote?.timestamp ?? null,
           paid: status === 'paid',
-          reference: newNotes.length > 0 ? newNotes[newNotes.length - 1].transactionId : null,
-          paymentMethod: payment.paymentMethod,
+          reference: lastNote?.transactionId ?? null,
+          paymentMethod: payment.paymentMethod ?? null,
           notes: newNotes
         };
         

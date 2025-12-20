@@ -174,12 +174,30 @@ function HOADuesView() {
   // CONTEXT MENU HANDLERS & HELPERS
   // ============================================
   
+  /**
+   * Normalize notes to string format for display/parsing
+   * Handles both legacy string format and new array format
+   * @param {string|Array} notes - Notes in either format
+   * @returns {string} Notes as a string
+   */
+  const getNotesAsString = (notes) => {
+    if (!notes) return '';
+    if (typeof notes === 'string') return notes;
+    if (Array.isArray(notes)) {
+      return notes.map(n => n.text || n.note || (typeof n === 'string' ? n : '')).join(' | ');
+    }
+    return '';
+  };
+  
   // Helper to extract date/time from payment notes (format: "Nov 8, 2025 at 9:17am")
   const extractDateTimeFromPayment = (paymentData) => {
     if (!paymentData || !paymentData.notes) return null;
     
+    // Handle both string and array notes format
+    const notesText = getNotesAsString(paymentData.notes);
+    
     // Extract transaction ID which contains date and time (2025-11-08_091704_278)
-    const match = paymentData.notes.match(/(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})_\d+/);
+    const match = notesText.match(/(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})_\d+/);
     if (!match) return null;
     
     const [, date, hour, minute] = match;
@@ -201,7 +219,8 @@ function HOADuesView() {
   // Helper to extract payment method from notes
   const extractMethodFromNotes = (notes) => {
     if (!notes) return null;
-    const match = notes.match(/Payment:\s*(\w+)/i);
+    const notesText = getNotesAsString(notes);
+    const match = notesText.match(/Payment:\s*(\w+)/i);
     return match ? match[1] : null;
   };
   
@@ -784,7 +803,10 @@ function HOADuesView() {
 
   // Format comprehensive payment notes for tooltip
   const formatPaymentNotesTooltip = (paymentStatus, amount, paymentDate, transactionId) => {
-    if (!paymentStatus.notes || paymentStatus.notes.trim() === '') {
+    // Normalize notes to string format (handles both legacy string and new array format)
+    const notesText = getNotesAsString(paymentStatus.notes);
+    
+    if (!notesText || notesText.trim() === '') {
       if (amount > 0) {
         return `Payment: ${formatAsMXN(amount)}\nTransaction: ${transactionId || 'N/A'}`;
       }
@@ -792,8 +814,8 @@ function HOADuesView() {
     }
     
     // If notes already contain comprehensive info (from unified payment), return as-is
-    if (paymentStatus.notes.includes('HOA:') || paymentStatus.notes.includes('Water:')) {
-      return paymentStatus.notes;
+    if (notesText.includes('HOA:') || notesText.includes('Water:')) {
+      return notesText;
     }
     
     // Otherwise, format basic notes with payment info
@@ -801,8 +823,8 @@ function HOADuesView() {
     if (paymentDate) {
       tooltip += ` on ${paymentDate}`;
     }
-    if (paymentStatus.notes) {
-      tooltip += `\n${paymentStatus.notes}`;
+    if (notesText) {
+      tooltip += `\n${notesText}`;
     }
     if (transactionId) {
       tooltip += `\nTxnID: ${transactionId}`;

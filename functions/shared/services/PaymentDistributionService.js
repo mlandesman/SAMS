@@ -24,6 +24,7 @@
  */
 
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { getTotalOwed, getBaseOwed, getPenaltyOwed } from '../utils/billCalculations.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -94,10 +95,9 @@ export function calculatePaymentDistribution(params) {
   console.log(`📋 [PAYMENT DIST] Received ${unpaidBills.length} unpaid bills from wrapper`);
   
   // Calculate total bills due in centavos
-  // Use totalOwed (pre-calculated by wrapper) instead of calculating ourselves
+  // Use getTotalOwed() getter for fresh calculation from source fields
   const totalBillsDueCentavos = unpaidBills.reduce((sum, bill) => {
-    // Phase 1: Wrappers now provide totalOwed = totalDue - totalPaid (for partial payment support)
-    const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
+    const unpaidAmount = getTotalOwed(bill);
     return sum + unpaidAmount;
   }, 0);
   
@@ -142,9 +142,9 @@ export function calculatePaymentDistribution(params) {
     if (remainingFundsCentavos <= 0) break;
     
     // Calculate total for this group
-    // Use totalOwed (pre-calculated by wrapper) for partial payment support
+    // Use getTotalOwed() getter for fresh calculation from source fields
     const groupTotalCentavos = group.reduce((sum, bill) => {
-      const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
+      const unpaidAmount = getTotalOwed(bill);
       return sum + unpaidAmount;
     }, 0);
     
@@ -159,11 +159,11 @@ export function calculatePaymentDistribution(params) {
         const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
         const billPayment = billPayments[billIndex];
         
-        // Phase 1: Use pre-calculated *Owed fields for partial payment support
-        // These fields represent the REMAINING amount to pay, not the full bill
-        const unpaidAmount = bill.totalOwed ?? (bill.totalAmount - (bill.paidAmount || 0));
-        const baseUnpaid = bill.baseOwed ?? (bill.currentCharge - (bill.basePaid || 0));
-        const penaltyUnpaid = bill.penaltyOwed ?? (bill.penaltyAmount - (bill.penaltyPaid || 0));
+        // Use getter functions for fresh calculation from source fields
+        // This prevents stale data bugs when penaltyAmount is modified
+        const unpaidAmount = getTotalOwed(bill);
+        const baseUnpaid = getBaseOwed(bill);
+        const penaltyUnpaid = getPenaltyOwed(bill);
         
         billPayment.amountPaid = unpaidAmount;
         billPayment.baseChargePaid = baseUnpaid;
@@ -219,9 +219,9 @@ export function calculatePaymentDistribution(params) {
   // Convert billPayments to PESOS for return
   const billPaymentsForReturn = billPayments.map(bp => {
     const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
-    // Phase 1: Use pre-calculated *Owed fields for partial payment support
-    const unpaidBaseDue = originalBill ? (originalBill.baseOwed ?? (originalBill.currentCharge - (originalBill.basePaid || 0))) : bp.baseChargePaid;
-    const unpaidPenaltyDue = originalBill ? (originalBill.penaltyOwed ?? (originalBill.penaltyAmount - (originalBill.penaltyPaid || 0))) : bp.penaltyPaid;
+    // Use getter functions for fresh calculation from source fields
+    const unpaidBaseDue = originalBill ? getBaseOwed(originalBill) : bp.baseChargePaid;
+    const unpaidPenaltyDue = originalBill ? getPenaltyOwed(originalBill) : bp.penaltyPaid;
     const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
     
     return {

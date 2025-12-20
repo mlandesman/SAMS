@@ -45,6 +45,7 @@ import { createTransaction } from '../controllers/transactionsController.js';
 import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
+import { hydrateBillsForResponse } from '../../shared/utils/billCalculations.js';
 
 // Import module-specific functions
 import { 
@@ -918,8 +919,14 @@ export class UnifiedPaymentWrapper {
         for (let monthIndex = quarterStartMonth; monthIndex <= quarterEndMonth; monthIndex++) {
           const payment = paymentsArray[monthIndex] || null;
           quarterBaseCharge += monthlyAmount;
-          quarterBasePaid += payment?.basePaid || 0;
-          quarterPenaltyPaid += payment?.penaltyPaid || 0;
+          
+          // Normalize payment data: derive basePaid/penaltyPaid from amount if not set
+          // Legacy data only has 'amount', newer data has explicit basePaid/penaltyPaid
+          const monthBasePaid = payment?.basePaid ?? Math.min(payment?.amount || 0, monthlyAmount);
+          const monthPenaltyPaid = payment?.penaltyPaid ?? Math.max(0, (payment?.amount || 0) - monthlyAmount);
+          
+          quarterBasePaid += monthBasePaid;
+          quarterPenaltyPaid += monthPenaltyPaid;
           quarterTotalPaid += payment?.amount || 0;
           
           if (!payment || payment.amount < monthlyAmount) {
@@ -939,10 +946,8 @@ export class UnifiedPaymentWrapper {
         const penaltyAmount = 0; // Calculated fresh later
         const totalDue = quarterBaseCharge + penaltyAmount;
         
-        // Calculate what's still owed (for partial payments)
-        const baseOwed = quarterBaseCharge - quarterBasePaid;
-        const penaltyOwed = penaltyAmount - quarterPenaltyPaid; // Will be recalculated with penalties
-        const totalOwed = totalDue - quarterTotalPaid;
+        // NOTE: *Owed fields are NOT stored - they are calculated on-demand by getter functions
+        // This prevents stale data bugs when penaltyAmount is modified by penalty recalculation
         
         // Determine bill status based on payment state
         let billStatus;
@@ -965,9 +970,7 @@ export class UnifiedPaymentWrapper {
           paidAmount: quarterTotalPaid,
           basePaid: quarterBasePaid,
           penaltyPaid: quarterPenaltyPaid,
-          baseOwed: baseOwed,
-          penaltyOwed: penaltyOwed,
-          totalOwed: totalOwed,
+          // NOTE: baseOwed, penaltyOwed, totalOwed NOT stored - use getter functions
           status: billStatus,
           billDate: dueDate.toISOString(),
           dueDate: dueDate.toISOString(),  // Required for penalty calculation
@@ -1002,18 +1005,18 @@ export class UnifiedPaymentWrapper {
       const dueDate = parseDate(dueDateISO);
       
       // Read existing partial payment state from payment entry
-      const basePaid = payment?.basePaid || 0;
-      const penaltyPaid = payment?.penaltyPaid || 0;
+      // Normalize payment data: derive basePaid/penaltyPaid from amount if not set
+      // Legacy data only has 'amount', newer data has explicit basePaid/penaltyPaid
       const totalPaid = payment?.amount || 0;
+      const basePaid = payment?.basePaid ?? Math.min(totalPaid, monthlyAmount);
+      const penaltyPaid = payment?.penaltyPaid ?? Math.max(0, totalPaid - monthlyAmount);
       
       const baseCharge = monthlyAmount;
       const penaltyAmount = 0; // Calculated fresh later
-      
-      // Calculate what's still owed (for partial payments)
-      const baseOwed = baseCharge - basePaid;
-      const penaltyOwed = penaltyAmount - penaltyPaid; // Will be recalculated with penalties
       const totalDue = baseCharge + penaltyAmount;
-      const totalOwed = totalDue - totalPaid;
+      
+      // NOTE: *Owed fields are NOT stored - they are calculated on-demand by getter functions
+      // This prevents stale data bugs when penaltyAmount is modified by penalty recalculation
       
       // Determine bill status based on payment state
       let billStatus;
@@ -1037,9 +1040,7 @@ export class UnifiedPaymentWrapper {
         penaltyAmount: penaltyAmount,
         penaltyPaid: penaltyPaid,
         totalAmount: totalDue,
-        baseOwed: baseOwed,
-        penaltyOwed: penaltyOwed,
-        totalOwed: totalOwed,
+        // NOTE: baseOwed, penaltyOwed, totalOwed NOT stored - use getter functions
         status: billStatus,
         paid: isPaid,
         dueDate: dueDate.toISOString(),
@@ -1095,22 +1096,9 @@ export class UnifiedPaymentWrapper {
     const totalPenalties = result.totalPenaltiesAdded;
     console.log(`      ✅ Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
     
-    // CRITICAL: Recalculate *Owed fields after penalty recalculation
-    // Penalty recalculation updates bill.penaltyAmount, so we need to update penaltyOwed and totalOwed
-    const billsWithUpdatedOwed = result.updatedBills.map(bill => {
-      // Recalculate penaltyOwed based on new penaltyAmount
-      const penaltyOwed = (bill.penaltyAmount || 0) - (bill.penaltyPaid || 0);
-      // Recalculate totalOwed = baseOwed + penaltyOwed
-      const totalOwed = (bill.baseOwed || 0) + penaltyOwed;
-      
-      return {
-        ...bill,
-        penaltyOwed: penaltyOwed,
-        totalOwed: totalOwed
-      };
-    });
-    
-    return billsWithUpdatedOwed;
+    // NOTE: No need to recalculate *Owed fields - getter functions calculate them on-demand
+    // from the updated penaltyAmount field. This eliminates stale data bugs.
+    return result.updatedBills;
   }
 
   /**
@@ -1612,21 +1600,18 @@ export class UnifiedPaymentWrapper {
       
       // Prepare data based on whether it's quarterly or monthly
       if (entry.isQuarterly) {
-        // Quarterly payment - record payment for all 3 months in the quarter
+        // Quarterly payment - pass as single entry, distribution handled below
+        // where we have access to existing payment data
         const quarterIndex = entry.quarterIndex || 0;
-        const startMonth = quarterIndex * 3; // 0, 3, 6, 9
-        
-        // Create entries for each month in the quarter
-        for (let i = 0; i < 3; i++) {
-          const monthIndex = startMonth + i;
-          const monthPaymentEntry = {
-            month: monthIndex + 1, // Convert 0-based to 1-based
-            basePaid: pesosToCentavos(entry.basePaid / 3), // Split equally among 3 months
-            penaltyPaid: i === 0 ? pesosToCentavos(entry.penaltyPaid) : 0, // Penalty only on first month
-            notes: notes + ` (Q${quarterIndex + 1} Month ${i + 1}/3)`
-          };
-          entriesByYear[year].push(monthPaymentEntry);
-        }
+        const quarterPaymentEntry = {
+          isQuarterly: true,
+          quarterIndex: quarterIndex,
+          startMonth: quarterIndex * 3, // 0, 3, 6, 9
+          basePaid: pesosToCentavos(entry.basePaid), // Total base paid for quarter
+          penaltyPaid: pesosToCentavos(entry.penaltyPaid), // Total penalty paid
+          notes: notes
+        };
+        entriesByYear[year].push(quarterPaymentEntry);
       } else {
         // Monthly payment
         const paymentEntry = {
@@ -1659,65 +1644,171 @@ export class UnifiedPaymentWrapper {
       const monthlyAmount = duesData.scheduledAmount || 0; // Base monthly charge
       
       paymentsData.forEach(paymentEntry => {
-        const monthIndex = paymentEntry.month - 1; // Convert 1-based to 0-based
-        
-        if (monthIndex < 0 || monthIndex > 11) {
-          console.warn(`Invalid month index ${monthIndex}, skipping`);
-          return;
-        }
-        
-        // Get existing payment or initialize with zeros
-        const existingPayment = updatedPayments[monthIndex] || {
-          amount: 0,
-          basePaid: 0,
-          penaltyPaid: 0,
-          notes: []
-        };
-        
-        // ACCUMULATE amounts (MERGE, not overwrite)
-        const newAmount = (existingPayment.amount || 0) + paymentEntry.basePaid + paymentEntry.penaltyPaid;
-        const newBasePaid = (existingPayment.basePaid || 0) + paymentEntry.basePaid;
-        const newPenaltyPaid = (existingPayment.penaltyPaid || 0) + paymentEntry.penaltyPaid;
-        
-        // Calculate status based on accumulated totals vs monthly due
-        // Note: Penalty calculation happens on read, so we compare against base charge here
-        let status;
-        if (newBasePaid >= monthlyAmount && newPenaltyPaid >= 0) {
-          // Base is fully paid and any penalties are covered
-          status = 'paid';
-        } else if (newAmount > 0) {
-          // Some payment made but not complete
-          status = 'partial';
+        // Handle quarterly vs monthly entries differently
+        if (paymentEntry.isQuarterly) {
+          // QUARTERLY PAYMENT: Distribute based on what each month STILL OWES
+          const startMonth = paymentEntry.startMonth;
+          const quarterNum = paymentEntry.quarterIndex + 1;
+          
+          // Calculate what each month in the quarter still owes
+          const monthOwed = [];
+          let totalOwed = 0;
+          for (let i = 0; i < 3; i++) {
+            const monthIdx = startMonth + i;
+            const existingPayment = updatedPayments[monthIdx] || { basePaid: 0 };
+            const owed = Math.max(0, monthlyAmount - (existingPayment.basePaid || 0));
+            monthOwed.push({ monthIndex: monthIdx, owed: owed });
+            totalOwed += owed;
+          }
+          
+          console.log(`      📊 Q${quarterNum} distribution: Total owed ${totalOwed} centavos, Payment ${paymentEntry.basePaid} centavos`);
+          console.log(`         Month details:`, monthOwed.map(m => `M${m.monthIndex}: owes ${m.owed}`).join(', '));
+          
+          // Distribute payment proportionally based on what each month owes
+          let remainingBasePaid = paymentEntry.basePaid;
+          let remainingPenaltyPaid = paymentEntry.penaltyPaid;
+          let penaltyApplied = false;
+          
+          monthOwed.forEach((monthData, i) => {
+            const monthIndex = monthData.monthIndex;
+            const monthOwedAmount = monthData.owed;
+            
+            // Skip months that don't owe anything
+            if (monthOwedAmount <= 0 && remainingBasePaid <= 0) {
+              console.log(`         M${monthIndex}: Already paid, skipping`);
+              return;
+            }
+            
+            // Calculate how much to allocate to this month
+            // Allocate up to what the month owes, or remaining payment if less
+            const baseAllocation = Math.min(monthOwedAmount, remainingBasePaid);
+            remainingBasePaid -= baseAllocation;
+            
+            // Apply penalty to first month that gets a base allocation
+            let penaltyAllocation = 0;
+            if (!penaltyApplied && baseAllocation > 0 && remainingPenaltyPaid > 0) {
+              penaltyAllocation = remainingPenaltyPaid;
+              remainingPenaltyPaid = 0;
+              penaltyApplied = true;
+            }
+            
+            // Skip if nothing to allocate
+            if (baseAllocation <= 0 && penaltyAllocation <= 0) {
+              return;
+            }
+            
+            // Get existing payment or initialize with zeros
+            const existingPayment = updatedPayments[monthIndex] || {
+              amount: 0,
+              basePaid: 0,
+              penaltyPaid: 0,
+              notes: []
+            };
+            
+            // ACCUMULATE amounts
+            const newBasePaid = (existingPayment.basePaid || 0) + baseAllocation;
+            const newPenaltyPaid = (existingPayment.penaltyPaid || 0) + penaltyAllocation;
+            const newAmount = newBasePaid + newPenaltyPaid;
+            
+            // Calculate status
+            let status;
+            if (newBasePaid >= monthlyAmount) {
+              status = 'paid';
+            } else if (newAmount > 0) {
+              status = 'partial';
+            } else {
+              status = 'unpaid';
+            }
+            
+            // Build notes entry
+            const noteEntry = createNotesEntry({
+              transactionId: transactionId,
+              timestamp: paymentDate,
+              text: (paymentEntry.notes || 'Payment') + ` (Q${quarterNum} Month ${i + 1}/3)`,
+              amount: baseAllocation + penaltyAllocation,
+              basePaid: baseAllocation,
+              penaltyPaid: penaltyAllocation
+            });
+            
+            // Merge notes arrays
+            const existingNotes = getNotesArray(existingPayment.notes);
+            const mergedNotes = [...existingNotes, noteEntry];
+            
+            // Update payment entry
+            updatedPayments[monthIndex] = {
+              amount: newAmount,
+              basePaid: newBasePaid,
+              penaltyPaid: newPenaltyPaid,
+              status: status,
+              date: paymentDate,
+              paid: status === 'paid',
+              reference: transactionId,
+              paymentMethod: paymentMethod,
+              notes: mergedNotes
+            };
+            
+            console.log(`         M${monthIndex}: Allocated base ${baseAllocation} + penalty ${penaltyAllocation} → status: ${status}`);
+          });
+          
         } else {
-          status = 'unpaid';
+          // MONTHLY PAYMENT: Original logic
+          const monthIndex = paymentEntry.month - 1; // Convert 1-based to 0-based
+          
+          if (monthIndex < 0 || monthIndex > 11) {
+            console.warn(`Invalid month index ${monthIndex}, skipping`);
+            return;
+          }
+          
+          // Get existing payment or initialize with zeros
+          const existingPayment = updatedPayments[monthIndex] || {
+            amount: 0,
+            basePaid: 0,
+            penaltyPaid: 0,
+            notes: []
+          };
+          
+          // ACCUMULATE amounts (MERGE, not overwrite)
+          const newAmount = (existingPayment.amount || 0) + paymentEntry.basePaid + paymentEntry.penaltyPaid;
+          const newBasePaid = (existingPayment.basePaid || 0) + paymentEntry.basePaid;
+          const newPenaltyPaid = (existingPayment.penaltyPaid || 0) + paymentEntry.penaltyPaid;
+          
+          // Calculate status based on accumulated totals vs monthly due
+          let status;
+          if (newBasePaid >= monthlyAmount && newPenaltyPaid >= 0) {
+            status = 'paid';
+          } else if (newAmount > 0) {
+            status = 'partial';
+          } else {
+            status = 'unpaid';
+          }
+          
+          // Build notes entry with full audit details
+          const noteEntry = createNotesEntry({
+            transactionId: transactionId,
+            timestamp: paymentDate,
+            text: paymentEntry.notes || 'Payment',
+            amount: paymentEntry.basePaid + paymentEntry.penaltyPaid,
+            basePaid: paymentEntry.basePaid,
+            penaltyPaid: paymentEntry.penaltyPaid
+          });
+          
+          // Merge notes arrays (handle legacy string format)
+          const existingNotes = getNotesArray(existingPayment.notes);
+          const mergedNotes = [...existingNotes, noteEntry];
+          
+          // Update payment entry with accumulated values
+          updatedPayments[monthIndex] = {
+            amount: newAmount,
+            basePaid: newBasePaid,
+            penaltyPaid: newPenaltyPaid,
+            status: status,
+            date: paymentDate,
+            paid: status === 'paid',
+            reference: transactionId,
+            paymentMethod: paymentMethod,
+            notes: mergedNotes
+          };
         }
-        
-        // Build notes entry with full audit details
-        const noteEntry = createNotesEntry({
-          transactionId: transactionId,
-          timestamp: paymentDate,
-          text: paymentEntry.notes || 'Payment',
-          amount: paymentEntry.basePaid + paymentEntry.penaltyPaid,
-          basePaid: paymentEntry.basePaid,
-          penaltyPaid: paymentEntry.penaltyPaid
-        });
-        
-        // Merge notes arrays (handle legacy string format)
-        const existingNotes = getNotesArray(existingPayment.notes);
-        const mergedNotes = [...existingNotes, noteEntry];
-        
-        // Update payment entry with accumulated values
-        updatedPayments[monthIndex] = {
-          amount: newAmount,                    // ACCUMULATED total
-          basePaid: newBasePaid,                // ACCUMULATED base
-          penaltyPaid: newPenaltyPaid,          // ACCUMULATED penalty
-          status: status,                       // Calculated status
-          date: paymentDate,                    // Most recent payment date
-          paid: status === 'paid',              // Legacy boolean for compatibility
-          reference: transactionId,             // Most recent transaction ID
-          paymentMethod: paymentMethod,
-          notes: mergedNotes                    // ARRAY of payment notes
-        };
       });
       
       // Calculate new total paid
