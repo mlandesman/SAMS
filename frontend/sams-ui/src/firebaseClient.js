@@ -172,24 +172,26 @@ export async function logout() {
   }
 }
 
-try {
-  // Enable offline persistence for better developer experience
-  enableIndexedDbPersistence(db)
-    .then(() => {
-      console.log('Firestore persistence has been enabled.');
-    })
-    .catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('The current browser does not support all of the features required to enable persistence.');
-      } else {
-        console.error('Error enabling persistence:', err);
-      }
-    });
-} catch (err) {
-  console.warn('Unable to enable persistence:', err);
-}
+// DISABLED: Firestore persistence causes stale data issues when backend makes changes
+// Re-enable when app performance requires it and proper cache invalidation is implemented
+// try {
+//   enableIndexedDbPersistence(db)
+//     .then(() => {
+//       console.log('Firestore persistence has been enabled.');
+//     })
+//     .catch((err) => {
+//       if (err.code === 'failed-precondition') {
+//         console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+//       } else if (err.code === 'unimplemented') {
+//         console.warn('The current browser does not support all of the features required to enable persistence.');
+//       } else {
+//         console.error('Error enabling persistence:', err);
+//       }
+//     });
+// } catch (err) {
+//   console.warn('Unable to enable persistence:', err);
+// }
+console.log('Firestore persistence DISABLED - all reads are fresh from server.');
 
 // Track authentication state for the application
 let isAuthReady = false;
