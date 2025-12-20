@@ -1,12 +1,35 @@
 // Service worker for SAMS PWA with version-based cache busting
-const CACHE_VERSION = '5.0.2-revert-simple-render';
+const CACHE_VERSION = '5.1.0-no-api-cache';
 const CACHE_NAME = `sams-v${CACHE_VERSION}-${new Date().getTime()}`;
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
+  '/SLP_Icon.png'
 ];
+
+// API paths that should NEVER be cached (always network-only)
+// These are the Firebase backend API routes served via hosting rewrites
+const API_PATH_PREFIXES = [
+  '/clients/',
+  '/hoadues/',
+  '/water/',
+  '/reports/',
+  '/payments/',
+  '/budgets/',
+  '/admin/',
+  '/propane/',
+  '/api/'
+];
+
+// Check if a URL is an API call
+const isApiCall = (pathname) => {
+  return API_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
+};
+
+// Static assets that CAN be cached (only actual static files)
+const isStaticAsset = (pathname) => {
+  return pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/);
+};
 
 // Install event - cache resources and skip waiting
 self.addEventListener('install', (event) => {
@@ -25,47 +48,32 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch event - network first for HTML, cache first for assets
+// Fetch event - API calls NEVER cached, static assets can be cached
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Network first for HTML and API calls
-  if (request.mode === 'navigate' || request.headers.get('accept').includes('text/html') || url.pathname.startsWith('/api')) {
+  // API calls: ALWAYS network-only, NEVER cache
+  if (isApiCall(url.pathname)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Only cache GET requests
-          if (request.method === 'GET') {
-            // Clone the response before caching
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache if offline (only for GET requests)
-          if (request.method === 'GET') {
-            return caches.match(request).then((response) => {
-              return response || caches.match('/');
-            });
-          }
-          // For non-GET requests, return error
-          return new Response('Network error', { status: 503 });
-        })
+      fetch(request).catch(() => {
+        // Return error for offline API calls
+        return new Response(JSON.stringify({ error: 'Network unavailable' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
     );
     return;
   }
 
-  // Network first for CSS files, cache first for other static assets
-  if (request.url.endsWith('.css')) {
+  // HTML navigation: Network first, fallback to cache
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache the CSS file
-          if (response && response.status === 200 && response.type === 'basic' && request.method === 'GET') {
+          // Cache the page for offline fallback
+          if (request.method === 'GET' && response.status === 200) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseToCache);
@@ -74,23 +82,23 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Fall back to cache if offline
           return caches.match(request).then((response) => {
             return response || caches.match('/');
           });
         })
     );
-  } else {
-    // Cache first for other static assets
+    return;
+  }
+
+  // Static assets: Cache first, network fallback (but only actual static files)
+  if (isStaticAsset(url.pathname)) {
     event.respondWith(
       caches.match(request)
         .then((response) => {
           if (response) {
             return response;
           }
-          // Fetch from network and cache
           return fetch(request).then((response) => {
-            // Don't cache non-successful responses or non-GET requests
             if (!response || response.status !== 200 || response.type !== 'basic' || request.method !== 'GET') {
               return response;
             }
@@ -102,11 +110,14 @@ self.addEventListener('fetch', (event) => {
           });
         })
         .catch(() => {
-          // Fallback for offline
           return caches.match('/');
         })
     );
+    return;
   }
+
+  // Everything else: Network only (don't cache unknown paths)
+  event.respondWith(fetch(request));
 });
 
 // Activate event - cleanup old caches and claim clients
