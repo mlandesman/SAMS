@@ -436,7 +436,8 @@ export class UnifiedPaymentWrapper {
     
     // Step 1: Verify preview data matches current state
     console.log(`   🔍 Verifying preview data matches current state...`);
-    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate);
+    // Pass waivedPenalties to verification so it calculates the same amounts
+    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate, false, waivedPenalties);
     
     // Compare totals (allow small floating point differences)
     const previewTotal = preview.summary?.totalAllocated || 0;
@@ -444,6 +445,7 @@ export class UnifiedPaymentWrapper {
     
     if (Math.abs(previewTotal - currentTotal) > 0.01) {
       console.error(`   ❌ Preview mismatch: Expected $${previewTotal}, Current $${currentTotal}`);
+      console.error(`   ❌ Waivers applied: ${waivedPenalties.length}`);
       throw new Error('Bill status changed since preview. Please refresh and try again.');
     }
     
