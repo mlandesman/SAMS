@@ -269,16 +269,15 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setAllBills(bills);
       
       // Filter bills based on whether this is a zero-amount request (initial load)
-      // Priority levels: 1=Past HOA, 2=Past Water, 3=Current HOA, 4=Current Water, 5=Future HOA
-      // On initial load, only show priorities 1-4 (what's due now), exclude priority 5 (future)
+      // Priority levels: 1=Past HOA, 2=Past Water, 3=Current HOA, 4=Current Water, 5=Future HOA (within 15-day buffer)
+      // CRITICAL: Backend already filters priority 5 bills to only include those within 15-day buffer
+      // So if a priority 5 bill is returned, it should be shown (it's within the buffer period)
       let billsToDisplay = bills;
       if (isZeroAmountRequest) {
-        billsToDisplay = bills.filter(bill => {
-          const priority = bill.priority || 999;
-          // Only show priorities 1-4 (past due and current), exclude 5 (future HOA)
-          return priority <= 4;
-        });
-        console.log(`🔍 Filtered to ${billsToDisplay.length} bills (excluding future HOA dues) out of ${bills.length} total`);
+        // Show all bills returned by backend - backend handles 15-day buffer filtering
+        // Priority 5 bills are only returned if they're within the 15-day buffer
+        billsToDisplay = bills; // Show all bills - backend already filtered appropriately
+        console.log(`🔍 Showing ${billsToDisplay.length} bills (including priority 5 if within 15-day buffer)`);
       }
       
       setUnpaidBills(billsToDisplay);

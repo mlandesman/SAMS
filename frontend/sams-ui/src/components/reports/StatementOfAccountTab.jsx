@@ -295,32 +295,11 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         setHtmlPreview(data.html);
         setHasGenerated(true);
 
-        
-        // Generate and store both English and Spanish PDFs for email links
-        try {
-          const pdfResponse = await fetch(
-            `${process.env.REACT_APP_API_BASE_URL || ''}/api/clients/${selectedClient.id}/email/generate-pdfs`,
-            {
-              method: 'POST',
-              headers: {
-                ...await getAuthHeaders(),
-                'Content-Type': 'application/json'
-              },
-              credentials: 'include',
-              body: JSON.stringify({ unitId: selectedUnitId, fiscalYear })
-            }
-          );
-          
-          if (pdfResponse.ok) {
-            const result = await pdfResponse.json();
-            console.log('✅ PDFs generated and stored:', result.pdfUrls);
-          } else {
-            console.warn('⚠️ PDF generation warning (non-critical)');
-          }
-        } catch (pdfError) {
-          console.warn('⚠️ PDF generation warning (non-critical):', pdfError);
-          // Don't fail the whole operation if PDF generation fails
-        }
+        // NOTE: PDF generation is NOT automatic for single-unit preview
+        // PDFs are only generated when:
+        // 1. User clicks the "PDF" button (on-demand)
+        // 2. Bulk generation via "GenerateAll" option
+        // This prevents unnecessary preview calculations (which take ~90 seconds when PDFs are auto-generated)
 
       } catch (err) {
         console.error('Statement generation error:', err);

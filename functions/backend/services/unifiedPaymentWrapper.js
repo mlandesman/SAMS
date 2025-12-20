@@ -45,7 +45,7 @@ import { createTransaction } from '../controllers/transactionsController.js';
 import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
-import { hydrateBillsForResponse } from '../../shared/utils/billCalculations.js';
+import { hydrateBillsForResponse, getBaseOwed, getPenaltyOwed, getTotalOwed } from '../../shared/utils/billCalculations.js';
 
 // Import module-specific functions
 import { 
@@ -222,6 +222,95 @@ export class UnifiedPaymentWrapper {
     console.log(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid`);
     console.log(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit change $${netCreditAdded.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
     
+    // Create a map of paid bills by period for quick lookup
+    const paidBillsMap = new Map();
+    allPaidBills.forEach(bp => {
+      paidBillsMap.set(bp.billPeriod, bp);
+    });
+    
+    // Include ALL eligible bills in response (even if $0 allocated)
+    // This ensures Statement of Account shows upcoming bills even when paymentAmount is 0
+    // CRITICAL: For zero-amount requests, show all bills with $0 allocation (not paid)
+    const allEligibleBillPayments = billsWithUniquePeroids.map(bill => {
+      // If this is a zero-amount request, always show bills with $0 allocation
+      // This ensures Statement of Account shows upcoming bills correctly
+      // CRITICAL: Include actual bill amounts so frontend can display them
+      if (zeroAmountRequest) {
+        const moduleType = bill._metadata.moduleType;
+        const displayPeriod = bill._originalPeriod || bill.period.replace(`${moduleType}:`, '');
+        
+        // Calculate actual bill amounts (in centavos, will be converted to pesos by PaymentDistributionService)
+        const baseOwedCentavos = getBaseOwed(bill); // Returns centavos
+        const penaltyOwedCentavos = getPenaltyOwed(bill); // Returns centavos
+        const totalOwedCentavos = getTotalOwed(bill); // Returns centavos
+        
+        // Convert to pesos for consistency with PaymentDistributionService output
+        const baseOwedPesos = centavosToPesos(baseOwedCentavos);
+        const penaltyOwedPesos = centavosToPesos(penaltyOwedCentavos);
+        const totalOwedPesos = centavosToPesos(totalOwedCentavos);
+        
+        return {
+          billPeriod: bill.period,
+          amountPaid: 0,
+          baseChargePaid: 0,
+          penaltyPaid: 0,
+          // Include actual bill amounts so frontend can display them
+          totalBaseDue: baseOwedPesos,
+          totalPenaltyDue: penaltyOwedPesos,
+          totalDue: totalOwedPesos,
+          newStatus: bill.status || 'unpaid',
+          dueDate: bill.dueDate,
+          // Include metadata for proper formatting in _splitDistributionByModule
+          _metadata: bill._metadata,
+          _hoaMetadata: bill._hoaMetadata,
+          _originalPeriod: displayPeriod
+        };
+      }
+      
+      // Normal request: use paid bills if available, otherwise $0
+      const paidBill = paidBillsMap.get(bill.period);
+      
+      if (paidBill) {
+        // Bill was paid - use the payment distribution result
+        return paidBill;
+      } else {
+        // Bill is eligible but not paid - include with $0 amounts
+        // This allows Statement of Account to show upcoming bills
+        // CRITICAL: Include actual bill amounts so frontend can display them
+        const moduleType = bill._metadata.moduleType;
+        const displayPeriod = bill._originalPeriod || bill.period.replace(`${moduleType}:`, '');
+        
+        // Calculate actual bill amounts (in centavos, will be converted to pesos by PaymentDistributionService)
+        const baseOwedCentavos = getBaseOwed(bill); // Returns centavos
+        const penaltyOwedCentavos = getPenaltyOwed(bill); // Returns centavos
+        const totalOwedCentavos = getTotalOwed(bill); // Returns centavos
+        
+        // Convert to pesos for consistency with PaymentDistributionService output
+        const baseOwedPesos = centavosToPesos(baseOwedCentavos);
+        const penaltyOwedPesos = centavosToPesos(penaltyOwedCentavos);
+        const totalOwedPesos = centavosToPesos(totalOwedCentavos);
+        
+        return {
+          billPeriod: bill.period,
+          amountPaid: 0,
+          baseChargePaid: 0,
+          penaltyPaid: 0,
+          // Include actual bill amounts so frontend can display them
+          totalBaseDue: baseOwedPesos,
+          totalPenaltyDue: penaltyOwedPesos,
+          totalDue: totalOwedPesos,
+          newStatus: bill.status || 'unpaid',
+          dueDate: bill.dueDate,
+          // Include metadata for proper formatting in _splitDistributionByModule
+          _metadata: bill._metadata,
+          _hoaMetadata: bill._hoaMetadata,
+          _originalPeriod: displayPeriod
+        };
+      }
+    });
+    
+    console.log(`   📋 Including ${allEligibleBillPayments.length} eligible bills in response (${zeroAmountRequest ? 'all with $0 allocation' : `${allPaidBills.length} paid, ${allEligibleBillPayments.length - allPaidBills.length} unpaid but eligible`})`);
+    
     // Reconstruct distribution object for splitting
     const distribution = {
       totalAvailableFunds: paymentAmount + currentCredit,
@@ -231,7 +320,7 @@ export class UnifiedPaymentWrapper {
       overpayment: netCreditAdded > 0 ? roundCurrency(netCreditAdded) : 0,  // If positive, credit was added
       netCreditAdded: roundCurrency(netCreditAdded),  // Can be positive or negative
       totalApplied: roundCurrency(totalPaidAmount),
-      billPayments: allPaidBills
+      billPayments: allEligibleBillPayments  // Now includes all eligible bills, not just paid ones
     };
     
     // Step 5: Split results by module (use bills with unique periods for accurate matching)
@@ -1251,8 +1340,37 @@ export class UnifiedPaymentWrapper {
   _prioritizeAndSortBills(bills, currentDate, fiscalYearStartMonth) {
     console.log(`🔢 [UNIFIED WRAPPER] Calculating priorities for ${bills.length} bills`);
     
-    // Calculate priority for each bill
-    const billsWithPriority = bills.map(bill => ({
+    // 15-day buffer for HOA bills (allows payment preview before quarter starts)
+    const HOA_BUFFER_DAYS = 15;
+    
+    // Filter bills to include:
+    // 1. All past-due and current bills (existing behavior)
+    // 2. Future HOA bills within 15-day buffer (NEW)
+    // 3. Exclude future water bills (they're post-paid)
+    const eligibleBills = bills.filter(bill => {
+      const dueDate = new Date(bill.dueDate);
+      const moduleType = bill._metadata?.moduleType;
+      
+      // Water bills: only include if due date has passed
+      if (moduleType === 'water') {
+        return dueDate <= currentDate;
+      }
+      
+      // HOA bills: include if within 15-day buffer
+      if (moduleType === 'hoa') {
+        const bufferDate = new Date(dueDate);
+        bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+        return currentDate >= bufferDate; // Current date is at or past buffer start
+      }
+      
+      // Default: include if past due (fallback for unknown types)
+      return dueDate <= currentDate;
+    });
+    
+    console.log(`   ℹ️  Filtered to ${eligibleBills.length} eligible bills (HOA buffer: ${HOA_BUFFER_DAYS} days)`);
+    
+    // Calculate priority for each eligible bill
+    const billsWithPriority = eligibleBills.map(bill => ({
       ...bill,
       _metadata: {
         ...bill._metadata,
@@ -1260,9 +1378,11 @@ export class UnifiedPaymentWrapper {
       }
     }));
     
-    // Filter out future water bills (priority 99)
+    // Filter out future water bills (priority 99) - should not occur after above filter, but kept for safety
     const payableBills = billsWithPriority.filter(b => b._metadata.priority < 99);
-    console.log(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} future water bills (postpaid only)`);
+    if (billsWithPriority.length !== payableBills.length) {
+      console.log(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} future water bills (postpaid only)`);
+    }
     
     // Sort by priority (then by due date for same priority)
     const sortedBills = this._sortBillsByPriority(payableBills);
@@ -1348,23 +1468,33 @@ export class UnifiedPaymentWrapper {
     };
     
     // Split bill payments by module
-    // ONLY include bills that were actually paid (amountPaid > 0)
+    // Include ALL eligible bills (even with $0 payment) so Statement of Account shows upcoming bills
     (distribution.billPayments || []).forEach(payment => {
-      // Skip bills with $0 payment (not actually paid)
-      if (!payment.amountPaid || payment.amountPaid === 0) {
+      // Include bills even if amountPaid is 0 - needed for Statement of Account to show upcoming bills
+      // Only skip if amountPaid is null/undefined (shouldn't happen, but safety check)
+      if (payment.amountPaid === null || payment.amountPaid === undefined) {
         return;
       }
       
       // Look up bill using the unique period (includes module prefix)
+      // For $0 payments, metadata may be embedded in payment object
       const originalBill = billMap.get(payment.billPeriod);
       
-      if (!originalBill) {
+      if (!originalBill && !payment._metadata) {
         console.warn(`   ⚠️  Could not find original bill for period: ${payment.billPeriod}`);
         return;
       }
       
-      const moduleType = originalBill._metadata.moduleType;
-      const displayPeriod = originalBill._originalPeriod || payment.billPeriod;
+      // Use metadata from payment object if available (for $0 payments), otherwise from originalBill
+      const moduleType = payment._metadata?.moduleType || originalBill?._metadata?.moduleType;
+      const displayPeriod = payment._originalPeriod || originalBill?._originalPeriod || payment.billPeriod.replace(`${moduleType}:`, '');
+      
+      // For $0 payments, use embedded metadata; otherwise use originalBill
+      const billToUse = originalBill || {
+        _metadata: payment._metadata,
+        _hoaMetadata: payment._hoaMetadata,
+        _originalPeriod: displayPeriod
+      };
       
       if (moduleType === 'hoa') {
         // Add to HOA results
@@ -1372,19 +1502,33 @@ export class UnifiedPaymentWrapper {
         result.hoa.totalPaid = roundCurrency(result.hoa.totalPaid + (payment.amountPaid || 0));
         
         // Format for HOA-specific response (use original period without module prefix)
-        const isQuarterly = originalBill._hoaMetadata?.isQuarterly;
+        const isQuarterly = billToUse._hoaMetadata?.isQuarterly;
+        
+        // Always include both due amounts and paid amounts for proper frontend display
+        const baseDue = payment.totalBaseDue || 0;
+        const penaltyDue = payment.totalPenaltyDue || 0;
+        const totalDue = payment.totalDue || 0;
+        const basePaid = payment.baseChargePaid || 0;
+        const penaltyPaid = payment.penaltyPaid || 0;
+        const totalPaid = payment.amountPaid || 0;
+        
         const hoaMonth = {
-          month: originalBill._hoaMetadata?.month,
-          monthIndex: originalBill._metadata.monthIndex,
+          month: billToUse._hoaMetadata?.month,
+          monthIndex: billToUse._metadata?.monthIndex,
           billPeriod: displayPeriod,
-          basePaid: payment.baseChargePaid || 0,
-          penaltyPaid: payment.penaltyPaid || 0,
-          totalPaid: payment.amountPaid || 0,
+          // Due amounts (always present)
+          baseDue: baseDue,
+          penaltyDue: penaltyDue,
+          totalDue: totalDue,
+          // Paid amounts (0 when no payment, actual amounts when payment > 0)
+          basePaid: basePaid,
+          penaltyPaid: penaltyPaid,
+          totalPaid: totalPaid,
           status: payment.newStatus,
-          priority: originalBill._metadata.priority,  // For frontend sorting
+          priority: billToUse._metadata?.priority,  // For frontend sorting
           isQuarterly: isQuarterly,
-          quarterIndex: originalBill._hoaMetadata?.quarterIndex,
-          monthsInQuarter: originalBill._hoaMetadata?.monthsInQuarter
+          quarterIndex: billToUse._hoaMetadata?.quarterIndex,
+          monthsInQuarter: billToUse._hoaMetadata?.monthsInQuarter
         };
         
         console.log(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}`);
@@ -1396,13 +1540,26 @@ export class UnifiedPaymentWrapper {
         result.water.totalPaid = roundCurrency(result.water.totalPaid + (payment.amountPaid || 0));
         
         // Format for Water-specific response (use original period without module prefix)
+        // Always include both due amounts and paid amounts for proper frontend display
+        const waterBaseDue = payment.totalBaseDue || 0;
+        const waterPenaltyDue = payment.totalPenaltyDue || 0;
+        const waterTotalDue = payment.totalDue || 0;
+        const waterBasePaid = payment.baseChargePaid || 0;
+        const waterPenaltyPaid = payment.penaltyPaid || 0;
+        const waterTotalPaid = payment.amountPaid || 0;
+        
         result.water.billsAffected.push({
           billPeriod: displayPeriod,
-          basePaid: payment.baseChargePaid || 0,
-          penaltyPaid: payment.penaltyPaid || 0,
-          totalPaid: payment.amountPaid || 0,
+          // Due amounts (always present)
+          baseDue: waterBaseDue,
+          penaltyDue: waterPenaltyDue,
+          totalDue: waterTotalDue,
+          // Paid amounts (0 when no payment, actual amounts when payment > 0)
+          basePaid: waterBasePaid,
+          penaltyPaid: waterPenaltyPaid,
+          totalPaid: waterTotalPaid,
           status: payment.newStatus,
-          priority: originalBill._metadata.priority  // For frontend sorting
+          priority: billToUse._metadata?.priority  // For frontend sorting
         });
       }
     });

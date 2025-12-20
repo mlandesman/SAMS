@@ -17,15 +17,16 @@ function convertPreviewFromCentavos(data) {
   const allBills = [];
   
   // Combine HOA and Water bills with their priorities
+  // Backend now returns separate fields: baseDue/totalDue (due amounts) and basePaid/totalPaid (paid amounts)
   const hoaBills = (data.hoa?.monthsAffected || []).map(month => ({
     billType: 'hoa',
     billPeriod: month.billPeriod,
-    baseChargeDue: month.basePaid || 0,
-    penaltyDue: month.penaltyPaid || 0,
-    totalDue: month.totalPaid || 0,
-    baseChargePayment: month.basePaid || 0,
-    penaltyPayment: month.penaltyPaid || 0,
-    totalPayment: month.totalPaid || 0,
+    baseChargeDue: month.baseDue || 0,  // Due amount (always present)
+    penaltyDue: month.penaltyDue || 0,   // Due amount (always present)
+    totalDue: month.totalDue || 0,       // Due amount (always present)
+    baseChargePayment: month.basePaid || 0,  // Paid amount (0 when no payment)
+    penaltyPayment: month.penaltyPaid || 0,  // Paid amount (0 when no payment)
+    totalPayment: month.totalPaid || 0,      // Paid amount (0 when no payment)
     status: month.status || 'unpaid',
     priority: month.priority || 999,
     monthData: { 
@@ -40,12 +41,12 @@ function convertPreviewFromCentavos(data) {
   const waterBills = (data.water?.billsAffected || []).map(bill => ({
     billType: 'water',
     billPeriod: bill.billPeriod,
-    baseChargeDue: bill.basePaid || 0,
-    penaltyDue: bill.penaltyPaid || 0,
-    totalDue: bill.totalPaid || 0,
-    baseChargePayment: bill.basePaid || 0,
-    penaltyPayment: bill.penaltyPaid || 0,
-    totalPayment: bill.totalPaid || 0,
+    baseChargeDue: bill.baseDue || 0,    // Due amount (always present)
+    penaltyDue: bill.penaltyDue || 0,     // Due amount (always present)
+    totalDue: bill.totalDue || 0,         // Due amount (always present)
+    baseChargePayment: bill.basePaid || 0,  // Paid amount (0 when no payment)
+    penaltyPayment: bill.penaltyPaid || 0,  // Paid amount (0 when no payment)
+    totalPayment: bill.totalPaid || 0,      // Paid amount (0 when no payment)
     status: bill.status || 'unpaid',
     priority: bill.priority || 999
   }));

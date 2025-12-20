@@ -1703,11 +1703,17 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     
     // Filter future CHARGES if requested (but always include payments - they're real activity)
     // Payments should always show even if the bill hasn't been sent yet
+    // CRITICAL: Include HOA bills within 15-day buffer (matching preview logic)
+    const cutoffDate = getNow();
+    // Include transactions for the current day
+    cutoffDate.setHours(23, 59, 59, 999);
+    
+    // 15-day buffer for HOA bills (allows Statement of Account to show upcoming bills)
+    const HOA_BUFFER_DAYS = 15;
+    
+    console.log(`   📅 [STATEMENT FILTER] Filtering transactions. excludeFutureBills=${excludeFutureBills}, cutoffDate=${cutoffDate.toISOString().split('T')[0]}, total transactions before filter: ${chronologicalTransactions.length}`);
+    
     if (excludeFutureBills) {
-      const cutoffDate = getNow();
-      // Include transactions for the current day
-      cutoffDate.setHours(23, 59, 59, 999);
-      
       chronologicalTransactions = chronologicalTransactions.filter(txn => {
         // Always include payments (real activity)
         if (txn.type === 'payment' || txn.payment > 0) {
@@ -1717,9 +1723,106 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         if (txn.type === 'credit_adjustment') {
           return true;
         }
-        // Filter out future charges/bills/penalties
+        
+        // For HOA charges: include if within 15-day buffer (even if future)
+        if (txn.type === 'charge' && txn.category === 'hoa') {
+          // Parse transaction date (handle both Date objects and strings)
+          const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
+          if (isNaN(txnDate.getTime())) {
+            // Invalid date - exclude it
+            console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
+            return false;
+          }
+          
+          // Calculate buffer date (15 days before due date)
+          const bufferDate = new Date(txnDate);
+          bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+          
+          // Include if current date is at or past the buffer start date
+          const isWithinBuffer = cutoffDate >= bufferDate;
+          
+          // Debug logging for Q3 specifically
+          if (txn.description && txn.description.includes('Q3')) {
+            console.log(`   🔍 [STATEMENT FILTER] Q3 HOA charge check:`);
+            console.log(`      Description: ${txn.description}`);
+            console.log(`      Due Date: ${txnDate.toISOString().split('T')[0]}`);
+            console.log(`      Buffer Date (due - 15 days): ${bufferDate.toISOString().split('T')[0]}`);
+            console.log(`      Cutoff Date: ${cutoffDate.toISOString().split('T')[0]}`);
+            console.log(`      Is Within Buffer: ${isWithinBuffer} (cutoffDate >= bufferDate)`);
+            console.log(`      Days until due: ${Math.ceil((txnDate - cutoffDate) / (1000 * 60 * 60 * 24))}`);
+          }
+          
+          return isWithinBuffer;
+        }
+        
+        // Filter out other future charges/bills/penalties
         return txn.date <= cutoffDate;
       });
+    } else {
+      // Even when excludeFutureBills=false, apply 15-day buffer to HOA bills for consistency
+      // This ensures Q3/Q4 don't show too early, but do show within the buffer period
+      const beforeFilter = chronologicalTransactions.length;
+      const filteredOut = [];
+      const filteredIn = [];
+      
+      chronologicalTransactions = chronologicalTransactions.filter(txn => {
+        // For HOA charges: apply 15-day buffer (don't show too early)
+        if (txn.type === 'charge' && txn.category === 'hoa') {
+          const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
+          if (isNaN(txnDate.getTime())) {
+            console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
+            filteredOut.push({ desc: txn.description, reason: 'invalid_date' });
+            return false;
+          }
+          
+          const bufferDate = new Date(txnDate);
+          bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+          
+          // Only show if within buffer period (don't show Q4 when it's too far away)
+          const isWithinBuffer = cutoffDate >= bufferDate;
+          
+          // Debug logging for Q3 specifically
+          if (txn.description && txn.description.includes('Q3')) {
+            console.log(`   🔍 [STATEMENT FILTER] Q3 HOA charge check (excludeFutureBills=false):`);
+            console.log(`      Description: ${txn.description}`);
+            console.log(`      Due Date: ${txnDate.toISOString().split('T')[0]}`);
+            console.log(`      Buffer Date (due - 15 days): ${bufferDate.toISOString().split('T')[0]}`);
+            console.log(`      Cutoff Date: ${cutoffDate.toISOString().split('T')[0]}`);
+            console.log(`      Is Within Buffer: ${isWithinBuffer} (cutoffDate >= bufferDate)`);
+            console.log(`      Days until due: ${Math.ceil((txnDate - cutoffDate) / (1000 * 60 * 60 * 24))}`);
+            console.log(`      ⚠️  RETURNING: ${isWithinBuffer}`);
+          }
+          
+          if (isWithinBuffer) {
+            filteredIn.push({ desc: txn.description, date: txnDate.toISOString().split('T')[0] });
+          } else {
+            filteredOut.push({ desc: txn.description, date: txnDate.toISOString().split('T')[0], reason: 'outside_buffer' });
+          }
+          
+          return isWithinBuffer;
+        }
+        
+        // All other transactions pass through unchanged
+        filteredIn.push({ desc: txn.description || txn.type, date: txn.date instanceof Date ? txn.date.toISOString().split('T')[0] : String(txn.date) });
+        return true;
+      });
+      
+      console.log(`   📊 [STATEMENT FILTER] Filtered ${beforeFilter} → ${chronologicalTransactions.length} transactions`);
+      console.log(`      ✅ Included: ${filteredIn.length} transactions`);
+      console.log(`      ❌ Excluded: ${filteredOut.length} transactions`);
+      if (filteredOut.length > 0) {
+        console.log(`      Excluded items:`, filteredOut.map(f => `${f.desc} (${f.date}) - ${f.reason}`).join(', '));
+      }
+      const q3Included = filteredIn.find(f => f.desc && f.desc.includes('Q3'));
+      const q3Excluded = filteredOut.find(f => f.desc && f.desc.includes('Q3'));
+      if (q3Included) {
+        console.log(`      ✅ Q3 INCLUDED: ${q3Included.desc} (${q3Included.date})`);
+      }
+      if (q3Excluded) {
+        console.log(`      ❌ Q3 EXCLUDED: ${q3Excluded.desc} (${q3Excluded.date}) - ${q3Excluded.reason}`);
+      }
+      
+      console.log(`   📊 [STATEMENT FILTER] After filtering (excludeFutureBills=false): ${chronologicalTransactions.length} transactions remain`);
     }
     
     // Step 9: Fetch credit balance
@@ -2066,7 +2169,22 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     const now = getNow();
     const cutoffDate = new Date(now);
     cutoffDate.setHours(23, 59, 59, 999);
-    const isFuture = txnDate && txnDate > cutoffDate;
+    // Determine if transaction is "future" for display purposes
+    // CRITICAL: HOA charges within 15-day buffer should NOT be marked as future
+    let isFuture = false;
+    if (txnDate) {
+      if (txn.type === 'charge' && txn.category === 'hoa') {
+        // For HOA charges: only mark as future if outside 15-day buffer
+        const HOA_BUFFER_DAYS = 15;
+        const bufferDate = new Date(txnDate);
+        bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+        // If within buffer period, it's not "future" for display purposes
+        isFuture = cutoffDate < bufferDate; // Only future if cutoffDate is BEFORE buffer starts
+      } else {
+        // For other transactions: mark as future if date is after cutoff
+        isFuture = txnDate > cutoffDate;
+      }
+    }
     
     return {
       date: dateStr,
