@@ -6,22 +6,28 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#1e40af",
+  "background_color": "#E6F4F8",
+  "theme_color": "#2FB6C4",
   "lang": "en-US",
   "dir": "ltr",
   "icons": [
     {
-      "src": "icon-192x192.png",
+      "src": "SLP_Icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512x512.png",
+      "src": "SLP_Icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "SLP_Icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": ["business", "finance", "productivity"]
