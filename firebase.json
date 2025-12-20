@@ -15,6 +15,8 @@
         "*.local"
       ],
       "predeploy": [
+        "cp ./serviceAccountKey-prod.json \"$RESOURCE_DIR/backend/sams-production-serviceAccountKey.json\"",
+        "cp ./serviceAccountKey-staging.json \"$RESOURCE_DIR/backend/serviceAccountKey-staging.json\" 2>/dev/null || true",
         "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
