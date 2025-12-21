@@ -52,6 +52,7 @@ export const api = onRequest(
     timeoutSeconds: 300,
     memory: '512MiB',
     cors: true,
+    secrets: ['GMAIL_APP_PASSWORD'],
   },
   async (req, res) => {
     const app = await getApp();
