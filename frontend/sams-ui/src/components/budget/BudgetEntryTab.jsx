@@ -8,15 +8,6 @@ import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormContr
 import { centavosToPesos, pesosToCentavos } from '../../utils/currencyUtils';
 import './BudgetEntryTab.css';
 
-/**
- * Check if a category is a one-time project category that should be filtered out
- * from the operational budget view. Projects are zero-sum (funded via Special Assessments)
- * and are tracked separately in the Projects module.
- */
-const isOneTimeCategory = (categoryId) => {
-  return categoryId === 'special-assessments' || 
-         categoryId.startsWith('projects-');
-};
 
 function BudgetEntryTab() {
   const { selectedClient } = useClient();
@@ -55,9 +46,9 @@ function BudgetEntryTab() {
         const categoriesResult = await getCategories(selectedClient.id);
         const allCategories = categoriesResult.data || [];
         
-        // Filter out one-time project categories (special-assessments, projects-*)
-        // These are zero-sum activities tracked separately in the Projects module
-        const categoriesList = allCategories.filter(cat => !isOneTimeCategory(cat.id));
+        // Filter out categories marked as notBudgeted
+        // These include projects, special assessments, transfers, etc.
+        const categoriesList = allCategories.filter(cat => !cat.notBudgeted);
         setCategories(categoriesList);
 
         // Fetch budgets for selected year
@@ -360,11 +351,12 @@ function BudgetEntryTab() {
         </Alert>
       )}
 
-      {/* Income Categories Table */}
-      <h2 style={{ marginTop: '24px', marginBottom: '12px', color: '#2e7d32', borderBottom: '2px solid #2e7d32', paddingBottom: '8px' }}>
-        Income
-      </h2>
-      <div className="budget-table-container">
+      {/* Single scrollable wrapper for both tables */}
+      <div className="budget-tables-wrapper">
+        {/* Income Categories Table */}
+        <h2 style={{ marginTop: '16px', marginBottom: '12px', color: '#2e7d32', borderBottom: '2px solid #2e7d32', paddingBottom: '8px' }}>
+          Income
+        </h2>
         <table className="budget-table">
           <thead>
             <tr>
@@ -422,13 +414,11 @@ function BudgetEntryTab() {
             })}
           </tbody>
         </table>
-      </div>
 
-      {/* Expense Categories Table */}
-      <h2 style={{ marginTop: '32px', marginBottom: '12px', color: '#616161', borderBottom: '2px solid #616161', paddingBottom: '8px' }}>
-        Expenses
-      </h2>
-      <div className="budget-table-container">
+        {/* Expense Categories Table */}
+        <h2 style={{ marginTop: '32px', marginBottom: '12px', color: '#616161', borderBottom: '2px solid #616161', paddingBottom: '8px' }}>
+          Expenses
+        </h2>
         <table className="budget-table">
           <thead>
             <tr>
@@ -486,7 +476,7 @@ function BudgetEntryTab() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>{/* End budget-tables-wrapper */}
     </div>
   );
 }

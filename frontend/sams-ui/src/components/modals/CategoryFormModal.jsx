@@ -14,7 +14,8 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
     name: '',
     description: '',
     type: 'expense',
-    status: 'active'
+    status: 'active',
+    notBudgeted: false
   });
   
   const [errors, setErrors] = useState({});
@@ -26,7 +27,8 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
         name: category.name || '',
         description: category.description || '',
         type: category.type || 'expense',
-        status: category.status || 'active'
+        status: category.status || 'active',
+        notBudgeted: category.notBudgeted || false
       });
     } else {
       // Reset form for new category
@@ -34,7 +36,8 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
         name: '',
         description: '',
         type: 'expense',
-        status: 'active'
+        status: 'active',
+        notBudgeted: false
       });
     }
     setErrors({});
@@ -42,10 +45,10 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
 
   // Handle field changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     
     // Clear error when field is edited
@@ -181,6 +184,17 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
+              </label>
+              
+              <label className="sandyland-form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '24px' }}>
+                <input
+                  type="checkbox"
+                  name="notBudgeted"
+                  checked={formData.notBudgeted}
+                  onChange={handleChange}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <span style={{ fontWeight: 'normal' }}>Not Budgeted</span>
               </label>
             </div>
           </div>

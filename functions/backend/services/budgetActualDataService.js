@@ -205,15 +205,23 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
           });
         }
       } else if (categoryType === 'income') {
-        incomeCategories.push(categoryData);
-        incomeTotals.totalAnnualBudget += annualBudget;
-        incomeTotals.totalYtdBudget += ytdBudget;
-        incomeTotals.totalYtdActual += ytdActual;
+        // Only include categories that have budget or actual activity
+        // Hide categories where both budget and actual are zero (no activity)
+        if (annualBudget > 0 || ytdActual > 0) {
+          incomeCategories.push(categoryData);
+          incomeTotals.totalAnnualBudget += annualBudget;
+          incomeTotals.totalYtdBudget += ytdBudget;
+          incomeTotals.totalYtdActual += ytdActual;
+        }
       } else {
-        expenseCategories.push(categoryData);
-        expenseTotals.totalAnnualBudget += annualBudget;
-        expenseTotals.totalYtdBudget += ytdBudget;
-        expenseTotals.totalYtdActual += ytdActual;
+        // Only include categories that have budget or actual activity
+        // Hide categories where both budget and actual are zero (no activity)
+        if (annualBudget > 0 || ytdActual > 0) {
+          expenseCategories.push(categoryData);
+          expenseTotals.totalAnnualBudget += annualBudget;
+          expenseTotals.totalYtdBudget += ytdBudget;
+          expenseTotals.totalYtdActual += ytdActual;
+        }
       }
     });
 

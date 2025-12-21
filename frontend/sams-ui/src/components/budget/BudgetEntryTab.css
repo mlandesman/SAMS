@@ -15,17 +15,21 @@
   border-radius: 4px;
 }
 
-.budget-table-container {
+/* Single scrollable region for all tables */
+.budget-tables-wrapper {
   flex: 1;
   overflow: auto;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding-bottom: 20px;
 }
 
 .budget-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  margin-bottom: 32px;
 }
 
 .budget-table th {
