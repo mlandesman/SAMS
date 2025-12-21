@@ -49,6 +49,28 @@
   border-bottom: 1px solid #eee;
 }
 
+/* Fixed column widths for consistent alignment between tables */
+.budget-table th:nth-child(1),
+.budget-table td:nth-child(1) {
+  width: 30%;
+}
+
+.budget-table th:nth-child(2),
+.budget-table td:nth-child(2) {
+  width: 20%;
+}
+
+.budget-table th:nth-child(3),
+.budget-table td:nth-child(3) {
+  width: 35%;
+}
+
+.budget-table th:nth-child(4),
+.budget-table td:nth-child(4) {
+  width: 15%;
+  text-align: center;
+}
+
 .budget-table tr:nth-child(even) {
   background-color: #f8f9fa;
 }
