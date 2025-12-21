@@ -7,7 +7,7 @@ import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
 import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
-import { bulkGenerateStatements } from '../../api/admin';
+import { bulkGenerateStatements, bulkSendStatementEmails } from '../../api/admin';
 import { sendStatementEmail } from '../../api/email';
 import './StatementOfAccountTab.css';
 
@@ -120,6 +120,12 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkError, setBulkError] = useState(null);
+
+  // Bulk email state
+  const [bulkEmailing, setBulkEmailing] = useState(false);
+  const [bulkEmailProgress, setBulkEmailProgress] = useState(null);
+  const [bulkEmailResults, setBulkEmailResults] = useState(null);
+  const [bulkEmailError, setBulkEmailError] = useState(null);
 
   // Initialise language and fiscal year when client or user changes
   useEffect(() => {
@@ -342,9 +348,64 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     [selectedClient, selectedUnitId, htmlPreview, fiscalYear, language]
   );
 
+  // Handle bulk email (defined before handleSendEmail so it can be called)
+  const handleBulkEmail = useCallback(async () => {
+    if (!selectedClient) {
+      return;
+    }
+
+    setBulkEmailing(true);
+    setBulkEmailError(null);
+    setBulkEmailProgress(null);
+    setBulkEmailResults(null);
+
+    try {
+      const result = await bulkSendStatementEmails(
+        selectedClient.id,
+        fiscalYear,
+        (progress) => {
+          // Update progress as we receive updates
+          setBulkEmailProgress({
+            current: progress.current,
+            total: progress.total,
+            sent: progress.sent,
+            skipped: progress.skipped,
+            failed: progress.failed,
+            message: progress.message,
+            status: progress.status
+          });
+        }
+      );
+
+      if (result.success && result.data) {
+        setBulkEmailResults(result.data);
+        setBulkEmailProgress({
+          total: result.data.totalUnits,
+          sent: result.data.sent,
+          skipped: result.data.skipped,
+          failed: result.data.failed,
+          current: result.data.totalUnits
+        });
+      } else {
+        throw new Error(result.error || 'Bulk email failed');
+      }
+    } catch (err) {
+      console.error('Bulk email error:', err);
+      setBulkEmailError(err.message || 'Failed to send bulk emails. Please try again.');
+    } finally {
+      setBulkEmailing(false);
+    }
+  }, [selectedClient, fiscalYear]);
+
   const handleSendEmail = async () => {
-    if (!selectedUnitId || !selectedClient) {
-      setEmailResult({ success: false, message: 'Please select a unit first' });
+    if (!selectedClient) {
+      setEmailResult({ success: false, message: 'Please select a client first' });
+      return;
+    }
+
+    // If no unit selected, trigger bulk email instead
+    if (!selectedUnitId) {
+      await handleBulkEmail();
       return;
     }
     
@@ -370,7 +431,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   }, [handleGenerate]);
 
   const isGenerateDisabled =
-    loading || unitsLoading || !!unitsError || bulkGenerating;
+    loading || unitsLoading || !!unitsError || bulkGenerating || bulkEmailing;
 
   const hasStatement = !!statementData && !!statementData.html;
   const isPdfDisabled = !hasStatement || loading || downloadingPdf;
@@ -621,9 +682,9 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             type="button"
             className="secondary-button"
             onClick={handleSendEmail}
-            disabled={!selectedUnitId || emailSending || !htmlPreview}
+            disabled={(selectedUnitId && !htmlPreview) || emailSending || bulkEmailing}
           >
-            {emailSending ? 'Sending...' : 'Email'}
+            {emailSending || bulkEmailing ? 'Sending...' : selectedUnitId ? 'Email' : 'Email All'}
           </button>
         </div>
         
@@ -684,6 +745,30 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
 
+        {/* Bulk email loading */}
+        {bulkEmailing && (
+          <div className="statement-preview-loading">
+            <LoadingSpinner
+              show={true}
+              variant="logo"
+              size="large"
+              message={
+                bulkEmailProgress?.message 
+                  ? `${bulkEmailProgress.message}...`
+                  : "Sending statement emails to all units... This may take several minutes."
+              }
+              fullScreen={false}
+            />
+            {bulkEmailProgress && (
+              <div style={{ marginTop: '1rem', textAlign: 'center', color: '#666' }}>
+                <p style={{ fontSize: '0.9rem', color: '#888' }}>
+                  Sent: {bulkEmailProgress.sent || 0} | Skipped: {bulkEmailProgress.skipped || 0} | Failed: {bulkEmailProgress.failed || 0} | Remaining: {(bulkEmailProgress.total || 0) - (bulkEmailProgress.current || 0)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Individual statement loading */}
         {loading && !bulkGenerating && (
           <div className="statement-preview-loading">
@@ -718,6 +803,23 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
 
+        {/* Bulk email error */}
+        {bulkEmailError && !bulkEmailing && (
+          <div className="statement-preview-error">
+            <p>{bulkEmailError}</p>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setBulkEmailError(null);
+                setBulkEmailResults(null);
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Individual statement error */}
         {!loading && !bulkGenerating && error && !bulkError && (
           <div className="statement-preview-error">
@@ -733,7 +835,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         )}
 
         {/* Bulk generation results */}
-        {!loading && !bulkGenerating && !error && !bulkError && bulkResults && (
+        {!loading && !bulkGenerating && !bulkEmailing && !error && !bulkError && bulkResults && !bulkEmailResults && (
           <div className="statement-preview-empty">
             <h3>✅ Bulk Generation Complete</h3>
             <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
@@ -783,8 +885,77 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
 
+        {/* Bulk email results */}
+        {!loading && !bulkGenerating && !bulkEmailing && !error && !bulkEmailError && bulkEmailResults && (
+          <div className="statement-preview-empty">
+            <h3>📧 Bulk Email Complete</h3>
+            <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', marginBottom: '1rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Total Units</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600' }}>{bulkEmailResults.totalUnits}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Sent</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#28a745' }}>{bulkEmailResults.sent}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Skipped</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#ffc107' }}>{bulkEmailResults.skipped}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>Failed</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#dc3545' }}>{bulkEmailResults.failed}</div>
+                </div>
+              </div>
+              {bulkEmailResults.skipped > 0 && bulkEmailResults.emails && (
+                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#fff3cd', borderRadius: '4px', textAlign: 'left' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#856404' }}>Skipped (no email address):</h5>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#856404' }}>
+                    {bulkEmailResults.emails
+                      .filter(e => e.status === 'skipped')
+                      .map((email, idx) => (
+                        <li key={idx} style={{ margin: '0.25rem 0' }}>
+                          {email.unitId || email.unitNumber}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              {bulkEmailResults.failed > 0 && bulkEmailResults.emails && (
+                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8d7da', borderRadius: '4px', textAlign: 'left' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#721c24' }}>Failed:</h5>
+                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem', color: '#721c24' }}>
+                    {bulkEmailResults.emails
+                      .filter(e => e.status === 'failed' || e.status === 'error')
+                      .map((email, idx) => (
+                        <li key={idx} style={{ margin: '0.25rem 0' }}>
+                          {email.unitId || email.unitNumber}: {email.error || 'Unknown error'}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setBulkEmailResults(null);
+                  setBulkEmailProgress(null);
+                }}
+                style={{ marginTop: '1rem' }}
+              >
+                Clear Results
+              </button>
+            </div>
+            <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              Statement emails have been sent to unit owners with PDF attachments.
+            </p>
+          </div>
+        )}
+
         {/* Empty state - show when no unit selected and no bulk generation */}
-        {!loading && !bulkGenerating && !error && !bulkError && !hasGenerated && !bulkResults && (
+        {!loading && !bulkGenerating && !bulkEmailing && !error && !bulkError && !hasGenerated && !bulkResults && !bulkEmailResults && (
           <div className="statement-preview-empty">
             <h3>📋 {selectedUnitId ? 'Generating statement...' : 'Select a unit above to generate statement'}</h3>
             {!selectedUnitId && isAdminOrSuperAdmin && (

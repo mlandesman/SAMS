@@ -157,3 +157,128 @@ export async function bulkGenerateStatements(clientId, fiscalYear = null, langua
     throw error;
   }
 }
+
+/**
+ * Get bulk email progress
+ * @param {string} clientId - The client ID
+ * @returns {Promise<Object|null>} Progress data or null if no email in progress
+ */
+export async function getBulkEmailProgress(clientId) {
+  try {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/email/progress/${clientId}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result.data;
+    
+  } catch (error) {
+    console.error('❌ Error getting bulk email progress:', error);
+    return null;
+  }
+}
+
+/**
+ * Bulk send statement emails for all units in a client with polling-based progress
+ * @param {string} clientId - The client ID
+ * @param {number} fiscalYear - Optional fiscal year (defaults to current)
+ * @param {Function} onProgress - Callback for progress updates: (progress) => void
+ * @returns {Promise<Object>} Response with email results
+ */
+export async function bulkSendStatementEmails(clientId, fiscalYear = null, onProgress = null) {
+  let pollingInterval = null;
+  
+  try {
+    console.log(`📧 Bulk sending statement emails for client: ${clientId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const body = { clientId };
+    
+    if (fiscalYear !== null) {
+      body.fiscalYear = fiscalYear;
+    }
+    
+    // Start polling for progress updates
+    if (onProgress) {
+      pollingInterval = setInterval(async () => {
+        try {
+          const progress = await getBulkEmailProgress(clientId);
+          if (progress) {
+            onProgress({
+              current: progress.current,
+              total: progress.total,
+              sent: progress.sent,
+              skipped: progress.skipped,
+              failed: progress.failed,
+              message: progress.message,
+              status: progress.status
+            });
+          }
+        } catch (pollError) {
+          console.warn('Email progress polling error:', pollError);
+        }
+      }, 1000); // Poll every second
+    }
+    
+    // Make the email request
+    const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/email`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(body)
+    });
+    
+    // Stop polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Bulk email complete: ${result.data.sent} sent, ${result.data.skipped} skipped, ${result.data.failed} failed`);
+      
+      // Send final progress update
+      if (onProgress) {
+        onProgress({
+          current: result.data.totalUnits,
+          total: result.data.totalUnits,
+          sent: result.data.sent,
+          skipped: result.data.skipped,
+          failed: result.data.failed,
+          message: `Complete: ${result.data.sent} sent, ${result.data.skipped} skipped, ${result.data.failed} failed`,
+          status: 'complete'
+        });
+      }
+      
+      return { success: true, data: result.data };
+    } else {
+      console.error('❌ Failed to send bulk emails:', result.error);
+      throw new Error(result.error || 'Bulk email failed');
+    }
+    
+  } catch (error) {
+    // Stop polling on error
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    console.error('❌ Error sending bulk emails:', error);
+    throw error;
+  }
+}

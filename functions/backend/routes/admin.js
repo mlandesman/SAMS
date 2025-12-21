@@ -27,7 +27,7 @@ import clientOnboardingRoutes from './clientOnboarding.js';
 import clientManagementRoutes from './clientManagement.js';
 import importRoutes from './import.js';
 import { getNow } from '../services/DateService.js';
-import { bulkGenerateStatements, getBulkStatementProgress } from '../controllers/bulkStatementController.js';
+import { bulkGenerateStatements, getBulkStatementProgress, bulkSendStatementEmails, getBulkEmailProgress } from '../controllers/bulkStatementController.js';
 
 const router = express.Router();
 
@@ -126,6 +126,19 @@ router.post('/bulk-statements/generate',
 router.get('/bulk-statements/progress/:clientId',
   requirePermission('system.admin'),
   getBulkStatementProgress
+);
+
+// Bulk send statement emails for all units in a client
+router.post('/bulk-statements/email',
+  requirePermission('system.admin'),
+  logSecurityEvent('ADMIN_BULK_STATEMENTS_EMAIL'),
+  bulkSendStatementEmails
+);
+
+// Get bulk email progress (for polling)
+router.get('/bulk-statements/email/progress/:clientId',
+  requirePermission('system.admin'),
+  getBulkEmailProgress
 );
 
 /**

@@ -13,6 +13,7 @@ import { getNow } from '../services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
+import { sendStatementEmail } from './emailService.js';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
 import { getFirstOwnerName } from '../utils/unitContactUtils.js';
@@ -457,6 +458,269 @@ export async function bulkGenerateStatements(req, res) {
         });
       } catch (progressError) {
         console.error('Failed to update progress with error:', progressError);
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Update email progress in Firestore
+ * Path: clients/{clientId}/bulkProgress/emails
+ */
+async function updateEmailProgress(clientId, progress) {
+  const db = await getDb();
+  const progressRef = db.collection('clients').doc(clientId)
+    .collection('bulkProgress').doc('emails');
+  
+  await progressRef.set({
+    ...progress,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+
+/**
+ * Get email progress from Firestore
+ */
+async function getEmailProgress(clientId) {
+  const db = await getDb();
+  const progressRef = db.collection('clients').doc(clientId)
+    .collection('bulkProgress').doc('emails');
+  
+  const doc = await progressRef.get();
+  return doc.exists ? doc.data() : null;
+}
+
+/**
+ * Get bulk email progress (for polling)
+ */
+export async function getBulkEmailProgress(req, res) {
+  try {
+    const { clientId } = req.params;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'clientId is required'
+      });
+    }
+    
+    const progress = await getEmailProgress(clientId);
+    
+    if (!progress) {
+      return res.json({
+        success: true,
+        data: null,
+        message: 'No bulk email in progress'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      data: progress
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting bulk email progress:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Bulk send statement emails for all units in a client
+ * Uses Firestore-based progress tracking for reliable polling
+ */
+export async function bulkSendStatementEmails(req, res) {
+  const { clientId, fiscalYear: requestedFiscalYear } = req.body;
+  
+  try {
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'clientId is required'
+      });
+    }
+    
+    // Verify client access
+    const hasAccess = req.authorizedClientId === clientId || 
+                      (req.user && (
+                        req.user.isSuperAdmin?.() || 
+                        req.user.hasPropertyAccess?.(clientId) ||
+                        req.user.globalRole === 'superAdmin'
+                      ));
+    
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+    
+    console.log(`📧 Starting bulk statement email for ${clientId}`);
+    
+    // Get client configuration
+    const fiscalConfig = await getClientFiscalYearConfig(clientId);
+    const fiscalYearStartMonth = fiscalConfig.fiscalYearStartMonth;
+    
+    // Determine fiscal year
+    const currentDate = getNow();
+    const fiscalYear = requestedFiscalYear || getFiscalYear(currentDate, fiscalYearStartMonth);
+    
+    // Get all units
+    const units = await getAllUnits(clientId);
+    console.log(`   Found ${units.length} units`);
+    
+    // Get auth token for internal API calls
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!authToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication token required'
+      });
+    }
+    
+    const results = {
+      clientId,
+      fiscalYear,
+      totalUnits: units.length,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+      emails: []
+    };
+    
+    // Helper to format progress message
+    const formatMessage = (prefix, unitId, ownerName) => {
+      if (ownerName && ownerName !== 'N/A') {
+        return `${prefix} ${unitId} (${ownerName})`;
+      }
+      return `${prefix} ${unitId}`;
+    };
+    
+    // Helper to update Firestore progress
+    const saveProgress = async (current, status, message) => {
+      await updateEmailProgress(clientId, {
+        status,
+        current,
+        total: units.length,
+        sent: results.sent,
+        skipped: results.skipped,
+        failed: results.failed,
+        message,
+        startedAt: results.startedAt || new Date().toISOString()
+      });
+    };
+    
+    // Initialize progress in Firestore
+    results.startedAt = new Date().toISOString();
+    await saveProgress(0, 'starting', 'Initializing bulk email...');
+    
+    // Process each unit
+    for (let i = 0; i < units.length; i++) {
+      const unit = units[i];
+      const { unitId, unitNumber, ownerName } = unit;
+      
+      // Update progress: starting this unit
+      await saveProgress(i + 1, 'processing', formatMessage('Sending email for', unitId, ownerName));
+      
+      try {
+        // Send email using existing sendStatementEmail function
+        const emailResult = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken);
+        
+        if (!emailResult.success) {
+          if (emailResult.error?.includes('No owner email')) {
+            // No email address - skip
+            console.log(`   ⏭️ ${unitId}: Skipped - no email address`);
+            results.skipped++;
+            results.emails.push({
+              unitId,
+              unitNumber,
+              status: 'skipped',
+              reason: 'No owner email address'
+            });
+          } else {
+            // Failed
+            console.log(`   ❌ ${unitId}: ${emailResult.error}`);
+            results.failed++;
+            results.emails.push({
+              unitId,
+              unitNumber,
+              status: 'failed',
+              error: emailResult.error
+            });
+          }
+          continue;
+        }
+        
+        console.log(`   ✅ ${unitId}: Sent to ${emailResult.to.join(', ')}`);
+        results.sent++;
+        results.emails.push({
+          unitId,
+          unitNumber,
+          status: 'sent',
+          to: emailResult.to,
+          cc: emailResult.cc,
+          language: emailResult.language
+        });
+        
+        // Small delay to avoid overwhelming email service
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        console.error(`   ❌ ${unitId}: ${error.message}`);
+        results.failed++;
+        results.emails.push({
+          unitId,
+          unitNumber,
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`✅ Bulk email complete: ${results.sent} sent, ${results.skipped} skipped, ${results.failed} failed`);
+    
+    // Update final progress in Firestore
+    await updateEmailProgress(clientId, {
+      status: 'complete',
+      current: units.length,
+      total: units.length,
+      sent: results.sent,
+      skipped: results.skipped,
+      failed: results.failed,
+      message: `Complete: ${results.sent} sent, ${results.skipped} skipped, ${results.failed} failed`,
+      completedAt: new Date().toISOString()
+    });
+    
+    // Return final result
+    return res.json({
+      success: true,
+      data: results
+    });
+    
+  } catch (error) {
+    console.error('❌ Bulk email error:', error);
+    
+    // Update progress with error status
+    if (clientId) {
+      try {
+        await updateEmailProgress(clientId, {
+          status: 'error',
+          message: error.message,
+          errorAt: new Date().toISOString()
+        });
+      } catch (progressError) {
+        console.error('Failed to update email progress with error:', progressError);
       }
     }
     
