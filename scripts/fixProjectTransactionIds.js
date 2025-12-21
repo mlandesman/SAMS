@@ -6,15 +6,15 @@
  * 
  * Usage: 
  *   DEV:  node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
- *   PROD: NODE_ENV=production node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
+ *   PROD: FIREBASE_ENV=prod node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
  * 
  * Environment Detection:
- *   - Default (no NODE_ENV): Uses serviceAccountKey-dev.json (dev database)
- *   - NODE_ENV=production: Uses serviceAccountKey-prod.json (production database)
- *   - NODE_ENV=staging: Uses serviceAccountKey-staging.json (staging database)
+ *   - FIREBASE_ENV=prod: Uses serviceAccountKey-prod.json (production database)
+ *   - FIREBASE_ENV=staging: Uses serviceAccountKey-staging.json (staging database)
+ *   - Default: Uses serviceAccountKey-dev.json (dev database)
  */
 
-import admin from 'firebase-admin';
+import { getDb } from '../functions/backend/firebase.js';
 import { DateTime } from 'luxon';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -22,33 +22,9 @@ const require = createRequire(import.meta.url);
 const DRY_RUN = process.argv.includes('--dry-run');
 const CLIENT_ID = process.argv[2]?.replace('--dry-run', '').trim() || 'MTC';
 
-// Initialize Firebase for script usage
-async function initializeFirebaseForScript() {
-  if (admin.apps.length > 0) {
-    return admin.firestore();
-  }
-  
-  const env = process.env.NODE_ENV || 'development';
-  const serviceAccountPath = env === 'production' 
-    ? './serviceAccountKey-prod.json'
-    : env === 'staging'
-      ? './serviceAccountKey-staging.json'
-      : './serviceAccountKey-dev.json';
-  
-  console.log(`🔥 Environment: ${env}`);
-  console.log(`🔑 Service Account: ${serviceAccountPath}`);
-  
-  const serviceAccount = require(serviceAccountPath);
-  console.log(`📁 Firebase Project: ${serviceAccount.project_id}\n`);
-  
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  
-  return admin.firestore();
-}
-
-const getDb = initializeFirebaseForScript;
+// Display environment info
+const env = process.env.FIREBASE_ENV || 'dev';
+console.log(`🌍 Target Environment: ${env.toUpperCase()}`);
 
 /**
  * Normalize unit ID - extract just the unit number/code

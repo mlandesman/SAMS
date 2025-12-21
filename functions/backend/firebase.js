@@ -34,10 +34,15 @@ async function initializeFirebase() {
       } else {
         // Running locally - use service account file
         const getServiceAccountPath = () => {
-          if (process.env.NODE_ENV === 'staging') {
-            return './serviceAccountKey-staging.json';
+          // Support FIREBASE_ENV for scripts (e.g., FIREBASE_ENV=prod)
+          const env = process.env.FIREBASE_ENV || process.env.NODE_ENV;
+          
+          if (env === 'prod' || env === 'production') {
+            return '../../serviceAccountKey-prod.json';
+          } else if (env === 'staging') {
+            return '../../serviceAccountKey-staging.json';
           }
-          return './serviceAccountKey.json'; // Dev environment
+          return '../../serviceAccountKey-dev.json'; // Dev environment (default)
         };
         
         const serviceAccountPath = getServiceAccountPath();
