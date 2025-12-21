@@ -13,6 +13,10 @@ const __dirname = path.dirname(__filename);
 
 import { getNow } from '../../shared/services/DateService.js';
 
+// Read responsive CSS file for reports (shared across all report types)
+const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
+const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
+
 /**
  * Format currency (pesos) from centavos
  * @param {number} centavos - Amount in centavos

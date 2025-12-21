@@ -741,8 +741,16 @@ function createChronologicalTransactionList(
   
   // Extract remaining "Orphaned" or General payments
   // This catches payments found in Step 6.5 that weren't processed as HOA or Water
+  // EXCLUDE project/special assessment payments - they appear ONLY in Special Projects section
   for (const [txnId, transaction] of transactionMap.entries()) {
     if (processedTransactionIds.has(txnId)) continue;
+    
+    // Skip project/special assessment payments (Issue #80 fix)
+    // These should ONLY appear in Special Projects section, NOT in Activity Report
+    const categoryId = transaction.categoryId || '';
+    if (categoryId.startsWith('projects-') || categoryId === 'special-assessments') {
+      continue;
+    }
     
     const paymentDate = parseDate(transaction.date);
     // Only process if valid date and appears to be a payment (positive amount in our system usually means income/payment)

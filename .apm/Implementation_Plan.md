@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 14 - Enhancement #74, Email All, Year-End Prep (December 20, 2025)
-**Current Version:** v1.1.8 - Unified Payment System Overhaul + Email All
+**Last Modification:** Manager Agent 15 - Year-End Blockers (December 21, 2025)
+**Current Version:** v1.1.9 (in progress) - Year-End Report Fixes
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC, then continued PWA/Mobile work.
@@ -13,6 +13,35 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.1.9 - Year-End Report Fixes (December 21, 2025)
+**STATUS:** 🔄 IN PROGRESS - Critical blockers for year-end processing
+
+#### GitHub Issues #80-84 Pre-Year-End Fixes
+Discovered 5 issues blocking year-end 2025 statement distribution and 2026 budget presentation:
+
+**Critical Blockers (Must Fix Before Year-End):**
+- 🔴 **#81** - Budget vs Actual Report broken (`reportCommonCss` missing) - BLOCKS board package
+- 🔴 **#80** - Statement of Account showing duplicate project payments - BLOCKS owner statements
+- 🔴 **#82** - Budget Report missing notes column - BLOCKS 2026 budget presentation
+- 🔴 **#83** - Budget tools showing one-time project categories - CLUTTERS 2026 budget presentation
+
+**Deferred:**
+- 🔵 **#84** - Dashboard background scrolling (cosmetic, post-year-end)
+
+#### Task Assignments Created
+- ✅ **Task BUG-001** - Report Functionality (Issues #81, #80) - 2-3 hours estimated
+- ✅ **Task BUG-002** - Budget Presentation Polish (Issues #82, #83) - 3-4 hours estimated
+
+**Total Effort:** 5-7 hours (1 working day)  
+**Deadline:** December 21, 2025 EOD  
+**Blocking:** Final 2025 statements, 2026 budget board presentation, Year-End #78 processing
+
+**Task Assignment Files:**
+- `SAMS-Docs/apm_session/Memory/Task_Assignments/Task_BUG-001_Report_Functionality_2025-12-21.md`
+- `SAMS-Docs/apm_session/Memory/Task_Assignments/Task_BUG-002_Budget_Presentation_2025-12-21.md`
+
+---
 
 ### v1.1.8 - Unified Payment System Overhaul + Email All (December 18-20, 2025)
 **MAJOR MILESTONE - 72 hours of intensive development**
@@ -177,8 +206,24 @@
 
 ## 🚨 URGENT: YEAR-END 2025 PLANNING (MTC)
 
-**Timeline:** Must be complete by December 31, 2025 (11 days remaining)
-**Status:** 🔴 PLANNING REQUIRED
+**Timeline:** Must be complete by December 31, 2025 (10 days remaining)
+**Status:** 🟡 BLOCKERS IN PROGRESS
+
+### Pre-Year-End Blockers (December 21, 2025)
+
+**DISCOVERED:** 4 critical issues blocking year-end processing identified overnight
+
+**In Progress (Task BUG-001 & BUG-002):**
+- 🔄 **#81** - Budget vs Actual Report broken (reportCommonCss missing)
+- 🔄 **#80** - Statement of Account duplicate project payments  
+- 🔄 **#82** - Budget Report missing notes column
+- 🔄 **#83** - Budget tools showing one-time project categories
+
+**Impact:** Blocks final 2025 statement distribution AND 2026 budget board presentation  
+**Estimated Fix Time:** 5-7 hours (1 working day)  
+**Status:** Task assignments created, awaiting Implementation Agent execution
+
+---
 
 ### Year-End Process Requirements
 
@@ -188,24 +233,26 @@ MTC operates on a calendar fiscal year (Jan-Dec). The following must be addresse
 - ✅ Generate All functionality working
 - ✅ Email All functionality working
 - ✅ Public PDF URLs for owner access
-- 🟡 Client-specific footers needed (GitHub #77) - MTC footer differs from AVII
+- 🔄 **#80** - Statement accuracy (duplicate project payments) - IN PROGRESS
+- 🟡 **#77** - Client-specific footers (MTC footer differs from AVII) - Enhancement, nice-to-have
 
-#### 2. Year-End Closing Process (TBD)
+#### 2. Year-End Closing Process (TBD - After Blockers)
 - 📋 Final 2025 statements for all units
 - 📋 Any pending payments/credits to process before Dec 31
 - 📋 Balance carryover to 2026 (if needed)
 - 📋 Archive 2025 data / backup procedures
 
-#### 3. 2026 Fiscal Year Opening
+#### 3. 2026 Fiscal Year Opening (Partially Ready)
 - 📋 2026 HOA dues bills generation (Q1 at minimum)
-- 📋 Budget already entered for 2026
+- ✅ Budget entered for 2026
+- 🔄 **#82, #83** - Budget presentation polish - IN PROGRESS
 - 📋 Any rate changes for 2026?
 
 #### 4. Process Documentation
 - 📋 Document the year-end checklist for future years
 - 📋 Identify any automation opportunities
 
-**IMMEDIATE NEXT STEP:** Planning session to define exact year-end process
+**IMMEDIATE NEXT STEP:** Complete BUG-001 and BUG-002 tasks, then proceed with year-end processing plan (#78)
 
 ---
 
