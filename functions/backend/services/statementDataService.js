@@ -2034,6 +2034,13 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
       if (c.transactionId) {
         try {
           const txn = await fetchTransaction(api, clientId, c.transactionId);
+          console.log(`[Projects] Fetched transaction ${c.transactionId}:`, {
+            hasNotes: !!txn?.notes,
+            hasDescription: !!txn?.description,
+            notes: txn?.notes,
+            description: txn?.description,
+            allFields: txn ? Object.keys(txn) : []
+          });
           return {
             ...c,
             notes: txn?.notes || txn?.description || c.notes || '',
@@ -2042,6 +2049,7 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
           };
         } catch (error) {
           // If transaction fetch fails, return collection as-is
+          console.log(`[Projects] Failed to fetch transaction ${c.transactionId}:`, error.message);
           return { ...c, notes: c.notes || '' };
         }
       }
