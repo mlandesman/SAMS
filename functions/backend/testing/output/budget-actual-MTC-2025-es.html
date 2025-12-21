@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="format-detection" content="telephone=no">
   <title>REPORTE PRESUPUESTO VS REAL - Marina Turquesa Condominiums</title>
   <style>
     /* Reset and base styles */
@@ -275,220 +274,17 @@
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    /* =====================================================
-       Responsive Report Common CSS (from reportCommon.css)
-       ===================================================== */
-    /* =====================================================
-   SAMS Report Common CSS - Desktop, Mobile, PWA, Email
-   ===================================================== */
-
-/* Base Reset */
-* { 
-  box-sizing: border-box; 
-}
-
-/* Container */
-.report-container {
-  font-family: Arial, Helvetica, sans-serif;
-  line-height: 1.5;
-  color: #333;
-  max-width: 8.5in;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-/* Header */
-.report-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #007bff;
-}
-
-.report-logo {
-  max-width: 100px;
-  max-height: 60px;
-}
-
-.report-title-block {
-  flex: 1;
-}
-
-/* Tables */
-.report-table-container {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.report-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 600px; /* Ensures horizontal scroll on mobile */
-}
-
-.report-table th,
-.report-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-}
-
-.report-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #666;
-  position: sticky;
-  top: 0;
-}
-
-/* Interactive rows (PWA future) */
-.report-table tr.clickable {
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.report-table tr.clickable:hover {
-  background-color: #f0f7ff;
-}
-
-.report-table tr.clickable:active {
-  background-color: #e0efff;
-}
-
-/* Amount columns */
-.amount {
-  text-align: right;
-  font-family: 'Courier New', monospace;
-  white-space: nowrap;
-}
-
-/* Summary grid */
-.report-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin: 24px 0;
-}
-
-.summary-item {
-  text-align: center;
-}
-
-/* Expandable sections (PWA future) */
-.expandable-section {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-
-.expandable-section.open {
-  max-height: 500px; /* Adjust as needed */
-}
-
-/* Status colors */
-.positive { color: #28a745; }
-.negative { color: #dc3545; }
-.warning { color: #ffc107; }
-
-/* =====================================================
-   MOBILE RESPONSIVE - < 768px
-   ===================================================== */
-@media screen and (max-width: 768px) {
-  .report-container {
-    padding: 12px;
-    max-width: 100%;
-  }
-  
-  /* Stack header vertically */
-  .report-header {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .report-logo {
-    max-width: 80px;
-  }
-  
-  .report-title-block h1 {
-    font-size: 18px;
-  }
-  
-  /* Tables scroll horizontally */
-  .report-table-container {
-    margin: 0 -12px;
-    padding: 0 12px;
-  }
-  
-  .report-table th,
-  .report-table td {
-    padding: 8px 10px;
-    font-size: 12px;
-  }
-  
-  /* Touch-friendly rows */
-  .report-table tr.clickable td {
-    padding: 12px 10px; /* Larger tap target */
-  }
-  
-  /* Stack summary grid */
-  .report-summary {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  /* Typography adjustments */
-  body {
-    font-size: 14px;
-  }
-}
-
-/* =====================================================
-   TABLET - 768px to 1023px
-   ===================================================== */
-@media screen and (min-width: 768px) and (max-width: 1023px) {
-  .report-summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* =====================================================
-   PRINT STYLES
-   ===================================================== */
-@media print {
-  .report-container {
-    max-width: 100%;
-    padding: 0;
-  }
-  
-  .report-table tr.clickable:hover {
-    background-color: transparent;
-  }
-  
-  .expandable-section {
-    max-height: none;
-    overflow: visible;
-  }
-}
-
   </style>
 </head>
 <body>
-  <div class="report-container report-page">
+  <div class="report-page">
     <!-- Header -->
     <div class="report-header">
       <div class="header-left">
         <div class="report-title">REPORTE PRESUPUESTO VS REAL</div>
         
         <div class="client-info">
-          <div class="report-table-container"><table class="report-table client-info-table">
+          <table class="client-info-table">
             <tr>
               <td>REPORTE PARA:</td>
               <td>Marina Turquesa Condominiums</td>
@@ -519,38 +315,7 @@
     
     <!-- Income Table -->
     <div class="section-header">INGRESOS</div>
-    <div class="report-table-container"><table class="report-table budget-table">
-      <thead>
-        <tr>
-          <th class="col-category">NOMBRE DE CATEGORÍA</th>
-          <th class="col-annual-budget">PRESUPUESTO ANUAL</th>
-          <th class="col-ytd-budget">PRESUPUESTO YTD</th>
-          <th class="col-ytd-actual">REAL YTD</th>
-          <th class="col-variance">VARIANZA ($)</th>
-          <th class="col-variance-percent">VARIANZA (%)</th>
-        </tr>
-      </thead>
-      <tbody>
-        
-        <tr>
-          <td colspan="6" style="text-align: center; padding: 20px;">No hay datos disponibles</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr class="totals-row">
-          <td class="col-category">TOTALES</td>
-          <td class="col-annual-budget">$0.00</td>
-          <td class="col-ytd-budget">$0.00</td>
-          <td class="col-ytd-actual">$0.00</td>
-          <td class="col-variance variance-favorable">$0.00</td>
-          <td class="col-variance-percent variance-favorable">0.00%</td>
-        </tr>
-      </tfoot>
-    </table>
-    
-    <!-- Expense Table -->
-    <div class="section-header">GASTOS</div>
-    <div class="report-table-container"><table class="report-table budget-table">
+    <table class="budget-table">
       <thead>
         <tr>
           <th class="col-category">NOMBRE DE CATEGORÍA</th>
@@ -568,9 +333,45 @@
           <td class="col-annual-budget">$0.00</td>
           <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$39,179.00</td>
-          <td class="col-variance variance-unfavorable">-$39,179.00</td>
-          <td class="col-variance-percent variance-unfavorable">0.00%</td>
+          <td class="col-variance variance-favorable">+$39,179.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
+        <tr>
+          <td class="col-category">Cuotas de Mantenimiento</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$437,000.07</td>
+          <td class="col-variance variance-favorable">+$437,000.07</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td class="col-category">TOTALES</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$476,179.07</td>
+          <td class="col-variance variance-favorable">+$476,179.07</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
+        </tr>
+      </tfoot>
+    </table>
+    
+    <!-- Expense Table -->
+    <div class="section-header">GASTOS</div>
+    <table class="budget-table">
+      <thead>
+        <tr>
+          <th class="col-category">NOMBRE DE CATEGORÍA</th>
+          <th class="col-annual-budget">PRESUPUESTO ANUAL</th>
+          <th class="col-ytd-budget">PRESUPUESTO YTD</th>
+          <th class="col-ytd-actual">REAL YTD</th>
+          <th class="col-variance">VARIANZA ($)</th>
+          <th class="col-variance-percent">VARIANZA (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        
         <tr>
           <td class="col-category">Ajustes Bancarios</td>
           <td class="col-annual-budget">$0.00</td>
@@ -585,14 +386,6 @@
           <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$72,288.32</td>
           <td class="col-variance variance-unfavorable">-$72,288.32</td>
-          <td class="col-variance-percent variance-unfavorable">0.00%</td>
-        </tr>
-        <tr>
-          <td class="col-category">Cuotas de Mantenimiento</td>
-          <td class="col-annual-budget">$0.00</td>
-          <td class="col-ytd-budget">$0.00</td>
-          <td class="col-ytd-actual">$437,000.07</td>
-          <td class="col-variance variance-unfavorable">-$437,000.07</td>
           <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
@@ -713,8 +506,8 @@
           <td class="col-category">TOTALES</td>
           <td class="col-annual-budget">$0.00</td>
           <td class="col-ytd-budget">$0.00</td>
-          <td class="col-ytd-actual">$933,067.37</td>
-          <td class="col-variance variance-unfavorable">-$933,067.37</td>
+          <td class="col-ytd-actual">$456,888.30</td>
+          <td class="col-variance variance-unfavorable">-$456,888.30</td>
           <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
       </tfoot>
@@ -722,7 +515,7 @@
     
     <!-- Special Assessments Fund -->
     <div class="section-header-special">CUOTAS ESPECIALES</div>
-    <div class="report-table-container"><table class="report-table special-assessments-table">
+    <table class="special-assessments-table">
       <tbody>
         <!-- Collections Section -->
         <tr class="section-row">
@@ -764,8 +557,8 @@
     <!-- Footer -->
     <div class="report-footer">
       <div class="footer-row">
-        <div>ID del Reporte: BUDGET-ACTUAL-MTC-2025-1766326311147</div>
-        <div>Generado: 12/21/2025, 9:11:54 AM</div>
+        <div>ID del Reporte: BUDGET-ACTUAL-MTC-2025-1766328813527</div>
+        <div>Generado: 12/21/2025, 9:53:36 AM</div>
       </div>
     </div>
   </div>

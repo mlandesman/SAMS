@@ -2028,8 +2028,28 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
       return dateA - dateB;
     });
     
+    // Enrich collections with transaction notes/description
+    // Enhancement: Fetch transaction details to get payment notes for display
+    const enrichedCollections = await Promise.all(unitCollections.map(async (c) => {
+      if (c.transactionId) {
+        try {
+          const txn = await fetchTransaction(api, clientId, c.transactionId);
+          return {
+            ...c,
+            notes: txn?.notes || txn?.description || c.notes || '',
+            paymentMethod: txn?.method || null,
+            reference: txn?.reference || null
+          };
+        } catch (error) {
+          // If transaction fetch fails, return collection as-is
+          return { ...c, notes: c.notes || '' };
+        }
+      }
+      return { ...c, notes: c.notes || '' };
+    }));
+    
     // Calculate unit's totals
-    const totalPaid = unitCollections.reduce((sum, c) => sum + (c.amount || 0), 0);
+    const totalPaid = enrichedCollections.reduce((sum, c) => sum + (c.amount || 0), 0);
     const assessmentAmount = unitAssessment?.expectedAmount || 0;
     const balance = assessmentAmount - totalPaid;
     
@@ -2041,7 +2061,7 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
       completionDate: project.completionDate,
       totalBudget: project.totalCost || 0,
       assessment: assessmentAmount,
-      collections: unitCollections,
+      collections: enrichedCollections,
       totalPaid: totalPaid,
       balance: balance
     });
