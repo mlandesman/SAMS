@@ -15,31 +15,42 @@
 ## 🏆 RECENT MILESTONES
 
 ### v1.1.9 - Year-End Report Fixes (December 21, 2025)
-**STATUS:** 🔄 IN PROGRESS - Critical blockers for year-end processing
+**STATUS:** ✅ COMPLETE - All blockers resolved
 
 #### GitHub Issues #80-84 Pre-Year-End Fixes
-Discovered 5 issues blocking year-end 2025 statement distribution and 2026 budget presentation:
+Resolved 4 critical issues blocking year-end 2025 statement distribution and 2026 budget presentation:
 
-**Critical Blockers (Must Fix Before Year-End):**
-- 🔴 **#81** - Budget vs Actual Report broken (`reportCommonCss` missing) - BLOCKS board package
-- 🔴 **#80** - Statement of Account showing duplicate project payments - BLOCKS owner statements
-- 🔴 **#82** - Budget Report missing notes column - BLOCKS 2026 budget presentation
-- 🔴 **#83** - Budget tools showing one-time project categories - CLUTTERS 2026 budget presentation
+**All Completed:**
+- ✅ **#81** - Budget vs Actual Report layout - FIXED (restored working version)
+- ✅ **#80** - Statement of Account project payments - FIXED (filter added)
+- ✅ **#82** - Budget Report notes - CLOSED (not a bug, data deleted during migration)
+- ✅ **#83** - Budget category filtering - ENHANCED with data-driven `notBudgeted` field
+- ✅ **BONUS:** Transaction notes in Special Projects
+- ✅ **BONUS:** Data fix script for transactionIds - 56/56 collections fixed
+- ✅ **BONUS:** Budget vs Actual zero-row hiding
+- ✅ **BONUS:** Budget Entry UI improvements (grouped Income/Expenses)
 
 **Deferred:**
 - 🔵 **#84** - Dashboard background scrolling (cosmetic, post-year-end)
 
-#### Task Assignments Created
-- ✅ **Task BUG-001** - Report Functionality (Issues #81, #80) - 2-3 hours estimated
-- ✅ **Task BUG-002** - Budget Presentation Polish (Issues #82, #83) - 3-4 hours estimated
+#### Task BUG-001: Report Functionality ✅ COMPLETE
+- **Duration:** 2.5 hours (within estimate)
+- **Quality:** ⭐⭐⭐⭐⭐ Outstanding
+- **Branch:** `fix/bug-001-reports-2025-12-21`
+- **Commits:** 14
+- **Key Lessons:** Symlink management, invalid issue verification, script patterns
+- **Archive:** `SAMS-Docs/apm_session/Memory/Archive/BUG-001_Report_Functionality_2025-12-21/`
 
-**Total Effort:** 5-7 hours (1 working day)  
-**Deadline:** December 21, 2025 EOD  
-**Blocking:** Final 2025 statements, 2026 budget board presentation, Year-End #78 processing
+#### Task BUG-002: Budget Category Filtering ✅ COMPLETE
+- **Duration:** ~2 hours (within estimate)
+- **Quality:** ⭐⭐⭐⭐⭐ Outstanding
+- **Commits:** `97c1c2b`, `3f01eb3`
+- **Enhancement:** Data-driven `notBudgeted` field instead of hardcoded patterns
+- **Archive:** `SAMS-Docs/apm_session/Memory/Archive/BUG-002_Budget_Category_Filtering_2025-12-21/`
 
-**Task Assignment Files:**
-- `SAMS-Docs/apm_session/Memory/Task_Assignments/Task_BUG-001_Report_Functionality_2025-12-21.md`
-- `SAMS-Docs/apm_session/Memory/Task_Assignments/Task_BUG-002_Budget_Presentation_2025-12-21.md`
+**v1.1.9 Total Effort:** ~4.5 hours (both tasks)  
+**Milestone Complete:** December 21, 2025  
+**Next:** Deploy to production, then Year-End Processing (#78)
 
 ---
 
