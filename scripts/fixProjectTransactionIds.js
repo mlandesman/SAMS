@@ -14,7 +14,7 @@
  *   - Default: Uses serviceAccountKey-dev.json (dev database)
  */
 
-import { getDb } from '../functions/backend/firebase.js';
+import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -22,9 +22,49 @@ const require = createRequire(import.meta.url);
 const DRY_RUN = process.argv.includes('--dry-run');
 const CLIENT_ID = process.argv[2]?.replace('--dry-run', '').trim() || 'MTC';
 
-// Display environment info
-const env = process.env.FIREBASE_ENV || 'dev';
-console.log(`🌍 Target Environment: ${env.toUpperCase()}`);
+// Initialize Firebase independently (don't modify core firebase.js)
+async function initializeScriptFirebase() {
+  if (admin.apps.length > 0) {
+    return admin.firestore();
+  }
+  
+  const env = process.env.FIREBASE_ENV || 'dev';
+  
+  console.log(`🌍 Target Environment: ${env.toUpperCase()}`);
+  
+  // For production, use ADC if available (most secure)
+  if ((env === 'prod' || env === 'production') && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.log('🔑 Using Application Default Credentials (ADC)');
+    admin.initializeApp();
+    const db = admin.firestore();
+    const projectId = process.env.GCLOUD_PROJECT || (await db.collection('_meta').limit(1).get()).query.firestore.projectId;
+    console.log(`📁 Firebase Project: ${projectId}\n`);
+    return db;
+  }
+  
+  // Otherwise use service account key
+  const getServiceAccountPath = () => {
+    if (env === 'prod' || env === 'production') {
+      return '../serviceAccountKey-prod.json';
+    } else if (env === 'staging') {
+      return '../serviceAccountKey-staging.json';
+    }
+    return '../serviceAccountKey-dev.json';
+  };
+  
+  const serviceAccountPath = getServiceAccountPath();
+  const serviceAccount = require(serviceAccountPath);
+  console.log(`🔑 Service Account: ${serviceAccountPath}`);
+  console.log(`📁 Firebase Project: ${serviceAccount.project_id}\n`);
+  
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  
+  return admin.firestore();
+}
+
+const getDb = initializeScriptFirebase;
 
 /**
  * Normalize unit ID - extract just the unit number/code
