@@ -74,7 +74,7 @@ function getStorageBucketName() {
 }
 
 /**
- * Upload PDF to Firebase Storage
+ * Upload PDF to Firebase Storage and make it publicly accessible
  */
 async function uploadToStorage(pdfBuffer, storagePath) {
   const app = await getApp();
@@ -93,10 +93,16 @@ async function uploadToStorage(pdfBuffer, storagePath) {
     }
   });
   
-  // Get the public URL
-  const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media`;
+  // Make file publicly readable (same as email service)
+  await file.makePublic();
   
-  return publicUrl;
+  // Get signed URL with far future expiration (same as email service)
+  const [signedUrl] = await file.getSignedUrl({
+    action: 'read',
+    expires: '03-01-2500' // Far future expiration
+  });
+  
+  return signedUrl;
 }
 
 /**
@@ -112,6 +118,44 @@ async function storeStatementMetadata(clientId, metadata) {
   await metadataRef.set(metadata);
   
   return statementId;
+}
+
+/**
+ * Create or update bulk generation progress document
+ * Path: clients/{clientId}/bulkProgress/statements
+ */
+async function updateBulkProgress(clientId, progress) {
+  const db = await getDb();
+  const progressRef = db.collection('clients').doc(clientId)
+    .collection('bulkProgress').doc('statements');
+  
+  await progressRef.set({
+    ...progress,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+
+/**
+ * Get bulk generation progress
+ */
+async function getBulkProgress(clientId) {
+  const db = await getDb();
+  const progressRef = db.collection('clients').doc(clientId)
+    .collection('bulkProgress').doc('statements');
+  
+  const doc = await progressRef.get();
+  return doc.exists ? doc.data() : null;
+}
+
+/**
+ * Clear bulk generation progress (call when complete or on error)
+ */
+async function clearBulkProgress(clientId) {
+  const db = await getDb();
+  const progressRef = db.collection('clients').doc(clientId)
+    .collection('bulkProgress').doc('statements');
+  
+  await progressRef.delete();
 }
 
 /**
@@ -151,11 +195,51 @@ async function generatePdfForUnit(api, clientId, unitId, fiscalYear, language) {
 
 
 /**
+ * Get bulk generation progress (for polling)
+ */
+export async function getBulkStatementProgress(req, res) {
+  try {
+    const { clientId } = req.params;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'clientId is required'
+      });
+    }
+    
+    const progress = await getBulkProgress(clientId);
+    
+    if (!progress) {
+      return res.json({
+        success: true,
+        data: null,
+        message: 'No bulk generation in progress'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      data: progress
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting bulk progress:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
  * Bulk generate statements for all units in a client
+ * Uses Firestore-based progress tracking for reliable polling
  */
 export async function bulkGenerateStatements(req, res) {
+  const { clientId, fiscalYear: requestedFiscalYear, language = 'english' } = req.body;
+  
   try {
-    const { clientId, fiscalYear: requestedFiscalYear, language = 'english' } = req.body;
     const user = req.user;
     
     if (!clientId) {
@@ -166,7 +250,6 @@ export async function bulkGenerateStatements(req, res) {
     }
     
     // Verify client access (for admin routes, check user permissions)
-    // Admin routes may not set authorizedClientId, so check user permissions directly
     const hasAccess = req.authorizedClientId === clientId || 
                       (req.user && (
                         req.user.isSuperAdmin?.() || 
@@ -195,11 +278,8 @@ export async function bulkGenerateStatements(req, res) {
     const units = await getAllUnits(clientId);
     console.log(`   Found ${units.length} units`);
     
-    // Create authenticated API client (same pattern as reports.js route handler)
-    // Use API_BASE_URL env var or default to localhost:5001
+    // Create authenticated API client
     const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-    
-    // Get auth token from request (passed via Authorization header)
     const authToken = req.headers.authorization?.replace('Bearer ', '');
     
     if (!authToken) {
@@ -209,15 +289,15 @@ export async function bulkGenerateStatements(req, res) {
       });
     }
     
-    // Create API client (same pattern as reports.js)
     const api = axios.create({
       baseURL: baseURL,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       },
-      timeout: 60000 // 60 second timeout for PDF generation
-    });    
+      timeout: 60000
+    });
+    
     const results = {
       clientId,
       fiscalYear,
@@ -227,47 +307,38 @@ export async function bulkGenerateStatements(req, res) {
       statements: []
     };
     
-    // Set up streaming response for progress updates
-    // Set headers before writing
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    
-    // Send initial progress
-    const sendProgress = (currentUnit, status, messagePrefix, unitId = null, ownerName = null) => {
-      // Format message with owner name if available
-      let displayMessage;
-      if (unitId && ownerName && ownerName !== 'N/A' && ownerName !== null) {
-        displayMessage = messagePrefix 
-          ? `${messagePrefix} ${unitId} (${ownerName})`
-          : `${unitId} (${ownerName})`;
-      } else if (unitId) {
-        displayMessage = messagePrefix 
-          ? `${messagePrefix} ${unitId}`
-          : unitId;
-      } else {
-        displayMessage = messagePrefix || '';
+    // Helper to format progress message
+    const formatMessage = (prefix, unitId, ownerName) => {
+      if (ownerName && ownerName !== 'N/A') {
+        return `${prefix} ${unitId} (${ownerName})`;
       }
-      
-      const progress = {
-        type: 'progress',
-        current: currentUnit,
-        total: units.length,
-        status,
-        message: displayMessage,
-        generated: results.generated,
-        failed: results.failed
-      };
-      res.write(JSON.stringify(progress) + '\n');
+      return `${prefix} ${unitId}`;
     };
+    
+    // Helper to update Firestore progress
+    const saveProgress = async (current, status, message) => {
+      await updateBulkProgress(clientId, {
+        status,
+        current,
+        total: units.length,
+        generated: results.generated,
+        failed: results.failed,
+        message,
+        startedAt: results.startedAt || new Date().toISOString()
+      });
+    };
+    
+    // Initialize progress in Firestore
+    results.startedAt = new Date().toISOString();
+    await saveProgress(0, 'starting', 'Initializing bulk generation...');
     
     // Process each unit
     for (let i = 0; i < units.length; i++) {
       const unit = units[i];
       const { unitId, unitNumber, ownerName } = unit;
       
-      // Send progress update: starting this unit
-      sendProgress(i + 1, 'processing', 'Generating statement for', unitId, ownerName);
+      // Update progress: starting this unit
+      await saveProgress(i + 1, 'processing', formatMessage('Generating statement for', unitId, ownerName));
       
       try {
         // Generate PDF
@@ -282,41 +353,37 @@ export async function bulkGenerateStatements(req, res) {
             status: 'failed',
             error: pdfResult.error
           });
-          // Send progress update: failed
-          sendProgress(i + 1, 'failed', `${unitId}${ownerName && ownerName !== 'N/A' && ownerName !== null ? ` (${ownerName})` : ''} failed: ${pdfResult.error}`, unitId, ownerName);
           continue;
         }
         
-        // Get statement date from metadata (report period date)
+        // Get statement date from metadata
         const statementDate = new Date(pdfResult.meta?.statementDate || currentDate);
         const calendarYear = statementDate.getFullYear();
-        const calendarMonth = statementDate.getMonth() + 1; // 1-12
+        const calendarMonth = statementDate.getMonth() + 1;
         
-        // Calculate fiscal month (0-indexed: 0-11)
+        // Calculate fiscal month
         let fiscalMonth;
         if (calendarMonth >= fiscalYearStartMonth) {
-          fiscalMonth = calendarMonth - fiscalYearStartMonth; // 0-indexed
+          fiscalMonth = calendarMonth - fiscalYearStartMonth;
         } else {
-          fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth; // 0-indexed
+          fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth;
         }
         
-        // Get language code (ES or EN) for filename
+        // Get language code for filename
         const langCode = (language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
         
-        // Create filename: YYYY-MM-{unitId}-{LANG}.PDF
+        // Create filename and path
         const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
-        
-        // Storage path: clients/{clientId}/accountStatements/{fiscalYear}/{fileName}
         const storagePath = `clients/${clientId}/accountStatements/${fiscalYear}/${fileName}`;
         
-        // Upload to Storage
+        // Upload to Storage (now makes public and returns signed URL)
         const storageUrl = await uploadToStorage(pdfResult.pdfBuffer, storagePath);
         
         // Store metadata
         const reportGenerated = getNow();
         const metadata = {
           unitId,
-          date: statementDate, // Report period date (what the report covers)
+          date: statementDate,
           calendarYear,
           calendarMonth,
           fiscalYear,
@@ -324,9 +391,10 @@ export async function bulkGenerateStatements(req, res) {
           language,
           storagePath,
           fileName,
-          reportGenerated, // Admin timestamp (when PDF was created)
+          reportGenerated,
           generatedBy: user.email || user.uid,
-          storageUrl
+          storageUrl,
+          isPublic: true // Mark as publicly accessible
         };
         
         await storeStatementMetadata(clientId, metadata);
@@ -342,9 +410,6 @@ export async function bulkGenerateStatements(req, res) {
           storageUrl
         });
         
-        // Send progress update: completed
-        sendProgress(i + 1, 'completed', `${unitId}${ownerName && ownerName !== 'N/A' && ownerName !== null ? ` (${ownerName})` : ''} completed successfully`, unitId, ownerName);
-        
         // Small delay to avoid overwhelming the system
         await new Promise(resolve => setTimeout(resolve, 200));
         
@@ -357,24 +422,44 @@ export async function bulkGenerateStatements(req, res) {
           status: 'error',
           error: error.message
         });
-        // Send progress update: error
-        sendProgress(i + 1, 'error', `${unitId}${ownerName && ownerName !== 'N/A' && ownerName !== null ? ` (${ownerName})` : ''} error: ${error.message}`, unitId, ownerName);
       }
     }
     
     console.log(`✅ Bulk generation complete: ${results.generated} successful, ${results.failed} failed`);
     
-    // Send final result
-    const finalResult = {
-      type: 'complete',
+    // Update final progress in Firestore
+    await updateBulkProgress(clientId, {
+      status: 'complete',
+      current: units.length,
+      total: units.length,
+      generated: results.generated,
+      failed: results.failed,
+      message: `Complete: ${results.generated} generated, ${results.failed} failed`,
+      completedAt: new Date().toISOString()
+    });
+    
+    // Return final result
+    return res.json({
       success: true,
       data: results
-    };
-    res.write(JSON.stringify(finalResult) + '\n');
-    res.end();
+    });
     
   } catch (error) {
     console.error('❌ Bulk statement generation error:', error);
+    
+    // Update progress with error status
+    if (clientId) {
+      try {
+        await updateBulkProgress(clientId, {
+          status: 'error',
+          message: error.message,
+          errorAt: new Date().toISOString()
+        });
+      } catch (progressError) {
+        console.error('Failed to update progress with error:', progressError);
+      }
+    }
+    
     res.status(500).json({
       success: false,
       error: error.message

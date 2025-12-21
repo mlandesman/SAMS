@@ -32,7 +32,36 @@ async function getAuthHeaders() {
 }
 
 /**
- * Bulk generate statements for all units in a client with streaming progress
+ * Get bulk statement generation progress
+ * @param {string} clientId - The client ID
+ * @returns {Promise<Object|null>} Progress data or null if no generation in progress
+ */
+export async function getBulkStatementProgress(clientId) {
+  try {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/progress/${clientId}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result.data;
+    
+  } catch (error) {
+    console.error('❌ Error getting bulk progress:', error);
+    return null;
+  }
+}
+
+/**
+ * Bulk generate statements for all units in a client with polling-based progress
  * @param {string} clientId - The client ID
  * @param {number} fiscalYear - Optional fiscal year (defaults to current)
  * @param {string} language - Language ('english' or 'spanish')
@@ -40,6 +69,8 @@ async function getAuthHeaders() {
  * @returns {Promise<Object>} Response with generation results
  */
 export async function bulkGenerateStatements(clientId, fiscalYear = null, language = 'english', onProgress = null) {
+  let pollingInterval = null;
+  
   try {
     console.log(`🚀 Bulk generating statements for client: ${clientId}`);
     
@@ -54,6 +85,28 @@ export async function bulkGenerateStatements(clientId, fiscalYear = null, langua
       body.fiscalYear = fiscalYear;
     }
     
+    // Start polling for progress updates
+    if (onProgress) {
+      pollingInterval = setInterval(async () => {
+        try {
+          const progress = await getBulkStatementProgress(clientId);
+          if (progress) {
+            onProgress({
+              current: progress.current,
+              total: progress.total,
+              generated: progress.generated,
+              failed: progress.failed,
+              message: progress.message,
+              status: progress.status
+            });
+          }
+        } catch (pollError) {
+          console.warn('Progress polling error:', pollError);
+        }
+      }, 1000); // Poll every second
+    }
+    
+    // Make the generate request (this will complete when all statements are done)
     const response = await fetch(`${API_BASE_URL}/admin/bulk-statements/generate`, {
       method: 'POST',
       headers,
@@ -61,66 +114,45 @@ export async function bulkGenerateStatements(clientId, fiscalYear = null, langua
       body: JSON.stringify(body)
     });
     
+    // Stop polling
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
     
-    // Handle streaming response
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let finalResult = null;
+    const result = await response.json();
     
-    while (true) {
-      const { done, value } = await reader.read();
+    if (result.success) {
+      console.log(`✅ Bulk generation complete: ${result.data.generated} successful, ${result.data.failed} failed`);
       
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep incomplete line in buffer
-      
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        
-        try {
-          const data = JSON.parse(line);
-          
-          if (data.type === 'progress' && onProgress) {
-            // Call progress callback
-            onProgress(data);
-          } else if (data.type === 'complete') {
-            // Final result
-            finalResult = data;
-          }
-        } catch (e) {
-          console.warn('Failed to parse progress line:', line, e);
-        }
+      // Send final progress update
+      if (onProgress) {
+        onProgress({
+          current: result.data.totalUnits,
+          total: result.data.totalUnits,
+          generated: result.data.generated,
+          failed: result.data.failed,
+          message: `Complete: ${result.data.generated} generated, ${result.data.failed} failed`,
+          status: 'complete'
+        });
       }
-    }
-    
-    // Parse any remaining buffer
-    if (buffer.trim()) {
-      try {
-        const data = JSON.parse(buffer);
-        if (data.type === 'complete') {
-          finalResult = data;
-        }
-      } catch (e) {
-        console.warn('Failed to parse final buffer:', buffer, e);
-      }
-    }
-    
-    if (finalResult && finalResult.success) {
-      console.log(`✅ Bulk generation complete: ${finalResult.data.generated} successful, ${finalResult.data.failed} failed`);
-      return finalResult;
+      
+      return { success: true, data: result.data };
     } else {
-      console.error('❌ Failed to generate bulk statements:', finalResult?.error);
-      throw new Error(finalResult?.error || 'Bulk generation failed');
+      console.error('❌ Failed to generate bulk statements:', result.error);
+      throw new Error(result.error || 'Bulk generation failed');
     }
     
   } catch (error) {
+    // Stop polling on error
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
     console.error('❌ Error bulk generating statements:', error);
     throw error;
   }

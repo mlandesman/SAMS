@@ -27,7 +27,7 @@ import clientOnboardingRoutes from './clientOnboarding.js';
 import clientManagementRoutes from './clientManagement.js';
 import importRoutes from './import.js';
 import { getNow } from '../services/DateService.js';
-import { bulkGenerateStatements } from '../controllers/bulkStatementController.js';
+import { bulkGenerateStatements, getBulkStatementProgress } from '../controllers/bulkStatementController.js';
 
 const router = express.Router();
 
@@ -120,6 +120,12 @@ router.post('/bulk-statements/generate',
   requirePermission('system.admin'), // SuperAdmin only
   logSecurityEvent('ADMIN_BULK_STATEMENTS_GENERATE'),
   bulkGenerateStatements
+);
+
+// Get bulk statement generation progress (for polling)
+router.get('/bulk-statements/progress/:clientId',
+  requirePermission('system.admin'),
+  getBulkStatementProgress
 );
 
 /**
