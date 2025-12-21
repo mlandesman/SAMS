@@ -4,18 +4,7 @@
  */
 
 import { DateTime } from 'luxon';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 import { getNow } from '../../shared/services/DateService.js';
-
-// Read responsive CSS file for reports (shared across all report types)
-const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
-const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
 
 /**
  * Format currency (pesos) from centavos
@@ -260,7 +249,6 @@ export function generateBudgetActualHtml(data, options = {}) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="format-detection" content="telephone=no">
   <title>${t.title} - ${clientInfo.name}</title>
   <style>
     /* Reset and base styles */
@@ -532,21 +520,17 @@ export function generateBudgetActualHtml(data, options = {}) {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    /* =====================================================
-       Responsive Report Common CSS (from reportCommon.css)
-       ===================================================== */
-    ${reportCommonCss}
   </style>
 </head>
 <body>
-  <div class="report-container report-page">
+  <div class="report-page">
     <!-- Header -->
     <div class="report-header">
       <div class="header-left">
         <div class="report-title">${t.title}</div>
         
         <div class="client-info">
-          <div class="report-table-container"><table class="report-table client-info-table">
+          <table class="client-info-table">
             <tr>
               <td>${t.reportFor}:</td>
               <td>${clientInfo.name}</td>
@@ -580,7 +564,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     
     <!-- Income Table -->
     <div class="section-header">${t.incomeTable}</div>
-    <div class="report-table-container"><table class="report-table budget-table">
+    <table class="budget-table">
       <thead>
         <tr>
           <th class="col-category">${t.tableHeaders.category}</th>
@@ -618,11 +602,11 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance-percent ${income.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(income.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
-    </table></div>
+    </table>
     
     <!-- Expense Table -->
     <div class="section-header">${t.expenseTable}</div>
-    <div class="report-table-container"><table class="report-table budget-table">
+    <table class="budget-table">
       <thead>
         <tr>
           <th class="col-category">${t.tableHeaders.category}</th>
@@ -660,11 +644,11 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance-percent ${expenses.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(expenses.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
-    </table></div>
+    </table>
     
     <!-- Special Assessments Fund -->
     <div class="section-header-special">${t.specialAssessmentsTable}</div>
-    <div class="report-table-container"><table class="report-table special-assessments-table">
+    <table class="special-assessments-table">
       <tbody>
         <!-- Collections Section -->
         <tr class="section-row">
@@ -703,7 +687,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-special-amount ${specialAssessments.netBalance >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${formatCurrency(specialAssessments.netBalance, true)}</td>
         </tr>
       </tbody>
-    </table></div>
+    </table>
     
     <!-- Footer -->
     <div class="report-footer">
