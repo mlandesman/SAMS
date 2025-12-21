@@ -689,21 +689,11 @@ export async function generateAndUploadPdfs(clientId, unitId, fiscalYear, authTo
   await fileEn.makePublic();
   await fileEs.makePublic();
   
-  // Get signed URLs with download tokens (expires far in future)
-  const [urlEn] = await fileEn.getSignedUrl({
-    action: 'read',
-    expires: '03-01-2500' // Far future expiration
-  });
-  
-  const [urlEs] = await fileEs.getSignedUrl({
-    action: 'read',
-    expires: '03-01-2500' // Far future expiration
-  });
-  
-  // Return Firebase Storage URLs with download tokens
+  // Return public URLs directly (no signed URL needed since files are public)
+  // This avoids the iam.serviceAccounts.signBlob permission requirement
   return {
-    en: urlEn,
-    es: urlEs
+    en: `https://storage.googleapis.com/${bucketName}/${storagePathEn}`,
+    es: `https://storage.googleapis.com/${bucketName}/${storagePathEs}`
   };
 
 }
