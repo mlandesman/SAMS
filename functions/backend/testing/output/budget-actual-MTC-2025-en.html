@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no">
   <title>BUDGET VS ACTUAL REPORT - Marina Turquesa Condominiums</title>
   <style>
     /* Reset and base styles */
@@ -274,17 +275,220 @@
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
+    /* =====================================================
+       Responsive Report Common CSS (from reportCommon.css)
+       ===================================================== */
+    /* =====================================================
+   SAMS Report Common CSS - Desktop, Mobile, PWA, Email
+   ===================================================== */
+
+/* Base Reset */
+* { 
+  box-sizing: border-box; 
+}
+
+/* Container */
+.report-container {
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Header */
+.report-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #007bff;
+}
+
+.report-logo {
+  max-width: 100px;
+  max-height: 60px;
+}
+
+.report-title-block {
+  flex: 1;
+}
+
+/* Tables */
+.report-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* Ensures horizontal scroll on mobile */
+}
+
+.report-table th,
+.report-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.report-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #666;
+  position: sticky;
+  top: 0;
+}
+
+/* Interactive rows (PWA future) */
+.report-table tr.clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.report-table tr.clickable:hover {
+  background-color: #f0f7ff;
+}
+
+.report-table tr.clickable:active {
+  background-color: #e0efff;
+}
+
+/* Amount columns */
+.amount {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+/* Summary grid */
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 24px 0;
+}
+
+.summary-item {
+  text-align: center;
+}
+
+/* Expandable sections (PWA future) */
+.expandable-section {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.expandable-section.open {
+  max-height: 500px; /* Adjust as needed */
+}
+
+/* Status colors */
+.positive { color: #28a745; }
+.negative { color: #dc3545; }
+.warning { color: #ffc107; }
+
+/* =====================================================
+   MOBILE RESPONSIVE - < 768px
+   ===================================================== */
+@media screen and (max-width: 768px) {
+  .report-container {
+    padding: 12px;
+    max-width: 100%;
+  }
+  
+  /* Stack header vertically */
+  .report-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .report-logo {
+    max-width: 80px;
+  }
+  
+  .report-title-block h1 {
+    font-size: 18px;
+  }
+  
+  /* Tables scroll horizontally */
+  .report-table-container {
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+  
+  .report-table th,
+  .report-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  
+  /* Touch-friendly rows */
+  .report-table tr.clickable td {
+    padding: 12px 10px; /* Larger tap target */
+  }
+  
+  /* Stack summary grid */
+  .report-summary {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  /* Typography adjustments */
+  body {
+    font-size: 14px;
+  }
+}
+
+/* =====================================================
+   TABLET - 768px to 1023px
+   ===================================================== */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  .report-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =====================================================
+   PRINT STYLES
+   ===================================================== */
+@media print {
+  .report-container {
+    max-width: 100%;
+    padding: 0;
+  }
+  
+  .report-table tr.clickable:hover {
+    background-color: transparent;
+  }
+  
+  .expandable-section {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
   </style>
 </head>
 <body>
-  <div class="report-page">
+  <div class="report-container report-page">
     <!-- Header -->
     <div class="report-header">
       <div class="header-left">
         <div class="report-title">BUDGET VS ACTUAL REPORT</div>
         
         <div class="client-info">
-          <table class="client-info-table">
+          <div class="report-table-container"><table class="report-table client-info-table">
             <tr>
               <td>REPORT FOR:</td>
               <td>Marina Turquesa Condominiums</td>
@@ -295,11 +499,11 @@
             </tr>
             <tr>
               <td>Report Date:</td>
-              <td>12/03/2025</td>
+              <td>12/21/2025</td>
             </tr>
             <tr>
               <td>% of Year Elapsed:</td>
-              <td>92.6%</td>
+              <td>97.4%</td>
             </tr>
           </table>
         </div>
@@ -315,7 +519,38 @@
     
     <!-- Income Table -->
     <div class="section-header">INCOME</div>
-    <table class="budget-table">
+    <div class="report-table-container"><table class="report-table budget-table">
+      <thead>
+        <tr>
+          <th class="col-category">CATEGORY NAME</th>
+          <th class="col-annual-budget">ANNUAL BUDGET</th>
+          <th class="col-ytd-budget">YTD BUDGET</th>
+          <th class="col-ytd-actual">YTD ACTUAL</th>
+          <th class="col-variance">VARIANCE ($)</th>
+          <th class="col-variance-percent">VARIANCE (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 20px;">No data available</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td class="col-category">TOTALS</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$0.00</td>
+          <td class="col-variance variance-favorable">$0.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
+        </tr>
+      </tfoot>
+    </table>
+    
+    <!-- Expense Table -->
+    <div class="section-header">EXPENSES</div>
+    <div class="report-table-container"><table class="report-table budget-table">
       <thead>
         <tr>
           <th class="col-category">CATEGORY NAME</th>
@@ -332,157 +567,121 @@
           <td class="col-category">Account Credit</td>
           <td class="col-annual-budget">$0.00</td>
           <td class="col-ytd-budget">$0.00</td>
-          <td class="col-ytd-actual">$40,379.00</td>
-          <td class="col-variance variance-favorable">+$40,379.00</td>
+          <td class="col-ytd-actual">$39,179.00</td>
+          <td class="col-variance variance-unfavorable">-$39,179.00</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
+        </tr>
+        <tr>
+          <td class="col-category">Bank Adjustments</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$0.00</td>
+          <td class="col-variance variance-favorable">$0.00</td>
           <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
         <tr>
-          <td class="col-category">HOA Dues</td>
-          <td class="col-annual-budget">$600,000.00</td>
-          <td class="col-ytd-budget">$555,305.33</td>
-          <td class="col-ytd-actual">$495,000.07</td>
-          <td class="col-variance variance-unfavorable">-$60,305.26</td>
-          <td class="col-variance-percent variance-unfavorable">-10.86%</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr class="totals-row">
-          <td class="col-category">TOTALS</td>
-          <td class="col-annual-budget">$600,000.00</td>
-          <td class="col-ytd-budget">$555,305.33</td>
-          <td class="col-ytd-actual">$535,379.07</td>
-          <td class="col-variance variance-unfavorable">-$19,926.26</td>
-          <td class="col-variance-percent variance-unfavorable">-3.59%</td>
-        </tr>
-      </tfoot>
-    </table>
-    
-    <!-- Expense Table -->
-    <div class="section-header">EXPENSES</div>
-    <table class="budget-table">
-      <thead>
-        <tr>
-          <th class="col-category">CATEGORY NAME</th>
-          <th class="col-annual-budget">ANNUAL BUDGET</th>
-          <th class="col-ytd-budget">YTD BUDGET</th>
-          <th class="col-ytd-actual">YTD ACTUAL</th>
-          <th class="col-variance">VARIANCE ($)</th>
-          <th class="col-variance-percent">VARIANCE (%)</th>
-        </tr>
-      </thead>
-      <tbody>
-        
-        <tr>
-          <td class="col-category">Bank Adjustments</td>
-          <td class="col-annual-budget">$1,200.00</td>
-          <td class="col-ytd-budget">$1,110.61</td>
-          <td class="col-ytd-actual">$1,301.09</td>
-          <td class="col-variance variance-unfavorable">-$190.48</td>
-          <td class="col-variance-percent variance-unfavorable">-17.15%</td>
-        </tr>
-        <tr>
           <td class="col-category">Colonos Fee</td>
-          <td class="col-annual-budget">$72,288.00</td>
-          <td class="col-ytd-budget">$66,903.19</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$72,288.32</td>
-          <td class="col-variance variance-unfavorable">-$5,385.13</td>
-          <td class="col-variance-percent variance-unfavorable">-8.05%</td>
+          <td class="col-variance variance-unfavorable">-$72,288.32</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
+        </tr>
+        <tr>
+          <td class="col-category">HOA Dues</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$437,000.07</td>
+          <td class="col-variance variance-unfavorable">-$437,000.07</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Elevator</td>
-          <td class="col-annual-budget">$40,986.00</td>
-          <td class="col-ytd-budget">$37,932.91</td>
-          <td class="col-ytd-actual">$57,321.40</td>
-          <td class="col-variance variance-unfavorable">-$19,388.49</td>
-          <td class="col-variance-percent variance-unfavorable">-51.11%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$60,569.40</td>
+          <td class="col-variance variance-unfavorable">-$60,569.40</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: General</td>
-          <td class="col-annual-budget">$18,000.00</td>
-          <td class="col-ytd-budget">$16,659.16</td>
-          <td class="col-ytd-actual">$17,500.00</td>
-          <td class="col-variance variance-unfavorable">-$840.84</td>
-          <td class="col-variance-percent variance-unfavorable">-5.05%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$19,000.00</td>
+          <td class="col-variance variance-unfavorable">-$19,000.00</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Landscaping</td>
-          <td class="col-annual-budget">$6,000.00</td>
-          <td class="col-ytd-budget">$5,553.05</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$0.00</td>
-          <td class="col-variance variance-favorable">+$5,553.05</td>
-          <td class="col-variance-percent variance-favorable">+100.00%</td>
+          <td class="col-variance variance-favorable">$0.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Paint & Repairs</td>
-          <td class="col-annual-budget">$9,000.00</td>
-          <td class="col-ytd-budget">$8,329.58</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$8,100.00</td>
-          <td class="col-variance variance-favorable">+$229.58</td>
-          <td class="col-variance-percent variance-favorable">+2.76%</td>
+          <td class="col-variance variance-unfavorable">-$8,100.00</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Plumbing & Electrical</td>
-          <td class="col-annual-budget">$12,000.00</td>
-          <td class="col-ytd-budget">$11,106.11</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$0.00</td>
-          <td class="col-variance variance-favorable">+$11,106.11</td>
-          <td class="col-variance-percent variance-favorable">+100.00%</td>
+          <td class="col-variance variance-favorable">$0.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Pool</td>
-          <td class="col-annual-budget">$23,795.00</td>
-          <td class="col-ytd-budget">$22,022.48</td>
-          <td class="col-ytd-actual">$24,025.70</td>
-          <td class="col-variance variance-unfavorable">-$2,003.22</td>
-          <td class="col-variance-percent variance-unfavorable">-9.10%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$24,725.70</td>
+          <td class="col-variance variance-unfavorable">-$24,725.70</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Security</td>
-          <td class="col-annual-budget">$6,000.00</td>
-          <td class="col-ytd-budget">$5,553.05</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$0.00</td>
-          <td class="col-variance variance-favorable">+$5,553.05</td>
-          <td class="col-variance-percent variance-favorable">+100.00%</td>
+          <td class="col-variance variance-favorable">$0.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Maintenance: Supplies</td>
-          <td class="col-annual-budget">$36,000.00</td>
-          <td class="col-ytd-budget">$33,318.32</td>
-          <td class="col-ytd-actual">$3,200.00</td>
-          <td class="col-variance variance-favorable">+$30,118.32</td>
-          <td class="col-variance-percent variance-favorable">+90.40%</td>
-        </tr>
-        <tr>
-          <td class="col-category">Other</td>
           <td class="col-annual-budget">$0.00</td>
           <td class="col-ytd-budget">$0.00</td>
-          <td class="col-ytd-actual">$100.00</td>
-          <td class="col-variance variance-unfavorable">-$100.00</td>
+          <td class="col-ytd-actual">$3,200.00</td>
+          <td class="col-variance variance-unfavorable">-$3,200.00</td>
           <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Services: Fumigation</td>
-          <td class="col-annual-budget">$6,000.00</td>
-          <td class="col-ytd-budget">$5,553.05</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$0.00</td>
-          <td class="col-variance variance-favorable">+$5,553.05</td>
-          <td class="col-variance-percent variance-favorable">+100.00%</td>
+          <td class="col-variance variance-favorable">$0.00</td>
+          <td class="col-variance-percent variance-favorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Staff: Administrators</td>
-          <td class="col-annual-budget">$120,000.00</td>
-          <td class="col-ytd-budget">$111,061.07</td>
-          <td class="col-ytd-actual">$100,000.00</td>
-          <td class="col-variance variance-favorable">+$11,061.07</td>
-          <td class="col-variance-percent variance-favorable">+9.96%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$110,000.00</td>
+          <td class="col-variance variance-unfavorable">-$110,000.00</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Staff: Maintenance Staff</td>
-          <td class="col-annual-budget">$104,400.00</td>
-          <td class="col-ytd-budget">$96,623.13</td>
-          <td class="col-ytd-actual">$84,850.00</td>
-          <td class="col-variance variance-favorable">+$11,773.13</td>
-          <td class="col-variance-percent variance-favorable">+12.18%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$86,650.00</td>
+          <td class="col-variance variance-unfavorable">-$86,650.00</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Transfers</td>
@@ -494,36 +693,36 @@
         </tr>
         <tr>
           <td class="col-category">Utilities: CFE</td>
-          <td class="col-annual-budget">$40,058.00</td>
-          <td class="col-ytd-budget">$37,074.03</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
           <td class="col-ytd-actual">$21,610.48</td>
-          <td class="col-variance variance-favorable">+$15,463.55</td>
-          <td class="col-variance-percent variance-favorable">+41.71%</td>
+          <td class="col-variance variance-unfavorable">-$21,610.48</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
         <tr>
           <td class="col-category">Utilities: Water</td>
-          <td class="col-annual-budget">$72,744.00</td>
-          <td class="col-ytd-budget">$67,325.22</td>
-          <td class="col-ytd-actual">$48,680.80</td>
-          <td class="col-variance variance-favorable">+$18,644.42</td>
-          <td class="col-variance-percent variance-favorable">+27.69%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$50,744.40</td>
+          <td class="col-variance variance-unfavorable">-$50,744.40</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
       </tbody>
       <tfoot>
         <tr class="totals-row">
           <td class="col-category">TOTALS</td>
-          <td class="col-annual-budget">$568,471.00</td>
-          <td class="col-ytd-budget">$526,124.96</td>
-          <td class="col-ytd-actual">$438,977.79</td>
-          <td class="col-variance variance-favorable">+$87,147.17</td>
-          <td class="col-variance-percent variance-favorable">+16.56%</td>
+          <td class="col-annual-budget">$0.00</td>
+          <td class="col-ytd-budget">$0.00</td>
+          <td class="col-ytd-actual">$933,067.37</td>
+          <td class="col-variance variance-unfavorable">-$933,067.37</td>
+          <td class="col-variance-percent variance-unfavorable">0.00%</td>
         </tr>
       </tfoot>
     </table>
     
     <!-- Special Assessments Fund -->
     <div class="section-header-special">SPECIAL ASSESSMENTS</div>
-    <table class="special-assessments-table">
+    <div class="report-table-container"><table class="report-table special-assessments-table">
       <tbody>
         <!-- Collections Section -->
         <tr class="section-row">
@@ -565,8 +764,8 @@
     <!-- Footer -->
     <div class="report-footer">
       <div class="footer-row">
-        <div>Report ID: BUDGET-ACTUAL-MTC-2025-1764814483918</div>
-        <div>Generated: 12/03/2025, 9:14:46 PM</div>
+        <div>Report ID: BUDGET-ACTUAL-MTC-2025-1766326311147</div>
+        <div>Generated: 12/21/2025, 9:11:54 AM</div>
       </div>
     </div>
   </div>

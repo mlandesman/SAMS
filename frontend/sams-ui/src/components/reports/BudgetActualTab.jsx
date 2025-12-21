@@ -108,32 +108,44 @@ function BudgetActualTab({ zoom = 1.0 }) {
         event.preventDefault();
       }
 
+      console.log('[BudgetActual] handleGenerate called', { 
+        selectedClient: selectedClient?.id, 
+        fiscalYear, 
+        language 
+      });
+
       if (!selectedClient || !fiscalYear) {
+        console.log('[BudgetActual] Early return - missing client or fiscal year');
         return;
       }
 
       setLoading(true);
       setError(null);
 
+      console.log('[BudgetActual] Fetching HTML...');
       try {
         const html = await reportService.getBudgetActualHtml(
           selectedClient.id,
           fiscalYear,
           language
         );
+        console.log('[BudgetActual] HTML fetched, length:', html?.length);
 
         // Also fetch data for potential CSV export
+        console.log('[BudgetActual] Fetching data...');
         const data = await reportService.getBudgetActualData(
           selectedClient.id,
           fiscalYear,
           language
         );
+        console.log('[BudgetActual] Data fetched');
 
         setReportData(data);
         setHtmlPreview(html);
         setHasGenerated(true);
+        console.log('[BudgetActual] State updated, report ready');
       } catch (err) {
-        console.error('Budget vs Actual generation error:', err);
+        console.error('[BudgetActual] Generation error:', err);
         setError('Failed to generate report. Please try again.');
       } finally {
         setLoading(false);

@@ -618,7 +618,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance-percent ${income.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(income.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
-    </table>
+    </table></div>
     
     <!-- Expense Table -->
     <div class="section-header">${t.expenseTable}</div>
@@ -660,7 +660,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance-percent ${expenses.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(expenses.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
-    </table>
+    </table></div>
     
     <!-- Special Assessments Fund -->
     <div class="section-header-special">${t.specialAssessmentsTable}</div>
@@ -703,7 +703,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-special-amount ${specialAssessments.netBalance >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${formatCurrency(specialAssessments.netBalance, true)}</td>
         </tr>
       </tbody>
-    </table>
+    </table></div>
     
     <!-- Footer -->
     <div class="report-footer">
