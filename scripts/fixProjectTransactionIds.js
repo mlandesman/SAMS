@@ -4,14 +4,51 @@
  * Problem: Project collections have incorrect transactionIds from import/cleanup
  * Solution: Match transactions by unitId, date, and amount to find correct transactionId
  * 
- * Usage: node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
+ * Usage: 
+ *   DEV:  node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
+ *   PROD: NODE_ENV=production node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
+ * 
+ * Environment Detection:
+ *   - Default (no NODE_ENV): Uses serviceAccountKey-dev.json (dev database)
+ *   - NODE_ENV=production: Uses serviceAccountKey-prod.json (production database)
+ *   - NODE_ENV=staging: Uses serviceAccountKey-staging.json (staging database)
  */
 
-import { getDb } from '../backend/firebase.js';
+import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const DRY_RUN = process.argv.includes('--dry-run');
-const CLIENT_ID = process.argv[2] || 'MTC';
+const CLIENT_ID = process.argv[2]?.replace('--dry-run', '').trim() || 'MTC';
+
+// Initialize Firebase for script usage
+async function initializeFirebaseForScript() {
+  if (admin.apps.length > 0) {
+    return admin.firestore();
+  }
+  
+  const env = process.env.NODE_ENV || 'development';
+  const serviceAccountPath = env === 'production' 
+    ? './serviceAccountKey-prod.json'
+    : env === 'staging'
+      ? './serviceAccountKey-staging.json'
+      : './serviceAccountKey-dev.json';
+  
+  console.log(`🔥 Environment: ${env}`);
+  console.log(`🔑 Service Account: ${serviceAccountPath}`);
+  
+  const serviceAccount = require(serviceAccountPath);
+  console.log(`📁 Firebase Project: ${serviceAccount.project_id}\n`);
+  
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  
+  return admin.firestore();
+}
+
+const getDb = initializeFirebaseForScript;
 
 /**
  * Normalize unit ID - extract just the unit number/code
