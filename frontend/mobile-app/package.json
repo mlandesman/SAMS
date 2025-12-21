@@ -1,7 +1,7 @@
 {
   "name": "sams-mobile",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "SAMS Mobile Progressive Web App for expense entry",
   "scripts": {
