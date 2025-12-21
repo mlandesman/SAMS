@@ -4,67 +4,54 @@
  * Problem: Project collections have incorrect transactionIds from import/cleanup
  * Solution: Match transactions by unitId, date, and amount to find correct transactionId
  * 
- * Usage: 
- *   DEV:  node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
- *   PROD: FIREBASE_ENV=prod node scripts/fixProjectTransactionIds.js [clientId] [--dry-run]
+ * Usage (requires ADC setup first):
+ *   gcloud auth application-default login
+ *   gcloud config set project sams-sandyland-prod  (or sandyland-management-system for dev)
  * 
- * Environment Detection:
- *   - FIREBASE_ENV=prod: Uses serviceAccountKey-prod.json (production database)
- *   - FIREBASE_ENV=staging: Uses serviceAccountKey-staging.json (staging database)
- *   - Default: Uses serviceAccountKey-dev.json (dev database)
+ *   DEV (dry-run):   node scripts/fixProjectTransactionIds.js MTC
+ *   DEV (execute):   node scripts/fixProjectTransactionIds.js MTC --execute
+ * 
+ *   PROD (dry-run):  node scripts/fixProjectTransactionIds.js MTC --prod
+ *   PROD (execute):  node scripts/fixProjectTransactionIds.js MTC --prod --execute
+ * 
+ * Flags:
+ *   --prod: Target production database
+ *   --execute: Apply changes (default is dry-run)
+ *   [clientId]: Client to process (default: MTC)
  */
 
 import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
-const DRY_RUN = process.argv.includes('--dry-run');
-const CLIENT_ID = process.argv[2]?.replace('--dry-run', '').trim() || 'MTC';
+// Determine environment
+const ENV = process.argv.includes('--prod') ? 'prod' : 'dev';
+const DRY_RUN = !process.argv.includes('--execute');
+// Get client ID (skip node and script paths, find first non-flag argument)
+const CLIENT_ID = process.argv.slice(2).find(arg => !arg.startsWith('--')) || 'MTC';
 
-// Initialize Firebase independently (don't modify core firebase.js)
-async function initializeScriptFirebase() {
-  if (admin.apps.length > 0) {
-    return admin.firestore();
+// Initialize Firebase with ADC
+function initFirebase() {
+  if (ENV === 'prod') {
+    admin.initializeApp({
+      projectId: 'sams-sandyland-prod',
+    });
+    console.log('🔥 Connected to PRODUCTION');
+  } else {
+    admin.initializeApp({
+      projectId: 'sandyland-management-system',
+    });
+    console.log('🔥 Connected to DEV');
   }
-  
-  const env = process.env.FIREBASE_ENV || 'dev';
-  
-  console.log(`🌍 Target Environment: ${env.toUpperCase()}`);
-  
-  // For production, use ADC if available (most secure)
-  if ((env === 'prod' || env === 'production') && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.log('🔑 Using Application Default Credentials (ADC)');
-    admin.initializeApp();
-    const db = admin.firestore();
-    const projectId = process.env.GCLOUD_PROJECT || (await db.collection('_meta').limit(1).get()).query.firestore.projectId;
-    console.log(`📁 Firebase Project: ${projectId}\n`);
-    return db;
-  }
-  
-  // Otherwise use service account key
-  const getServiceAccountPath = () => {
-    if (env === 'prod' || env === 'production') {
-      return '../serviceAccountKey-prod.json';
-    } else if (env === 'staging') {
-      return '../serviceAccountKey-staging.json';
-    }
-    return '../serviceAccountKey-dev.json';
-  };
-  
-  const serviceAccountPath = getServiceAccountPath();
-  const serviceAccount = require(serviceAccountPath);
-  console.log(`🔑 Service Account: ${serviceAccountPath}`);
-  console.log(`📁 Firebase Project: ${serviceAccount.project_id}\n`);
-  
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  
   return admin.firestore();
 }
 
-const getDb = initializeScriptFirebase;
+const db = initFirebase();
+
+console.log('🔧 Fix Project Collection Transaction IDs');
+console.log('==========================================');
+console.log(`Client: ${CLIENT_ID}`);
+console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no changes)' : 'LIVE (will update Firestore)'}`);
+console.log('');
 
 /**
  * Normalize unit ID - extract just the unit number/code
@@ -76,12 +63,6 @@ function normalizeUnitId(unitLabel) {
   const match = String(unitLabel).match(/^([A-Za-z0-9]+)/);
   return match ? match[1] : unitLabel;
 }
-
-console.log('🔧 Fix Project Collection Transaction IDs');
-console.log('==========================================');
-console.log(`Client: ${CLIENT_ID}`);
-console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no changes)' : 'LIVE (will update Firestore)'}`);
-console.log('');
 
 /**
  * Parse date from Firestore Timestamp or string
@@ -114,16 +95,13 @@ function formatDateForComparison(date) {
 /**
  * Find transaction matching unitId, date, and amount
  */
-async function findMatchingTransaction(db, clientId, unitId, date, amount) {
+async function findMatchingTransaction(clientId, unitId, date, amount) {
   const dateStr = formatDateForComparison(date);
   
   try {
-    // Query transactions for this client
-    // Note: Can't filter by unitId in query because format varies ("1C" vs "1C (Owner)")
+    // Query special assessment transactions for this client
     const transactionsRef = db.collection('clients').doc(clientId).collection('transactions');
     
-    // Get all transactions - we'll filter by unitId, date, and amount in memory
-    // This is necessary because unitId format varies (e.g., "1C" vs "1C (Eifler)")
     const snapshot = await transactionsRef
       .where('categoryId', '==', 'special-assessments')
       .get();
@@ -141,7 +119,7 @@ async function findMatchingTransaction(db, clientId, unitId, date, amount) {
       const txnDateStr = formatDateForComparison(txnDate);
       const txnAmount = txn.amount || 0;
       
-      // Normalize both unitIds for comparison (handles "1C" vs "1C (Eifler)" formats)
+      // Normalize both unitIds for comparison
       const normalizedCollectionUnitId = normalizeUnitId(unitId);
       const unitIdMatch = txnUnitId === normalizedCollectionUnitId;
       
@@ -159,7 +137,7 @@ async function findMatchingTransaction(db, clientId, unitId, date, amount) {
           amount: txn.amount,
           notes: txn.notes || '',
           categoryId: txn.categoryId,
-          unitId: txnUnitId
+          unitId: txn.unitId
         };
       }
     }
@@ -176,8 +154,6 @@ async function findMatchingTransaction(db, clientId, unitId, date, amount) {
  * Main function
  */
 async function fixProjectTransactionIds() {
-  const db = await getDb();
-  
   console.log(`📊 Processing projects for ${CLIENT_ID}...\n`);
   
   const projectsRef = db.collection('clients').doc(CLIENT_ID).collection('projects');
@@ -218,7 +194,7 @@ async function fixProjectTransactionIds() {
       console.log(`      Old TxnId: ${oldTxnId}`);
       
       // Try to find matching transaction
-      const matchingTxn = await findMatchingTransaction(db, CLIENT_ID, unitId, collectionDate, amount);
+      const matchingTxn = await findMatchingTransaction(CLIENT_ID, unitId, collectionDate, amount);
       
       if (matchingTxn) {
         if (matchingTxn.id !== oldTxnId) {
@@ -268,7 +244,7 @@ async function fixProjectTransactionIds() {
   console.log('==========================================\n');
   
   if (DRY_RUN && fixedCollections > 0) {
-    console.log('💡 Run without --dry-run to apply changes');
+    console.log('💡 Run with --execute flag to apply changes');
   }
 }
 
@@ -281,4 +257,3 @@ try {
   console.error(error.stack);
   process.exit(1);
 }
-
