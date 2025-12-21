@@ -17,6 +17,16 @@ const __dirname = path.dirname(__filename);
 import { getFiscalYear, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 
 /**
+ * Check if a category is a one-time project category that should be filtered out
+ * from the operational budget view. Projects are zero-sum (funded via Special Assessments)
+ * and are tracked separately in the Projects module.
+ */
+function isOneTimeCategory(categoryId) {
+  return categoryId === 'special-assessments' || 
+         categoryId.startsWith('projects-');
+}
+
+/**
  * Format currency (pesos)
  */
 function formatCurrency(amount, showSign = false) {
@@ -251,10 +261,14 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   const categoriesSnapshot = await db.collection('clients').doc(clientId)
     .collection('categories').get();
   
-  const categories = [];
+  const allCategories = [];
   categoriesSnapshot.forEach(doc => {
-    categories.push({ id: doc.id, ...doc.data() });
+    allCategories.push({ id: doc.id, ...doc.data() });
   });
+  
+  // Filter out one-time project categories (special-assessments, projects-*)
+  // These are zero-sum activities tracked separately in the Projects module
+  const categories = allCategories.filter(cat => !isOneTimeCategory(cat.id));
   
   const currentBudgets = await getBudgetsForYear(db, clientId, currentYear, user);
   const priorBudgets = await getBudgetsForYear(db, clientId, priorYear, user);

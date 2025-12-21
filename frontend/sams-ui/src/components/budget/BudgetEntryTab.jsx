@@ -4,9 +4,19 @@ import { getCategories } from '../../api/categories';
 import { fetchBudgetsByYear, saveBudget } from '../../api/budget';
 import { getFiscalYear } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
-import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormControl, InputLabel, Chip } from '@mui/material';
+import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { centavosToPesos, pesosToCentavos } from '../../utils/currencyUtils';
 import './BudgetEntryTab.css';
+
+/**
+ * Check if a category is a one-time project category that should be filtered out
+ * from the operational budget view. Projects are zero-sum (funded via Special Assessments)
+ * and are tracked separately in the Projects module.
+ */
+const isOneTimeCategory = (categoryId) => {
+  return categoryId === 'special-assessments' || 
+         categoryId.startsWith('projects-');
+};
 
 function BudgetEntryTab() {
   const { selectedClient } = useClient();
@@ -43,7 +53,11 @@ function BudgetEntryTab() {
       try {
         // Fetch categories
         const categoriesResult = await getCategories(selectedClient.id);
-        const categoriesList = categoriesResult.data || [];
+        const allCategories = categoriesResult.data || [];
+        
+        // Filter out one-time project categories (special-assessments, projects-*)
+        // These are zero-sum activities tracked separately in the Projects module
+        const categoriesList = allCategories.filter(cat => !isOneTimeCategory(cat.id));
         setCategories(categoriesList);
 
         // Fetch budgets for selected year
@@ -287,6 +301,10 @@ function BudgetEntryTab() {
   const { totalIncome, totalExpenses } = calculateTotals();
   const reserve = totalIncome - totalExpenses;
 
+  // Separate categories by type for grouped display
+  const incomeCategories = categories.filter(cat => cat.type === 'income');
+  const expenseCategories = categories.filter(cat => cat.type === 'expense');
+
   // Format currency for display
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -342,32 +360,27 @@ function BudgetEntryTab() {
         </Alert>
       )}
 
+      {/* Income Categories Table */}
+      <h2 style={{ marginTop: '24px', marginBottom: '12px', color: '#2e7d32', borderBottom: '2px solid #2e7d32', paddingBottom: '8px' }}>
+        Income
+      </h2>
       <div className="budget-table-container">
         <table className="budget-table">
           <thead>
             <tr>
               <th>Category Name</th>
-              <th>Type</th>
               <th>Budget Amount (MXN)</th>
               <th>Notes</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {categories.map(category => {
-              const budget = budgets[category.id];
+            {incomeCategories.map(category => {
               const amountInPesos = editingAmounts[category.id] || '';
               
               return (
                 <tr key={category.id}>
                   <td>{category.name}</td>
-                  <td>
-                    <Chip
-                      label={category.type === 'income' ? 'Income' : 'Expense'}
-                      color={category.type === 'income' ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </td>
                   <td>
                     <TextField
                       type="number"
@@ -390,7 +403,71 @@ function BudgetEntryTab() {
                       multiline
                       minRows={1}
                       maxRows={3}
-                      sx={{ width: '200px' }}
+                      sx={{ width: '250px' }}
+                      size="small"
+                    />
+                  </td>
+                  <td>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleSaveSingle(category.id)}
+                      disabled={saving}
+                    >
+                      Save
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Expense Categories Table */}
+      <h2 style={{ marginTop: '32px', marginBottom: '12px', color: '#616161', borderBottom: '2px solid #616161', paddingBottom: '8px' }}>
+        Expenses
+      </h2>
+      <div className="budget-table-container">
+        <table className="budget-table">
+          <thead>
+            <tr>
+              <th>Category Name</th>
+              <th>Budget Amount (MXN)</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenseCategories.map(category => {
+              const amountInPesos = editingAmounts[category.id] || '';
+              
+              return (
+                <tr key={category.id}>
+                  <td>{category.name}</td>
+                  <td>
+                    <TextField
+                      type="number"
+                      value={amountInPesos}
+                      onChange={(e) => handleAmountChange(category.id, e.target.value)}
+                      placeholder="0.00"
+                      inputProps={{ 
+                        min: 0,
+                        step: 0.01
+                      }}
+                      sx={{ width: '150px' }}
+                      size="small"
+                    />
+                  </td>
+                  <td>
+                    <TextField
+                      value={editingNotes[category.id] || ''}
+                      onChange={(e) => handleNotesChange(category.id, e.target.value)}
+                      placeholder="Budget notes..."
+                      multiline
+                      minRows={1}
+                      maxRows={3}
+                      sx={{ width: '250px' }}
                       size="small"
                     />
                   </td>
