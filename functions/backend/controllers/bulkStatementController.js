@@ -94,16 +94,14 @@ async function uploadToStorage(pdfBuffer, storagePath) {
     }
   });
   
-  // Make file publicly readable (same as email service)
+  // Make file publicly readable
   await file.makePublic();
   
-  // Get signed URL with far future expiration (same as email service)
-  const [signedUrl] = await file.getSignedUrl({
-    action: 'read',
-    expires: '03-01-2500' // Far future expiration
-  });
+  // Return the public URL directly (no signed URL needed since file is public)
+  // This avoids the iam.serviceAccounts.signBlob permission requirement
+  const publicUrl = `https://storage.googleapis.com/${bucketName}/${storagePath}`;
   
-  return signedUrl;
+  return publicUrl;
 }
 
 /**
