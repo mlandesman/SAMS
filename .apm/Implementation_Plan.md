@@ -1,11 +1,11 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 13 - Budget Report & Reusable Components (December 17, 2025)
-**Current Version:** v1.0.2 - Budget Report & Reusable Components
+**Last Modification:** Manager Agent 14 - Enhancement #74, Email All, Year-End Prep (December 20, 2025)
+**Current Version:** v1.1.8 - Unified Payment System Overhaul + Email All
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
-**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Budget Module (urgent), then PWA/Mobile refactor.
+**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC, then continued PWA/Mobile work.
 
 **Production URL:** https://sams.sandyland.com.mx  
 **Archive Reference:** Completed work through v0.3.0 is documented in `SAMS-Docs/COMPLETED_WORK_ARCHIVE_v0.3.0.md`
@@ -13,6 +13,50 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.1.8 - Unified Payment System Overhaul + Email All (December 18-20, 2025)
+**MAJOR MILESTONE - 72 hours of intensive development**
+
+#### Enhancement #74: Allow Partial Payments at Any Level
+- ✅ **Getter Functions Architecture** - Eliminated stale derived fields by calculating on demand
+- ✅ **Credit Balance Reconciliation** - Rebuilt credit history with `amount` (delta) instead of `adjustedBalanceMxn`
+- ✅ **Statement of Account Redesign** - New summary footer showing Balance Due / Less Credit / Net Amount Due
+- ✅ **Penalty Waiver Feature** - Right-click waiver in Payment Modal, recorded in transaction notes
+- ✅ **CSV Export Fix** - Credit summary now included in Statement CSV exports
+
+**Commits:** `58d0510` through `2b8bee4` (15+ commits)
+**Issues Resolved:** #72 (UI Cache), #71 (App Icon), #74 (Partial Payments)
+**Quality:** ⭐⭐⭐⭐⭐
+
+#### Bulk Operations & Email All
+- ✅ **Generate All Progress Polling** - Switched from streaming to Firestore-based polling (Firebase buffers streams)
+- ✅ **Email All Button** - Same UX pattern as Generate All (Email → Email All when no unit selected)
+- ✅ **Public PDF URLs** - All generated statements now publicly accessible via `makePublic()`
+- ✅ **Gmail Secret Configuration** - Proper Firebase Functions v2 secrets declaration
+
+**Backend:**
+- `POST /admin/bulk-statements/generate` - Bulk PDF generation with progress
+- `GET /admin/bulk-statements/progress/:clientId` - Progress polling
+- `POST /admin/bulk-statements/email` - Bulk email sending
+- `GET /admin/bulk-statements/email/progress/:clientId` - Email progress polling
+- Progress stored in Firestore: `clients/{clientId}/bulkProgress/{statements|emails}`
+
+**Frontend:**
+- Email/Email All button toggle based on unit selection
+- Progress display with sent/skipped/failed counts
+- Results summary showing units without email addresses
+
+#### Infrastructure Fixes
+- ✅ **Service Worker Cache Fix** - API paths were being cached as static assets (#72)
+- ✅ **Firestore Persistence Disabled** - Prevents stale data on transaction CRUD
+- ✅ **App Icon Added** - SLP_Icon.png for PWA/home screen (#71)
+- ✅ **Public URLs (No signBlob)** - Removed getSignedUrl() dependency to avoid IAM permission issues
+
+**Files Modified:** 20+ files across backend and frontend
+**User Feedback:** "This has been a momentous day."
+
+---
+
 ### v1.0.2 - Budget Report & Reusable Report Infrastructure (December 17, 2025)
 - ✅ **Reusable Report Components** - Created shared infrastructure for all future reports
 - ✅ **Budget Report** - Year-over-year comparison with 4 columns (Prior/Current/Change/%)
@@ -131,7 +175,41 @@
 
 ---
 
-## 🚨 CRITICAL PATH TO PRODUCTION (December 2025)
+## 🚨 URGENT: YEAR-END 2025 PLANNING (MTC)
+
+**Timeline:** Must be complete by December 31, 2025 (11 days remaining)
+**Status:** 🔴 PLANNING REQUIRED
+
+### Year-End Process Requirements
+
+MTC operates on a calendar fiscal year (Jan-Dec). The following must be addressed:
+
+#### 1. Statement Generation & Distribution
+- ✅ Generate All functionality working
+- ✅ Email All functionality working
+- ✅ Public PDF URLs for owner access
+- 🟡 Client-specific footers needed (GitHub #77) - MTC footer differs from AVII
+
+#### 2. Year-End Closing Process (TBD)
+- 📋 Final 2025 statements for all units
+- 📋 Any pending payments/credits to process before Dec 31
+- 📋 Balance carryover to 2026 (if needed)
+- 📋 Archive 2025 data / backup procedures
+
+#### 3. 2026 Fiscal Year Opening
+- 📋 2026 HOA dues bills generation (Q1 at minimum)
+- 📋 Budget already entered for 2026
+- 📋 Any rate changes for 2026?
+
+#### 4. Process Documentation
+- 📋 Document the year-end checklist for future years
+- 📋 Identify any automation opportunities
+
+**IMMEDIATE NEXT STEP:** Planning session to define exact year-end process
+
+---
+
+## ✅ COMPLETED: CRITICAL PATH TO PRODUCTION (December 2025)
 
 ### Priority 1: Budget Module │ GitHub #45
 **Status:** ✅ COMPLETE - Both Tasks Done (AHEAD OF SCHEDULE)  
