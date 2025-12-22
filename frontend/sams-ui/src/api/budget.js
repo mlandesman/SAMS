@@ -158,3 +158,43 @@ export async function deleteBudget(clientId, categoryId, year) {
   }
 }
 
+/**
+ * Fetch prior year budget and actual spending for a category
+ * @param {string} clientId - The client ID
+ * @param {string} categoryId - The category ID
+ * @param {number} year - The current fiscal year (prior year will be year - 1)
+ * @returns {Promise<Object>} Response with prior year data
+ */
+export async function fetchPriorYearData(clientId, categoryId, year) {
+  try {
+    console.log(`💰 Fetching prior year data for client: ${clientId}, category: ${categoryId}, current year: ${year}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${API_BASE_URL}/budgets/clients/${clientId}/categories/${categoryId}/prior-year-data?year=${year}`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Fetched prior year data for FY ${result.data.priorYear}`);
+      return result;
+    } else {
+      console.error('❌ Failed to fetch prior year data:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching prior year data:', error);
+    throw error;
+  }
+}
+

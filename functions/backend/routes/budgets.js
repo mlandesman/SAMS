@@ -5,7 +5,8 @@ import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/
 import { 
   listBudgetsByYear, 
   upsertBudget, 
-  deleteBudget 
+  deleteBudget,
+  getPriorYearData
 } from '../controllers/budgetController.js';
 
 // Apply authentication to ALL routes in this file
@@ -134,6 +135,38 @@ router.delete('/clients/:clientId/categories/:categoryId/budget/:year', enforceC
     }
   } catch (error) {
     console.error('❌ Error in budget deletion route:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get prior year budget and actual data for a category
+// GET /budgets/clients/:clientId/categories/:categoryId/prior-year-data?year=2026
+router.get('/clients/:clientId/categories/:categoryId/prior-year-data', enforceClientAccess, async (req, res) => {
+  try {
+    const clientId = req.authorizedClientId;
+    const categoryId = req.params.categoryId;
+    const year = parseInt(req.query.year);
+    
+    console.log('📋 Budgets route - fetching prior year data for category:', categoryId, 'current year:', year);
+    
+    if (isNaN(year) || year < 2000 || year > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid year parameter'
+      });
+    }
+    
+    const data = await getPriorYearData(clientId, categoryId, year, req.user);
+    
+    res.json({
+      success: true,
+      data: data
+    });
+  } catch (error) {
+    console.error('❌ Error in prior year data route:', error);
     res.status(500).json({
       success: false,
       error: error.message

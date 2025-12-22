@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { getCategories } from '../../api/categories';
-import { fetchBudgetsByYear, saveBudget } from '../../api/budget';
+import { fetchBudgetsByYear, saveBudget, fetchPriorYearData } from '../../api/budget';
 import { getFiscalYear } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
-import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormControl, InputLabel, IconButton, Tooltip } from '@mui/material';
+import { Refresh, SystemUpdateAlt } from '@mui/icons-material';
 import { centavosToPesos, pesosToCentavos } from '../../utils/currencyUtils';
 import './BudgetEntryTab.css';
 
@@ -20,6 +21,8 @@ function BudgetEntryTab() {
   const [editingNotes, setEditingNotes] = useState({}); // { categoryId: notesString }
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [copyingBudget, setCopyingBudget] = useState({}); // { categoryId: true/false }
+  const [copyingActual, setCopyingActual] = useState({}); // { categoryId: true/false }
 
   // Get fiscal year configuration
   const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
@@ -304,6 +307,97 @@ function BudgetEntryTab() {
     }).format(amount);
   };
 
+  // Handle copying prior year budget
+  const handleCopyPriorBudget = async (categoryId) => {
+    if (!selectedClient || !selectedYear) return;
+
+    const priorYear = selectedYear - 1;
+    setCopyingBudget(prev => ({ ...prev, [categoryId]: true }));
+    setError(null);
+
+    try {
+      const result = await fetchPriorYearData(selectedClient.id, categoryId, selectedYear);
+      const data = result.data;
+
+      if (data.budget && data.budget.amount > 0) {
+        // Populate amount (convert centavos to pesos)
+        const amountInPesos = centavosToPesos(data.budget.amount);
+        setEditingAmounts(prev => ({
+          ...prev,
+          [categoryId]: amountInPesos
+        }));
+
+        // Populate notes only if currently empty
+        const currentNotes = editingNotes[categoryId] || '';
+        if (!currentNotes || currentNotes.trim() === '') {
+          setEditingNotes(prev => ({
+            ...prev,
+            [categoryId]: `Copied from FY ${priorYear} Budget`
+          }));
+        }
+      } else {
+        setError(`No FY ${priorYear} budget found for ${categories.find(c => c.id === categoryId)?.name || 'this category'}`);
+      }
+    } catch (err) {
+      console.error('Error copying prior budget:', err);
+      setError(err.message || 'Failed to copy prior year budget');
+    } finally {
+      setCopyingBudget(prev => ({ ...prev, [categoryId]: false }));
+    }
+  };
+
+  // Handle copying prior year actual spending
+  const handleCopyPriorActual = async (categoryId) => {
+    if (!selectedClient || !selectedYear) return;
+
+    const priorYear = selectedYear - 1;
+    setCopyingActual(prev => ({ ...prev, [categoryId]: true }));
+    setError(null);
+
+    try {
+      const result = await fetchPriorYearData(selectedClient.id, categoryId, selectedYear);
+      const data = result.data;
+
+      if (data.actual && data.actual.amount > 0) {
+        // Populate amount (convert centavos to pesos)
+        const amountInPesos = centavosToPesos(data.actual.amount);
+        setEditingAmounts(prev => ({
+          ...prev,
+          [categoryId]: amountInPesos
+        }));
+
+        // Populate notes only if currently empty
+        const currentNotes = editingNotes[categoryId] || '';
+        if (!currentNotes || currentNotes.trim() === '') {
+          const formattedAmount = formatCurrency(amountInPesos);
+          setEditingNotes(prev => ({
+            ...prev,
+            [categoryId]: `Based on FY ${priorYear} Actual ($${formattedAmount})`
+          }));
+        }
+      } else {
+        // No spending in prior year - set to 0 with note
+        setEditingAmounts(prev => ({
+          ...prev,
+          [categoryId]: 0
+        }));
+
+        const currentNotes = editingNotes[categoryId] || '';
+        if (!currentNotes || currentNotes.trim() === '') {
+          setEditingNotes(prev => ({
+            ...prev,
+            [categoryId]: `No spending in FY ${priorYear}`
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error copying prior actual:', err);
+      setError(err.message || 'Failed to copy prior year actual spending');
+    } finally {
+      setCopyingActual(prev => ({ ...prev, [categoryId]: false }));
+    }
+  };
+
   return (
     <div className="budget-entry-tab">
       <div className="budget-entry-header">
@@ -400,14 +494,36 @@ function BudgetEntryTab() {
                     />
                   </td>
                   <td>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleSaveSingle(category.id)}
-                      disabled={saving}
-                    >
-                      Save
-                    </Button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <Tooltip title={`Copy FY ${selectedYear - 1} Budget`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyPriorBudget(category.id)}
+                          disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                          color="primary"
+                        >
+                          {copyingBudget[category.id] ? <CircularProgress size={16} /> : <Refresh />}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={`Copy FY ${selectedYear - 1} Actual`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyPriorActual(category.id)}
+                          disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                          color="success"
+                        >
+                          {copyingActual[category.id] ? <CircularProgress size={16} /> : <SystemUpdateAlt />}
+                        </IconButton>
+                      </Tooltip>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleSaveSingle(category.id)}
+                        disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                      >
+                        Save
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -462,14 +578,36 @@ function BudgetEntryTab() {
                     />
                   </td>
                   <td>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleSaveSingle(category.id)}
-                      disabled={saving}
-                    >
-                      Save
-                    </Button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <Tooltip title={`Copy FY ${selectedYear - 1} Budget`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyPriorBudget(category.id)}
+                          disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                          color="primary"
+                        >
+                          {copyingBudget[category.id] ? <CircularProgress size={16} /> : <Refresh />}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={`Copy FY ${selectedYear - 1} Actual`}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyPriorActual(category.id)}
+                          disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                          color="success"
+                        >
+                          {copyingActual[category.id] ? <CircularProgress size={16} /> : <SystemUpdateAlt />}
+                        </IconButton>
+                      </Tooltip>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleSaveSingle(category.id)}
+                        disabled={saving || copyingBudget[category.id] || copyingActual[category.id]}
+                      >
+                        Save
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );

@@ -1,7 +1,7 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 15 - Year-End GitHub Issues & Task Assignments (December 22, 2025)
+**Last Modification:** Manager Agent 16 - YE-087 Budget Copy Buttons Complete (December 22, 2025)
 **Current Version:** v1.2.0 (in progress) - Year-End Processing Features
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
@@ -134,12 +134,19 @@ If owner wanted credit to remain:
   Make next scheduled payment → replenishes credit balance
 ```
 
+6. **Budget Copy Buttons (YE-087)** ✅ COMPLETE
+   - Refresh icon (↻) copies prior year budget
+   - SystemUpdateAlt icon (⬇) copies prior year actual spending
+   - Smart notes auto-population (only when empty)
+   - *Completed: Dec 22, 2025 - ~2 hours, 4 files, ~270 lines*
+
 #### Timeline
 
 | Date | Task |
 |------|------|
 | Dec 22 | ✅ #89 UPS Bill Selection Enhancement - COMPLETE |
 | Dec 22 | ✅ #86 Account Reconciliation Module - COMPLETE |
+| Dec 22 | ✅ YE-087 Budget Copy Buttons - COMPLETE |
 | Dec 23-24 | #87 Year-End Processing UI (reordered) |
 | Dec 24-25 | #88 Budget vs Actual Accrual Basis (reordered) |
 | Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |

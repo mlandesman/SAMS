@@ -236,17 +236,22 @@ export async function generateBudgetReportHtml(clientId, fiscalYear, language = 
   const logoUrl = clientData.branding?.logoUrl;
   const normalizedLogoUrl = logoUrl && logoUrl.trim() !== '' ? logoUrl : null;
   
-  // Find available budget years and determine the highest year
+  // Validate the requested fiscal year
+  // If no fiscalYear provided, default to highest available year
   const availableYears = await findAvailableBudgetYearsInternal(db, clientId);
   
   if (availableYears.length === 0) {
     throw new Error(`No budget entries found for client ${clientId}`);
   }
   
-  // Use the highest available year as current year (ignore fiscalYear parameter)
-  // Always compare highest year to prior year
-  const currentYear = availableYears[0];
+  // Use the requested fiscal year, or default to highest available
+  const currentYear = fiscalYear || availableYears[0];
   const priorYear = currentYear - 1;
+  
+  // Warn if requested year has no budget data (still generate with zeros)
+  if (fiscalYear && !availableYears.includes(fiscalYear)) {
+    console.warn(`Budget report requested for FY ${fiscalYear} but no budget data exists. Report will show zeros.`);
+  }
   
   // Get categories
   const categoriesSnapshot = await db.collection('clients').doc(clientId)

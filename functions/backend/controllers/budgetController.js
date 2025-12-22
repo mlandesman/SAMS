@@ -8,6 +8,7 @@ import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
+import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -247,6 +248,118 @@ export async function deleteBudget(clientId, categoryId, year, user) {
   } catch (error) {
     console.error('❌ Error deleting budget:', error);
     return false;
+  }
+}
+
+/**
+ * Get prior year budget and actual spending for a category
+ * Used for copying prior year data into current year budget
+ * @param {string} clientId - Client ID
+ * @param {string} categoryId - Category ID
+ * @param {number} year - Current fiscal year (prior year will be year - 1)
+ * @param {Object} user - User object for propertyAccess validation
+ * @returns {Promise<Object>} Prior year budget and actual data
+ */
+export async function getPriorYearData(clientId, categoryId, year, user) {
+  try {
+    // Validate propertyAccess
+    if (!user) {
+      console.error('❌ No user provided for getPriorYearData');
+      throw new Error('User authentication required');
+    }
+
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      throw new Error('Access denied');
+    }
+
+    const db = await getDb();
+    
+    // Get client configuration for fiscal year start month
+    const clientDoc = await db.doc(`clients/${clientId}`).get();
+    if (!clientDoc.exists) {
+      throw new Error(`Client ${clientId} not found`);
+    }
+    
+    const clientData = clientDoc.data();
+    const fiscalYearStartMonth = validateFiscalYearConfig(clientData);
+    
+    // Calculate prior year
+    const priorYear = year - 1;
+    
+    // Get fiscal year bounds for prior year
+    const { startDate, endDate } = getFiscalYearBounds(priorYear, fiscalYearStartMonth);
+    const startTimestamp = convertToTimestamp(startDate);
+    const endTimestamp = convertToTimestamp(endDate);
+    
+    // Fetch prior year budget
+    const budgetRef = db.doc(`clients/${clientId}/categories/${categoryId}/budget/${priorYear}`);
+    const budgetDoc = await budgetRef.get();
+    
+    let budgetData = null;
+    if (budgetDoc.exists) {
+      const budget = budgetDoc.data();
+      budgetData = {
+        amount: budget.amount || 0, // centavos
+        notes: budget.notes || ''
+      };
+    }
+    
+    // Fetch transactions for prior year and calculate actual spending
+    // Query all transactions within fiscal year bounds, then filter by category in memory
+    const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`)
+      .where('date', '>=', startTimestamp)
+      .where('date', '<=', endTimestamp)
+      .get();
+    
+    // Aggregate actual spending for this category
+    // Handle both regular transactions and split transactions
+    let actualAmount = 0; // centavos (signed: negative for expenses, positive for income)
+    let transactionCount = 0;
+    
+    transactionsSnapshot.forEach(doc => {
+      const transaction = doc.data();
+      
+      // Check if this is a split transaction
+      const isSplit = transaction.categoryId === '-split-' || 
+                      transaction.categoryId === '-Split-' ||
+                      transaction.categoryName === '-Split-' ||
+                      (transaction.categoryId === null && transaction.allocations && transaction.allocations.length > 0);
+      
+      if (isSplit && transaction.allocations && Array.isArray(transaction.allocations)) {
+        // Process split transaction: check if any allocation matches this category
+        transaction.allocations.forEach(allocation => {
+          if (allocation.categoryId === categoryId) {
+            const allocationAmount = allocation.amount || 0; // Amount is in centavos (signed)
+            actualAmount += allocationAmount;
+            transactionCount++;
+          }
+        });
+      } else if (transaction.categoryId === categoryId) {
+        // Regular transaction for this category
+        const amount = transaction.amount || 0; // Amount is in centavos (signed)
+        actualAmount += amount;
+        transactionCount++;
+      }
+    });
+    
+    // For display purposes, convert to positive for expenses (since we're showing spending)
+    // But keep the signed value for proper accounting
+    const actualAmountForDisplay = actualAmount < 0 ? Math.abs(actualAmount) : actualAmount;
+    
+    console.log(`✅ Prior year data for client ${clientId}, category ${categoryId}, prior year ${priorYear}: budget=${budgetData?.amount || 0}, actual=${actualAmountForDisplay}, transactions=${transactionCount}`);
+    
+    return {
+      priorYear: priorYear,
+      budget: budgetData || null,
+      actual: {
+        amount: actualAmountForDisplay, // centavos (positive for display)
+        transactionCount: transactionCount
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error getting prior year data:', error);
+    throw error;
   }
 }
 
