@@ -26,9 +26,9 @@ export const transactionSchema = {
     },
     type: { 
       type: 'enum', 
-      values: ['expense', 'income'], 
+      values: ['expense', 'income', 'adjustment'], 
       required: true,
-      description: 'Transaction type - MUST be "expense" or "income", not "transactionType"'
+      description: 'Transaction type - "expense" (negative), "income" (positive), or "adjustment" (can be positive or negative)'
     },
     
     // Denormalized vendor fields (both or neither)
@@ -195,6 +195,9 @@ export const transactionSchema = {
       validate: (data) => {
         // Skip if type or amount is missing (caught by required field validation)
         if (!data.type || data.amount === undefined) return null;
+        
+        // Adjustments can be positive or negative - skip validation
+        if (data.type === 'adjustment') return null;
         
         if (data.type === 'expense' && data.amount > 0) {
           return 'Expense amounts must be negative';

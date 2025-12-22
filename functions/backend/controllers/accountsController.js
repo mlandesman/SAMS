@@ -769,6 +769,158 @@ async function rebuildBalances(clientId, startYear = null) {
   }
 }
 
+/**
+ * Get accounts for reconciliation (bank and cash types only)
+ * @param {string} clientId - Client ID
+ * @returns {Array} - Array of account objects with samsBalance in pesos
+ */
+async function getAccountsForReconciliation(clientId) {
+  try {
+    const db = await getDb();
+    const clientRef = db.collection('clients').doc(clientId);
+    const clientDoc = await clientRef.get();
+    
+    if (!clientDoc.exists) {
+      throw new Error(`Client ${clientId} not found`);
+    }
+    
+    const accounts = clientDoc.data().accounts || [];
+    
+    // Filter to only bank and cash accounts, convert balance from centavos to pesos
+    const reconciliationAccounts = accounts
+      .filter(acc => (acc.type === 'bank' || acc.type === 'cash') && acc.active !== false)
+      .map(acc => ({
+        id: acc.id,
+        name: acc.name,
+        type: acc.type,
+        samsBalance: (acc.balance || 0) / 100 // Convert centavos to pesos
+      }));
+    
+    return reconciliationAccounts;
+  } catch (error) {
+    console.error('❌ Error fetching accounts for reconciliation:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create reconciliation adjustment transactions
+ * @param {string} clientId - Client ID
+ * @param {Array} adjustments - Array of adjustment objects { accountId, accountName, samsBalance, actualBalance, difference }
+ * @param {Object} user - User object from req.user
+ * @returns {Array} - Results array with transaction IDs
+ */
+async function createReconciliationAdjustments(clientId, adjustments, user) {
+  try {
+    const db = await getDb();
+    const { createTransaction } = await import('./transactionsController.js');
+    const { formatCurrency } = await import('../utils/currencyUtils.js');
+    
+    // Get accounts to look up accountType
+    const clientRef = db.collection('clients').doc(clientId);
+    const clientDoc = await clientRef.get();
+    
+    if (!clientDoc.exists) {
+      throw new Error(`Client ${clientId} not found`);
+    }
+    
+    const accounts = clientDoc.data().accounts || [];
+    const accountMap = {};
+    accounts.forEach(acc => {
+      accountMap[acc.id] = acc;
+    });
+    
+    // Resolve vendor names for accounts (accounts have vendorId field)
+    const vendorsRef = db.collection(`clients/${clientId}/vendors`);
+    const vendorNameMap = {};
+    for (const account of accounts.filter(acc => acc.type === 'bank' || acc.type === 'cash')) {
+      if (account.vendorId) {
+        const vendorDoc = await vendorsRef.doc(account.vendorId).get();
+        if (vendorDoc.exists) {
+          vendorNameMap[account.id] = vendorDoc.data().name;
+        } else {
+          console.warn(`⚠️ Vendor ${account.vendorId} not found for account ${account.id}`);
+          vendorNameMap[account.id] = account.name; // Fallback to account name
+        }
+      } else {
+        console.warn(`⚠️ Account ${account.id} missing vendorId field`);
+        vendorNameMap[account.id] = account.name; // Fallback to account name
+      }
+    }
+    
+    const results = [];
+    
+    for (const adj of adjustments) {
+      // Skip zero adjustments
+      if (Math.abs(adj.difference) < 0.01) continue;
+      
+      // Look up account to get accountType and vendorId
+      const account = accountMap[adj.accountId];
+      if (!account) {
+        throw new Error(`Account ${adj.accountId} not found`);
+      }
+      
+      if (!account.vendorId) {
+        throw new Error(`Account ${adj.accountId} missing required vendorId field`);
+      }
+      
+      // Convert difference from pesos to centavos for storage
+      const differenceCentavos = Math.round(adj.difference * 100);
+      
+      // Build transaction object
+      // Use account.vendorId (from accounts array) and resolved vendor name
+      const transaction = {
+        date: getNow().toISOString().split('T')[0], // YYYY-MM-DD format
+        amount: adj.difference, // Amount in pesos (can be positive or negative - will be converted to centavos by createTransaction)
+        type: 'adjustment', // Use 'adjustment' type to allow both positive and negative amounts
+        categoryId: 'bank-adjustments',
+        categoryName: 'Bank Adjustments',
+        accountId: adj.accountId,
+        accountType: account.type, // Required: accountType must be present when accountId is provided
+        accountName: adj.accountName, // Also include accountName for consistency
+        vendorId: account.vendorId, // Use vendorId from account (e.g., "bbva", "petty-cash")
+        vendorName: vendorNameMap[account.id] || account.name, // Resolved vendor name
+        description: `Reconciliation adjustment for ${adj.accountName}`,
+        notes: `SAMS balance: ${formatCurrency(Math.round(adj.samsBalance * 100))}, Actual: ${formatCurrency(Math.round(adj.actualBalance * 100))}, Difference: ${formatCurrency(Math.round(adj.difference * 100))}`,
+        metadata: {
+          source: 'reconciliation',
+          samsBalance: Math.round(adj.samsBalance * 100), // Store in centavos
+          actualBalance: Math.round(adj.actualBalance * 100), // Store in centavos
+          reconciledBy: user.email,
+          reconciledAt: getNow().toISOString()
+        }
+      };
+      
+      // Create transaction (this will automatically update account balance)
+      const txnId = await createTransaction(clientId, transaction);
+      
+      results.push({
+        accountId: adj.accountId,
+        accountName: adj.accountName,
+        transactionId: txnId,
+        amount: adj.difference // Difference in pesos
+      });
+    }
+    
+    // Log audit entry
+    if (results.length > 0) {
+      await writeAuditLog({
+        module: 'accounts',
+        action: 'reconciliation',
+        parentPath: `clients/${clientId}`,
+        docId: clientId,
+        friendlyName: `Reconciliation adjustments`,
+        notes: `Created ${results.length} reconciliation adjustment transaction(s)`
+      });
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('❌ Error creating reconciliation adjustments:', error);
+    throw error;
+  }
+}
+
 export {
   getAccounts,
   createAccount,
@@ -781,5 +933,7 @@ export {
   createYearEndSnapshot,
   getYearEndSnapshot,
   listYearEndSnapshots,
-  rebuildBalances
+  rebuildBalances,
+  getAccountsForReconciliation,
+  createReconciliationAdjustments
 };

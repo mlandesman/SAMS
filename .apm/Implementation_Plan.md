@@ -86,10 +86,11 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
 
 #### Key Features
 
-1. **UPS Bill Selection Enhancement (#89)**
+1. **UPS Bill Selection Enhancement (#89)** ✅ COMPLETE
    - Checkboxes next to each bill in payment modal
    - Admin can uncheck bills to exclude from payment
    - Excluded bills keep funds as credit balance
+   - *Completed: Dec 22, 2025 - 4 hours, 6 files, ~158 lines*
    - Works with existing penalty waiver feature
 
 2. **Nightly Credit Auto-Pay (#90)**
@@ -137,10 +138,11 @@ If owner wanted credit to remain:
 
 | Date | Task |
 |------|------|
-| Dec 22 | #89 UPS Bill Selection Enhancement |
-| Dec 23 | #90 Nightly Credit Auto-Pay Job |
-| Dec 24-25 | #91 Account Reconciliation Module |
-| Dec 26-27 | #92 Year-End Processing UI |
+| Dec 22 | ✅ #89 UPS Bill Selection Enhancement - COMPLETE |
+| Dec 22 | ✅ #86 Account Reconciliation Module - COMPLETE |
+| Dec 23-24 | #87 Year-End Processing UI (reordered) |
+| Dec 24-25 | #88 Budget vs Actual Accrual Basis (reordered) |
+| Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
 | Dec 28-29 | Integration testing |
 | Dec 30 | Production deployment |
 | Dec 31 | 🎉 Execute Year-End for MTC |
@@ -328,7 +330,7 @@ All report blockers fixed:
 
 | Issue | Feature | Priority | Status |
 |-------|---------|----------|--------|
-| #89 | UPS Bill Selection Checkboxes | 🔥 CRITICAL | Dec 22 |
+| #89 | UPS Bill Selection Checkboxes | 🔥 CRITICAL | ✅ COMPLETE Dec 22 |
 | #90 | Nightly Credit Auto-Pay Job | 🔥 CRITICAL | Dec 23 |
 | #91 | Account Reconciliation Module | 🟡 HIGH | Dec 24-25 |
 | #92 | Year-End Processing UI | 🟡 HIGH | Dec 26-27 |
@@ -360,7 +362,7 @@ Behavior:
 
 ### Timeline
 
-- **Dec 22:** #89 UPS Bill Selection Enhancement
+- **Dec 22:** ✅ #89 UPS Bill Selection Enhancement - COMPLETE
 - **Dec 23:** #90 Nightly Credit Auto-Pay Job
 - **Dec 24-25:** #91 Account Reconciliation Module
 - **Dec 26-27:** #92 Year-End Processing UI

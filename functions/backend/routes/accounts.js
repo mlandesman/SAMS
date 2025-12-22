@@ -12,7 +12,9 @@ import {
   createYearEndSnapshot,
   getYearEndSnapshot,
   listYearEndSnapshots,
-  rebuildBalances
+  rebuildBalances,
+  getAccountsForReconciliation,
+  createReconciliationAdjustments
 } from '../controllers/accountsController.js';
 
 // Apply authentication to ALL routes in this file
@@ -266,6 +268,53 @@ router.post('/rebuild', async (req, res) => {
   } catch (error) {
     console.error('Error rebuilding balances:', error);
     res.status(500).json({ error: error.message || 'Server error' });
+  }
+});
+
+/**
+ * Get accounts for reconciliation
+ * GET /api/clients/:clientId/accounts/reconciliation
+ * Returns accounts with calculated balances for reconciliation UI
+ */
+router.get('/reconciliation', async (req, res) => {
+  try {
+    const clientId = req.params.clientId || req.originalParams?.clientId;
+    
+    if (!clientId) {
+      return res.status(400).json({ success: false, error: 'Client ID not provided' });
+    }
+    
+    const accounts = await getAccountsForReconciliation(clientId);
+    res.json({ success: true, accounts });
+  } catch (error) {
+    console.error('Error fetching accounts for reconciliation:', error);
+    res.status(500).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+/**
+ * Create reconciliation adjustment transactions
+ * POST /api/clients/:clientId/accounts/reconciliation
+ * Body: { adjustments: [{ accountId, accountName, samsBalance, actualBalance, difference }] }
+ */
+router.post('/reconciliation', async (req, res) => {
+  try {
+    const clientId = req.params.clientId || req.originalParams?.clientId;
+    const { adjustments } = req.body;
+    
+    if (!clientId) {
+      return res.status(400).json({ success: false, error: 'Client ID not provided' });
+    }
+    
+    if (!adjustments || !Array.isArray(adjustments)) {
+      return res.status(400).json({ success: false, error: 'Adjustments array is required' });
+    }
+    
+    const results = await createReconciliationAdjustments(clientId, adjustments, req.user);
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Error creating reconciliation adjustments:', error);
+    res.status(500).json({ success: false, error: error.message || 'Server error' });
   }
 });
 

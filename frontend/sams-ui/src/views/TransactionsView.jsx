@@ -4,6 +4,7 @@ import TransactionDetailModal from '../components/TransactionDetailModal';
 import AdvancedFilterModal from '../components/AdvancedFilterModal';
 import DigitalReceipt from '../components/DigitalReceipt';
 import NotificationModal from '../components/NotificationModal';
+import AccountReconciliation from '../components/AccountReconciliation';
 import { useNotification } from '../hooks/useNotification';
 import { getUnits } from '../api/units';
 import { getCategories } from '../api/categories';
@@ -103,6 +104,9 @@ function TransactionsView() {
   // Unified payment modal state
   const [showUnifiedPaymentModal, setShowUnifiedPaymentModal] = useState(false);
   const [selectedUnitForPayment, setSelectedUnitForPayment] = useState(null);
+  
+  // Account reconciliation modal state
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
@@ -1227,6 +1231,16 @@ function TransactionsView() {
     // TODO: Add cache clearing for HOA and Water modules
   };
   
+  const handleReconciliationSuccess = () => {
+    console.log('✅ Reconciliation adjustments created successfully');
+    // Refresh transaction list
+    setIsRefreshing(true);
+    // Clear accounts cache
+    if (selectedClient?.id) {
+      clearAccountsCache(selectedClient.id);
+    }
+  };
+  
   // Handle navigation state for opening unified payment from other views
   useEffect(() => {
     if (location.state?.openUnifiedPayment) {
@@ -1294,7 +1308,7 @@ function TransactionsView() {
           <FontAwesomeIcon icon={faPrint} />
           <span>Print</span>
         </button>
-        <button className="action-item" onClick={() => handleAction('reconcile')}>
+        <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
           <FontAwesomeIcon icon={faCheckDouble} />
           <span>Reconcile Accounts</span>
         </button>
@@ -1804,6 +1818,33 @@ function TransactionsView() {
           />
         </>
       )}
+
+      {/* Account Reconciliation Modal */}
+      <AccountReconciliation
+        isOpen={showReconciliationModal}
+        onClose={() => {
+          setShowReconciliationModal(false);
+          // Refresh balances after reconciliation
+          if (selectedClient?.id) {
+            clearAccountsCache(selectedClient.id);
+            // Trigger balance refresh by fetching balances again
+            getClientAccountBalances(selectedClient.id, true).then(bal => {
+              if (bal) {
+                setBalance(bal.totalBalance);
+                setStartingBalance({
+                  cashBalance: bal.cashBalance,
+                  bankBalance: bal.bankBalance
+                });
+              }
+            }).catch(err => {
+              console.error('Error refreshing balances after reconciliation:', err);
+            });
+            // Refresh transactions list
+            setIsRefreshing(true);
+          }
+        }}
+        onSuccess={handleReconciliationSuccess}
+      />
 
       {/* Global Notification Modal - renders at root level to avoid z-index issues */}
       <NotificationModal

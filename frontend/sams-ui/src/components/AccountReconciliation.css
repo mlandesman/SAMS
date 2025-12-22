@@ -1,0 +1,218 @@
+.account-reconciliation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.account-reconciliation-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.account-reconciliation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+  color: white;
+  border-radius: 8px 8px 0 0;
+}
+
+.account-reconciliation-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.account-reconciliation-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.account-reconciliation-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.account-reconciliation-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.account-reconciliation-instructions {
+  color: #6b7280;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.account-reconciliation-loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.account-reconciliation-empty {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.account-reconciliation-error {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.account-reconciliation-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.account-reconciliation-table th,
+.account-reconciliation-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.account-reconciliation-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.balance-cell {
+  font-family: 'Courier New', monospace;
+  text-align: right;
+  font-weight: 500;
+}
+
+.balance-input {
+  width: 150px;
+  padding: 8px;
+  font-size: 18pt !important;
+  font-family: 'Courier New', monospace;
+  text-align: right;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.balance-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.difference-cell {
+  font-family: 'Courier New', monospace;
+  text-align: right;
+  font-weight: 600;
+}
+
+.difference-cell.positive {
+  color: #059669;
+}
+
+.difference-cell.negative {
+  color: #dc2626;
+}
+
+.account-reconciliation-results {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 4px;
+}
+
+.account-reconciliation-results h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #166534;
+  font-size: 16px;
+}
+
+.account-reconciliation-results ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.account-reconciliation-results li {
+  margin-bottom: 8px;
+  color: #166534;
+}
+
+.account-reconciliation-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+
+.account-reconciliation-cancel,
+.account-reconciliation-submit {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.account-reconciliation-cancel {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.account-reconciliation-cancel:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.account-reconciliation-submit {
+  background-color: #667eea;
+  color: white;
+}
+
+.account-reconciliation-submit:hover:not(:disabled) {
+  background-color: #5568d3;
+}
+
+.account-reconciliation-submit:disabled,
+.account-reconciliation-cancel:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
