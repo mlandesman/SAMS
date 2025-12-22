@@ -72,9 +72,11 @@ function validateUnitId(unitId) {
  * @returns {object} Validation result
  */
 function validateAmount(amount) {
-  // Special case: 0, null, or undefined are allowed for "show all bills" preview
-  if (amount === 0 || amount === null || amount === undefined) {
-    return { valid: true, isZeroAmount: true };
+  // With checkbox system, we don't need special "show all bills" mode
+  // Just validate that amount is a valid non-negative number
+  // null/undefined from frontend means "no amount entered yet" - treat as 0
+  if (amount === null || amount === undefined) {
+    return { valid: true, normalizedAmount: 0 };
   }
   
   if (typeof amount !== 'number') {
@@ -95,7 +97,7 @@ function validateAmount(amount) {
     return { valid: false, error: 'amount exceeds maximum allowed (10,000,000 pesos)' };
   }
   
-  return { valid: true, isZeroAmount: false };
+  return { valid: true, normalizedAmount: amount };
 }
 
 /**
@@ -175,7 +177,7 @@ export const previewUnifiedPayment = async (req, res) => {
     console.log('🌐 [UNIFIED PAYMENT CONTROLLER] Preview request received');
     
     // Extract parameters from request body
-    const { clientId, unitId, amount, paymentDate, waivedPenalties } = req.body;
+    const { clientId, unitId, amount, paymentDate, waivedPenalties, excludedBills } = req.body;
     
     // Validate all required fields
     const clientValidation = validateClientId(clientId);
@@ -214,33 +216,26 @@ export const previewUnifiedPayment = async (req, res) => {
       });
     }
     
-    // Handle special zero/null/undefined amount case
-    let effectiveAmount = amount;
-    let zeroAmountRequest = false;
-    
-    if (amountValidation.isZeroAmount) {
-      // Use a very large amount (999,999,999 pesos = 99,999,999,900 centavos)
-      // This ensures all bills and penalties are included
-      effectiveAmount = 99999999900; // 999,999,999 pesos in centavos
-      zeroAmountRequest = true;
-      console.log(`   ℹ️  Zero/null amount request detected - using effective amount: ${effectiveAmount} centavos`);
-    }
+    // Use normalized amount (null/undefined → 0)
+    const effectiveAmount = amountValidation.normalizedAmount;
     
     // Convert centavos to pesos for the wrapper service
     // Frontend sends centavos, but wrapper expects pesos
     const amountInPesos = centavosToPesos(effectiveAmount);
     
     // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos (effective: ${effectiveAmount} centavos = $${amountInPesos}), Date: ${paymentDate}`);
+    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${effectiveAmount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
     
     // Call UnifiedPaymentWrapper service (expects PESOS)
+    // No special "zero-amount request" flag - just pass the actual amount
     const preview = await unifiedPaymentWrapper.previewUnifiedPayment(
       clientId,
       unitId,
       amountInPesos,
       paymentDate,
-      zeroAmountRequest, // Pass flag to wrapper
-      waivedPenalties || [] // Pass waived penalties array
+      false, // No longer need special zero-amount handling
+      waivedPenalties || [], // Pass waived penalties array
+      excludedBills || [] // Pass excluded bills array
     );
     
     // Return successful preview
@@ -299,6 +294,7 @@ export const recordUnifiedPayment = async (req, res) => {
       reference, 
       notes,
       waivedPenalties,
+      excludedBills,
       preview 
     } = req.body;
     
@@ -374,6 +370,7 @@ export const recordUnifiedPayment = async (req, res) => {
       reference: reference || null,
       notes: notes || null,
       waivedPenalties: waivedPenalties || [],
+      excludedBills: excludedBills || [],
       preview,
       userId: req.user?.uid || 'system',
       accountId: req.body.accountId || 'bank-001', // Required for account balance updates

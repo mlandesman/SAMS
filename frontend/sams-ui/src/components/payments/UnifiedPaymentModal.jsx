@@ -48,6 +48,9 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   const [contextMenu, setContextMenu] = useState(null);
   const [waiverDialog, setWaiverDialog] = useState(null);
   
+  // Bill selection state
+  const [excludedBills, setExcludedBills] = useState([]);
+  
   // UI state
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
@@ -65,6 +68,24 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [waivedPenalties]);
+  
+  // Recalculate when excluded bills change
+  useEffect(() => {
+    // Only recalculate if we have a unit selected
+    // This handles both adding and removing exclusions
+    if (selectedUnit) {
+      // If there's a payment amount (including 0), recalculate with that amount
+      // If no payment amount, use 0 to show credit allocation
+      const amount = parseFloat(paymentAmount);
+      if (!isNaN(amount)) {
+        calculatePaymentDistribution();
+      } else {
+        // No amount entered yet - use 0 to show credit being applied
+        calculatePaymentDistribution(0, paymentDate);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excludedBills]);
   
   // Load units when modal opens
   useEffect(() => {
@@ -96,14 +117,17 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setCreditRemaining(0);
       setError(null);
       setWaivedPenalties([]); // Clear waived penalties when unit changes
+      setExcludedBills([]); // Clear excluded bills when unit changes
       
-      console.log('🔵 [UnifiedPaymentModal] Unit selected, loading preview with null amount');
+      console.log('🔵 [UnifiedPaymentModal] Unit selected, loading preview with $0 to apply credit balance');
       
-      // Call preview API with null amount to show all bills
+      // Call preview API with $0 amount to show credit being applied to bills
+      // This will show how credit balance would be allocated using priority model
       // Use a small delay to avoid race conditions with state updates
       const timer = setTimeout(() => {
         // Use current paymentDate from state
-        calculatePaymentDistribution(null, paymentDate);
+        // Pass 0 (not null) to trigger credit allocation
+        calculatePaymentDistribution(0, paymentDate);
       }, 150);
       
       return () => clearTimeout(timer);
@@ -235,15 +259,17 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     const dateToUse = overrideDate || paymentDate;
     
     // Determine if this is a zero-amount request (only when explicitly null)
-    // When user enters an amount, we want to calculate credit correctly
+    // When user enters an amount (including 0), we want to calculate credit correctly
     const isZeroAmountRequest = overrideAmount === null;
     
-    if (!isZeroAmountRequest && amount <= 0) {
-      console.log('🔵 No amount entered yet, skipping preview');
+    // Don't skip for amount === 0, we want to show credit allocation
+    // Only skip if amount is negative (which validation will catch anyway)
+    if (!isZeroAmountRequest && amount < 0) {
+      console.log('🔵 Negative amount, skipping preview');
       return;
     }
     
-    if (!isZeroAmountRequest && amount < 0) {
+    if (amount < 0) {
       setError('Payment amount cannot be negative');
       return;
     }
@@ -262,7 +288,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
         {
           amount: isZeroAmountRequest ? null : amount,
           paymentDate: dateToUse,
-          waivedPenalties: waivedPenalties
+          waivedPenalties: waivedPenalties,
+          excludedBills: excludedBills
         }
       );
       
@@ -299,9 +326,14 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setUnpaidBills(billsToDisplay);
       setPreview(previewData);
       
-      // Calculate and display total due from filtered bills, excluding waived penalties
+      // Calculate and display total due from filtered bills, excluding waived penalties and excluded bills
       const calculatedTotalDue = billsToDisplay.reduce(
         (sum, bill) => {
+          // Skip excluded bills
+          if (excludedBills.includes(bill.billPeriod)) {
+            return sum;
+          }
+          
           const baseTotal = bill.totalDue || 0;
           // Subtract waived penalty if this bill has one
           const waived = waivedPenalties.find(w => w.billId === bill.billPeriod);
@@ -347,15 +379,26 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       return;
     }
     
-    const amount = parseFloat(paymentAmount) || 0;
-    if (amount < 0) {
+    // Parse amount - empty field or null becomes 0
+    const amount = parseFloat(paymentAmount);
+    const effectiveAmount = isNaN(amount) ? 0 : amount;
+    
+    if (effectiveAmount < 0) {
       setError('Payment amount cannot be negative');
       return;
     }
     
-    // Allow $0 only if credit balance covers at least the first bill
-    if (amount === 0 && (currentCreditBalance <= 0 || unpaidBills.length === 0)) {
-      setError('Payment amount must be greater than zero or credit balance must cover bills');
+    // Allow $0 payment if credit balance exists
+    // Nightly routine will use this to auto-pay bills from credit
+    if (effectiveAmount === 0 && currentCreditBalance <= 0) {
+      setError('Payment amount must be greater than zero when no credit balance is available');
+      return;
+    }
+    
+    // Require at least one checked bill (unless all bills are excluded by user choice)
+    const hasCheckedBills = unpaidBills.some(bill => !excludedBills.includes(bill.billPeriod));
+    if (!hasCheckedBills && unpaidBills.length > 0) {
+      setError('Please select at least one bill to pay, or enter a payment amount for credit');
       return;
     }
     
@@ -377,7 +420,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
         selectedClient.id,
         selectedUnit,
         {
-          amount: amount,
+          amount: effectiveAmount,
           paymentDate: paymentDate,
           paymentMethod: paymentMethod,
           paymentMethodId: paymentMethodId,
@@ -385,7 +428,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
           accountType: accountToCredit.type,
           reference: reference,
           notes: notes,
-          waivedPenalties: waivedPenalties
+          waivedPenalties: waivedPenalties,
+          excludedBills: excludedBills
         },
         preview
       );
@@ -476,6 +520,11 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   const getStatusInfo = (bill) => {
     if (!bill) return { text: 'UNPAID', className: 'status-unpaid' };
     
+    // Check if this bill is excluded
+    if (excludedBills.includes(bill.billPeriod)) {
+      return { text: 'EXCLUDED', className: 'status-excluded' };
+    }
+    
     if (bill.totalPayment >= bill.totalDue) {
       return { text: 'Will be paid in full', className: 'status-paid' };
     } else if (bill.totalPayment > 0) {
@@ -563,6 +612,19 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
    */
   const getWaivedPenalty = (billPeriod) => {
     return waivedPenalties.find(w => w.billId === billPeriod);
+  };
+  
+  /**
+   * Handle bill selection checkbox change
+   */
+  const handleBillSelectionChange = (billPeriod, isSelected) => {
+    if (isSelected) {
+      // Remove from excluded list
+      setExcludedBills(prev => prev.filter(bp => bp !== billPeriod));
+    } else {
+      // Add to excluded list
+      setExcludedBills(prev => [...prev, billPeriod]);
+    }
   };
   
   if (!isOpen) {
@@ -666,6 +728,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                   <table className="bills-table">
                     <thead>
                       <tr>
+                        <th style={{ width: '40px' }}>Pay</th>
                         <th>Bill</th>
                         <th>Base Charge Due</th>
                         <th>Penalties</th>
@@ -687,6 +750,15 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                           
                           return (
                             <tr key={index}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={!excludedBills.includes(bill.billPeriod)}
+                                  onChange={(e) => handleBillSelectionChange(bill.billPeriod, e.target.checked)}
+                                  disabled={loading || calculating}
+                                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                />
+                              </td>
                               <td>{formatBillPeriod(bill.billPeriod, bill.billType, bill.monthData)}</td>
                               <td>{formatAsMXN(bill.baseChargeDue)}</td>
                               <td
@@ -729,19 +801,23 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       onBlur={() => {
                         const amount = parseFloat(paymentAmount);
+                        // Allow recalculation for any valid amount including 0
+                        // NaN check handles empty field
                         if (selectedUnit && !isNaN(amount) && amount >= 0) {
                           calculatePaymentDistribution();
+                        } else if (selectedUnit && paymentAmount === '') {
+                          // Empty field - treat as $0 to apply credit balance
+                          calculatePaymentDistribution(0);
                         }
                       }}
-                      required
                       disabled={loading || !selectedUnit}
-                      placeholder={!selectedUnit ? "Select a unit first" : ""}
+                      placeholder={!selectedUnit ? "Select a unit first" : "0"}
                     />
                   </div>
                 </div>
                 
                 {/* Credit Calculation Display */}
-                {paymentAmount && (
+                {(paymentAmount !== '' || (selectedUnit && currentCreditBalance > 0)) && (
                   <div className="funds-calculation">
                     {calculating ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

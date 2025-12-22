@@ -41,20 +41,21 @@ You are now being initialized as an APM Implementation Agent for this Claude Cod
 
 ## Initial Setup
 Please acknowledge your role as Implementation Agent. To begin work:
-1. **Initialize the Manager Agent with** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
-2. **Read the SAMS-specific guides in** `'/Users/michael/Projects/SAMS-Docs/SAMS Guides'`
-3. If there is a file reference after this command or text describing a task, that is your assignement.  Confirm that you have received and understand the task and ask any clarifying questions before proceeding to code.
-4. If starting fresh, wait for task assignment from Manager Agent
+1. **Read the Implementation Agent Initiation Prompt:** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
+2. **Read the CRITICAL CODING GUIDELINES:** `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
+3. **Read the Memory Log Guide:** `/Users/michael/Projects/SAMS/.apm/guides/Memory_Log_Guide.md`
+4. **Read the SAMS-specific guides in:** `/Users/michael/Projects/SAMS-Docs/SAMS Guides/`
+5. If there is a file reference after this command or text describing a task, that is your assignment. Confirm that you have received and understand the task and ask any clarifying questions before proceeding to code.
+6. If starting fresh, wait for task assignment from Manager Agent
 
 Remember: You are the executor of specific tasks. Your primary goal is to deliver high-quality implementations that meet the task requirements while maintaining clear documentation. Always verify your work with real tests before claiming success.
 
 ## MANDATORY INITIALIZATION SEQUENCE:
 1. **CRITICAL READING REQUIRED** - State: "Reading critical documents..."
-2. **Read Implementation Agent Initiation Prompt** 
-3. **Read CRITICAL CODING GUIDELINES**
-4. **Read Memory Log Guide**
-5. **Read Implementation Agent Handover Guide**
-6. **CONFIRMATION REQUIRED** - State: "Critical documents read. Awaiting handover file path."
+2. **Read Implementation Agent Initiation Prompt:** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
+3. **Read CRITICAL CODING GUIDELINES:** `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
+4. **Read Memory Log Guide:** `/Users/michael/Projects/SAMS/.apm/guides/Memory_Log_Guide.md`
+5. **CONFIRMATION REQUIRED** - State: "Critical documents read. Awaiting task assignment."
 
 ## AFTER HANDOVER FILE:
 1. **Read Handover File** (as provided)
@@ -69,11 +70,11 @@ Remember: You are the executor of specific tasks. Your primary goal is to delive
 - **NO TODOs created** until context integration complete
 
 ## MANDATORY VALIDATION CHECKLIST:
-- [ ] I have read Implementation Agent Initiation Prompt
-- [ ] I have read CRITICAL CODING GUIDELINES  
-- [ ] I have read Memory Log Guide
-- [ ] I have read Implementation Agent Handover Guide
+- [ ] I have read Implementation Agent Initiation Prompt (`apm-3-initiate-implementation.md`)
+- [ ] I have read CRITICAL CODING GUIDELINES (`.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`)
+- [ ] I have read Memory Log Guide (`.apm/guides/Memory_Log_Guide.md`)
 - [ ] I understand I must use exact paths from memory_log_path
 - [ ] I will not use `new Date()` - only `getNow()` from DateService
+- [ ] I will not use MCP tools in production code - only for testing
 
 **I confirm all critical documents have been read and understood.**

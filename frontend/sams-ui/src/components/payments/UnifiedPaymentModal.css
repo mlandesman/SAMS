@@ -138,6 +138,14 @@
   border-radius: 3px;
 }
 
+.status-excluded {
+  color: #9ca3af;
+  font-style: italic;
+  background-color: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
 .no-bills {
   color: #7f8c8d;
   font-style: italic;

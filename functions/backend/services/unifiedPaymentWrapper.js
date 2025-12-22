@@ -107,19 +107,20 @@ export class UnifiedPaymentWrapper {
    * @param {Date|string} paymentDate - Payment date (for penalty calculation)
    * @param {boolean} zeroAmountRequest - Whether this is a zero-amount request
    * @param {Array} waivedPenalties - Array of penalty waivers {billId, amount, reason, notes}
+   * @param {Array} excludedBills - Array of excluded bill periods
    * @returns {object} Unified payment distribution preview
    */
-  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, zeroAmountRequest = false, waivedPenalties = []) {
+  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = []) {
     await this._initializeDb();
     
-    console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}${zeroAmountRequest ? ' (zero-amount request)' : ''}`);
+    console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
     
     // Parse payment date
     const calculationDate = paymentDate ? new Date(paymentDate) : getNow();
     console.log(`   📅 Calculation date: ${calculationDate.toISOString()}`);
     
     // Step 1: Aggregate bills from both modules
-    const { allBills, configs } = await this._aggregateBills(clientId, unitId, calculationDate);
+    let { allBills, configs } = await this._aggregateBills(clientId, unitId, calculationDate);
     
     // Step 1.5: Apply penalty waivers to bills
     if (waivedPenalties && waivedPenalties.length > 0) {
@@ -129,6 +130,19 @@ export class UnifiedPaymentWrapper {
         if (bill) {
           console.log(`      ✗ Waiving penalty for ${bill.period}: ${formatCurrency(bill.penaltyAmount)} (${waiver.reason})`);
           bill.penaltyAmount = 0; // Zero out the penalty
+        }
+      });
+    }
+    
+    // Step 1.6: Mark excluded bills (don't remove them, just mark for skipping during allocation)
+    if (excludedBills && excludedBills.length > 0) {
+      console.log(`   🚫 Marking ${excludedBills.length} bills as excluded`);
+      allBills.forEach(bill => {
+        const billPeriod = `${bill._metadata.moduleType}:${bill.period}`;
+        const isExcluded = excludedBills.includes(billPeriod) || excludedBills.includes(bill.period);
+        if (isExcluded) {
+          console.log(`      ✗ Marking bill as excluded: ${billPeriod}`);
+          bill._metadata.excluded = true; // Mark as excluded instead of filtering out
         }
       });
     }
@@ -192,7 +206,7 @@ export class UnifiedPaymentWrapper {
       if (remainingFunds <= 0) break;
       
       const billsAtThisLevel = billsWithUniquePeroids.filter(
-        b => b._metadata.priority === priorityLevel
+        b => b._metadata.priority === priorityLevel && !b._metadata.excluded  // Skip excluded bills
       );
       
       if (billsAtThisLevel.length === 0) continue;
@@ -243,46 +257,10 @@ export class UnifiedPaymentWrapper {
       paidBillsMap.set(bp.billPeriod, bp);
     });
     
-    // Include ALL eligible bills in response (even if $0 allocated)
-    // This ensures Statement of Account shows upcoming bills even when paymentAmount is 0
-    // CRITICAL: For zero-amount requests, show all bills with $0 allocation (not paid)
+    // Include ALL bills in response (even if $0 allocated or excluded)
+    // This ensures frontend can display all bills with checkboxes
     const allEligibleBillPayments = billsWithUniquePeroids.map(bill => {
-      // If this is a zero-amount request, always show bills with $0 allocation
-      // This ensures Statement of Account shows upcoming bills correctly
-      // CRITICAL: Include actual bill amounts so frontend can display them
-      if (zeroAmountRequest) {
-        const moduleType = bill._metadata.moduleType;
-        const displayPeriod = bill._originalPeriod || bill.period.replace(`${moduleType}:`, '');
-        
-        // Calculate actual bill amounts (in centavos, will be converted to pesos by PaymentDistributionService)
-        const baseOwedCentavos = getBaseOwed(bill); // Returns centavos
-        const penaltyOwedCentavos = getPenaltyOwed(bill); // Returns centavos
-        const totalOwedCentavos = getTotalOwed(bill); // Returns centavos
-        
-        // Convert to pesos for consistency with PaymentDistributionService output
-        const baseOwedPesos = centavosToPesos(baseOwedCentavos);
-        const penaltyOwedPesos = centavosToPesos(penaltyOwedCentavos);
-        const totalOwedPesos = centavosToPesos(totalOwedCentavos);
-        
-        return {
-          billPeriod: bill.period,
-          amountPaid: 0,
-          baseChargePaid: 0,
-          penaltyPaid: 0,
-          // Include actual bill amounts so frontend can display them
-          totalBaseDue: baseOwedPesos,
-          totalPenaltyDue: penaltyOwedPesos,
-          totalDue: totalOwedPesos,
-          newStatus: bill.status || 'unpaid',
-          dueDate: bill.dueDate,
-          // Include metadata for proper formatting in _splitDistributionByModule
-          _metadata: bill._metadata,
-          _hoaMetadata: bill._hoaMetadata,
-          _originalPeriod: displayPeriod
-        };
-      }
-      
-      // Normal request: use paid bills if available, otherwise $0
+      // Check if this bill was paid
       const paidBill = paidBillsMap.get(bill.period);
       
       if (paidBill) {
@@ -324,7 +302,7 @@ export class UnifiedPaymentWrapper {
       }
     });
     
-    console.log(`   📋 Including ${allEligibleBillPayments.length} eligible bills in response (${zeroAmountRequest ? 'all with $0 allocation' : `${allPaidBills.length} paid, ${allEligibleBillPayments.length - allPaidBills.length} unpaid but eligible`})`);
+    console.log(`   📋 Including ${allEligibleBillPayments.length} bills in response (${allPaidBills.length} paid, ${allEligibleBillPayments.length - allPaidBills.length} unpaid)`);
     
     // Reconstruct distribution object for splitting
     const distribution = {
@@ -345,41 +323,15 @@ export class UnifiedPaymentWrapper {
     splitResults.netCreditAdded = distribution.netCreditAdded;
     splitResults.currentCreditBalance = currentCredit;
     
-    // Handle zero-amount request: set credit to 0 and remove next fiscal year payments
-    if (zeroAmountRequest) {
-      console.log(`   🔧 Zero-amount request: Setting credit to 0 and removing next fiscal year payments`);
-      console.log(`   🔧 Before override - credit.added: ${splitResults.credit.added}, credit.final: ${splitResults.credit.final}, netCreditAdded: ${splitResults.netCreditAdded}`);
-      
-      // Set credit-related fields to 0
-      splitResults.credit.added = 0;
-      splitResults.credit.final = currentCredit; // Keep current credit, don't add any
-      splitResults.netCreditAdded = 0;
-      splitResults.newCreditBalance = currentCredit; // Also update newCreditBalance to match
-      
-      // Set additionalPaidToCredit to 0 if it exists (for compatibility)
-      if (splitResults.additionalPaidToCredit !== undefined) {
-        splitResults.additionalPaidToCredit = 0;
-      }
-      if (splitResults.additionalPaidToCredit_cents !== undefined) {
-        splitResults.additionalPaidToCredit_cents = 0;
-      }
-      
-      // Remove next fiscal year payments if present
-      if (splitResults.hoa?.nextFiscalYearPayments) {
-        delete splitResults.hoa.nextFiscalYearPayments;
-      }
-      
-      console.log(`   🔧 After override - credit.added: ${splitResults.credit.added}, credit.final: ${splitResults.credit.final}, newCreditBalance: ${splitResults.newCreditBalance}`);
-    } else {
-      // Normal request with actual payment amount - credit should be calculated correctly
-      console.log(`   💰 Normal payment request - Credit calculation:`);
-      console.log(`      Payment Amount: $${paymentAmount}`);
-      console.log(`      Bills Paid: $${splitResults.hoa.totalPaid + splitResults.water.totalPaid}`);
-      console.log(`      Current Credit: $${currentCredit}`);
-      console.log(`      Credit Added: $${splitResults.credit.added}`);
-      console.log(`      Final Credit: $${splitResults.credit.final}`);
-      console.log(`      New Credit Balance: $${splitResults.newCreditBalance}`);
-    }
+    // Log payment calculation details
+    console.log(`   💰 Payment calculation - Credit allocation:`);
+    console.log(`      Payment Amount: $${paymentAmount}`);
+    console.log(`      Bills Paid: $${splitResults.hoa.totalPaid + splitResults.water.totalPaid}`);
+    console.log(`      Current Credit: $${currentCredit}`);
+    console.log(`      Credit Used: $${splitResults.credit.used}`);
+    console.log(`      Credit Added: $${splitResults.credit.added}`);
+    console.log(`      Final Credit: $${splitResults.credit.final}`);
+    console.log(`      New Credit Balance: $${splitResults.newCreditBalance}`);
     
     console.log(`✅ [UNIFIED WRAPPER] Preview complete`);
     console.log(`   HOA: ${splitResults.hoa.billsPaid.length} bills, $${splitResults.hoa.totalPaid}`);
@@ -421,6 +373,7 @@ export class UnifiedPaymentWrapper {
       reference = null, 
       notes = null,
       waivedPenalties = [],
+      excludedBills = [],
       preview,
       userId = 'system',
       accountId, // Required - no default
@@ -428,16 +381,22 @@ export class UnifiedPaymentWrapper {
     } = paymentData;
     
     // Validate required fields
-    if (!amount || !paymentDate || !paymentMethod || !preview) {
+    // Note: amount can be 0 (credit only payment), so check for null/undefined explicitly
+    if (amount === null || amount === undefined || !paymentDate || !paymentMethod || !preview) {
       throw new Error('Missing required payment data: amount, paymentDate, paymentMethod, and preview are required');
+    }
+    
+    // Validate amount is a valid number (including 0)
+    if (typeof amount !== 'number' || amount < 0) {
+      throw new Error('Invalid amount: must be a non-negative number');
     }
     
     console.log(`   📋 Payment details: Method=${paymentMethod}, Date=${paymentDate}, Reference=${reference || 'none'}`);
     
     // Step 1: Verify preview data matches current state
     console.log(`   🔍 Verifying preview data matches current state...`);
-    // Pass waivedPenalties to verification so it calculates the same amounts
-    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate, false, waivedPenalties);
+    // Pass waivedPenalties and excludedBills to verification so it calculates the same amounts
+    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate, false, waivedPenalties, excludedBills);
     
     // Compare totals (allow small floating point differences)
     const previewTotal = preview.summary?.totalAllocated || 0;
@@ -657,12 +616,21 @@ export class UnifiedPaymentWrapper {
         new Set(allocations.map(a => a.type)).size > 1
     };
     
+    // CRITICAL: Determine category based on whether there are allocations
+    // - No allocations (everything to credit) → "account-credit" for proper deletion reversal
+    // - Has allocations (split across bills) → "-split-" for split transaction handling
+    const hasBillAllocations = allocations.length > 0;
+    const categoryId = hasBillAllocations ? '-split-' : 'account-credit';
+    const categoryName = hasBillAllocations ? '-Split-' : 'Account Credit';
+    
+    console.log(`   🏷️  Transaction category: ${categoryName} (${allocations.length} allocations)`);
+    
     const transactionData = {
       date: paymentDate, // Use original date string (yyyy-MM-dd format)
       amount: amount, // Pass in pesos - createTransaction will convert to centavos
       type: 'income',
-      categoryId: '-split-', // Split transaction (lowercase with hyphens)
-      categoryName: '-Split-', // Split transaction (capital S with hyphens)
+      categoryId: categoryId,
+      categoryName: categoryName,
       notes: combinedNotes, // Combined: consolidated allocation + user notes
       paymentMethod: paymentMethod,
       reference: reference || null,

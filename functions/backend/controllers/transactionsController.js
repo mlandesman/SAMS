@@ -903,12 +903,22 @@ async function deleteTransaction(clientId, txnId) {
     const isUnifiedPaymentType = originalData.type === 'unified_payment' || 
                                  originalData.paymentType === 'unified' ||
                                  originalData.category === '-split-' ||
-                                 originalData.category === '-Split-';
+                                 originalData.category === '-Split-' ||
+                                 originalData.categoryId === '-split-';
+    
+    // CRITICAL: Detect credit-only unified payment transactions
+    // These have categoryId='account-credit' and metadata showing credit changes
+    // Note: 'source' field is not saved by transaction schema, so can't rely on it
+    const isCreditOnlyTransaction = originalData.categoryId === 'account-credit' && 
+                                     !hasHOAAllocations && 
+                                     !hasWaterAllocations &&
+                                     (originalData.metadata?.creditAdded > 0 || originalData.metadata?.creditUsed > 0);
     
     // 🔍 BACKEND DELETE: Enhanced transaction detection analysis
     console.log('🔍 [BACKEND] Enhanced Transaction Type Detection:', {
       transactionId: txnId,
       category: originalData?.category,
+      categoryId: originalData?.categoryId,
       type: originalData?.type,
       paymentType: originalData?.paymentType,
       hasHOAAllocations,
@@ -920,13 +930,15 @@ async function deleteTransaction(clientId, txnId) {
       isHOAOnlyTransaction,
       isWaterOnlyTransaction,
       isUnifiedPaymentType,
+      isCreditOnlyTransaction,
+      creditMetadata: originalData.metadata,
       '===': '===',
-      finalDecision: isUnifiedTransaction ? 'UNIFIED' : (isHOAOnlyTransaction ? 'HOA-ONLY' : (isWaterOnlyTransaction ? 'WATER-ONLY' : 'UNKNOWN'))
+      finalDecision: isUnifiedTransaction ? 'UNIFIED' : (isHOAOnlyTransaction ? 'HOA-ONLY' : (isWaterOnlyTransaction ? 'WATER-ONLY' : (isCreditOnlyTransaction ? 'CREDIT-ONLY' : 'UNKNOWN')))
     });
     
-    // Backward compatibility aliases
+    // Backward compatibility aliases (include credit-only transactions)
     const isHOATransaction = hasHOAData;
-    const isWaterTransaction = hasWaterData;
+    const isWaterTransaction = hasWaterData || isCreditOnlyTransaction;
                             
     console.log(`🏠 [BACKEND] HOA Data Present: ${isHOATransaction}`);
     console.log(`💧 [BACKEND] Water Data Present: ${isWaterTransaction}`);
