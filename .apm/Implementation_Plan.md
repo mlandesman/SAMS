@@ -1,11 +1,11 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 15 - Year-End Blockers (December 21, 2025)
-**Current Version:** v1.1.9 (in progress) - Year-End Report Fixes
+**Last Modification:** Manager Agent 15 - Year-End GitHub Issues & Task Assignments (December 22, 2025)
+**Current Version:** v1.2.0 (in progress) - Year-End Processing Features
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
-**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC, then continued PWA/Mobile work.
+**Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
 
 **Production URL:** https://sams.sandyland.com.mx  
 **Archive Reference:** Completed work through v0.3.0 is documented in `SAMS-Docs/COMPLETED_WORK_ARCHIVE_v0.3.0.md`
@@ -50,7 +50,103 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
 
 **v1.1.9 Total Effort:** ~4.5 hours (both tasks)  
 **Milestone Complete:** December 21, 2025  
-**Next:** Deploy to production, then Year-End Processing (#78)
+**Next:** v1.2.0 Year-End Processing Features
+
+---
+
+### v1.2.0 - Year-End Processing Features (December 21-31, 2025)
+**STATUS:** 🔄 IN PROGRESS - Deadline Dec 31, 2025
+
+#### Design Decisions (Confirmed by Michael - Dec 21, 2025)
+
+| Decision | Resolution |
+|----------|------------|
+| Scripts vs Features | **Permanent Settings activity** |
+| Credit Balance Model | **Hybrid:** Credits stay as credits; nightly job auto-pays before penalty |
+| Bill Selection | **Admin chooses:** UPS modal with checkboxes to include/exclude bills |
+| Auto-Pay Timing | `billDueDate + gracePeriod - 1 day` (pay before penalty starts) |
+| Accounting Method | **Accrual basis** - HOA Dues = applied to months; Account Credit = deferred |
+| Budget Split Income | HOA Dues (applied) separate from Account Credit (prepayments) |
+
+#### GitHub Issues Created (December 22, 2025)
+
+- **#89** - [CRITICAL] UPS Bill Selection Checkboxes (4-5 hrs)
+- **#90** - [CRITICAL] Nightly Credit Auto-Pay Scheduled Job (4-5 hrs)
+- **#91** - [HIGH] Settings: Account Reconciliation Module (4-6 hrs)
+- **#92** - [HIGH] Settings: Year-End Processing UI (5-6 hrs)
+- **#93** - [MEDIUM] Budget vs Actual: Split Income Tracking (5-7 hrs, post-Dec 31)
+
+#### Task Assignments Created
+
+- `Task_YE-001_UPS_Bill_Selection_2025-12-22.md` → #89
+- `Task_YE-002_Nightly_Credit_AutoPay_2025-12-22.md` → #90
+- `Task_YE-003_Account_Reconciliation_2025-12-22.md` → #91
+- `Task_YE-004_Year_End_Processing_UI_2025-12-22.md` → #92
+- `Task_YE-005_Budget_Split_Income_2025-12-22.md` → #93
+
+#### Key Features
+
+1. **UPS Bill Selection Enhancement (#89)**
+   - Checkboxes next to each bill in payment modal
+   - Admin can uncheck bills to exclude from payment
+   - Excluded bills keep funds as credit balance
+   - Works with existing penalty waiver feature
+
+2. **Nightly Credit Auto-Pay (#90)**
+   - Scheduled Cloud Function at 6:00 AM Cancun time
+   - Auto-pays overdue bills from credit BEFORE penalty starts
+   - Timing: `dueDate + gracePeriod - 1 day`
+   - Sends notification to unit owner
+
+3. **Account Reconciliation (#91)**
+   - Settings → Account Reconciliation
+   - Enter actual bank/cash balance from statements
+   - Auto-creates `bank-adjustments` transaction for difference
+   - Replaces Google Sheets workflow
+
+4. **Year-End Processing UI (#92)**
+   - Settings → Year-End Processing
+   - Shows all units with prior year data, balance due, credit balance
+   - Creates new fiscal year dues documents
+   - Editable scheduledAmount for rate changes
+   - Credits auto-applied by nightly job when bills become due
+
+5. **Budget vs Actual Split Income (#93)**
+   - HOA Dues Actual = only amounts APPLIED to months
+   - Account Credit = prepayments/overpayments (separate line)
+   - Accurate budget variance (not inflated by credits)
+   - Test case: $20K payment for $5.8K dues → $5.8K HOA + $14.2K Credit
+
+#### Hybrid Credit Balance Model
+
+```
+Payment Flow:
+  $20,000 payment → $5,800 applied to Dec → $14,200 to credit balance
+
+Later (Jan 15):
+  Nightly job detects Jan bill approaching penalty (grace period - 1 day)
+  Auto-pays $5,800 from credit balance
+  Sends notification to owner
+  Credit balance now $8,400
+
+If owner wanted credit to remain:
+  Make next scheduled payment → replenishes credit balance
+```
+
+#### Timeline
+
+| Date | Task |
+|------|------|
+| Dec 22 | #89 UPS Bill Selection Enhancement |
+| Dec 23 | #90 Nightly Credit Auto-Pay Job |
+| Dec 24-25 | #91 Account Reconciliation Module |
+| Dec 26-27 | #92 Year-End Processing UI |
+| Dec 28-29 | Integration testing |
+| Dec 30 | Production deployment |
+| Dec 31 | 🎉 Execute Year-End for MTC |
+| Jan 2-3 | #93 Budget vs Actual Split Income |
+
+**Estimated Total Effort:** 22-29 hours
 
 ---
 
@@ -215,55 +311,66 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
 
 ---
 
-## 🚨 URGENT: YEAR-END 2025 PLANNING (MTC)
+## 🚨 URGENT: YEAR-END 2025 PROCESSING (MTC)
 
 **Timeline:** Must be complete by December 31, 2025 (10 days remaining)
-**Status:** 🟡 BLOCKERS IN PROGRESS
+**Status:** 🔄 IMPLEMENTATION IN PROGRESS
 
-### Pre-Year-End Blockers (December 21, 2025)
+### Pre-Year-End Blockers ✅ RESOLVED (December 21, 2025)
 
-**DISCOVERED:** 4 critical issues blocking year-end processing identified overnight
+All report blockers fixed:
+- ✅ **#81** - Budget vs Actual Report layout - FIXED
+- ✅ **#80** - Statement of Account project payments - FIXED
+- ✅ **#82** - Budget Report notes - CLOSED (data issue)
+- ✅ **#83** - Budget category filtering - ENHANCED
 
-**In Progress (Task BUG-001 & BUG-002):**
-- 🔄 **#81** - Budget vs Actual Report broken (reportCommonCss missing)
-- 🔄 **#80** - Statement of Account duplicate project payments  
-- 🔄 **#82** - Budget Report missing notes column
-- 🔄 **#83** - Budget tools showing one-time project categories
+### Year-End Feature Development (v1.2.0)
 
-**Impact:** Blocks final 2025 statement distribution AND 2026 budget board presentation  
-**Estimated Fix Time:** 5-7 hours (1 working day)  
-**Status:** Task assignments created, awaiting Implementation Agent execution
+| Issue | Feature | Priority | Status |
+|-------|---------|----------|--------|
+| #89 | UPS Bill Selection Checkboxes | 🔥 CRITICAL | Dec 22 |
+| #90 | Nightly Credit Auto-Pay Job | 🔥 CRITICAL | Dec 23 |
+| #91 | Account Reconciliation Module | 🟡 HIGH | Dec 24-25 |
+| #92 | Year-End Processing UI | 🟡 HIGH | Dec 26-27 |
+| #93 | Budget Split Income (HOA vs Credit) | 🟢 MEDIUM | Jan 2-3 |
 
----
+### Key Design Decisions (Confirmed Dec 21, 2025)
 
-### Year-End Process Requirements
+1. **Hybrid credit balance model** - Credits stay as credits; nightly job auto-pays before penalties
+2. **Bill selection in UPS** - Admin checkboxes to include/exclude bills from payment
+3. **Auto-pay timing** - `dueDate + gracePeriod - 1 day` prevents penalties
+4. **Split income tracking** - HOA Dues (applied) separate from Account Credit (prepayments)
+5. **Build permanent Settings features** - not one-off scripts
+6. **Accrual accounting** - use application date, not activity date
 
-MTC operates on a calendar fiscal year (Jan-Dec). The following must be addressed:
+### Test Case: PH4D Prepayment (Hybrid Model)
 
-#### 1. Statement Generation & Distribution
-- ✅ Generate All functionality working
-- ✅ Email All functionality working
-- ✅ Public PDF URLs for owner access
-- 🔄 **#80** - Statement accuracy (duplicate project payments) - IN PROGRESS
-- 🟡 **#77** - Client-specific footers (MTC footer differs from AVII) - Enhancement, nice-to-have
+```
+Credit Balance: $14,400 MXN
+Monthly HOA: $5,800 MXN
 
-#### 2. Year-End Closing Process (TBD - After Blockers)
-- 📋 Final 2025 statements for all units
-- 📋 Any pending payments/credits to process before Dec 31
-- 📋 Balance carryover to 2026 (if needed)
-- 📋 Archive 2025 data / backup procedures
+Behavior:
+- Credit stays as $14,400 in credit balance
+- When Jan bill approaches penalty date (dueDate + gracePeriod - 1):
+  - Nightly job auto-pays $5,800 from credit
+  - Notification sent to owner
+- Same for Feb bill when it approaches penalty
+- Credit reduced over time as bills come due
+```
 
-#### 3. 2026 Fiscal Year Opening (Partially Ready)
-- 📋 2026 HOA dues bills generation (Q1 at minimum)
-- ✅ Budget entered for 2026
-- 🔄 **#82, #83** - Budget presentation polish - IN PROGRESS
-- 📋 Any rate changes for 2026?
+### Timeline
 
-#### 4. Process Documentation
-- 📋 Document the year-end checklist for future years
-- 📋 Identify any automation opportunities
+- **Dec 22:** #89 UPS Bill Selection Enhancement
+- **Dec 23:** #90 Nightly Credit Auto-Pay Job
+- **Dec 24-25:** #91 Account Reconciliation Module
+- **Dec 26-27:** #92 Year-End Processing UI
+- **Dec 28-29:** Integration testing
+- **Dec 30:** Production deployment
+- **Dec 31:** 🎉 Execute Year-End for MTC
+- **Jan 2-3:** #93 Budget vs Actual Split Income
 
-**IMMEDIATE NEXT STEP:** Complete BUG-001 and BUG-002 tasks, then proceed with year-end processing plan (#78)
+**Detailed Plan:** `SAMS-Docs/apm_session/Memory/Task_Assignments/Year_End_2025_Processing_Plan_2025-12-21.md`  
+**Task Assignments:** `SAMS-Docs/apm_session/Memory/Task_Assignments/Task_YE-00*.md`
 
 ---
 
