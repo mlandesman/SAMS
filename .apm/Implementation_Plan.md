@@ -1,7 +1,7 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 17 - YE-088 Budget vs Actual Accrual Complete (December 23, 2025)
+**Last Modification:** Manager Agent 18 - GitHub Issues Integration (December 23, 2025)
 **Current Version:** v1.2.0 (in progress) - Year-End Processing Features
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
@@ -9,6 +9,43 @@
 
 **Production URL:** https://sams.sandyland.com.mx  
 **Archive Reference:** Completed work through v0.3.0 is documented in `SAMS-Docs/COMPLETED_WORK_ARCHIVE_v0.3.0.md`
+
+---
+
+## 📋 NEW ISSUES INTEGRATED (December 23, 2025)
+
+**Total New Issues:** 15 (3 Critical/High, 8 Medium, 4 Low)
+
+### Immediate Action Required
+- 🔥 **#95** - Transaction Edit Modal broken (CRITICAL) - **BLOCKS** transaction corrections
+- 🟡 **#59** - Account Balances don't auto-update after UPS payments (HIGH) - **IMPACTS** dashboard accuracy
+
+### High Priority (Address Soon)
+- 🟡 **#66** - User/Unit Role System disconnected (HIGH) - Data integrity issue
+- 🟡 **#56** - Credit Balance context menu incomplete (HIGH) - Details modal missing
+- 🟡 **#48** - Create User needs maintenance role + auth bug (HIGH) - Login fails
+
+### Medium Priority (Schedule Soon)
+- 🟢 **#94** - Transaction Export (CSV/PDF) for filtered view
+- 🟢 **#79** - Email All 502 timeout (cosmetic)
+- 🟢 **#77** - Client-specific Statement footers
+- 🟢 **#75** - Version endpoint stale
+- 🟢 **#73** - Nightly Firestore Backup
+- 🟢 **#61** - Version on login screen
+- 🟢 **#60** - MTC calling water routes (fails for MTC)
+- 🟢 **#55** - Mini trend graphs in Statement
+- 🟢 **#52** - Budget Dashboard Card no data
+- 🟢 **#50** - Bulk Administration Operations
+- 🟢 **#47** - PWA Dashboard card refactor
+- 🟢 **#53** - Manual Account Adjustments
+
+### Low Priority (Backlog)
+- 🟢 **#96** - Dashboard Account Balances deduct Credit
+- 🟢 **#68** - Budget Entry Calculator
+- 🟢 **#51** - PWA Balance Card expandable
+- 🟢 **#49** - PWA Autologin biometrics
+
+**Note:** Issue #95 (Transaction Edit Modal) may **BLOCK** year-end processing if transaction corrections are needed. Should be addressed before Dec 31.
 
 ---
 
@@ -322,9 +359,28 @@ If owner wanted credit to remain:
 
 ---
 
+## 🚨 URGENT: CRITICAL BUGS (IMMEDIATE ATTENTION REQUIRED)
+
+**Status:** 🔴 BLOCKING PRODUCTION WORKFLOW
+
+### Critical Priority Issues
+
+| Issue | Title | Priority | Impact | Status |
+|-------|-------|----------|--------|--------|
+| **#95** | Transaction Edit Modal does not read data properly | 🔥 CRITICAL | Core functionality broken - cannot edit transactions | 🔴 OPEN |
+| **#59** | UPS payment doesn't recalculate Account Balances | 🟡 HIGH | Dashboard shows stale data after payments | 🔴 OPEN |
+
+**Action Required:**
+- **#95** - Transaction editing is broken. Fields are empty when opening edit modal. **BLOCKS** transaction corrections.
+- **#59** - Account balances don't auto-update after UPS payments. Manual recalculation required. **IMPACTS** user trust in dashboard.
+
+**Estimated Effort:** 2-4 hours each (4-8 hours total)
+
+---
+
 ## 🚨 URGENT: YEAR-END 2025 PROCESSING (MTC)
 
-**Timeline:** Must be complete by December 31, 2025 (10 days remaining)
+**Timeline:** Must be complete by December 31, 2025 (8 days remaining)
 **Status:** 🔄 IMPLEMENTATION IN PROGRESS
 
 ### Pre-Year-End Blockers ✅ RESOLVED (December 21, 2025)
@@ -633,18 +689,36 @@ clients/MTC/projects/propaneTanks/readings/{year}-{month}
 
 ---
 
+## 🐛 ACTIVE BUGS & HIGH PRIORITY ISSUES
+
+### High Priority (Address Soon)
+
+| GitHub # | Issue | Priority | Impact | Status |
+|----------|-------|----------|--------|--------|
+| #66 | User/Unit Role System Disconnected | 🟡 HIGH | Data integrity issue - users and units not linked | 🔴 OPEN |
+| #56 | Credit Balance context menu incomplete | 🟡 HIGH | "Details" shows placeholder, "Edit" works | 🔴 OPEN |
+| #48 | Create User needs maintenance role + auth bug | 🟡 HIGH | Maintenance role missing, auth fails on login | 🔴 OPEN |
+| #79 | Email All 502 timeout | 🟢 MEDIUM | Cosmetic - emails sent but shows error | 🔴 OPEN |
+| #60 | MTC calling water routes unnecessarily | 🟢 MEDIUM | Statement generation fails for MTC (no water service) | 🔴 OPEN |
+| #75 | Version endpoint returns stale version | 🟢 MEDIUM | API shows 0.0.1 instead of actual version | 🔴 OPEN |
+| #52 | Budget Dashboard Card has no data | 🟢 MEDIUM | Card shows 0% and zeros | 🔴 OPEN |
+
+**Estimated Effort:** 2-4 hours each
+
+---
+
 ## 🐛 DEPRIORITIZED BUGS (Post-Production)
 
 These bugs are not blocking production go-live and will be addressed after Jan 1:
 
 | GitHub # | Issue | Priority | Notes |
 |----------|-------|----------|-------|
-| #48 | Create User maintenance role | Low | Auth bug fixed in WM-2; workaround: create as Admin, edit role in Firebase Console |
 | #43 | Client Management 404 | Post-prod | No new clients before Jan 1, Firebase console workaround |
 | #39 | Water Bills Import Invalid Bills | Post-prod | Manual delete workaround, manual reconciliation handles |
-| #44 | Credit History Details modal | Post-prod | Nice-to-have UI enhancement |
+| #44 | Credit History Details modal | Post-prod | Nice-to-have UI enhancement (duplicate of #56) |
 | #10 | New Client onboarding progress | Post-prod | No new clients being onboarded |
 | #12 | Transaction Link modal formatting | Post-prod | UI polish |
+| #84 | Dashboard backdrop scrolling | Post-prod | Cosmetic issue, already deferred |
 
 ---
 
@@ -684,6 +758,22 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 **Impact:** No production impact - function still works as 1st Gen  
 **Effort:** 0.5-1 hour
 
+### TD-062: Refactor Purge to use Firestore recursiveDelete() │ GitHub #62
+**Priority:** LOW  
+**Status:** 🔴 OPEN  
+**Impact:** Purge hangs/timeouts in Cloud Functions due to slow `listCollections()` calls  
+**Current Workaround:** Manual delete via Firebase Console  
+**Solution:** Replace custom recursive implementation with `firestore.recursiveDelete()`  
+**Effort:** 2-3 hours  
+**Related:** Issue #63 (firebase-admin upgrade investigation)
+
+### TD-063: Upgrade firebase-admin to v12.x │ GitHub #63
+**Priority:** LOW  
+**Status:** 🔴 OPEN  
+**Impact:** Currently on v11.11.1 (downgraded from v12.0.0 due to performance)  
+**Investigation Needed:** Why `listCollections()` is slow in v12.x in Cloud Functions  
+**Effort:** 2-4 hours (investigation + testing)
+
 ### TD-023: Large PDF File Size (AVII)
 **Priority:** LOW  
 **Impact:** ~1.4 MB PDFs (larger than MTC ~370 KB)  
@@ -716,6 +806,28 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 ---
 
 ## 🚀 FUTURE FEATURES (Backlog)
+
+### Medium Priority Enhancements
+
+| GitHub # | Issue | Priority | Effort | Notes |
+|----------|-------|----------|--------|-------|
+| #94 | Transaction Export (CSV/PDF) for filtered view | 🟢 MEDIUM | 3-4 hrs | Export filtered transaction table |
+| #77 | Client-specific footers for Statement | 🟢 MEDIUM | 2-3 hrs | Per-client footer text (EN/ES) |
+| #73 | Nightly Firestore Backup via gcloud | 🟢 MEDIUM | 2-3 hrs | Add to existing nightly job |
+| #61 | Version on login screen | 🟢 MEDIUM | 1-2 hrs | Show version + About link |
+| #55 | Mini trend graphs in Statement | 🟢 MEDIUM | 4-6 hrs | Water (AVII) / Propane (MTC) trends |
+| #50 | Bulk Administration Operations | 🟢 MEDIUM | 4-6 hrs | Generate/save all statements |
+| #47 | PWA Dashboard card refactor | 🟢 MEDIUM | 4-6 hrs | Smaller cards, 2-3 across |
+| #53 | Manual Account Adjustments | 🟢 MEDIUM | 3-4 hrs | Admin override capability |
+
+### Low Priority Enhancements
+
+| GitHub # | Issue | Priority | Effort | Notes |
+|----------|-------|----------|--------|-------|
+| #96 | Dashboard Account Balances deduct Credit | 🟢 LOW | 2-3 hrs | Show credit as negative, adjust total |
+| #68 | Budget Entry Calculator | 🟢 LOW | 2-3 hrs | Sum multiple line items |
+| #51 | PWA Balance Card expandable | 🟢 LOW | 2-3 hrs | Show all accounts in expandable view |
+| #49 | PWA Autologin biometrics | 🟢 LOW | 1-2 days | Face ID / Touch ID (basic done) |
 
 ### Bulk Administration Operations │ GitHub #50
 **Status:** 📋 BACKLOG (Medium Priority)  
@@ -826,6 +938,12 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 **Estimated Effort:** 10-15 sessions (leverages existing code)  
 **Target:** 2026 - After Tasks/Calendar, Projects expansion, and Additional Reports  
 **Can Run In Parallel:** Yes - same underlying code, different filters/presentation
+
+### Client-Specific Statement Footers │ GitHub #77
+**Status:** 📋 BACKLOG (Medium Priority)  
+**Estimated Effort:** 2-3 hours  
+**Scope:** Add `statementFooter` field (EN/ES) to client config, update statement template  
+**Business Value:** Each client can have unique payment instructions and terms
 
 **Executive Summary:**
 Extend SAMS to support individual homes/condos managed by Sandyland Properties (SLP). Currently 10+ properties with 4 owners. Leverages existing modules with minimal modification.
