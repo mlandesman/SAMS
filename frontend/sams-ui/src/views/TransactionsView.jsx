@@ -1488,12 +1488,12 @@ function TransactionsView() {
             return {
               date: extractDate(selectedTransaction.date),
               amount: extractAmount(selectedTransaction.amount),
-              vendor: extractField(selectedTransaction, ['vendorName']), // Use vendorName only
-              category: extractField(selectedTransaction, ['categoryName']), // Use categoryName only
-              account: extractField(selectedTransaction, ['accountName']), // Use accountName only
-              paymentMethod: extractField(selectedTransaction, ['paymentMethod']),
-              unit: extractField(selectedTransaction, ['unitId']), // Use unitId only
-              notes: extractField(selectedTransaction, ['notes'])
+              vendorId: selectedTransaction.vendorId || '',  // Use ID field
+              categoryId: selectedTransaction.categoryId || '',  // Use ID field
+              accountId: selectedTransaction.accountId || '',  // Use ID field
+              paymentMethodId: selectedTransaction.paymentMethodId || selectedTransaction.paymentMethod || '',  // Check both ID and string
+              unitId: selectedTransaction.unitId || '',  // Use ID field
+              notes: selectedTransaction.notes || ''
             };
           })() : null}
           onClose={() => {
