@@ -12,42 +12,9 @@ import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDate } from '../utils/timezone';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 
-// Cache utility functions (same as HOADuesContext)
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-
-const getCacheKey = (clientId, year) => `hoa_dues_${clientId}_${year}`;
-const getUnitsCacheKey = (clientId) => `hoa_units_${clientId}`;
-
-const isCacheValid = (timestamp) => {
-  return Date.now() - timestamp < CACHE_DURATION;
-};
-
-const getFromCache = (key) => {
-  try {
-    const cached = sessionStorage.getItem(key);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (isCacheValid(timestamp)) {
-        console.log('Dashboard cache hit for key:', key);
-        return data;
-      }
-      console.log('Dashboard cache expired for key:', key);
-    }
-  } catch (error) {
-    console.error('Dashboard cache read error:', error);
-  }
-  return null;
-};
-
-const saveToCache = (key, data) => {
-  try {
-    const cacheData = { data, timestamp: Date.now() };
-    sessionStorage.setItem(key, JSON.stringify(cacheData));
-    console.log('Dashboard saved to cache:', key);
-  } catch (error) {
-    console.error('Dashboard cache write error:', error);
-  }
-};
+// NO CACHE - Dashboard always fetches fresh data
+// Cache was removed to prevent stale data issues (Dec 2025)
+// All reads go directly to backend with cache-busting timestamps
 
 export const useDashboardData = () => {
   const { samsUser } = useAuth();
@@ -178,104 +145,71 @@ export const useDashboardData = () => {
         console.log('  Current Fiscal Year:', currentYear);
         console.log('  Current Fiscal Month:', currentMonth);
         
-        // Check cache for units first
-        const unitsCacheKey = getUnitsCacheKey(selectedClient.id);
-        const cachedUnits = getFromCache(unitsCacheKey);
+        // NO CACHE - Always fetch fresh units data
+        const { getAuthInstance } = await import('../firebaseClient');
+        const auth = getAuthInstance();
+        const token = await auth.currentUser?.getIdToken();
         
-        let units = [];
-        
-        if (cachedUnits) {
-          debug.log(`Dashboard using cached units for client ${selectedClient.id}`);
-          units = cachedUnits;
-        } else {
-          // Get auth token for API call
-          const { getAuthInstance } = await import('../firebaseClient');
-          const auth = getAuthInstance();
-          const token = await auth.currentUser?.getIdToken();
-          
-          if (!token) {
-            throw new Error('Failed to get authentication token');
-          }
-          
-          // Use backend API to fetch units
-          const API_BASE_URL = config.api.baseUrl;
-          const response = await fetch(`${API_BASE_URL}/clients/${selectedClient.id}/units`, {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch units: ${response.status} ${response.statusText}`);
-          }
-          
-          const unitsResponse = await response.json();
-          debug.log('Dashboard units API response:', unitsResponse);
-          
-          // Extract the data array from the response wrapper
-          units = unitsResponse.data || unitsResponse;
-          debug.log('Dashboard units structure - first unit:', units[0]);
-          
-          // Cache the units data
-          saveToCache(unitsCacheKey, units);
+        if (!token) {
+          throw new Error('Failed to get authentication token');
         }
+        
+        // Use backend API to fetch units with cache-busting
+        const API_BASE_URL = config.api.baseUrl;
+        const cacheBuster = `_t=${Date.now()}`;
+        const unitsResponse = await fetch(`${API_BASE_URL}/clients/${selectedClient.id}/units?${cacheBuster}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (!unitsResponse.ok) {
+          throw new Error(`Failed to fetch units: ${unitsResponse.status} ${unitsResponse.statusText}`);
+        }
+        
+        const unitsData = await unitsResponse.json();
+        debug.log('Dashboard units API response:', unitsData);
+        
+        // Extract the data array from the response wrapper
+        const units = unitsData.data || unitsData;
+        debug.log('Dashboard units structure - first unit:', units[0]);
         
         if (units.length === 0) {
           throw new Error('No units found for this client');
         }
         
-        // Check cache for dues data
-        const duesCacheKey = getCacheKey(selectedClient.id, currentYear);
-        const cachedDues = getFromCache(duesCacheKey);
-        
+        // NO CACHE - Always fetch fresh dues data with cache-busting
         let duesDataFromAPI = null;
         let apiSuccess = false;
         
-        if (cachedDues) {
-          debug.log(`Dashboard using cached dues data for client ${selectedClient.id}, year ${currentYear}`);
-          duesDataFromAPI = cachedDues;
-          apiSuccess = true;
-        } else {
-          // Fetch dues data using the same API as HOADuesView
-          try {
-            // Get authentication token (same as HOADuesView)
-            const { getCurrentUser, getAuthInstance } = await import('../firebaseClient');
-            const currentUser = getCurrentUser();
-            
-            if (currentUser) {
-              const auth = getAuthInstance();
-              const token = await auth.currentUser?.getIdToken();
-              
-              if (token) {
-                // Use same API endpoint as HOADuesView
-                const API_BASE_URL = config.api.baseUrl;
-                const response = await fetch(`${API_BASE_URL}/hoadues/${selectedClient.id}/year/${currentYear}`, {
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  }
-                });
-                
-                if (response.ok) {
-                  duesDataFromAPI = await response.json();
-                  apiSuccess = true;
-                  console.log('📋 Successfully received dues data from API:', duesDataFromAPI);
-                  
-                  // Cache the dues data
-                  saveToCache(duesCacheKey, duesDataFromAPI);
-                } else {
-                  console.log('⚠️ API response not ok:', response.status);
-                  duesDataFromAPI = {};
-                  apiSuccess = false;
-                }
-              }
+        try {
+          // Use same API endpoint as HOADuesView with cache-busting
+          const duesCacheBuster = `_t=${Date.now()}`;
+          const duesResponse = await fetch(`${API_BASE_URL}/hoadues/${selectedClient.id}/year/${currentYear}?${duesCacheBuster}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
             }
-          } catch (error) {
-            console.log('⚠️ Error fetching from API:', error);
+          });
+          
+          if (duesResponse.ok) {
+            duesDataFromAPI = await duesResponse.json();
+            apiSuccess = true;
+            console.log('📋 Successfully received dues data from API:', duesDataFromAPI);
+          } else {
+            console.log('⚠️ API response not ok:', duesResponse.status);
             duesDataFromAPI = {};
             apiSuccess = false;
           }
+        } catch (error) {
+          console.log('⚠️ Error fetching from API:', error);
+          duesDataFromAPI = {};
+          apiSuccess = false;
         }
         
         if (!apiSuccess) {
@@ -781,42 +715,8 @@ export const useDashboardData = () => {
     setLoading(prev => ({ ...prev, rates: exchangeLoading }));
   }, [exchangeLoading]);
 
-  // Clear caches when client changes (but not on initial load)
-  const [previousClientId, setPreviousClientId] = useState(null);
-  useEffect(() => {
-    if (selectedClient && previousClientId && selectedClient.id !== previousClientId) {
-      console.log(`🧹 [useDashboardData] Client changed from ${previousClientId} to ${selectedClient.id} - clearing caches`);
-      
-      // Clear all cache entries for the previous client
-      const currentYear = new Date().getFullYear() + 1; // AVII uses FY 2026 for 2025 calendar year
-      
-      try {
-        // Clear all possible cache keys for the previous client
-        const keysToRemove = [
-          getCacheKey(previousClientId, currentYear),
-          getCacheKey(previousClientId, currentYear - 1),
-          getUnitsCacheKey(previousClientId),
-          `water_bills_${previousClientId}_${currentYear}`,
-          `water_bills_${previousClientId}_${currentYear - 1}`
-        ];
-        
-        console.log(`🧹 [useDashboardData] Clearing cache keys:`, keysToRemove);
-        
-        keysToRemove.forEach(key => {
-          sessionStorage.removeItem(key);
-          console.log(`🧹 [useDashboardData] Removed cache key: ${key}`);
-        });
-        
-        console.log(`✅ [useDashboardData] Cleared caches for previous client ${previousClientId}`);
-      } catch (error) {
-        console.error('Error clearing dashboard caches:', error);
-      }
-    }
-    
-    if (selectedClient) {
-      setPreviousClientId(selectedClient.id);
-    }
-  }, [selectedClient?.id, previousClientId]);
+  // NO CACHE - No need to clear caches on client change anymore
+  // Data is always fetched fresh from the server
 
   const exchangeRates = {
     usdToMxn: exchangeRate?.USD_to_MXN || 0,
