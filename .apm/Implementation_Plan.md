@@ -145,15 +145,15 @@ If owner wanted credit to remain:
 | Date | Task |
 |------|------|
 | Dec 22 | ✅ #89 UPS Bill Selection Enhancement - COMPLETE |
-| Dec 22 | ✅ #86 Account Reconciliation Module - COMPLETE |
+| Dec 22 | ✅ #91 Account Reconciliation Module - COMPLETE |
 | Dec 22 | ✅ YE-087 Budget Copy Buttons - COMPLETE |
-| Dec 23 | ✅ YE-088 Budget vs Actual Accrual Basis - COMPLETE |
-| Dec 23-24 | #87 Year-End Processing UI |
+| Dec 23 | ✅ #88 Budget vs Actual Accrual Basis - COMPLETE |
+| Dec 23 | ✅ #93 Budget Split Income - COMPLETE (merged with #88) |
+| Dec 23 | ✅ v1.2.1 Deployed to main - Production deployment |
+| Dec 24 | #87 Year-End Processing UI |
 | Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
 | Dec 28-29 | Integration testing |
-| Dec 30 | Production deployment |
 | Dec 31 | 🎉 Execute Year-End for MTC |
-| Jan 2-3 | #93 Budget vs Actual Split Income |
 
 **Estimated Total Effort:** 22-29 hours
 
@@ -338,10 +338,11 @@ All report blockers fixed:
 | Issue | Feature | Priority | Status |
 |-------|---------|----------|--------|
 | #89 | UPS Bill Selection Checkboxes | 🔥 CRITICAL | ✅ COMPLETE Dec 22 |
-| #90 | Nightly Credit Auto-Pay Job | 🔥 CRITICAL | Dec 23 |
-| #91 | Account Reconciliation Module | 🟡 HIGH | Dec 24-25 |
-| #92 | Year-End Processing UI | 🟡 HIGH | Dec 26-27 |
-| #93 | Budget Split Income (HOA vs Credit) | 🟢 MEDIUM | Jan 2-3 |
+| #91 | Account Reconciliation Module | 🟡 HIGH | ✅ COMPLETE Dec 22 |
+| #88 | Budget vs Actual Accrual Basis | 🟢 MEDIUM | ✅ COMPLETE Dec 23 |
+| #93 | Budget Split Income (HOA vs Credit) | 🟢 MEDIUM | ✅ COMPLETE Dec 23 (merged with #88) |
+| #87 | Year-End Processing UI | 🟡 HIGH | Dec 24 |
+| #90 | Nightly Credit Auto-Pay Job | 🔥 CRITICAL | DEFERRED - no pending payments |
 
 ### Key Design Decisions (Confirmed Dec 21, 2025)
 
