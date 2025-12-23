@@ -2112,6 +2112,25 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   const clientResponse = await api.get(`/clients/${clientId}`);
   const clientData = clientResponse.data || {};
   
+  // Get account statements config (statement footer, etc.) from Firestore config subcollection
+  let accountStatementsConfig = {};
+  try {
+    // Access Firestore directly for config subcollection (not available via API)
+    const { getDb } = await import('../firebase.js');
+    const db = await getDb();
+    const configDoc = await db
+      .collection('clients').doc(clientId)
+      .collection('config').doc('accountStatements')
+      .get();
+    
+    if (configDoc.exists) {
+      accountStatementsConfig = configDoc.data();
+    }
+  } catch (error) {
+    // Config document doesn't exist yet - that's okay, use empty config
+    console.log(`ℹ️  No accountStatements config found for ${clientId}, using defaults`);
+  }
+  
   // Format address string
   const addressObj = clientData.contactInfo?.address || {};
   const addressParts = [
@@ -2534,6 +2553,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       logoUrl: normalizedLogoUrl,
       address: address,
       bankAccountInfo: bankAccountInfo,
+      accountStatementsConfig: accountStatementsConfig,
       governance: {
         managementCompany: {
           name: clientData.governance?.managementCompany?.name || 'Sandyland Properties',

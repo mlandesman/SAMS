@@ -1153,12 +1153,50 @@ export async function generateStatementData(api, clientId, unitId, options = {})
 ` : ''}
     
     <!-- Footer - Payment Terms -->
-    <div class="payment-terms">
-      <p>${t.paymentTerms.cash}</p>
-      <p>${t.paymentTerms.waterDue}</p>
-      <p>${t.paymentTerms.hoaDue}</p>
-      <p>${t.paymentTerms.application}</p>
-    </div>
+    ${(() => {
+      // Get footer text from account statements config
+      const langKey = language === 'spanish' || language === 'es' ? 'es' : 'en';
+      const footerText = data.clientInfo.accountStatementsConfig?.statementFooter?.[langKey];
+      
+      // If no footer configured, render blank (fallback to empty)
+      if (!footerText || footerText.trim() === '') {
+        return '<div class="payment-terms"></div>';
+      }
+      
+      // Split by newlines and filter out empty lines
+      const lines = footerText.split(/\n/).filter(line => line.trim() !== '');
+      
+      // Render as bulleted list if lines start with bullet character (● or ◦), otherwise as paragraphs
+      const hasBullets = lines.some(line => {
+        const trimmed = line.trim();
+        return trimmed.startsWith('●') || trimmed.startsWith('◦');
+      });
+      
+      if (hasBullets) {
+        // Render as unordered list with bullets (no extra spacing)
+        return `<div class="payment-terms">
+          <ul style="list-style-type: disc; padding-left: 20px; margin: 0;">
+            ${lines.map(line => {
+              const trimmed = line.trim();
+              // Remove bullet character if present (● or ◦) and create list item
+              let text = trimmed;
+              if (trimmed.startsWith('●')) {
+                text = trimmed.substring(1).trim();
+              } else if (trimmed.startsWith('◦')) {
+                text = trimmed.substring(1).trim();
+              }
+              return `<li style="margin-bottom: 4px;">${text}</li>`;
+            }).join('\n            ')}
+          </ul>
+        </div>`;
+      } else {
+        // Render as paragraphs (split by double newlines or single newlines)
+        const paragraphs = footerText.split(/\n\n+/).filter(p => p.trim() !== '');
+        return `<div class="payment-terms">
+          ${paragraphs.map(p => `<p>${p.trim()}</p>`).join('\n          ')}
+        </div>`;
+      }
+    })()}
     
     <!-- Statement Footer -->
     <div class="content-bottom-spacer"></div>
