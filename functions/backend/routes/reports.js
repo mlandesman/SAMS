@@ -1099,6 +1099,37 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
         ]);
       });
 
+      // Unit Credit Accounts (as separate section)
+      if (data.unitCreditAccounts) {
+        rows.push([
+          'Credit Added',
+          'Unit Credit Accounts - Added',
+          '0.00',
+          '0.00',
+          (data.unitCreditAccounts.added / 100).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+        rows.push([
+          'Credit Used',
+          'Unit Credit Accounts - Used',
+          '0.00',
+          '0.00',
+          (data.unitCreditAccounts.used / 100).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+        rows.push([
+          'Credit Balance',
+          'Unit Credit Accounts - Balance',
+          '0.00',
+          '0.00',
+          (data.unitCreditAccounts.balance / 100).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+      }
+
       const escapeCell = (value) => {
         const str = value == null ? '' : String(value);
         const escaped = str.replace(/"/g, '""');

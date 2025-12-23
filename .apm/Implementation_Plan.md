@@ -1,7 +1,7 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 16 - YE-087 Budget Copy Buttons Complete (December 22, 2025)
+**Last Modification:** Manager Agent 17 - YE-088 Budget vs Actual Accrual Complete (December 23, 2025)
 **Current Version:** v1.2.0 (in progress) - Year-End Processing Features
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
@@ -112,11 +112,11 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
    - Editable scheduledAmount for rate changes
    - Credits auto-applied by nightly job when bills become due
 
-5. **Budget vs Actual Split Income (#93)**
-   - HOA Dues Actual = only amounts APPLIED to months
-   - Account Credit = prepayments/overpayments (separate line)
-   - Accurate budget variance (not inflated by credits)
-   - Test case: $20K payment for $5.8K dues → $5.8K HOA + $14.2K Credit
+5. **Budget vs Actual Split Income (#93)** ✅ COMPLETE (as YE-088)
+   - HOA Dues Actual = only amounts APPLIED to months (accrual-basis)
+   - Account Credit = prepayments shown in dedicated "Unit Credit Accounts" section
+   - Uses creditBalances document as single source of truth
+   - *Completed: Dec 23, 2025 - ~8-10 hours, 4 files, ~200 lines*
 
 #### Hybrid Credit Balance Model
 
@@ -147,8 +147,8 @@ If owner wanted credit to remain:
 | Dec 22 | ✅ #89 UPS Bill Selection Enhancement - COMPLETE |
 | Dec 22 | ✅ #86 Account Reconciliation Module - COMPLETE |
 | Dec 22 | ✅ YE-087 Budget Copy Buttons - COMPLETE |
-| Dec 23-24 | #87 Year-End Processing UI (reordered) |
-| Dec 24-25 | #88 Budget vs Actual Accrual Basis (reordered) |
+| Dec 23 | ✅ YE-088 Budget vs Actual Accrual Basis - COMPLETE |
+| Dec 23-24 | #87 Year-End Processing UI |
 | Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
 | Dec 28-29 | Integration testing |
 | Dec 30 | Production deployment |

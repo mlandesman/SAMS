@@ -166,11 +166,15 @@ function getTranslations(language) {
       percentElapsed: '% of Year Elapsed',
       incomeTable: 'INCOME',
       specialAssessmentsTable: 'SPECIAL ASSESSMENTS',
+      unitCreditAccountsTable: 'UNIT CREDIT ACCOUNTS',
       expenseTable: 'EXPENSES',
       collections: 'COLLECTIONS (from Unit Owners)',
       expenditures: 'EXPENDITURES (Project Costs)',
       totalExpenditures: 'TOTAL EXPENDITURES',
       netFundBalance: 'NET FUND BALANCE',
+      creditAdded: 'CREDIT ADDED',
+      creditUsed: 'CREDIT USED',
+      creditBalance: 'CREDIT BALANCE',
       tableHeaders: {
         category: 'CATEGORY NAME',
         annualBudget: 'ANNUAL BUDGET',
@@ -193,11 +197,15 @@ function getTranslations(language) {
       percentElapsed: '% del Año Transcurrido',
       incomeTable: 'INGRESOS',
       specialAssessmentsTable: 'CUOTAS ESPECIALES',
+      unitCreditAccountsTable: 'CUENTAS DE CRÉDITO DE UNIDADES',
       expenseTable: 'GASTOS',
       collections: 'RECAUDACIONES (de Propietarios)',
       expenditures: 'GASTOS (Costos de Proyectos)',
       totalExpenditures: 'TOTAL DE GASTOS',
       netFundBalance: 'SALDO NETO DEL FONDO',
+      creditAdded: 'CRÉDITO AGREGADO',
+      creditUsed: 'CRÉDITO USADO',
+      creditBalance: 'SALDO DE CRÉDITO',
       tableHeaders: {
         category: 'NOMBRE DE CATEGORÍA',
         annualBudget: 'PRESUPUESTO ANUAL',
@@ -231,7 +239,7 @@ export function generateBudgetActualHtml(data, options = {}) {
   const language = options.language || 'english';
   const t = getTranslations(language);
   
-  const { clientInfo, reportInfo, income, specialAssessments, expenses } = data;
+  const { clientInfo, reportInfo, income, specialAssessments, unitCreditAccounts, expenses } = data;
   
   // Get current timestamp in Cancun timezone
   const generatedNow = getNow();
@@ -685,6 +693,36 @@ export function generateBudgetActualHtml(data, options = {}) {
         <tr class="balance-row">
           <td class="col-special-type ${specialAssessments.netBalance >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${t.netFundBalance}</td>
           <td class="col-special-amount ${specialAssessments.netBalance >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${formatCurrency(specialAssessments.netBalance, true)}</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <!-- Unit Credit Accounts -->
+    <div class="section-header-special">${t.unitCreditAccountsTable}</div>
+    <table class="special-assessments-table">
+      <tbody>
+        <!-- Credit Added Section -->
+        <tr class="section-row">
+          <td colspan="2">${t.creditAdded}</td>
+        </tr>
+        <tr>
+          <td class="col-special-type">${translateCategoryName('Account Credit', language)}</td>
+          <td class="col-special-amount">${formatCurrency(unitCreditAccounts?.added || 0)}</td>
+        </tr>
+        
+        <!-- Credit Used Section -->
+        <tr class="section-row">
+          <td colspan="2">${t.creditUsed}</td>
+        </tr>
+        <tr>
+          <td class="col-special-type">${translateCategoryName('Account Credit Used', language)}</td>
+          <td class="col-special-amount">${formatCurrency(unitCreditAccounts?.used || 0)}</td>
+        </tr>
+        
+        <!-- Credit Balance -->
+        <tr class="balance-row">
+          <td class="col-special-type ${(unitCreditAccounts?.balance || 0) >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${t.creditBalance}</td>
+          <td class="col-special-amount ${(unitCreditAccounts?.balance || 0) >= 0 ? 'balance-favorable' : 'balance-unfavorable'}">${formatCurrency(unitCreditAccounts?.balance || 0, true)}</td>
         </tr>
       </tbody>
     </table>

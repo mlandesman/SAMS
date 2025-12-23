@@ -136,6 +136,43 @@ function generateSpecialAssessmentsSection(specialAssessments) {
 }
 
 /**
+ * Generate Unit Credit Accounts section
+ * @param {Object} unitCreditAccounts - Unit Credit Accounts data object
+ * @returns {string} Formatted Unit Credit Accounts section
+ */
+function generateUnitCreditAccountsSection(unitCreditAccounts) {
+  let output = '';
+  output += 'UNIT CREDIT ACCOUNTS\n';
+  output += '='.repeat(80) + '\n\n';
+  
+  // Credit Added section
+  output += 'CREDIT ADDED\n';
+  output += '-'.repeat(80) + '\n';
+  const creditAddedLabel = 'Account Credit'.padEnd(60);
+  const creditAddedAmount = formatPesos(unitCreditAccounts?.added || 0).padStart(20);
+  output += `  ${creditAddedLabel}${creditAddedAmount}\n`;
+  output += '\n';
+  
+  // Credit Used section
+  output += 'CREDIT USED\n';
+  output += '-'.repeat(80) + '\n';
+  const creditUsedLabel = 'Account Credit Used'.padEnd(60);
+  const creditUsedAmount = formatPesos(unitCreditAccounts?.used || 0).padStart(20);
+  output += `  ${creditUsedLabel}${creditUsedAmount}\n`;
+  output += '\n';
+  
+  // Credit Balance
+  output += '='.repeat(80) + '\n';
+  const creditBalanceLabel = 'CREDIT BALANCE'.padEnd(60);
+  const creditBalanceSign = (unitCreditAccounts?.balance || 0) >= 0 ? '+' : '';
+  const creditBalanceAmount = `${creditBalanceSign}${formatPesos(unitCreditAccounts?.balance || 0)}`.padStart(20);
+  output += `${creditBalanceLabel}${creditBalanceAmount}\n`;
+  output += '='.repeat(80) + '\n\n';
+  
+  return output;
+}
+
+/**
  * Generate text table output for Budget vs Actual report
  * @param {Object} data - Data object from getBudgetActualData service
  * @returns {string} Plain text table output with three separate tables
@@ -145,7 +182,7 @@ export function generateBudgetActualText(data) {
     return 'No budget data available';
   }
 
-  const { clientInfo, reportInfo, income, specialAssessments, expenses } = data;
+  const { clientInfo, reportInfo, income, specialAssessments, unitCreditAccounts, expenses } = data;
   
   let output = '';
   
@@ -161,6 +198,7 @@ export function generateBudgetActualText(data) {
   // Generate three separate tables
   output += generateTableSection('INCOME TABLE', income.categories, income.totals);
   output += generateSpecialAssessmentsSection(specialAssessments);
+  output += generateUnitCreditAccountsSection(unitCreditAccounts);
   output += generateTableSection('EXPENSE TABLE', expenses.categories, expenses.totals);
   
   // Footer
