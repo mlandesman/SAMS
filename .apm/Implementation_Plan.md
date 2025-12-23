@@ -151,6 +151,7 @@ If owner wanted credit to remain:
 | Dec 23 | ✅ #93 Budget Split Income - COMPLETE (merged with #88) |
 | Dec 23 | ✅ v1.2.1 Deployed to main - Production deployment |
 | Dec 23 | ✅ #77 Client-Specific Statement Footers - COMPLETE |
+| Dec 23 | ✅ #95 Transaction Edit Modal Fix - COMPLETE |
 | Dec 24 | #87 Year-End Processing UI |
 | Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
 | Dec 28-29 | Integration testing |
