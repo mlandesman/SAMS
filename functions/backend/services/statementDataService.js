@@ -16,6 +16,229 @@ import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 
 /**
+ * Get utility graph data for a unit
+ * Returns propane gauge data for MTC, water bars for AVII
+ * @param {Object} db - Firestore database instance
+ * @param {string} clientId - Client ID (e.g., 'MTC', 'AVII')
+ * @param {string} unitId - Unit ID (e.g., '101', '1A')
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12) for month label formatting
+ * @returns {Promise<Object|null>} Utility graph data or null if no data available
+ */
+async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 7) {
+  try {
+    // Check client config to determine graph type
+    const configDoc = await db
+      .collection('clients').doc(clientId)
+      .collection('config').doc('propaneTanks')
+      .get();
+    
+    console.log(`🔍 [Utility Graph] Checking config for ${clientId}/${unitId}, exists: ${configDoc.exists}`);
+    
+    if (configDoc.exists) {
+      // MTC: Propane gauge
+      console.log(`📊 [Utility Graph] Fetching propane gauge data for ${clientId}/${unitId}`);
+      const result = await getPropaneGaugeData(db, clientId, unitId, configDoc.data());
+      console.log(`✅ [Utility Graph] Propane gauge result:`, result ? `Level ${result.level}%` : 'null');
+      return result;
+    }
+    
+    // AVII: Water consumption bars
+    console.log(`📊 [Utility Graph] Fetching water bars data for ${clientId}/${unitId}`);
+    const result = await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth);
+    console.log(`✅ [Utility Graph] Water bars result:`, result ? `${result.periods?.length} periods` : 'null');
+    return result;
+  } catch (error) {
+    console.error(`❌ [Utility Graph] Error fetching utility graph data for ${clientId}/${unitId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get propane gauge data for MTC units
+ * @param {Object} db - Firestore database instance
+ * @param {string} clientId - Client ID (should be 'MTC')
+ * @param {string} unitId - Unit ID
+ * @param {Object} config - Propane tanks config with thresholds
+ * @returns {Promise<Object|null>} Propane gauge data or null
+ */
+async function getPropaneGaugeData(db, clientId, unitId, config) {
+  try {
+    // Get all propane readings (no orderBy to avoid index requirement)
+    // We'll sort in memory to find the most recent
+    const readingsSnap = await db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('propaneTanks')
+      .collection('readings')
+      .get();
+    
+    console.log(`📊 [Propane Gauge] Query returned ${readingsSnap.size} documents for ${clientId}`);
+    
+    if (readingsSnap.empty) {
+      console.log(`⚠️ [Propane Gauge] No readings found for ${clientId}`);
+      return null;
+    }
+    
+    // Sort in memory: most recent first (year desc, month desc)
+    const sortedDocs = readingsSnap.docs.sort((a, b) => {
+      const aData = a.data();
+      const bData = b.data();
+      if (aData.year !== bData.year) return bData.year - aData.year;
+      return bData.month - aData.month;
+    });
+    
+    const doc = sortedDocs[0];
+    const data = doc.data();
+    console.log(`📊 [Propane Gauge] Latest reading: ${data.year}-${data.month}, unit keys:`, Object.keys(data.readings || {}));
+    
+    const unitReading = data.readings?.[unitId];
+    console.log(`📊 [Propane Gauge] Unit ${unitId} reading:`, unitReading, typeof unitReading);
+    
+    if (!unitReading) {
+      console.log(`⚠️ [Propane Gauge] No reading data for unit ${unitId}`);
+      return null;
+    }
+    
+    // Handle both formats: number (50) or object ({level: 50})
+    let level = 0;
+    if (typeof unitReading === 'number') {
+      level = unitReading;
+    } else if (typeof unitReading === 'object' && unitReading.level !== undefined) {
+      level = unitReading.level;
+    } else {
+      console.log(`⚠️ [Propane Gauge] Invalid reading format for unit ${unitId}:`, unitReading);
+      return null;
+    }
+    
+    const result = {
+      type: 'propane-gauge',
+      level: Math.max(0, Math.min(100, level)), // Clamp to 0-100
+      thresholds: config.thresholds || { critical: 10, low: 30 },
+      readingDate: `${data.year}-${String(data.month).padStart(2, '0')}`
+    };
+    
+    console.log(`✅ [Propane Gauge] Returning data:`, result);
+    return result;
+  } catch (error) {
+    console.error(`❌ [Propane Gauge] Error fetching propane gauge data for ${clientId}/${unitId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get water consumption bar chart data for AVII units
+ * @param {Object} db - Firestore database instance
+ * @param {string} clientId - Client ID (should be 'AVII')
+ * @param {string} unitId - Unit ID
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12) for month label formatting
+ * @returns {Promise<Object|null>} Water bars data or null
+ */
+async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) {
+  try {
+    // Get all water readings (no orderBy to avoid index requirement)
+    // We'll sort in memory to find consecutive months
+    const readingsSnap = await db
+      .collection('clients').doc(clientId)
+      .collection('projects').doc('waterBills')
+      .collection('readings')
+      .get();
+    
+    console.log(`📊 [Water Bars] Query returned ${readingsSnap.size} documents for ${clientId}`);
+    
+    if (readingsSnap.empty) {
+      console.log(`⚠️ [Water Bars] No readings found for ${clientId}`);
+      return null;
+    }
+    
+    // Sort by year/month ascending (oldest first) to calculate consumption
+    const sortedDocs = readingsSnap.docs.sort((a, b) => {
+      const aData = a.data();
+      const bData = b.data();
+      if (aData.year !== bData.year) return aData.year - bData.year;
+      return aData.month - bData.month;
+    });
+    
+    // Take last 12 months for consumption calculation
+    const recentDocs = sortedDocs.slice(-12);
+    
+    const periods = [];
+    let priorReading = null;
+    
+    for (const doc of recentDocs) {
+      const data = doc.data();
+      const unitReading = data.readings?.[unitId];
+      
+      if (!unitReading) {
+        console.log(`⚠️ [Water Bars] No reading data for unit ${unitId} in ${data.year}-${data.month}`);
+        priorReading = null; // Reset prior reading if gap in data
+        continue;
+      }
+      
+      // Extract current meter reading
+      let currentReading = 0;
+      if (typeof unitReading === 'number') {
+        // Raw meter reading value
+        currentReading = unitReading;
+      } else if (typeof unitReading === 'object' && unitReading.reading !== undefined) {
+        // Object format: { reading: number, washes: [...] }
+        currentReading = unitReading.reading;
+      } else if (typeof unitReading === 'object' && unitReading.currentReading !== undefined) {
+        // Alternative format
+        currentReading = unitReading.currentReading;
+      }
+      
+      // Calculate consumption from current and prior readings
+      let consumption = 0;
+      if (priorReading !== null && currentReading > 0) {
+        consumption = Math.max(0, currentReading - priorReading);
+      }
+      
+      console.log(`📊 [Water Bars] ${data.year}-${data.month}: Unit ${unitId} reading=${currentReading}, prior=${priorReading}, consumption=${consumption} m³`);
+      
+      // Only include periods where we can calculate consumption (have prior reading)
+      // Note: consumption calculated from reading[month] - reading[month-1] represents consumption FOR month-1
+      // So if we have reading at end of month 1, it represents consumption for month 0
+      if (priorReading !== null && consumption >= 0) {
+        // The consumption is for the PRIOR month (the month the reading was taken at the end of)
+        const consumptionMonth = data.month === 0 ? 11 : data.month - 1; // If month 0, prior is month 11 of previous year
+        const consumptionYear = data.month === 0 ? data.year - 1 : data.year;
+        
+        periods.push({
+          year: consumptionYear,
+          month: consumptionMonth, // Fiscal month the consumption represents (0-11)
+          consumption: consumption,
+          fiscalYearStartMonth: fiscalYearStartMonth // Pass for label formatting
+        });
+      }
+      
+      // Update prior reading for next iteration
+      priorReading = currentReading;
+    }
+    
+    // Take last 6-8 periods (most recent)
+    const recentPeriods = periods.slice(-8);
+    
+    console.log(`📊 [Water Bars] Filtered to ${recentPeriods.length} periods with consumption data`);
+    
+    if (recentPeriods.length === 0) {
+      console.log(`⚠️ [Water Bars] No periods with consumption data for unit ${unitId}`);
+      return null;
+    }
+    
+    const result = {
+      type: 'water-bars',
+      periods: recentPeriods,
+      latestConsumption: recentPeriods[recentPeriods.length - 1].consumption
+    };
+    
+    console.log(`✅ [Water Bars] Returning data with ${result.periods.length} periods`);
+    return result;
+  } catch (error) {
+    console.error(`❌ [Water Bars] Error fetching water bars data for ${clientId}/${unitId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Format centavos to pesos
  */
 function centavosToPesos(centavos) {
@@ -2227,6 +2450,21 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     console.log(`ℹ️  No accountStatements config found for ${clientId}, using defaults`);
   }
   
+  // Get utility graph data (propane gauge for MTC, water bars for AVII)
+  let utilityGraph = null;
+  try {
+    const { getDb } = await import('../firebase.js');
+    const db = await getDb();
+    console.log(`🔍 [Statement Data] Fetching utility graph for ${clientId}/${unitId}`);
+    // Pass fiscal year start month for proper month label formatting
+    const fiscalYearStartMonth = rawData.clientConfig?.fiscalYearStartMonth || 7; // Default to July for AVII
+    utilityGraph = await getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth);
+    console.log(`✅ [Statement Data] Utility graph result:`, utilityGraph ? JSON.stringify(utilityGraph, null, 2) : 'null');
+  } catch (error) {
+    // Utility graph is optional - don't fail if it can't be loaded
+    console.error(`❌ [Statement Data] Could not load utility graph data for ${clientId}/${unitId}:`, error);
+  }
+  
   // Format address string
   const addressObj = clientData.contactInfo?.address || {};
   const addressParts = [
@@ -2703,7 +2941,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     creditActivity: {
       entries: rawData.creditActivityEntries || [],
       hasEntries: (rawData.creditActivityEntries || []).length > 0
-    }
+    },
+    utilityGraph: utilityGraph
   };
 }
 

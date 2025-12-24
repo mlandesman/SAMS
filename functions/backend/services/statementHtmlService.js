@@ -398,6 +398,199 @@ function getCreditTypeLabel(type, count, language, amount = 0) {
 }
 
 /**
+ * Generate propane gauge SVG
+ * @param {number} level - Tank level percentage (0-100)
+ * @param {Object} thresholds - Threshold config { critical: 10, low: 30 }
+ * @param {string} language - Language ('english' or 'spanish')
+ * @returns {string} SVG markup
+ */
+function generatePropaneGaugeSvg(level, thresholds, language) {
+  const t = language === 'spanish' ? 'NIVEL DE GAS' : 'PROPANE LEVEL';
+  
+  // Clamp level to 0-100
+  const clampedLevel = Math.max(0, Math.min(100, level));
+  
+  // Scale up to match water bars graph size (385x190)
+  const svgWidth = 385;
+  const svgHeight = 190;
+  const centerX = svgWidth / 2;
+  const centerY = svgHeight * 0.72; // Position gauge slightly higher
+  const radius = 132;
+  const needleLength = 110;
+  
+  // Calculate needle position
+  // 0% = 180° (left), 100% = 0° (right)
+  const angle = 180 - (clampedLevel * 1.8);
+  const radians = angle * (Math.PI / 180);
+  const x2 = centerX + needleLength * Math.cos(radians);
+  const y2 = centerY - needleLength * Math.sin(radians);
+  
+  // Arc paths scaled up
+  const arcStartX = centerX - radius;
+  const arcEndX = centerX + radius;
+  const arcY = centerY;
+  const arcControlY = centerY - radius * 0.7;
+  
+  // Red zone: 0-10% (180° to 162°)
+  const redEndAngle = 162;
+  const redEndRad = redEndAngle * (Math.PI / 180);
+  const redEndX = centerX + radius * Math.cos(redEndRad);
+  const redEndY = centerY - radius * Math.sin(redEndRad);
+  
+  // Amber zone: 10-30% (162° to 126°)
+  const amberEndAngle = 126;
+  const amberEndRad = amberEndAngle * (Math.PI / 180);
+  const amberEndX = centerX + radius * Math.cos(amberEndRad);
+  const amberEndY = centerY - radius * Math.sin(amberEndRad);
+  
+  return `
+    <svg viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+      <!-- Red zone: 0-10% -->
+      <path d="M ${arcStartX} ${arcY} A ${radius} ${radius} 0 0 1 ${redEndX} ${redEndY}" 
+            fill="none" stroke="#dc3545" stroke-width="12" stroke-linecap="round"/>
+      <!-- Amber zone: 10-30% -->
+      <path d="M ${redEndX} ${redEndY} A ${radius} ${radius} 0 0 1 ${amberEndX} ${amberEndY}" 
+            fill="none" stroke="#ffc107" stroke-width="12"/>
+      <!-- Green zone: 30-100% -->
+      <path d="M ${amberEndX} ${amberEndY} A ${radius} ${radius} 0 0 1 ${arcEndX} ${arcY}" 
+            fill="none" stroke="#28a745" stroke-width="12" stroke-linecap="round"/>
+      
+      <!-- Needle -->
+      <line x1="${centerX}" y1="${centerY}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#333" stroke-width="3"/>
+      <circle cx="${centerX}" cy="${centerY}" r="6" fill="#333"/>
+      
+      <!-- Level label -->
+      <text x="${centerX}" y="${svgHeight - 20}" text-anchor="middle" font-size="20" font-weight="bold" fill="#333">${Math.round(clampedLevel)}%</text>
+      
+      <!-- Title positioned below percentage -->
+      <text x="${centerX}" y="${svgHeight - 5}" text-anchor="middle" font-size="10" font-weight="bold" fill="#666">${t}</text>
+    </svg>
+  `;
+}
+
+/**
+ * Format period label for water consumption chart
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11) - this is the month the consumption represents
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12, default 7 for AVII)
+ * @returns {string} Formatted label (e.g., "Jul" for fiscal month 0 if start is July)
+ */
+function formatPeriodLabel(year, month, fiscalYearStartMonth = 7) {
+  // Convert fiscal month (0-11) to calendar month (0-11)
+  // Fiscal month 0 = fiscal year start month
+  // For AVII: fiscal month 0 = July (calendar month 6), fiscal month 1 = August (calendar month 7)
+  // For MTC: fiscal month 0 = January (calendar month 0), fiscal month 1 = February (calendar month 1)
+  const calendarMonth = ((fiscalYearStartMonth - 1) + month) % 12;
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Just return the month name, no year
+  return monthNames[calendarMonth];
+}
+
+/**
+ * Generate water consumption bar chart SVG
+ * @param {Array} periods - Array of { year, month, consumption } objects
+ * @param {string} language - Language ('english' or 'spanish')
+ * @returns {string} SVG markup
+ */
+function generateWaterBarsSvg(periods, language) {
+  const title = language === 'spanish' ? 'CONSUMO DE AGUA' : 'WATER CONSUMPTION';
+  const latestLabel = language === 'spanish' ? 'Último' : 'Latest';
+  
+  if (!periods || periods.length === 0) {
+    return '';
+  }
+  
+  const maxConsumption = Math.max(...periods.map(p => p.consumption || 0));
+  if (maxConsumption === 0) {
+    return '';
+  }
+  
+  // Increased dimensions for better space utilization (~10% larger, ~385x193)
+  const svgWidth = 385;
+  const svgHeight = 190;
+  const maxHeight = 110;
+  const barWidth = 38;
+  const barSpacing = 9;
+  const startX = 50; // Moved right to make room for Y-axis
+  const baselineY = 140;
+  const titleY = 20;
+  const labelY = 162;
+  const footerY = 182;
+  const yAxisX = 45; // X position for Y-axis
+  const chartRightX = svgWidth - 35; // Right edge of chart area
+  
+  // Get fiscal year start month from first period (passed from data service)
+  const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
+  
+  const bars = periods.map((p, i) => {
+    const height = Math.round((p.consumption / maxConsumption) * maxHeight) || 2;
+    const x = startX + i * (barWidth + barSpacing);
+    const y = baselineY - height;
+    const label = formatPeriodLabel(p.year, p.month, fiscalYearStartMonth);
+    
+    return { x, y, height, label, consumption: p.consumption };
+  });
+  
+  const barsHtml = bars.map(b => 
+    `<rect x="${b.x}" y="${b.y}" width="${barWidth}" height="${b.height}" fill="url(#sandyland-gradient)" rx="3"/>`
+  ).join('\n      ');
+  
+  const labelsHtml = bars.map(b =>
+    `<text x="${b.x + barWidth/2}" y="${labelY}" text-anchor="middle" font-size="10" fill="#666">${b.label}</text>`
+  ).join('\n      ');
+  
+  const latest = periods[periods.length - 1];
+  
+  return `
+    <svg viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sandyland-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0863BF"/>
+          <stop offset="72%" stop-color="#83C4F2"/>
+          <stop offset="100%" stop-color="#F7E4C2"/>
+        </linearGradient>
+      </defs>
+      
+      <text x="${svgWidth/2}" y="${titleY}" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">${title}</text>
+      
+      <!-- Y-axis -->
+      <line x1="${yAxisX}" y1="30" x2="${yAxisX}" y2="${baselineY}" stroke="#666" stroke-width="1.5"/>
+      <!-- Y-axis labels (m³ values) -->
+      ${(() => {
+        // Round max consumption up to a nice number for axis
+        const maxLabel = Math.ceil(maxConsumption / 5) * 5; // Round up to nearest 5
+        const step = maxLabel / 4; // 4 tick marks (0, 25%, 50%, 75%, 100%)
+        const ticks = [];
+        for (let i = 0; i <= 4; i++) {
+          const value = maxLabel - (i * step);
+          const y = 30 + (i * (baselineY - 30) / 4);
+          // Show value in m³ (only show units on top label to save space)
+          const label = i === 0 ? `${Math.round(value)} m³` : `${Math.round(value)}`;
+          ticks.push(`<text x="${yAxisX - 5}" y="${y + 4}" text-anchor="end" font-size="8" fill="#666">${label}</text>`);
+          if (i > 0 && i < 4) {
+            ticks.push(`<line x1="${yAxisX - 3}" y1="${y}" x2="${yAxisX}" y2="${y}" stroke="#ccc" stroke-width="0.5"/>`);
+          }
+        }
+        return ticks.join('\n      ');
+      })()}
+      
+      <!-- X-axis baseline -->
+      <line x1="${yAxisX}" y1="${baselineY}" x2="${chartRightX}" y2="${baselineY}" stroke="#666" stroke-width="2"/>
+      
+      ${barsHtml}
+      ${labelsHtml}
+      
+      <text x="${svgWidth/2}" y="${footerY}" text-anchor="middle" font-size="11" fill="#333">
+        ${latestLabel}: ${latest.consumption} m³
+      </text>
+    </svg>
+  `;
+}
+
+/**
  * Generate Statement data for a unit, including HTML, metadata and line items.
  * This is the primary entrypoint for building Statement of Account outputs.
  *
@@ -714,9 +907,17 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     }
     
     /* Allocation summary table */
+    .allocation-graph-row {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+      align-items: flex-start;
+    }
+    
     .allocation-summary {
-      margin: 20px 0 10px 0;
-      clear: both;
+      flex: 1;
+      margin: 0;
+      clear: none;
     }
     
     .allocation-summary h3 {
@@ -729,6 +930,19 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       margin: 0 0 0 0;
       display: table-caption;
       width: auto;
+    }
+    
+    .mini-graph-container {
+      flex: 0 0 auto;
+      padding: 0;
+      background: transparent;
+      border: none;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-width: 385px;
+      max-width: 410px;
+      margin-top: -5px;
     }
     
     .allocation-table {
@@ -886,9 +1100,18 @@ export async function generateStatementData(api, clientId, unitId, options = {})
         /* page-break-after: avoid; */
       }
       
+      .allocation-graph-row {
+        page-break-inside: avoid;
+      }
+      
       .allocation-summary {
         /* page-break-before: avoid; */
         /* page-break-inside: avoid; */
+      }
+      
+      .mini-graph-container {
+        background: transparent;
+        border: none;
       }
       
       /* Keep tables together when possible */
@@ -1231,33 +1454,43 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     <!-- Spacer before Allocation Summary -->
     <div style="height: 20px; clear: both;"></div>
     
-    <!-- Allocation Summary -->
-    <div class="report-summary allocation-summary">
-      <table class="allocation-table">
-        <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${t.allocationSummary}</caption>
-        <thead>
-          <tr>
-            <th class="col-category">${t.category}</th>
-            <th class="col-charges">${t.charges}</th>
-            <th class="col-penalties">${t.penalties}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${data.allocationSummary.categories.map(cat => `
-          <tr>
-            <td class="col-category">${cat.name}</td>
-            <td class="col-charges">${cat.charges > 0 ? formatCurrency(cat.charges) : ''}</td>
-            <td class="col-penalties">${cat.penalties > 0 ? formatCurrency(cat.penalties) : ''}</td>
-          </tr>
-          `).join('')}
-          
-          <tr class="totals-row">
-            <td class="col-category">${t.totals}</td>
-            <td class="col-charges">${formatCurrency(data.allocationSummary.totals.charges)}</td>
-            <td class="col-penalties">${formatCurrency(data.allocationSummary.totals.penalties)}</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Allocation Summary with Mini Graph -->
+    <div class="allocation-graph-row">
+      <div class="allocation-summary">
+        <table class="allocation-table">
+          <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${t.allocationSummary}</caption>
+          <thead>
+            <tr>
+              <th class="col-category">${t.category}</th>
+              <th class="col-charges">${t.charges}</th>
+              <th class="col-penalties">${t.penalties}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.allocationSummary.categories.map(cat => `
+            <tr>
+              <td class="col-category">${cat.name}</td>
+              <td class="col-charges">${cat.charges > 0 ? formatCurrency(cat.charges) : ''}</td>
+              <td class="col-penalties">${cat.penalties > 0 ? formatCurrency(cat.penalties) : ''}</td>
+            </tr>
+            `).join('')}
+            
+            <tr class="totals-row">
+              <td class="col-category">${t.totals}</td>
+              <td class="col-charges">${formatCurrency(data.allocationSummary.totals.charges)}</td>
+              <td class="col-penalties">${formatCurrency(data.allocationSummary.totals.penalties)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ${data.utilityGraph ? `
+      <div class="mini-graph-container">
+        ${data.utilityGraph.type === 'propane-gauge' 
+          ? generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)
+          : generateWaterBarsSvg(data.utilityGraph.periods, language)
+        }
+      </div>
+      ` : ''}
     </div>
     
     ${data.projectsData?.hasProjects ? `
