@@ -9,6 +9,11 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
 import { bulkGenerateStatements, bulkSendStatementEmails } from '../../api/admin';
 import { sendStatementEmail } from '../../api/email';
+import { printReport } from '../../utils/printUtils';
+import LocalPrintshopIcon from '@mui/icons-material/LocalPrintshop';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import GetAppIcon from '@mui/icons-material/GetApp';
+import EmailIcon from '@mui/icons-material/Email';
 import './StatementOfAccountTab.css';
 
 import { getAuthInstance } from '../../firebaseClient';
@@ -430,6 +435,10 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     handleGenerate();
   }, [handleGenerate]);
 
+  const handlePrint = useCallback(() => {
+    printReport('.statement-preview-frame');
+  }, []);
+
   const isGenerateDisabled =
     loading || unitsLoading || !!unitsError || bulkGenerating || bulkEmailing;
 
@@ -441,6 +450,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     statementData.lineItems.length === 0 ||
     loading ||
     downloadingCsv;
+  const isPrintDisabled = !hasStatement || loading;
 
   const handleDownloadCsv = useCallback(
     async event => {
@@ -665,9 +675,20 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           <button
             type="button"
             className="secondary-button"
+            onClick={handlePrint}
+            disabled={isPrintDisabled}
+            title="Print report"
+          >
+            <LocalPrintshopIcon style={{ fontSize: 16, marginRight: 4 }} />
+            Print
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
             onClick={handleDownloadCsv}
             disabled={isCsvDisabled}
           >
+            <GetAppIcon style={{ fontSize: 16, marginRight: 4 }} />
             {downloadingCsv ? 'CSV…' : 'CSV'}
           </button>
           <button
@@ -676,6 +697,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             onClick={handleDownloadPdf}
             disabled={isPdfDisabled}
           >
+            <PictureAsPdfIcon style={{ fontSize: 16, marginRight: 4 }} />
             PDF
           </button>
           <button
@@ -684,6 +706,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             onClick={handleSendEmail}
             disabled={(selectedUnitId && !htmlPreview) || emailSending || bulkEmailing}
           >
+            <EmailIcon style={{ fontSize: 16, marginRight: 4 }} />
             {emailSending || bulkEmailing ? 'Sending...' : selectedUnitId ? 'Email' : 'Email All'}
           </button>
         </div>

@@ -10,6 +10,7 @@ import { ReportPreviewContainer, ReportControlBar } from '../reports/common';
 import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
 import reportService from '../../services/reportService';
+import { printReport } from '../../utils/printUtils';
 import './BudgetReportTab.css';
 
 function normalizeLanguage(lang) {
@@ -190,10 +191,15 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
     handleGenerate();
   }, [handleGenerate]);
 
+  const handlePrint = useCallback(() => {
+    printReport('.report-preview-frame');
+  }, []);
+
   const isGenerateDisabled = !fiscalYear || loading || loadingYears || availableYears.length === 0;
 
   const hasReport = !!htmlPreview;
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
+  const isPrintDisabled = !hasReport || loading;
 
   // Automatically generate report whenever fiscal year or language changes
   useEffect(() => {
@@ -224,6 +230,8 @@ function BudgetReportTab({ zoom = 1.0, zoomMode = 'custom' }) {
         generateLabel="Generate"
         generateDisabled={isGenerateDisabled}
         generating={loading}
+        onPrint={handlePrint}
+        printDisabled={isPrintDisabled}
         onDownloadPdf={handleDownloadPdf}
         pdfDisabled={isPdfDisabled}
         downloadingPdf={downloadingPdf}

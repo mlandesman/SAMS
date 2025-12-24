@@ -5,6 +5,11 @@ import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
 import LoadingSpinner from '../common/LoadingSpinner';
 import reportService from '../../services/reportService';
+import { printReport } from '../../utils/printUtils';
+import LocalPrintshopIcon from '@mui/icons-material/LocalPrintshop';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import GetAppIcon from '@mui/icons-material/GetApp';
+import EmailIcon from '@mui/icons-material/Email';
 import './BudgetActualTab.css';
 
 function normalizeLanguage(lang) {
@@ -212,11 +217,16 @@ function BudgetActualTab({ zoom = 1.0 }) {
     handleGenerate();
   }, [handleGenerate]);
 
+  const handlePrint = useCallback(() => {
+    printReport('.budget-actual-preview-frame');
+  }, []);
+
   const isGenerateDisabled = !fiscalYear || loading;
 
   const hasReport = !!reportData && !!htmlPreview;
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
   const isCsvDisabled = !hasReport || loading || downloadingCsv;
+  const isPrintDisabled = !hasReport || loading;
 
   // Automatically generate report whenever fiscal year or language changes
   useEffect(() => {
@@ -291,9 +301,20 @@ function BudgetActualTab({ zoom = 1.0 }) {
           <button
             type="button"
             className="secondary-button"
+            onClick={handlePrint}
+            disabled={isPrintDisabled}
+            title="Print report"
+          >
+            <LocalPrintshopIcon style={{ fontSize: 16, marginRight: 4 }} />
+            Print
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
             onClick={handleDownloadCsv}
             disabled={isCsvDisabled}
           >
+            <GetAppIcon style={{ fontSize: 16, marginRight: 4 }} />
             {downloadingCsv ? 'CSV…' : 'CSV'}
           </button>
           <button
@@ -302,6 +323,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
             onClick={handleDownloadPdf}
             disabled={isPdfDisabled}
           >
+            <PictureAsPdfIcon style={{ fontSize: 16, marginRight: 4 }} />
             PDF
           </button>
           <button
@@ -310,6 +332,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
             disabled
             title="Coming soon"
           >
+            <EmailIcon style={{ fontSize: 16, marginRight: 4 }} />
             Email
           </button>
         </div>
