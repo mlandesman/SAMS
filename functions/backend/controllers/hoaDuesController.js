@@ -2235,6 +2235,83 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
   }
 }
 
+/**
+ * Forced lookback for a specific year - ignores priorYearClosed flag
+ * Gets ALL unpaid bills from the specified year only
+ * 
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} year - Fiscal year to check
+ * @returns {Promise<Array>} Array of unpaid bills from that year
+ */
+async function forcedLookbackForYear(clientId, unitId, year) {
+  const db = await getDb();
+  const duesRef = db.collection('clients').doc(clientId)
+    .collection('units').doc(unitId)
+    .collection('dues').doc(year.toString());
+  
+  const duesSnap = await duesRef.get();
+  
+  if (!duesSnap.exists) {
+    return [];
+  }
+  
+  const duesDoc = duesSnap.data();
+  const config = await getHOABillingConfig(clientId);
+  
+  // Convert dues document to bills
+  const bills = convertHOADuesToBills(duesDoc, clientId, unitId, year, config);
+  
+  // Calculate penalties in-memory (as of now)
+  const calculationDate = getNow();
+  const billsWithPenalties = await calculatePenaltiesInMemory(bills, calculationDate, config);
+  
+  // Filter to unpaid bills only
+  return billsWithPenalties.filter(b => b.status !== 'paid');
+}
+
+/**
+ * Check if prior year is closed and update flag accordingly.
+ * Does a FORCED lookback (ignores current flag) to determine actual state.
+ * 
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} fiscalYear - Current fiscal year (checks year-1)
+ * @returns {Promise<boolean>} - Whether prior year is now closed
+ */
+async function updatePriorYearClosedFlag(clientId, unitId, fiscalYear) {
+  console.log(`   🏷️ [HOA] Checking priorYearClosed flag for ${unitId}/${fiscalYear}`);
+  
+  // Forced lookback for prior year - get ALL unpaid bills ignoring flag
+  const unpaidBills = await forcedLookbackForYear(clientId, unitId, fiscalYear - 1);
+  
+  const priorYearClosed = unpaidBills.length === 0;
+  
+  // Update current year's document with flag
+  const db = await getDb();
+  const duesRef = db.collection('clients').doc(clientId)
+    .collection('units').doc(unitId)
+    .collection('dues').doc(fiscalYear.toString());
+  
+  const updateData = {
+    priorYearClosed,
+    ...(priorYearClosed ? {
+      priorYearClosedAt: getNow().toISOString(),
+      priorYearClosedBy: 'system'
+    } : {
+      priorYearClosedAt: admin.firestore.FieldValue.delete(),
+      priorYearClosedBy: admin.firestore.FieldValue.delete()
+    })
+  };
+  
+  // Clean timestamps before update
+  const cleanedUpdate = cleanTimestamps(updateData);
+  await duesRef.update(cleanedUpdate);
+  
+  console.log(`   🏷️ [HOA] Set priorYearClosed=${priorYearClosed} on ${unitId}/${fiscalYear}`);
+  return priorYearClosed;
+}
+
 export {
   initializeYearDocument,
   recordDuesPayment,
@@ -2248,5 +2325,7 @@ export {
   // Phase 4 Task 4.1: New functions
   recalculateHOAPenalties,
   previewHOAPayment,
-  getHOABillingConfig
+  getHOABillingConfig,
+  // Task 85: priorYearClosed flag support
+  updatePriorYearClosedFlag
 };

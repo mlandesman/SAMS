@@ -51,7 +51,8 @@ import { hydrateBillsForResponse, getBaseOwed, getPenaltyOwed, getTotalOwed } fr
 // Import module-specific functions
 import { 
   getHOABillingConfig,
-  updateHOADuesWithPayment
+  updateHOADuesWithPayment,
+  updatePriorYearClosedFlag
 } from '../controllers/hoaDuesController.js';
 
 import { 
@@ -417,6 +418,11 @@ export class UnifiedPaymentWrapper {
     const configs = await this._getMergedConfig(clientId);
     const fiscalYear = getFiscalYear(paymentDateObj, configs.fiscalYearStartMonth || 1);
     
+    // Track whether fast path was used (for priorYearClosed flag optimization)
+    // Check current dues document to see if priorYearClosed flag is set
+    const currentDuesDoc = await this._loadDuesDocument(clientId, unitId, fiscalYear);
+    const usedFastPath = currentDuesDoc?.priorYearClosed === true;
+    
     // Step 2: Generate consolidated transaction notes
     console.log(`   📝 Generating consolidated transaction notes...`);
     
@@ -750,6 +756,20 @@ export class UnifiedPaymentWrapper {
     console.log(`   HOA Bills: ${result.summary.hoaBillsPaid}, Water Bills: ${result.summary.waterBillsPaid}`);
     console.log(`   Credit Balance: $${result.summary.finalCreditBalance}`);
     
+    // Update priorYearClosed flag if we used slow path
+    // If fast path was used, flag is already true and payment can't change it
+    if (!usedFastPath && preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
+      console.log(`   🏷️ [HOA] Updating priorYearClosed flag after slow path payment`);
+      try {
+        await updatePriorYearClosedFlag(clientId, unitId, fiscalYear);
+      } catch (error) {
+        // Log but don't fail the payment - flag update is optimization
+        console.error(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
+      }
+    } else if (usedFastPath) {
+      console.log(`   🚀 [HOA] Fast path used - skipping priorYearClosed flag update (already true)`);
+    }
+    
     return result;
   }
 
@@ -789,10 +809,186 @@ export class UnifiedPaymentWrapper {
   }
 
   /**
+   * Load a dues document for a specific year
+   * 
+   * @private
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {number} year - Fiscal year
+   * @returns {Promise<object|null>} Dues document data or null if not found
+   */
+  async _loadDuesDocument(clientId, unitId, year) {
+    const duesRef = this.db.collection('clients').doc(clientId)
+      .collection('units').doc(unitId)
+      .collection('dues').doc(year.toString());
+    
+    const duesSnap = await duesRef.get();
+    
+    if (!duesSnap.exists) {
+      return null;
+    }
+    
+    return duesSnap.data();
+  }
+
+  /**
+   * Get unpaid bills from a single year's dues document
+   * 
+   * @private
+   * @param {object} duesDoc - Dues document data
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {number} year - Fiscal year
+   * @param {object} config - HOA billing configuration
+   * @param {Date} calculationDate - Date for penalty calculations
+   * @returns {Promise<Array>} Array of unpaid bills
+   */
+  async _getUnpaidBillsFromYear(duesDoc, clientId, unitId, year, config, calculationDate) {
+    // Convert HOA dues monthly array to bills format
+    const bills = this._convertHOADuesToBills(duesDoc, clientId, unitId, year, config);
+    
+    // Calculate penalties in-memory for payment date
+    const billsWithPenalties = await this._calculateHOAPenaltiesInMemory(bills, calculationDate, config);
+    
+    // Filter to unpaid bills only
+    return billsWithPenalties.filter(b => b.status !== 'paid');
+  }
+
+  /**
+   * Perform full backward scan for unpaid bills across multiple years
+   * Stops when it finds a year with priorYearClosed flag set to true
+   * 
+   * @private
+   * @param {string} clientId - Client ID
+   * @param {string} unitId - Unit ID
+   * @param {number} startYear - Starting fiscal year (most recent)
+   * @param {object} config - HOA billing configuration
+   * @param {Date} calculationDate - Date for penalty calculations
+   * @returns {Promise<Array>} Array of unpaid bills from all scanned years
+   */
+  async _fullLookbackScan(clientId, unitId, startYear, config, calculationDate) {
+    const MINIMUM_YEAR = startYear - 5; // Safety limit
+    let allUnpaidBills = [];
+    let year = startYear;
+    
+    // Get current year unpaid bills first
+    const currentDuesDoc = await this._loadDuesDocument(clientId, unitId, year);
+    if (!currentDuesDoc) {
+      console.log(`   📭 [HOA] No dues document for year ${year}`);
+      return [];
+    }
+    
+    const currentYearBills = await this._getUnpaidBillsFromYear(
+      currentDuesDoc, 
+      clientId, 
+      unitId, 
+      year, 
+      config, 
+      calculationDate
+    );
+    
+    // Check if month 0 is unpaid - only scan backward if it is
+    const month0Unpaid = currentYearBills.find(bill => 
+      bill._hoaMetadata?.monthIndex === 0
+    );
+    
+    // Add current year bills
+    allUnpaidBills = [...currentYearBills];
+    
+    // Only scan backward if month 0 is unpaid
+    if (!month0Unpaid) {
+      console.log(`   🛑 [HOA] Month 0 is paid in year ${year}, no lookback needed`);
+      return allUnpaidBills;
+    }
+    
+    console.log(`   📅 [HOA] Month 0 is unpaid, scanning prior years`);
+    
+    // Scan backward through prior years
+    year = startYear - 1;
+    while (year >= MINIMUM_YEAR) {
+      const duesDoc = await this._loadDuesDocument(clientId, unitId, year);
+      
+      if (!duesDoc) {
+        console.log(`   📭 [HOA] No dues document for year ${year}, stopping`);
+        break;
+      }
+      
+      // Check if THIS year's prior year is closed
+      if (duesDoc.priorYearClosed) {
+        console.log(`   🔒 [HOA] Year ${year-1} is closed, stopping lookback`);
+        // Get unpaid bills from THIS year and stop
+        const yearBills = await this._getUnpaidBillsFromYear(duesDoc, clientId, unitId, year, config, calculationDate);
+        
+        // Scan backward from month 11 to 0, stop at first paid bill
+        const priorUnpaidBills = [];
+        for (let monthIndex = 11; monthIndex >= 0; monthIndex--) {
+          const bill = yearBills.find(b => b._hoaMetadata?.monthIndex === monthIndex);
+          
+          if (!bill) continue;
+          
+          // Stop at first paid bill
+          if (bill.status === 'paid' && bill.paidAmount > 0) {
+            console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
+            break;
+          }
+          
+          // Add unpaid bills to collection
+          if (bill.status === 'unpaid') {
+            priorUnpaidBills.unshift(bill); // Add to beginning to maintain chronological order
+          }
+        }
+        
+        if (priorUnpaidBills.length > 0) {
+          allUnpaidBills = [...priorUnpaidBills, ...allUnpaidBills];
+        }
+        break;
+      }
+      
+      // Get unpaid bills from this year
+      const yearBills = await this._getUnpaidBillsFromYear(duesDoc, clientId, unitId, year, config, calculationDate);
+      
+      // Scan backward from month 11 to 0, stop at first paid bill
+      const priorUnpaidBills = [];
+      for (let monthIndex = 11; monthIndex >= 0; monthIndex--) {
+        const bill = yearBills.find(b => b._hoaMetadata?.monthIndex === monthIndex);
+        
+        if (!bill) continue;
+        
+        // Stop at first paid bill
+        if (bill.status === 'paid' && bill.paidAmount > 0) {
+          console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
+          break;
+        }
+        
+        // Add unpaid bills to collection
+        if (bill.status === 'unpaid') {
+          priorUnpaidBills.unshift(bill); // Add to beginning to maintain chronological order
+        }
+      }
+      
+      if (priorUnpaidBills.length > 0) {
+        console.log(`   📊 [HOA] Found ${priorUnpaidBills.length} unpaid bills from year ${year}`);
+        allUnpaidBills = [...priorUnpaidBills, ...allUnpaidBills];
+      } else {
+        console.log(`   ℹ️  [HOA] No additional unpaid bills found in year ${year}`);
+        break; // No unpaid bills, stop scanning
+      }
+      
+      // Continue to prior year
+      year--;
+    }
+    
+    return allUnpaidBills;
+  }
+
+  /**
    * Get HOA bills with unified metadata
    * 
    * Uses internal HOA conversion functions directly since they need to be accessed
    * for the unified wrapper to work properly.
+   * 
+   * Optimized with priorYearClosed flag: when true, skips lookback entirely (fast path).
+   * When false or undefined, runs full backward scan (slow path).
    * 
    * @private
    * @param {string} clientId - Client ID
@@ -808,85 +1004,50 @@ export class UnifiedPaymentWrapper {
       // Determine fiscal year from calculation date
       const fiscalYear = getFiscalYear(calculationDate, config.fiscalYearStartMonth || 1);
       
-      // Load HOA dues document
-      const duesRef = this.db.collection('clients').doc(clientId)
-        .collection('units').doc(unitId)
-        .collection('dues').doc(fiscalYear.toString());
+      // Load current year dues document
+      const currentDuesDoc = await this._loadDuesDocument(clientId, unitId, fiscalYear);
       
-      const duesSnap = await duesRef.get();
-      
-      if (!duesSnap.exists) {
+      if (!currentDuesDoc) {
         console.log(`   ⚠️  [HOA] No dues document found for ${unitId}/${fiscalYear}`);
         return [];
       }
       
-      const hoaDuesDoc = duesSnap.data();
-      
-      // Import conversion functions directly (they're not exported, so we need to replicate logic)
-      // Convert HOA dues monthly array to bills format
-      const bills = this._convertHOADuesToBills(hoaDuesDoc, clientId, unitId, fiscalYear, config);
-      
-      // Calculate penalties in-memory for payment date
-      const billsWithPenalties = await this._calculateHOAPenaltiesInMemory(bills, calculationDate, config);
-      
-      // Filter to unpaid bills only
-      const unpaidBills = billsWithPenalties.filter(b => b.status !== 'paid');
-      
-      // Check if month 0 is unpaid - if so, scan backward into prior year
-      const month0Unpaid = unpaidBills.find(bill => 
-        bill._hoaMetadata?.monthIndex === 0
-      );
-      
-      let allUnpaidBills = [...unpaidBills];
-      
-      if (month0Unpaid) {
-        console.log(`   📅 [HOA] Month 0 is unpaid, scanning prior year ${fiscalYear - 1}`);
+      // FAST PATH: Prior year closed - only get current year bills
+      if (currentDuesDoc.priorYearClosed) {
+        console.log(`   🚀 [HOA] Prior year closed - skipping lookback`);
+        const unpaidBills = await this._getUnpaidBillsFromYear(
+          currentDuesDoc, 
+          clientId, 
+          unitId, 
+          fiscalYear, 
+          config, 
+          calculationDate
+        );
         
-        // Load prior year HOA dues document
-        const priorYear = fiscalYear - 1;
-        const priorDuesRef = this.db.collection('clients').doc(clientId)
-          .collection('units').doc(unitId)
-          .collection('dues').doc(priorYear.toString());
-        
-        const priorDuesSnap = await priorDuesRef.get();
-        
-        if (priorDuesSnap.exists) {
-          const priorDuesDoc = priorDuesSnap.data();
-          
-          // Convert prior year dues to bills
-          const priorBills = this._convertHOADuesToBills(priorDuesDoc, clientId, unitId, priorYear, config);
-          const priorBillsWithPenalties = await this._calculateHOAPenaltiesInMemory(priorBills, calculationDate, config);
-          
-          // Scan backward from month 11 to 0
-          const priorUnpaidBills = [];
-          for (let monthIndex = 11; monthIndex >= 0; monthIndex--) {
-            const bill = priorBillsWithPenalties.find(b => b._hoaMetadata?.monthIndex === monthIndex);
-            
-            if (!bill) continue;
-            
-            // Stop at first paid bill (status === 'paid' && paidAmount > 0)
-            if (bill.status === 'paid' && bill.paidAmount > 0) {
-              console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
-              break;
-            }
-            
-            // Add unpaid bills to collection
-            if (bill.status === 'unpaid') {
-              priorUnpaidBills.unshift(bill); // Add to beginning to maintain chronological order
-            }
+        // Enhance with unified metadata
+        const enhancedBills = unpaidBills.map(bill => ({
+          ...bill,
+          _metadata: {
+            moduleType: 'hoa',
+            monthIndex: bill._hoaMetadata?.monthIndex,
+            billPeriod: bill.period,
+            priority: null // Will be calculated later
           }
-          
-          if (priorUnpaidBills.length > 0) {
-            console.log(`   📊 [HOA] Found ${priorUnpaidBills.length} unpaid bills from prior year ${priorYear}`);
-            // Add prior year bills to the beginning of the array (they have higher priority)
-            allUnpaidBills = [...priorUnpaidBills, ...allUnpaidBills];
-          } else {
-            console.log(`   ℹ️  [HOA] No additional unpaid bills found in prior year ${priorYear}`);
-          }
-        } else {
-          console.log(`   ℹ️  [HOA] No prior year dues document found for ${unitId}/${priorYear}`);
-        }
+        }));
+        
+        console.log(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (fast path)`);
+        return enhancedBills;
       }
+      
+      // SLOW PATH: Must run full lookback
+      console.log(`   🔍 [HOA] Prior year NOT closed - running lookback`);
+      const allUnpaidBills = await this._fullLookbackScan(
+        clientId, 
+        unitId, 
+        fiscalYear, 
+        config, 
+        calculationDate
+      );
       
       // Enhance with unified metadata
       const enhancedBills = allUnpaidBills.map(bill => ({
@@ -899,7 +1060,7 @@ export class UnifiedPaymentWrapper {
         }
       }));
       
-      console.log(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata`);
+      console.log(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (slow path)`);
       return enhancedBills;
       
     } catch (error) {

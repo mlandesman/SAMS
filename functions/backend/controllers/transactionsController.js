@@ -30,6 +30,7 @@ import { getNow, DateService } from '../services/DateService.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
 import { getNotesArray } from '../../shared/utils/formatUtils.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
+import { updatePriorYearClosedFlag } from './hoaDuesController.js';
 import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 
@@ -1348,6 +1349,44 @@ async function deleteTransaction(clientId, txnId) {
     // Water bills updated - frontend will fetch fresh data on next read
     if (waterCleanupExecuted) {
       console.log(`✅ [BACKEND] Water bills updated - frontend will refresh automatically`);
+    }
+    
+    // Update priorYearClosed flag if HOA transaction was deleted
+    // Deletion might have re-opened a previously closed year
+    if (hasHOAData) {
+      console.log(`   🏷️ [HOA] Updating priorYearClosed flag after transaction deletion`);
+      try {
+        // Get affected fiscal years from transaction's allocations
+        const affectedYears = new Set();
+        if (originalData.allocations) {
+          for (const alloc of originalData.allocations) {
+            if (alloc.type === 'hoa_month' || alloc.type === 'hoa_penalty' || 
+                alloc.categoryName === 'HOA Dues' || alloc.categoryName === 'HOA Penalties') {
+              if (alloc.data?.year) {
+                affectedYears.add(alloc.data.year);
+              }
+            }
+          }
+        }
+        
+        // Also check metadata year (legacy transactions)
+        if (originalData.metadata?.year) {
+          affectedYears.add(originalData.metadata.year);
+        }
+        
+        // Update flag for each affected year (check year+1 since flag is on current year)
+        const cleanupUnitId = originalData.unitId || originalData.metadata?.unitId || originalData.metadata?.id;
+        if (cleanupUnitId && affectedYears.size > 0) {
+          for (const year of affectedYears) {
+            await updatePriorYearClosedFlag(clientId, cleanupUnitId, year + 1);
+          }
+        } else {
+          console.log(`   ℹ️  [HOA] No affected fiscal years found or missing unitId`);
+        }
+      } catch (error) {
+        // Log but don't fail the deletion - flag update is optimization
+        console.error(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
+      }
     }
 
     return true;
