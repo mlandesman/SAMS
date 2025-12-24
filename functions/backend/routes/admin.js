@@ -28,6 +28,7 @@ import clientManagementRoutes from './clientManagement.js';
 import importRoutes from './import.js';
 import { getNow } from '../services/DateService.js';
 import { bulkGenerateStatements, getBulkStatementProgress, bulkSendStatementEmails, getBulkEmailProgress } from '../controllers/bulkStatementController.js';
+import { runBackup, listBackups, getBackupStatus } from '../services/backupService.js';
 
 const router = express.Router();
 
@@ -329,6 +330,54 @@ router.get('/test-unit-management', authenticateUserWithProfile, requirePermissi
     });
   }
 });
+
+/**
+ * Backup & Recovery Routes (SuperAdmin only)
+ */
+
+// Run manual backup
+router.post('/backup/run',
+  requirePermission('system.admin'),
+  logSecurityEvent('ADMIN_BACKUP_RUN'),
+  async (req, res) => {
+    try {
+      const result = await runBackup('manual', req.user.email);
+      res.json({ success: true, backup: result });
+    } catch (error) {
+      console.error('Backup error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// List recent backups
+router.get('/backup/list',
+  requirePermission('system.admin'),
+  async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 20;
+      const backups = await listBackups(limit);
+      res.json({ success: true, backups });
+    } catch (error) {
+      console.error('List backups error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// Get backup system status
+router.get('/backup/status',
+  requirePermission('system.admin'),
+  async (req, res) => {
+    try {
+      const status = await getBackupStatus();
+      res.json({ success: true, status });
+    } catch (error) {
+      console.error('Backup status error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
 
 /**
  * System Administration Routes (SuperAdmin only)

@@ -5,6 +5,7 @@ import { useClient } from '../context/ClientContext';
 import { SuperAdminGuard } from '../components/security/PermissionGuard';
 import ImportManagement from '../components/Settings/ImportManagement';
 import YearEndProcessing from './settings/YearEndProcessing';
+import BackupSettings from './settings/BackupSettings';
 
 function SettingsView() {
   const { samsUser } = useAuth();
@@ -199,6 +200,22 @@ function SettingsView() {
         >
           🔧 System Settings
         </button>
+        
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveSection('backup')}
+            style={{
+              padding: '10px 20px',
+              border: 'none',
+              borderBottom: activeSection === 'backup' ? '3px solid #007bff' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              fontWeight: activeSection === 'backup' ? 'bold' : 'normal'
+            }}
+          >
+            💾 Backup & Recovery
+          </button>
+        )}
       </div>
 
       {/* Exchange Rates Management Section */}
@@ -419,6 +436,13 @@ function SettingsView() {
             <p><strong>Client Access:</strong> {samsUser?.propertyAccess && Array.isArray(samsUser.propertyAccess) ? samsUser.propertyAccess.join(', ') : 'None'}</p>
           </div>
         </div>
+      )}
+
+      {/* Backup & Recovery Section */}
+      {activeSection === 'backup' && isSuperAdmin && (
+        <SuperAdminGuard>
+          <BackupSettings />
+        </SuperAdminGuard>
       )}
     </div>
   );

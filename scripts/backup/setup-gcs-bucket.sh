@@ -55,6 +55,10 @@ PROD_SA=$(gcloud iam service-accounts list --project="$PROJECT_ID" --filter="dis
 DEV_PROJECT_ID="sandyland-management-system"
 DEV_SA=$(gcloud iam service-accounts list --project="$DEV_PROJECT_ID" --filter="displayName:App Engine default service account" --format="value(email)" | head -1)
 
+# Get Firebase Admin SDK service accounts (used when running with service account keys)
+PROD_FIREBASE_SA=$(gcloud iam service-accounts list --project="$PROJECT_ID" --filter="email~firebase-adminsdk" --format="value(email)" | head -1)
+DEV_FIREBASE_SA=$(gcloud iam service-accounts list --project="$DEV_PROJECT_ID" --filter="email~firebase-adminsdk" --format="value(email)" | head -1)
+
 # Get compute service accounts (used by Firestore import/export)
 PROD_PROJECT_NUM=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)" 2>/dev/null)
 DEV_PROJECT_NUM=$(gcloud projects describe "$DEV_PROJECT_ID" --format="value(projectNumber)" 2>/dev/null)
@@ -67,6 +71,17 @@ fi
 if [ -n "$DEV_SA" ]; then
     echo "   Granting storage.objectAdmin to $DEV_SA"
     gsutil iam ch "serviceAccount:${DEV_SA}:roles/storage.objectAdmin" "gs://${BUCKET_NAME}"
+fi
+
+# Grant permissions to Firebase Admin SDK service accounts (used with service account keys)
+if [ -n "$PROD_FIREBASE_SA" ]; then
+    echo "   Granting storage.objectAdmin to $PROD_FIREBASE_SA (Firebase Admin SDK)"
+    gsutil iam ch "serviceAccount:${PROD_FIREBASE_SA}:roles/storage.objectAdmin" "gs://${BUCKET_NAME}"
+fi
+
+if [ -n "$DEV_FIREBASE_SA" ]; then
+    echo "   Granting storage.objectAdmin to $DEV_FIREBASE_SA (Firebase Admin SDK)"
+    gsutil iam ch "serviceAccount:${DEV_FIREBASE_SA}:roles/storage.objectAdmin" "gs://${BUCKET_NAME}"
 fi
 
 # Grant permissions to compute service accounts (required for Firestore import/export)
