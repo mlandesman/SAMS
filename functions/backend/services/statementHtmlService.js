@@ -812,6 +812,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       background-color: #4472C4;
       color: #fff;
       padding: 5px 10px;
+    }
+    
+    .projects-section .section-header {
+      margin: -10px -10px 10px -10px;
+      border-radius: 2px 2px 0 0;
+      padding: 8px 12px;
       font-size: 10pt;
       font-weight: bold;
       text-align: center;
@@ -1155,12 +1161,20 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     .projects-section {
       margin: 20px 0;
       clear: both;
+      border: 2px solid #4472C4;
+      border-radius: 4px;
+      padding: 10px;
+      background-color: #fafafa;
     }
     
     /* Credit Balance Activity Section */
     .credit-activity-section {
       margin: 20px 0;
       clear: both;
+      border: 2px solid #F7E4C2;
+      border-radius: 4px;
+      padding: 10px;
+      background-color: #fefbf7;
     }
     
     .project-table {
@@ -1234,6 +1248,18 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       font-size: 10pt;
       text-align: center;
       margin-top: 10px;
+      border-radius: 0 0 2px 2px;
+    }
+    
+    .credit-activity-section .section-header {
+      background-color: #F7E4C2;
+      color: #333;
+      padding: 8px 12px;
+      font-weight: bold;
+      font-size: 10pt;
+      margin: -10px -10px 10px -10px;
+      border-radius: 2px 2px 0 0;
+      text-align: center;
     }
     
     /* Credit Activity Table */
@@ -1242,11 +1268,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       border-collapse: collapse;
       margin-top: 10px;
       font-size: 9pt;
+      background-color: #fff;
     }
     
     .credit-activity-table thead {
-      background-color: #4472C4;
-      color: #fff;
+      background-color: #F7E4C2;
+      color: #333;
     }
     
     .credit-activity-table th {
