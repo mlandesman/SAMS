@@ -1,4 +1,4 @@
-import admin from 'firebase-admin';
+import { admin } from '../backend/firebase.js';
 import { populateHistoricalRates } from './exchangeRatesUpdater.js';
 
 /**

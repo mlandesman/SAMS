@@ -122,4 +122,4 @@ async function getApp() {
   return firebaseApp;
 }
 
-export { getDb, initializeFirebase, checkFirestoreConnection, getApp };
+export { admin, getDb, initializeFirebase, checkFirestoreConnection, getApp };

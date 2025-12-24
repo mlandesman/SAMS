@@ -1,4 +1,4 @@
-import admin from 'firebase-admin';
+import { admin, getDb } from '../backend/firebase.js';
 import { fetchDOFRates } from './apiClients/dof.js';
 import { fetchCurrentRates } from './apiClients/openExchangeRates.js';
 import { getMexicoDateString, getMexicoYesterdayString, logMexicoTime } from './utils/timezone.js';
@@ -14,7 +14,7 @@ async function updateExchangeRates(dryRun = false) {
   // Log current Mexico time for debugging
   logMexicoTime();
   
-  const db = admin.firestore();
+  const db = await getDb();
   
   // Use Mexico timezone for dates
   const todayStr = getMexicoDateString();
@@ -130,7 +130,7 @@ async function updateExchangeRates(dryRun = false) {
 async function populateHistoricalRates(startDate, endDate, dryRun = false) {
   console.log(`📊 Populating historical rates from ${startDate} to ${endDate}...`);
   
-  const db = admin.firestore();
+  const db = await getDb();
   
   try {
     // Step 1: Fetch all DOF rates for the period

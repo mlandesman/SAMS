@@ -61,10 +61,15 @@ export const api = onRequest(
 );
 
 // ============================================================================
-// EXCHANGE RATES FUNCTIONS
+// SCHEDULED FUNCTIONS
 // ============================================================================
 
-// Scheduled daily update at 3 AM Mexico City time
+// Unified Nightly Scheduler (Orchestrates all maintenance tasks)
+export { nightlyScheduler } from './scheduled/nightlyScheduler.js';
+
+// Legacy Scheduled daily update at 3 AM Mexico City time 
+// (Now integrated into nightlyScheduler)
+/*
 export const scheduledExchangeRatesUpdate = onSchedule(
   {
     schedule: '0 3 * * *',
@@ -85,6 +90,7 @@ export const scheduledExchangeRatesUpdate = onSchedule(
     }
   }
 );
+*/
 
 // Manual exchange rates update (callable function)
 export const manualExchangeRatesUpdate = onCall(

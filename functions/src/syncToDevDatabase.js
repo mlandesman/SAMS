@@ -1,4 +1,6 @@
-import admin from 'firebase-admin';
+import { admin, getDb } from '../backend/firebase.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 async function syncExchangeRatesToDev(options = {}) {
   const {
@@ -21,7 +23,7 @@ async function syncExchangeRatesToDev(options = {}) {
       projectId: devProjectId
     }, 'dev-app');
     
-    const prodDb = admin.firestore();
+    const prodDb = await getDb();
     const devDb = devApp.firestore();
     
     const endDate = new Date();
