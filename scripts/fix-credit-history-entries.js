@@ -10,70 +10,37 @@
  *   # Dev (default)
  *   node scripts/fix-credit-history-entries.js
  *   
- *   # Production (requires ADC)
- *   FIRESTORE_ENV=prod USE_ADC=true node scripts/fix-credit-history-entries.js
+ *   # Production
+ *   node scripts/fix-credit-history-entries.js --prod
  *   
  *   # Dry run (show what would change without writing)
  *   node scripts/fix-credit-history-entries.js --dry-run
+ *   node scripts/fix-credit-history-entries.js --prod --dry-run
  * 
  * Created: 2025-12-23
  * Purpose: Fix UPS credit history bug (GitHub Issue #99)
  */
 
-import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { readFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { initializeFirebase, printEnvironmentInfo } from './utils/environment-config.js';
 
 // Configuration
 const DRY_RUN = process.argv.includes('--dry-run');
-const ENV = process.env.FIRESTORE_ENV || 'dev';
-const USE_ADC = process.env.USE_ADC === 'true';
+const IS_PROD = process.argv.includes('--prod');
 
-// Project IDs
-const PROJECT_IDS = {
-  dev: 'sams-sandyland-dev',
-  prod: 'sams-sandyland-prod'
-};
+// Set environment based on --prod flag
+if (IS_PROD) {
+  process.env.FIRESTORE_ENV = 'prod';
+}
 
 console.log('='.repeat(60));
 console.log('Credit History Entry Fix Script');
 console.log('='.repeat(60));
-console.log(`Environment: ${ENV.toUpperCase()}`);
-console.log(`Project: ${PROJECT_IDS[ENV]}`);
 console.log(`Dry Run: ${DRY_RUN ? 'YES (no changes will be made)' : 'NO (will write changes)'}`);
 console.log('='.repeat(60));
 
-// Initialize Firebase
-let app;
-if (USE_ADC) {
-  console.log('Using Application Default Credentials...');
-  app = initializeApp({
-    credential: applicationDefault(),
-    projectId: PROJECT_IDS[ENV]
-  });
-} else {
-  const keyPath = join(__dirname, '..', 'functions', 'backend', 'config', 
-    ENV === 'prod' ? 'sams-sandyland-prod-firebase-adminsdk.json' : 'sams-sandyland-dev-firebase-adminsdk.json');
-  
-  if (!existsSync(keyPath)) {
-    console.error(`Service account key not found: ${keyPath}`);
-    console.error('For production, use: FIRESTORE_ENV=prod USE_ADC=true node scripts/fix-credit-history-entries.js');
-    process.exit(1);
-  }
-  
-  const serviceAccount = JSON.parse(readFileSync(keyPath, 'utf8'));
-  app = initializeApp({
-    credential: cert(serviceAccount),
-    projectId: PROJECT_IDS[ENV]
-  });
-}
-
-const db = getFirestore(app);
+// Initialize Firebase using shared utility
+printEnvironmentInfo();
+const { db } = await initializeFirebase();
 
 /**
  * Calculate balance from history up to a given index
