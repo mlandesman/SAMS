@@ -77,11 +77,6 @@ export function getOwnerInfo(unit) {
     ownerName = typeof unit.owner === 'string' ? unit.owner : (unit.owner.name || '');
   }
   
-  // Get email from owner objects (emails field removed - emails are now in owner objects)
-  if (!email && normalizedOwners.length > 0 && normalizedOwners[0].email) {
-    email = normalizedOwners[0].email;
-  }
-  
   // Extract first and last name (handle case where ownerName might be empty or not a string)
   if (!ownerName || typeof ownerName !== 'string') {
     ownerName = '';
