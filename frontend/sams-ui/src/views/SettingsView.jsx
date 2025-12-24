@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { SuperAdminGuard } from '../components/security/PermissionGuard';
 import ImportManagement from '../components/Settings/ImportManagement';
+import YearEndProcessing from './settings/YearEndProcessing';
 
 function SettingsView() {
   const { samsUser } = useAuth();
@@ -169,6 +170,20 @@ function SettingsView() {
           }}
         >
           📊 Data Management
+        </button>
+        
+        <button
+          onClick={() => setActiveSection('year-end')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderBottom: activeSection === 'year-end' ? '3px solid #007bff' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            fontWeight: activeSection === 'year-end' ? 'bold' : 'normal'
+          }}
+        >
+          📅 Year-End Processing
         </button>
         
         <button
@@ -363,6 +378,18 @@ function SettingsView() {
         </SuperAdminGuard>
       )}
 
+      {/* Year-End Processing Section */}
+      {activeSection === 'year-end' && (
+        <SuperAdminGuard>
+          {selectedClient ? (
+            <YearEndProcessing />
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center' }}>
+              <p>Please select a client to access Year-End Processing.</p>
+            </div>
+          )}
+        </SuperAdminGuard>
+      )}
       
       {/* System Settings Section */}
       {activeSection === 'system' && (

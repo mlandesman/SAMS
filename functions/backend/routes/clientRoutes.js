@@ -16,6 +16,7 @@ import balancesRoutes from './balances.js';
 import projectsRoutes from './projects.js';
 import waterRoutes from './waterRoutes.js';
 import configRoutes from './config.js';
+import yearEndRoutes from './yearEnd.js';
 
 // Test route
 router.get('/test', (req, res) => {
@@ -182,5 +183,18 @@ router.use('/:clientId/config', (req, res, next) => {
   
   next();
 }, configRoutes);
+
+// Mount Year-End Processing routes
+router.use('/:clientId/year-end', (req, res, next) => {
+  // Make sure clientId from the parent router is available to the child router
+  const clientId = req.params.clientId;
+  console.log('Client router passing clientId for year-end:', clientId);
+  
+  // Store original URL parameters before they get overwritten
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  
+  next();
+}, yearEndRoutes);
 
 export default router;
