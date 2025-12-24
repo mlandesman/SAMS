@@ -420,31 +420,20 @@ export class UnifiedPaymentWrapper {
     // Step 2: Generate consolidated transaction notes
     console.log(`   📝 Generating consolidated transaction notes...`);
     
-    // Format payment date for notes
-    const formattedDate = paymentDateObj.toLocaleString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'America/Cancun',
-      timeZoneName: 'short'
-    });
-    
-    // Create comprehensive notes with payment details
-    const paymentHeader = `Posted: MXN ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} on ${formattedDate}`;
+    // Generate clean, concise transaction notes
+    // Format: "HOA: Oct - Dec 2025 (eTransfer)" - NOT verbose multi-line format
     const transactionNotes = this._generateConsolidatedNotes(preview, configs.fiscalYearStartMonth || 1);
-    const paymentFooter = `Payment: ${paymentMethod}`;
+    
+    // Add payment method in parentheses at the end
+    const notesWithMethod = `${transactionNotes} (${paymentMethod})`;
     
     // Add penalty waiver notes if any
     const waiverNotes = this._generateWaiverNotes(waivedPenalties);
     
     // Note: Sequence will be added after transaction creation
     const notesWithoutSeq = waiverNotes
-      ? [paymentHeader, transactionNotes, waiverNotes, paymentFooter].join('\n')
-      : [paymentHeader, transactionNotes, paymentFooter].join('\n');
+      ? `${notesWithMethod}. ${waiverNotes}`
+      : notesWithMethod;
     
     // Step 3: Prepare atomic batch for all writes
     console.log(`   💾 Preparing atomic batch (transaction + HOA + Water + Credit)...`);
@@ -2095,7 +2084,7 @@ export class UnifiedPaymentWrapper {
     const historyEntry = createCreditHistoryEntry({
       amount: creditChangeCentavos,
       transactionId: transactionId,
-      note: creditData.added > 0 
+      notes: creditData.added > 0 
         ? `Overpayment of ${formatCurrency(creditChangeCentavos)} added to credit`
         : `Credit of ${formatCurrency(Math.abs(creditChangeCentavos))} applied to payment`,
       type: creditData.added > 0 ? 'credit_added' : 'credit_used'

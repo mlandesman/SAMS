@@ -1,7 +1,7 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 18 - GitHub Issues Integration (December 23, 2025)
+**Last Modification:** Manager Agent 18 - Backup/Restore Task + Unit 2A Fix (December 23, 2025)
 **Current Version:** v1.2.0 (in progress) - Year-End Processing Features
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
@@ -30,7 +30,7 @@
 - 🟢 **#79** - Email All 502 timeout (cosmetic)
 - 🟢 **#77** - Client-specific Statement footers
 - 🟢 **#75** - Version endpoint stale
-- 🟢 **#73** - Nightly Firestore Backup
+- 🟢 **#73** - Nightly Automated Backup + Retention (manual scripts DONE, automation remaining)
 - 🟢 **#61** - Version on login screen
 - 🟢 **#60** - MTC calling water routes (fails for MTC)
 - 🟢 **#55** - Mini trend graphs in Statement
@@ -120,6 +120,7 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
 - `Task_YE-003_Account_Reconciliation_2025-12-22.md` → #91
 - `Task_YE-004_Year_End_Processing_UI_2025-12-22.md` → #92
 - `Task_YE-005_Budget_Split_Income_2025-12-22.md` → #93
+- `Task_Backup_Restore_System_2025-12-23.md` → #73 (parallel task)
 
 #### Key Features
 
@@ -177,6 +178,17 @@ If owner wanted credit to remain:
    - Smart notes auto-population (only when empty)
    - *Completed: Dec 22, 2025 - ~2 hours, 4 files, ~270 lines*
 
+7. **Backup & Restore System** ✅ MANUAL SCRIPTS COMPLETE
+   - Shared GCS bucket for cross-project backups (`gs://sams-shared-backups`)
+   - Firestore backup (all data including subcollections, users separate)
+   - Firebase Storage backup (documents, logos, exports)
+   - `restore-dev-from-prod.sh` - Refresh Dev with Prod data (tested & verified)
+   - `restore-prod.sh` - Disaster recovery
+   - `copy-backup-offsite.sh` - Off-site backup (local/S3/Drive)
+   - *Completed: Dec 23, 2025 - ~4 hours, 9 scripts + docs*
+   - **Critical Fix:** Subcollection export issue discovered and fixed
+   - **Remaining (#73):** Cloud Function for nightly automation + retention policy (10 daily, 5 weekly, 13 monthly, annual)
+
 #### Timeline
 
 | Date | Task |
@@ -189,8 +201,10 @@ If owner wanted credit to remain:
 | Dec 23 | ✅ v1.2.1 Deployed to main - Production deployment |
 | Dec 23 | ✅ #77 Client-Specific Statement Footers - COMPLETE |
 | Dec 23 | ✅ #95 Transaction Edit Modal Fix - COMPLETE |
+| Dec 23 | ✅ MTC Unit 2A Overpayment Data Fix - COMPLETE |
 | Dec 24 | #87 Year-End Processing UI |
 | Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
+| Dec 23 | ✅ #73 Backup & Restore System - COMPLETE |
 | Dec 28-29 | Integration testing |
 | Dec 31 | 🎉 Execute Year-End for MTC |
 
@@ -813,7 +827,7 @@ These bugs are not blocking production go-live and will be addressed after Jan 1
 |----------|-------|----------|--------|-------|
 | #94 | Transaction Export (CSV/PDF) for filtered view | 🟢 MEDIUM | 3-4 hrs | Export filtered transaction table |
 | #77 | Client-specific footers for Statement | 🟢 MEDIUM | 2-3 hrs | Per-client footer text (EN/ES) |
-| #73 | Nightly Firestore Backup via gcloud | 🟢 MEDIUM | 2-3 hrs | Add to existing nightly job |
+| #73 | Nightly Automated Backup + Retention | 🟢 MEDIUM | 3-4 hrs | Cloud Function + purge script (manual backup DONE) |
 | #61 | Version on login screen | 🟢 MEDIUM | 1-2 hrs | Show version + About link |
 | #55 | Mini trend graphs in Statement | 🟢 MEDIUM | 4-6 hrs | Water (AVII) / Propane (MTC) trends |
 | #50 | Bulk Administration Operations | 🟢 MEDIUM | 4-6 hrs | Generate/save all statements |

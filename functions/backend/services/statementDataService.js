@@ -1723,6 +1723,101 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       console.warn(`Warning: Could not fetch credit adjustments for ${clientId}/${unitId}:`, error.message);
     }
     
+    // Step 7.11: Fetch ALL credit history entries for Credit Balance Activity section
+    // This is separate from creditAdjustments (which only includes manual entries)
+    // This section shows ALL credit activity: deposits and applied amounts
+    const creditActivityEntries = [];
+    try {
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      const creditBalancesDoc = await creditBalancesRef.get();
+      
+      if (creditBalancesDoc.exists) {
+        const creditBalancesData = creditBalancesDoc.data();
+        const unitCreditData = creditBalancesData[unitId];
+        
+        if (unitCreditData && unitCreditData.history && Array.isArray(unitCreditData.history)) {
+          const fyStartTimestamp = fiscalYearBounds.startDate.getTime() / 1000;
+          const fyEndTimestamp = fiscalYearBounds.endDate.getTime() / 1000;
+          
+          // Get all credit history entries within fiscal year (excluding starting_balance)
+          for (const entry of unitCreditData.history) {
+            let entryTimestamp = null;
+            let entryDate = null;
+            
+            // Handle different timestamp formats (same logic as credit adjustments)
+            if (entry.timestamp && entry.timestamp._seconds !== undefined) {
+              entryTimestamp = entry.timestamp._seconds;
+              entryDate = new Date(entryTimestamp * 1000);
+            } else if (entry.timestamp && typeof entry.timestamp.toDate === 'function') {
+              entryDate = entry.timestamp.toDate();
+              entryTimestamp = entryDate.getTime() / 1000;
+            } else if (entry.timestamp instanceof Date) {
+              entryDate = entry.timestamp;
+              entryTimestamp = entryDate.getTime() / 1000;
+            } else if (typeof entry.timestamp === 'string') {
+              const isoStr = entry.timestamp;
+              const datePart = isoStr.split('T')[0];
+              entryDate = parseDateFromService(datePart);
+              if (entryDate && !isNaN(entryDate.getTime())) {
+                entryTimestamp = entryDate.getTime() / 1000;
+              } else {
+                entryDate = parseDateFromService(entry.timestamp);
+                if (entryDate && !isNaN(entryDate.getTime())) {
+                  entryTimestamp = entryDate.getTime() / 1000;
+                }
+              }
+            } else if (typeof entry.timestamp === 'number') {
+              entryTimestamp = entry.timestamp;
+              entryDate = new Date(entryTimestamp * 1000);
+            }
+            
+            // Skip if we couldn't parse the timestamp
+            if (!entryTimestamp || !entryDate || isNaN(entryDate.getTime())) {
+              continue;
+            }
+            
+            // Skip if outside fiscal year
+            if (entryTimestamp < fyStartTimestamp || entryTimestamp > fyEndTimestamp) {
+              continue;
+            }
+            
+            // EXCLUDE starting_balance entries (redundant with Opening Balance)
+            if (entry.type === 'starting_balance') {
+              continue;
+            }
+            
+            // Include ALL entries (credit_added and credit_used) regardless of source
+            // amount is in centavos: positive = credit added, negative = credit used
+            const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
+            const entryAmountPesos = centavosToPesos(entryAmountCentavos);
+            
+            // Infer type from amount if not present (for unified payment entries)
+            // Positive amount = credit added, negative amount = credit used
+            let entryType = entry.type;
+            if (!entryType || entryType === 'undefined') {
+              entryType = entryAmountCentavos >= 0 ? 'credit_added' : 'credit_used';
+            }
+            
+            creditActivityEntries.push({
+              timestamp: entry.timestamp, // Keep original for date formatting
+              date: entryDate, // Parsed Date object
+              type: entryType, // 'credit_added' or 'credit_used' (inferred if missing)
+              amount: entryAmountPesos, // In pesos: positive for deposits, negative for applied
+              notes: entry.note || entry.notes || entry.description || '',
+              creditBefore: entry.creditBefore ? centavosToPesos(entry.creditBefore) : null,
+              creditAfter: entry.creditAfter ? centavosToPesos(entry.creditAfter) : null
+            });
+          }
+          
+          // Sort by date (oldest first for display)
+          creditActivityEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
+        }
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not fetch credit activity for ${clientId}/${unitId}:`, error.message);
+    }
+    
     // Step 8: Create chronological transaction list
     // NOTE: Special Assessments (projectsData) are NOT included in chronologicalTransactions
     // They only appear in Allocation Summary currently
@@ -1935,6 +2030,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       transactions: Array.from(transactionMap.values()),
       creditBalance: creditBalanceData,
       creditAllocations: creditAllocations,
+      creditActivityEntries: creditActivityEntries,
       
       // Processed data
       chronologicalTransactions: chronologicalTransactions,
@@ -2603,6 +2699,10 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       projects: projectsData,
       totalPaid: projectsData.reduce((sum, p) => sum + p.totalPaid, 0),
       hasProjects: projectsData.length > 0
+    },
+    creditActivity: {
+      entries: rawData.creditActivityEntries || [],
+      hasEntries: (rawData.creditActivityEntries || []).length > 0
     }
   };
 }

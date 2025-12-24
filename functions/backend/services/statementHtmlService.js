@@ -218,6 +218,15 @@ function getTranslations(language) {
       creditBalance: 'CREDIT BALANCE',
       accountCredit: 'ACCOUNT CREDIT',
       lessCredit: 'Less: Credit on Account',
+      creditBalanceActivity: 'CREDIT BALANCE ACTIVITY',
+      creditDate: 'DATE',
+      creditType: 'TYPE',
+      creditAmount: 'AMOUNT',
+      creditNotes: 'NOTES',
+      creditDeposit: 'Deposit',
+      creditDeposits: 'Deposits',
+      creditApplied: 'Applied to Dues',
+      creditAppliedPlural: 'Applied',
       netAmountDue: 'NET AMOUNT DUE',
       paidInFull: 'PAID IN FULL',
       statementId: 'Statement ID',
@@ -271,6 +280,15 @@ function getTranslations(language) {
       creditBalance: 'SALDO A FAVOR',
       accountCredit: 'CRÉDITO EN CUENTA',
       lessCredit: 'Menos: Crédito en Cuenta',
+      creditBalanceActivity: 'ACTIVIDAD DE SALDO A FAVOR',
+      creditDate: 'FECHA',
+      creditType: 'TIPO',
+      creditAmount: 'MONTO',
+      creditNotes: 'NOTAS',
+      creditDeposit: 'Depósito',
+      creditDeposits: 'Depósitos',
+      creditApplied: 'Aplicado a Cuotas',
+      creditAppliedPlural: 'Aplicado',
       netAmountDue: 'IMPORTE NETO ADEUDADO',
       paidInFull: 'PAGADO COMPLETO',
       statementId: 'ID del Estado de Cuenta',
@@ -288,6 +306,95 @@ function getTranslations(language) {
   };
   
   return translations[language] || translations.english;
+}
+
+/**
+ * Collapse same-day entries of the same type
+ * @param {Array} entries - Array of credit activity entries
+ * @returns {Array} Collapsed entries
+ */
+function collapseCreditEntries(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+  
+  const grouped = {};
+  
+  entries.forEach(entry => {
+    // Create date key in YYYY-MM-DD format for grouping
+    let dateKey;
+    if (entry.date instanceof Date) {
+      // Use Luxon to format in Cancun timezone, then extract date part
+      const dt = DateTime.fromJSDate(entry.date).setZone('America/Cancun');
+      dateKey = dt.toFormat('yyyy-MM-dd');
+    } else if (typeof entry.date === 'string') {
+      // Parse string date and format
+      const dt = DateTime.fromISO(entry.date, { zone: 'America/Cancun' });
+      if (!dt.isValid) {
+        const dt2 = DateTime.fromSQL(entry.date, { zone: 'America/Cancun' });
+        dateKey = dt2.isValid ? dt2.toFormat('yyyy-MM-dd') : entry.date.split('T')[0];
+      } else {
+        dateKey = dt.toFormat('yyyy-MM-dd');
+      }
+    } else {
+      // Fallback: use entry date as-is if it's already a string
+      dateKey = entry.date || '';
+    }
+    
+    // Infer type from amount if type is missing or undefined
+    const amount = entry.amount || 0;
+    const entryType = entry.type && entry.type !== 'undefined' 
+      ? entry.type 
+      : (amount >= 0 ? 'credit_added' : 'credit_used');
+    const typeKey = entryType || 'unknown';
+    const groupKey = `${dateKey}_${typeKey}`;
+    
+    if (!grouped[groupKey]) {
+      grouped[groupKey] = {
+        ...entry,
+        count: 1,
+        originalEntries: [entry]
+      };
+    } else {
+      // Combine amounts
+      grouped[groupKey].amount += entry.amount;
+      grouped[groupKey].count++;
+      grouped[groupKey].originalEntries.push(entry);
+    }
+  });
+  
+  // Convert grouped object to array and format notes
+  return Object.values(grouped).map(groupedEntry => {
+    if (groupedEntry.count > 1) {
+      // Multiple entries - use first note or "Combined: N entries"
+      groupedEntry.notes = groupedEntry.originalEntries[0]?.notes || 
+        `Combined: ${groupedEntry.count} entries`;
+    }
+    return groupedEntry;
+  });
+}
+
+/**
+ * Get type label for credit entry (bilingual)
+ * @param {string} type - Entry type ('credit_added' or 'credit_used')
+ * @param {number} count - Number of entries (for pluralization)
+ * @param {string} language - Language ('english' or 'spanish')
+ * @param {number} amount - Entry amount (to infer type if missing)
+ * @returns {string} Formatted type label
+ */
+function getCreditTypeLabel(type, count, language, amount = 0) {
+  const t = getTranslations(language);
+  const isPlural = count > 1;
+  
+  // Infer type from amount if type is missing or undefined
+  const inferredType = type && type !== 'undefined' ? type : (amount >= 0 ? 'credit_added' : 'credit_used');
+  
+  if (inferredType === 'credit_added') {
+    return isPlural ? `${t.creditDeposits} (${count})` : t.creditDeposit;
+  } else if (inferredType === 'credit_used') {
+    return isPlural ? `${t.creditAppliedPlural} (${count})` : t.creditApplied;
+  }
+  return inferredType || 'Unknown';
 }
 
 /**
@@ -815,10 +922,20 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       .projects-section {
         page-break-inside: avoid;
       }
+      
+      .credit-activity-section {
+        page-break-inside: avoid;
+      }
     }
     
     /* Projects Section */
     .projects-section {
+      margin: 20px 0;
+      clear: both;
+    }
+    
+    /* Credit Balance Activity Section */
+    .credit-activity-section {
       margin: 20px 0;
       clear: both;
     }
@@ -894,6 +1011,62 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       font-size: 10pt;
       text-align: center;
       margin-top: 10px;
+    }
+    
+    /* Credit Activity Table */
+    .credit-activity-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 9pt;
+    }
+    
+    .credit-activity-table thead {
+      background-color: #4472C4;
+      color: #fff;
+    }
+    
+    .credit-activity-table th {
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: bold;
+      font-size: 9pt;
+    }
+    
+    .credit-activity-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .credit-activity-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .credit-activity-table .col-date {
+      width: 12%;
+    }
+    
+    .credit-activity-table .col-type {
+      width: 20%;
+    }
+    
+    .credit-activity-table .col-amount {
+      width: 15%;
+      text-align: right;
+    }
+    
+    .credit-activity-table .col-notes {
+      width: 53%;
+    }
+    
+    .credit-activity-table .amount-deposit {
+      color: #2E7D32;
+      font-weight: 500;
+    }
+    
+    .credit-activity-table .amount-applied {
+      color: #C62828;
+      font-weight: 500;
     }
     
     /* Additional PDF-specific optimizations */
@@ -1149,6 +1322,66 @@ export async function generateStatementData(api, clientId, unitId, options = {})
         ${t.totalSpecialAssessments} (${data.statementInfo.fiscalYear}): 
         ${formatCurrency(centavosToPesos(data.projectsData.totalPaid))}
       </div>
+    </div>
+` : ''}
+    
+    ${data.creditActivity?.hasEntries ? `
+    <!-- Credit Balance Activity Section -->
+    <div class="credit-activity-section">
+      <div class="section-header">${t.creditBalanceActivity}</div>
+      
+      ${(() => {
+        // Collapse same-day entries of same type
+        const collapsedEntries = collapseCreditEntries(data.creditActivity.entries);
+        
+        if (collapsedEntries.length === 0) {
+          return '';
+        }
+        
+        return `
+        <table class="credit-activity-table">
+          <thead>
+            <tr>
+              <th class="col-date">${t.creditDate}</th>
+              <th class="col-type">${t.creditType}</th>
+              <th class="col-amount">${t.creditAmount}</th>
+              <th class="col-notes">${t.creditNotes}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${collapsedEntries.map(entry => {
+              const entryDate = formatDate(entry.date);
+              const amount = entry.amount || 0;
+              // Infer type from amount if type is missing or undefined
+              const entryType = entry.type && entry.type !== 'undefined' 
+                ? entry.type 
+                : (amount >= 0 ? 'credit_added' : 'credit_used');
+              const typeLabel = getCreditTypeLabel(entryType, entry.count || 1, language, amount);
+              const isDeposit = entryType === 'credit_added';
+              const amountClass = isDeposit ? 'amount-deposit' : 'amount-applied';
+              const formattedAmount = isDeposit 
+                ? formatCurrency(Math.abs(amount), true) // Show + for deposits
+                : formatCurrency(amount); // Show - for applied
+              
+              // Truncate notes if too long (50-60 chars max)
+              let notes = entry.notes || '';
+              if (notes.length > 60) {
+                notes = notes.substring(0, 57) + '...';
+              }
+              
+              return `
+              <tr>
+                <td class="col-date">${entryDate}</td>
+                <td class="col-type">${typeLabel}</td>
+                <td class="col-amount ${amountClass}">${formattedAmount}</td>
+                <td class="col-notes">${notes}</td>
+              </tr>
+            `;
+            }).join('')}
+          </tbody>
+        </table>
+        `;
+      })()}
     </div>
 ` : ''}
     

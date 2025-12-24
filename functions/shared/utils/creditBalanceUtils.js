@@ -48,7 +48,8 @@ export function getCreditBalanceDollars(creditDoc) {
  * @param {Object} params - Entry parameters
  * @param {number} params.amount - Required: centavos (positive = added, negative = used)
  * @param {string} params.transactionId - Required: links to transaction
- * @param {string} params.note - Required: human-readable description
+ * @param {string} params.notes - Required: human-readable description (use 'notes' not 'note' for consistency)
+ * @param {string} params.note - Deprecated: use 'notes' instead (backward compatibility)
  * @param {string} [params.type='payment'] - Optional: 'payment', 'credit_added', 'credit_used', 'adjustment'
  * @param {string|Date} [params.timestamp] - Optional: ISO string or Date (defaults to now)
  * @param {string} [params.source='unifiedPayment'] - Optional: Source module (e.g., 'unifiedPayment', 'waterBills', 'hoaDues', 'admin')
@@ -57,7 +58,8 @@ export function getCreditBalanceDollars(creditDoc) {
 export function createCreditHistoryEntry({
   amount,
   transactionId,
-  note,
+  notes,
+  note,  // Backward compatibility - will be mapped to 'notes'
   type = 'payment',
   timestamp,
   source = 'unifiedPayment'
@@ -74,11 +76,14 @@ export function createCreditHistoryEntry({
     timestampValue = getNow().toISOString();
   }
   
+  // Use 'notes' if provided, otherwise fall back to 'note' for backward compatibility
+  const notesValue = notes || note || '';
+  
   return {
     id: `credit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     amount,
     transactionId,
-    note,
+    notes: notesValue,  // Always use 'notes' (plural) for consistency
     type,
     timestamp: timestampValue,
     source

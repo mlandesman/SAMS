@@ -89,11 +89,11 @@ class CreditService {
    * @param {string} unitId - Unit identifier
    * @param {number} amount - Amount to add (positive) or subtract (negative) in cents
    * @param {string} transactionId - Transaction identifier for audit trail
-   * @param {string} note - Description of the change
+   * @param {string} notes - Description of the change (use 'notes' plural for consistency)
    * @param {string} source - Source module (e.g., 'waterBills', 'hoaDues', 'admin')
    * @returns {Promise<Object>} Update result
    */
-  async updateCreditBalance(clientId, unitId, amount, transactionId, note, source) {
+  async updateCreditBalance(clientId, unitId, amount, transactionId, notes, source) {
     try {
       const db = await getDb();
       const fiscalYear = this._getCurrentFiscalYear();
@@ -122,7 +122,7 @@ class CreditService {
       const historyEntry = createCreditHistoryEntry({
         amount: validAmount,
         transactionId,
-        note,
+        notes,
         type: validAmount > 0 ? 'credit_added' : 'credit_used',
         source
       });
