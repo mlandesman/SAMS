@@ -2593,6 +2593,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     cutoffDate.setHours(23, 59, 59, 999);
     // Determine if transaction is "future" for display purposes
     // CRITICAL: HOA charges within 15-day buffer should NOT be marked as future
+    // CRITICAL: Water bill charges should NEVER be marked as future (if generated, they're ready)
     let isFuture = false;
     if (txnDate) {
       if (txn.type === 'charge' && txn.category === 'hoa') {
@@ -2602,6 +2603,9 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
         bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
         // If within buffer period, it's not "future" for display purposes
         isFuture = cutoffDate < bufferDate; // Only future if cutoffDate is BEFORE buffer starts
+      } else if (txn.type === 'charge' && txn.category === 'water') {
+        // Water bills: NEVER mark as future - if generated, they should always appear
+        isFuture = false;
       } else {
         // For other transactions: mark as future if date is after cutoff
         isFuture = txnDate > cutoffDate;

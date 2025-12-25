@@ -118,10 +118,20 @@ export const generateBills = async (req, res) => {
         });
       }
       
+      // Extract optional quarter parameter (1-4)
+      const quarter = req.body.quarter ? parseInt(req.body.quarter) : undefined;
+      if (quarter !== undefined && (quarter < 1 || quarter > 4)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Quarter must be between 1 and 4'
+        });
+      }
+      
       result = await waterBillsService.generateQuarterlyBill(
         clientId,
         parseInt(year),
-        dueDate
+        dueDate,
+        { quarter } // Pass quarter in options if provided
       );
       
       // Extract bill ID from result

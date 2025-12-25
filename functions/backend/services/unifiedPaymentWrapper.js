@@ -1425,9 +1425,10 @@ export class UnifiedPaymentWrapper {
       return 5; // Fifth priority: Future HOA (prepaid allowed)
     }
     
-    // Water future bills should be excluded (postpaid only)
+    // Water bills are manually generated on demand - if the document exists, it's payable
+    // No such thing as "future" water bill - they're generated when ready to bill
     if (moduleType === 'water' && isFuture) {
-      return 99; // Lowest priority - will be filtered out
+      return 4; // Treat as current water - it exists, so it's payable
     }
     
     // Fallback (should not reach here)
@@ -1492,9 +1493,10 @@ export class UnifiedPaymentWrapper {
       const dueDate = new Date(bill.dueDate);
       const moduleType = bill._metadata?.moduleType;
       
-      // Water bills: only include if due date has passed
+      // Water bills: always include if document exists (manually generated = ready to pay)
+      // No "future" concept for water bills - they're generated on demand
       if (moduleType === 'water') {
-        return dueDate <= currentDate;
+        return true;
       }
       
       // HOA bills: include if within 15-day buffer
@@ -1519,10 +1521,11 @@ export class UnifiedPaymentWrapper {
       }
     }));
     
-    // Filter out future water bills (priority 99) - should not occur after above filter, but kept for safety
+    // Filter out any bills with priority 99 (safety valve - should not occur with current logic)
+    // Note: Water bills no longer get priority 99; if a water bill exists, it's payable
     const payableBills = billsWithPriority.filter(b => b._metadata.priority < 99);
     if (billsWithPriority.length !== payableBills.length) {
-      console.log(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} future water bills (postpaid only)`);
+      console.log(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} bills with priority 99`);
     }
     
     // Sort by priority (then by due date for same priority)

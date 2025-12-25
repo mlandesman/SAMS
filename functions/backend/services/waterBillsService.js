@@ -127,18 +127,64 @@ class WaterBillsService {
     // Sort by month
     readingsToInclude.sort((a, b) => a.month - b.month);
     
-    if (readingsToInclude.length === 0) {
-      throw new Error(`No new readings found since last bill (${lastBillDate.toISOString()})`);
+    // 5. Determine quarter - use provided quarter from options, or auto-determine from readings
+    let fiscalQuarter;
+    let quarterStartMonth;
+    let quarterEndMonth;
+    
+    if (options.quarter && options.quarter >= 1 && options.quarter <= 4) {
+      // Use explicitly provided quarter
+      fiscalQuarter = options.quarter;
+      quarterStartMonth = (fiscalQuarter - 1) * 3; // Q1=0, Q2=3, Q3=6, Q4=9
+      quarterEndMonth = quarterStartMonth + 2; // Q1=0-2, Q2=3-5, etc.
+      console.log(`Using explicitly provided quarter: Q${fiscalQuarter} (months ${quarterStartMonth}-${quarterEndMonth})`);
+    } else {
+      // Auto-determine quarter from first reading (original behavior)
+      if (readingsToInclude.length === 0) {
+        throw new Error(`No new readings found since last bill (${lastBillDate.toISOString()})`);
+      }
+      fiscalQuarter = Math.floor(readingsToInclude[0].month / 3) + 1; // 1-4
+      quarterStartMonth = (fiscalQuarter - 1) * 3; // Q1=0, Q2=3, Q3=6, Q4=9
+      quarterEndMonth = quarterStartMonth + 2; // Q1=0-2, Q2=3-5, etc.
+      console.log(`Auto-determined quarter from readings: Q${fiscalQuarter} (months ${quarterStartMonth}-${quarterEndMonth})`);
     }
     
-    // 5. Determine quarter from first reading and limit to that quarter only
-    const fiscalQuarter = Math.floor(readingsToInclude[0].month / 3) + 1; // 1-4
-    const quarterStartMonth = (fiscalQuarter - 1) * 3; // Q1=0, Q2=3, Q3=6, Q4=9
-    const quarterEndMonth = quarterStartMonth + 2; // Q1=0-2, Q2=3-5, etc.
-    
-    const quarterReadings = readingsToInclude.filter(r => 
-      r.month >= quarterStartMonth && r.month <= quarterEndMonth
-    );
+    // Filter readings to only include those for the specified quarter
+    // If quarter was explicitly provided, we need to get readings for that quarter
+    // even if they're not "new" (since last bill)
+    let quarterReadings;
+    if (options.quarter) {
+      // For explicit quarter, get all readings for that quarter from the fiscal year
+      quarterReadings = [];
+      for (let month = quarterStartMonth; month <= quarterEndMonth; month++) {
+        const monthDoc = `${year}-${String(month).padStart(2, '0')}`;
+        try {
+          const monthDocRef = await readingsRef.doc(monthDoc).get();
+          if (monthDocRef.exists) {
+            const monthData = monthDocRef.data();
+            quarterReadings.push({
+              month: month,
+              docId: monthDocRef.id,
+              data: monthData,
+              readingDate: monthData.timestamp?.toDate ? monthData.timestamp.toDate() : new Date()
+            });
+          }
+        } catch (error) {
+          console.log(`No readings found for month ${month} (${monthDoc})`);
+        }
+      }
+      if (quarterReadings.length === 0) {
+        throw new Error(`No readings found for Q${fiscalQuarter} (months ${quarterStartMonth}-${quarterEndMonth})`);
+      }
+    } else {
+      // Original behavior: only include readings since last bill
+      quarterReadings = readingsToInclude.filter(r => 
+        r.month >= quarterStartMonth && r.month <= quarterEndMonth
+      );
+      if (quarterReadings.length === 0) {
+        throw new Error(`No new readings found since last bill (${lastBillDate.toISOString()})`);
+      }
+    }
     
     console.log(`Found ${readingsToInclude.length} months of readings since last bill: months ${readingsToInclude.map(r => r.month).join(', ')}`);
     console.log(`Generating bill for Q${fiscalQuarter} (months ${quarterStartMonth}-${quarterEndMonth}): ${quarterReadings.length} months`);
@@ -192,6 +238,9 @@ class WaterBillsService {
     console.log(`Prior readings loaded for ${Object.keys(priorReadings).length} units`);
     
     // 5c. Calculate consumption and aggregate charges by unit
+    // CRITICAL: monthNames defined here for monthlyBreakdown formatting (used later too)
+    const monthNames = ['July', 'August', 'September', 'October', 'November', 'December', 
+                        'January', 'February', 'March', 'April', 'May', 'June'];
     const rateInCentavos = config.ratePerM3; // Already in centavos
     const unitTotals = {};
     
@@ -252,21 +301,25 @@ class WaterBillsService {
         
         unitTotals[unitId].totalConsumption += consumption;
         
-        // Build monthly breakdown entry (matching monthly bill structure)
+        // Build monthly breakdown entry (matching old structure format exactly)
+        // CRITICAL: month must be string name (e.g., "July"), not number, to match old structure
+        const monthName = monthNames[reading.month];
+        const monthlyTotal = validateCentavos(
+          waterCharge + carWashCharge + boatWashCharge,
+          `monthlyTotal[${unitId}][${reading.month}]`
+        );
+        
         const monthlyEntry = {
-          month: reading.month,
+          washes: washes.length > 0 ? washes : [], // Always include washes array (even if empty)
+          month: monthName, // String month name (e.g., "July") - CRITICAL: matches old structure
           consumption: consumption,
           waterCharge: waterCharge,
           carWashCount: carWashCount,
           boatWashCount: boatWashCount,
           carWashCharge: carWashCharge,
-          boatWashCharge: boatWashCharge
+          boatWashCharge: boatWashCharge,
+          totalAmount: monthlyTotal // Required field matching old structure
         };
-        
-        // Include washes array if present (for UI display)
-        if (washes.length > 0) {
-          monthlyEntry.washes = washes;
-        }
         
         unitTotals[unitId].monthlyBreakdown.push(monthlyEntry);
         unitTotals[unitId].carWashTotal += carWashCharge;
@@ -275,9 +328,23 @@ class WaterBillsService {
     });
     
     // 6. Generate bill ID using fiscal year-quarter format (e.g., 2026-Q1)
-    // fiscalQuarter already calculated above from first reading
+    // fiscalQuarter already calculated above (from options or auto-determined)
     const newBillId = `${year}-Q${fiscalQuarter}`;
     console.log(`Generating bill ID: ${newBillId}`);
+    
+    // Check if bill already exists - protect against overwriting bills with payments
+    const existingBill = await billsRef.doc(newBillId).get();
+    if (existingBill.exists) {
+      const existingData = existingBill.data();
+      // Check if any unit has payments - if so, block overwrite to prevent data loss
+      const hasPayments = Object.values(existingData.bills?.units || {})
+        .some(unit => unit.payments && unit.payments.length > 0);
+      
+      if (hasPayments) {
+        throw new Error(`Cannot regenerate bill ${newBillId} - it has existing payments. Delete payments first or use a different bill ID.`);
+      }
+      console.log(`⚠️  Warning: Bill ${newBillId} exists but has no payments. It will be overwritten.`);
+    }
     
     // 7. Calculate penalty start date (dueDate + penaltyDays)
     const penaltyStartDate = this._calculatePenaltyStartDate(dueDate, config.penaltyDays || 30);
@@ -312,39 +379,44 @@ class WaterBillsService {
           .filter(m => m.washes && m.washes.length > 0)
           .flatMap(m => m.washes);
         
+        // CRITICAL: Unit bill structure must match importService.js generateQuarterBills() exactly
+        // Field ordering should match old structure for Statement of Account compatibility
         bills[unitId] = {
-          // Consumption summary
-          totalConsumption: unitData.totalConsumption,
+          // Preserve washes array (always an array, even if empty) - matches old structure
+          washes: allWashes,
           
-          // Service counts for billing transparency (matching monthly bill structure)
+          // Service counts (matching old structure field order)
           carWashCount: totalCarWashCount,
           boatWashCount: totalBoatWashCount,
           
-          // Preserve washes array for UI (matching monthly bill structure line 508)
-          washes: allWashes,
-          
-          // Monthly breakdown for transparency
-          monthlyBreakdown: unitData.monthlyBreakdown,
-          
-          // Detailed charges (ALL IN CENTAVOS)
-          waterCharge: totalWaterCharge,
+          // Detailed charges (ALL IN CENTAVOS) - matching old structure
           carWashCharge: unitData.carWashTotal,
           boatWashCharge: unitData.boatWashTotal,
+          importedLavadoCharge: 0, // Always 0 for UI-generated bills (imports have this from unitAccounting.json)
           
-          // Core financial fields (ALL IN CENTAVOS)
-          currentCharge: totalAmount,
-          penaltyAmount: 0,                    // New bills start with no penalty
-          totalAmount: totalAmount,
-          status: 'unpaid',
-          paidAmount: 0,
-          
-          // Payment tracking
+          // Penalty tracking (matching old structure)
+          penaltyAmount: 0, // New bills start with no penalty
           penaltyPaid: 0,
-          basePaid: 0,
-          payments: [],
+          lastPenaltyUpdate: getNow().toISOString(),
           
-          // Timestamp
-          lastPenaltyUpdate: getNow().toISOString()
+          // Data source metadata (matching old structure for compatibility)
+          dataSource: 'system', // UI-generated bills use 'system' (imports use 'sheets_import')
+          importedAt: getNow().toISOString(), // Timestamp for compatibility
+          
+          // Payment tracking (matching old structure)
+          payments: [],
+          paidAmount: 0,
+          basePaid: 0,
+          status: 'unpaid',
+          
+          // Core financial fields (ALL IN CENTAVOS) - matching old structure
+          totalAmount: totalAmount,
+          monthlyBreakdown: unitData.monthlyBreakdown, // Array format matching old structure
+          currentCharge: totalAmount,
+          waterCharge: totalWaterCharge,
+          
+          // Consumption summary (matching old structure)
+          totalConsumption: unitData.totalConsumption
         };
         
         totalNewCharges += totalAmount;
@@ -353,16 +425,93 @@ class WaterBillsService {
     }
     
     // 10. Create bills document (fiscalQuarter already calculated above)
-    const monthNames = ['July', 'August', 'September', 'October', 'November', 'December', 
-                        'January', 'February', 'March', 'April', 'May', 'June'];
+    // CRITICAL: Structure must match importService.js generateQuarterBills() exactly
+    // monthNames already defined above for monthlyBreakdown formatting
     
+    // Calculate billDate as start of first month in quarter (matching importService logic)
+    // Q1 (months 0-2): July = month 0, so billDate should be July 1
+    // Q2 (months 3-5): October = month 3, so billDate should be Oct 1
+    const firstReadingMonth = quarterReadings[0].month;
+    const fiscalYearStartMonth = config.fiscalYearStartMonth || 7;
+    
+    // Calculate calendar month and year for billDate
+    let billDateYear = year - 1; // Fiscal year 2026 starts in calendar year 2025
+    let billDateMonth = firstReadingMonth + fiscalYearStartMonth - 1; // Adjust for fiscal year start
+    
+    // Handle year wraparound
+    if (billDateMonth >= 12) {
+      billDateMonth -= 12;
+      billDateYear += 1;
+    }
+    
+    // billDate should be the 1st of the first month in the quarter
+    // Format as ISO timestamp in UTC (like old structure: "2025-07-01T05:00:00.000Z")
+    const billDateObj = new Date(billDateYear, billDateMonth, 1);
+    const billDateISO = billDateObj.toISOString(); // UTC format
+    
+    // VALIDATE AND CORRECT dueDate year based on quarter (CRITICAL FIX)
+    // For Q1 FY2026 (July-September 2025), dueDate should be October 2025, not 2026
+    // Calculate expected dueDate year: month after last month of quarter
+    const lastMonthInQuarter = quarterReadings[quarterReadings.length - 1].month;
+    let expectedDueDateYear = year - 1; // Start with previous calendar year
+    let expectedDueDateMonth = lastMonthInQuarter + fiscalYearStartMonth + 1; // +1 for NEXT month after quarter end
+    
+    // Handle year wraparound for expected due date
+    if (expectedDueDateMonth > 12) {
+      expectedDueDateMonth -= 12;
+      expectedDueDateYear += 1;
+    }
+    
+    // Parse and validate dueDate from frontend
+    let dueDateISO;
+    if (typeof dueDate === 'string') {
+      // Parse as Cancun local date
+      const dueDateObj = new Date(dueDate + 'T00:00:00-05:00');
+      let dueDateYear = dueDateObj.getFullYear();
+      let dueDateMonth = dueDateObj.getMonth() + 1; // JavaScript months are 0-indexed
+      const dueDateDay = dueDateObj.getDate();
+      
+      // CRITICAL VALIDATION: Correct year if it doesn't match expected quarter
+      // If dueDate year is wrong (e.g., 2026 for Q1 FY2026 when it should be 2025), fix it
+      if (dueDateMonth === expectedDueDateMonth && dueDateYear !== expectedDueDateYear) {
+        console.log(`⚠️  Correcting dueDate year: ${dueDateYear} → ${expectedDueDateYear} for Q${fiscalQuarter} FY${year}`);
+        dueDateYear = expectedDueDateYear;
+      }
+      
+      // Format as ISO string with Cancun timezone offset (matching old structure exactly)
+      dueDateISO = `${dueDateYear}-${String(dueDateMonth).padStart(2, '0')}-${String(dueDateDay).padStart(2, '0')}T00:00:00.000-05:00`;
+    } else {
+      // If dueDate is a Date object, convert to string first
+      const dueDateStr = typeof dueDate === 'object' && dueDate.toISOString 
+        ? dueDate.toISOString().split('T')[0] 
+        : String(dueDate);
+      const dueDateObj = new Date(dueDateStr + 'T00:00:00-05:00');
+      let dueDateYear = dueDateObj.getFullYear();
+      let dueDateMonth = dueDateObj.getMonth() + 1;
+      const dueDateDay = dueDateObj.getDate();
+      
+      // Apply same validation
+      if (dueDateMonth === expectedDueDateMonth && dueDateYear !== expectedDueDateYear) {
+        console.log(`⚠️  Correcting dueDate year: ${dueDateYear} → ${expectedDueDateYear} for Q${fiscalQuarter} FY${year}`);
+        dueDateYear = expectedDueDateYear;
+      }
+      
+      dueDateISO = `${dueDateYear}-${String(dueDateMonth).padStart(2, '0')}-${String(dueDateDay).padStart(2, '0')}T00:00:00.000-05:00`;
+    }
+    
+    // Build quarterMonths array (matching old structure format)
+    const quarterMonthsArray = quarterReadings.map(r => monthNames[r.month]);
+    
+    // CRITICAL: Structure must match importService.js generateQuarterBills() EXACTLY
+    // Field order: billDate, dueDate, penaltyStartDate FIRST, then billingPeriod, fiscalYear, etc.
     const billsData = {
-      billDate: dueDate,
-      dueDate: dueDate,
-      penaltyStartDate: penaltyStartDate,
-      billingPeriod: 'quarterly',
+      billDate: billDateISO, // ISO timestamp in UTC format (matching old structure)
+      dueDate: dueDateISO, // ISO string with Cancun timezone offset (matching old structure)
+      penaltyStartDate: penaltyStartDate, // Already formatted by _calculatePenaltyStartDate
+      billingPeriod: 'quarterly', // CRITICAL: Must be exactly this string
       fiscalYear: year,
       fiscalQuarter: fiscalQuarter, // 1-4 (Q1, Q2, Q3, Q4)
+      quarterMonths: quarterMonthsArray, // Human-readable month names array
       readingsIncluded: quarterReadings.map(r => ({ 
         month: r.month, 
         label: `${monthNames[r.month]} usage`,
@@ -370,6 +519,7 @@ class WaterBillsService {
       })),
       configSnapshot: {
         ratePerM3: config.ratePerM3,
+        minimumCharge: 0, // Always 0 - no minimum charge (stored for compatibility with old structure)
         penaltyRate: config.penaltyRate || 0.05,
         penaltyDays: config.penaltyDays || 30,
         currency: config.currency || 'MXN',
@@ -392,10 +542,13 @@ class WaterBillsService {
       },
       metadata: {
         generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        generatedBy: 'system',
+        generatedBy: 'system', // UI-generated bills use 'system' (imports use 'import-service')
         penaltiesApplied: false
       }
     };
+    
+    // 11. VALIDATION: Verify structure matches expected format (prevent future regressions)
+    this._validateBillStructure(billsData, fiscalQuarter, year);
     
     // 12. Ensure waterBills document exists (prevent ghost status)
     const waterBillsRef = this.db
@@ -1189,9 +1342,82 @@ class WaterBillsService {
   }
 
   _calculatePenaltyStartDate(dueDate, penaltyDays) {
-    const date = new Date(dueDate);
+    const date = typeof dueDate === 'string' ? new Date(dueDate) : new Date(dueDate);
     date.setDate(date.getDate() + penaltyDays);
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Return ISO string with timezone offset to match old structure format
+    // Format: "YYYY-MM-DDTHH:mm:ss.SSS-05:00" (Cancun timezone)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}T00:00:00.000-05:00`; // Cancun timezone offset
+  }
+
+  /**
+   * VALIDATION: Verify bill structure matches expected format
+   * This prevents regressions by ensuring critical fields are present and correctly formatted
+   */
+  _validateBillStructure(billsData, fiscalQuarter, fiscalYear) {
+    const errors = [];
+    
+    // Validate top-level structure field order (critical for Statement of Account)
+    const requiredTopLevelFields = [
+      'billDate', 'dueDate', 'penaltyStartDate', 'billingPeriod', 
+      'fiscalYear', 'fiscalQuarter', 'quarterMonths', 'readingsIncluded',
+      'configSnapshot', 'bills', 'summary', 'metadata'
+    ];
+    
+    const actualTopLevelFields = Object.keys(billsData);
+    const missingFields = requiredTopLevelFields.filter(f => !actualTopLevelFields.includes(f));
+    
+    if (missingFields.length > 0) {
+      errors.push(`Missing required top-level fields: ${missingFields.join(', ')}`);
+    }
+    
+    // Validate billingPeriod
+    if (billsData.billingPeriod !== 'quarterly') {
+      errors.push(`billingPeriod must be exactly 'quarterly', got: ${billsData.billingPeriod}`);
+    }
+    
+    // Validate fiscalQuarter
+    if (billsData.fiscalQuarter !== fiscalQuarter) {
+      errors.push(`fiscalQuarter mismatch: expected ${fiscalQuarter}, got ${billsData.fiscalQuarter}`);
+    }
+    
+    // Validate fiscalYear
+    if (billsData.fiscalYear !== fiscalYear) {
+      errors.push(`fiscalYear mismatch: expected ${fiscalYear}, got ${billsData.fiscalYear}`);
+    }
+    
+    // Validate metadata.generatedBy exists (metadata field, not used for filtering)
+    if (!billsData.metadata?.generatedBy) {
+      errors.push('metadata.generatedBy is required');
+    }
+    
+    // Validate quarterMonths is an array
+    if (!Array.isArray(billsData.quarterMonths)) {
+      errors.push(`quarterMonths must be an array, got: ${typeof billsData.quarterMonths}`);
+    }
+    
+    // Validate dueDate format (must have timezone offset)
+    if (typeof billsData.dueDate === 'string' && !billsData.dueDate.includes('-05:00')) {
+      errors.push(`dueDate must include Cancun timezone offset (-05:00), got: ${billsData.dueDate}`);
+    }
+    
+    // Validate billDate format (must be UTC ISO)
+    if (typeof billsData.billDate === 'string' && !billsData.billDate.endsWith('Z')) {
+      errors.push(`billDate must be UTC ISO format (ending with Z), got: ${billsData.billDate}`);
+    }
+    
+    // Note: minimumCharge is stored as 0 for compatibility but not used (0 consumption = 0 bill)
+    
+    // Log validation results
+    if (errors.length > 0) {
+      console.error('❌ BILL STRUCTURE VALIDATION FAILED:');
+      errors.forEach(err => console.error(`  - ${err}`));
+      throw new Error(`Bill structure validation failed: ${errors.join('; ')}`);
+    } else {
+      console.log('✅ Bill structure validation passed - all critical fields present and correctly formatted');
+    }
   }
 }
 

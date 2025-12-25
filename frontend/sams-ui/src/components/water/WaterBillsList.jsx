@@ -6,7 +6,26 @@ import waterAPI from '../../api/waterAPI';
 import WaterPaymentModal from './WaterPaymentModal';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
 import { getOwnerInfo } from '../../utils/unitUtils';
+import { getMexicoDateString, getMexicoDate } from '../../utils/timezone';
+import { getFiscalYear, getCurrentFiscalMonth, getFiscalQuarter } from '../../utils/fiscalYearUtils';
 import './WaterBillsList.css';
+
+// Helper function to get current quarter based on fiscal month
+const getCurrentQuarter = (clientConfig) => {
+  if (!clientConfig) return 1; // Default to Q1
+  const fiscalYearStartMonth = clientConfig.configuration?.fiscalYearStartMonth || 7;
+  const currentDate = getMexicoDate();
+  const fiscalMonth = getCurrentFiscalMonth(currentDate, fiscalYearStartMonth);
+  return getFiscalQuarter(fiscalMonth);
+};
+
+// Helper function to get default due date (~15 days from now)
+const getDefaultDueDate = () => {
+  const today = getMexicoDate();
+  const defaultDate = new Date(today);
+  defaultDate.setDate(defaultDate.getDate() + 15);
+  return getMexicoDateString(defaultDate);
+};
 
 const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) => {
   console.log('🚀 [WaterBillsList] Component mounted with clientId:', clientId);
@@ -20,8 +39,8 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const navigate = useNavigate();
   const [billingConfig, setBillingConfig] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(0); // Start with July (month 0)
-  const [selectedQuarter, setSelectedQuarter] = useState(1); // For quarterly billing
-  const [selectedDueDate, setSelectedDueDate] = useState('');
+  const [selectedQuarter, setSelectedQuarter] = useState(() => getCurrentQuarter(selectedClient)); // For quarterly billing - default to current quarter
+  const [selectedDueDate, setSelectedDueDate] = useState(getDefaultDueDate());
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +48,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
   const [quarterlyBills, setQuarterlyBills] = useState([]);
   const [quarterlyLoading, setQuarterlyLoading] = useState(false);
   const [unitsWithOwners, setUnitsWithOwners] = useState([]); // Units with owner data
+  const [generationResult, setGenerationResult] = useState(null); // For minimal generator result display
   
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -236,6 +256,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
       setGenerating(true);
       setError('');
       setMessage('');
+      setGenerationResult(null);
       
       if (!selectedDueDate) {
         setError('Please select a due date before generating bills');
@@ -261,6 +282,76 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     } catch (error) {
       console.error('Error generating bills:', error);
       setError(error.response?.data?.error || 'Failed to generate bills');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Generate quarterly bill (minimal generator)
+  const generateQuarterlyBill = async () => {
+    try {
+      setGenerating(true);
+      setError('');
+      setMessage('');
+      setGenerationResult(null);
+      
+      if (!selectedDueDate) {
+        setError('Please select a due date before generating bills');
+        return;
+      }
+
+      // Get current fiscal year from client config
+      const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7;
+      const currentFiscalYear = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
+      
+      // Call backend endpoint for quarterly bill generation
+      // For quarterly: POST with { year, dueDate, quarter } - quarter parameter tells backend which quarter to generate
+      // The backend controller checks billingPeriod and handles quarterly vs monthly
+      const token = await waterAPI.getAuthToken();
+      const { config } = await import('../../config');
+      
+      const response = await fetch(
+        `${config.api.baseUrl}/water/clients/${clientId}/bills/generate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            year: currentFiscalYear, 
+            dueDate: selectedDueDate,
+            quarter: selectedQuarter // Pass selected quarter to backend
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Extract summary from response
+      const summary = result.data?.summary || {};
+      setGenerationResult({
+        success: true,
+        units: summary.totalUnits || 0,
+        total: summary.totalBilled || 0
+      });
+      
+      setMessage('Quarterly bill generated successfully!');
+      
+      // Refresh quarterly bills list
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await fetchQuarterlyBills();
+      
+    } catch (error) {
+      console.error('Error generating quarterly bill:', error);
+      const errorMessage = error.message || 'Failed to generate quarterly bill';
+      setError(errorMessage);
+      setGenerationResult(null);
     } finally {
       setGenerating(false);
     }
@@ -331,6 +422,77 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
 
   if (contextError) {
     return <div className="error-message">{contextError}</div>;
+  }
+
+  // MINIMAL QUARTERLY GENERATOR - Show simple generator for quarterly billing
+  if (isQuarterly) {
+    return (
+      <div className="water-bills-container">
+        <div className="quarterly-generator">
+          <h3>Generate Quarterly Water Bill</h3>
+          
+          <div className="generator-controls">
+            <label>
+              Quarter:
+              <select 
+                value={selectedQuarter} 
+                onChange={(e) => setSelectedQuarter(parseInt(e.target.value))}
+                className="quarter-dropdown"
+              >
+                <option value={1}>Q1 (Jul-Sep)</option>
+                <option value={2}>Q2 (Oct-Dec)</option>
+                <option value={3}>Q3 (Jan-Mar)</option>
+                <option value={4}>Q4 (Apr-Jun)</option>
+              </select>
+            </label>
+            
+            <label>
+              Due Date:
+              <input 
+                type="date" 
+                value={selectedDueDate} 
+                onChange={(e) => setSelectedDueDate(e.target.value)}
+                className="due-date-input"
+              />
+            </label>
+            
+            <button 
+              onClick={generateQuarterlyBill} 
+              disabled={generating || !selectedDueDate}
+              className="btn btn-primary generate-button"
+            >
+              {generating ? 'Generating...' : 'Generate Quarterly Bill'}
+            </button>
+          </div>
+          
+          {error && (
+            <div className="error-message">
+              <i className="fas fa-exclamation-triangle"></i> {error}
+            </div>
+          )}
+          
+          {message && (
+            <div className="success-message">
+              <i className="fas fa-check-circle"></i> {message}
+            </div>
+          )}
+          
+          {generationResult && generationResult.success && (
+            <div className="success-message">
+              ✅ Bill generated for {generationResult.units} units. 
+              Total billed: ${generationResult.total.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+              })}
+            </div>
+          )}
+          
+          <p className="info-text">
+            After generating, view bills in the Statement of Accounts report.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // For quarterly billing, get the selected quarter's bill
