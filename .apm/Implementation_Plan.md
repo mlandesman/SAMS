@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 19 - Task #92 Year-End Processing UI Complete (December 24, 2025)
-**Current Version:** v1.2.0 (in progress) - Year-End Processing Features
+**Last Modification:** Manager Agent 21 - GitHub Issues Sync + AVII Users Complete (December 25, 2025)
+**Current Version:** v1.5.1 (deployed) - Water Bills Quarterly Fixes + Email Language Support
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -12,44 +12,109 @@
 
 ---
 
-## 📋 NEW ISSUES INTEGRATED (December 23, 2025)
+## 📋 GITHUB ISSUES STATUS (Updated December 25, 2025)
 
-**Total New Issues:** 15 (3 Critical/High, 8 Medium, 4 Low)
+**Total Open Issues:** 33 (3 Critical/High, 15 Medium, 15 Low/Backlog)
 
-### Immediate Action Required
-- 🔥 **#95** - Transaction Edit Modal broken (CRITICAL) - **BLOCKS** transaction corrections
-- 🟡 **#59** - Account Balances don't auto-update after UPS payments (HIGH) - **IMPACTS** dashboard accuracy
+### 🔴 Critical/High Priority (Fix Immediately)
 
-### High Priority (Address Soon)
-- 🟡 **#66** - User/Unit Role System disconnected (HIGH) - Data integrity issue
-- 🟡 **#56** - Credit Balance context menu incomplete (HIGH) - Details modal missing
-- 🟡 **#48** - Create User needs maintenance role + auth bug (HIGH) - Login fails
+| Issue | Title | Priority | Status |
+|-------|-------|----------|--------|
+| **#107** | 500 Error when saving User edit modal | 🔥 BUG | 🔴 NEW - Blocking user management |
+| **#103** | Water readings off-by-one month after quarterly conversion | 🟡 HIGH | 🔴 OPEN |
+| **#105** | Water Bills quarterly refactor (105A ✅, 105B pending) | 🟡 HIGH | 🟡 PARTIAL - UI text cleanup pending |
 
-### Medium Priority (Schedule Soon)
-- 🟢 **#94** - Transaction Export (CSV/PDF) for filtered view
-- 🟢 **#79** - Email All 502 timeout (cosmetic)
-- 🟢 **#77** - Client-specific Statement footers
-- 🟢 **#75** - Version endpoint stale
-- 🟢 **#73** - Nightly Automated Backup + Retention (manual scripts DONE, automation remaining)
-- 🟢 **#61** - Version on login screen
-- 🟢 **#60** - MTC calling water routes (fails for MTC)
-- ✅ **#55** - Mini trend graphs in Statement - **COMPLETE** (2025-12-23)
-- 🟢 **#52** - Budget Dashboard Card no data
-- 🟢 **#50** - Bulk Administration Operations
-- 🟢 **#47** - PWA Dashboard card refactor
-- 🟢 **#53** - Manual Account Adjustments
+### 🟡 High Priority (Address Soon)
 
-### Low Priority (Backlog)
-- 🟢 **#96** - Dashboard Account Balances deduct Credit
-- 🟢 **#68** - Budget Entry Calculator
-- 🟢 **#51** - PWA Balance Card expandable
-- 🟢 **#49** - PWA Autologin biometrics
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#66** | User/Unit Role System disconnected | 🔴 OPEN - Data integrity issue |
+| **#56** | Credit Balance context menu incomplete | 🔴 OPEN - Details modal missing |
+| **#48** | Create User needs maintenance role + auth bug | 🔴 OPEN - Login fails |
 
-**Note:** Issue #95 (Transaction Edit Modal) may **BLOCK** year-end processing if transaction corrections are needed. Should be addressed before Dec 31.
+### 🟢 Medium Priority (Schedule Soon)
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#106** | Client-specific backup to Settings | 🔴 NEW |
+| **#104** | aggregatedData error - leftover code | 🔴 OPEN |
+| **#94** | Transaction Export (CSV/PDF) for filtered view | 🔴 OPEN |
+| **#79** | Email All 502 timeout (cosmetic) | 🔴 OPEN |
+| **#75** | Version endpoint stale | 🔴 OPEN |
+| **#61** | Version on login screen | 🔴 OPEN |
+| **#60** | MTC calling water routes (fails for MTC) | 🔴 OPEN |
+| **#52** | Budget Dashboard Card no data | 🔴 OPEN |
+| **#50** | Bulk Administration Operations | 🔴 OPEN |
+| **#47** | PWA Dashboard card refactor | 🔴 OPEN |
+| **#53** | Manual Account Adjustments | 🔴 OPEN |
+
+### 🔵 Low Priority (Backlog)
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#102** | Admin client for non-client activities | 🔴 NEW |
+| **#97** | Expense Entry confirmation modal aesthetics | 🔴 OPEN |
+| **#96** | Dashboard Account Balances deduct Credit | 🔴 OPEN |
+| **#68** | Budget Entry Calculator | 🔴 OPEN |
+| **#51** | PWA Balance Card expandable | 🔴 OPEN |
+| **#49** | PWA Autologin biometrics | 🔴 OPEN |
+| **#84** | Dashboard backdrop scrolling | 🔴 OPEN |
+| **#43** | Client Management 404 | 🔴 OPEN |
+| **#12** | Transaction Link modal formatting | 🔴 OPEN |
+
+### ✅ Recently Closed (December 23-25, 2025)
+
+| Issue | Title | Closed |
+|-------|-------|--------|
+| **#101** | Nightly Scheduler Cloud Function | Dec 24 ✅ |
+| **#100** | Print Button for Reports | Dec 24 ✅ |
+| **#99** | UPS transaction notes fix | Dec 24 ✅ |
+| **#98** | Credit Balance Activity Section | Dec 24 ✅ |
+| **#95** | Transaction Edit Modal fix | Dec 23 ✅ |
+| **#93** | Budget Split Income | Dec 23 ✅ |
+| **#92** | Year-End Processing UI | Dec 24 ✅ |
+| **#91** | Account Reconciliation Module | Dec 23 ✅ |
+| **#89** | UPS Bill Selection Checkboxes | Dec 23 ✅ |
+| **#88** | Budget Accrual Basis | Dec 23 ✅ |
+| **#85** | priorYearClosed Flag + Lookback | Dec 24 ✅ |
+| **#77** | Client-specific Statement footers | Dec 23 ✅ |
+| **#73** | Nightly Automated Backup + Retention | Dec 24 ✅ |
+| **#59** | UPS Account Balances recalc | Dec 24 ✅ |
+| **#55** | Mini Utility Graphs in Statement | Dec 24 ✅ |
+| **#38** | Firestore Backup System | Dec 23 ✅ |
+
+**Note:** Issue #107 (User Edit 500 Error) is a NEW bug discovered today. Needs investigation.
 
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.5.1 - Water Bills Q2 Fix + Email Language Support (December 25, 2025)
+**STATUS:** ✅ DEPLOYED - Production ready for Q2 statements
+
+#### Key Deliverables
+- ✅ **#105** (Task A) - Water Bills Q2 generation fixed - Bills now appear in Statement of Accounts
+- ✅ **Email Language Support** - `preferredLanguage` lookup fixed to read from `profile.preferredLanguage`
+- ✅ **AVII Users Created** - All 17 unit contacts verified in Firestore with correct language preferences
+  - 15 Spanish speakers (default)
+  - 2 English speakers (Jeff Ische, Gary Violette)
+- ✅ **Email Test Override** - Dev environment emails redirect to `sandyland.sams@gmail.com`
+- ✅ **Gmail Disclaimer** - Added formatting disclaimer to email templates
+- ✅ **Single Email Language** - `[Email]` button now sends in currently displayed language
+- ✅ **Production Verification Script** - `verify-avii-users.js` confirms user/auth alignment
+
+#### Files Modified
+- `emailService.js` - preferredLanguage lookup fix + email override + language parameter
+- `statementDataService.js` - preferredLanguage consistency fix
+- `StatementOfAccountTab.jsx` - language pass-through to email
+- `email.js` (routes) - language parameter support
+- `email.js` (frontend API) - language parameter
+
+#### Ready for Production
+- AVII Q2 water bills ready to generate
+- Year-end statements ready to send with correct language per user
+
+---
 
 ### v1.1.9 - Year-End Report Fixes (December 21, 2025)
 **STATUS:** ✅ COMPLETE - All blockers resolved
@@ -92,7 +157,7 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
 ---
 
 ### v1.2.0 - Year-End Processing Features (December 21-31, 2025)
-**STATUS:** 🔄 IN PROGRESS - Deadline Dec 31, 2025
+**STATUS:** ✅ CORE FEATURES COMPLETE - Ready for Year-End execution Dec 31, 2025
 
 #### Design Decisions (Confirmed by Michael - Dec 21, 2025)
 
@@ -209,6 +274,8 @@ If owner wanted credit to remain:
 | Dec 23 | ✅ #55 Mini Utility Graphs - COMPLETE |
 | Dec 23 | ✅ #98 Credit Balance Activity Section - COMPLETE |
 | Dec 24 | ✅ #99 UPS Credit History + Notes Fix - COMPLETE |
+| Dec 24 | ✅ #101 Nightly Scheduler Cloud Function - COMPLETE |
+| Dec 25 | ✅ #105 Water Bills Q2 Statement Fix - COMPLETE (v1.5.1) |
 | Dec 28-29 | Integration testing |
 | Dec 31 | 🎉 Execute Year-End for MTC |
 
@@ -379,20 +446,20 @@ If owner wanted credit to remain:
 
 ## 🚨 URGENT: CRITICAL BUGS (IMMEDIATE ATTENTION REQUIRED)
 
-**Status:** 🔴 BLOCKING PRODUCTION WORKFLOW
+**Status:** 🟡 ONE NEW BUG DISCOVERED
 
 ### Critical Priority Issues
 
 | Issue | Title | Priority | Impact | Status |
 |-------|-------|----------|--------|--------|
-| **#95** | Transaction Edit Modal does not read data properly | 🔥 CRITICAL | Core functionality broken - cannot edit transactions | 🔴 OPEN |
-| **#59** | UPS payment doesn't recalculate Account Balances | 🟡 HIGH | Dashboard shows stale data after payments | 🔴 OPEN |
+| **#107** | 500 Error when saving User edit modal | 🔥 BUG | Cannot update existing users | 🔴 **NEW** |
+| ~~**#95**~~ | ~~Transaction Edit Modal does not read data properly~~ | ~~CRITICAL~~ | ~~Fixed~~ | ✅ CLOSED Dec 23 |
+| ~~**#59**~~ | ~~UPS payment doesn't recalculate Account Balances~~ | ~~HIGH~~ | ~~Fixed~~ | ✅ CLOSED Dec 24 |
 
 **Action Required:**
-- **#95** - Transaction editing is broken. Fields are empty when opening edit modal. **BLOCKS** transaction corrections.
-- **#59** - Account balances don't auto-update after UPS payments. Manual recalculation required. **IMPACTS** user trust in dashboard.
+- **#107** - User Edit 500 Error: Saving edits to user documents fails with 500 error. Discovered Dec 25. Needs investigation.
 
-**Estimated Effort:** 2-4 hours each (4-8 hours total)
+**Estimated Effort:** 1-2 hours for #107
 
 ---
 
@@ -709,6 +776,17 @@ clients/MTC/projects/propaneTanks/readings/{year}-{month}
 ---
 
 ## 🐛 ACTIVE BUGS & HIGH PRIORITY ISSUES
+
+### New Issues (December 24-25, 2025)
+
+| GitHub # | Issue | Priority | Impact | Status |
+|----------|-------|----------|--------|--------|
+| **#107** | 500 Error when saving User edit modal | 🔥 CRITICAL | Cannot update existing users | 🔴 **NEW** |
+| **#106** | Client-specific backup to Settings | 🟢 MEDIUM | Enhancement for backup before major work | 🔴 NEW |
+| **#105** | Water Bills quarterly UI incomplete | 🟡 HIGH | 105A ✅ Done, 105B UI text pending | 🟡 PARTIAL |
+| **#104** | aggregatedData error after water save | 🟢 MEDIUM | Error shows but data saves correctly | 🔴 NEW |
+| **#103** | Water readings off-by-one month | 🟡 HIGH | Confusing UI after quarterly conversion | 🔴 NEW |
+| **#102** | Admin client for non-client activities | 🟢 LOW | Safer admin UX for non-client work | 🔴 NEW |
 
 ### High Priority (Address Soon)
 

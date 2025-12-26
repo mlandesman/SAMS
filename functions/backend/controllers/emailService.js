@@ -18,7 +18,102 @@ import { getApp } from '../firebase.js';
 
 import { DateTime } from 'luxon';
 
+// =============================================================================
+// EMAIL TESTING/DEV OVERRIDE
+// =============================================================================
+// In non-production environments, ALL emails are automatically redirected to
+// a test address. This prevents accidentally emailing real users from Dev.
+//
+// Production: Emails go to real recipients
+// Dev/Test:   Emails always go to sandyland.sams@gmail.com
+//
+// Override with: EMAIL_TEST_OVERRIDE=other@email.com (optional)
+// =============================================================================
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || 
+                       process.env.FIRESTORE_ENV === 'prod' ||
+                       process.env.GCLOUD_PROJECT === 'sams-sandyland-prod';
+
+// In Dev, always redirect to test email (can be overridden via env var if needed)
+const DEV_TEST_EMAIL = 'sandyland.sams@gmail.com';
+const EMAIL_TEST_OVERRIDE = IS_PRODUCTION ? null : (process.env.EMAIL_TEST_OVERRIDE || DEV_TEST_EMAIL);
+
+/**
+ * Apply test email override for non-production environments
+ * Keeps the original recipient name but swaps in the test email address
+ * Example: "Sofia Zerbarini <szerbarini@gmail.com>" → "Sofia Zerbarini <test@sandyland.com>"
+ * 
+ * @param {string|string[]|object|object[]} originalTo - Original recipient(s)
+ *        Can be: "email@example.com", "Name <email@example.com>", 
+ *                { name: "Name", address: "email@example.com" }, or arrays of these
+ * @returns {{ to: string|string[]|object|object[], wasOverridden: boolean }}
+ */
+function applyEmailOverride(originalTo) {
+  // In production, never override - emails go to real recipients
+  if (IS_PRODUCTION) {
+    return { to: originalTo, wasOverridden: false };
+  }
+  
+  // In Dev/Test, EMAIL_TEST_OVERRIDE is always set (defaults to sandyland.sams@gmail.com)
+  console.log(`📧 DEV MODE: Emails redirected to ${EMAIL_TEST_OVERRIDE}`);
+  
+  /**
+   * Extract name from various email formats
+   */
+  function extractName(recipient) {
+    if (!recipient) return null;
+    
+    // Object format: { name: "Name", address: "email@example.com" }
+    if (typeof recipient === 'object' && recipient.name) {
+      return recipient.name;
+    }
+    
+    // String format: "Name <email@example.com>"
+    if (typeof recipient === 'string') {
+      const match = recipient.match(/^([^<]+)\s*</);
+      if (match) {
+        return match[1].trim();
+      }
+      // Just an email address, no name
+      return null;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Convert a single recipient to test format
+   */
+  function convertRecipient(recipient) {
+    const name = extractName(recipient);
+    const originalEmail = typeof recipient === 'object' ? recipient.address : recipient;
+    
+    if (name) {
+      // "Original Name <test@email.com>"
+      return `${name} <${EMAIL_TEST_OVERRIDE}>`;
+    } else {
+      // No name, just use test email
+      return EMAIL_TEST_OVERRIDE;
+    }
+  }
+  
+  // Handle arrays
+  if (Array.isArray(originalTo)) {
+    const converted = originalTo.map(convertRecipient);
+    console.log(`📧 DEV: Email redirected - ${originalTo.length} recipient(s) → ${EMAIL_TEST_OVERRIDE}`);
+    originalTo.forEach((orig, i) => {
+      console.log(`   ${i + 1}. ${typeof orig === 'object' ? orig.address || orig.name : orig} → ${converted[i]}`);
+    });
+    return { to: converted, wasOverridden: true };
+  }
+  
+  // Handle single recipient
+  const converted = convertRecipient(originalTo);
+  const originalStr = typeof originalTo === 'object' ? originalTo.address || originalTo.name : originalTo;
+  console.log(`📧 DEV: Email redirected: ${originalStr} → ${converted}`);
+  
+  return { to: converted, wasOverridden: true };
+}
 
 /**
  * Create Gmail transporter for sending emails
@@ -234,14 +329,17 @@ async function sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientD
       });
     }
     
+    // Apply test email override for non-production environments
+    const { to: finalRecipients, wasOverridden } = applyEmailOverride(recipientEmails);
+    
     // Prepare email options
     const mailOptions = {
       from: {
         name: emailConfig.fromName || 'Marina Turquesa Condominiums',
         address: emailConfig.fromEmail || 'ms@landesman.com'
       },
-      to: recipientEmails,
-      cc: emailConfig.ccList || [],
+      to: finalRecipients,
+      cc: wasOverridden ? [] : (emailConfig.ccList || []),  // Skip CC in test mode
       subject: subject,
       html: htmlBody,
       replyTo: emailConfig.replyTo || emailConfig.fromEmail,
@@ -249,8 +347,8 @@ async function sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientD
     };
     
     console.log('📤 Sending email to:', {
-      to: recipientEmails,
-      cc: emailConfig.ccList,
+      to: finalRecipients,
+      cc: wasOverridden ? '(skipped in test mode)' : emailConfig.ccList,
       subject: subject,
       attachmentCount: attachments.length
     });
@@ -422,13 +520,8 @@ async function sendWaterBillEmail(clientId, unitNumber, billingPeriod, userLangu
     const processedSubject = processWaterBillTemplate(subjectTemplate, templateVariables);
     const processedBody = processWaterBillTemplate(bodyTemplate, templateVariables);
     
-    // TEST MODE: Override emails for testing
-    let finalRecipients = recipientEmails;
-    const testEmailOverride = process.env.TEST_EMAIL_OVERRIDE;
-    if (testEmailOverride) {
-      console.log('🧪 TEST MODE: Overriding recipient emails to:', testEmailOverride);
-      finalRecipients = [testEmailOverride];
-    }
+    // Apply test email override for non-production environments
+    const { to: finalRecipients, wasOverridden } = applyEmailOverride(recipientEmails);
     
     // Create email transporter
     const transporter = createGmailTransporter();
@@ -456,7 +549,7 @@ async function sendWaterBillEmail(clientId, unitNumber, billingPeriod, userLangu
         address: emailConfig.fromEmail || 'ms@landesman.com'
       },
       to: finalRecipients,
-      cc: emailConfig.ccList || [],
+      cc: wasOverridden ? [] : (emailConfig.ccList || []),  // Skip CC in test mode
       subject: processedSubject,
       html: processedBody,
       replyTo: emailConfig.replyTo || emailConfig.fromEmail
@@ -464,7 +557,7 @@ async function sendWaterBillEmail(clientId, unitNumber, billingPeriod, userLangu
     
     console.log('📤 Sending water bill email:', {
       to: finalRecipients,
-      cc: emailConfig.ccList,
+      cc: wasOverridden ? '(skipped in test mode)' : emailConfig.ccList,
       subject: processedSubject,
       language: templateLang
     });
@@ -564,7 +657,10 @@ async function getUnitEmailLanguage(unit, clientId) {
     return clientDoc.data()?.configuration?.defaultLanguage || 'english';
   }
   
-  const preferredLang = userSnapshot.docs[0].data().preferredLanguage;
+  const userData = userSnapshot.docs[0].data();
+  // Canonical location is profile.preferredLanguage
+  // Fall back to top-level for backwards compatibility with older user docs
+  const preferredLang = userData.profile?.preferredLanguage || userData.preferredLanguage;
   return preferredLang === 'spanish' || preferredLang === 'es' ? 'spanish' : 'english';
 }
 
@@ -716,6 +812,9 @@ function getDefaultStatementTemplate() {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
   <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <p style="font-size: 11px; color: #666; margin: 0 0 15px 0; padding: 8px 12px; background: #f0f0f0; border-radius: 4px;">
+      ℹ️ If this email doesn't display correctly, please download the PDF version below.
+    </p>
 <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
       <p>Dear __OwnerName__,</p>
       <p>Please find below your Statement of Account for Fiscal Year __FiscalYearLabel__. This statement reflects all charges, payments, and your current balance as of __StatementDate__.</p>
@@ -749,6 +848,9 @@ function getDefaultStatementTemplate() {
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
   <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <p style="font-size: 11px; color: #666; margin: 0 0 15px 0; padding: 8px 12px; background: #f0f0f0; border-radius: 4px;">
+      ℹ️ Si este correo no se muestra correctamente, descargue la versión PDF a continuación.
+    </p>
 <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
       <p>Estimado/a __OwnerName__,</p>
       <p>A continuación encontrará su Estado de Cuenta para el Año Fiscal __FiscalYearLabel__. Este estado refleja todos los cargos, pagos y su saldo actual al __StatementDate__.</p>
@@ -791,9 +893,9 @@ function getDefaultStatementTemplate() {
 /**
  * Send Statement of Account email to unit owners/managers
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null) {
   try {
-    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})`);
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}`);
     
     const db = await getDb();
     
@@ -818,8 +920,9 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       return { success: false, error: 'No owner email addresses found for this unit' };
     }
     
-    // Get language preference
-    const language = await getUnitEmailLanguage(unit, clientId);
+    // Get language: use override if provided (single email from Report View), 
+    // otherwise look up user's preferred language (Email All)
+    const language = languageOverride || await getUnitEmailLanguage(unit, clientId);
     
     // Get client info
     const clientDoc = await db.collection('clients').doc(clientId).get();
@@ -887,12 +990,15 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     const subject = processWaterBillTemplate(isSpanish ? template.subject_es : template.subject_en, variables);
     const body = processWaterBillTemplate(isSpanish ? template.body_es : template.body_en, variables);
     
+    // Apply test email override for non-production environments
+    const { to: finalToEmails, wasOverridden } = applyEmailOverride(toEmails);
+    
     // Send email
     const transporter = createGmailTransporter();
     const info = await transporter.sendMail({
       from: { name: `${clientName} Administrators`, address: 'pm@sandyland.com.mx' },
-      to: toEmails,
-      cc: ccEmails.length > 0 ? ccEmails : undefined,
+      to: finalToEmails,
+      cc: wasOverridden ? undefined : (ccEmails.length > 0 ? ccEmails : undefined),  // Skip CC in test mode
       subject: subject,
       html: body,
       replyTo: 'pm@sandyland.com.mx'
@@ -905,11 +1011,11 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       parentPath: `clients/${clientId}/units/${unitId}`,
       docId: unitId,
       friendlyName: `Statement email for Unit ${unitId}`,
-      notes: `Sent to: ${toEmails.join(', ')}. CC: ${ccEmails.join(', ') || 'none'}. Language: ${language}`,
+      notes: `Sent to: ${toEmails.join(', ')}${wasOverridden ? ' (redirected to test)' : ''}. CC: ${ccEmails.join(', ') || 'none'}. Language: ${language}`,
       userId: user.uid
     });
     
-    return { success: true, to: toEmails, cc: ccEmails, language, messageId: info.messageId };
+    return { success: true, to: toEmails, cc: ccEmails, language, messageId: info.messageId, wasOverridden };
     
   } catch (error) {
     console.error('❌ Error sending statement email:', error);

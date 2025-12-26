@@ -418,10 +418,11 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     setEmailResult(null);
     
     try {
-      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear);
+      // Pass current display language so email matches what user is viewing
+      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language);
       setEmailResult({ 
         success: true, 
-        message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''}` 
+        message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''} (${language})` 
       });
     } catch (error) {
       console.error('Failed to send statement email:', error);

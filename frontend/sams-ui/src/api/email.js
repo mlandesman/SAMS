@@ -47,10 +47,16 @@ async function getAuthHeaders() {
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
  * @param {number} fiscalYear - Fiscal year
+ * @param {string} language - Optional language override (send in display language instead of user preference)
  * @returns {Promise<Object>} Result with success status and recipient info
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null) {
   const headers = await getAuthHeaders();
+  
+  const body = { unitId, fiscalYear };
+  if (language) {
+    body.language = language;  // Override: send in current display language
+  }
   
   const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-statement`, {
     method: 'POST',
@@ -59,7 +65,7 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear) {
       'Content-Type': 'application/json'
     },
     credentials: 'include',
-    body: JSON.stringify({ unitId, fiscalYear })
+    body: JSON.stringify(body)
   });
   
   const result = await response.json();

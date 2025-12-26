@@ -2490,8 +2490,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
         return {
           email: userData.email,
           displayName: userData.displayName || userData.name || null,
-          preferredCurrency: userData.profile?.preferredCurrency || null,
-          preferredLanguage: userData.profile?.preferredLanguage || null,
+          preferredCurrency: userData.profile?.preferredCurrency || userData.preferredCurrency || null,
+          preferredLanguage: userData.profile?.preferredLanguage || userData.preferredLanguage || null,
           notifications: userData.notifications || {},
           role: userData.role || userData.globalRole || null
         };
@@ -2543,8 +2543,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
             return {
               email: email,
               displayName: userData?.displayName || null,
-              preferredCurrency: userData?.preferredCurrency || null,
-              preferredLanguage: userData?.preferredLanguage || null,
+              preferredCurrency: userData?.profile?.preferredCurrency || userData?.preferredCurrency || null,
+              preferredLanguage: userData?.profile?.preferredLanguage || userData?.preferredLanguage || null,
               notifications: userData?.notifications || {},
               role: userData?.role || null
             };

@@ -332,7 +332,7 @@ router.post('/generate-pdfs', authenticateUserWithProfile, async (req, res) => {
 router.post('/send-statement', async (req, res) => {
   try {
     const clientId = req.params.clientId;
-    const { unitId, fiscalYear } = req.body;
+    const { unitId, fiscalYear, language } = req.body;  // language is optional override
     const user = req.user;
     
     if (!clientId) {
@@ -356,13 +356,14 @@ router.post('/send-statement', async (req, res) => {
       });
     }
     
-    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})`);
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${language ? ` [language override: ${language}]` : ''}`);
     
     // Extract auth token from request headers
     const authHeader = req.headers.authorization || req.headers.Authorization;
     const authToken = authHeader ? authHeader.replace('Bearer ', '') : null;
     
-    const result = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken);
+    // Pass language override if provided (for single email from Report View)
+    const result = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken, language);
     
     if (result.success) {
       res.json({ success: true, message: 'Statement email sent successfully', ...result });
