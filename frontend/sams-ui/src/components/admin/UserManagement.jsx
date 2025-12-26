@@ -14,6 +14,7 @@ import { useSecureApi } from '../../api/secureApiClient';
 import { getUnits } from '../../api/units';
 import { LoadingSpinner } from '../common';
 import { formatUnitDisplay } from '../../utils/unitDisplayUtils';
+import { fetchClients } from '../../utils/fetchClients';
 import './UserManagement.css';
 
 const UserManagement = ({ 
@@ -407,6 +408,25 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
   const [creationResult, setCreationResult] = useState(null);
   const [availableUnits, setAvailableUnits] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [availableClients, setAvailableClients] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // Fetch available clients when modal opens
+  useEffect(() => {
+    const loadClients = async () => {
+      setLoadingClients(true);
+      try {
+        const clients = await fetchClients();
+        setAvailableClients(clients || []);
+      } catch (error) {
+        console.error('Failed to load clients:', error);
+        setAvailableClients([]);
+      } finally {
+        setLoadingClients(false);
+      }
+    };
+    loadClients();
+  }, []);
 
   // Fetch units when client ID or role changes for unit-specific roles
   useEffect(() => {
@@ -546,7 +566,7 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
               />
             </div>
             <div className="form-group half">
-              <label htmlFor="name">Full Name:</label>
+              <label htmlFor="name">Display Name:</label>
               <input
                 type="text"
                 id="name"
@@ -570,20 +590,32 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
                 <option value="unitOwner">Unit Owner</option>
                 <option value="unitManager">Unit Manager</option>
                 {isSuperAdmin && <option value="admin">Admin</option>}
+                {isSuperAdmin && <option value="maintenance">Maintenance</option>}
                 {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
               </select>
             </div>
             {formData.role !== 'superAdmin' && (
               <div className="form-group half">
                 <label htmlFor="clientId">Client:</label>
-                <input
-                  type="text"
-                  id="clientId"
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({...formData, clientId: e.target.value})}
-                  required
-                  placeholder="e.g., MTC, AVII"
-                />
+                {loadingClients ? (
+                  <div style={{ padding: '12px', fontStyle: 'italic', color: '#666', border: '1px solid #ddd', borderRadius: '4px' }}>
+                    Loading clients...
+                  </div>
+                ) : (
+                  <select
+                    id="clientId"
+                    value={formData.clientId}
+                    onChange={(e) => setFormData({...formData, clientId: e.target.value, unitId: ''})}
+                    required
+                  >
+                    <option value="">Select Client...</option>
+                    {availableClients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.basicInfo?.fullName || client.name || client.id}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
           </div>
@@ -1262,7 +1294,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
               <input type="text" value={user.email} disabled />
             </div>
             <div className="form-group half">
-              <label htmlFor="name">Full Name:</label>
+              <label htmlFor="name">Display Name:</label>
               <input
                 type="text"
                 id="name"
@@ -1314,6 +1346,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                   <option value="admin">Admin</option>
                   <option value="unitOwner">Unit Owner</option>
                   <option value="unitManager">Unit Manager</option>
+                  <option value="maintenance">Maintenance</option>
                   <option value="superAdmin">Super Admin</option>
                 </select>
               </div>

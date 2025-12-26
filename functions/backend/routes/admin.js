@@ -19,6 +19,7 @@ import {
   updateUser,
   addClientAccess,
   removeClientAccess,
+  updateUserPropertyAccess,
   deleteUser,
   addUnitRoleAssignment,
   removeUnitRoleAssignment
@@ -74,6 +75,13 @@ router.delete('/users/:userId/clients/:clientId',
   requirePermission('users.manage'),
   logSecurityEvent('ADMIN_USER_CLIENT_ACCESS_REMOVE'),
   removeClientAccess
+);
+
+// Update user propertyAccess for a specific client (used for unit assignment sync)
+router.patch('/users/:userId/property-access/:clientId',
+  requirePermission('users.manage'),
+  logSecurityEvent('ADMIN_USER_PROPERTY_ACCESS_UPDATE'),
+  updateUserPropertyAccess
 );
 
 // REMOVED: Legacy manager assignment routes have been replaced by unit role assignment routes below

@@ -352,7 +352,7 @@ export async function createUser(req, res) {
     }
 
     // Validate role
-    const validRoles = ['admin', 'unitOwner', 'unitManager'];
+    const validRoles = ['admin', 'unitOwner', 'unitManager', 'maintenance'];
     
     // Only SuperAdmin can create other SuperAdmins
     if (role === 'superAdmin') {
@@ -366,7 +366,7 @@ export async function createUser(req, res) {
     
     if (!validRoles.includes(role)) {
       return res.status(400).json({ 
-        error: 'Invalid role. Must be one of: admin, unitOwner, unitManager, superAdmin (SuperAdmin only)' 
+        error: 'Invalid role. Must be one of: admin, unitOwner, unitManager, maintenance, superAdmin (SuperAdmin only)' 
       });
     }
 
@@ -379,8 +379,8 @@ export async function createUser(req, res) {
       }
 
       // Admins cannot create other admins or escalate privileges
-      const userClientAccess = creatingUser.getClientAccess(clientId);
-      if (userClientAccess.role !== 'admin') {
+      const userClientAccess = creatingUser.getPropertyAccess(clientId);
+      if (userClientAccess?.role !== 'admin') {
         return res.status(403).json({ 
           error: 'Only admins can create users for their clients' 
         });
@@ -600,7 +600,10 @@ export async function getUsers(req, res) {
   try {
     const requestingUser = req.user;
     const db = await getDb();
+    const { clientId } = req.query; // Support optional clientId filter
     // admin is already imported at the top of the file
+
+    console.log(`🔍 getUsers called - clientId: ${clientId}, user: ${requestingUser.email}, isSuperAdmin: ${requestingUser.isSuperAdmin()}`);
 
     let usersQuery = db.collection('users');
     let users = [];
@@ -608,14 +611,29 @@ export async function getUsers(req, res) {
     if (requestingUser.isSuperAdmin()) {
       // SuperAdmin can see all users
       const snapshot = await usersQuery.get();
-      users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log(`📊 Total users in Firestore: ${allUsers.length}`);
+      
+      if (clientId) {
+        // Filter by clientId if provided
+        users = allUsers.filter(user => {
+          const hasAccess = user.propertyAccess?.[clientId] != null;
+          if (!hasAccess && user.email) {
+            console.log(`  ⚠️  User ${user.email} (${user.id}) does not have propertyAccess for ${clientId}`);
+          }
+          return hasAccess;
+        });
+        console.log(`✅ Users with propertyAccess to ${clientId}: ${users.length}`);
+      } else {
+        users = allUsers;
+      }
     } else {
       // Regular users can only see users from their assigned clients
       const snapshot = await usersQuery.get();
       const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       // Filter users to only those in shared clients
-      users = allUsers.filter(user => {
+      let filteredUsers = allUsers.filter(user => {
         if (!user.propertyAccess) return false;
         
         const userClients = Object.keys(user.propertyAccess);
@@ -624,9 +642,17 @@ export async function getUsers(req, res) {
         // Check if there's any overlap in client access
         return userClients.some(clientId => requestingUserClients.includes(clientId));
       });
+      
+      // If clientId filter is provided, further filter by that client
+      if (clientId) {
+        filteredUsers = filteredUsers.filter(user => user.propertyAccess?.[clientId] != null);
+      }
+      
+      users = filteredUsers;
     }
 
     // Enhance users with Firebase Auth metadata (including lastSignInTime)
+    // Note: Users without Firebase Auth records are still returned (orphaned Firestore docs)
     const enhancedUsers = await Promise.all(users.map(async (user) => {
       try {
         const authUser = await admin.auth().getUser(user.id);
@@ -640,7 +666,8 @@ export async function getUsers(req, res) {
         };
       } catch (authError) {
         // If Firebase Auth user doesn't exist, return user without metadata
-        console.warn(`Firebase Auth user not found for user ID ${user.id}:`, authError.message);
+        // This is OK - user exists in Firestore but Auth record was deleted
+        console.warn(`Firebase Auth user not found for user ID ${user.id} (${user.email || 'no email'}):`, authError.message);
         return {
           ...user,
           firebaseMetadata: {
@@ -654,6 +681,12 @@ export async function getUsers(req, res) {
 
     // Sanitize user data based on requesting user's permissions
     const sanitizedUsers = enhancedUsers.map(user => sanitizeUserData(user, requestingUser));
+
+    console.log(`✅ Returning ${sanitizedUsers.length} users (clientId filter: ${clientId || 'none'})`);
+    if (clientId && sanitizedUsers.length === 0) {
+      console.warn(`⚠️  No users found with propertyAccess for clientId: ${clientId}`);
+      console.warn(`   This might mean users exist but don't have propertyAccess[${clientId}] set up`);
+    }
 
     res.json({
       success: true,
@@ -780,7 +813,7 @@ export async function updateUser(req, res) {
       // Check if updating user is admin for any of the target user's clients
       const targetUserClients = Object.keys(currentUserData.propertyAccess || {});
       const hasAdminRights = targetUserClients.some(clientId => {
-        const access = updatingUser.getClientAccess(clientId);
+        const access = updatingUser.getPropertyAccess(clientId);
         return access?.role === 'admin';
       });
 
@@ -1043,8 +1076,8 @@ export async function addClientAccess(req, res) {
         return res.status(403).json({ error: propertyAccess.reason });
       }
 
-      const userClientAccess = assigningUser.getClientAccess(clientId);
-      if (userClientAccess.role !== 'admin') {
+      const userClientAccess = assigningUser.getPropertyAccess(clientId);
+      if (userClientAccess?.role !== 'admin') {
         return res.status(403).json({ 
           error: 'Only admins can assign client access' 
         });
@@ -1115,8 +1148,8 @@ export async function removeClientAccess(req, res) {
         return res.status(403).json({ error: propertyAccess.reason });
       }
 
-      const userClientAccess = removingUser.getClientAccess(clientId);
-      if (userClientAccess.role !== 'admin') {
+      const userClientAccess = removingUser.getPropertyAccess(clientId);
+      if (userClientAccess?.role !== 'admin') {
         return res.status(403).json({ 
           error: 'Only admins can remove client access' 
         });
@@ -1159,6 +1192,107 @@ export async function removeClientAccess(req, res) {
     console.error('Error removing client access:', error);
     res.status(500).json({ 
       error: 'Failed to remove client access',
+      details: error.message 
+    });
+  }
+}
+
+/**
+ * Update user propertyAccess for a specific client
+ * Used to sync unitId when units are assigned/removed
+ */
+export async function updateUserPropertyAccess(req, res) {
+  try {
+    const { userId, clientId } = req.params;
+    const { role, unitId } = req.body;
+    const updatingUser = req.user;
+
+    // Validate inputs
+    if (!userId || !clientId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, clientId' 
+      });
+    }
+
+    // Only SuperAdmin or admins can update propertyAccess
+    if (!updatingUser.isSuperAdmin()) {
+      const propertyAccess = validateClientAccess(updatingUser, clientId);
+      if (!propertyAccess.allowed) {
+        return res.status(403).json({ error: propertyAccess.reason });
+      }
+
+      const userClientAccess = updatingUser.getPropertyAccess(clientId);
+      if (userClientAccess?.role !== 'admin') {
+        return res.status(403).json({ 
+          error: 'Only admins can update property access' 
+        });
+      }
+    }
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+    
+    // Ensure propertyAccess exists
+    const currentPropertyAccess = userData.propertyAccess || {};
+    const currentClientAccess = currentPropertyAccess[clientId] || {};
+    
+    // Build update data
+    const updateData = {};
+    if (role !== undefined) {
+      updateData[`propertyAccess.${clientId}.role`] = role;
+    }
+    if (unitId !== undefined) {
+      updateData[`propertyAccess.${clientId}.unitId`] = unitId;
+    }
+    
+    // Preserve other fields in propertyAccess[clientId]
+    if (!updateData[`propertyAccess.${clientId}.role`] && currentClientAccess.role) {
+      updateData[`propertyAccess.${clientId}.role`] = currentClientAccess.role;
+    }
+    if (!updateData[`propertyAccess.${clientId}.unitId`] && currentClientAccess.unitId) {
+      updateData[`propertyAccess.${clientId}.unitId`] = currentClientAccess.unitId;
+    }
+    if (currentClientAccess.permissions) {
+      updateData[`propertyAccess.${clientId}.permissions`] = currentClientAccess.permissions;
+    }
+    if (currentClientAccess.addedDate) {
+      updateData[`propertyAccess.${clientId}.addedDate`] = currentClientAccess.addedDate;
+    }
+    if (currentClientAccess.addedBy) {
+      updateData[`propertyAccess.${clientId}.addedBy`] = currentClientAccess.addedBy;
+    }
+
+    // Add lastModifiedDate if not present
+    updateData.lastModifiedDate = getNow().toISOString();
+    updateData.lastModifiedBy = updatingUser.email;
+
+    await db.collection('users').doc(userId).update(updateData);
+
+    // Log the access update
+    await writeAuditLog({
+      module: 'user_management',
+      action: 'user.property_access_updated',
+      parentPath: '/users',
+      docId: userId,
+      friendlyName: `Property access updated for ${userData.name || userData.email}`,
+      notes: `Updated propertyAccess for ${clientId}${role ? ` (role: ${role})` : ''}${unitId !== undefined ? ` (unitId: ${unitId || 'cleared'})` : ''} by ${updatingUser.email}`
+    });
+
+    res.json({
+      success: true,
+      message: `Property access updated for ${clientId}`
+    });
+
+  } catch (error) {
+    console.error('Error updating property access:', error);
+    res.status(500).json({ 
+      error: 'Failed to update property access',
       details: error.message 
     });
   }
