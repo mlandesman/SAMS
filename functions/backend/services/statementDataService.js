@@ -1035,9 +1035,10 @@ function createChronologicalTransactionList(
   transactions.push(...hoaPenalties);
   transactions.push(...waterPenalties);
   
-  // REMOVED: Credit adjustments should NOT appear as line items on Statement
-  // Credit is a separate ledger - show in summary footer, not as transaction lines
-  // transactions.push(...creditAdjustments);
+  // Credit adjustments MUST appear as line items for running balance to be correct
+  // When credit is USED to pay a bill, it reduces the balance due just like a cash payment
+  // The Credit Activity table at the bottom shows the full history separately
+  transactions.push(...creditAdjustments);
   
   // Sort chronologically by date
   transactions.sort((a, b) => {
@@ -1890,44 +1891,45 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // ONLY include credit entries explicitly marked as manual admin adjustments
-            // All other credit entries (from payments, migrations, etc.) are already reflected in:
-            // - Payment transaction amounts (deposits include overpayments)
-            // - Opening balance calculation (sums all history up to fiscal year start)
-            // Including non-manual entries causes double-counting
-            if (entry.source !== 'manual') {
-              continue; // Skip ALL non-manual entries - only show admin adjustments
-            }
+            // Include ALL credit entries during the fiscal year (not just manual)
+            // credit_used entries represent credit applied to pay bills - they reduce balance due
+            // credit_added entries represent overpayments that add to credit - they also reduce balance due
+            // Note: Opening balance already includes all credit activity BEFORE fiscal year start,
+            // so we only include entries WITHIN the fiscal year here to avoid double-counting
             
             // Use amount field as single source of truth (new architecture)
             // amount is in centavos: positive = credit added, negative = credit used
             const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const entryAmountPesos = centavosToPesos(entryAmountCentavos);
             
-            // For running balance: credit reduces debt
-            // credit_added (positive amount) = negative in running balance (reduces debt)
-            // credit_used (negative amount) = positive in running balance (increases debt)
-            const adjustmentAmount = -entryAmountPesos; // Negate because credit reduces debt
+            // For running balance calculation:
+            // credit_used (negative amount in creditBalances) = PAYMENT (reduces balance due)
+            //   Example: credit_used -$3,400 means $3,400 was applied to pay bills
+            //   In Statement: shows as -$3,400 (payment), reducing balance
+            // credit_added (positive amount in creditBalances) = PAYMENT (also reduces balance due)
+            //   Example: credit_added +$5,500 means owner overpaid by $5,500
+            //   In Statement: shows as -$5,500 (payment/credit available)
+            // Both types reduce the running balance (like payments)
             
-            // For credit adjustments:
-            // credit_added = negative amount (reduces debt) = show as payment (negative in running balance)
-            // credit_used = positive amount (increases debt) = show as charge (positive in running balance)
-            const isCreditAdded = entry.type === 'credit_added';
+            // credit_used: entry.amount is negative (e.g., -3400), keep as-is for Statement
+            // credit_added: entry.amount is positive (e.g., +5500), negate for Statement
+            // Result: both show as negative (reducing balance due)
+            const isCreditUsed = entry.type === 'credit_used';
+            const adjustmentAmount = isCreditUsed ? entryAmountPesos : -entryAmountPesos;
             
-            // Build description - include transaction reference if available
-            let description = entry.note || entry.description || `Credit ${entry.type === 'credit_added' ? 'Added' : 'Used'}`;
-            if (entry.transactionId) {
-              description += ` (Transaction ${entry.transactionId})`;
-            }
+            // Build description - use notes field, fallback to type
+            let description = entry.notes || entry.note || entry.description || 
+              `Credit ${entry.type === 'credit_added' ? 'Added' : 'Applied'}`;
             
+            // Both credit_used and credit_added are like payments (reduce balance due)
             creditAdjustments.push({
               type: 'credit_adjustment',
               category: 'credit',
               date: entryDate,
               description: description,
-              amount: adjustmentAmount, // Negative for credit_added, positive for credit_used
-              charge: isCreditAdded ? 0 : Math.abs(adjustmentAmount), // credit_used shows as charge
-              payment: isCreditAdded ? Math.abs(adjustmentAmount) : 0, // credit_added shows as payment
+              amount: adjustmentAmount, // Always negative (reduces balance)
+              charge: 0, // Never a charge
+              payment: Math.abs(adjustmentAmount), // Always a payment
               balance: 0, // Will be set later when calculating running balance
               transactionId: entry.transactionId || null, // Include transactionId for reference
               creditAdjustmentRef: {
