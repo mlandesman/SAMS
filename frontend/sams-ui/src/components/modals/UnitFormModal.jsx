@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
+import UserPicker from '../common/UserPicker.jsx';
+import { userAPI } from '../../api/user.js';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -12,8 +14,8 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     unitId: '',
     unitName: '',
-    owners: [],  // Array of {name, email} objects
-    managers: [], // Array of {name, email} objects
+    owners: [],  // Array of {name, email, userId?} objects
+    managers: [], // Array of {name, email, userId?} objects
     address: '',
     status: 'active',
     squareFeet: '',
@@ -62,7 +64,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
 
   // When a unit is provided for editing, populate the form
   useEffect(() => {
-    if (unit) {
+    if (unit && selectedClient?.id) {
       // Normalize owners/managers to new structure
       let normalizedOwners = normalizeOwners(unit.owners);
       const normalizedManagers = normalizeManagers(unit.managers);
@@ -72,7 +74,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         normalizedOwners = migrateEmailsToOwners(unit.owners, unit.emails);
       }
       
-      // Clean up owners/managers emails (trim whitespace)
+      // Clean up owners/managers emails (trim whitespace, preserve case for display)
       const cleanedOwners = normalizedOwners.map(owner => ({
         ...owner,
         email: owner.email ? owner.email.trim() : ''
@@ -82,10 +84,112 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         email: manager.email ? manager.email.trim() : ''
       }));
       
+      // Try to match existing owners/managers to users by email and add userId field
+      const matchOwnersToUsers = async () => {
+        let ownersWithIds = [...cleanedOwners];
+        let managersWithIds = [...cleanedManagers];
+        
+        // Match owners to users by email
+        if (ownersWithIds.length > 0) {
+          try {
+            const users = await userAPI.getUsersByClient(selectedClient.id);
+            ownersWithIds = ownersWithIds.map(owner => {
+              // If userId already exists, keep it
+              if (owner.userId) return owner;
+              
+              // Otherwise, try to match by email
+              if (owner.email) {
+                const matchedUser = users.find(u => 
+                  u.email && u.email.toLowerCase() === owner.email.toLowerCase()
+                );
+                if (matchedUser) {
+                  console.log(`✅ Matched owner ${owner.email} to user ${matchedUser.id} (${matchedUser.name || matchedUser.email})`);
+                  return { ...owner, userId: matchedUser.id };
+                } else {
+                  console.log(`⚠️  No user found for owner email: ${owner.email}`);
+                }
+              }
+              return owner;
+            });
+          } catch (error) {
+            console.error('Error matching owners to users:', error);
+          }
+        }
+        
+        // Match managers to users by email
+        if (managersWithIds.length > 0) {
+          try {
+            const users = await userAPI.getUsersByClient(selectedClient.id);
+            managersWithIds = managersWithIds.map(manager => {
+              // If userId already exists, keep it
+              if (manager.userId) return manager;
+              
+              // Otherwise, try to match by email
+              if (manager.email) {
+                const matchedUser = users.find(u => 
+                  u.email && u.email.toLowerCase() === manager.email.toLowerCase()
+                );
+                if (matchedUser) {
+                  console.log(`✅ Matched manager ${manager.email} to user ${matchedUser.id} (${matchedUser.name || matchedUser.email})`);
+                  return { ...manager, userId: matchedUser.id };
+                } else {
+                  console.log(`⚠️  No user found for manager email: ${manager.email}`);
+                }
+              }
+              return manager;
+            });
+          } catch (error) {
+            console.error('Error matching managers to users:', error);
+          }
+        }
+        
+        // If no owners, start with one empty picker
+        if (ownersWithIds.length === 0) {
+          ownersWithIds = [{ name: '', email: '', userId: null }];
+        }
+        
+        setFormData({
+          unitId: unit.unitId || '',
+          unitName: unit.unitName || '',
+          owners: ownersWithIds,
+          managers: managersWithIds,
+          address: unit.address || '',
+          status: unit.status || 'Occupied',
+          squareFeet: unit.squareFeet || '',
+          percentOwned: unit.percentOwned || '',
+          duesAmount: unit.duesAmount || '',
+          type: unit.type || 'condo',
+          accessCode: unit.accessCode || '',
+          notes: unit.notes || ''
+        });
+      };
+      
+      matchOwnersToUsers();
+    } else if (unit) {
+      // Unit provided but no client selected - use basic initialization
+      let normalizedOwners = normalizeOwners(unit.owners);
+      const normalizedManagers = normalizeManagers(unit.managers);
+      
+      if (unit.emails && (Array.isArray(unit.emails) || typeof unit.emails === 'string')) {
+        normalizedOwners = migrateEmailsToOwners(unit.owners, unit.emails);
+      }
+      
+      // Preserve userId if it exists, otherwise set to null
+      const cleanedOwners = normalizedOwners.map(owner => ({
+        ...owner,
+        email: owner.email ? owner.email.trim() : '',
+        userId: owner.userId || null
+      }));
+      const cleanedManagers = normalizedManagers.map(manager => ({
+        ...manager,
+        email: manager.email ? manager.email.trim() : '',
+        userId: manager.userId || null
+      }));
+      
       setFormData({
         unitId: unit.unitId || '',
         unitName: unit.unitName || '',
-        owners: cleanedOwners.length > 0 ? cleanedOwners : [{ name: '', email: '' }],
+        owners: cleanedOwners.length > 0 ? cleanedOwners : [{ name: '', email: '', userId: null }],
         managers: cleanedManagers.length > 0 ? cleanedManagers : [],
         address: unit.address || '',
         status: unit.status || 'Occupied',
@@ -101,7 +205,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       setFormData({
         unitId: '',
         unitName: '',
-        owners: [{ name: '', email: '' }], // Start with one empty owner row
+        owners: [{ name: '', email: '', userId: null }], // Start with one empty owner row
         managers: [],
         address: '',
         status: 'active',
@@ -150,10 +254,12 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       newErrors.unitId = 'Unit ID is required';
     }
     
-    // Validate owners - at least one owner with name required
-    const validOwners = formData.owners.filter(owner => owner.name && owner.name.trim());
+    // Validate owners - at least one owner required (either from picker or name)
+    const validOwners = formData.owners.filter(owner => 
+      (owner.userId && owner.userId !== '') || (owner.name && owner.name.trim())
+    );
     if (validOwners.length === 0) {
-      newErrors.owners = 'At least one owner name is required';
+      newErrors.owners = 'At least one owner is required';
     }
     
     // Validate email formats for owners (only validate if email is provided)
@@ -212,10 +318,39 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     setFormData({ ...formData, owners: newOwners });
   };
 
+  const updateOwnerUser = async (index, userId) => {
+    const newOwners = [...formData.owners];
+    if (userId) {
+      // When a user is selected, fetch user data and populate name/email
+      try {
+        const users = await userAPI.getUsersByClient(selectedClient.id);
+        const selectedUser = users.find(u => u.id === userId);
+        if (selectedUser) {
+          newOwners[index] = {
+            name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
+            email: selectedUser.email || '',
+            userId: userId
+          };
+        } else {
+          // User not found, just set userId
+          newOwners[index] = { ...newOwners[index], userId: userId };
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Fallback: just set userId
+        newOwners[index] = { ...newOwners[index], userId: userId };
+      }
+    } else {
+      // Clearing selection - keep name/email but clear userId
+      newOwners[index] = { ...newOwners[index], userId: null };
+    }
+    setFormData({ ...formData, owners: newOwners });
+  };
+
   const addOwner = () => {
     setFormData({
       ...formData,
-      owners: [...formData.owners, { name: '', email: '' }]
+      owners: [...formData.owners, { name: '', email: '', userId: null }]
     });
   };
 
@@ -223,7 +358,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     const newOwners = formData.owners.filter((_, i) => i !== index);
     // Ensure at least one owner row exists
     if (newOwners.length === 0) {
-      newOwners.push({ name: '', email: '' });
+      newOwners.push({ name: '', email: '', userId: null });
     }
     setFormData({ ...formData, owners: newOwners });
   };
@@ -234,10 +369,39 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     setFormData({ ...formData, managers: newManagers });
   };
 
+  const updateManagerUser = async (index, userId) => {
+    const newManagers = [...formData.managers];
+    if (userId) {
+      // When a user is selected, fetch user data and populate name/email
+      try {
+        const users = await userAPI.getUsersByClient(selectedClient.id);
+        const selectedUser = users.find(u => u.id === userId);
+        if (selectedUser) {
+          newManagers[index] = {
+            name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
+            email: selectedUser.email || '',
+            userId: userId
+          };
+        } else {
+          // User not found, just set userId
+          newManagers[index] = { ...newManagers[index], userId: userId };
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Fallback: just set userId
+        newManagers[index] = { ...newManagers[index], userId: userId };
+      }
+    } else {
+      // Clearing selection - keep name/email but clear userId
+      newManagers[index] = { ...newManagers[index], userId: null };
+    }
+    setFormData({ ...formData, managers: newManagers });
+  };
+
   const addManager = () => {
     setFormData({
       ...formData,
-      managers: [...formData.managers, { name: '', email: '' }]
+      managers: [...formData.managers, { name: '', email: '', userId: null }]
     });
   };
 
@@ -246,24 +410,42 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     setFormData({ ...formData, managers: newManagers });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Filter out empty owners/managers and normalize
+      // Filter out empty owners/managers and normalize - include userId if present
       const ownersArray = formData.owners
-        .map(owner => ({
-          name: (owner.name || '').trim(),
-          email: (owner.email || '').trim()
-        }))
-        .filter(owner => owner.name); // Remove entries without names
+        .map(owner => {
+          const ownerData = {
+            name: (owner.name || '').trim(),
+            email: (owner.email || '').trim()
+          };
+          // Include userId if present (from UserPicker selection)
+          if (owner.userId) {
+            ownerData.userId = owner.userId;
+          }
+          return ownerData;
+        })
+        .filter(owner => owner.name || owner.userId); // Keep if has name OR userId
       
       const managersArray = formData.managers
-        .map(manager => ({
-          name: (manager.name || '').trim(),
-          email: (manager.email || '').trim()
-        }))
-        .filter(manager => manager.name); // Remove entries without names
+        .map(manager => {
+          const managerData = {
+            name: (manager.name || '').trim(),
+            email: (manager.email || '').trim()
+          };
+          // Include userId if present (from UserPicker selection)
+          if (manager.userId) {
+            managerData.userId = manager.userId;
+          }
+          return managerData;
+        })
+        .filter(manager => manager.name || manager.userId); // Keep if has name OR userId
+      
+      // Extract userIds for propertyAccess sync
+      const validOwnerIds = ownersArray.map(o => o.userId).filter(id => id != null && id !== '');
+      const validManagerIds = managersArray.map(m => m.userId).filter(id => id != null && id !== '');
       
       // Don't store square meters - calculate on display only
       // Remove active field - doesn't make sense
@@ -271,8 +453,8 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       const { emails, ...formDataWithoutEmails } = formData; // Explicitly exclude emails field
       const submitData = {
         ...formDataWithoutEmails,
-        owners: ownersArray,
-        managers: managersArray,
+        owners: ownersArray, // Includes userId field when user is selected
+        managers: managersArray, // Includes userId field when user is selected
         squareFeet: formData.squareFeet ? parseFloat(formData.squareFeet) : undefined,
         squareMeters: formData.squareFeet ? Math.round(parseFloat(formData.squareFeet) * 0.092903) : undefined,
         percentOwned: formData.percentOwned ? parseFloat(formData.percentOwned) : undefined,
@@ -287,6 +469,65 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
           delete submitData[key];
         }
       });
+      
+      // Sync propertyAccess for selected users
+      if (selectedClient?.id) {
+        const unitId = submitData.unitId;
+        // Extract previous userIds from existing owners/managers arrays
+        const previousOwnerIds = (unit?.owners || [])
+          .map(o => o.userId)
+          .filter(id => id != null && id !== '');
+        const previousManagerIds = (unit?.managers || [])
+          .map(m => m.userId)
+          .filter(id => id != null && id !== '');
+        
+        try {
+          // Update propertyAccess for new owners
+          for (const ownerId of validOwnerIds) {
+            if (!previousOwnerIds.includes(ownerId)) {
+              // New owner - set propertyAccess
+              await userAPI.updateUserPropertyAccess(ownerId, selectedClient.id, {
+                role: 'unitOwner',
+                unitId: unitId
+              });
+            }
+          }
+          
+          // Clear propertyAccess for removed owners
+          for (const previousOwnerId of previousOwnerIds) {
+            if (!validOwnerIds.includes(previousOwnerId)) {
+              // Owner removed - clear unitId but keep role
+              await userAPI.updateUserPropertyAccess(previousOwnerId, selectedClient.id, {
+                unitId: null
+              });
+            }
+          }
+          
+          // Update propertyAccess for new managers
+          for (const managerId of validManagerIds) {
+            if (!previousManagerIds.includes(managerId)) {
+              // New manager - set propertyAccess
+              await userAPI.updateUserPropertyAccess(managerId, selectedClient.id, {
+                role: 'unitManager',
+                unitId: unitId
+              });
+            }
+          }
+          
+          // Clear propertyAccess for removed managers
+          for (const previousManagerId of previousManagerIds) {
+            if (!validManagerIds.includes(previousManagerId)) {
+              // Manager removed - clear unitId but keep role
+              await userAPI.updateUserPropertyAccess(previousManagerId, selectedClient.id, {
+                unitId: null
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error syncing propertyAccess:', error);
+          // Continue with save even if sync fails - log error but don't block
+        }
+      }
       
       onSave(submitData);
     }
@@ -342,42 +583,14 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                   {formData.owners.map((owner, index) => (
                     <div key={index} className="sandyland-form-row" style={{ marginBottom: '8px', alignItems: 'flex-end' }}>
                       <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
-                        <input
-                          type="text"
-                          placeholder="Owner Name"
-                          value={owner.name}
-                          onChange={(e) => updateOwner(index, 'name', e.target.value)}
+                        <UserPicker
+                          clientId={selectedClient?.id}
+                          selectedUserId={owner.userId || null}
+                          onSelect={(userId) => updateOwnerUser(index, userId)}
+                          allowedRoles={null}
+                          label="Owner"
                           required={index === 0}
                         />
-                      </div>
-                      <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
-                        <input
-                          type="email"
-                          placeholder="Email (optional)"
-                          value={owner.email || ''}
-                          onChange={(e) => updateOwner(index, 'email', e.target.value)}
-                          onBlur={(e) => {
-                            // Trim email on blur to clean up whitespace
-                            const trimmedEmail = e.target.value.trim();
-                            if (trimmedEmail !== (owner.email || '')) {
-                              updateOwner(index, 'email', trimmedEmail);
-                            }
-                            // Clear error if email is now valid
-                            if (trimmedEmail && errors[`ownerEmail${index}`]) {
-                              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                              if (emailRegex.test(trimmedEmail)) {
-                                const newErrors = { ...errors };
-                                delete newErrors[`ownerEmail${index}`];
-                                setErrors(newErrors);
-                              }
-                            }
-                          }}
-                        />
-                        {errors[`ownerEmail${index}`] && (
-                          <span className="sandyland-error-text" style={{ display: 'block', marginTop: '4px' }}>
-                            {errors[`ownerEmail${index}`]}
-                          </span>
-                        )}
                       </div>
                       <button
                         type="button"
@@ -399,7 +612,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                     + Add Owner
                   </button>
                   {errors.owners && <span className="sandyland-error-text">{errors.owners}</span>}
-                  <span className="sandyland-helper-text">At least one owner name is required. Email is optional.</span>
+                  <span className="sandyland-helper-text">Select owners from the Users collection. At least one owner is required.</span>
                 </div>
               </div>
               
@@ -412,19 +625,13 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                       {formData.managers.map((manager, index) => (
                         <div key={index} className="sandyland-form-row" style={{ marginBottom: '8px', alignItems: 'flex-end' }}>
                           <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
-                            <input
-                              type="text"
-                              placeholder="Manager Name"
-                              value={manager.name}
-                              onChange={(e) => updateManager(index, 'name', e.target.value)}
-                            />
-                          </div>
-                          <div className="sandyland-form-field" style={{ flex: 1, marginRight: '8px' }}>
-                            <input
-                              type="email"
-                              placeholder="Email (optional)"
-                              value={manager.email}
-                              onChange={(e) => updateManager(index, 'email', e.target.value)}
+                            <UserPicker
+                              clientId={selectedClient?.id}
+                              selectedUserId={manager.userId || null}
+                              onSelect={(userId) => updateManagerUser(index, userId)}
+                              allowedRoles={null}
+                              label="Manager"
+                              required={false}
                             />
                           </div>
                           <button
@@ -435,11 +642,6 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                           >
                             Remove
                           </button>
-                          {errors[`managerEmail${index}`] && (
-                            <span className="sandyland-error-text" style={{ width: '100%', marginTop: '4px' }}>
-                              {errors[`managerEmail${index}`]}
-                            </span>
-                          )}
                         </div>
                       ))}
                     </>
@@ -455,7 +657,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                     + Add Manager
                   </button>
                   {errors.managers && <span className="sandyland-error-text">{errors.managers}</span>}
-                  <span className="sandyland-helper-text">Managers are optional. Email is optional.</span>
+                  <span className="sandyland-helper-text">Select managers from the Users collection. Managers are optional.</span>
                 </div>
               </div>
               
@@ -616,3 +818,4 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
 };
 
 export default UnitFormModal;
+

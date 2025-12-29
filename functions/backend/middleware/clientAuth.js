@@ -346,8 +346,8 @@ export const logSecurityEvent = (eventType) => {
   return (req, res, next) => {
     const { user, authorizedClientId } = req;
     
-    // Get clientId from params if available (for import routes)
-    const clientId = req.params?.clientId || authorizedClientId;
+    // Get clientId from params, query, or authorizedClientId
+    const clientId = req.params?.clientId || req.query?.clientId || authorizedClientId;
     
     console.log(`🔍 Security Event: ${eventType}`, {
       user: user.email,

@@ -204,7 +204,10 @@ function createChronologicalTransactionList(
             let description = 'Payment';
             
             if (transaction) {
-              paymentAmount = centavosToPesos(transaction.amount || 0);
+              // NOTE: Do NOT override paymentAmount with transaction.amount
+              // payment.amount is the full amount applied to the bill (cash + credit)
+              // transaction.amount is only the cash deposit portion
+              // We still use transaction for building descriptions below
               
               // Build description from allocations
               const allocations = transaction.allocations || [];
@@ -292,7 +295,10 @@ function createChronologicalTransactionList(
           let description = 'Payment';
           
           if (transaction) {
-            paymentAmount = centavosToPesos(transaction.amount || 0);
+            // NOTE: Do NOT override paymentAmount with transaction.amount
+            // payment.amount is the full amount applied to the bill (cash + credit)
+            // transaction.amount is only the cash deposit portion
+            // We still use transaction for building descriptions below
             
             // Build description from allocations
             const allocations = transaction.allocations || [];
@@ -349,6 +355,7 @@ function createChronologicalTransactionList(
   
   // Extract water payments from transactions
   // Only process transactions that weren't already handled in the HOA section
+  // FIX #111: Filter by allocation target year to handle cross-fiscal-year payments
   const waterTransactionIds = new Set();
   
   for (const [txnId, transaction] of transactionMap.entries()) {
@@ -360,19 +367,27 @@ function createChronologicalTransactionList(
     const allocations = transaction.allocations || [];
     const waterAllocations = filterWaterAllocations(allocations);
     
-    if (waterAllocations.length > 0 && !waterTransactionIds.has(txnId)) {
+    // FIX #111: Filter water allocations to only include those targeting this fiscal year
+    // This handles cross-year prepayments where transaction date differs from target year
+    const relevantWaterAllocations = waterAllocations.filter(alloc => {
+      const targetYear = alloc.data?.year;
+      // Include if: targets this fiscal year, OR no target year specified
+      return !targetYear || targetYear === fiscalYear;
+    });
+    
+    if (relevantWaterAllocations.length > 0 && !waterTransactionIds.has(txnId)) {
       waterTransactionIds.add(txnId);
       processedTransactionIds.add(txnId); // Mark as globally processed
       
       const paymentDate = parseDate(transaction.date);
       if (paymentDate && !isNaN(paymentDate.getTime())) {
-        const totalWaterAmount = waterAllocations.reduce((sum, alloc) => {
+        const totalWaterAmount = relevantWaterAllocations.reduce((sum, alloc) => {
           return sum + centavosToPesos(alloc.amount || 0);
         }, 0);
         
         if (totalWaterAmount > 0) {
           // Build descriptive label for pure water payments (deduplicate quarter names)
-          const waterBillNames = [...new Set(waterAllocations.map(a => {
+          const waterBillNames = [...new Set(relevantWaterAllocations.map(a => {
             const match = a.targetName?.match(/Q\d/);
             return match ? match[0] : (a.targetName || 'Bill');
           }))];
@@ -512,15 +527,12 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
     }
     
     // Step 5.5: Find "Orphaned" transactions (not linked in Dues/Water but belong to unit)
-    // Fetch all transactions for this client in the fiscal year date range
-    // and filter for this unit (handling verbose unit IDs like "PH4D (Landesman)")
+    // FIX #111: Remove date filter to catch cross-fiscal-year prepayments (e.g., Oct 2024 payment for 2025 dues)
+    // Query ALL transactions for this unit, then filter by allocation target year
     try {
-      const yearTxns = await queryTransactions(clientId, {
-        startDate: fiscalYearBounds.startDate,
-        endDate: fiscalYearBounds.endDate
-      });
+      const allUnitTxns = await queryTransactions(clientId, {});
       
-      const unitTxns = yearTxns.filter(t => {
+      const unitTxns = allUnitTxns.filter(t => {
         // Check exact match or prefix match (e.g. "PH4D" matches "PH4D (Landesman)")
         const tUnitId = t.unitId || '';
         const metaUnitId = t.metadata?.unitId;
@@ -533,9 +545,21 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
                allocUnitIds.includes(unitId);
       });
       
+      // Filter transactions to only include those with allocations targeting this fiscal year
+      // This handles cross-year prepayments: transaction date may be in year X, 
+      // but allocation.data.year targets year Y
       for (const txn of unitTxns) {
         if (txn.id) {
-          transactionIds.add(txn.id);
+          const allocations = txn.allocations || [];
+          const hasRelevantAllocation = allocations.some(alloc => {
+            const targetYear = alloc.data?.year;
+            // Include if: targets this fiscal year, OR no target year specified (credit entries, etc.)
+            return !targetYear || targetYear === fiscalYear;
+          });
+          
+          if (hasRelevantAllocation) {
+            transactionIds.add(txn.id);
+          }
         }
       }
     } catch (err) {

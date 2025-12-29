@@ -1035,9 +1035,10 @@ function createChronologicalTransactionList(
   transactions.push(...hoaPenalties);
   transactions.push(...waterPenalties);
   
-  // REMOVED: Credit adjustments should NOT appear as line items on Statement
-  // Credit is a separate ledger - show in summary footer, not as transaction lines
-  // transactions.push(...creditAdjustments);
+  // Credit adjustments MUST appear as line items for running balance to be correct
+  // When credit is USED to pay a bill, it reduces the balance due just like a cash payment
+  // The Credit Activity table at the bottom shows the full history separately
+  transactions.push(...creditAdjustments);
   
   // Sort chronologically by date
   transactions.sort((a, b) => {
@@ -1054,13 +1055,20 @@ function createChronologicalTransactionList(
     return 0;
   });
   
-  // Calculate running balance starting from opening balance
+  // Running balance is now computed after filtering in getConsolidatedUnitData
+  return transactions;
+}
+
+/**
+ * Compute running balance on a list of transactions (mutates balance fields).
+ * Expects amounts where charges are positive and payments are negative.
+ */
+function computeRunningBalance(transactions, openingBalance = 0) {
   let runningBalance = openingBalance;
   transactions.forEach(txn => {
-    runningBalance += txn.amount; // amount is positive for charges, negative for payments
-    txn.balance = runningBalance; // Allow balance to go negative (no Math.max(0, ...) clamping)
+    runningBalance += txn.amount;
+    txn.balance = runningBalance;
   });
-  
   return transactions;
 }
 
@@ -1821,6 +1829,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // Step 7.10: Fetch credit history entries for manual credit adjustments
     // These are credit changes not associated with money transactions
     const creditAdjustments = [];
+    let unitCreditData = null;
+    let hasCreditStartingBalance = false;
     try {
       const creditBalancesRef = db.collection('clients').doc(clientId)
         .collection('units').doc('creditBalances');
@@ -1828,7 +1838,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       
       if (creditBalancesDoc.exists) {
         const creditBalancesData = creditBalancesDoc.data();
-        const unitCreditData = creditBalancesData[unitId];
+        unitCreditData = creditBalancesData[unitId];
+        hasCreditStartingBalance = !!(unitCreditData?.history && Array.isArray(unitCreditData.history) && unitCreditData.history.some(e => e.type === 'starting_balance'));
         
         if (unitCreditData && unitCreditData.history && Array.isArray(unitCreditData.history)) {
           const fyStartTimestamp = fiscalYearBounds.startDate.getTime() / 1000;
@@ -1890,44 +1901,45 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // ONLY include credit entries explicitly marked as manual admin adjustments
-            // All other credit entries (from payments, migrations, etc.) are already reflected in:
-            // - Payment transaction amounts (deposits include overpayments)
-            // - Opening balance calculation (sums all history up to fiscal year start)
-            // Including non-manual entries causes double-counting
-            if (entry.source !== 'manual') {
-              continue; // Skip ALL non-manual entries - only show admin adjustments
-            }
+            // Include ALL credit entries during the fiscal year (not just manual)
+            // credit_used entries represent credit applied to pay bills - they reduce balance due
+            // credit_added entries represent overpayments that add to credit - they also reduce balance due
+            // Note: Opening balance already includes all credit activity BEFORE fiscal year start,
+            // so we only include entries WITHIN the fiscal year here to avoid double-counting
             
             // Use amount field as single source of truth (new architecture)
             // amount is in centavos: positive = credit added, negative = credit used
             const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const entryAmountPesos = centavosToPesos(entryAmountCentavos);
             
-            // For running balance: credit reduces debt
-            // credit_added (positive amount) = negative in running balance (reduces debt)
-            // credit_used (negative amount) = positive in running balance (increases debt)
-            const adjustmentAmount = -entryAmountPesos; // Negate because credit reduces debt
+            // For running balance calculation:
+            // credit_used (negative amount in creditBalances) = PAYMENT (reduces balance due)
+            //   Example: credit_used -$3,400 means $3,400 was applied to pay bills
+            //   In Statement: shows as -$3,400 (payment), reducing balance
+            // credit_added (positive amount in creditBalances) = PAYMENT (also reduces balance due)
+            //   Example: credit_added +$5,500 means owner overpaid by $5,500
+            //   In Statement: shows as -$5,500 (payment/credit available)
+            // Both types reduce the running balance (like payments)
             
-            // For credit adjustments:
-            // credit_added = negative amount (reduces debt) = show as payment (negative in running balance)
-            // credit_used = positive amount (increases debt) = show as charge (positive in running balance)
-            const isCreditAdded = entry.type === 'credit_added';
+            // credit_used: entry.amount is negative (e.g., -3400), keep as-is for Statement
+            // credit_added: entry.amount is positive (e.g., +5500), negate for Statement
+            // Result: both show as negative (reducing balance due)
+            const isCreditUsed = entry.type === 'credit_used';
+            const adjustmentAmount = isCreditUsed ? entryAmountPesos : -entryAmountPesos;
             
-            // Build description - include transaction reference if available
-            let description = entry.note || entry.description || `Credit ${entry.type === 'credit_added' ? 'Added' : 'Used'}`;
-            if (entry.transactionId) {
-              description += ` (Transaction ${entry.transactionId})`;
-            }
+            // Build description - use notes field, fallback to type
+            let description = entry.notes || entry.note || entry.description || 
+              `Credit ${entry.type === 'credit_added' ? 'Added' : 'Applied'}`;
             
+            // Both credit_used and credit_added are like payments (reduce balance due)
             creditAdjustments.push({
               type: 'credit_adjustment',
               category: 'credit',
               date: entryDate,
               description: description,
-              amount: adjustmentAmount, // Negative for credit_added, positive for credit_used
-              charge: isCreditAdded ? 0 : Math.abs(adjustmentAmount), // credit_used shows as charge
-              payment: isCreditAdded ? Math.abs(adjustmentAmount) : 0, // credit_added shows as payment
+              amount: adjustmentAmount, // Always negative (reduces balance)
+              charge: 0, // Never a charge
+              payment: Math.abs(adjustmentAmount), // Always a payment
               balance: 0, // Will be set later when calculating running balance
               transactionId: entry.transactionId || null, // Include transactionId for reference
               creditAdjustmentRef: {
@@ -2045,7 +2057,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // NOTE: Special Assessments (projectsData) are NOT included in chronologicalTransactions
     // They only appear in Allocation Summary currently
     // TODO/FUTURE: Add Special Assessment charges/payments to chronologicalTransactions when Projects feature is complete
-    let chronologicalTransactions = createChronologicalTransactionList(
+    // Build full transaction list (charges, payments, credit adjustments)
+    const allTransactions = createChronologicalTransactionList(
       payments,
       transactionMap,
       scheduledAmount,
@@ -2060,139 +2073,74 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       creditAdjustments
     );
     
-    // Filter future CHARGES if requested (but always include payments - they're real activity)
-    // Payments should always show even if the bill hasn't been sent yet
-    // CRITICAL: Include HOA bills within 15-day buffer (matching preview logic)
-    const cutoffDate = getNow();
-    // Include transactions for the current day
-    cutoffDate.setHours(23, 59, 59, 999);
+    // Determine if creditBalances has a starting_balance entry (used to decide pre-FY payment handling)
+    const hasCreditStartingBalanceFlag = hasCreditStartingBalance;
     
-    // 15-day buffer for HOA bills (allows Statement of Account to show upcoming bills)
+    // --- Visibility filtering (only show charges/payments; exclude credit adjustments and pre-FY payments when covered by starting balance) ---
+    const fyStartTime = fiscalYearBounds.startDate.getTime();
+    const cutoffDate = getNow();
+    cutoffDate.setHours(23, 59, 59, 999);
     const HOA_BUFFER_DAYS = 15;
     
-    console.log(`   📅 [STATEMENT FILTER] Filtering transactions. excludeFutureBills=${excludeFutureBills}, cutoffDate=${cutoffDate.toISOString().split('T')[0]}, total transactions before filter: ${chronologicalTransactions.length}`);
+    let visibleTransactions = allTransactions.filter(txn => {
+      // Exclude credit adjustments from the main list (credit activity is shown separately)
+      if (txn.type === 'credit_adjustment') return false;
+      
+      // For payments: exclude if dated before fiscal year start (already in opening balance)
+      if (txn.type === 'payment' || txn.payment > 0) {
+        const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
+        if (!isNaN(txnDate.getTime()) && txnDate.getTime() < fyStartTime && hasCreditStartingBalanceFlag) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // Apply future-bill buffer logic to charges (payments always stay)
+    const applyChargeBuffer = (txn) => {
+      if (txn.type !== 'charge' || txn.category !== 'hoa') return true;
+      const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
+      if (isNaN(txnDate.getTime())) {
+        console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
+        return false;
+      }
+      const bufferDate = new Date(txnDate);
+      bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+      return cutoffDate >= bufferDate;
+    };
     
     if (excludeFutureBills) {
-      chronologicalTransactions = chronologicalTransactions.filter(txn => {
-        // Always include payments (real activity)
+      visibleTransactions = visibleTransactions.filter(txn => {
+        // Exclude payments that occur after the cutoff date (future payments)
         if (txn.type === 'payment' || txn.payment > 0) {
-          return true;
-        }
-        // Always include credit adjustments (real activity)
-        if (txn.type === 'credit_adjustment') {
-          return true;
-        }
-        
-        // For HOA charges: include if within 15-day buffer (even if future)
-        if (txn.type === 'charge' && txn.category === 'hoa') {
-          // Parse transaction date (handle both Date objects and strings)
           const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
-          if (isNaN(txnDate.getTime())) {
-            // Invalid date - exclude it
-            console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
+          if (!isNaN(txnDate.getTime()) && txnDate > cutoffDate) {
             return false;
           }
-          
-          // Calculate buffer date (15 days before due date)
-          const bufferDate = new Date(txnDate);
-          bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
-          
-          // Include if current date is at or past the buffer start date
-          const isWithinBuffer = cutoffDate >= bufferDate;
-          
-          // Debug logging for Q3 specifically
-          if (txn.description && txn.description.includes('Q3')) {
-            console.log(`   🔍 [STATEMENT FILTER] Q3 HOA charge check:`);
-            console.log(`      Description: ${txn.description}`);
-            console.log(`      Due Date: ${txnDate.toISOString().split('T')[0]}`);
-            console.log(`      Buffer Date (due - 15 days): ${bufferDate.toISOString().split('T')[0]}`);
-            console.log(`      Cutoff Date: ${cutoffDate.toISOString().split('T')[0]}`);
-            console.log(`      Is Within Buffer: ${isWithinBuffer} (cutoffDate >= bufferDate)`);
-            console.log(`      Days until due: ${Math.ceil((txnDate - cutoffDate) / (1000 * 60 * 60 * 24))}`);
-          }
-          
-          return isWithinBuffer;
+          return true;
         }
-        
-        // Filter out other future charges/bills/penalties
-        return txn.date <= cutoffDate;
+        return applyChargeBuffer(txn) && txn.date <= cutoffDate;
       });
     } else {
-      // Even when excludeFutureBills=false, apply 15-day buffer to HOA bills for consistency
-      // This ensures Q3/Q4 don't show too early, but do show within the buffer period
-      const beforeFilter = chronologicalTransactions.length;
-      const filteredOut = [];
-      const filteredIn = [];
-      
-      chronologicalTransactions = chronologicalTransactions.filter(txn => {
-        // For HOA charges: apply 15-day buffer (don't show too early)
-        if (txn.type === 'charge' && txn.category === 'hoa') {
-          const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
-          if (isNaN(txnDate.getTime())) {
-            console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
-            filteredOut.push({ desc: txn.description, reason: 'invalid_date' });
-            return false;
-          }
-          
-          const bufferDate = new Date(txnDate);
-          bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
-          
-          // Only show if within buffer period (don't show Q4 when it's too far away)
-          const isWithinBuffer = cutoffDate >= bufferDate;
-          
-          // Debug logging for Q3 specifically
-          if (txn.description && txn.description.includes('Q3')) {
-            console.log(`   🔍 [STATEMENT FILTER] Q3 HOA charge check (excludeFutureBills=false):`);
-            console.log(`      Description: ${txn.description}`);
-            console.log(`      Due Date: ${txnDate.toISOString().split('T')[0]}`);
-            console.log(`      Buffer Date (due - 15 days): ${bufferDate.toISOString().split('T')[0]}`);
-            console.log(`      Cutoff Date: ${cutoffDate.toISOString().split('T')[0]}`);
-            console.log(`      Is Within Buffer: ${isWithinBuffer} (cutoffDate >= bufferDate)`);
-            console.log(`      Days until due: ${Math.ceil((txnDate - cutoffDate) / (1000 * 60 * 60 * 24))}`);
-            console.log(`      ⚠️  RETURNING: ${isWithinBuffer}`);
-          }
-          
-          if (isWithinBuffer) {
-            filteredIn.push({ desc: txn.description, date: txnDate.toISOString().split('T')[0] });
-          } else {
-            filteredOut.push({ desc: txn.description, date: txnDate.toISOString().split('T')[0], reason: 'outside_buffer' });
-          }
-          
-          return isWithinBuffer;
-        }
-        
-        // All other transactions pass through unchanged
-        filteredIn.push({ desc: txn.description || txn.type, date: txn.date instanceof Date ? txn.date.toISOString().split('T')[0] : String(txn.date) });
-        return true;
+      visibleTransactions = visibleTransactions.filter(txn => {
+        if (txn.type === 'payment' || txn.payment > 0) return true;
+        return applyChargeBuffer(txn);
       });
-      
-      console.log(`   📊 [STATEMENT FILTER] Filtered ${beforeFilter} → ${chronologicalTransactions.length} transactions`);
-      console.log(`      ✅ Included: ${filteredIn.length} transactions`);
-      console.log(`      ❌ Excluded: ${filteredOut.length} transactions`);
-      if (filteredOut.length > 0) {
-        console.log(`      Excluded items:`, filteredOut.map(f => `${f.desc} (${f.date}) - ${f.reason}`).join(', '));
-      }
-      const q3Included = filteredIn.find(f => f.desc && f.desc.includes('Q3'));
-      const q3Excluded = filteredOut.find(f => f.desc && f.desc.includes('Q3'));
-      if (q3Included) {
-        console.log(`      ✅ Q3 INCLUDED: ${q3Included.desc} (${q3Included.date})`);
-      }
-      if (q3Excluded) {
-        console.log(`      ❌ Q3 EXCLUDED: ${q3Excluded.desc} (${q3Excluded.date}) - ${q3Excluded.reason}`);
-      }
-      
-      console.log(`   📊 [STATEMENT FILTER] After filtering (excludeFutureBills=false): ${chronologicalTransactions.length} transactions remain`);
     }
+    
+    // Recompute running balance on the visible list only
+    const chronologicalTransactions = computeRunningBalance(visibleTransactions, openingBalance);
     
     // Step 9: Fetch credit balance
     const creditBalanceData = await fetchCreditBalance(api, clientId, unitId);
     
-    // Step 10: Calculate summary
+    // Step 10: Calculate summary (using visible transactions)
     const calculatedTotalDue = scheduledAmount * 12;
     const totalDue = calculatedTotalDue;
     const totalPaid = duesData.totalPaid || 0;
     
-    // Determine final balance from the last transaction
+    // Determine final balance from the last visible transaction
     let finalBalance = chronologicalTransactions.length > 0 
       ? chronologicalTransactions[chronologicalTransactions.length - 1].balance 
       : openingBalance;

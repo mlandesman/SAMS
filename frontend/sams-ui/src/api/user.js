@@ -79,5 +79,49 @@ export const userAPI = {
       console.error('Failed to fetch accessible clients:', error);
       throw new Error(`Failed to load accessible clients: ${error.message}`);
     }
+  },
+
+  /**
+   * Get users by client ID
+   * @param {string} clientId - The client ID to filter users by
+   * @returns {Promise<Array>} List of users with access to the specified client
+   */
+  async getUsersByClient(clientId) {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/admin/users?clientId=${encodeURIComponent(clientId)}`, { 
+        method: 'GET',
+        headers 
+      });
+      const result = await handleApiResponse(response);
+      return result.users || [];
+    } catch (error) {
+      console.error('Failed to fetch users by client:', error);
+      throw new Error(`Failed to load users: ${error.message}`);
+    }
+  },
+
+  /**
+   * Update user propertyAccess for a specific client
+   * @param {string} userId - The user ID to update
+   * @param {string} clientId - The client ID
+   * @param {Object} updateData - Update data with role and/or unitId
+   * @param {string} [updateData.role] - Optional role to set
+   * @param {string|null} [updateData.unitId] - Optional unitId to set (null to clear)
+   * @returns {Promise<Object>} Update response
+   */
+  async updateUserPropertyAccess(userId, clientId, updateData) {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/admin/users/${encodeURIComponent(userId)}/property-access/${encodeURIComponent(clientId)}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updateData)
+      });
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Failed to update user property access:', error);
+      throw new Error(`Failed to update user property access: ${error.message}`);
+    }
   }
 };
