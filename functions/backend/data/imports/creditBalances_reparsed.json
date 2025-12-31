@@ -1,0 +1,810 @@
+{
+  "101": {
+    "unitId": "101",
+    "startingBalance": 0,
+    "expectedFinalBalance": 600,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 239.73,
+        "dateText": "Mon Jun 30 2025 00:00:00 GMT-0500 (Eastern Standard Time)",
+        "fromText": "refund of June Sewage bill (Added USD 239.73)",
+        "sourceCurrency": "USD",
+        "sourceAmount": 239.73,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 0,
+        "dateText": "Mon Sep 29 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 14,277.81 with an Underpayment of MXN 239.73",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 14277.81,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 600,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 23973,
+        "timestamp": "2025-06-30T05:00:00.000Z",
+        "notes": "refund of June Sewage bill (Added USD 239.73)",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 239.73
+      },
+      {
+        "type": "credit_used",
+        "amount": -23973,
+        "timestamp": "2025-09-29T20:21:09.000Z",
+        "notes": "Deposit of MXN 14,277.81 with an Underpayment of MXN 239.73",
+        "source": "import",
+        "previousBalancePesos": 239.73,
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 60000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 600
+      }
+    ]
+  },
+  "102": {
+    "unitId": "102",
+    "startingBalance": 0,
+    "expectedFinalBalance": 1399.94,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 2099.94,
+        "dateText": "Sun Nov 02 2025 11:33:54 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 36,678.99 with an Overpayment for removal of duplicate penalties.",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 36678.99,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 1399.94,
+        "dateText": "Sun Nov 02 2025 11:33:54 GMT-0500 (Eastern Standard Time)",
+        "fromText": "use of credit to pay water bill",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 209994,
+        "timestamp": "2025-11-02T16:33:54.000Z",
+        "notes": "Deposit of MXN 36,678.99 with an Overpayment for removal of duplicate penalties.",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 2099.94
+      },
+      {
+        "type": "credit_used",
+        "amount": -70000,
+        "timestamp": "2025-11-02T16:33:54.000Z",
+        "notes": "use of credit to pay water bill",
+        "source": "import",
+        "previousBalancePesos": 2099.94,
+        "balanceAfterPesos": 1399.94
+      }
+    ]
+  },
+  "103": {
+    "unitId": "103",
+    "startingBalance": 6675,
+    "expectedFinalBalance": 5371.12,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 6180.5,
+        "dateText": "Mon Aug 04 2025 13:52:36 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 15,000.00",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 15000,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "unparsed": true,
+        "text": "Credit Adjusted to MXN 4,598.06 on Mon Oct 04 2025 13:52:36 GMT-0500 (Eastern Standard Time) Used to cover water bills.",
+        "parsed": false,
+        "pattern": "none"
+      },
+      {
+        "adjustedBalanceMxn": 4871.12,
+        "dateText": "Mon Oct 06 2025 09:52:07 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 15,000.00 with an Overpayment of MXN 273.06",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 15000,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 5371.12,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 667500,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 6675
+      },
+      {
+        "type": "credit_used",
+        "amount": -49450,
+        "timestamp": "2025-08-04T18:52:36.000Z",
+        "notes": "Deposit of MXN 15,000.00",
+        "source": "import",
+        "previousBalancePesos": 6675,
+        "balanceAfterPesos": 6180.5
+      },
+      {
+        "type": "UNPARSED",
+        "rawText": "Credit Adjusted to MXN 4,598.06 on Mon Oct 04 2025 13:52:36 GMT-0500 (Eastern Standard Time) Used to cover water bills.",
+        "notes": "NEEDS MANUAL PARSING",
+        "source": "manual"
+      },
+      {
+        "type": "credit_used",
+        "amount": -130938,
+        "timestamp": "2025-10-06T14:52:07.000Z",
+        "notes": "Deposit of MXN 15,000.00 with an Overpayment of MXN 273.06",
+        "source": "import",
+        "previousBalancePesos": 6180.5,
+        "balanceAfterPesos": 4871.12
+      },
+      {
+        "type": "credit_added",
+        "amount": 50000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 4871.12,
+        "balanceAfterPesos": 5371.12
+      }
+    ]
+  },
+  "104": {
+    "unitId": "104",
+    "startingBalance": 0,
+    "expectedFinalBalance": 637.43,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 16.87,
+        "dateText": "Sat Jul 12 2025 11:03:36 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 15,025.00 with an Overpayment of MXN 16.87",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 15025,
+        "details": "Efectivo",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 1401.33,
+        "dateText": "Jul 23 2025",
+        "fromText": "Deposit of MXN 1767.59 for June Water Bills",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 1767.59,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 2041.06,
+        "dateText": "Jul 25 2025",
+        "fromText": "Deposit of MXN 639.73 for June Water Bills",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 639.73,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 1641.06,
+        "dateText": "Aug 01 2025",
+        "fromText": "Credit Used to July Water Bills",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "no-from"
+      },
+      {
+        "adjustedBalanceMxn": 1191.06,
+        "dateText": "Sep 05 2025",
+        "fromText": "Credit Used to Aug Water Bills",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "no-from"
+      },
+      {
+        "adjustedBalanceMxn": 691.06,
+        "dateText": "Oct 01 2025",
+        "fromText": "Credit Used to Sep Water Bills",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "no-from"
+      },
+      {
+        "adjustedBalanceMxn": 2145.56,
+        "dateText": "Oct 07 2025",
+        "fromText": "Deposit of MXN 1,454.50 Jul, Aug, Sep Water Bills",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "no-from"
+      },
+      {
+        "adjustedBalanceMxn": 137.43,
+        "dateText": "Fri Oct 10 2025 22:12:50 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 13,000.00 with an Underpayment of MXN 2,008.13",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 13000,
+        "details": "Efectivo",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 637.43,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 1687,
+        "timestamp": "2025-07-12T16:03:36.000Z",
+        "notes": "Deposit of MXN 15,025.00 with an Overpayment of MXN 16.87",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 16.87
+      },
+      {
+        "type": "credit_added",
+        "amount": 138446,
+        "timestamp": "2025-07-23T05:00:00.000Z",
+        "notes": "Deposit of MXN 1767.59 for June Water Bills",
+        "source": "import",
+        "previousBalancePesos": 16.87,
+        "balanceAfterPesos": 1401.33
+      },
+      {
+        "type": "credit_added",
+        "amount": 63973,
+        "timestamp": "2025-07-25T05:00:00.000Z",
+        "notes": "Deposit of MXN 639.73 for June Water Bills",
+        "source": "import",
+        "previousBalancePesos": 1401.33,
+        "balanceAfterPesos": 2041.06
+      },
+      {
+        "type": "credit_used",
+        "amount": -40000,
+        "timestamp": "2025-08-01T05:00:00.000Z",
+        "notes": "Credit Used to July Water Bills",
+        "source": "import",
+        "previousBalancePesos": 2041.06,
+        "balanceAfterPesos": 1641.06
+      },
+      {
+        "type": "credit_used",
+        "amount": -45000,
+        "timestamp": "2025-09-05T05:00:00.000Z",
+        "notes": "Credit Used to Aug Water Bills",
+        "source": "import",
+        "previousBalancePesos": 1641.06,
+        "balanceAfterPesos": 1191.06
+      },
+      {
+        "type": "credit_used",
+        "amount": -50000,
+        "timestamp": "2025-10-01T05:00:00.000Z",
+        "notes": "Credit Used to Sep Water Bills",
+        "source": "import",
+        "previousBalancePesos": 1191.06,
+        "balanceAfterPesos": 691.06
+      },
+      {
+        "type": "credit_added",
+        "amount": 145450,
+        "timestamp": "2025-10-07T05:00:00.000Z",
+        "notes": "Deposit of MXN 1,454.50 Jul, Aug, Sep Water Bills",
+        "source": "import",
+        "previousBalancePesos": 691.06,
+        "balanceAfterPesos": 2145.56
+      },
+      {
+        "type": "credit_used",
+        "amount": -200813,
+        "timestamp": "2025-10-11T03:12:50.000Z",
+        "notes": "Deposit of MXN 13,000.00 with an Underpayment of MXN 2,008.13",
+        "source": "import",
+        "previousBalancePesos": 2145.56,
+        "balanceAfterPesos": 137.43
+      },
+      {
+        "type": "credit_added",
+        "amount": 50000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 137.43,
+        "balanceAfterPesos": 637.43
+      }
+    ]
+  },
+  "105": {
+    "unitId": "105",
+    "startingBalance": 39.73,
+    "expectedFinalBalance": 1379.36,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 1279.36,
+        "dateText": "Mon Oct 06 2025 09:50:11 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 34,525.00 with an Overpayment of MXN 1,279.36",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 34525,
+        "details": "BBVA",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 1379.36,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 3973,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 39.73
+      },
+      {
+        "type": "credit_added",
+        "amount": 123963,
+        "timestamp": "2025-10-06T14:50:11.000Z",
+        "notes": "Deposit of MXN 34,525.00 with an Overpayment of MXN 1,279.36",
+        "source": "import",
+        "previousBalancePesos": 39.73,
+        "balanceAfterPesos": 1279.36
+      },
+      {
+        "type": "credit_added",
+        "amount": 10000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 1279.36,
+        "balanceAfterPesos": 1379.36
+      }
+    ]
+  },
+  "106": {
+    "unitId": "106",
+    "startingBalance": 0,
+    "expectedFinalBalance": 10125.86,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 11979.69,
+        "dateText": "Thu Oct 16 2025 20:54:34 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 24,000.00 with an Overpayment of MXN 11,979.69",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 24000,
+        "details": "Efectivo (BBVA)",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 9496.17,
+        "dateText": "Thu Oct 16 2025 20:54:34 GMT-0500 (Eastern Standard Time)",
+        "fromText": "credit used to pay water bills and penalties of MXN 11,979.69",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 11979.69,
+        "details": "Efectivo (BBVA)",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 9475.86,
+        "dateText": "Thu Nov 27 2025 23:35:28 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 12,000.00 with an Underpayment of MXN 20.31",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 12000,
+        "details": "Efectivo → BBVA",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 10125.86,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 1197969,
+        "timestamp": "2025-10-17T01:54:34.000Z",
+        "notes": "Deposit of MXN 24,000.00 with an Overpayment of MXN 11,979.69",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 11979.69
+      },
+      {
+        "type": "credit_used",
+        "amount": -248352,
+        "timestamp": "2025-10-17T01:54:34.000Z",
+        "notes": "credit used to pay water bills and penalties of MXN 11,979.69",
+        "source": "import",
+        "previousBalancePesos": 11979.69,
+        "balanceAfterPesos": 9496.17
+      },
+      {
+        "type": "credit_used",
+        "amount": -2031,
+        "timestamp": "2025-11-28T04:35:28.000Z",
+        "notes": "Deposit of MXN 12,000.00 with an Underpayment of MXN 20.31",
+        "source": "import",
+        "previousBalancePesos": 9496.17,
+        "balanceAfterPesos": 9475.86
+      },
+      {
+        "type": "credit_added",
+        "amount": 65000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 9475.86,
+        "balanceAfterPesos": 10125.86
+      }
+    ]
+  },
+  "201": {
+    "unitId": "201",
+    "startingBalance": 239.73,
+    "expectedFinalBalance": 50,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 0,
+        "dateText": "Sat Sep 20 2025 09:50:21 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 16,932.41 with an Underpayment of MXN 239.73",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 16932.41,
+        "details": "Verbeck BBVA",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 50,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 23973,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 239.73
+      },
+      {
+        "type": "credit_used",
+        "amount": -23973,
+        "timestamp": "2025-09-20T14:50:21.000Z",
+        "notes": "Deposit of MXN 16,932.41 with an Underpayment of MXN 239.73",
+        "source": "import",
+        "previousBalancePesos": 239.73,
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 5000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 50
+      }
+    ]
+  },
+  "202": {
+    "unitId": "202",
+    "startingBalance": 0,
+    "expectedFinalBalance": 0,
+    "entries": [],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      }
+    ]
+  },
+  "203": {
+    "unitId": "203",
+    "startingBalance": 0,
+    "expectedFinalBalance": 1796.7,
+    "entries": [
+      {
+        "addedAmount": 35.75,
+        "dateText": "10/2/2025",
+        "fromText": "overpayment from water bills",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 35.75,
+        "details": "",
+        "parsed": true,
+        "pattern": "added-format"
+      },
+      {
+        "addedAmount": 1125,
+        "dateText": "10/29/2025",
+        "fromText": "for well drilling",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 1125,
+        "details": "",
+        "parsed": true,
+        "pattern": "added-format"
+      },
+      {
+        "adjustedBalanceMxn": 246.7,
+        "dateText": "Wed Oct 29 2025 19:16:11 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 17,670.05 with an Underpayment of MXN 914.05",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 17670.05,
+        "details": "Efectivo en el banco",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 1796.7,
+        "dateText": "Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time)",
+        "fromText": "conversion of monthly water bills to quarterly.",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 0,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 3575,
+        "timestamp": "2025-10-02T05:00:00.000Z",
+        "notes": "overpayment from water bills",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 35.75
+      },
+      {
+        "type": "credit_added",
+        "amount": 112500,
+        "timestamp": "2025-10-29T05:00:00.000Z",
+        "notes": "for well drilling",
+        "source": "import",
+        "previousBalancePesos": 35.75,
+        "balanceAfterPesos": 1160.75
+      },
+      {
+        "type": "credit_used",
+        "amount": -91405,
+        "timestamp": "2025-10-30T00:16:11.000Z",
+        "notes": "Deposit of MXN 17,670.05 with an Underpayment of MXN 914.05",
+        "source": "import",
+        "previousBalancePesos": 1160.75,
+        "balanceAfterPesos": 246.7
+      },
+      {
+        "type": "credit_added",
+        "amount": 155000,
+        "timestamp": "2025-12-13T20:21:09.000Z",
+        "notes": "conversion of monthly water bills to quarterly.",
+        "source": "import",
+        "previousBalancePesos": 246.7,
+        "balanceAfterPesos": 1796.7
+      }
+    ]
+  },
+  "204": {
+    "unitId": "204",
+    "startingBalance": 508.24,
+    "expectedFinalBalance": 0.01,
+    "entries": [
+      {
+        "adjustedBalanceMxn": 548,
+        "dateText": "Tue Aug 26 2025 10:57:22 GMT-0500 (Eastern Standard Time)",
+        "fromText": "overpayment on sewage",
+        "sourceCurrency": null,
+        "sourceAmount": null,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 0,
+        "dateText": "Tue Aug 26 2025 11:10:27 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 18,879.69",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 18879.69,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 6475.88,
+        "dateText": "Tue Aug 26 2025 11:12:50 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 6,475.89 with an Overpayment of MXN 0.00",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 6475.89,
+        "details": "",
+        "parsed": true,
+        "pattern": "standard"
+      },
+      {
+        "adjustedBalanceMxn": 0.01,
+        "dateText": "Wed Oct 08 2025 16:21:28 GMT-0500 (Eastern Standard Time)",
+        "fromText": "Deposit of MXN 19,427.68 with an Overpayment of MXN 0.01",
+        "sourceCurrency": "MXN",
+        "sourceAmount": 19427.68,
+        "details": "MARGARITA DE SANTANDER",
+        "parsed": true,
+        "pattern": "standard"
+      }
+    ],
+    "history": [
+      {
+        "type": "starting_balance",
+        "amount": 50824,
+        "timestamp": "2025-06-30T23:59:59.000Z",
+        "notes": "Starting credit balance from prior period",
+        "source": "import",
+        "balanceAfterPesos": 508.24
+      },
+      {
+        "type": "credit_added",
+        "amount": 3976,
+        "timestamp": "2025-08-26T15:57:22.000Z",
+        "notes": "overpayment on sewage",
+        "source": "import",
+        "previousBalancePesos": 508.24,
+        "balanceAfterPesos": 548
+      },
+      {
+        "type": "credit_used",
+        "amount": -54800,
+        "timestamp": "2025-08-26T16:10:27.000Z",
+        "notes": "Deposit of MXN 18,879.69",
+        "source": "import",
+        "previousBalancePesos": 548,
+        "balanceAfterPesos": 0
+      },
+      {
+        "type": "credit_added",
+        "amount": 647588,
+        "timestamp": "2025-08-26T16:12:50.000Z",
+        "notes": "Deposit of MXN 6,475.89 with an Overpayment of MXN 0.00",
+        "source": "import",
+        "previousBalancePesos": 0,
+        "balanceAfterPesos": 6475.88
+      },
+      {
+        "type": "credit_used",
+        "amount": -647587,
+        "timestamp": "2025-10-08T21:21:28.000Z",
+        "notes": "Deposit of MXN 19,427.68 with an Overpayment of MXN 0.01",
+        "source": "import",
+        "previousBalancePesos": 6475.88,
+        "balanceAfterPesos": 0.01
+      }
+    ]
+  }
+}

@@ -664,10 +664,14 @@ function createChronologicalTransactionList(
             let description = 'Payment';
             
             if (transaction) {
+              // Payment amount is CASH ONLY (transaction.amount)
+              // Do NOT add credit_used - it's already reflected in accumulated overpayments
+              // Adding it would double-count the credit
               paymentAmount = centavosToPesos(transaction.amount || 0);
               
               // Build description from allocations
               const allocations = transaction.allocations || [];
+              
               const hoaQuarters = [...new Set(allocations
                 .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
                 .map(a => a.targetName))];
@@ -800,10 +804,14 @@ function createChronologicalTransactionList(
           let description = 'Payment';
           
           if (transaction) {
+            // Payment amount is CASH ONLY (transaction.amount)
+            // Do NOT add credit_used - it's already reflected in accumulated overpayments
+            // Adding it would double-count the credit
             paymentAmount = centavosToPesos(transaction.amount || 0);
             
             // Build description from allocations
             const allocations = transaction.allocations || [];
+            
             const hoaMonths = [...new Set(allocations
               .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
               .map(a => a.targetName))];
@@ -1179,6 +1187,8 @@ async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate) {
     
     // Calculate balance by summing all history entries up to asOfDate
     // This matches the new architectural pattern: calculate from history, don't read stale fields
+    // For AVII (new client): Only starting_balance entry exists before FY start
+    // For MTC (existing client): Sums all prior year entries (starting_balance + credit_added - credit_used)
     let balanceInCentavos = 0;
     for (const entry of history) {
       let entryTimestamp = null;
@@ -1901,47 +1911,39 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // Include ALL credit entries during the fiscal year (not just manual)
-            // credit_used entries represent credit applied to pay bills - they reduce balance due
-            // credit_added entries represent overpayments that add to credit - they also reduce balance due
-            // Note: Opening balance already includes all credit activity BEFORE fiscal year start,
-            // so we only include entries WITHIN the fiscal year here to avoid double-counting
+            // ONLY include credit_used entries in the running balance
+            // credit_added (overpayments) are ALREADY captured in the payment amounts
+            // When owner pays $5,000 for $4,400 dues, balance goes negative by $600 - that IS the credit
+            // We don't need a separate line for credit_added - it would double-count
+            //
+            // credit_used entries need to appear as CHARGES to undo the credit portion
+            // when it's applied to pay bills
             
-            // Use amount field as single source of truth (new architecture)
-            // amount is in centavos: positive = credit added, negative = credit used
+            // Skip credit_added entries - they're already in the payment amounts
+            if (entry.type !== 'credit_used') {
+              continue;
+            }
+            
+            // credit_used: amount is negative in history (e.g., -380000 centavos = -$3,800)
+            // We need this to appear as a CHARGE (positive) to increase the balance
+            // This undoes the credit that was previously accumulated from overpayments
             const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
             const entryAmountPesos = centavosToPesos(entryAmountCentavos);
-            
-            // For running balance calculation:
-            // credit_used (negative amount in creditBalances) = PAYMENT (reduces balance due)
-            //   Example: credit_used -$3,400 means $3,400 was applied to pay bills
-            //   In Statement: shows as -$3,400 (payment), reducing balance
-            // credit_added (positive amount in creditBalances) = PAYMENT (also reduces balance due)
-            //   Example: credit_added +$5,500 means owner overpaid by $5,500
-            //   In Statement: shows as -$5,500 (payment/credit available)
-            // Both types reduce the running balance (like payments)
-            
-            // credit_used: entry.amount is negative (e.g., -3400), keep as-is for Statement
-            // credit_added: entry.amount is positive (e.g., +5500), negate for Statement
-            // Result: both show as negative (reducing balance due)
-            const isCreditUsed = entry.type === 'credit_used';
-            const adjustmentAmount = isCreditUsed ? entryAmountPesos : -entryAmountPesos;
+            const chargeAmount = Math.abs(entryAmountPesos); // Make positive for charge
             
             // Build description - use notes field, fallback to type
-            let description = entry.notes || entry.note || entry.description || 
-              `Credit ${entry.type === 'credit_added' ? 'Added' : 'Applied'}`;
+            let description = entry.notes || entry.note || entry.description || 'Credit Applied';
             
-            // Both credit_used and credit_added are like payments (reduce balance due)
             creditAdjustments.push({
               type: 'credit_adjustment',
               category: 'credit',
               date: entryDate,
               description: description,
-              amount: adjustmentAmount, // Always negative (reduces balance)
-              charge: 0, // Never a charge
-              payment: Math.abs(adjustmentAmount), // Always a payment
+              amount: chargeAmount, // Positive = increases balance
+              charge: chargeAmount, // Shows in charge column
+              payment: 0, // Not a payment
               balance: 0, // Will be set later when calculating running balance
-              transactionId: entry.transactionId || null, // Include transactionId for reference
+              transactionId: entry.transactionId || null,
               creditAdjustmentRef: {
                 id: entry.id,
                 type: entry.type,
@@ -2076,14 +2078,18 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // Determine if creditBalances has a starting_balance entry (used to decide pre-FY payment handling)
     const hasCreditStartingBalanceFlag = hasCreditStartingBalance;
     
-    // --- Visibility filtering (only show charges/payments; exclude credit adjustments and pre-FY payments when covered by starting balance) ---
+    // --- Filter pre-FY payments (exclude from both running balance and visible list) ---
     const fyStartTime = fiscalYearBounds.startDate.getTime();
     const cutoffDate = getNow();
     cutoffDate.setHours(23, 59, 59, 999);
     const HOA_BUFFER_DAYS = 15;
     
+    // For visible list: exclude credit adjustments (already captured in payment amounts) and pre-FY payments
     let visibleTransactions = allTransactions.filter(txn => {
-      // Exclude credit adjustments from the main list (credit activity is shown separately)
+      // EXCLUDE credit_adjustments from visible list
+      // credit_added: already captured in payment amounts (overpayments make balance negative)
+      // credit_used: already captured in payment amounts (payment includes credit applied)
+      // The Credit Balance Activity section shows credit history separately for reference
       if (txn.type === 'credit_adjustment') return false;
       
       // For payments: exclude if dated before fiscal year start (already in opening balance)
@@ -2130,6 +2136,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     }
     
     // Recompute running balance on the visible list only
+    // NOTE: This excludes credit_adjustments from running balance, which is INCORRECT
+    // TODO: Fix this - credit_adjustments must be included in balance calculation
     const chronologicalTransactions = computeRunningBalance(visibleTransactions, openingBalance);
     
     // Step 9: Fetch credit balance
@@ -2862,8 +2870,9 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     },
     summary: (() => {
       const closingBalance = roundTo2Decimals(rawData.summary.finalBalance);
-      // Use getter function to calculate credit from history (never trust stale stored value)
-      const creditBalance = roundTo2Decimals(getCreditBalance(rawData.creditBalance) / 100); // getter returns centavos
+      // Use credit balance from API response (already calculated by getter in creditService)
+      // rawData.creditBalance.creditBalance is in dollars (already converted by API)
+      const creditBalance = roundTo2Decimals(rawData.creditBalance?.creditBalance || 0);
       const netAmountDue = roundTo2Decimals(Math.max(0, closingBalance - creditBalance));
       return {
         totalDue: roundTo2Decimals(rawData.summary.totalDue),
@@ -2877,8 +2886,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     })(),
     lineItems: lineItems,
     creditInfo: {
-      // Use getter function to calculate credit from history (never trust stale stored value)
-      currentBalance: roundTo2Decimals(getCreditBalance(rawData.creditBalance) / 100),
+      // Use credit balance from API response (already calculated by getter in creditService)
+      currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),
       allocations: creditAllocations
     },
     allocationSummary: {

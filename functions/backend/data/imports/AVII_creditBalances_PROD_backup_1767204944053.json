@@ -1,0 +1,484 @@
+{
+  "101": {
+    "lastChange": {
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "historyIndex": 3,
+      "year": "2026"
+    },
+    "history": [
+      {
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 0,
+        "type": "starting_balance",
+        "id": "credit_101_1767201366572_0",
+        "source": "csv_import_2025-12-31",
+        "notes": "Opening Balance"
+      },
+      {
+        "type": "credit_added",
+        "source": "csv_import_2025-12-31",
+        "amount": 23973,
+        "timestamp": "2025-08-01T17:00:00.000Z",
+        "notes": "Refund of June Sewage bill",
+        "id": "credit_101_1767201366573_1"
+      },
+      {
+        "timestamp": "2025-09-29T17:00:00.000Z",
+        "sequenceRef": "25035",
+        "amount": -23973,
+        "transactionId": "2025-09-29_000609_534",
+        "id": "credit_101_1767201366573_2",
+        "type": "credit_used",
+        "source": "csv_import_2025-12-31",
+        "notes": "Deposit of MXN 14,277.81 with an Underpayment of MXN 239.73"
+      },
+      {
+        "notes": "Conversion of monthly water bills to quarterly",
+        "source": "csv_import_2025-12-31",
+        "id": "credit_101_1767201366573_3",
+        "type": "credit_added",
+        "amount": 60000,
+        "timestamp": "2025-12-13T17:00:00.000Z"
+      }
+    ],
+    "creditBalance": 60000
+  },
+  "102": {
+    "history": [
+      {
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 0,
+        "source": "csv_import_2025-12-31",
+        "type": "starting_balance",
+        "id": "credit_102_1767201366573_0",
+        "notes": "Opening Balance"
+      },
+      {
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-11-02T17:00:00.000Z",
+        "transactionId": "2025-10-31_000637_422",
+        "sequenceRef": "25057",
+        "type": "credit_added",
+        "amount": 209994,
+        "id": "credit_102_1767201366573_1",
+        "notes": "Deposit of MXN 36,678.99 with an Overpayment for removal of duplicate penalties"
+      },
+      {
+        "timestamp": "2025-11-02T17:00:00.000Z",
+        "source": "csv_import_2025-12-31",
+        "notes": "Use of credit to pay water bill",
+        "amount": -70000,
+        "id": "credit_102_1767201366573_2",
+        "type": "credit_used"
+      }
+    ],
+    "creditBalance": 139994,
+    "lastChange": {
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "year": "2026",
+      "historyIndex": 2
+    }
+  },
+  "103": {
+    "lastChange": {
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "historyIndex": 4,
+      "year": "2026"
+    },
+    "history": [
+      {
+        "amount": 677500,
+        "type": "starting_balance",
+        "source": "csv_import_2025-12-31",
+        "notes": "Opening Balance",
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "id": "credit_103_1767201366573_0"
+      },
+      {
+        "id": "credit_103_1767201366573_1",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-08-04T17:00:00.000Z",
+        "amount": -59450,
+        "type": "credit_used",
+        "notes": "Deposit of MXN 15,000.00"
+      },
+      {
+        "notes": "Used to cover water bills.",
+        "type": "credit_used",
+        "timestamp": "2025-10-04T17:00:00.000Z",
+        "source": "csv_import_2025-12-31",
+        "id": "credit_103_1767201366573_2",
+        "amount": -158244
+      },
+      {
+        "type": "credit_added",
+        "source": "csv_import_2025-12-31",
+        "id": "credit_103_1767201366574_3",
+        "transactionId": "2025-10-06_000622_352",
+        "timestamp": "2025-10-06T17:00:00.000Z",
+        "sequenceRef": "25046",
+        "notes": "Deposit of MXN 15,000.00 with an Overpayment of MXN 273.06",
+        "amount": 27306
+      },
+      {
+        "notes": "conversion of monthly water bills to quarterly.",
+        "type": "credit_added",
+        "amount": 50000,
+        "timestamp": "2025-12-13T17:00:00.000Z",
+        "id": "credit_103_1767201366574_4",
+        "source": "csv_import_2025-12-31"
+      }
+    ],
+    "creditBalance": 537112
+  },
+  "104": {
+    "lastChange": {
+      "historyIndex": 9,
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "year": "2026"
+    },
+    "history": [
+      {
+        "notes": "Opening Balance",
+        "id": "credit_104_1767201366574_0",
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 0,
+        "source": "csv_import_2025-12-31",
+        "type": "starting_balance"
+      },
+      {
+        "sequenceRef": "25008",
+        "transactionId": "2025-07-10_000524_404",
+        "source": "csv_import_2025-12-31",
+        "type": "credit_added",
+        "notes": "Deposit of MXN 15,025.00 with an Overpayment of MXN 16.87",
+        "id": "credit_104_1767201366574_1",
+        "timestamp": "2025-07-10T17:00:00.000Z",
+        "amount": 1687
+      },
+      {
+        "sequenceRef": "PAY-104 (Manuel González)-20250723-26",
+        "timestamp": "2025-07-23T17:00:00.000Z",
+        "amount": 138446,
+        "type": "credit_added",
+        "source": "csv_import_2025-12-31",
+        "notes": "June Water Bills",
+        "id": "credit_104_1767201366574_2"
+      },
+      {
+        "sequenceRef": "PAY-104 (Manuel González)-20250725-29",
+        "source": "csv_import_2025-12-31",
+        "amount": 63973,
+        "type": "credit_added",
+        "id": "credit_104_1767201366574_3",
+        "notes": "June Water Bills",
+        "timestamp": "2025-07-25T17:00:00.000Z"
+      },
+      {
+        "sequenceRef": "PAY-104 (Manuel González)-20251007-103",
+        "notes": "July Water Bills",
+        "id": "credit_104_1767201366574_4",
+        "timestamp": "2025-08-01T17:00:00.000Z",
+        "amount": -40000,
+        "type": "credit_used",
+        "source": "csv_import_2025-12-31"
+      },
+      {
+        "timestamp": "2025-09-05T17:00:00.000Z",
+        "id": "credit_104_1767201366574_5",
+        "type": "credit_used",
+        "amount": -45000,
+        "source": "csv_import_2025-12-31",
+        "notes": "Aug Water Bills"
+      },
+      {
+        "id": "credit_104_1767201366574_6",
+        "amount": -50000,
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-10-01T17:00:00.000Z",
+        "notes": "Sep Water Bills",
+        "type": "credit_used"
+      },
+      {
+        "notes": "Jul, Aug, Sep Water Bills",
+        "type": "credit_added",
+        "amount": 145450,
+        "timestamp": "2025-10-07T17:00:00.000Z",
+        "id": "credit_104_1767201366574_7",
+        "source": "csv_import_2025-12-31"
+      },
+      {
+        "type": "credit_used",
+        "notes": "Deposit of MXN 13,000.00 with an Underpayment of MXN 2,008.13",
+        "timestamp": "2025-10-10T17:00:00.000Z",
+        "sequenceRef": "25049",
+        "source": "csv_import_2025-12-31",
+        "amount": -200813,
+        "id": "credit_104_1767201366574_8",
+        "transactionId": "2025-10-10_000625_395"
+      },
+      {
+        "notes": "conversion of monthly water bills to quarterly",
+        "id": "credit_104_1767201366574_9",
+        "source": "csv_import_2025-12-31",
+        "type": "credit_added",
+        "timestamp": "2025-12-13T17:00:00.000Z",
+        "amount": 50000
+      }
+    ],
+    "creditBalance": 63743
+  },
+  "105": {
+    "creditBalance": 137936,
+    "lastChange": {
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "historyIndex": 2,
+      "year": "2026"
+    },
+    "history": [
+      {
+        "type": "starting_balance",
+        "notes": "Opening Balance",
+        "id": "credit_105_1767201366574_0",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 3973
+      },
+      {
+        "id": "credit_105_1767201366574_1",
+        "source": "csv_import_2025-12-31",
+        "transactionId": "2025-10-02_000617_456",
+        "type": "credit_added",
+        "timestamp": "2025-10-02T17:00:00.000Z",
+        "notes": "Deposit of MXN 34,525.00 with an Overpayment of MXN 1,279.36",
+        "sequenceRef": "25045",
+        "amount": 123963
+      },
+      {
+        "notes": "conversion of monthly water bills to quarterly",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-12-13T17:00:00.000Z",
+        "type": "credit_added",
+        "amount": 10000,
+        "id": "credit_105_1767201366574_2"
+      }
+    ]
+  },
+  "106": {
+    "history": [
+      {
+        "type": "starting_balance",
+        "notes": "Opening Balance",
+        "id": "credit_106_1767201366574_0",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 0
+      },
+      {
+        "type": "credit_added",
+        "transactionId": "2025-10-16_000630_506",
+        "amount": 1197969,
+        "id": "credit_106_1767201366574_1",
+        "sequenceRef": "25053",
+        "notes": "Deposit of MXN 24,000.00 with an Overpayment of MXN 11,979.69",
+        "timestamp": "2025-10-16T17:00:00.000Z",
+        "source": "csv_import_2025-12-31"
+      },
+      {
+        "transactionId": "2025-10-16_000630_506",
+        "notes": "credit used to pay water bills and penalties of MXN 11,979.69",
+        "source": "csv_import_2025-12-31",
+        "type": "credit_used",
+        "timestamp": "2025-10-16T17:00:00.000Z",
+        "id": "credit_106_1767201366574_2",
+        "sequenceRef": "25053",
+        "amount": -248352
+      },
+      {
+        "sequenceRef": "25063",
+        "transactionId": "2025-11-27_000647_399",
+        "notes": "Deposit of MXN 12,000.00 with an Underpayment of MXN 20.31",
+        "type": "credit_used",
+        "timestamp": "2025-11-27T17:00:00.000Z",
+        "amount": -2031,
+        "id": "credit_106_1767201366574_3",
+        "source": "csv_import_2025-12-31"
+      },
+      {
+        "timestamp": "2025-12-13T17:00:00.000Z",
+        "amount": 65000,
+        "source": "csv_import_2025-12-31",
+        "notes": "conversion of monthly water bills to quarterly",
+        "type": "credit_added",
+        "id": "credit_106_1767201366574_4"
+      },
+      {
+        "notes": "Deposit of MXN 22,000.00 with an Underpayment of MXN 2,040.62 Transfer 12,000 + 10,000",
+        "transactionId": "2025-12-17_182637_250",
+        "sequenceRef": "25066",
+        "timestamp": "2025-12-20T17:00:00.000Z",
+        "id": "credit_106_1767201366574_5",
+        "source": "csv_import_2025-12-31",
+        "amount": -204062,
+        "type": "credit_used"
+      }
+    ],
+    "lastChange": {
+      "historyIndex": 5,
+      "year": "2026",
+      "timestamp": "2025-12-31T17:16:06.574Z"
+    },
+    "creditBalance": 808524
+  },
+  "201": {
+    "lastChange": {
+      "historyIndex": 3,
+      "timestamp": "2025-12-31T17:16:06.574Z",
+      "year": "2026"
+    },
+    "creditBalance": 5000,
+    "history": [
+      {
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "notes": "Opening Balance",
+        "source": "csv_import_2025-12-31",
+        "id": "credit_201_1767201366574_0",
+        "type": "starting_balance",
+        "amount": 0
+      },
+      {
+        "type": "credit_added",
+        "notes": "Refund of June Sewage bill",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-08-01T17:00:00.000Z",
+        "amount": 23973,
+        "id": "credit_201_1767201366574_1"
+      },
+      {
+        "notes": "Deposit of MXN 16,932.41 with an Underpayment of MXN 239.73",
+        "type": "credit_used",
+        "transactionId": "2025-09-20_000607_404",
+        "id": "credit_201_1767201366574_2",
+        "sequenceRef": "25033",
+        "timestamp": "2025-09-20T17:00:00.000Z",
+        "source": "csv_import_2025-12-31",
+        "amount": -23973
+      },
+      {
+        "source": "csv_import_2025-12-31",
+        "type": "credit_added",
+        "amount": 5000,
+        "id": "credit_201_1767201366574_3",
+        "notes": "conversion of monthly water bills to quarterly",
+        "timestamp": "2025-12-13T17:00:00.000Z"
+      }
+    ]
+  },
+  "202": {
+    "history": [
+      {
+        "source": "csv_import_2025-12-31",
+        "notes": "Opening Balance",
+        "amount": 0,
+        "type": "starting_balance",
+        "id": "credit_202_1767201366574_0",
+        "timestamp": "2025-06-30T17:00:00.000Z"
+      }
+    ],
+    "creditBalance": 0,
+    "lastChange": {
+      "year": "2026",
+      "historyIndex": 0,
+      "timestamp": "2025-12-31T17:16:06.574Z"
+    }
+  },
+  "203": {
+    "lastChange": {
+      "historyIndex": 4,
+      "year": "2026",
+      "timestamp": "2025-12-31T17:16:06.574Z"
+    },
+    "history": [
+      {
+        "source": "csv_import_2025-12-31",
+        "notes": "Opening Balance",
+        "type": "starting_balance",
+        "id": "credit_203_1767201366574_0",
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "amount": 0
+      },
+      {
+        "sequenceRef": "PAY-203 (Marquez)-20250813-41",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-10-02T17:00:00.000Z",
+        "id": "credit_203_1767201366574_1",
+        "type": "credit_added",
+        "notes": "overpayment from water bills",
+        "amount": 3575
+      },
+      {
+        "amount": 112500,
+        "id": "credit_203_1767201366574_2",
+        "timestamp": "2025-10-29T17:00:00.000Z",
+        "notes": "for well drilling payment",
+        "type": "credit_added",
+        "source": "csv_import_2025-12-31"
+      },
+      {
+        "id": "credit_203_1767201366574_3",
+        "sequenceRef": "25056",
+        "notes": "Deposit of MXN 17,670.05 with an Underpayment of MXN 914.05",
+        "amount": -91405,
+        "type": "credit_used",
+        "transactionId": "2025-10-22_000634_606",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-10-22T17:00:00.000Z"
+      },
+      {
+        "source": "csv_import_2025-12-31",
+        "id": "credit_203_1767201366574_4",
+        "type": "credit_added",
+        "amount": 155000,
+        "notes": "conversion of monthly water bills to quarterly",
+        "timestamp": "2025-12-13T17:00:00.000Z"
+      }
+    ],
+    "creditBalance": 179670
+  },
+  "204": {
+    "creditBalance": 23973,
+    "history": [
+      {
+        "timestamp": "2025-06-30T17:00:00.000Z",
+        "source": "csv_import_2025-12-31",
+        "notes": "Opening Balance",
+        "type": "starting_balance",
+        "amount": 50824,
+        "id": "credit_204_1767201366574_0"
+      },
+      {
+        "sequenceRef": "25022",
+        "transactionId": "2025-08-26_000547_561",
+        "type": "credit_added",
+        "source": "csv_import_2025-12-31",
+        "timestamp": "2025-08-26T17:00:00.000Z",
+        "amount": 23973,
+        "id": "credit_204_1767201366574_1",
+        "notes": "Refund of June Sewage bill"
+      },
+      {
+        "id": "credit_204_1767201366574_2",
+        "notes": "Deposit of MXN 18,879.69",
+        "timestamp": "2025-08-26T17:00:00.000Z",
+        "amount": -50824,
+        "source": "csv_import_2025-12-31",
+        "type": "credit_used"
+      }
+    ],
+    "lastChange": {
+      "historyIndex": 2,
+      "year": "2026",
+      "timestamp": "2025-12-31T17:16:06.574Z"
+    }
+  }
+}

@@ -1453,14 +1453,15 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     </div>
     
     <!-- Balance Due/Credit Summary (immediately after activity table) -->
-    <!-- Use credit balance from creditBalances document as single source of truth -->
+    <!-- If balance is negative, that IS the credit - no need for separate credit line -->
     <div class="balance-due-box">
       <table>
         <tr>
           <td>${t.balanceDue}</td>
           <td>${formatCurrency(actualClosingBalance)}</td>
         </tr>
-        ${accountCreditBalance > 0 ? `
+        ${actualClosingBalance > 0 && accountCreditBalance > 0 ? `
+        <!-- Owner owes money but has credit to apply -->
         <tr>
           <td>${t.lessCredit}</td>
           <td>(${formatCurrency(accountCreditBalance)})</td>
@@ -1470,7 +1471,8 @@ export async function generateStatementData(api, clientId, unitId, options = {})
           <td>${formatCurrency(Math.max(0, actualClosingBalance - accountCreditBalance))}</td>
         </tr>
         ` : ''}
-        ${actualClosingBalance <= 0 && accountCreditBalance <= 0 ? `
+        ${actualClosingBalance <= 0 ? `
+        <!-- Negative balance = credit, nothing owed -->
         <tr>
           <td colspan="2" style="text-align: center;">${t.paidInFull}</td>
         </tr>

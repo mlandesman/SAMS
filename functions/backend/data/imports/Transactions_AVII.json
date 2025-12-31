@@ -1,0 +1,1712 @@
+[
+  {
+    "": 25131,
+    "Date": "2025-07-01T05:00:00.000Z",
+    "Vendor": "Initial Balances",
+    "Category": "Bank: Adjustments",
+    "Unit": "",
+    "Amount": 0,
+    "Account": "Scotiabank",
+    "Notes": "Starting Balance"
+  },
+  {
+    "": "",
+    "Date": "2025-07-02T05:00:00.000Z",
+    "Vendor": "Jorge Juan Perez (General Labor)",
+    "Category": "Maintenance: Security",
+    "Unit": "",
+    "Amount": -4800,
+    "Account": "Scotiabank",
+    "Notes": "Jorge Juan Gate and Bodega Locks  [SLP]"
+  },
+  {
+    "": "PAY-202 (Violette)-20250704-9",
+    "Date": "2025-07-04T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "202 (Violette)",
+    "Amount": 307,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill (Banamex)"
+  },
+  {
+    "": "",
+    "Date": "2025-07-05T05:00:00.000Z",
+    "Vendor": "Telmex",
+    "Category": "Utilities:Internet",
+    "Unit": "",
+    "Amount": -988,
+    "Account": "Scotiabank",
+    "Notes": "Telmex Internet [SLP]"
+  },
+  {
+    "": 25017,
+    "Date": "2025-07-10T05:00:00.000Z",
+    "Vendor": "Aguas del Caribe",
+    "Category": "Utilities: Water",
+    "Unit": "",
+    "Amount": -15276.8,
+    "Account": "Scotiabank",
+    "Notes": "Water Service [SLP]"
+  },
+  {
+    "": 25008,
+    "Date": "2025-07-10T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "104 (Manuel González)",
+    "Amount": 15025,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025 + MXN 16.87 Credit Efectivo"
+  },
+  {
+    "": 25005,
+    "Date": "2025-07-11T20:08:36.740Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "106 (Terrel)",
+    "Amount": 24040.63,
+    "Account": "Scotiabank",
+    "Notes": "Covering 2 months before new owners take over"
+  },
+  {
+    "": 25006,
+    "Date": "2025-07-12T15:01:23.459Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "201 (Ische)",
+    "Amount": 17172.16,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025 + MXN 0.01 Credit BBVA Verbeek"
+  },
+  {
+    "": "PAY-201 (Ische)-20250712-15",
+    "Date": "2025-07-12T15:22:08.599Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "201 (Ische)",
+    "Amount": 289.73,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill (BBVA Verbeek)"
+  },
+  {
+    "": "PAY-204 (Januj)-20250712-16",
+    "Date": "2025-07-12T17:34:37.428Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "204 (Januj)",
+    "Amount": 289.73,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill"
+  },
+  {
+    "": "PAY-102 (Moguel)-20250712-17",
+    "Date": "2025-07-12T17:43:39.169Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "102 (Moguel)",
+    "Amount": 1189.73,
+    "Account": "Scotiabank",
+    "Notes": "Paid (Jun 2025)"
+  },
+  {
+    "": 25009,
+    "Date": "2025-07-14T23:02:57.486Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6500,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": "",
+    "Date": "2025-07-14T23:03:08.062Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5.8,
+    "Account": "Scotiabank",
+    "Notes": "Transaction Fee"
+  },
+  {
+    "": 25010,
+    "Date": "2025-07-14T23:06:36.322Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -7030,
+    "Account": "Scotiabank",
+    "Notes": "Paid Holidays"
+  },
+  {
+    "": "",
+    "Date": "2025-07-14T23:06:47.354Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5.8,
+    "Account": "Scotiabank",
+    "Notes": "Transaction Fee"
+  },
+  {
+    "": 25011,
+    "Date": "2025-07-14T23:07:53.476Z",
+    "Vendor": "Colonos Puerto Aventuras",
+    "Category": "Colonos Fee",
+    "Unit": "",
+    "Amount": -29367.12,
+    "Account": "Scotiabank",
+    "Notes": "Jul-Sep 2025"
+  },
+  {
+    "": "",
+    "Date": "2025-07-14T23:08:54.090Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5.8,
+    "Account": "Scotiabank",
+    "Notes": "Transaction Fee"
+  },
+  {
+    "": 25012,
+    "Date": "2025-07-17T14:38:52.463Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "101 (Zerbarini)",
+    "Amount": 14517.54,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025 Santander"
+  },
+  {
+    "": "PAY-101 (Zerbarini)-20250717-25",
+    "Date": "2025-07-17T14:43:24.359Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "101 (Zerbarini)",
+    "Amount": 1139.73,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill (BBVA)"
+  },
+  {
+    "": "PAY-104 (Manuel González)-20250723-26",
+    "Date": "2025-07-23T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "104 (Manuel González)",
+    "Amount": 1767.59,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill"
+  },
+  {
+    "": "PAY-106 (Terrel)-20250723-27",
+    "Date": "2025-07-23T21:57:35.748Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "106 (Terrel)",
+    "Amount": 1029.47,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill (CiBanco)"
+  },
+  {
+    "": "",
+    "Date": "2025-07-24T05:00:00.000Z",
+    "Vendor": "Jorge Juan Perez (General Labor)",
+    "Category": "Maintenance: General",
+    "Unit": "",
+    "Amount": -8400,
+    "Account": "Scotiabank",
+    "Notes": "Water Pump Sensor (tinaco drained) [SLP]"
+  },
+  {
+    "": "PAY-104 (Manuel González)-20250725-29",
+    "Date": "2025-07-25T21:53:55.764Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "104 (Manuel González)",
+    "Amount": 639.73,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill "
+  },
+  {
+    "": "PAY-105 (Antonio Manjarrez)-20250725-30",
+    "Date": "2025-07-25T21:59:40.434Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "105 (Antonio Manjarrez)",
+    "Amount": 1279.47,
+    "Account": "Scotiabank",
+    "Notes": "June Water Bill "
+  },
+  {
+    "": 25025,
+    "Date": "2025-07-29T05:00:00.000Z",
+    "Vendor": "OTHER",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary (Geysler \"Nesan\" Tuz)  [SLP]"
+  },
+  {
+    "": 25015,
+    "Date": "2025-07-30T00:16:18.913Z",
+    "Vendor": "CFE",
+    "Category": "Utilities: CFE",
+    "Unit": "",
+    "Amount": -6426,
+    "Account": "Scotiabank",
+    "Notes": "Electricity [SLP]"
+  },
+  {
+    "": 25018,
+    "Date": "2025-07-31T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees July 2025"
+  },
+  {
+    "": "",
+    "Date": "2025-07-31T05:00:00.000Z",
+    "Vendor": "Aquatica",
+    "Category": "Maintenance: Pool",
+    "Unit": "",
+    "Amount": -7950.51,
+    "Account": "Scotiabank",
+    "Notes": "Aquatica Pool Chemicals  [SLP]"
+  },
+  {
+    "": "",
+    "Date": "2025-07-31T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -520,
+    "Account": "Scotiabank",
+    "Notes": "Mensualidad Pyme"
+  },
+  {
+    "": "",
+    "Date": "2025-07-31T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -83.2,
+    "Account": "Scotiabank",
+    "Notes": "Mensualidad Pyme"
+  },
+  {
+    "": 25016,
+    "Date": "2025-07-31T16:24:09.839Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "105 (Antonio Manjarrez)",
+    "Amount": 33245.64,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025 BBVA "
+  },
+  {
+    "": 25019,
+    "Date": "2025-08-01T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "103 (Fernández)",
+    "Amount": 15000,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep plus Jun, Jul Water Bill"
+  },
+  {
+    "": 25020,
+    "Date": "2025-08-08T14:07:46.205Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "202 (Violette)",
+    "Amount": 20126,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025"
+  },
+  {
+    "": "PAY-106 (Terrel)-20250811-40",
+    "Date": "2025-08-11T16:34:44.818Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "106 (Terrel)",
+    "Amount": 310.27,
+    "Account": "Scotiabank",
+    "Notes": "July Water Bill "
+  },
+  {
+    "": "PAY-203 (Marquez)-20250813-41",
+    "Date": "2025-08-13T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "203 (Marquez)",
+    "Amount": 3957.5,
+    "Account": "Scotiabank",
+    "Notes": "June, July Water Bill"
+  },
+  {
+    "": "",
+    "Date": "2025-08-15T05:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary [SLP]"
+  },
+  {
+    "": "",
+    "Date": "2025-08-15T05:00:00.000Z",
+    "Vendor": "IMSS",
+    "Category": "Staff: Insurance",
+    "Unit": "",
+    "Amount": -1975,
+    "Account": "Scotiabank",
+    "Notes": "IMSS Payment [SLP]"
+  },
+  {
+    "": 25029,
+    "Date": "2025-08-15T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "203 (Marquez)",
+    "Amount": 18584.1,
+    "Account": "Petty Cash",
+    "Notes": "Jul, Aug, Sep 2025 Efectivo a Sandra"
+  },
+  {
+    "": "",
+    "Date": "2025-08-16T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Other",
+    "Unit": "",
+    "Amount": -18584.1,
+    "Account": "Petty Cash",
+    "Notes": "Repayment of Sandyland expenses"
+  },
+  {
+    "": "",
+    "Date": "2025-08-26T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Account Credit",
+    "Unit": "204 (Januj)",
+    "Amount": 508.24,
+    "Account": "Scotiabank",
+    "Notes": "Available credit applied to HOA"
+  },
+  {
+    "": 25022,
+    "Date": "2025-08-26T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "204 (Januj)",
+    "Amount": 18879.69,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025"
+  },
+  {
+    "": "",
+    "Date": "2025-08-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -520,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Payment"
+  },
+  {
+    "": "",
+    "Date": "2025-08-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -83.2,
+    "Account": "Scotiabank",
+    "Notes": "IVA for Commissions"
+  },
+  {
+    "": "",
+    "Date": "2025-08-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Transfer Fees",
+    "Unit": "",
+    "Amount": -20,
+    "Account": "Scotiabank",
+    "Notes": "4 Transfers @ 5.00/transfer"
+  },
+  {
+    "": "",
+    "Date": "2025-08-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -3.2,
+    "Account": "Scotiabank",
+    "Notes": "4 Transfers @ 5.00/transfer"
+  },
+  {
+    "": 25024,
+    "Date": "2025-08-29T19:30:43.695Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25026,
+    "Date": "2025-08-31T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees Aug 2925"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Juan Daniel Martinez Zetina",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -18596.04,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Juan Daniel Martinez Zetina",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -10303.04,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "",
+    "Date": "2025-09-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Notary: Assembly Ordinaria"
+  },
+  {
+    "": "PAY-101 (Zerbarini)-20250909-60",
+    "Date": "2025-09-09T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "101 (Zerbarini)",
+    "Amount": 60.27,
+    "Account": "Scotiabank",
+    "Notes": "August 2025"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Guillermo Prado Erazo",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -3000,
+    "Account": "Scotiabank",
+    "Notes": "August 2025 Accounting Fees"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Guillermo Prado Erazo",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -3000,
+    "Account": "Scotiabank",
+    "Notes": "September 2025 Accounting Fees"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Agosto"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Septiembre"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Agosto"
+  },
+  {
+    "": "",
+    "Date": "2025-09-10T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Septiembre"
+  },
+  {
+    "": "PAY-106 (Nieto)-20250913-67",
+    "Date": "2025-09-13T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "106 (Nieto)",
+    "Amount": 450,
+    "Account": "Scotiabank",
+    "Notes": "August 2025"
+  },
+  {
+    "": 25030,
+    "Date": "2025-09-14T15:50:17.527Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Utilities:Internet",
+    "Unit": "",
+    "Amount": -399,
+    "Account": "Scotiabank",
+    "Notes": "Telmex bill repay to Sandyland"
+  },
+  {
+    "": "",
+    "Date": "2025-09-15T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Telmex bill repay to Sandyland"
+  },
+  {
+    "": "",
+    "Date": "2025-09-15T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Telmex bill repay to Sandyland"
+  },
+  {
+    "": 25031,
+    "Date": "2025-09-16T20:58:36.349Z",
+    "Vendor": "IMSS",
+    "Category": "Staff: Insurance",
+    "Unit": "",
+    "Amount": -1979.38,
+    "Account": "Scotiabank",
+    "Notes": "Humberto Hernandez [SLP]"
+  },
+  {
+    "": "",
+    "Date": "2025-09-16T20:58:36.349Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Humberto Hernandez [SLP]"
+  },
+  {
+    "": "",
+    "Date": "2025-09-16T20:58:36.349Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Humberto Hernandez [SLP]"
+  },
+  {
+    "": "",
+    "Date": "2025-09-17T05:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": "",
+    "Date": "2025-09-17T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": "",
+    "Date": "2025-09-17T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25033,
+    "Date": "2025-09-20T14:50:21.896Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "201 (Ische)",
+    "Amount": 16932.41,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 Verbeck BBVA"
+  },
+  {
+    "": 25037,
+    "Date": "2025-09-29T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Maintenance: Pool",
+    "Unit": "",
+    "Amount": -10785.4,
+    "Account": "Scotiabank",
+    "Notes": "Aquatica Pool Chemicals (Sandyland repayment)"
+  },
+  {
+    "": 25037,
+    "Date": "2025-09-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Aquatica Pool Chemicals (Sandyland repayment)"
+  },
+  {
+    "": 25037,
+    "Date": "2025-09-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Aquatica Pool Chemicals (Sandyland repayment)"
+  },
+  {
+    "": 25035,
+    "Date": "2025-09-29T20:21:09.824Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "101 (Zerbarini)",
+    "Amount": 14277.81,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 using MXN 239.73 Credit "
+  },
+  {
+    "": "",
+    "Date": "2025-09-30T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -520,
+    "Account": "Scotiabank",
+    "Notes": "Mensualidad Pyme"
+  },
+  {
+    "": "",
+    "Date": "2025-09-30T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -83.2,
+    "Account": "Scotiabank",
+    "Notes": "IVA POR COMISION"
+  },
+  {
+    "": 25040,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Aguas del Caribe",
+    "Category": "Utilities: Water",
+    "Unit": "",
+    "Amount": -12443.2,
+    "Account": "Scotiabank",
+    "Notes": "Water Service"
+  },
+  {
+    "": 25041,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25041,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25040,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Water Service"
+  },
+  {
+    "": 25041,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25040,
+    "Date": "2025-10-01T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Water Service"
+  },
+  {
+    "": 25038,
+    "Date": "2025-10-01T21:46:55.559Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees Sept 2025"
+  },
+  {
+    "": 25038,
+    "Date": "2025-10-01T21:46:55.559Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees"
+  },
+  {
+    "": 25038,
+    "Date": "2025-10-01T21:46:55.559Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees"
+  },
+  {
+    "": 25042,
+    "Date": "2025-10-02T05:00:00.000Z",
+    "Vendor": "Automorphosis del Caribe",
+    "Category": "Maintenance: Plumbing & Electrical",
+    "Unit": "",
+    "Amount": -10324,
+    "Account": "Scotiabank",
+    "Notes": "Perforación de pozos para agua dulce"
+  },
+  {
+    "": 25045,
+    "Date": "2025-10-02T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "105 (Antonio Manjarrez)",
+    "Amount": 34525,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 + MXN 1,279.36 Credit BBVA"
+  },
+  {
+    "": "PAY-201 (Ische)-20251002-95",
+    "Date": "2025-10-02T22:22:32.612Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "201 (Ische)",
+    "Amount": 50,
+    "Account": "Scotiabank",
+    "Notes": "Verbeck (Sep 2025)"
+  },
+  {
+    "": 25047,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Colonos Puerto Aventuras",
+    "Category": "Colonos Fee",
+    "Unit": "",
+    "Amount": -29367.12,
+    "Account": "Scotiabank",
+    "Notes": "Oct-Dec 2025"
+  },
+  {
+    "": 25044,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Guillermo Prado Erazo",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -3000,
+    "Account": "Scotiabank",
+    "Notes": "H111429"
+  },
+  {
+    "": 25044,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "H111429"
+  },
+  {
+    "": 25047,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Oct-Dec 2025"
+  },
+  {
+    "": 25044,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "H111429"
+  },
+  {
+    "": 25047,
+    "Date": "2025-10-06T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Oct-Dec 2025"
+  },
+  {
+    "": 25046,
+    "Date": "2025-10-06T14:52:07.667Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "103 (Fernández)",
+    "Amount": 15000,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 + MXN 273.06 Credit "
+  },
+  {
+    "": "PAY-104 (Manuel González)-20251007-103",
+    "Date": "2025-10-07T13:55:35.951Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "104 (Manuel González)",
+    "Amount": 1454.5,
+    "Account": "Scotiabank",
+    "Notes": "Jul, Aug, Sep 2025"
+  },
+  {
+    "": 25048,
+    "Date": "2025-10-08T21:21:28.681Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "204 (Januj)",
+    "Amount": 19427.68,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 + MXN 0.01 Credit MARGARITA DE SANTANDER"
+  },
+  {
+    "": 25050,
+    "Date": "2025-10-11T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "06 Aug- 06 Oct 2025"
+  },
+  {
+    "": 25050,
+    "Date": "2025-10-11T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "06 Aug- 06 Oct 2025"
+  },
+  {
+    "": 25049,
+    "Date": "2025-10-11T03:12:51.213Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "104 (Manuel González)",
+    "Amount": 13000,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 using MXN 2,008.13 from Credit Balance Efectivo"
+  },
+  {
+    "": 25050,
+    "Date": "2025-10-11T05:00:00.000Z",
+    "Vendor": "CFE",
+    "Category": "Utilities: CFE",
+    "Unit": "",
+    "Amount": -6161,
+    "Account": "Scotiabank",
+    "Notes": "06 Aug- 06 Oct 2025"
+  },
+  {
+    "": "PAY-101 (Zerbarini)-20251014-109",
+    "Date": "2025-10-14T14:01:24.265Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "101 (Zerbarini)",
+    "Amount": 800,
+    "Account": "Scotiabank",
+    "Notes": "2025-09-01T05:00:00.000Z"
+  },
+  {
+    "": 25052,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Aguas del Caribe",
+    "Category": "Utilities: Water",
+    "Unit": "",
+    "Amount": -23531.2,
+    "Account": "Scotiabank",
+    "Notes": "August and September back payments"
+  },
+  {
+    "": 25051,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25051,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25052,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "August and September back payments"
+  },
+  {
+    "": 25051,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25052,
+    "Date": "2025-10-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "August and September back payments"
+  },
+  {
+    "": 25053,
+    "Date": "2025-10-17T01:54:34.535Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "106 (Nieto)",
+    "Amount": 24000,
+    "Account": "Scotiabank",
+    "Notes": "Sep 2025 + MXN 11,979.69 Consumo de agua and Penalties  Efectivo (BBVA)"
+  },
+  {
+    "": 25054,
+    "Date": "2025-10-17T03:02:54.065Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "202 (Violette)",
+    "Amount": 20122,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 + Water Bills Banamex"
+  },
+  {
+    "": 25055,
+    "Date": "2025-10-19T00:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Utilities:Internet",
+    "Unit": "",
+    "Amount": -803.8,
+    "Account": "Scotiabank",
+    "Notes": "Telmex Internet Bill"
+  },
+  {
+    "": 25055,
+    "Date": "2025-10-19T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Telmex Internet Bill"
+  },
+  {
+    "": 25055,
+    "Date": "2025-10-19T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Telmex Internet Bill"
+  },
+  {
+    "": "PAY-105 (Antonio Manjarrez)-20251020-121",
+    "Date": "2025-10-20T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "105 (Antonio Manjarrez)",
+    "Amount": 498.5,
+    "Account": "Scotiabank",
+    "Notes": "Water Consumption"
+  },
+  {
+    "": "PAY-102 (Bagnato)-20251020-122",
+    "Date": "2025-10-20T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "102 (Bagnato)",
+    "Amount": 1201,
+    "Account": "Scotiabank",
+    "Notes": "Water Consumption"
+  },
+  {
+    "": 25056,
+    "Date": "2025-10-22T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "203 (Marquez)",
+    "Amount": 17670.05,
+    "Account": "Scotiabank",
+    "Notes": "Oct, Nov, Dec 2025 using MXN 914.05 from Credit Balance Efectivo en el banco"
+  },
+  {
+    "": "PAY-203 (Marquez)-20251023-124",
+    "Date": "2025-10-23T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "Water Consumption",
+    "Unit": "203 (Marquez)",
+    "Amount": 1550,
+    "Account": "Scotiabank",
+    "Notes": "2025-09-01T05:00:00.000Z"
+  },
+  {
+    "": "",
+    "Date": "2025-10-28T18:24:11.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank Adjustments",
+    "Unit": "",
+    "Amount": -2290.589999999931,
+    "Account": "Scotiabank",
+    "Notes": "Account Reconciliation"
+  },
+  {
+    "": "",
+    "Date": "2025-10-31T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -520,
+    "Account": "Scotiabank",
+    "Notes": "COBRO DE COMISION"
+  },
+  {
+    "": "",
+    "Date": "2025-10-31T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -83.2,
+    "Account": "Scotiabank",
+    "Notes": "Mensualidad Pyme"
+  },
+  {
+    "": 25057,
+    "Date": "2025-10-31T05:00:00.000Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "102 (Bagnato)",
+    "Amount": 38678.99,
+    "Account": "Scotiabank",
+    "Notes": "Jul - Dec 2025 + MXN 2099.94 Credit "
+  },
+  {
+    "": 25059,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees Oct 2025"
+  },
+  {
+    "": 25058,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25058,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25059,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees"
+  },
+  {
+    "": 25058,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25059,
+    "Date": "2025-11-03T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees"
+  },
+  {
+    "": 25061,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Aguas del Caribe",
+    "Category": "Utilities: Water",
+    "Unit": "",
+    "Amount": -8771.84,
+    "Account": "Scotiabank",
+    "Notes": "October Consumption"
+  },
+  {
+    "": 25060,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Guillermo Prado Erazo",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -3000,
+    "Account": "Scotiabank",
+    "Notes": "Accountant"
+  },
+  {
+    "": 25060,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Accountant"
+  },
+  {
+    "": 25061,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "October Consumption"
+  },
+  {
+    "": 25060,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Accountant"
+  },
+  {
+    "": 25061,
+    "Date": "2025-11-07T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "October Consumption"
+  },
+  {
+    "": 25062,
+    "Date": "2025-11-13T00:00:00.000Z",
+    "Vendor": "IMSS",
+    "Category": "Staff: Insurance",
+    "Unit": "",
+    "Amount": -1979.38,
+    "Account": "Scotiabank",
+    "Notes": "Humberto IMSS [SLP]"
+  },
+  {
+    "": 25064,
+    "Date": "2025-11-28T00:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25064,
+    "Date": "2025-11-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25064,
+    "Date": "2025-11-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25063,
+    "Date": "2025-11-28T04:35:29.173Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "106 (Nieto)",
+    "Amount": 12000,
+    "Account": "Scotiabank",
+    "Notes": "Oct 2025 using MXN 20.31 from Credit Balance Efectivo → BBVA"
+  },
+  {
+    "": "",
+    "Date": "2025-11-28T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -520,
+    "Account": "Scotiabank",
+    "Notes": "COBRO DE COMISION"
+  },
+  {
+    "": "",
+    "Date": "2025-11-28T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -83.2,
+    "Account": "Scotiabank",
+    "Notes": "Mensualidad Pyme"
+  },
+  {
+    "": 25074,
+    "Date": "2025-12-01T00:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Nov 2025"
+  },
+  {
+    "": 25074,
+    "Date": "2025-12-01T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Nov 2025"
+  },
+  {
+    "": 25074,
+    "Date": "2025-12-01T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Nov 2025"
+  },
+  {
+    "": 25068,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25073,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Humberto Aguilar",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -6750,
+    "Account": "Scotiabank",
+    "Notes": "Biweekly Salary"
+  },
+  {
+    "": 25068,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25073,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Biweekly Salary"
+  },
+  {
+    "": 25068,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "BiWeekly Salary"
+  },
+  {
+    "": 25073,
+    "Date": "2025-12-15T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Biweekly Salary"
+  },
+  {
+    "": 25066,
+    "Date": "2025-12-20T15:45:50.361Z",
+    "Vendor": "Deposit",
+    "Category": "HOA Dues",
+    "Unit": "106 (Nieto)",
+    "Amount": 22000,
+    "Account": "Scotiabank",
+    "Notes": "Nov, Dec 2025 using MXN 2,040.62 from Credit Balance Transfer 12,000 + 10,000"
+  },
+  {
+    "": 25070,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Aguas del Caribe",
+    "Category": "Utilities: Water",
+    "Unit": "",
+    "Amount": -10496.64,
+    "Account": "Scotiabank",
+    "Notes": "November Water Bill"
+  },
+  {
+    "": 25072,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Guillermo Prado Erazo",
+    "Category": "Legal and Accounting",
+    "Unit": "",
+    "Amount": -3000,
+    "Account": "Scotiabank",
+    "Notes": "November Accounting Fees"
+  },
+  {
+    "": 25070,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "November Water Bill"
+  },
+  {
+    "": 25071,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "November Water Bill"
+  },
+  {
+    "": 25072,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "November Accounting Fees"
+  },
+  {
+    "": 25071,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "November Water Bill"
+  },
+  {
+    "": 25072,
+    "Date": "2025-12-28T00:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "November Accounting Fees"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -13920,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees Dec 2025 with IVA"
+  },
+  {
+    "": 25067,
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -12000,
+    "Account": "Scotiabank",
+    "Notes": "Monthly Admin Fees Jan 2026"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Administrators",
+    "Unit": "",
+    "Amount": -11520,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Past IVA (Jul-Dec)"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Sandyland Properties",
+    "Category": "Staff: Maintenance Staff",
+    "Unit": "",
+    "Amount": -7000,
+    "Account": "Scotiabank",
+    "Notes": "Humbert's Aguinaldo (cash from Sandyland)"
+  },
+  {
+    "": 25069,
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "CFE",
+    "Category": "Utilities: CFE",
+    "Unit": "",
+    "Amount": -5894,
+    "Account": "Scotiabank",
+    "Notes": "Oct-Dec 2025"
+  },
+  {
+    "": 25067,
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "November Admin Fees"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "December Admin Fees with IVA"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Past IVA"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: Commission Charges",
+    "Unit": "",
+    "Amount": -5,
+    "Account": "Scotiabank",
+    "Notes": "Humbert's Aguinaldo (cash from Sandyland)"
+  },
+  {
+    "": 25067,
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "November Admin Fees"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "December Admin Fees with IVA"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Admin Fees Past IVA"
+  },
+  {
+    "": "",
+    "Date": "2025-12-29T05:00:00.000Z",
+    "Vendor": "Scotiabank",
+    "Category": "Bank: IVA",
+    "Unit": "",
+    "Amount": -0.8,
+    "Account": "Scotiabank",
+    "Notes": "Humbert's Aguinaldo (cash from Sandyland)"
+  }
+]

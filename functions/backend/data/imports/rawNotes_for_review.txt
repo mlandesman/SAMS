@@ -1,0 +1,181 @@
+
+============================================================
+UNIT 101
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+------
+Credit Adjusted to MXN 239.73 on Mon Jun 30 2025 00:00:00 GMT-0500 (Eastern Standard Time) from refund of June Sewage bill (Added USD 239.73)
+------
+Credit Adjusted to MXN 0 on Mon Sep 29 2025 15:21:09 GMT-0500 (Eastern Standard Time) from Deposit of MXN 14,277.81 with an Underpayment of MXN 239.73
+------
+Credit Adjusted to MXN 600 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 102
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+------
+Credit Adjusted to MXN 2,099.94 on Sun Nov 02 2025 11:33:54 GMT-0500 (Eastern Standard Time) from Deposit of MXN 36,678.99 with an Overpayment for removal of duplicate penalties.
+------
+Credit Adjusted to MXN 1,399.94 on Sun Nov 02 2025 11:33:54 GMT-0500 (Eastern Standard Time) from use of credit to pay water bill
+----------------------------------------
+
+============================================================
+UNIT 103
+============================================================
+Starting Balance: $6675
+
+Raw Note:
+----------------------------------------
+Starting Balance: $6,675
+------
+Credit Adjusted to MXN 6,180.50 on Mon Aug 04 2025 13:52:36 GMT-0500 (Eastern Standard Time) from Deposit of MXN 15,000.00
+------
+Credit Adjusted to MXN 4,598.06 on Mon Oct 04 2025 13:52:36 GMT-0500 (Eastern Standard Time) Used to cover water bills.
+------
+Credit Adjusted to MXN 4,871.12 on Mon Oct 06 2025 09:52:07 GMT-0500 (Eastern Standard Time) from Deposit of MXN 15,000.00 with an Overpayment of MXN 273.06
+------
+Credit Adjusted to MXN 5,371.12 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 104
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+------
+Credit Adjusted to MXN 16.87 on Sat Jul 12 2025 11:03:36 GMT-0500 (Eastern Standard Time) from Deposit of MXN 15,025.00 with an Overpayment of MXN 16.87
+Efectivo
+-----
+Credit Adjusted to MXN 1401.33 on Jul 23 2025 from Deposit of MXN 1767.59 for June Water Bills
+-----
+Credit Adjusted to MXN 2041.06 on Jul 25 2025 from Deposit of MXN 639.73 for June Water Bills
+-----
+Credit Adjusted to MXN 1641.06 on Aug 01 2025 Credit Used to July Water Bills
+-----
+Credit Adjusted to MXN 1191.06 on Sep 05 2025 Credit Used to Aug Water Bills
+-----
+Credit Adjusted to MXN 691.06 on Oct 01 2025 Credit Used to Sep Water Bills
+-----
+Credit Adjusted to MXN 2145.56 on Oct 07 2025 Deposit of MXN 1,454.50 Jul, Aug, Sep Water Bills
+
+------
+Credit Adjusted to MXN 137.43 on Fri Oct 10 2025 22:12:50 GMT-0500 (Eastern Standard Time) from Deposit of MXN 13,000.00 with an Underpayment of MXN 2,008.13
+Efectivo
+------
+Credit Adjusted to MXN 637.43 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 105
+============================================================
+Starting Balance: $39.73
+
+Raw Note:
+----------------------------------------
+Starting Balance: $39.73 Overpayment of June water bill
+------
+Credit Adjusted to MXN 1,279.36 on Mon Oct 06 2025 09:50:11 GMT-0500 (Eastern Standard Time) from Deposit of MXN 34,525.00 with an Overpayment of MXN 1,279.36
+BBVA
+------
+Credit Adjusted to MXN 1,379.36 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 106
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+------
+Credit Adjusted to MXN 11,979.69 on Thu Oct 16 2025 20:54:34 GMT-0500 (Eastern Standard Time) from Deposit of MXN 24,000.00 with an Overpayment of MXN 11,979.69
+Efectivo (BBVA)
+------
+Credit Adjusted to MXN 9,496.17 on Thu Oct 16 2025 20:54:34 GMT-0500 (Eastern Standard Time) from credit used to pay water bills and penalties of MXN 11,979.69
+Efectivo (BBVA)
+------
+Credit Adjusted to MXN 9,475.86 on Thu Nov 27 2025 23:35:28 GMT-0500 (Eastern Standard Time) from Deposit of MXN 12,000.00 with an Underpayment of MXN 20.31
+Efectivo → BBVA
+------
+Credit Adjusted to MXN 10,125.86 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 201
+============================================================
+Starting Balance: $239.73
+
+Raw Note:
+----------------------------------------
+Starting Balance: $239.73 credit from overpayment of June water bill.
+------
+Credit Adjusted to MXN 0 on Sat Sep 20 2025 09:50:21 GMT-0500 (Eastern Standard Time) from Deposit of MXN 16,932.41 with an Underpayment of MXN 239.73
+Verbeck BBVA
+------
+Credit Adjusted to MXN 50 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 202
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+----------------------------------------
+
+============================================================
+UNIT 203
+============================================================
+Starting Balance: $0
+
+Raw Note:
+----------------------------------------
+Starting Balance: $0
+---
+Added 35.75 MXN in overpayment from water bills on 10/2/2025
+---
+Added 1125.00 MXN in for well drilling on 10/29/2025
+------
+Credit Adjusted to MXN 246.70 on Wed Oct 29 2025 19:16:11 GMT-0500 (Eastern Standard Time) from Deposit of MXN 17,670.05 with an Underpayment of MXN 914.05
+Efectivo en el banco
+------
+Credit Adjusted to MXN 1,796.70 on Sat Dec 13 2025 15:21:09 GMT-0500 (Eastern Standard Time) from conversion of monthly water bills to quarterly.
+----------------------------------------
+
+============================================================
+UNIT 204
+============================================================
+Starting Balance: $508.24
+
+Raw Note:
+----------------------------------------
+Starting Balance: $508.24
+------
+Credit Adjusted to MXN $548 on Tue Aug 26 2025 10:57:22 GMT-0500 (Eastern Standard Time) from overpayment on sewage
+
+------
+Credit Adjusted to MXN $0 on Tue Aug 26 2025 11:10:27 GMT-0500 (Eastern Standard Time) from Deposit of MXN 18,879.69
+
+------
+Credit Adjusted to MXN 6,475.88 on Tue Aug 26 2025 11:12:50 GMT-0500 (Eastern Standard Time) from Deposit of MXN 6,475.89 with an Overpayment of MXN 0.00
+
+------
+Credit Adjusted to MXN 0.01 on Wed Oct 08 2025 16:21:28 GMT-0500 (Eastern Standard Time) from Deposit of MXN 19,427.68 with an Overpayment of MXN 0.01
+MARGARITA DE SANTANDER
+----------------------------------------
