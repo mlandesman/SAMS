@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent 21 - GitHub Issues Sync + AVII Users Complete (December 25, 2025)
-**Current Version:** v1.5.1 (deployed) - Water Bills Quarterly Fixes + Email Language Support
+**Last Modification:** Manager Agent - MTC Year-End 2025 executed & archived (December 31, 2025)
+**Current Version:** v1.5.3 (deployed) - Credit Balance Reconciliation & Statement Fixes
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -88,6 +88,34 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.5.3 - Credit Balance Reconciliation + Prod Deploy (December 31, 2025)
+**STATUS:** ✅ DEPLOYED - Production build 1.5.3 (commit 064d835)
+
+#### Key Deliverables
+- ✅ AVII credit balance reconciliation completed; history corrected and pushed to PROD (ADC) with transaction cross-ref
+- ✅ MTC credit balances verified DEV = PROD; ready for year-end close (timestamps cosmetic gaps remain)
+- ✅ Statement fixes: credit balance read in data service and redundant “Less: Credit on Account” removed in HTML
+- ✅ Utility scripts added: import, cross-ref builder, prod push, DEV/PROD compare, backups created
+- ✅ Production deployment confirmed (Build 251231.1409, darwin / Node v22.15.0)
+
+#### Outstanding Follow-Ups
+- 🔄 Verify prod statements (e.g., AVII unit 203, MTC sample) post-deploy for display correctness
+- 🔄 Execute MTC year-end close after statement verification
+- 🟡 Optional: MTC credit history timestamp cleanup via CSV import
+
+### MTC Year-End 2025 Execution (December 31, 2025)
+**STATUS:** ✅ COMPLETE (DEV → PROD via ADC)
+
+#### Key Deliverables
+- ✅ 2026 dues documents created for all MTC units (year-end controller)
+- ✅ Credit balances archived to `creditBalances_2025` and reseeded `creditBalances` with `starting_balance` entries (2026-01-01T00:00:00-05:00, `year_end_rollover`, notes with add/use summary)
+- ✅ Account snapshot `yearEndBalances/2025` created (bank-001, cash-001)
+- ✅ Backups before PROD writes (`functions/backend/data/imports/MTC_creditBalances_PROD_backup_1767221827876.json`)
+
+#### Notes / Follow-Ups
+- 🔄 HOA Dues UI must filter out any units docs with IDs starting `creditBalances*`; optional backend guard on units listing.
+- ✅ Spot checks confirmed correct carryover in 2026 views.
 
 ### v1.5.1 - Water Bills Q2 Fix + Email Language Support (December 25, 2025)
 **STATUS:** ✅ DEPLOYED - Production ready for Q2 statements

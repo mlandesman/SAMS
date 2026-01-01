@@ -98,7 +98,7 @@ function formatBackupId(date) {
  * @returns {Object} Backup result with id, timestamp, status
  */
 export async function runBackup(triggeredBy = 'scheduled', userId = null) {
-  const startTime = new Date(); // UTC for system operations
+  const startTime = getNow(); // Cancun timezone (system operations use getNow())
   const backupId = formatBackupId(startTime);
   const db = await getDb();
   
@@ -155,6 +155,9 @@ export async function runBackup(triggeredBy = 'scheduled', userId = null) {
     
     console.log(`✅ Backup ${backupId} completed in ${(durationMs / 1000).toFixed(1)}s`);
     
+    // Create manifest JSON file for restore scripts
+    await createBackupManifest(backupId, startTime, triggeredBy, firestoreExportResult, storageSyncResult);
+    
     // Apply retention policy
     await applyRetentionPolicy();
     
@@ -194,16 +197,9 @@ export async function runBackup(triggeredBy = 'scheduled', userId = null) {
  */
 async function exportFirestore(backupId) {
   try {
-    // Import Firestore Admin API v1 client
-    // Note: This requires @google-cloud/firestore package
-    // If not available, we'll use a fallback approach
-    let FirestoreAdminClient;
-    try {
-      const firestoreAdmin = await import('@google-cloud/firestore');
-      FirestoreAdminClient = firestoreAdmin.v1?.FirestoreAdminClient;
-    } catch (importError) {
-      console.warn('@google-cloud/firestore not available, using fallback');
-    }
+    // Use googleapis package for Firestore Admin API
+    const { google } = await import('googleapis');
+    const firestoreAdmin = google.firestore('v1');
     
     const envPrefix = ENV_INFO.env;
     const outputPath = `gs://${BUCKET_NAME}/${envPrefix}/${backupId}/firestore`;
@@ -212,89 +208,85 @@ async function exportFirestore(backupId) {
     
     console.log(`   Firestore export path: ${outputPath}`);
     
-    if (FirestoreAdminClient) {
-      // Use Firestore Admin API v1 for programmatic export
-      const firestoreAdmin = new FirestoreAdminClient();
-      const databaseName = firestoreAdmin.databasePath(PROJECT_ID, '(default)');
-      
-      // Export all collections (including subcollections)
-      console.log('   Starting Firestore export (all collections)...');
-      const [allOperation] = await firestoreAdmin.exportDocuments({
-        name: databaseName,
+    // Get auth client (uses default credentials in Cloud Functions)
+    const authClient = await google.auth.getClient({
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+    
+    const databaseName = `projects/${PROJECT_ID}/databases/(default)`;
+    
+    // Export all collections (including subcollections)
+    console.log('   Starting Firestore export (all collections)...');
+    const allOperation = await firestoreAdmin.projects.databases.exportDocuments({
+      auth: authClient,
+      name: databaseName,
+      requestBody: {
         outputUriPrefix: allCollectionsPath
         // No collectionIds = export ALL (including subcollections)
-      });
-      
-      // Export users collection separately
-      console.log('   Starting Firestore export (users only)...');
-      const [usersOperation] = await firestoreAdmin.exportDocuments({
-        name: databaseName,
+      }
+    });
+    
+    // Export users collection separately
+    console.log('   Starting Firestore export (users only)...');
+    const usersOperation = await firestoreAdmin.projects.databases.exportDocuments({
+      auth: authClient,
+      name: databaseName,
+      requestBody: {
         outputUriPrefix: usersPath,
         collectionIds: ['users']
-      });
+      }
+    });
+    
+    // Wait for operations to complete (with timeout)
+    console.log('   Waiting for Firestore exports to complete...');
+    const maxWait = 600000; // 10 minutes
+    const startTime = Date.now();
+    
+    // Poll for completion using Firestore Admin operations API
+    const allOpName = allOperation.data.name;
+    const usersOpName = usersOperation.data.name;
+    
+    while (Date.now() - startTime < maxWait) {
+      const allResponse = await firestoreAdmin.projects.databases.operations.get({
+        auth: authClient,
+        name: allOpName
+      }).catch(() => null);
       
-      // Wait for operations to complete (with timeout)
-      console.log('   Waiting for Firestore exports to complete...');
-      const maxWait = 600000; // 10 minutes
-      const startTime = Date.now();
+      const usersResponse = await firestoreAdmin.projects.databases.operations.get({
+        auth: authClient,
+        name: usersOpName
+      }).catch(() => null);
       
-      // Poll for completion
-      while (Date.now() - startTime < maxWait) {
-        const [allResponse] = await allOperation.promise().catch(() => [null]);
-        const [usersResponse] = await usersOperation.promise().catch(() => [null]);
+      if (allResponse?.data?.done && usersResponse?.data?.done) {
+        console.log('   ✅ Firestore exports complete');
+        // Calculate size from GCS
+        const storage = admin.storage();
+        const bucket = storage.bucket(BUCKET_NAME);
+        let totalSize = 0;
         
-        if (allResponse?.done && usersResponse?.done) {
-          console.log('   ✅ Firestore exports complete');
-          // Calculate size from GCS
-          const storage = admin.storage();
-          const bucket = storage.bucket(BUCKET_NAME);
-          let totalSize = 0;
+        try {
+          const [allFiles] = await bucket.getFiles({ prefix: `${envPrefix}/${backupId}/firestore/all_collections/` });
+          const [userFiles] = await bucket.getFiles({ prefix: `${envPrefix}/${backupId}/firestore/users_only/` });
           
-          try {
-            const envPrefix = ENV_INFO.env;
-            const [allFiles] = await bucket.getFiles({ prefix: `${envPrefix}/${backupId}/firestore/all_collections/` });
-            const [userFiles] = await bucket.getFiles({ prefix: `${envPrefix}/${backupId}/firestore/users_only/` });
-            
-            for (const file of [...allFiles, ...userFiles]) {
-              const [metadata] = await file.getMetadata();
-              totalSize += parseInt(metadata.size || 0);
-            }
-          } catch (sizeError) {
-            console.warn('   Could not calculate export size:', sizeError.message);
+          for (const file of [...allFiles, ...userFiles]) {
+            const [metadata] = await file.getMetadata();
+            totalSize += parseInt(metadata.size || 0);
           }
-          
-          return {
-            path: outputPath,
-            sizeBytes: totalSize
-          };
+        } catch (sizeError) {
+          console.warn('   Could not calculate export size:', sizeError.message);
         }
         
-        // Wait before checking again
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        return {
+          path: outputPath,
+          sizeBytes: totalSize
+        };
       }
       
-      throw new Error('Firestore export timeout - exports may still be in progress');
-      
-    } else {
-      // Fallback: Use gcloud CLI via child_process (for local/dev environments)
-      // In production Cloud Functions, this should use the Admin API
-      console.log('   Using fallback export method (gcloud CLI)');
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
-      
-      // Export all collections
-      await execAsync(`gcloud firestore export ${allCollectionsPath} --project=${PROJECT_ID} --async`);
-      // Export users
-      await execAsync(`gcloud firestore export ${usersPath} --project=${PROJECT_ID} --collection-ids=users --async`);
-      
-      console.log('   ⏳ Firestore exports started (async) - size calculation deferred');
-      
-      return {
-        path: outputPath,
-        sizeBytes: 0 // Will be calculated later or by monitoring script
-      };
+      // Wait before checking again
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
+    
+    throw new Error('Firestore export timeout - exports may still be in progress');
     
   } catch (error) {
     console.error('Firestore export error:', error);
@@ -443,14 +435,15 @@ export async function getBackupStatus() {
       lastStatus = lastBackup.status;
     }
     
-    // Calculate next scheduled backup (3 AM Cancun time = 9 AM UTC)
-    const now = new Date(); // UTC
+    // Calculate next scheduled backup (3 AM Cancun time)
+    const now = getNow(); // Cancun timezone
     const nextScheduled = new Date(now);
-    nextScheduled.setUTCHours(9, 0, 0, 0); // 3 AM Cancun = 9 AM UTC
+    // Set to 3 AM Cancun time
+    nextScheduled.setHours(3, 0, 0, 0);
     
     // If already past today's scheduled time, schedule for tomorrow
     if (nextScheduled <= now) {
-      nextScheduled.setUTCDate(nextScheduled.getUTCDate() + 1);
+      nextScheduled.setDate(nextScheduled.getDate() + 1);
     }
     
     return {
@@ -462,6 +455,78 @@ export async function getBackupStatus() {
   } catch (error) {
     console.error('Error getting backup status:', error);
     throw new Error(`Failed to get backup status: ${error.message}`);
+  }
+}
+
+/**
+ * Create manifest JSON file for restore scripts
+ * This file is required by restore-prod.sh and restore-dev-from-prod.sh
+ * @param {string} backupId - Backup identifier (YYYY-MM-DD_HHMMSS)
+ * @param {Date} startTime - Backup start time
+ * @param {string} triggeredBy - 'scheduled' | 'manual'
+ * @param {Object} firestoreExportResult - Export result with path
+ * @param {Object} storageSyncResult - Storage sync result with path, sizeBytes, fileCount
+ */
+async function createBackupManifest(backupId, startTime, triggeredBy, firestoreExportResult, storageSyncResult) {
+  try {
+    console.log('📝 Creating backup manifest for restore scripts...');
+    
+    const storage = admin.storage();
+    const bucket = storage.bucket(BUCKET_NAME);
+    
+    // Extract date from backupId (YYYY-MM-DD_HHMMSS -> YYYY-MM-DD)
+    const backupDate = backupId.split('_')[0];
+    
+    // Map triggeredBy to tag format expected by restore scripts
+    const tag = triggeredBy === 'scheduled' ? 'nightly' : 'manual';
+    
+    // Format timestamp for manifest (ISO string)
+    const timestamp = startTime.toISOString();
+    
+    // Build paths - backupService stores at prod/{backupId}/firestore/{all_collections|users_only}
+    const envPrefix = ENV_INFO.env;
+    const allCollectionsPath = `${firestoreExportResult.path}/all_collections`;
+    const usersOnlyPath = `${firestoreExportResult.path}/users_only`;
+    
+    // Storage path and metadata
+    const storagePath = storageSyncResult.path;
+    const storageSizeMB = Math.round((storageSyncResult.sizeBytes || 0) / 1024 / 1024);
+    const storageFileCount = storageSyncResult.fileCount || 0;
+    
+    // Create manifest JSON matching restore script expectations
+    const manifest = {
+      timestamp: timestamp,
+      tag: tag,
+      firestore: {
+        all_collections: allCollectionsPath,
+        users_only: usersOnlyPath
+      },
+      storage: {
+        path: storagePath,
+        files_count: storageFileCount,
+        total_size_mb: storageSizeMB
+      },
+      source_project: PROJECT_ID,
+      collections_backed_up: 'all'
+    };
+    
+    // Upload manifest to manifests/ prefix (required by restore scripts)
+    const manifestFileName = `${backupDate}_${tag}.json`;
+    const manifestFile = bucket.file(`manifests/${manifestFileName}`);
+    
+    await manifestFile.save(JSON.stringify(manifest, null, 2), {
+      contentType: 'application/json',
+      metadata: {
+        cacheControl: 'no-cache'
+      }
+    });
+    
+    console.log(`   ✅ Manifest created: gs://${BUCKET_NAME}/manifests/${manifestFileName}`);
+    
+  } catch (error) {
+    // Don't fail the backup if manifest creation fails - log and continue
+    console.error('⚠️ Failed to create backup manifest (backup still succeeded):', error.message);
+    console.error('   Restore scripts may not be able to find this backup');
   }
 }
 

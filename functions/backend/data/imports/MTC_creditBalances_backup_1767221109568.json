@@ -1,0 +1,720 @@
+{
+  "2B": {
+    "history": [],
+    "lastChange": {
+      "year": "2025",
+      "timestamp": "2025-12-15T23:53:22.074Z",
+      "historyIndex": -1
+    }
+  },
+  "1A": {
+    "creditBalance": 623900,
+    "history": [
+      {
+        "amount": 1643900,
+        "notes": "Patched prepayment 15000 MXN on 2024-12-31",
+        "id": "starting_balance_1A_1767026465563",
+        "transactionId": null,
+        "description": "Starting credit balance from prior period",
+        "type": "starting_balance",
+        "timestamp": {
+          "_seconds": 1735603200,
+          "_nanoseconds": 0
+        }
+      },
+      {
+        "notes": "Jan, Feb, Mar 2025; HSBC",
+        "type": "credit_added",
+        "transactionId": "2024-12-28_235005_262",
+        "balanceBefore": 143900,
+        "amount": 120000,
+        "id": "5bg5mwbv5b9mj7t7ks4",
+        "timestamp": {
+          "_nanoseconds": 999000000,
+          "_seconds": 1735412211
+        },
+        "description": "from Overpayment",
+        "balanceAfter": 263900
+      },
+      {
+        "timestamp": {
+          "_nanoseconds": 271000000,
+          "_seconds": 1743267589
+        },
+        "balanceBefore": 263900,
+        "amount": 120000,
+        "notes": "Apr, May, Jun 2025 + MXN 1,200.00 Credit HSBC",
+        "id": "y4p3cq9asmamj7t7ks4",
+        "description": "from Overpayment",
+        "transactionId": "2025-03-29_235053_134",
+        "balanceAfter": 383900,
+        "type": "credit_added"
+      },
+      {
+        "type": "credit_used",
+        "balanceAfter": 43900,
+        "balanceBefore": 383900,
+        "notes": "Jul, Aug, Sep, Oct 2025 using MXN 3,400.00 from Credit Balance eTransfer to cIbanco",
+        "transactionId": "2025-07-02_235138_110",
+        "id": "epeoeeqpaigmj7t7ks4",
+        "amount": -340000,
+        "description": "from Credit Balance Usage",
+        "timestamp": {
+          "_seconds": 1751480981,
+          "_nanoseconds": 355000000
+        }
+      },
+      {
+        "description": "from Overpayment",
+        "transactionId": "2025-09-28_235213_067",
+        "type": "credit_added",
+        "notes": "Nov, Dec 2025 + MXN 5,800.00 Credit HSBC → BBVA",
+        "balanceBefore": 43900,
+        "amount": 580000,
+        "balanceAfter": 623900,
+        "timestamp": {
+          "_seconds": 1759076621,
+          "_nanoseconds": 418000000
+        },
+        "id": "7qx7n74c7qxmj7t7ks4"
+      },
+      {
+        "type": "credit_used",
+        "transactionId": null,
+        "notes": "Apply Jan-Mar 2025 HOA prepay (3 x 4600)",
+        "amount": -1380000,
+        "timestamp": "2025-01-02T00:00:00-05:00",
+        "description": "Apply Jan-Mar 2025 HOA prepay (3 x 4600)",
+        "id": "credit_used_1A_1767030642412"
+      },
+      {
+        "timestamp": "2025-12-31T00:00:00-05:00",
+        "id": "adjust_1A_1767030642413",
+        "amount": -120000,
+        "type": "credit_used",
+        "notes": "Align to Sheets ending balance 2025-12-31",
+        "transactionId": null,
+        "description": "Align to Sheets ending balance 2025-12-31"
+      }
+    ],
+    "lastChange": {
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "year": "2025",
+      "historyIndex": 6
+    }
+  },
+  "PH1A": {
+    "history": [
+      {
+        "description": "Starting credit balance from prior period",
+        "transactionId": null,
+        "notes": "Patched prepayment 36000 MXN on 2024-12-31",
+        "amount": 3600000,
+        "timestamp": {
+          "_seconds": 1735603200,
+          "_nanoseconds": 0
+        },
+        "type": "starting_balance",
+        "id": "starting_balance_PH1A_1767026465564"
+      },
+      {
+        "timestamp": {
+          "_nanoseconds": 948000000,
+          "_seconds": 1735692754
+        },
+        "transactionId": "2024-12-31_235005_989",
+        "id": "agi91q4vwp7mj7t7n08",
+        "balanceAfter": 0,
+        "balanceBefore": -120000,
+        "amount": 120000,
+        "notes": "Jan, Feb, Mar, Apr, May, Jun 2025; DolarApp 6 months",
+        "description": "from Overpayment",
+        "type": "credit_added"
+      },
+      {
+        "id": "hyh6xxfegvamj7t7n08",
+        "balanceBefore": 120000,
+        "amount": -120000,
+        "transactionId": "2025-07-01_235137_131",
+        "type": "credit_used",
+        "timestamp": {
+          "_seconds": 1751402686,
+          "_nanoseconds": 601000000
+        },
+        "notes": "Jul, Aug 2025 using MXN 1,200.00 from Credit Balance DolarApp → CiBanco",
+        "description": "from Credit Balance Usage",
+        "balanceAfter": 0
+      },
+      {
+        "type": "credit_added",
+        "description": "from Overpayment",
+        "id": "y0r87pnuogcmj7t7n08",
+        "amount": 460000,
+        "transactionId": "2025-10-03_235214_969",
+        "timestamp": {
+          "_seconds": 1759537212,
+          "_nanoseconds": 889000000
+        },
+        "notes": "Sep 2025 + MXN 4,600.00 Credit 8/26/2025 DolarApp",
+        "balanceBefore": -460000,
+        "balanceAfter": 0
+      },
+      {
+        "transactionId": "2025-10-05_235218_097",
+        "description": "from Credit Balance Usage",
+        "balanceBefore": 460000,
+        "amount": -460000,
+        "timestamp": {
+          "_nanoseconds": 723000000,
+          "_seconds": 1759706346
+        },
+        "type": "credit_used",
+        "id": "yjckc2injbmj7t7n08",
+        "balanceAfter": 0,
+        "notes": "Oct, Nov, Dec 2025 using MXN 4,600.00 from Credit Balance DolarApp → BBVA"
+      },
+      {
+        "notes": "Apply Jan-Jun 2025 HOA prepay (6 x 5800)",
+        "transactionId": null,
+        "description": "Apply Jan-Jun 2025 HOA prepay (6 x 5800)",
+        "amount": -3480000,
+        "timestamp": "2025-01-02T00:00:00-05:00",
+        "type": "credit_used",
+        "id": "credit_used_PH1A_1767030642413"
+      },
+      {
+        "amount": -120000,
+        "id": "adjust_PH1A_1767030642413",
+        "transactionId": null,
+        "timestamp": "2025-12-31T00:00:00-05:00",
+        "type": "credit_used",
+        "description": "Align to Sheets ending balance 2025-12-31",
+        "notes": "Align to Sheets ending balance 2025-12-31"
+      }
+    ],
+    "creditBalance": 0,
+    "lastChange": {
+      "year": "2025",
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "historyIndex": 6
+    }
+  },
+  "1C": {
+    "lastChange": {
+      "year": "2025",
+      "historyIndex": 3,
+      "timestamp": "2025-12-29T17:50:42.413Z"
+    },
+    "history": [
+      {
+        "notes": "Patched prepayment 26400 MXN on 2024-12-31",
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735603200
+        },
+        "transactionId": null,
+        "id": "starting_balance_1C_1767026465564",
+        "amount": 2700000,
+        "type": "starting_balance",
+        "description": "Starting credit balance from prior period"
+      },
+      {
+        "type": "credit_added",
+        "notes": "Jan, Feb, Mar, Apr, May 2025 + MXN 3,800.00 Credit; DolarApp",
+        "balanceAfter": 440000,
+        "balanceBefore": 60000,
+        "id": "xfq2u7fg2qmj7t7liz",
+        "transactionId": "2024-12-31_235006_975",
+        "timestamp": {
+          "_nanoseconds": 300000000,
+          "_seconds": 1735695009
+        },
+        "amount": 380000,
+        "description": "from Overpayment"
+      },
+      {
+        "notes": "Jun 2025 + MXN 600.00 Credit; DolarApp",
+        "timestamp": {
+          "_seconds": 1735695873,
+          "_nanoseconds": 622000000
+        },
+        "type": "credit_used",
+        "transactionId": "2024-12-31_235007_127",
+        "id": "r45eydb48fmj7t7liz",
+        "balanceAfter": 60000,
+        "balanceBefore": 440000,
+        "amount": -380000,
+        "description": "from Credit Balance Usage"
+      },
+      {
+        "transactionId": null,
+        "type": "credit_used",
+        "id": "credit_used_1C_1767030642413",
+        "description": "Apply Jan-Jun 2025 HOA prepay (6 x 4400)",
+        "amount": -2640000,
+        "timestamp": "2025-01-02T00:00:00-05:00",
+        "notes": "Apply Jan-Jun 2025 HOA prepay (6 x 4400)"
+      }
+    ],
+    "creditBalance": 60000
+  },
+  "2C": {
+    "creditBalance": 0,
+    "lastChange": {
+      "historyIndex": 1,
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "year": "2025"
+    },
+    "history": [
+      {
+        "description": "Starting credit balance from prior period",
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735603200
+        },
+        "id": "starting_balance_2C_1767026465564",
+        "transactionId": null,
+        "type": "starting_balance",
+        "amount": 1318800,
+        "notes": "Patched prepayment 13188 MXN on 2024-12-31"
+      },
+      {
+        "notes": "Apply Jan-Mar 2025 prepay to dues",
+        "description": "Apply Jan-Mar 2025 prepay to dues",
+        "amount": -1318800,
+        "id": "credit_used_2C_1767030642413",
+        "type": "credit_used",
+        "timestamp": "2025-01-02T00:00:00-05:00",
+        "transactionId": null
+      }
+    ]
+  },
+  "PH3C": {
+    "creditBalance": 0,
+    "lastChange": {
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "historyIndex": 4,
+      "year": "2025"
+    },
+    "history": [
+      {
+        "amount": 31044,
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735689600
+        },
+        "id": "qdpc5tab45mj7t7nrj",
+        "balanceBefore": 0,
+        "type": "starting_balance",
+        "transactionId": null,
+        "description": "Starting credit balance from prior period",
+        "balanceAfter": 31044,
+        "notes": "Imported from legacy system"
+      },
+      {
+        "amount": 20000,
+        "id": "s2hkq3qy4vjmj7t7nri",
+        "transactionId": "2025-06-13_235130_061",
+        "description": "from Overpayment",
+        "balanceAfter": 51044,
+        "notes": "Jun 2025 + MXN 200.00 Credit ",
+        "balanceBefore": 31044,
+        "type": "credit_added",
+        "timestamp": {
+          "_nanoseconds": 846000000,
+          "_seconds": 1749849255
+        }
+      },
+      {
+        "balanceBefore": 51044,
+        "timestamp": {
+          "_nanoseconds": 807000000,
+          "_seconds": 1751871122
+        },
+        "id": "fdekq63pwp8mj7t7nri",
+        "description": "from Overpayment",
+        "type": "credit_added",
+        "balanceAfter": 71044,
+        "amount": 20000,
+        "transactionId": "2025-07-07_235141_980",
+        "notes": "Jul 2025 + MXN 200.00 Credit "
+      },
+      {
+        "timestamp": {
+          "_seconds": 1757440341,
+          "_nanoseconds": 746000000
+        },
+        "balanceAfter": 91044,
+        "type": "credit_added",
+        "balanceBefore": 71044,
+        "id": "32j3ij9ujk1mj7t7nri",
+        "notes": "Sep 2025 + MXN 200.00 Credit ",
+        "amount": 20000,
+        "description": "from Overpayment",
+        "transactionId": "2025-09-09_235204_973"
+      },
+      {
+        "timestamp": "2025-12-31T00:00:00-05:00",
+        "type": "credit_used",
+        "description": "Align to Sheets ending balance 2025-12-31",
+        "notes": "Align to Sheets ending balance 2025-12-31",
+        "id": "adjust_PH3C_1767030642413",
+        "amount": -91044,
+        "transactionId": null
+      }
+    ]
+  },
+  "2A": {
+    "history": [
+      {
+        "description": "Starting credit balance after overpayment resolution",
+        "notes": "Net credit from May 2025 overpayment resolution ($46,000 deposit - $41,400 refund - $4,600 HOA = $894 credit)",
+        "amount": 89400,
+        "balanceAfter": 89400,
+        "transactionId": "2025-05-01_235113_096",
+        "id": "starting_balance_2025",
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735707600
+        },
+        "balanceBefore": 0,
+        "type": "starting_balance"
+      },
+      {
+        "amount": -80000,
+        "balanceBefore": 89400,
+        "balanceAfter": 9400,
+        "description": "from Credit Balance Usage",
+        "notes": "Jul 2025 using MXN 800.00 from Credit Balance ",
+        "type": "credit_used",
+        "timestamp": {
+          "_nanoseconds": 785000000,
+          "_seconds": 1751870875
+        },
+        "transactionId": "2025-07-07_235141_144",
+        "id": "2w422bnu4hsmj7t7m73"
+      },
+      {
+        "id": "teygfg26vkmj7t7m73",
+        "transactionId": "2025-09-16_235207_016",
+        "timestamp": {
+          "_nanoseconds": 488000000,
+          "_seconds": 1758045142
+        },
+        "balanceBefore": 9400,
+        "type": "credit_added",
+        "balanceAfter": 29400,
+        "amount": 20000,
+        "notes": "Sep 2025 + MXN 200.00 Credit Elizabeth",
+        "description": "from Overpayment"
+      }
+    ],
+    "lastChange": {
+      "historyIndex": 3,
+      "timestamp": "2025-12-15T23:53:21.981Z",
+      "year": "2025"
+    },
+    "updatedBy": "fix-2a-starting-balance",
+    "updated": "2025-12-23T18:39:23.900Z"
+  },
+  "1B": {
+    "lastChange": {
+      "year": "2026",
+      "historyIndex": 11,
+      "timestamp": "2025-12-15T23:54:18.816Z"
+    },
+    "history": [
+      {
+        "notes": "Imported from legacy system",
+        "transactionId": null,
+        "type": "starting_balance",
+        "description": "Starting credit balance from prior period",
+        "amount": 58600,
+        "id": "5zqu6v4o4pqmj7t7lgs",
+        "balanceAfter": 58600,
+        "balanceBefore": 0,
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735689600
+        }
+      },
+      {
+        "timestamp": {
+          "_nanoseconds": 914000000,
+          "_seconds": 1736379532
+        },
+        "transactionId": "2025-01-08_235013_086",
+        "amount": 60000,
+        "id": "qfyhc9x66omj7t7lgs",
+        "balanceAfter": 118600,
+        "notes": "Jan 2025 + MXN 600.00 Credit ",
+        "balanceBefore": 58600,
+        "description": "from Overpayment",
+        "type": "credit_added"
+      },
+      {
+        "type": "credit_added",
+        "timestamp": {
+          "_nanoseconds": 784000000,
+          "_seconds": 1739838111
+        },
+        "amount": 10000,
+        "balanceAfter": 128600,
+        "notes": "Feb 2025 + MXN 100.00 Credit ",
+        "description": "from Overpayment",
+        "balanceBefore": 118600,
+        "transactionId": "2025-02-17_235035_997",
+        "id": "4ckv34w47e4mj7t7lgs"
+      },
+      {
+        "timestamp": {
+          "_nanoseconds": 899000000,
+          "_seconds": 1741734539
+        },
+        "balanceAfter": 138600,
+        "id": "xe7uz8niggmj7t7lgs",
+        "type": "credit_added",
+        "description": "from Overpayment",
+        "amount": 10000,
+        "balanceBefore": 128600,
+        "notes": "Mar 2025 + MXN 100.00 Credit ",
+        "transactionId": "2025-03-11_235045_014"
+      },
+      {
+        "id": "bdoq6fil49imj7t7lgs",
+        "type": "credit_added",
+        "balanceAfter": 198600,
+        "amount": 60000,
+        "description": "from Overpayment",
+        "balanceBefore": 138600,
+        "timestamp": {
+          "_seconds": 1744765618,
+          "_nanoseconds": 457000000
+        },
+        "notes": "Apr 2025 + MXN 600.00 Credit ",
+        "transactionId": "2025-04-15_235106_998"
+      },
+      {
+        "timestamp": {
+          "_nanoseconds": 159000000,
+          "_seconds": 1744765684
+        },
+        "transactionId": "2025-04-15_235108_002",
+        "type": "credit_added",
+        "amount": 60000,
+        "balanceBefore": 198600,
+        "description": "from Overpayment",
+        "notes": "May 2025 + MXN 600.00 Credit ",
+        "id": "31dl7m1sjxrmj7t7lgs",
+        "balanceAfter": 258600
+      },
+      {
+        "id": "z5rdci57lkamj7t7lgs",
+        "transactionId": "2025-06-13_235129_088",
+        "balanceBefore": 258600,
+        "balanceAfter": 268600,
+        "notes": "Jun 2025 + MXN 100.00 Credit ",
+        "type": "credit_added",
+        "amount": 10000,
+        "description": "from Overpayment",
+        "timestamp": {
+          "_seconds": 1749849105,
+          "_nanoseconds": 27000000
+        }
+      },
+      {
+        "amount": 60000,
+        "transactionId": "2025-07-07_235141_287",
+        "type": "credit_added",
+        "balanceBefore": 268600,
+        "notes": "Jul 2025 + MXN 600.00 Credit ",
+        "description": "from Overpayment",
+        "balanceAfter": 328600,
+        "timestamp": {
+          "_seconds": 1751871060,
+          "_nanoseconds": 209000000
+        },
+        "id": "hprjr53qtwvmj7t7lgs"
+      },
+      {
+        "notes": "Aug 2025 + MXN 600.00 Credit ",
+        "id": "lp4p0uq81rmj7t7lgs",
+        "balanceBefore": 328600,
+        "transactionId": "2025-08-09_235151_065",
+        "timestamp": {
+          "_nanoseconds": 745000000,
+          "_seconds": 1754782741
+        },
+        "amount": 60000,
+        "balanceAfter": 388600,
+        "type": "credit_added",
+        "description": "from Overpayment"
+      },
+      {
+        "notes": "Sep, Oct 2025 using MXN 3,800.00 from Credit Balance ",
+        "id": "ff93c3wtv4fmj7t7lgs",
+        "amount": -380000,
+        "balanceBefore": 388600,
+        "type": "credit_used",
+        "description": "from Credit Balance Usage",
+        "timestamp": {
+          "_seconds": 1757440264,
+          "_nanoseconds": 678000000
+        },
+        "transactionId": "2025-09-09_235204_017",
+        "balanceAfter": 8600
+      },
+      {
+        "amount": 60000,
+        "id": "dvvde5an2eimj7t7lgs",
+        "transactionId": "2025-10-08_235222_030",
+        "notes": "Nov 2025 + MXN 600.00 Credit ",
+        "balanceAfter": 68600,
+        "balanceBefore": 8600,
+        "type": "credit_added",
+        "description": "from Overpayment",
+        "timestamp": {
+          "_nanoseconds": 612000000,
+          "_seconds": 1759967972
+        }
+      },
+      {
+        "timestamp": "2025-12-15T23:54:18.816Z",
+        "description": "from Overpayment",
+        "balanceBefore": 68600,
+        "amount": 60000,
+        "id": "credit_1765860858816_zhjqy3t1s",
+        "transactionId": "2025-12-15_235418_785",
+        "balanceAfter": 128600,
+        "notes": "Unified payment overpayment +$600.00",
+        "source": "unifiedPayment",
+        "type": "credit_added"
+      }
+    ]
+  },
+  "PH2B": {
+    "lastChange": {
+      "year": "2025",
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "historyIndex": 6
+    },
+    "history": [
+      {
+        "description": "Starting credit balance from prior period",
+        "id": "starting_balance_PH2B_1767026465564",
+        "timestamp": {
+          "_seconds": 1735603200,
+          "_nanoseconds": 0
+        },
+        "amount": 2113600,
+        "transactionId": null,
+        "notes": "Patched prepayment 16900 MXN on 2024-12-31",
+        "type": "starting_balance"
+      },
+      {
+        "balanceBefore": 373600,
+        "id": "ui69rqivwhmj7t7n2z",
+        "type": "credit_used",
+        "timestamp": {
+          "_seconds": 1729679730,
+          "_nanoseconds": 626000000
+        },
+        "notes": "Pre-pay Jan-Mar 2025 (est)",
+        "amount": -340000,
+        "transactionId": "2024-10-23_234936_111",
+        "description": "from Credit Balance Usage",
+        "balanceAfter": 33600
+      },
+      {
+        "id": "orkg7zmt9agmj7t7n2z",
+        "timestamp": {
+          "_seconds": 1735765579,
+          "_nanoseconds": 29000000
+        },
+        "balanceAfter": 3600,
+        "transactionId": "2025-01-01_235008_064",
+        "description": "from Credit Balance Usage",
+        "notes": "Apr, May, Jun 2025 using MXN 300.00 from Credit Balance; DolarApp",
+        "type": "credit_used",
+        "balanceBefore": 33600,
+        "amount": -30000
+      },
+      {
+        "transactionId": "2025-04-08_235102_143",
+        "timestamp": {
+          "_nanoseconds": 912000000,
+          "_seconds": 1744140033
+        },
+        "description": "from Overpayment",
+        "balanceBefore": 3600,
+        "type": "credit_added",
+        "id": "oislylrwj7mmj7t7n2z",
+        "balanceAfter": 553600,
+        "amount": 550000,
+        "notes": "Jul, Aug 2025 + MXN 5,500.00 Credit vía DolarApp"
+      },
+      {
+        "notes": "Sep 2025 using MXN 5,536.00 from Credit Balance DolarApp",
+        "amount": -553600,
+        "id": "zdyu69zbckmj7t7n2z",
+        "balanceAfter": 0,
+        "balanceBefore": 553600,
+        "timestamp": {
+          "_nanoseconds": 558000000,
+          "_seconds": 1744477119
+        },
+        "transactionId": "2025-04-12_235105_014",
+        "type": "credit_used",
+        "description": "from Credit Balance Usage"
+      },
+      {
+        "type": "credit_used",
+        "description": "Apply Jan-Mar 2025 HOA prepay (3 x 5800)",
+        "id": "credit_used_PH2B_1767030642413",
+        "notes": "Apply Jan-Mar 2025 HOA prepay (3 x 5800)",
+        "transactionId": null,
+        "amount": -1740000,
+        "timestamp": "2025-01-02T00:00:00-05:00"
+      },
+      {
+        "amount": 141000,
+        "notes": "Align to Sheets ending balance 2025-12-31",
+        "description": "Align to Sheets ending balance 2025-12-31",
+        "type": "credit_added",
+        "timestamp": "2025-12-31T00:00:00-05:00",
+        "transactionId": null,
+        "id": "adjust_PH2B_1767030642413"
+      }
+    ]
+  },
+  "PH4D": {
+    "history": [
+      {
+        "notes": "Patched prepayment 34800 MXN on 2024-12-31",
+        "description": "Starting credit balance from prior period",
+        "id": "starting_balance_PH4D_1767026465564",
+        "type": "starting_balance",
+        "amount": 4920000,
+        "transactionId": null,
+        "timestamp": {
+          "_nanoseconds": 0,
+          "_seconds": 1735603200
+        }
+      },
+      {
+        "notes": "Apply Jan-Jun 2025 prepay (6 x 5800)",
+        "id": "credit_used_PH4D_1767030642413",
+        "type": "credit_used",
+        "amount": -3480000,
+        "description": "Apply Jan-Jun 2025 prepay (6 x 5800)",
+        "transactionId": null,
+        "timestamp": "2025-01-02T00:00:00-05:00"
+      }
+    ],
+    "lastChange": {
+      "timestamp": "2025-12-29T17:50:42.413Z",
+      "year": "2025",
+      "historyIndex": 1
+    }
+  }
+}

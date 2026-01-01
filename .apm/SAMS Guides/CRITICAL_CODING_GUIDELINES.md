@@ -2,7 +2,7 @@
 document_type: Critical Implementation Guidelines
 priority: MANDATORY
 applies_to: All Implementation Agents
-last_updated: 2025-12-22
+last_updated: 2025-12-29
 enforcement: STRICT
 ---
 
@@ -83,6 +83,95 @@ const clientName = clientData.name; // Dynamic from Firebase
 const logoUrl = clientData.logoUrl; // Dynamic from Firebase
 const units = Object.keys(clientData.units || {}); // Dynamic from Firebase
 ```
+
+### **4. PRODUCTION FIRESTORE ACCESS - ADC ONLY**
+- **NEVER use `NODE_ENV=production` for production Firestore access**
+- **NEVER use service account key files for production**
+- **ALWAYS use Application Default Credentials (ADC) for production scripts**
+- **ALWAYS use `--prod` flag pattern for production access**
+
+**❌ FORBIDDEN:**
+```javascript
+// NEVER DO THIS - NODE_ENV doesn't work for production
+process.env.NODE_ENV = 'production'; // Wrong - doesn't connect to prod
+const serviceAccount = require('./sams-production-serviceAccountKey.json'); // Wrong - don't use key files
+
+// NEVER DO THIS - Wrong initialization pattern
+if (process.env.NODE_ENV === 'production') {
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+}
+```
+
+**✅ REQUIRED:**
+```javascript
+// CORRECT - Use --prod flag and ADC
+import admin from 'firebase-admin';
+import { existsSync } from 'fs';
+
+// Check for --prod flag to use production with ADC
+const useProduction = process.argv.includes('--prod');
+const productionProjectId = 'sams-sandyland-prod';
+
+async function initializeFirebase() {
+  if (useProduction) {
+    // Use Application Default Credentials for production
+    console.log(`🌍 Environment: PRODUCTION`);
+    console.log(`🔥 Firebase Project: ${productionProjectId}`);
+    console.log(`🔑 Using Application Default Credentials (ADC)`);
+    console.log(`   Run 'gcloud auth application-default login' if not authenticated\n`);
+    
+    // Clear GOOGLE_APPLICATION_CREDENTIALS if it's set to placeholder/invalid path
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS && 
+        (process.env.GOOGLE_APPLICATION_CREDENTIALS.includes('/path/to/') || 
+         !existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS))) {
+      console.log(`⚠️  Clearing invalid GOOGLE_APPLICATION_CREDENTIALS env var`);
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    }
+    
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        projectId: productionProjectId
+      });
+    }
+    
+    return admin.firestore();
+  } else {
+    // Use service account key for development (via getDb from firebase.js)
+    const { getDb } = await import('../firebase.js');
+    return await getDb();
+  }
+}
+```
+
+**Usage Pattern:**
+```bash
+# Development (uses service account key)
+node functions/backend/scripts/my-script.js
+
+# Production (uses ADC)
+node functions/backend/scripts/my-script.js --prod
+```
+
+**Prerequisites for Production:**
+```bash
+# 1. Authenticate with gcloud ADC
+gcloud auth application-default login
+
+# 2. Set production project
+gcloud config set project sams-sandyland-prod
+
+# 3. Verify authentication
+gcloud auth application-default print-access-token
+```
+
+**Key Points:**
+- **ADC is the ONLY approved method for production Firestore access**
+- **All production scripts MUST accept `--prod` flag**
+- **All production scripts MUST use `admin.credential.applicationDefault()`**
+- **All production scripts MUST explicitly set `projectId: 'sams-sandyland-prod'`**
+- **Service account key files are ONLY for development**
+- **NODE_ENV environment variable is NOT used for production Firestore access**
 
 ## MANDATORY DATA FLOW ARCHITECTURE
 
@@ -183,6 +272,13 @@ Before submitting any code, verify:
 - [ ] All URLs use `config.api.baseUrl` or `config.api.domainBaseUrl`
 - [ ] No direct Firebase SDK calls in frontend code
 
+### **✅ Production Access Compliance:**
+- [ ] Production scripts use `--prod` flag pattern (not NODE_ENV)
+- [ ] Production scripts use `admin.credential.applicationDefault()` (ADC)
+- [ ] Production scripts explicitly set `projectId: 'sams-sandyland-prod'`
+- [ ] No service account key files used for production
+- [ ] Scripts clear invalid GOOGLE_APPLICATION_CREDENTIALS env var
+
 ## 🛠️ EXISTING UTILITY FUNCTIONS REFERENCE
 
 ### **Timezone Utils (`utils/timezone.js`):**
@@ -236,6 +332,7 @@ centavosToPesos(centavos) // Convert centavos to peso amount
 - Direct `Date.now()` calls without timezone utilities
 - Hardcoded currency amounts or formatting
 - Direct Firebase SDK calls in frontend code
+- **Production Firestore access using NODE_ENV or service account keys (must use ADC with --prod flag)**
 
 ## 📞 ESCALATION PROCESS
 

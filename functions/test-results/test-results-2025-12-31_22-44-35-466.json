@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-31T22:44:45.385Z",
+    "testHarnessVersion": "1.0.0",
+    "environment": "development",
+    "apiBaseUrl": "http://localhost:5001",
+    "totalTests": 2,
+    "passedTests": 2,
+    "failedTests": 0,
+    "totalDuration": 9918
+  },
+  "configuration": {
+    "debugMode": true,
+    "defaultTestUid": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+    "timeout": 30000
+  },
+  "testResults": [
+    {
+      "id": "TEST-1767221075467-q9ip0z7nz",
+      "name": "Year-end preview MTC 2025",
+      "passed": true,
+      "duration": 6588,
+      "data": {
+        "units": 10,
+        "summary": {
+          "totalUnits": 10,
+          "unitsWithBalanceDue": 0,
+          "totalBalanceDue": 0,
+          "unitsWithCredit": 6,
+          "totalCreditBalance": 24229,
+          "unitsWithRateChange": 0
+        }
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-12-31T22:44:42.055Z"
+    },
+    {
+      "id": "TEST-1767221082055-rg36y4wq9",
+      "name": "Year-end execute MTC 2025",
+      "passed": true,
+      "duration": 3330,
+      "data": {
+        "success": true,
+        "closingYear": 2025,
+        "openingYear": 2026,
+        "unitsProcessed": 10,
+        "yearEndBalanceCreated": true,
+        "errors": []
+      },
+      "error": null,
+      "userId": "fjXv8gX1CYWBvOZ1CS27j96oRCT2",
+      "timestamp": "2025-12-31T22:44:45.385Z"
+    }
+  ],
+  "consoleOutput": [],
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "successRate": 100,
+    "averageDuration": 4959,
+    "startTime": 1767221075467,
+    "endTime": 1767221085385
+  }
+}
