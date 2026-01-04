@@ -13,7 +13,7 @@ import nodemailer from 'nodemailer';
  */
 function createGmailTransporter() {
   // Using existing Gmail SMTP configuration from digital receipts
-  const gmailUser = process.env.GMAIL_USER || 'michael@sandyland.com.mx';
+  const gmailUser = process.env.GMAIL_USER || 'michael@landesman.com';
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   
   console.log('🔧 Creating Gmail transporter with user:', gmailUser);

@@ -19,7 +19,7 @@ import nodemailer from 'nodemailer';
  * @returns {object} Nodemailer transporter
  */
 function createGmailTransporter() {
-  const gmailUser = process.env.GMAIL_USER || 'michael@sandyland.com.mx';
+  const gmailUser = process.env.GMAIL_USER || 'michael@landesman.com';
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   
   console.log('🔧 Gmail transporter config:');
