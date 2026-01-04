@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - MTC Year-End 2025 executed & archived (December 31, 2025)
-**Current Version:** v1.5.3 (deployed) - Credit Balance Reconciliation & Statement Fixes
+**Last Modification:** Manager Agent - Issue #90 + #119 Complete (January 3, 2026)
+**Current Version:** v1.5.4 (feature branch) - UPS Partial Payments + Credit Auto-Pay Email
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -12,9 +12,9 @@
 
 ---
 
-## 📋 GITHUB ISSUES STATUS (Updated December 25, 2025)
+## 📋 GITHUB ISSUES STATUS (Updated January 3, 2026)
 
-**Total Open Issues:** 33 (3 Critical/High, 15 Medium, 15 Low/Backlog)
+**Total Open Issues:** 31 (3 Critical/High, 14 Medium, 14 Low/Backlog)
 
 ### 🔴 Critical/High Priority (Fix Immediately)
 
@@ -62,10 +62,12 @@
 | **#43** | Client Management 404 | 🔴 OPEN |
 | **#12** | Transaction Link modal formatting | 🔴 OPEN |
 
-### ✅ Recently Closed (December 23-25, 2025)
+### ✅ Recently Closed (December 23 - January 3, 2026)
 
 | Issue | Title | Closed |
 |-------|-------|--------|
+| **#119** | UPS Partial Payments in Priority Order | Jan 3, 2026 ✅ |
+| **#90** | Nightly Credit Auto-Pay Email Report | Jan 3, 2026 ✅ |
 | **#101** | Nightly Scheduler Cloud Function | Dec 24 ✅ |
 | **#100** | Print Button for Reports | Dec 24 ✅ |
 | **#99** | UPS transaction notes fix | Dec 24 ✅ |
@@ -88,6 +90,53 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.5.4 - UPS Partial Payments + Credit Auto-Pay Email (January 3, 2026)
+**STATUS:** 🔄 FEATURE BRANCH - Ready for deployment
+
+**Branch:** `feature/ups-partial-payments-issue-119`
+
+#### Issue #119 - UPS Partial Payments ✅ COMPLETE
+- Modified `PaymentDistributionService.js` to process bills individually (not in groups)
+- Enabled partial payments in strict priority order per Mexican Civil Code Articles 2281-2282
+- Penalties paid before base charges within each bill
+- Fixed fiscal year calculation for January-start fiscal years
+- **Duration:** ~3 hours | **Quality:** ⭐⭐⭐⭐⭐
+
+#### Issue #90 - Credit Auto-Pay Email Report ✅ COMPLETE
+- **Phase 1:** Console-based report showing units with credit that would auto-pay bills
+- **Phase 2:** HTML email report + nightly scheduler integration (3 AM Cancun)
+- Client-specific grace periods: MTC 10 days, AVII 30 days
+- Auto-pay date calculation: Due Date + Grace Period
+- Professional HTML email with bill-level detail and auto-pay dates
+- **Duration:** ~5 hours | **Quality:** ⭐⭐⭐⭐⭐
+
+#### Files Created
+- `functions/backend/services/creditAutoPayReportService.js` (424 lines)
+- `functions/backend/controllers/creditAutoPayReportController.js` (276 lines)
+- `functions/backend/routes/creditAutoPayReportRoutes.js` (25 lines)
+- `functions/backend/services/CREDIT_AUTO_PAY_REPORT_README.md` (450+ lines)
+- `functions/backend/services/ENABLE_PRODUCTION_EMAILS.md` (121 lines)
+
+#### Files Modified
+- `functions/shared/services/PaymentDistributionService.js` - Partial payments logic
+- `functions/backend/services/unifiedPaymentWrapper.js` - Fiscal year fix + dueDate fields
+- `functions/scheduled/nightlyScheduler.js` - Integrated as TASK 4
+- `functions/backend/routes/reports.js` - Route mounting
+
+#### Deployment Notes
+```bash
+# Merge to main
+git checkout main
+git merge feature/ups-partial-payments-issue-119
+
+# Deploy scheduler
+firebase deploy --only functions:nightlyScheduler
+```
+
+**IMPORTANT:** Email override active - all emails go to `michael@landesman.com`. See `ENABLE_PRODUCTION_EMAILS.md` for production enablement after testing period.
+
+---
 
 ### v1.5.3 - Credit Balance Reconciliation + Prod Deploy (December 31, 2025)
 **STATUS:** ✅ DEPLOYED - Production build 1.5.3 (commit 064d835)
@@ -224,11 +273,13 @@ Resolved 4 critical issues blocking year-end 2025 statement distribution and 202
    - *Completed: Dec 22, 2025 - 4 hours, 6 files, ~158 lines*
    - Works with existing penalty waiver feature
 
-2. **Nightly Credit Auto-Pay (#90)**
-   - Scheduled Cloud Function at 6:00 AM Cancun time
-   - Auto-pays overdue bills from credit BEFORE penalty starts
-   - Timing: `dueDate + gracePeriod - 1 day`
-   - Sends notification to unit owner
+2. **Nightly Credit Auto-Pay (#90)** ✅ COMPLETE (Jan 3, 2026)
+   - Scheduled Cloud Function at 3:00 AM Cancun time (integrated into nightlyScheduler)
+   - HTML email report showing units with credit that would auto-pay bills
+   - Auto-pay date calculation: `dueDate + gracePeriod` (client-specific: MTC 10d, AVII 30d)
+   - Phase 1: Console report ✅ | Phase 2: HTML email + scheduler ✅
+   - *Blocking Issue #119 (Partial Payments) discovered and fixed during this work*
+   - **Note**: Email override active - all emails to michael@landesman.com during testing
 
 3. **Account Reconciliation (#91)**
    - Settings → Account Reconciliation
@@ -297,7 +348,8 @@ If owner wanted credit to remain:
 | Dec 23 | ✅ MTC Unit 2A Overpayment Data Fix - COMPLETE |
 | Dec 24 | ✅ #85 priorYearClosed Flag + Lookback - COMPLETE |
 | Dec 24 | ✅ #92 Year-End Processing UI - COMPLETE |
-| Dec 26+ | #90 Nightly Credit Auto-Pay Job (DEFERRED - no payments pending) |
+| Jan 3, 2026 | ✅ #90 Credit Auto-Pay Email Report - COMPLETE (Phase 1 + Phase 2) |
+| Jan 3, 2026 | ✅ #119 UPS Partial Payments - COMPLETE (discovered blocking #90) |
 | Dec 23 | ✅ #73 Backup & Restore System - COMPLETE |
 | Dec 23 | ✅ #55 Mini Utility Graphs - COMPLETE |
 | Dec 23 | ✅ #98 Credit Balance Activity Section - COMPLETE |
@@ -514,7 +566,7 @@ All report blockers fixed:
 | #93 | Budget Split Income (HOA vs Credit) | 🟢 MEDIUM | ✅ COMPLETE Dec 23 (merged with #88) |
 | #85 | priorYearClosed Flag + Lookback | 🟡 HIGH | ✅ COMPLETE Dec 24 |
 | #92 | Year-End Processing UI | 🟡 HIGH | ✅ COMPLETE Dec 24 |
-| #90 | Nightly Credit Auto-Pay Job | 🔥 CRITICAL | DEFERRED - no pending payments |
+| #90 | Nightly Credit Auto-Pay Email Report | 🔥 CRITICAL | ✅ COMPLETE Jan 3, 2026 |
 
 ### Key Design Decisions (Confirmed Dec 21, 2025)
 
