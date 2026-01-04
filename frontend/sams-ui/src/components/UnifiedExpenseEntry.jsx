@@ -68,6 +68,9 @@ const UnifiedExpenseEntry = ({
   // Split entry modal state
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitAllocations, setSplitAllocations] = useState([]);
+  
+  // Bank fees checkbox state (for AVII and corporate accounts)
+  const [addBankFees, setAddBankFees] = useState(false);
 
   // Confirmation modal state - removed, now handled by parent component
 
@@ -232,6 +235,35 @@ const UnifiedExpenseEntry = ({
             ...allocation,
             amount: -Math.abs(databaseFieldMappings.centsToDollars(allocation.amount)) // Convert to dollars and ensure negative for expenses
           }));
+        } else if (addBankFees) {
+          // Auto-create split allocations for bank fees
+          const originalAmount = parseFloat(formData.amount);
+          const commissionAmount = 5.00;
+          const ivaAmount = 0.80;
+          const totalAmount = originalAmount + commissionAmount + ivaAmount;
+          
+          transactionData.categoryId = "-split-";
+          transactionData.categoryName = "-Split-";
+          transactionData.amount = -Math.abs(totalAmount); // Update total to include fees
+          transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
+          transactionData.allocations = [
+            {
+              categoryName: selectedCategory?.name || '',
+              amount: -Math.abs(originalAmount),
+              notes: 'Main expense'
+            },
+            {
+              categoryName: 'Bank: Commission Charges',
+              amount: -Math.abs(commissionAmount),
+              notes: 'Bank transfer fee'
+            },
+            {
+              categoryName: 'Bank: IVA',
+              amount: -Math.abs(ivaAmount),
+              notes: 'Bank transfer IVA'
+            }
+          ];
+          console.log('💰 Auto-created bank fee allocations:', transactionData.allocations);
         } else {
           // Regular transaction: use single category ID
           transactionData.categoryId = formData.categoryId;
@@ -269,12 +301,48 @@ const UnifiedExpenseEntry = ({
         }
 
         // Step 2: Create transaction with document references - ID-first architecture
+        const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
+        let transactionAmount = -Math.abs(parseFloat(formData.amount));
+        let transactionNotes = formData.notes;
+        let transactionCategoryId = formData.categoryId;
+        let transactionAllocations = null;
+        
+        // Handle bank fees if checkbox is checked
+        if (addBankFees) {
+          const originalAmount = parseFloat(formData.amount);
+          const commissionAmount = 5.00;
+          const ivaAmount = 0.80;
+          const totalAmount = originalAmount + commissionAmount + ivaAmount;
+          
+          transactionAmount = -Math.abs(totalAmount);
+          transactionNotes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
+          transactionCategoryId = '-split-';
+          transactionAllocations = [
+            {
+              categoryName: selectedCategory?.name || '',
+              amount: -Math.abs(originalAmount),
+              notes: 'Main expense'
+            },
+            {
+              categoryName: 'Bank: Commission Charges',
+              amount: -Math.abs(commissionAmount),
+              notes: 'Bank transfer fee'
+            },
+            {
+              categoryName: 'Bank: IVA',
+              amount: -Math.abs(ivaAmount),
+              notes: 'Bank transfer IVA'
+            }
+          ];
+          console.log('💰 Auto-created bank fee allocations (direct API):', transactionAllocations);
+        }
+        
         const transactionData = {
           date: formData.date, // Send date as string, let backend handle timezone conversion
-          amount: -Math.abs(parseFloat(formData.amount)), // Ensure negative for expenses (in dollars)
-          categoryId: formData.categoryId, // PRIMARY: category ID
+          amount: transactionAmount, // Ensure negative for expenses (in dollars)
+          categoryId: transactionCategoryId, // PRIMARY: category ID
           vendorId: formData.vendorId, // PRIMARY: vendor ID
-          notes: formData.notes,
+          notes: transactionNotes,
           accountId: formData.accountId, // PRIMARY: account ID
           accountType: selectedAccountData?.type || 'bank', // Account metadata
           paymentMethodId: formData.paymentMethodId, // PRIMARY: payment method ID
@@ -282,6 +350,7 @@ const UnifiedExpenseEntry = ({
           type: 'expense',
           enteredBy: userEmail,
           documents: uploadedDocuments.map(doc => doc.id), // Include document references
+          ...(transactionAllocations && { allocations: transactionAllocations }),
         };
 
         console.log('📄 Creating transaction with data:', transactionData);
@@ -702,7 +771,14 @@ const UnifiedExpenseEntry = ({
                   <select
                     id="account"
                     value={formData.accountId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accountId: e.target.value }))}
+                    onChange={(e) => {
+                      const newAccountId = e.target.value;
+                      setFormData(prev => ({ ...prev, accountId: newAccountId }));
+                      // Auto-check bank fees for bank accounts (type !== 'cash')
+                      const selectedAccount = clientData.accounts.find(a => a.id === newAccountId);
+                      const isBankAccount = selectedAccount && selectedAccount.type !== 'cash';
+                      setAddBankFees(isBankAccount);
+                    }}
                     className={fieldErrors.accountId ? 'error' : ''}
                     required
                   >
@@ -714,6 +790,24 @@ const UnifiedExpenseEntry = ({
                     ))}
                   </select>
                   {fieldErrors.account && <span className="field-error">{fieldErrors.account}</span>}
+                  
+                  {/* Bank Fees Checkbox - auto-checked for bank accounts */}
+                  <div className="bank-fees-checkbox" style={{ marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={addBankFees}
+                        onChange={(e) => setAddBankFees(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>Add Bank Fees (+$5.80)</span>
+                    </label>
+                    {addBankFees && formData.amount && (
+                      <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '4px', paddingLeft: '22px' }}>
+                        Total: ${(parseFloat(formData.amount) + 5.80).toFixed(2)} (Commission: $5.00 + IVA: $0.80)
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

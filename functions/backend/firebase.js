@@ -13,8 +13,9 @@ async function initializeFirebase() {
       console.log('🔥 Initializing Firebase Admin SDK...');
       
       // Determine storage bucket based on environment
+      // Check GCLOUD_PROJECT first (always set in Cloud Functions), then fall back to NODE_ENV
       const getStorageBucket = () => {
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod' || process.env.NODE_ENV === 'production') {
           return 'sams-sandyland-prod.firebasestorage.app';
         } else if (process.env.NODE_ENV === 'staging') {
           return 'sams-staging-6cdcd.firebasestorage.app';

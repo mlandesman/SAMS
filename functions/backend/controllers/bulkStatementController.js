@@ -66,7 +66,8 @@ async function getClientFiscalYearConfig(clientId) {
  * Get storage bucket name based on environment
  */
 function getStorageBucketName() {
-  if (process.env.NODE_ENV === 'production') {
+  // Check GCLOUD_PROJECT first (always set in Cloud Functions), then fall back to NODE_ENV
+  if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod' || process.env.NODE_ENV === 'production') {
     return 'sams-sandyland-prod.firebasestorage.app';
   } else if (process.env.NODE_ENV === 'staging') {
     return 'sams-staging-6cdcd.firebasestorage.app';

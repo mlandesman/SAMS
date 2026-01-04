@@ -1799,6 +1799,7 @@ function TransactionsView() {
             notes: selectedTransaction.notes
           } : null}
           existingAllocations={selectedTransaction?.allocations || []}
+          categories={categories}
         />
       )}
 
