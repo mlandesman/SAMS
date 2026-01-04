@@ -118,7 +118,7 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
     const mailOptions = {
       from: {
         name: 'Sandyland Properties',
-        address: 'michael@sandyland.com.mx'
+        address: 'pm@sandyland.com.mx'
       },
       to: recipients,
       subject: `Credit Auto-Pay Report - ${clientName} - ${reportData.date}`,
