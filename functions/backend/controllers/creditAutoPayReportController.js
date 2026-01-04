@@ -6,6 +6,7 @@
 
 import { getDb } from '../firebase.js';
 import { getNow } from '../services/DateService.js';
+import { DateTime } from 'luxon';
 import { 
   generateCreditAutoPayReportData, 
   generateCreditAutoPayEmailHTML,
@@ -255,7 +256,7 @@ export async function handleManualTrigger(req, res) {
 export async function runScheduledCreditAutoPayReports() {
   console.log(`\n${'='.repeat(80)}`);
   console.log(`🌙 SCHEDULED CREDIT AUTO-PAY REPORTS`);
-  console.log(`   Time: ${getNow().toFormat('yyyy-MM-dd HH:mm:ss ZZZZ')}`);
+  console.log(`   Time: ${DateTime.now().setZone('America/Cancun').toFormat('yyyy-MM-dd HH:mm:ss ZZZZ')}`);
   console.log(`${'='.repeat(80)}\n`);
   
   const results = await sendAllCreditAutoPayReports(false); // Live mode
