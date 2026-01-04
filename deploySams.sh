@@ -40,13 +40,14 @@ echo "Select deployment type:"
 echo ""
 echo "  1) Full Deployment (bump version + deploy)"
 echo "  2) Quick Deploy (no version bump)"
-echo "  3) Frontend Only"
+echo "  3) Frontend Only (Desktop)"
 echo "  4) Backend Only" 
 echo "  5) Just Bump Version (no deploy)"
 echo "  6) View Current Versions"
-echo "  7) Exit"
+echo "  7) PWA Only (Mobile App)"
+echo "  8) Exit"
 echo ""
-read -p "Enter choice [1-7]: " CHOICE
+read -p "Enter choice [1-8]: " CHOICE
 
 case $CHOICE in
     1)
@@ -68,6 +69,9 @@ case $CHOICE in
         DEPLOY_TYPE="view"
         ;;
     7)
+        DEPLOY_TYPE="pwa"
+        ;;
+    8)
         echo "Goodbye!"
         exit 0
         ;;
@@ -156,7 +160,7 @@ case $DEPLOY_TYPE in
         echo "Deploy: Frontend + Backend"
         ;;
     frontend)
-        echo "Type: Frontend Only"
+        echo "Type: Frontend Only (Desktop)"
         ;;
     backend)
         echo "Type: Backend Only"
@@ -164,6 +168,11 @@ case $DEPLOY_TYPE in
     bump-only)
         echo "Type: Version Bump Only"
         echo "Bump: $BUMP_TYPE"
+        ;;
+    pwa)
+        echo "Type: PWA Only (Mobile App)"
+        echo "Target: https://sams-mobile-pwa.web.app"
+        echo "Domain: https://mobile.sams.sandyland.com.mx"
         ;;
 esac
 
@@ -230,11 +239,24 @@ if [ "$DEPLOY_TYPE" = "bump-only" ]; then
 fi
 
 # ========================================
-# STEP 2: BUILD FRONTEND
+# STEP 2: BUILD FRONTEND (Desktop or PWA)
 # ========================================
 
-if [ "$DEPLOY_TYPE" != "backend" ]; then
-    print_step "Step 2: Building frontend"
+if [ "$DEPLOY_TYPE" = "pwa" ]; then
+    print_step "Step 2: Building PWA (Mobile App)"
+    
+    cd frontend/mobile-app
+    if npm run build; then
+        print_success "PWA built successfully"
+    else
+        print_error "PWA build failed"
+        cd ../..
+        exit 1
+    fi
+    cd ../..
+    echo ""
+elif [ "$DEPLOY_TYPE" != "backend" ]; then
+    print_step "Step 2: Building frontend (Desktop)"
     
     cd frontend/sams-ui
     if npm run build; then
@@ -256,8 +278,9 @@ print_step "Step 3: Deploying to Firebase"
 
 DEPLOY_TARGET=""
 case $DEPLOY_TYPE in
-    frontend) DEPLOY_TARGET="--only hosting" ;;
+    frontend) DEPLOY_TARGET="--only hosting:desktop" ;;
     backend) DEPLOY_TARGET="--only functions:api" ;;
+    pwa) DEPLOY_TARGET="--only hosting:mobile" ;;
     *) DEPLOY_TARGET="" ;;
 esac
 
@@ -357,8 +380,13 @@ fi
 echo "Environment: Production"
 echo ""
 echo "URLs:"
-echo "  Frontend: https://sams-sandyland-prod.web.app"
-echo "  Custom Domain: https://sams.sandyland.com.mx"
+if [ "$DEPLOY_TYPE" = "pwa" ]; then
+    echo "  PWA (Mobile): https://sams-mobile-pwa.web.app"
+    echo "  Custom Domain: https://mobile.sams.sandyland.com.mx"
+else
+    echo "  Frontend (Desktop): https://sams-sandyland-prod.web.app"
+    echo "  Custom Domain: https://sams.sandyland.com.mx"
+fi
 echo "  Firebase Console: https://console.firebase.google.com/project/sams-sandyland-prod"
 echo ""
 
