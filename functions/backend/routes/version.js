@@ -1,6 +1,6 @@
 import express from 'express';
 import { getNow } from '../services/DateService.js';
-import { getVersionInfo } from '../../shared/utils/versionUtils.js';
+import { getVersionInfo } from '../utils/versionUtils.js';
 
 const router = express.Router();
 
