@@ -34,8 +34,8 @@ async function generateReport(filterClientId = null) {
     for (const unitDoc of unitsSnap.docs) {
       const unitId = unitDoc.id;
       
-      // Skip system documents
-      if (unitId === 'creditBalances') continue;
+      // Skip system documents (creditBalances and yearly archives)
+      if (unitId.startsWith('creditBalances')) continue;
       
       try {
         // Get credit balance using proper getter function

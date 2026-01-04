@@ -81,8 +81,8 @@ export async function previewYearEnd(req, res) {
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
       
-      // Skip creditBalances document
-      if (unitId === 'creditBalances') continue;
+      // Skip creditBalances* documents (includes yearly archives like creditBalances_2025)
+      if (unitId.startsWith('creditBalances')) continue;
       
       // Get unit data for owner names
       const unitData = unitDoc.data();
@@ -463,7 +463,7 @@ async function getPreviewDataForReport(db, clientId, closingYear, fiscalYearStar
   const units = [];
   for (const unitDoc of unitsSnapshot.docs) {
     const unitId = unitDoc.id;
-    if (unitId === 'creditBalances') continue;
+    if (unitId.startsWith('creditBalances')) continue;
     
     // Get unit data for owner names
     const unitData = unitDoc.data();

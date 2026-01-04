@@ -1793,8 +1793,8 @@ async function getAllDuesDataForYear(clientId, year) {
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
       
-      // Skip the creditBalances document itself
-      if (unitId === 'creditBalances') continue;
+      // Skip creditBalances* documents (includes yearly archives like creditBalances_2025)
+      if (unitId.startsWith('creditBalances')) continue;
       
       try {
         // Get dues document for this unit and year

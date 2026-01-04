@@ -28,8 +28,8 @@ async function getAllUnits(clientId) {
   
   const units = [];
   unitsSnapshot.forEach(doc => {
-    // Skip system documents like creditBalances
-    if (doc.id === 'creditBalances') return;
+    // Skip system documents like creditBalances and yearly archives (creditBalances_2025)
+    if (doc.id.startsWith('creditBalances')) return;
     
     const data = doc.data();
     // Get owner name (first owner's name if available)
