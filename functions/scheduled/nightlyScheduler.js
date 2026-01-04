@@ -26,7 +26,8 @@ export const nightlyScheduler = onSchedule({
   timeZone: 'America/Cancun',
   memory: '1GiB',
   timeoutSeconds: 540,  // 9 minutes max
-  retryCount: 1
+  retryCount: 1,
+  secrets: ['GMAIL_APP_PASSWORD']  // Required for credit auto-pay email reports
 }, async (event) => {
   console.log('🌙 [NIGHTLY] Starting scheduled tasks');
   const startTime = Date.now();
