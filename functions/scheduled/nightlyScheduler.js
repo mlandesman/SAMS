@@ -4,8 +4,9 @@
  * 
  * Orchestrates:
  * - Backup (TASK-73) ✅ Ready
- * - Auto-Pay from Credit (TASK-90) - TODO
- * - Exchange Rate Download - TODO
+ * - Exchange Rate Download ✅ Ready
+ * - Sync to Dev ✅ Ready
+ * - Credit Auto-Pay Report Email (TASK-90 Phase 2) ✅ Ready
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -14,6 +15,7 @@ import { runBackup } from '../backend/services/backupService.js';
 import { getNow } from '../backend/services/DateService.js';
 import { updateExchangeRates } from '../src/exchangeRatesUpdater.js';
 import { syncLatestRatesToDev } from '../src/syncToDevDatabase.js';
+import { runScheduledCreditAutoPayReports } from '../backend/controllers/creditAutoPayReportController.js';
 
 /**
  * Main nightly scheduler function
@@ -88,18 +90,23 @@ export const nightlyScheduler = onSchedule({
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // TASK 4: Auto-Pay from Credit (FUTURE - TASK-90)
+  // TASK 4: Credit Auto-Pay Report Email (TASK-90 Phase 2)
   // ═══════════════════════════════════════════════════════════════
-  // Uncomment when autoPayService is implemented:
-  // try {
-  //   console.log('💳 [NIGHTLY] Running auto-pay...');
-  //   const autoPayResult = await autoPayService.run();
-  //   results.tasks.autoPay = { status: 'success', ...autoPayResult };
-  // } catch (error) {
-  //   console.error('❌ [NIGHTLY] Auto-pay failed:', error);
-  //   results.tasks.autoPay = { status: 'failed', error: error.message };
-  //   results.errors.push({ task: 'autoPay', error: error.message });
-  // }
+  try {
+    console.log('📧 [NIGHTLY] Sending credit auto-pay reports...');
+    const reportResult = await runScheduledCreditAutoPayReports();
+    results.tasks.creditAutoPayReport = { 
+      status: 'success', 
+      sent: reportResult.summary.sent,
+      skipped: reportResult.summary.skipped,
+      failed: reportResult.summary.failed
+    };
+    console.log(`✅ [NIGHTLY] Credit auto-pay reports complete: ${reportResult.summary.sent} sent, ${reportResult.summary.skipped} skipped`);
+  } catch (error) {
+    console.error('❌ [NIGHTLY] Credit auto-pay report failed:', error);
+    results.tasks.creditAutoPayReport = { status: 'failed', error: error.message };
+    results.errors.push({ task: 'creditAutoPayReport', error: error.message });
+  }
   
   // ═══════════════════════════════════════════════════════════════
   // Log results to Firestore

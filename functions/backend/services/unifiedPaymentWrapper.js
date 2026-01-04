@@ -1676,6 +1676,7 @@ export class UnifiedPaymentWrapper {
           month: billToUse._hoaMetadata?.month,
           monthIndex: billToUse._metadata?.monthIndex,
           billPeriod: displayPeriod,
+          dueDate: originalBill?.dueDate || payment.dueDate,  // Payment date for auto-pay
           // Due amounts (always present)
           baseDue: baseDue,
           penaltyDue: penaltyDue,
@@ -1710,6 +1711,7 @@ export class UnifiedPaymentWrapper {
         
         result.water.billsAffected.push({
           billPeriod: displayPeriod,
+          dueDate: originalBill?.dueDate || payment.dueDate,  // Payment date for auto-pay
           // Due amounts (always present)
           baseDue: waterBaseDue,
           penaltyDue: waterPenaltyDue,

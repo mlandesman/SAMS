@@ -21,6 +21,7 @@ import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
 import axios from 'axios';
+import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -32,6 +33,10 @@ function formatDateField(dateValue) {
 }
 
 const router = express.Router();
+
+// Mount credit auto-pay report routes
+// GET /reports/credit-auto-pay/send
+router.use('/credit-auto-pay', creditAutoPayReportRoutes);
 
 /**
  * Get unit-specific financial report
