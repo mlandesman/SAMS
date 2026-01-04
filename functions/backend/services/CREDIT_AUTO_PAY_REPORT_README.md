@@ -131,11 +131,11 @@ node functions/backend/testing/testCreditAutoPayEmail.js MTC send
 node functions/backend/testing/testCreditAutoPayEmail.js AVII send
 ```
 
-**Note**: Gmail credentials are stored in `/backend/.env`:
-```
-GMAIL_USER=michael@sandyland.com.mx
-GMAIL_APP_PASSWORD=ikaixkskbmuqiusz
-```
+**Note**: Gmail credentials are stored securely:
+- **Local development**: `/backend/.env` file (not committed to git)
+- **Production**: Firebase Secrets (`firebase functions:secrets:set GMAIL_APP_PASSWORD`)
+
+**NEVER commit actual passwords to this file or any file in the repository.**
 
 ### API Testing
 ```bash
