@@ -162,13 +162,14 @@ class VersionManager {
   }
 
   /**
-   * Copy version.json to frontend directories
+   * Copy version.json to frontend and backend directories
    */
   copyVersionToFrontends(versionConfig) {
     const frontendPaths = [
       path.join(__dirname, '../frontend/sams-ui/version.json'),
       path.join(__dirname, '../frontend/sams-ui/public/version.json'), // PUBLIC FOLDER - gets copied to dist!
-      path.join(__dirname, '../frontend/mobile-app/version.json')
+      path.join(__dirname, '../frontend/mobile-app/version.json'),
+      path.join(__dirname, '../functions/shared/version.json') // Backend version for /system/version endpoint
     ];
 
     frontendPaths.forEach(frontendPath => {

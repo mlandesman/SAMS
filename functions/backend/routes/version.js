@@ -1,37 +1,38 @@
 import express from 'express';
 import { getNow } from '../services/DateService.js';
+import { getVersionInfo } from '../../shared/utils/versionUtils.js';
 
 const router = express.Router();
 
 /**
  * Version endpoint - returns deployment version information
- * GET /api/version
+ * GET /system/version
  */
 router.get('/', async (req, res) => {
   try {
-    // Version info embedded at build time
+    // Get version from shared/version.json via versionUtils
+    const versionInfo = getVersionInfo();
+    
+    // Detect production via GCLOUD_PROJECT (Firebase Cloud Functions)
+    const isProduction = process.env.GCLOUD_PROJECT === 'sams-sandyland-prod';
+    
     const backendVersion = {
       component: 'backend',
-      version: process.env.VITE_APP_VERSION || '0.0.1',
-      buildDate: process.env.VITE_APP_BUILD_DATE || getNow().toISOString(),
-      git: {
-        hash: process.env.VITE_APP_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
-        branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown'
-      },
-      endpoint: '/api/version',
+      version: versionInfo.version,
+      buildDate: versionInfo.buildDate,
+      buildNumber: versionInfo.build?.buildNumber || 'unknown',
+      git: versionInfo.git || { hash: 'unknown', branch: 'unknown' },
+      endpoint: '/system/version',
       deploymentTime: getNow().toISOString(),
       nodeVersion: process.version,
-      environment: process.env.NODE_ENV || 'development',
-      // Add deployment URL info
-      deploymentUrl: process.env.VERCEL_URL || 'localhost',
-      region: process.env.VERCEL_REGION || 'local',
-      // Vercel deployment info
-      vercel: {
-        env: process.env.VERCEL_ENV || 'development',
-        gitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA,
-        gitCommitRef: process.env.VERCEL_GIT_COMMIT_REF,
-        gitCommitMessage: process.env.VERCEL_GIT_COMMIT_MESSAGE
-      }
+      environment: isProduction ? 'production' : (process.env.NODE_ENV || 'development'),
+      // Full version display
+      versionDisplay: versionInfo.versionDisplay,
+      fullVersionDisplay: versionInfo.fullVersionDisplay,
+      // App metadata
+      appName: versionInfo.appName,
+      shortName: versionInfo.shortName,
+      companyName: versionInfo.companyName
     };
     
     res.json(backendVersion);
@@ -47,16 +48,18 @@ router.get('/', async (req, res) => {
 
 /**
  * Health check endpoint with version info
- * GET /api/version/health
+ * GET /system/version/health
  */
 router.get('/health', async (req, res) => {
   try {
+    const versionInfo = getVersionInfo();
     res.json({
       status: 'healthy',
       component: 'backend',
-      version: process.env.VITE_APP_VERSION || '0.0.1',
-      gitCommit: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'unknown',
-      buildDate: getNow().toISOString(),
+      version: versionInfo.version,
+      gitCommit: versionInfo.git?.hash || 'unknown',
+      buildNumber: versionInfo.build?.buildNumber || 'unknown',
+      buildDate: versionInfo.buildDate,
       uptime: process.uptime(),
       timestamp: getNow().toISOString()
     });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { config } from '../config';
+import { useVersionInfo } from '../utils/versionUtils';
 import './LoginForm.css';
 
 /**
@@ -16,6 +17,7 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [resetMessage, setResetMessage] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
   const { login, error, setError } = useAuth();
+  const versionInfo = useVersionInfo();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,6 +169,14 @@ const LoginForm = ({ onLoginSuccess }) => {
             </p>
           </div>
         )}
+        
+        {/* Version Display */}
+        <div className="login-version">
+          <span className="version-text">
+            {versionInfo.versionDisplay} 
+            <span className="version-build">({versionInfo.build?.buildNumber || 'dev'})</span>
+          </span>
+        </div>
       </div>
     </div>
   );
