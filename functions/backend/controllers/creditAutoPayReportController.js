@@ -22,6 +22,10 @@ function createGmailTransporter() {
   const gmailUser = process.env.GMAIL_USER || 'michael@sandyland.com.mx';
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   
+  console.log('🔧 Gmail transporter config:');
+  console.log('   User:', gmailUser);
+  console.log('   Password set:', gmailPass ? `Yes (${gmailPass.length} chars)` : 'No');
+  
   if (!gmailPass) {
     throw new Error('GMAIL_APP_PASSWORD environment variable not set');
   }
