@@ -24,7 +24,7 @@
  */
 
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
-import { getTotalOwed, getBaseOwed, getPenaltyOwed } from '../utils/billCalculations.js';
+import { getTotalOwed, getBaseOwed, getPenaltyOwed, getTotalDue } from '../utils/billCalculations.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -103,21 +103,13 @@ export function calculatePaymentDistribution(params) {
   
   const paymentAmountCentavos = pesosToCentavos(paymentAmount);
   
-  // Group bills by due date (for quarterly billing)
-  // Bills with the same due date must be paid together as a group
-  const billGroups = {};
-  unpaidBills.forEach((bill, index) => {
-    const dueDate = bill.dueDate ? bill.dueDate.split('T')[0] : `group_${index}`;
-    if (!billGroups[dueDate]) {
-      billGroups[dueDate] = [];
-    }
-    billGroups[dueDate].push(bill);
-  });
+  // Process bills individually in priority order (allows partial payments)
+  // CRITICAL: Bills are already sorted by priority and due date by unifiedPaymentWrapper
+  // This ensures payments are applied to oldest/highest priority bills first
+  // Per Mexican Civil Code Articles 2281-2282: payments must be applied to oldest installments first
+  console.log(`📋 [PAYMENT DIST] Processing ${unpaidBills.length} bills individually (partial payments allowed)`);
   
-  const groups = Object.values(billGroups);
-  console.log(`📦 [PAYMENT DIST] Grouped ${unpaidBills.length} bills into ${groups.length} due date group(s)`);
-  
-  // Apply funds to bill groups (in CENTAVOS for precision)
+  // Apply funds to bills one at a time (in CENTAVOS for precision)
   let remainingFundsCentavos = totalAvailableFundsCentavos;
   const billPayments = [];
   let totalBaseChargesPaidCentavos = 0;
@@ -136,55 +128,61 @@ export function calculatePaymentDistribution(params) {
     });
   }
   
-  // Apply funds to bill groups (entire group must be paid together)
-  // RULE FOR GROUPED BILLS: Pay entire group or skip entire group (no partial groups)
-  for (const group of groups) {
+  // Process bills one at a time in priority order
+  // Apply partial payments when funds are insufficient
+  for (let i = 0; i < unpaidBills.length; i++) {
     if (remainingFundsCentavos <= 0) break;
     
-    // Calculate total for this group
-    // Use getTotalOwed() getter for fresh calculation from source fields
-    const groupTotalCentavos = group.reduce((sum, bill) => {
-      const unpaidAmount = getTotalOwed(bill);
-      return sum + unpaidAmount;
-    }, 0);
+    const bill = unpaidBills[i];
+    const billIndex = i;
+    const billPayment = billPayments[billIndex];
     
-    const groupTotalPesos = centavosToPesos(groupTotalCentavos);
-    const groupDueDate = group[0].dueDate?.split('T')[0] || 'unknown';
-    
-    console.log(`📦 Group (due: ${groupDueDate}): ${group.length} bill(s), Total $${groupTotalPesos} (${groupTotalCentavos} centavos)`);
-    
-    if (remainingFundsCentavos >= groupTotalCentavos) {
-      // Can afford entire group - pay all bills in this group!
-      for (const bill of group) {
-        const billIndex = unpaidBills.findIndex(b => b.period === bill.period);
-        const billPayment = billPayments[billIndex];
-        
-        // Use getter functions for fresh calculation from source fields
-        // This prevents stale data bugs when penaltyAmount is modified
-        const unpaidAmount = getTotalOwed(bill);
-        const baseUnpaid = getBaseOwed(bill);
-        const penaltyUnpaid = getPenaltyOwed(bill);
-        
-        billPayment.amountPaid = unpaidAmount;
-        billPayment.baseChargePaid = baseUnpaid;
-        billPayment.penaltyPaid = penaltyUnpaid;
-        billPayment.newStatus = 'paid';
-        
-        totalBaseChargesPaidCentavos += baseUnpaid;
-        totalPenaltiesPaidCentavos += penaltyUnpaid;
-        
-        console.log(`  ✅ Bill ${bill.period} paid: ${unpaidAmount} centavos ($${centavosToPesos(unpaidAmount)})`);
-      }
-      
-      remainingFundsCentavos -= groupTotalCentavos;
-      console.log(`✅ Group paid in full: ${groupTotalCentavos} centavos ($${groupTotalPesos})`);
-      
-    } else {
-      // Can't afford this entire group - SKIP IT
-      // Remainder becomes credit (no partial group payment)
-      console.log(`⏭️  Group skipped - insufficient funds ($${centavosToPesos(remainingFundsCentavos)} < $${groupTotalPesos}), remainder becomes credit`);
-      break;
+    // Skip excluded bills (marked by unifiedPaymentWrapper)
+    if (bill._metadata?.excluded) {
+      console.log(`  ⏭️  Bill ${bill.period} excluded - skipping`);
+      continue;
     }
+    
+    // Use getter functions for fresh calculation from source fields
+    const totalOwedCentavos = getTotalOwed(bill);
+    const baseOwedCentavos = getBaseOwed(bill);
+    const penaltyOwedCentavos = getPenaltyOwed(bill);
+    
+    if (totalOwedCentavos <= 0) {
+      // Bill already fully paid - skip
+      console.log(`  ℹ️  Bill ${bill.period} already paid - skipping`);
+      continue;
+    }
+    
+    // Calculate how much we can apply to this bill (partial or full)
+    const amountToApplyCentavos = Math.min(remainingFundsCentavos, totalOwedCentavos);
+    
+    // Within bill: penalties first, then base (per Mexican Civil Code)
+    let penaltyPaymentCentavos = Math.min(amountToApplyCentavos, penaltyOwedCentavos);
+    let basePaymentCentavos = amountToApplyCentavos - penaltyPaymentCentavos;
+    
+    // Ensure base payment doesn't exceed base owed
+    basePaymentCentavos = Math.min(basePaymentCentavos, baseOwedCentavos);
+    
+    // Update bill payment record
+    billPayment.amountPaid = amountToApplyCentavos;
+    billPayment.baseChargePaid = basePaymentCentavos;
+    billPayment.penaltyPaid = penaltyPaymentCentavos;
+    
+    // Determine bill status
+    const remainingOwedAfterPayment = totalOwedCentavos - amountToApplyCentavos;
+    if (remainingOwedAfterPayment <= 0) {
+      billPayment.newStatus = 'paid';
+      console.log(`  ✅ Bill ${bill.period} paid in full: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)})`);
+    } else {
+      billPayment.newStatus = 'partial';
+      console.log(`  💰 Bill ${bill.period} partial payment: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)}) of ${totalOwedCentavos} centavos ($${centavosToPesos(totalOwedCentavos)})`);
+    }
+    
+    // Update totals
+    totalBaseChargesPaidCentavos += basePaymentCentavos;
+    totalPenaltiesPaidCentavos += penaltyPaymentCentavos;
+    remainingFundsCentavos -= amountToApplyCentavos;
   }
   
   // Calculate credit usage vs overpayment
@@ -219,19 +217,34 @@ export function calculatePaymentDistribution(params) {
   // Convert billPayments to PESOS for return
   const billPaymentsForReturn = billPayments.map(bp => {
     const originalBill = unpaidBills.find(bill => bill.period === bp.billPeriod);
-    // Use getter functions for fresh calculation from source fields
-    const unpaidBaseDue = originalBill ? getBaseOwed(originalBill) : bp.baseChargePaid;
-    const unpaidPenaltyDue = originalBill ? getPenaltyOwed(originalBill) : bp.penaltyPaid;
-    const totalUnpaidDue = unpaidBaseDue + unpaidPenaltyDue;
+    if (!originalBill) {
+      // Fallback if bill not found
+      return {
+        ...bp,
+        amountPaid: centavosToPesos(bp.amountPaid),
+        baseChargePaid: centavosToPesos(bp.baseChargePaid),
+        penaltyPaid: centavosToPesos(bp.penaltyPaid),
+        totalBaseDue: centavosToPesos(bp.baseChargePaid),
+        totalPenaltyDue: centavosToPesos(bp.penaltyPaid),
+        totalDue: centavosToPesos(bp.amountPaid)
+      };
+    }
+    
+    // Calculate original due amounts (before any payments)
+    const totalDueCentavos = getTotalDue(originalBill);
+    
+    // Get original base and penalty amounts (not owed, but total due)
+    const baseAmount = originalBill.baseAmount ?? originalBill.baseCharge ?? originalBill.currentCharge ?? 0;
+    const penaltyAmount = originalBill.penaltyAmount ?? 0;
     
     return {
       ...bp,
       amountPaid: centavosToPesos(bp.amountPaid),
       baseChargePaid: centavosToPesos(bp.baseChargePaid),
       penaltyPaid: centavosToPesos(bp.penaltyPaid),
-      totalBaseDue: centavosToPesos(unpaidBaseDue),
-      totalPenaltyDue: centavosToPesos(unpaidPenaltyDue),
-      totalDue: centavosToPesos(totalUnpaidDue)
+      totalBaseDue: centavosToPesos(baseAmount), // Original base due
+      totalPenaltyDue: centavosToPesos(penaltyAmount), // Original penalty due
+      totalDue: centavosToPesos(totalDueCentavos) // Original total due
     };
   });
   

@@ -1090,12 +1090,22 @@ export class UnifiedPaymentWrapper {
     }
     
     // Calculate the actual calendar month and year
-    // This correctly handles fiscal years that span calendar years
+    // Calculate the actual calendar month and year
+    // Fiscal year naming rule: Fiscal year = calendar year of the last month (month 11) of that fiscal year
+    // - January start: Last month (Dec) is in same calendar year → fiscal year = calendar year
+    // - Other starts: Last month is in next calendar year → fiscal year = last month's year
+    // This approach directly implements the business rule and is more self-documenting
     
     if (frequency === 'monthly') {
       // For monthly, each fiscal month has its own due date
       const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-      const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+      
+      // Calculate what calendar year the last month (month 11) of this fiscal year is in
+      const lastMonthFloor = Math.floor(((fiscalYearStartMonth - 1) + 11) / 12);
+      // Calculate what calendar year the current month is in (base calculation)
+      const currentMonthFloor = Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+      // Fiscal year = calendar year of last month, so adjust current month relative to that
+      const calendarYear = fiscalYear + currentMonthFloor - lastMonthFloor;
       
       const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
       return toISOString(dueDate);
@@ -1105,16 +1115,22 @@ export class UnifiedPaymentWrapper {
       // For quarterly, months share due dates by quarter
       const quarterStartFiscalMonth = Math.floor(fiscalMonthIndex / 3) * 3;
       const calendarMonth = ((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) % 12;
-      const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
+      
+      // Calculate what calendar year the last month (month 11) of this fiscal year is in
+      const lastMonthFloor = Math.floor(((fiscalYearStartMonth - 1) + 11) / 12);
+      // Calculate what calendar year the quarter start month is in (base calculation)
+      const quarterStartFloor = Math.floor(((fiscalYearStartMonth - 1) + quarterStartFiscalMonth) / 12);
+      // Fiscal year = calendar year of last month, so adjust quarter start relative to that
+      const calendarYear = fiscalYear + quarterStartFloor - lastMonthFloor;
       
       const dueDate = createDate(calendarYear, calendarMonth + 1, 1);
       return toISOString(dueDate);
     }
-    
+
+ 
     throw new Error(`Unsupported frequency: ${frequency}`);
   }
-
-  /**
+ /**
    * Convert HOA Dues monthly payment array to bill array
    * (Replicated from hoaDuesController since it's not exported)
    * 
