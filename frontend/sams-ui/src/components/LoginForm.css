@@ -136,3 +136,22 @@
   font-size: 0.8rem;
   line-height: 1.4;
 }
+
+/* Version Display */
+.login-version {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.version-text {
+  font-size: 0.75rem;
+  color: #999;
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+}
+
+.version-build {
+  color: #bbb;
+  margin-left: 4px;
+}
