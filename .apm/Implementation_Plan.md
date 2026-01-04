@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - Issue #90 + #119 Complete (January 3, 2026)
-**Current Version:** v1.5.4 (feature branch) - UPS Partial Payments + Credit Auto-Pay Email
+**Last Modification:** Manager Agent - Issues #116, #117, #118, #122 (January 4, 2026)
+**Current Version:** v1.5.5 - Quick Fixes Batch + Email OAuth Backlog
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -12,9 +12,9 @@
 
 ---
 
-## 📋 GITHUB ISSUES STATUS (Updated January 3, 2026)
+## 📋 GITHUB ISSUES STATUS (Updated January 4, 2026)
 
-**Total Open Issues:** 31 (3 Critical/High, 14 Medium, 14 Low/Backlog)
+**Total Open Issues:** 28 (3 Critical/High, 12 Medium, 13 Low/Backlog)
 
 ### 🔴 Critical/High Priority (Fix Immediately)
 
@@ -52,6 +52,7 @@
 
 | Issue | Title | Status |
 |-------|-------|--------|
+| **#122** | Convert email to Gmail OAuth (security) | 🔴 NEW - Jan 4 |
 | **#102** | Admin client for non-client activities | 🔴 NEW |
 | **#97** | Expense Entry confirmation modal aesthetics | 🔴 OPEN |
 | **#96** | Dashboard Account Balances deduct Credit | 🔴 OPEN |
@@ -62,10 +63,13 @@
 | **#43** | Client Management 404 | 🔴 OPEN |
 | **#12** | Transaction Link modal formatting | 🔴 OPEN |
 
-### ✅ Recently Closed (December 23 - January 3, 2026)
+### ✅ Recently Closed (December 23 - January 4, 2026)
 
 | Issue | Title | Closed |
 |-------|-------|--------|
+| **#118** | 500 Error uploading documents in Production | Jan 4, 2026 ✅ |
+| **#117** | Edit Transaction Split - categories not shown | Jan 4, 2026 ✅ |
+| **#116** | Bank Fees checkbox for AVII transfers | Jan 4, 2026 ✅ |
 | **#119** | UPS Partial Payments in Priority Order | Jan 3, 2026 ✅ |
 | **#90** | Nightly Credit Auto-Pay Email Report | Jan 3, 2026 ✅ |
 | **#101** | Nightly Scheduler Cloud Function | Dec 24 ✅ |
