@@ -35,21 +35,41 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
     }).format(numAmount);
   };
 
-  const formatDate = (dateStr) => {
+  const formatDate = (dateInput) => {
     try {
-      if (!dateStr) return 'Not specified';
+      if (!dateInput) return 'Not specified';
+      
+      // Handle object format from backend (has display, iso, etc.)
+      if (typeof dateInput === 'object' && dateInput !== null) {
+        // Prefer the display format if available
+        if (dateInput.display) return dateInput.display;
+        if (dateInput.displayFull) return dateInput.displayFull;
+        if (dateInput.iso) {
+          // Parse the ISO string
+          const date = new Date(dateInput.iso);
+          if (!isNaN(date.getTime())) {
+            return date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            });
+          }
+        }
+        // Last resort - return something readable
+        return String(dateInput.display || dateInput.iso || 'Unknown date');
+      }
       
       // Handle YYYY-MM-DD format by adding time to avoid timezone issues
       let date;
-      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
         // Parse YYYY-MM-DD as local date (add T12:00 to avoid timezone edge cases)
-        date = new Date(dateStr + 'T12:00:00');
+        date = new Date(dateInput + 'T12:00:00');
       } else {
-        date = new Date(dateStr);
+        date = new Date(dateInput);
       }
       
       if (isNaN(date.getTime())) {
-        return dateStr; // Return original if can't parse
+        return String(dateInput); // Return original as string if can't parse
       }
       
       return date.toLocaleDateString('en-US', {
@@ -58,7 +78,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
         day: 'numeric',
       });
     } catch (error) {
-      return dateStr || 'Invalid Date';
+      return String(dateInput) || 'Invalid Date';
     }
   };
 

@@ -177,10 +177,23 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
         console.log('✅ Processed client data:', processedData);
         setClientData(processedData);
 
-        // Auto-select first account if only one
-        if (processedData.accounts.length === 1) {
-          console.log('🏦 Auto-selecting single account:', processedData.accounts[0].name);
-          setFormData(prev => ({ ...prev, accountId: processedData.accounts[0].id }));
+        // Set default account to bank-001 if it exists, otherwise first bank account
+        const defaultAccount = processedData.accounts.find(a => a.id === 'bank-001') 
+          || processedData.accounts.find(a => a.type === 'bank')
+          || processedData.accounts[0];
+        
+        // Set default payment method to eTransfer if it exists
+        const defaultPaymentMethod = processedData.paymentMethods.find(p => 
+          p.id === 'etransfer' || p.name?.toLowerCase() === 'etransfer'
+        ) || processedData.paymentMethods[0];
+
+        if (defaultAccount || defaultPaymentMethod) {
+          console.log('🏦 Setting defaults - Account:', defaultAccount?.name, 'Payment:', defaultPaymentMethod?.name);
+          setFormData(prev => ({
+            ...prev,
+            accountId: defaultAccount?.id || prev.accountId,
+            paymentMethodId: defaultPaymentMethod?.id || prev.paymentMethodId,
+          }));
         }
 
       } catch (error) {
