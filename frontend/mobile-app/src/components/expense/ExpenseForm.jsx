@@ -322,18 +322,18 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
       const selectedAccount = clientData.accounts.find(a => a.id === formData.accountId);
       const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
 
-      // Build base transaction data
+      // Build base transaction data - using ID-first architecture field names
       let transactionData = {
         date: formData.date,
         amount: -Math.abs(parseFloat(formData.amount)),
         vendorId: formData.vendorId,
-        vendor: selectedVendor?.name || formData.vendorId,
+        vendorName: selectedVendor?.name || '',
         notes: formData.notes,
         accountId: formData.accountId,
-        account: selectedAccount?.name || formData.accountId,
+        accountName: selectedAccount?.name || '',
         accountType: selectedAccount?.type || 'bank',
         paymentMethodId: formData.paymentMethodId,
-        paymentMethod: selectedPaymentMethod?.name || formData.paymentMethodId,
+        paymentMethod: selectedPaymentMethod?.name || '',
         type: 'expense',
         enteredBy: samsUser?.email || 'mobile-user',
         documents: uploadedDocuments.map(doc => doc.id),
@@ -347,7 +347,7 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
         const totalAmount = originalAmount + commissionAmount + ivaAmount;
         
         transactionData.categoryId = '-split-';
-        transactionData.category = '-Split-';
+        transactionData.categoryName = '-Split-';
         transactionData.amount = -Math.abs(totalAmount);
         transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
         transactionData.allocations = [
@@ -371,12 +371,12 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
       } else if (splitAllocations.length > 0) {
         // Use existing split allocations
         transactionData.categoryId = '-split-';
-        transactionData.category = '-Split-';
+        transactionData.categoryName = '-Split-';
         transactionData.allocations = splitAllocations;
       } else {
         // Single category transaction
         transactionData.categoryId = formData.categoryId;
-        transactionData.category = selectedCategory?.name || formData.categoryId;
+        transactionData.categoryName = selectedCategory?.name || '';
       }
 
       console.log('📄 Creating transaction with data:', transactionData);

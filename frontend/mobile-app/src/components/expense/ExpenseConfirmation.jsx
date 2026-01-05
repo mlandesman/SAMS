@@ -37,14 +37,28 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
 
   const formatDate = (dateStr) => {
     try {
-      const date = new Date(dateStr);
+      if (!dateStr) return 'Not specified';
+      
+      // Handle YYYY-MM-DD format by adding time to avoid timezone issues
+      let date;
+      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        // Parse YYYY-MM-DD as local date (add T12:00 to avoid timezone edge cases)
+        date = new Date(dateStr + 'T12:00:00');
+      } else {
+        date = new Date(dateStr);
+      }
+      
+      if (isNaN(date.getTime())) {
+        return dateStr; // Return original if can't parse
+      }
+      
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     } catch (error) {
-      return 'Invalid Date';
+      return dateStr || 'Invalid Date';
     }
   };
 
@@ -179,7 +193,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                     Category
                   </Typography>
                   <Chip 
-                    label={transaction.category || 'General'} 
+                    label={transaction.categoryName || transaction.category || 'General'} 
                     size="small" 
                     color="primary"
                     variant="outlined"
@@ -197,7 +211,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                     Vendor
                   </Typography>
                   <Typography variant="body1">
-                    {transaction.vendor || 'Not specified'}
+                    {transaction.vendorName || transaction.vendor || 'Not specified'}
                   </Typography>
                 </Box>
               </Box>
@@ -226,7 +240,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                   Account
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {transaction.account || 'Not specified'}
+                  {transaction.accountName || transaction.account || 'Not specified'}
                 </Typography>
               </Box>
             </Grid>
