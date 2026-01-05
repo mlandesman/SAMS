@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - Issues #116, #117, #118, #122 (January 4, 2026)
-**Current Version:** v1.5.5 - Quick Fixes Batch + Email OAuth Backlog
+**Last Modification:** Manager Agent - PWA Expense Refactor + Issue #124 (January 5, 2026)
+**Current Version:** v1.5.6 - PWA Expense Entry Refactor
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -36,6 +36,7 @@
 
 | Issue | Title | Status |
 |-------|-------|--------|
+| **#124** | Year-End Process Double-Converts Centavos (100x) | 🔴 NEW - Fix before June 2026 |
 | **#106** | Client-specific backup to Settings | 🔴 NEW |
 | **#104** | aggregatedData error - leftover code | 🔴 OPEN |
 | **#94** | Transaction Export (CSV/PDF) for filtered view | 🔴 OPEN |
@@ -139,6 +140,50 @@ firebase deploy --only functions:nightlyScheduler
 ```
 
 **IMPORTANT:** Email override active - all emails go to `michael@landesman.com`. See `ENABLE_PRODUCTION_EMAILS.md` for production enablement after testing period.
+
+---
+
+### v1.5.5 - PWA Expense Entry Refactor + Configuration Fix (January 5, 2026)
+**STATUS:** ✅ DEPLOYED - Mobile PWA ready for production use
+
+**Branch:** `feature/mobile-expense-refactor` → merged to `main`
+
+#### PWA Configuration Fixes ✅ COMPLETE
+- Fixed hardcoded localhost URLs in `waterReadingService.js`
+- Added Firebase Hosting URLs to CORS allowedOrigins in backend
+- Connected custom domain `mobile.sams.sandyland.com.mx` to `sams-mobile-pwa` hosting site
+- Updated DNS CNAME record to point to correct Firebase Hosting target
+- Deployed PWA with Option 7 in `deploySams.sh`
+
+#### Mobile Expense Entry Refactor ✅ COMPLETE
+- **ID-first architecture** - Form stores IDs (vendorId, categoryId, accountId), displays names
+- **Bank Fees checkbox** - Auto-creates split allocations with $5.00 commission + $0.80 IVA
+- **Auto-populate category** - When vendor selected, pre-fills category if vendor has default
+- **Default account/payment** - Defaults to `bank-001` and `eTransfer` for all clients
+- **SuperAdmin access fix** - Uses `useClients` hook instead of `samsUser.clientAccess`
+- **Date object rendering fix** - Handles backend structured date objects `{iso, display, ...}`
+
+#### Files Modified
+- `frontend/mobile-app/src/components/expense/ExpenseForm.jsx` (~530 lines refactored)
+- `frontend/mobile-app/src/components/expense/ExpenseEntryScreen.jsx` (useClients hook)
+- `frontend/mobile-app/src/components/expense/ExpenseConfirmation.jsx` (date formatting)
+- `frontend/mobile-app/src/services/waterReadingService.js` (removed hardcoded URLs)
+- `backend/index.js` (CORS fix - deployed earlier in session)
+
+#### Testing Summary
+- ✅ Propane Tank entry tested and working
+- ✅ Water Meter entry working (correct new format)
+- ✅ Expense entry with Bank Fees tested and working
+- ✅ Document attachments working
+- ✅ Confirmation modal displaying correctly
+
+#### Deployment Notes
+```bash
+# Mobile PWA only (Option 7)
+./deploySams.sh  # Select option 7
+```
+
+**Duration:** ~4 hours | **Quality:** ⭐⭐⭐⭐⭐
 
 ---
 
