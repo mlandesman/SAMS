@@ -24,7 +24,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
   console.log('🎉 ExpenseConfirmation received result:', result);
   console.log('🎉 ExpenseConfirmation received clientId:', clientId);
   
-  const { transaction } = result || {};
+  const { transaction, documentsUploaded, includedBankFees } = result || {};
   
   // Helper functions
   const formatCurrency = (amount) => {
@@ -244,6 +244,38 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                       {transaction.description}
                     </Typography>
                   </Box>
+                </Box>
+              </Grid>
+            )}
+
+            {/* Bank Fees indicator */}
+            {includedBankFees && (
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Box>
+                  <Chip 
+                    label="Includes Bank Transfer Fees ($5.80)" 
+                    size="small" 
+                    color="info"
+                    variant="outlined"
+                  />
+                </Box>
+              </Grid>
+            )}
+
+            {/* Documents uploaded */}
+            {documentsUploaded > 0 && (
+              <Grid item xs={12}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Documents Attached
+                  </Typography>
+                  <Chip 
+                    label={`${documentsUploaded} file${documentsUploaded > 1 ? 's' : ''} uploaded`} 
+                    size="small" 
+                    color="success"
+                    variant="outlined"
+                  />
                 </Box>
               </Grid>
             )}
