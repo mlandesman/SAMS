@@ -10,15 +10,14 @@ import {
   UNIT_CONFIG 
 } from '../utils/waterReadingHelpers.js';
 import { getCurrentFiscalPeriod, getPreviousFiscalPeriod } from '../utils/fiscalYearUtils.js';
+import { config } from '../config/index.js';
 
-// API Configuration
-const API_CONFIG = {
-  baseUrl: 'http://localhost:5001/api',  // Legacy endpoints
-  domainBaseUrl: 'http://localhost:5001', // Clean domain endpoints (/water/...)
-  timeout: 30000
-};
+// API Configuration - Use unified config (matches desktop pattern)
+const getApiBaseUrl = () => config.api.baseUrl;
 
-const CLIENT_ID = 'AVII';
+// NOTE: CLIENT_ID should come from ClientContext in production
+// This is a temporary fallback for water meter entry MVP
+const DEFAULT_CLIENT_ID = 'AVII';
 
 /**
  * Get Firebase auth token
@@ -55,11 +54,11 @@ async function handleApiResponse(response) {
  */
 export const loadClientInfo = async () => {
   try {
-    console.log('Loading client information for:', CLIENT_ID);
+    console.log('Loading client information for:', DEFAULT_CLIENT_ID);
     
     const token = await getAuthToken();
     
-    const response = await fetch(`${API_CONFIG.baseUrl}/clients/${CLIENT_ID}`, {
+    const response = await fetch(`${getApiBaseUrl()}/clients/${DEFAULT_CLIENT_ID}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -71,8 +70,8 @@ export const loadClientInfo = async () => {
     console.log('Loaded client info:', clientData);
     
     return {
-      id: CLIENT_ID,
-      name: clientData.name || CLIENT_ID,
+      id: DEFAULT_CLIENT_ID,
+      name: clientData.name || DEFAULT_CLIENT_ID,
       fullName: clientData.basicInfo?.fullName || clientData.fullName || 'Apartamentos Villa Isabel II',
       logo: clientData.branding?.logoUrl,
       color: clientData.branding?.primaryColor || '#059669'
@@ -82,8 +81,8 @@ export const loadClientInfo = async () => {
     console.error('Error loading client info:', error);
     // Return fallback data
     return {
-      id: CLIENT_ID,
-      name: 'AVII', 
+      id: DEFAULT_CLIENT_ID,
+      name: DEFAULT_CLIENT_ID, 
       fullName: 'Apartamentos Villa Isabel II'
     };
   }
@@ -116,7 +115,7 @@ export const loadPreviousReadings = async (inputYear = null, inputMonth = null) 
     const [periodYear, periodMonth] = previousPeriod.split('-');
     
     const response = await fetch(
-      `${API_CONFIG.domainBaseUrl}/water/clients/${CLIENT_ID}/readings/${periodYear}/${periodMonth}`,
+      `${getApiBaseUrl()}/water/clients/${DEFAULT_CLIENT_ID}/readings/${periodYear}/${periodMonth}`,
       {
         method: 'GET',
         headers: {
@@ -185,7 +184,7 @@ export const loadCurrentReadings = async (inputYear = null, inputMonth = null) =
     const [currentYear, currentMonth] = currentPeriod.split('-');
     
     const response = await fetch(
-      `${API_CONFIG.domainBaseUrl}/water/clients/${CLIENT_ID}/readings/${currentYear}/${currentMonth}`,
+      `${getApiBaseUrl()}/water/clients/${DEFAULT_CLIENT_ID}/readings/${currentYear}/${currentMonth}`,
       {
         method: 'GET',
         headers: {
@@ -258,7 +257,7 @@ export const saveAllReadings = async (readingsData, inputYear = null, inputMonth
     const [saveYear, saveMonth] = currentPeriod.split('-');
     
     const response = await fetch(
-      `${API_CONFIG.domainBaseUrl}/water/clients/${CLIENT_ID}/readings/${saveYear}/${saveMonth}`,
+      `${getApiBaseUrl()}/water/clients/${DEFAULT_CLIENT_ID}/readings/${saveYear}/${saveMonth}`,
       {
         method: 'PUT',
         headers: {
@@ -323,7 +322,7 @@ export const saveWashEntry = async (unitId, washEntry, inputYear = null, inputMo
     const [washYear, washMonth] = currentPeriod.split('-');
     
     const response = await fetch(
-      `${API_CONFIG.domainBaseUrl}/water/clients/${CLIENT_ID}/readings/${washYear}/${washMonth}`,
+      `${getApiBaseUrl()}/water/clients/${DEFAULT_CLIENT_ID}/readings/${washYear}/${washMonth}`,
       {
         method: 'PUT',
         headers: {
