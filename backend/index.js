@@ -42,7 +42,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://sams.sandyland.com.mx',
-  'https://mobile.sams.sandyland.com.mx'
+  'https://mobile.sams.sandyland.com.mx',
+  'https://sams-mobile-pwa.web.app',      // Firebase Hosting direct URL for PWA
+  'https://sams-sandyland-prod.web.app'   // Firebase Hosting direct URL for desktop
 ];
 
 app.use(cors({
