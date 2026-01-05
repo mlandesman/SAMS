@@ -24,7 +24,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
   console.log('🎉 ExpenseConfirmation received result:', result);
   console.log('🎉 ExpenseConfirmation received clientId:', clientId);
   
-  const { transaction } = result || {};
+  const { transaction, documentsUploaded, includedBankFees } = result || {};
   
   // Helper functions
   const formatCurrency = (amount) => {
@@ -35,16 +35,50 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
     }).format(numAmount);
   };
 
-  const formatDate = (dateStr) => {
+  const formatDate = (dateInput) => {
     try {
-      const date = new Date(dateStr);
+      if (!dateInput) return 'Not specified';
+      
+      // Handle object format from backend (has display, iso, etc.)
+      if (typeof dateInput === 'object' && dateInput !== null) {
+        // Prefer the display format if available
+        if (dateInput.display) return dateInput.display;
+        if (dateInput.displayFull) return dateInput.displayFull;
+        if (dateInput.iso) {
+          // Parse the ISO string
+          const date = new Date(dateInput.iso);
+          if (!isNaN(date.getTime())) {
+            return date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            });
+          }
+        }
+        // Last resort - return something readable
+        return String(dateInput.display || dateInput.iso || 'Unknown date');
+      }
+      
+      // Handle YYYY-MM-DD format by adding time to avoid timezone issues
+      let date;
+      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        // Parse YYYY-MM-DD as local date (add T12:00 to avoid timezone edge cases)
+        date = new Date(dateInput + 'T12:00:00');
+      } else {
+        date = new Date(dateInput);
+      }
+      
+      if (isNaN(date.getTime())) {
+        return String(dateInput); // Return original as string if can't parse
+      }
+      
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     } catch (error) {
-      return 'Invalid Date';
+      return String(dateInput) || 'Invalid Date';
     }
   };
 
@@ -179,7 +213,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                     Category
                   </Typography>
                   <Chip 
-                    label={transaction.category || 'General'} 
+                    label={transaction.categoryName || transaction.category || 'General'} 
                     size="small" 
                     color="primary"
                     variant="outlined"
@@ -197,7 +231,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                     Vendor
                   </Typography>
                   <Typography variant="body1">
-                    {transaction.vendor || 'Not specified'}
+                    {transaction.vendorName || transaction.vendor || 'Not specified'}
                   </Typography>
                 </Box>
               </Box>
@@ -226,7 +260,7 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                   Account
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {transaction.account || 'Not specified'}
+                  {transaction.accountName || transaction.account || 'Not specified'}
                 </Typography>
               </Box>
             </Grid>
@@ -244,6 +278,38 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                       {transaction.description}
                     </Typography>
                   </Box>
+                </Box>
+              </Grid>
+            )}
+
+            {/* Bank Fees indicator */}
+            {includedBankFees && (
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Box>
+                  <Chip 
+                    label="Includes Bank Transfer Fees ($5.80)" 
+                    size="small" 
+                    color="info"
+                    variant="outlined"
+                  />
+                </Box>
+              </Grid>
+            )}
+
+            {/* Documents uploaded */}
+            {documentsUploaded > 0 && (
+              <Grid item xs={12}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Documents Attached
+                  </Typography>
+                  <Chip 
+                    label={`${documentsUploaded} file${documentsUploaded > 1 ? 's' : ''} uploaded`} 
+                    size="small" 
+                    color="success"
+                    variant="outlined"
+                  />
                 </Box>
               </Grid>
             )}

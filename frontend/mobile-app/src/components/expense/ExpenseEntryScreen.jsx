@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useClients } from '../../hooks/useClients.jsx';
 import ClientSelector from './ClientSelector.jsx';
 import ExpenseForm from './ExpenseForm.jsx';
 import ExpenseConfirmation from './ExpenseConfirmation.jsx';
@@ -15,6 +16,7 @@ import './ExpenseEntry.css';
 
 const ExpenseEntryScreen = () => {
   const { samsUser, currentClient, isAuthenticated, loading: authLoading } = useAuth();
+  const { clients, loading: clientsLoading, error: clientsError, hasClients } = useClients();
   const navigate = useNavigate();
   const [selectedClient, setSelectedClient] = useState(currentClient);
   const [showForm, setShowForm] = useState(false);
@@ -28,23 +30,14 @@ const ExpenseEntryScreen = () => {
     }
   }, [currentClient, selectedClient]);
 
-  // Auto-select client if user only has one (unit owners, single-client admins)
+  // Auto-select client if user only has one
   useEffect(() => {
-    if (!selectedClient && samsUser?.clientAccess) {
-      const accessibleClients = Object.keys(samsUser.clientAccess);
-      console.log('🔍 Auto-selection check:', { 
-        selectedClient, 
-        accessibleClients, 
-        clientAccess: samsUser.clientAccess 
-      });
-      if (accessibleClients.length === 1) {
-        console.log('🚀 Auto-selecting single client:', accessibleClients[0]);
-        setSelectedClient(accessibleClients[0]);
-        // Always auto-show the form - this is "Add Expense", not "Select Client"
-        setShowForm(true);
-      }
+    if (!selectedClient && clients.length === 1) {
+      console.log('🚀 Auto-selecting single client:', clients[0].id);
+      setSelectedClient(clients[0].id);
+      setShowForm(true);
     }
-  }, [selectedClient, samsUser]);
+  }, [selectedClient, clients]);
 
   // For multi-client users, show form immediately after client selection
   useEffect(() => {
@@ -64,8 +57,6 @@ const ExpenseEntryScreen = () => {
     console.log('🎯 ExpenseEntryScreen: Expense submitted for client:', selectedClient, 'Result:', result);
     setSubmitResult(result);
     setShowForm(false);
-    
-    // Remove auto-navigation - let user control when to leave
   };
 
   const handleAddAnother = () => {
@@ -86,7 +77,8 @@ const ExpenseEntryScreen = () => {
 
   const clearError = () => setError(null);
 
-  if (authLoading) {
+  // Show loading while auth or clients are loading
+  if (authLoading || clientsLoading) {
     return (
       <Box
         display="flex"
@@ -114,12 +106,19 @@ const ExpenseEntryScreen = () => {
     );
   }
 
-  // Get user's accessible clients
-  const accessibleClients = samsUser?.clientAccess 
-    ? Object.keys(samsUser.clientAccess) 
-    : [];
+  // Show error if clients failed to load
+  if (clientsError) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          {clientsError}
+        </Alert>
+      </Box>
+    );
+  }
 
-  if (accessibleClients.length === 0) {
+  // Check if user has client access
+  if (!hasClients) {
     return (
       <Box p={3}>
         <Alert severity="warning">
@@ -128,6 +127,9 @@ const ExpenseEntryScreen = () => {
       </Box>
     );
   }
+
+  // Get client IDs for the selector
+  const accessibleClientIds = clients.map(c => c.id);
 
   return (
     <Box className="expense-entry-screen">
@@ -156,7 +158,7 @@ const ExpenseEntryScreen = () => {
       )}
 
       {/* Client Selection State - only show if no client selected AND multiple clients available */}
-      {!selectedClient && !submitResult && accessibleClients.length > 1 && (
+      {!selectedClient && !submitResult && accessibleClientIds.length > 1 && (
         <Slide direction="right" in={!selectedClient}>
           <Box>
             <Box p={3}>
@@ -170,7 +172,7 @@ const ExpenseEntryScreen = () => {
               </Box>
               
               <ClientSelector
-                clients={accessibleClients}
+                clients={accessibleClientIds}
                 selected={selectedClient}
                 onSelect={handleClientSelect}
                 samsUser={samsUser}

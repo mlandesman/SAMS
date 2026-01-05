@@ -3,9 +3,9 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "1.6.1",
-  "buildDate": "2026-01-04T22:37:00.986Z",
-  "buildTimestamp": 1767566220987,
+  "version": "1.6.2",
+  "buildDate": "2026-01-05T22:43:13.956Z",
+  "buildTimestamp": 1767652993957,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "b1ff62b",
-    "branch": "main",
-    "lastCommitDate": "2026-01-04 17:26:08 -0500"
+    "hash": "3e02bd8",
+    "branch": "feature/mobile-expense-refactor",
+    "lastCommitDate": "2026-01-05 17:39:56 -0500"
   },
   "build": {
-    "timestamp": "2026-01-04T22:37:00.986Z",
+    "timestamp": "2026-01-05T22:43:13.956Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260104.1737"
+    "buildNumber": "260105.1743"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-01-04T22:37:00.986Z",
+    "date": "2026-01-05T22:43:13.956Z",
     "automated": true
   },
   "releaseNotes": {
