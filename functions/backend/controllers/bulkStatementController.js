@@ -333,16 +333,26 @@ export async function bulkGenerateStatements(req, res) {
     await saveProgress(0, 'starting', 'Initializing bulk generation...');
     
     // Process each unit
+    console.log(`📋 Processing ${units.length} units sequentially...`);
+    const startTime = Date.now();
+    
     for (let i = 0; i < units.length; i++) {
       const unit = units[i];
       const { unitId, unitNumber, ownerName } = unit;
+      
+      const unitStartTime = Date.now();
+      const elapsed = Math.round((unitStartTime - startTime) / 1000);
+      console.log(`\n[${i + 1}/${units.length}] Processing unit ${unitId} (${elapsed}s elapsed)...`);
       
       // Update progress: starting this unit
       await saveProgress(i + 1, 'processing', formatMessage('Generating statement for', unitId, ownerName));
       
       try {
-        // Generate PDF
+        // Generate PDF (this calls generateStatementData which takes 15-30 seconds)
+        console.log(`   ⏳ Calling generateStatementData() for ${unitId}...`);
         const pdfResult = await generatePdfForUnit(api, clientId, unitId, fiscalYear, language);
+        const unitElapsed = Math.round((Date.now() - unitStartTime) / 1000);
+        console.log(`   ✅ Unit ${unitId} completed in ${unitElapsed}s`);
         
         if (!pdfResult.success) {
           console.log(`   ❌ ${unitId}: ${pdfResult.error}`);
