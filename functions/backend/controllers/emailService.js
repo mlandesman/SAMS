@@ -937,15 +937,69 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     const clientName = clientData.basicInfo?.fullName || clientData.name || clientId;
     const clientLogoUrl = clientData.branding?.logoUrl || '';
     
-    // OPTIMIZATION: Use pre-calculated emailContent if available (from preview)
+    // OPTIMIZATION: Use pre-calculated emailContent and HTML if available (from preview)
     // This skips expensive recalculation when data is already available
     let balanceDue, creditBalance, netAmount, bankName, bankAccount, bankClabe, beneficiary, reference;
     let brandColor, ownerNames, asOfDate;
     let pdfBuffer, pdfUrls, emailLogoUrl, statementResult;
     let statementMeta = null;
     
+    // FIRST: Check if we have pre-generated HTML (fastest path - skip all generation)
+    console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta}`);
+    if (statementHtml && statementHtml.trim() && statementMeta && statementMeta.statementId) {
+      // Fastest path: Use pre-generated HTML (no recalculation needed at all)
+      console.log(`⚡ Using pre-generated HTML for PDF (fastest path - no generation)`);
+      pdfBuffer = await generatePdf(statementHtml, {
+        footerMeta: {
+          statementId: statementMeta.statementId,
+          generatedAt: statementMeta.generatedAt,
+          language: statementMeta.language
+        }
+      });
+      
+      // For download links, we can skip or generate lazily
+      // For now, skip generateAndUploadPdfs in fast path (download links optional)
+      pdfUrls = { en: '', es: '' };
+      console.log(`⚡ Skipping PDF upload (download links optional in fast path)`);
+      statementMeta = statementMeta; // Use provided meta
+    } else {
+      // Need to generate HTML (either missing or invalid)
+      console.log(`🔄 Need to generate HTML: statementHtml=${!!statementHtml}, statementMeta=${!!statementMeta}`);
+      
+      // Still need to generate HTML for PDF (even with emailContent, we need the full HTML)
+      console.log(`🔄 Generating HTML for PDF (HTML not provided or invalid)`);
+      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+      const api = axios.create({
+        baseURL: baseURL,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        timeout: 60000
+      });
+      
+      statementResult = await generateStatementData(api, clientId, unitId, { 
+        fiscalYear, 
+        language
+      });
+      statementMeta = statementResult.meta;
+      
+      // Generate PDF buffer for attachment
+      pdfBuffer = await generatePdf(statementResult.html, {
+        footerMeta: {
+          statementId: statementResult.meta?.statementId,
+          generatedAt: statementResult.meta?.generatedAt,
+          language: statementResult.meta?.language
+        }
+      });
+      
+      // Generate and upload PDFs to storage for download links (backup)
+      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+    }
+    
+    // Extract emailContent data (either from provided emailContent or from statementResult)
     if (emailContent) {
-      // Use pre-calculated data (fast path - no recalculation)
+      // Use pre-calculated emailContent data (fast path - no data recalculation)
       console.log(`⚡ Using pre-calculated emailContent (optimized path)`);
       balanceDue = emailContent.balanceDue || 0;
       creditBalance = emailContent.creditBalance || 0;
@@ -964,55 +1018,33 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       asOfDate = isSpanish 
         ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
         : statementDate.toFormat('MMMM d, yyyy');
+    } else if (statementResult) {
+      // Extract from statementResult (fallback if emailContent not provided)
+      balanceDue = statementResult.summary?.closingBalance || 0;
+      creditBalance = statementResult.emailContent?.creditBalance || 0;
+      netAmount = balanceDue - creditBalance;
       
-      // OPTIMIZATION: Use provided HTML if available (from preview), otherwise generate
-      console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta}`);
-      if (statementHtml && statementMeta) {
-        // Fast path: Use pre-generated HTML (no recalculation needed)
-        console.log(`⚡ Using pre-generated HTML for PDF (optimized path)`);
-        pdfBuffer = await generatePdf(statementHtml, {
-          footerMeta: {
-            statementId: statementMeta.statementId,
-            generatedAt: statementMeta.generatedAt,
-            language: statementMeta.language
-          }
-        });
-        
-        // For download links, we can skip or generate lazily
-        // For now, skip generateAndUploadPdfs in fast path (download links optional)
-        pdfUrls = { en: '', es: '' };
-        console.log(`⚡ Skipping PDF upload (download links optional in fast path)`);
-      } else {
-        // Fallback: Generate HTML if not provided
-        console.log(`🔄 Generating HTML for PDF (HTML not provided)`);
-        const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-        const api = axios.create({
-          baseURL: baseURL,
-          headers: {
-            'Content-Type': 'application/json',
-            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-          },
-          timeout: 60000
-        });
-        
-        statementResult = await generateStatementData(api, clientId, unitId, { 
-          fiscalYear, 
-          language
-        });
-        statementMeta = statementResult.meta;
-        
-        // Generate PDF buffer for attachment
-        pdfBuffer = await generatePdf(statementResult.html, {
-          footerMeta: {
-            statementId: statementResult.meta?.statementId,
-            generatedAt: statementResult.meta?.generatedAt,
-            language: statementResult.meta?.language
-          }
-        });
-        
-        // Generate and upload PDFs to storage for download links (backup)
-        pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
-      }
+      // Extract bank payment info from client config
+      const bankDetails = clientData.feeStructure?.bankDetails || {};
+      bankName = bankDetails.bankName || bankDetails.name || '';
+      bankAccount = bankDetails.accountNumber || bankDetails.account || bankDetails.accountNo || bankDetails.cuenta || '';
+      bankClabe = bankDetails.clabe || '';
+      beneficiary = bankDetails.accountName || bankDetails.beneficiary || clientName;
+      reference = bankDetails.reference || `Unit ${unitId}`;
+      
+      // Get brand color
+      brandColor = clientData.branding?.brandColors?.primary || '#1a365d';
+      
+      // Format owner names
+      ownerNames = owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner';
+      
+      // Format statement date
+      const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun');
+      const isSpanish = language === 'spanish' || language === 'es';
+      asOfDate = isSpanish 
+        ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
+        : statementDate.toFormat('MMMM d, yyyy');
+    }
       
       // Get email-sized logo (resize if needed)
       const logoUrl = emailContent.logoUrl || clientLogoUrl;
