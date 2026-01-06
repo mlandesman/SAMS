@@ -418,10 +418,12 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     setEmailResult(null);
     
     try {
-      // Pass current display language and pre-calculated emailContent if available
+      // Pass current display language and pre-calculated data if available
       // This allows backend to skip expensive recalculation (90% faster)
       const emailContent = statementData?.emailContent || null;
-      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language, emailContent);
+      const statementHtml = htmlPreview || null;  // Pre-generated HTML
+      const statementMeta = statementData?.meta || null;  // Statement metadata
+      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language, emailContent, statementHtml, statementMeta);
       setEmailResult({ 
         success: true, 
         message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''} (${language})` 

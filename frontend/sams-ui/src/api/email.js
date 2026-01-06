@@ -49,9 +49,11 @@ async function getAuthHeaders() {
  * @param {number} fiscalYear - Fiscal year
  * @param {string} language - Optional language override (send in display language instead of user preference)
  * @param {Object} emailContent - Optional pre-calculated email data (from statementData.emailContent) to skip recalculation
+ * @param {string} statementHtml - Optional pre-generated HTML (from statementData.html) to skip PDF generation recalculation
+ * @param {Object} statementMeta - Optional statement metadata (from statementData.meta) for PDF footer
  * @returns {Promise<Object>} Result with success status and recipient info
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null) {
   const headers = await getAuthHeaders();
   
   const body = { unitId, fiscalYear };
@@ -60,6 +62,12 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, language 
   }
   if (emailContent) {
     body.emailContent = emailContent;  // Pre-calculated data to skip recalculation
+  }
+  if (statementHtml) {
+    body.statementHtml = statementHtml;  // Pre-generated HTML to skip PDF generation recalculation
+  }
+  if (statementMeta) {
+    body.statementMeta = statementMeta;  // Statement metadata for PDF footer
   }
   
   const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-statement`, {

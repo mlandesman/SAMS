@@ -897,7 +897,7 @@ function getDefaultStatementTemplate() {
 /**
  * Send Statement of Account email to unit owners/managers
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null) {
   try {
     console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}`);
     
@@ -965,36 +965,53 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
         ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
         : statementDate.toFormat('MMMM d, yyyy');
       
-      // Still need to generate PDF (but can use HTML from emailContent if available)
-      // For now, we'll still generate it, but this could be further optimized
-      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-      const api = axios.create({
-        baseURL: baseURL,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        },
-        timeout: 60000
-      });
-      
-      // Generate statement HTML for PDF (still needed for attachment)
-      statementResult = await generateStatementData(api, clientId, unitId, { 
-        fiscalYear, 
-        language
-      });
-      statementMeta = statementResult.meta;
-      
-      // Generate PDF buffer for attachment
-      pdfBuffer = await generatePdf(statementResult.html, {
-        footerMeta: {
-          statementId: statementResult.meta?.statementId,
-          generatedAt: statementResult.meta?.generatedAt,
-          language: statementResult.meta?.language
-        }
-      });
-      
-      // Generate and upload PDFs to storage for download links (backup)
-      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+      // OPTIMIZATION: Use provided HTML if available (from preview), otherwise generate
+      if (statementHtml && statementMeta) {
+        // Fast path: Use pre-generated HTML (no recalculation needed)
+        console.log(`⚡ Using pre-generated HTML for PDF (optimized path)`);
+        pdfBuffer = await generatePdf(statementHtml, {
+          footerMeta: {
+            statementId: statementMeta.statementId,
+            generatedAt: statementMeta.generatedAt,
+            language: statementMeta.language
+          }
+        });
+        
+        // For download links, we can skip or generate lazily
+        // For now, skip generateAndUploadPdfs in fast path (download links optional)
+        pdfUrls = { en: '', es: '' };
+        console.log(`⚡ Skipping PDF upload (download links optional in fast path)`);
+      } else {
+        // Fallback: Generate HTML if not provided
+        console.log(`🔄 Generating HTML for PDF (HTML not provided)`);
+        const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+        const api = axios.create({
+          baseURL: baseURL,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+          },
+          timeout: 60000
+        });
+        
+        statementResult = await generateStatementData(api, clientId, unitId, { 
+          fiscalYear, 
+          language
+        });
+        statementMeta = statementResult.meta;
+        
+        // Generate PDF buffer for attachment
+        pdfBuffer = await generatePdf(statementResult.html, {
+          footerMeta: {
+            statementId: statementResult.meta?.statementId,
+            generatedAt: statementResult.meta?.generatedAt,
+            language: statementResult.meta?.language
+          }
+        });
+        
+        // Generate and upload PDFs to storage for download links (backup)
+        pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+      }
       
       // Get email-sized logo (resize if needed)
       const logoUrl = emailContent.logoUrl || clientLogoUrl;
