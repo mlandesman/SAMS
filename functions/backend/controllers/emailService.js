@@ -944,7 +944,7 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     let balanceDue, creditBalance, netAmount, bankName, bankAccount, bankClabe, beneficiary, reference;
     let brandColor, ownerNames, asOfDate;
     let pdfBuffer, pdfUrls, emailLogoUrl, statementResult;
-    let statementMeta = null;
+    // NOTE: Don't redeclare statementMeta - use the parameter passed to the function
     
     // FIRST: Check if we have pre-generated HTML (fastest path - skip all generation)
     const hasValidHtml = statementHtml && typeof statementHtml === 'string' && statementHtml.trim().length > 100;
