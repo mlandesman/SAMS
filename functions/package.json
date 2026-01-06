@@ -28,7 +28,8 @@
     "js-yaml": "^4.1.0",
     "luxon": "^3.7.1",
     "multer": "^2.0.1",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0"

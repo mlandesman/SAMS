@@ -53,7 +53,7 @@ async function getAuthHeaders() {
  * @param {Object} statementMeta - Optional statement metadata (from statementData.meta) for PDF footer
  * @returns {Promise<Object>} Result with success status and recipient info
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementHtmlEs = null, statementMetaEn = null, statementMetaEs = null) {
   const headers = await getAuthHeaders();
   
   const body = { unitId, fiscalYear };
@@ -64,10 +64,23 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, language 
     body.emailContent = emailContent;  // Pre-calculated data to skip recalculation
   }
   if (statementHtml) {
-    body.statementHtml = statementHtml;  // Pre-generated HTML to skip PDF generation recalculation
+    body.statementHtml = statementHtml;  // Pre-generated HTML (primary language) to skip PDF generation recalculation
   }
   if (statementMeta) {
     body.statementMeta = statementMeta;  // Statement metadata for PDF footer
+  }
+  // Both language HTMLs (when generateBothLanguages=true was used)
+  if (statementHtmlEn) {
+    body.statementHtmlEn = statementHtmlEn;  // Pre-generated English HTML
+  }
+  if (statementHtmlEs) {
+    body.statementHtmlEs = statementHtmlEs;  // Pre-generated Spanish HTML
+  }
+  if (statementMetaEn) {
+    body.statementMetaEn = statementMetaEn;  // English metadata
+  }
+  if (statementMetaEs) {
+    body.statementMetaEs = statementMetaEs;  // Spanish metadata
   }
   
   const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-statement`, {

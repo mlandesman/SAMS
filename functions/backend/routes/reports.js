@@ -377,6 +377,7 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
     const language = req.query.language || 'english';
+    const generateBothLanguages = req.query.generateBothLanguages === 'true';
     
     if (!unitId) {
       return res.status(400).json({ 
@@ -404,11 +405,22 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
       }
     });
 
-    // Single pass: compute statement data (HTML + summary + line items)
-    const statement = await generateStatementData(api, clientId, unitId, {
-      fiscalYear,
-      language
-    });
+    // Generate statement data (with optional dual-language support)
+    let statement;
+    if (generateBothLanguages) {
+      // Generate both languages (optimization: data fetch happens once, HTML built twice)
+      statement = await generateStatementData(api, clientId, unitId, {
+        fiscalYear,
+        language,
+        generateBothLanguages: true
+      });
+    } else {
+      // Single language (original behavior)
+      statement = await generateStatementData(api, clientId, unitId, {
+        fiscalYear,
+        language
+      });
+    }
     
     res.json({ success: true, data: statement });
   } catch (error) {

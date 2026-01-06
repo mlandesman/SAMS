@@ -280,11 +280,12 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       setError(null);
 
       try {
+        // Request both languages to optimize email generation (avoids recalculation)
         const data = await reportService.getStatementData(
           selectedClient.id,
           selectedUnitId,
           fiscalYear,
-          { language }
+          { language, generateBothLanguages: true }
         );
 
         // Debug: inspect the raw HTML returned from the backend

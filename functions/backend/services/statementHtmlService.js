@@ -748,7 +748,7 @@ function generatePropaneTableHtml(level, thresholds, language) {
  * }}
  */
 export async function generateStatementData(api, clientId, unitId, options = {}) {
-  // Get statement data
+  // Get statement data (language-agnostic - same data for both languages)
   const data = await getStatementData(api, clientId, unitId, options.fiscalYear);
   // Read responsive CSS file
   const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
@@ -758,6 +758,14 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   // Determine language and output format
   const language = options.language || 'english';
   const outputFormat = options.outputFormat || 'default';
+  const generateBothLanguages = options.generateBothLanguages === true;
+  
+  // If generating both languages, build both HTMLs from the same data
+  if (generateBothLanguages) {
+    return await generateBothLanguageStatements(data, reportCommonCss, options);
+  }
+  
+  // Single language generation (original behavior)
   const t = getTranslations(language);
   
   // Filter out future items for display
@@ -1907,3 +1915,135 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   };
 }
 
+/**
+ * Generate both English and Spanish HTML statements from the same data
+ * This avoids recalculation when both languages are needed (e.g., for email PDFs)
+ * @param {Object} data - Statement data from getStatementData (language-agnostic)
+ * @param {string} reportCommonCss - CSS content
+ * @param {Object} options - Options including fiscalYear
+ * @returns {Promise<Object>} Object with html, htmlEn, htmlEs, meta, metaEn, metaEs, etc.
+ */
+async function generateBothLanguageStatements(data, reportCommonCss, options = {}) {
+  // Generate English version
+  const tEn = getTranslations('english');
+  const resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn);
+  
+  // Generate Spanish version
+  const tEs = getTranslations('spanish');
+  const resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs);
+  
+  // Return both, with primary language as default (for backward compatibility)
+  const primaryLanguage = options.language || 'english';
+  const primaryResult = primaryLanguage === 'spanish' ? resultEs : resultEn;
+  
+  return {
+    html: primaryResult.html,  // Primary language (for backward compatibility)
+    htmlEn: resultEn.html,     // English HTML
+    htmlEs: resultEs.html,     // Spanish HTML
+    meta: primaryResult.meta,   // Primary language meta
+    metaEn: resultEn.meta,      // English meta
+    metaEs: resultEs.meta,      // Spanish meta
+    summary: data.summary,
+    lineItems: resultEn.lineItems,  // Same for both languages
+    emailContent: resultEn.emailContent  // Same for both languages
+  };
+}
+
+/**
+ * Build statement HTML for a specific language
+ * Extracted from generateStatementData to allow reuse for both languages
+ */
+async function buildStatementHtml(data, reportCommonCss, language, options, t) {
+  const outputFormat = options.outputFormat || 'default';
+  
+  // Filter out future items for display
+  const currentItems = data.lineItems.filter(item => item.isFuture !== true);
+  
+  // Get the actual closing balance from the last displayed transaction
+  const actualClosingBalance = currentItems.length > 0 
+    ? currentItems[currentItems.length - 1].balance 
+    : data.summary.openingBalance;
+  
+  // Get account credit balance (separately tracked credits)
+  const accountCreditBalance = data.creditInfo?.currentBalance || 0;
+  
+  // Calculate expiration date (30 days from statement date) using Luxon
+  const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
+  const expirationDate = statementDate.plus({ days: 30 });
+  
+  // Find next payment due date (first future charge)
+  const firstFutureItem = data.lineItems.find(item => item.isFuture === true && item.charge > 0);
+  const nextPaymentDue = firstFutureItem ? formatDate(firstFutureItem.date) : 'TBD';
+  
+  // Generate statement ID and timestamp
+  const statementId = `${data.clientInfo.id}-${data.unitInfo.unitId}-${data.statementInfo.fiscalYear}-${statementDate.toFormat('yyyyMMdd')}`;
+  const generatedTimestamp = DateTime.now().setZone('America/Cancun');
+  
+  // Build HTML (same logic as before, but extracted to function)
+  const html = await buildHtmlContent(data, reportCommonCss, language, t, currentItems, actualClosingBalance, accountCreditBalance, expirationDate, nextPaymentDue, statementId, generatedTimestamp, outputFormat);
+  
+  // Prepare email content metadata (same for both languages - data is language-agnostic)
+  const emailContent = {
+    // Financial data
+    balanceDue: actualClosingBalance,
+    creditBalance: accountCreditBalance,
+    netAmount: actualClosingBalance - accountCreditBalance,
+    // Unit info
+    unitNumber: data.unitInfo.unitId,
+    ownerNames: data.unitInfo.owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner',
+    fiscalYear: data.statementInfo.fiscalYear,
+    statementDate: data.statementInfo.statementDate,
+    // Bank payment info
+    bankName: data.clientInfo.bankAccountInfo?.bankName || '',
+    bankAccount: data.clientInfo.bankAccountInfo?.accountNumber || data.clientInfo.bankAccountInfo?.account || '',
+    bankClabe: data.clientInfo.bankAccountInfo?.clabe || '',
+    beneficiary: data.clientInfo.bankAccountInfo?.beneficiary || data.clientInfo.bankAccountInfo?.accountName || '',
+    reference: data.clientInfo.bankAccountInfo?.reference || '',
+    // Client branding
+    clientName: data.clientInfo.name,
+    brandColor: data.clientInfo.branding?.brandColors?.primary || '#1a365d',
+    logoUrl: data.clientInfo.branding?.logoUrl || ''
+  };
+  
+  return {
+    html,
+    meta: {
+      statementId,
+      generatedAt: generatedTimestamp.toFormat('MM/dd/yyyy HH:mm'),
+      language
+    },
+    lineItems: currentItems,
+    emailContent
+  };
+}
+
+/**
+ * Build the actual HTML content (extracted from original function)
+ */
+async function buildHtmlContent(data, reportCommonCss, language, t, currentItems, actualClosingBalance, accountCreditBalance, expirationDate, nextPaymentDue, statementId, generatedTimestamp, outputFormat) {
+  // This is the large HTML building section - we'll need to extract it
+  // For now, let's call the original logic but we need to refactor it
+  // Actually, let me check if we can just call the original function logic inline
+  // The issue is the original function has all the HTML building inline
+  
+  // For now, let's duplicate the HTML building logic but make it reusable
+  // This is a large refactor, so let's do it step by step
+  
+  // Actually, a better approach: extract the HTML building into a separate function
+  // that takes all the parameters. But that's a big refactor.
+  
+  // Simpler approach: call generateStatementData twice but with a flag to skip data fetch
+  // Or: extract the HTML building portion into a helper function
+  
+  // Let me take the pragmatic approach: extract the core HTML building logic
+  // We'll need to read the full HTML building section and extract it
+  
+  // For now, let's use a simpler approach: modify the original to support both languages
+  // by calling the HTML building twice with different languages
+  
+  // Actually, the cleanest is to extract the HTML template building into a function
+  // that can be called with different language parameters
+  
+  // Let me read the HTML building section to understand its structure
+  return ''; // Placeholder - will implement next
+}

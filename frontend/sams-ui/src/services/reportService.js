@@ -142,6 +142,10 @@ class ReportService {
     if (options.excludeFutureBills) {
       params.append('excludeFutureBills', 'true');
     }
+    // Request both languages when generating for email (optimization: avoid recalculation)
+    if (options.generateBothLanguages) {
+      params.append('generateBothLanguages', 'true');
+    }
 
     const response = await fetch(
       `${this.baseUrl}/reports/${clientId}/statement/data?${params.toString()}`,
@@ -157,6 +161,7 @@ class ReportService {
     }
 
     // Return the core statement object (html, meta, summary, lineItems, ...)
+    // When generateBothLanguages=true, also includes htmlEn, htmlEs, metaEn, metaEs
     return json.data;
   }
 
