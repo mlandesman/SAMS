@@ -899,6 +899,8 @@ function getDefaultStatementTemplate() {
  */
 export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null) {
   try {
+    // Debug: Log what we received
+    console.log(`📧 Service received: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta && typeof statementMeta === 'object' ? Object.keys(statementMeta).join(',') : 'none'})`);
     console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}`);
     
     const db = await getDb();
@@ -946,8 +948,13 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     
     // FIRST: Check if we have pre-generated HTML (fastest path - skip all generation)
     const hasValidHtml = statementHtml && typeof statementHtml === 'string' && statementHtml.trim().length > 100;
-    const hasValidMeta = statementMeta && typeof statementMeta === 'object' && Object.keys(statementMeta).length > 0;
-    console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars, valid=${hasValidHtml}), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'}, valid=${hasValidMeta})`);
+    // Check if statementMeta is a non-null object with keys (not array, not null)
+    const hasValidMeta = statementMeta && 
+                         typeof statementMeta === 'object' && 
+                         !Array.isArray(statementMeta) && 
+                         statementMeta !== null &&
+                         Object.keys(statementMeta).length > 0;
+    console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars, valid=${hasValidHtml}), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, isArray=${Array.isArray(statementMeta)}, keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'}, valid=${hasValidMeta})`);
     if (hasValidHtml && hasValidMeta) {
       // Fastest path: Use pre-generated HTML (no recalculation needed at all)
       console.log(`⚡ Using pre-generated HTML for PDF (fastest path - no generation)`);
