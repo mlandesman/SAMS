@@ -356,7 +356,7 @@ router.post('/send-statement', async (req, res) => {
       });
     }
     
-    console.log(`📧 Route received: emailContent=${!!emailContent}, statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta}`);
+    console.log(`📧 Route received: emailContent=${!!emailContent}, statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'})`);
     console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${language ? ` [language override: ${language}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}`);
     
     // Extract auth token from request headers
