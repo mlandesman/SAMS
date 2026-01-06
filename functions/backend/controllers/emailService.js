@@ -899,7 +899,7 @@ function getDefaultStatementTemplate() {
  */
 export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null) {
   try {
-    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}`);
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}`);
     
     const db = await getDb();
     
@@ -966,6 +966,7 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
         : statementDate.toFormat('MMMM d, yyyy');
       
       // OPTIMIZATION: Use provided HTML if available (from preview), otherwise generate
+      console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta}`);
       if (statementHtml && statementMeta) {
         // Fast path: Use pre-generated HTML (no recalculation needed)
         console.log(`⚡ Using pre-generated HTML for PDF (optimized path)`);
