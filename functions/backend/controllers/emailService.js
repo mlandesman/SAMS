@@ -945,8 +945,8 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     let statementMeta = null;
     
     // FIRST: Check if we have pre-generated HTML (fastest path - skip all generation)
-    console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta}`);
-    if (statementHtml && statementHtml.trim() && statementMeta && statementMeta.statementId) {
+    console.log(`🔍 Checking for pre-generated HTML: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'})`);
+    if (statementHtml && typeof statementHtml === 'string' && statementHtml.trim().length > 100 && statementMeta) {
       // Fastest path: Use pre-generated HTML (no recalculation needed at all)
       console.log(`⚡ Using pre-generated HTML for PDF (fastest path - no generation)`);
       pdfBuffer = await generatePdf(statementHtml, {
