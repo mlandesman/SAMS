@@ -966,7 +966,8 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       statementMeta = statementMeta; // Use provided meta
     } else {
       // Need to generate HTML (either missing or invalid)
-      console.log(`🔄 Need to generate HTML: statementHtml=${!!statementHtml}, statementMeta=${!!statementMeta}`);
+      const reason = !hasValidHtml ? 'HTML missing or invalid' : (!hasValidMeta ? 'statementMeta missing or empty' : 'unknown');
+      console.log(`🔄 Need to generate HTML: reason=${reason} (statementHtml valid=${hasValidHtml}, statementMeta valid=${hasValidMeta})`);
       
       // Still need to generate HTML for PDF (even with emailContent, we need the full HTML)
       console.log(`🔄 Generating HTML for PDF (HTML not provided or invalid)`);
