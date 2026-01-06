@@ -1457,8 +1457,8 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     <div class="balance-due-box">
       <table>
         <tr>
-          <td>${t.balanceDue}</td>
-          <td>${formatCurrency(actualClosingBalance)}</td>
+          <td>${actualClosingBalance >= 0 ? t.balanceDue : t.creditBalance}</td>
+          <td>${formatCurrency(Math.abs(actualClosingBalance))}</td>
         </tr>
         ${actualClosingBalance > 0 && accountCreditBalance > 0 ? `
         <!-- Owner owes money but has credit to apply -->

@@ -211,7 +211,7 @@ function createChronologicalTransactionList(payments, transactionMap, scheduledA
       
       const quarterTransactionIds = new Set();
       for (const payment of quarterPayments) {
-        if (payment.paid && payment.amount > 0) {
+        if (payment.paid) {
           const txnId = payment.transactionId || payment.reference;
           if (txnId && txnId !== '-' && !quarterTransactionIds.has(txnId)) {
             quarterTransactionIds.add(txnId);

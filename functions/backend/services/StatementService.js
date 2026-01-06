@@ -93,6 +93,34 @@ export class StatementService extends ReportEngine {
   }
 
   /**
+   * Convert fiscal month number to calendar month name and year
+   * @param {number} fiscalMonth - Month number (0-11 within fiscal year)
+   * @param {number} fiscalYearStartMonth - Month the fiscal year starts (1-12, e.g., 7 for July)
+   * @param {number} fiscalYear - The fiscal year (e.g., 2026)
+   * @returns {string} - "January 2026" format
+   * @private
+   */
+  _getCalendarMonthName(fiscalMonth, fiscalYearStartMonth, fiscalYear) {
+    // fiscalMonth is 0-indexed within the fiscal year
+    // fiscalYearStartMonth is 1-indexed (1=Jan, 7=Jul, etc.)
+    
+    // Calculate actual calendar month (0-indexed for Date)
+    const calendarMonth = (fiscalYearStartMonth - 1 + fiscalMonth) % 12;
+    
+    // Calculate actual calendar year
+    // If we wrap past December, we're in the next calendar year
+    const monthsFromStart = fiscalYearStartMonth - 1 + fiscalMonth;
+    const calendarYear = fiscalYear + Math.floor(monthsFromStart / 12) - (fiscalYearStartMonth > 1 ? 1 : 0);
+    
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    return `${monthNames[calendarMonth]} ${calendarYear}`;
+  }
+
+  /**
    * Main method to aggregate complete statement data
    * @param {string} unitId - Unit ID
    * @param {string} userId - User ID (for language preference)
@@ -570,7 +598,7 @@ export class StatementService extends ReportEngine {
         const quarterTransactionIds = new Set();
         for (const monthNum of quarter.months) {
           const payment = payments.find(p => p && p.month === monthNum);
-          if (payment && payment.paid && payment.amount > 0) {
+          if (payment && payment.paid) {
             const txnId = payment.transactionId || payment.reference;
             if (txnId && txnId !== '-' && !quarterTransactionIds.has(txnId)) {
               quarterTransactionIds.add(txnId);
@@ -630,7 +658,7 @@ export class StatementService extends ReportEngine {
           transactions.push({
             type: 'charge',
             date: dueDate,
-            description: `HOA Dues Month ${payment.month}`,
+            description: `HOA Dues ${this._getCalendarMonthName(payment.month - 1, fiscalYearStartMonth, fiscalYear)}`,
             amount: scheduledAmount,
             penalty: 0,
             payments: 0,
