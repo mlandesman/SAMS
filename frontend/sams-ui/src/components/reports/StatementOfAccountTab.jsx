@@ -423,6 +423,16 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       const emailContent = statementData?.emailContent || null;
       const statementHtml = htmlPreview || null;  // Pre-generated HTML
       const statementMeta = statementData?.meta || null;  // Statement metadata
+      
+      // Debug logging
+      console.log('📧 Frontend sending email:', {
+        hasEmailContent: !!emailContent,
+        hasStatementHtml: !!statementHtml,
+        hasStatementMeta: !!statementMeta,
+        statementMetaKeys: statementMeta ? Object.keys(statementMeta).join(',') : 'none',
+        statementMetaValue: statementMeta
+      });
+      
       const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language, emailContent, statementHtml, statementMeta);
       setEmailResult({ 
         success: true, 
