@@ -716,6 +716,138 @@ function getStorageBucketName() {
 }
 
 
+/**
+ * Optimized version that can use pre-generated HTML for one language
+ * @param {string} clientId
+ * @param {string} unitId
+ * @param {number} fiscalYear
+ * @param {string|null} authToken
+ * @param {string|null} preGeneratedHtml - Optional pre-generated HTML (for current language)
+ * @param {Object|null} preGeneratedMeta - Optional metadata for pre-generated HTML
+ * @returns {Promise<Object>} Object with en and es PDF URLs
+ */
+export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYear, authToken = null, preGeneratedHtml = null, preGeneratedMeta = null) {
+  const now = getNow();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  
+  const basePath = `clients/${clientId}/accountStatements/${fiscalYear}`;
+  const fileNameEn = `${year}-${month}-${unitId}-EN.PDF`;
+  const fileNameEs = `${year}-${month}-${unitId}-ES.PDF`;
+  const storagePathEn = `${basePath}/${fileNameEn}`;
+  const storagePathEs = `${basePath}/${fileNameEs}`;
+  
+  // Get Firebase app and bucket
+  const app = await getApp();
+  const bucketName = getStorageBucketName();
+  const bucket = app.storage().bucket(bucketName);
+  
+  const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+  const api = axios.create({
+    baseURL: baseURL,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+    },
+    timeout: 60000
+  });
+  
+  // Determine which language we have pre-generated HTML for
+  const preGeneratedLanguage = preGeneratedMeta?.language || null;
+  const hasPreGeneratedEn = preGeneratedLanguage === 'english' && preGeneratedHtml;
+  const hasPreGeneratedEs = preGeneratedLanguage === 'spanish' && preGeneratedHtml;
+  
+  // Generate and upload English PDF
+  let pdfBufferEn;
+  if (hasPreGeneratedEn) {
+    console.log(`⚡ Using pre-generated HTML for English PDF`);
+    pdfBufferEn = await generatePdf(preGeneratedHtml, {
+      footerMeta: {
+        statementId: preGeneratedMeta.statementId,
+        generatedAt: preGeneratedMeta.generatedAt,
+        language: 'english'
+      }
+    });
+  } else {
+    console.log(`🔄 Generating English HTML for PDF`);
+    const statementEn = await generateStatementData(api, clientId, unitId, {
+      fiscalYear,
+      language: 'english'
+    });
+    pdfBufferEn = await generatePdf(statementEn.html, {
+      footerMeta: {
+        statementId: statementEn.meta?.statementId,
+        generatedAt: statementEn.meta?.generatedAt,
+        language: 'english'
+      }
+    });
+  }
+  
+  const fileEn = bucket.file(storagePathEn);
+  await fileEn.save(pdfBufferEn, {
+    metadata: {
+      contentType: 'application/pdf',
+      metadata: {
+        clientId,
+        unitId,
+        fiscalYear: fiscalYear.toString(),
+        language: 'english',
+        generatedAt: new Date().toISOString()
+      }
+    }
+  });
+  
+  // Generate and upload Spanish PDF
+  let pdfBufferEs;
+  if (hasPreGeneratedEs) {
+    console.log(`⚡ Using pre-generated HTML for Spanish PDF`);
+    pdfBufferEs = await generatePdf(preGeneratedHtml, {
+      footerMeta: {
+        statementId: preGeneratedMeta.statementId,
+        generatedAt: preGeneratedMeta.generatedAt,
+        language: 'spanish'
+      }
+    });
+  } else {
+    console.log(`🔄 Generating Spanish HTML for PDF`);
+    const statementEs = await generateStatementData(api, clientId, unitId, {
+      fiscalYear,
+      language: 'spanish'
+    });
+    pdfBufferEs = await generatePdf(statementEs.html, {
+      footerMeta: {
+        statementId: statementEs.meta?.statementId,
+        generatedAt: statementEs.meta?.generatedAt,
+        language: 'spanish'
+      }
+    });
+  }
+  
+  const fileEs = bucket.file(storagePathEs);
+  await fileEs.save(pdfBufferEs, {
+    metadata: {
+      contentType: 'application/pdf',
+      metadata: {
+        clientId,
+        unitId,
+        fiscalYear: fiscalYear.toString(),
+        language: 'spanish',
+        generatedAt: new Date().toISOString()
+      }
+    }
+  });
+  
+  // Make files publicly readable
+  await fileEn.makePublic();
+  await fileEs.makePublic();
+  
+  // Return public URLs
+  return {
+    en: `https://storage.googleapis.com/${bucketName}/${storagePathEn}`,
+    es: `https://storage.googleapis.com/${bucketName}/${storagePathEs}`
+  };
+}
+
 export async function generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken = null) {
   const now = getNow();
   const year = now.getFullYear();
@@ -966,10 +1098,10 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
         }
       });
       
-      // For download links, we can skip or generate lazily
-      // For now, skip generateAndUploadPdfs in fast path (download links optional)
-      pdfUrls = { en: '', es: '' };
-      console.log(`⚡ Skipping PDF upload (download links optional in fast path)`);
+      // Generate PDFs for download links (both languages needed)
+      // We have HTML for current language, but need to generate the other language
+      console.log(`⚡ Generating PDFs for download links (using pre-generated HTML for current language)`);
+      pdfUrls = await generateAndUploadPdfsOptimized(clientId, unitId, fiscalYear, authToken, statementHtml, statementMeta);
       statementMeta = statementMeta; // Use provided meta
     } else {
       // Need to generate HTML (either missing or invalid)
@@ -1124,7 +1256,11 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
           content: pdfBuffer,
           contentType: 'application/pdf',
           contentDisposition: 'inline',  // Allow Mac Mail to auto-render PDF
-          cid: 'statement-pdf'  // Content-ID for inline reference (if needed)
+          cid: `statement-pdf-${clientId}-${unitId}-${fiscalYear}`,  // Unique Content-ID for inline reference
+          headers: {
+            'Content-Disposition': 'inline',
+            'Content-ID': `<statement-pdf-${clientId}-${unitId}-${fiscalYear}>`
+          }
         }
       ]
     });
