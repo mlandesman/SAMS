@@ -31,6 +31,7 @@ import {
   Description as StatementIcon,
   Payments as PaymentIcon,
   ArrowForward as ArrowIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -38,6 +39,7 @@ import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useClients } from '../hooks/useClients.jsx';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
+import { VERSION } from '../utils/versionUtils.js';
 import CompactCard from './dashboard/CompactCard.jsx';
 import ExpandableCard from './dashboard/ExpandableCard.jsx';
 
@@ -244,6 +246,16 @@ const Dashboard = () => {
               badge={waterBillsStatus.totalUnpaid > 0 ? { text: 'Due', color: '#0891b2' } : null}
             />
           )}
+
+          {/* About/Version Card - Last card in grid */}
+          <CompactCard
+            icon={InfoIcon}
+            title="About"
+            value={`v${VERSION}`}
+            subtitle="Tap for details"
+            color="#64748b"
+            onClick={() => navigate('/about')}
+          />
         </Box>
 
         {/* === FULL-WIDTH EXPANDABLE CARDS (Admin Only) === */}

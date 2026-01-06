@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.6.2",
-  "buildDate": "2026-01-05T22:43:13.956Z",
-  "buildTimestamp": 1767652993957,
+  "buildDate": "2026-01-06T00:03:58.931Z",
+  "buildTimestamp": 1767657838931,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "3e02bd8",
-    "branch": "feature/mobile-expense-refactor",
-    "lastCommitDate": "2026-01-05 17:39:56 -0500"
+    "hash": "8016b94",
+    "branch": "main",
+    "lastCommitDate": "2026-01-05 18:24:54 -0500"
   },
   "build": {
-    "timestamp": "2026-01-05T22:43:13.956Z",
+    "timestamp": "2026-01-06T00:03:58.931Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260105.1743"
+    "buildNumber": "260105.1903"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-01-05T22:43:13.956Z",
+    "date": "2026-01-06T00:03:58.931Z",
     "automated": true
   },
   "releaseNotes": {

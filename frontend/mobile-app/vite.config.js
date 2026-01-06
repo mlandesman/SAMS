@@ -9,33 +9,42 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Use prompt for more control over updates - shows "New version available" immediately
+      // selfDestroying: true would disable the SW entirely, but we still want basic PWA features
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        // Skip waiting and claim clients immediately for fastest updates
+        skipWaiting: true,
+        clientsClaim: true,
+        // Minimal precaching - only essential files
+        globPatterns: ['**/*.html'],
+        // AGGRESSIVE: Use NetworkOnly for ALL requests - no caching
+        // This ensures users always get the latest code
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            // Match all same-origin requests
+            urlPattern: ({ request }) => request.destination !== '',
+            handler: 'NetworkOnly',
+          },
+          {
+            // Match all API requests
+            urlPattern: /^\/api\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            // External resources like fonts - still cache these for performance
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days only
               }
             }
-          },
-          {
-            urlPattern: /^\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 5 // 5 minutes
-              },
-              networkTimeoutSeconds: 10
-            }
           }
-        ]
+        ],
+        // Clean up old caches
+        cleanupOutdatedCaches: true,
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sandyland-logo.png'],
       manifest: {
