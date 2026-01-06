@@ -1045,107 +1045,26 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
         ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
         : statementDate.toFormat('MMMM d, yyyy');
     }
-      
-      // Get email-sized logo (resize if needed)
-      const logoUrl = emailContent.logoUrl || clientLogoUrl;
-      emailLogoUrl = null;
-      if (logoUrl && logoUrl.trim()) {
-        try {
-          if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
-            try {
-              emailLogoUrl = await getResizedImage(logoUrl, clientId, 'email');
-              console.log(`✅ Logo resized for email: ${emailLogoUrl}`);
-              if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
-                emailLogoUrl = logoUrl;
-              }
-            } catch (resizeError) {
+    
+    // Get email-sized logo (resize if needed) - executed regardless of path
+    const logoUrl = (emailContent && emailContent.logoUrl) ? emailContent.logoUrl : clientLogoUrl;
+    emailLogoUrl = null;
+    if (logoUrl && logoUrl.trim()) {
+      try {
+        if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+          try {
+            emailLogoUrl = await getResizedImage(logoUrl, clientId, 'email');
+            console.log(`✅ Logo resized for email: ${emailLogoUrl}`);
+            if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
               emailLogoUrl = logoUrl;
             }
+          } catch (resizeError) {
+            emailLogoUrl = logoUrl;
           }
-        } catch (error) {
-          emailLogoUrl = null;
         }
+      } catch (error) {
+        emailLogoUrl = null;
       }
-    } else {
-      // Fallback: Full calculation (for bulk email or when emailContent not available)
-      console.log(`🔄 Calculating statement data (full path)`);
-      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-      const api = axios.create({
-        baseURL: baseURL,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        },
-        timeout: 60000
-      });
-      
-      // Get statement data first (needed for credit balance)
-      const statementData = await getStatementData(api, clientId, unitId, fiscalYear);
-      
-      // Generate statement HTML for PDF (use default format, not email format)
-      statementResult = await generateStatementData(api, clientId, unitId, { 
-        fiscalYear, 
-        language
-      });
-      statementMeta = statementResult.meta;
-      
-      // Generate PDF buffer for attachment
-      pdfBuffer = await generatePdf(statementResult.html, {
-        footerMeta: {
-          statementId: statementResult.meta?.statementId,
-          generatedAt: statementResult.meta?.generatedAt,
-          language: statementResult.meta?.language
-        }
-      });
-      
-      // Generate and upload PDFs to storage for download links (backup)
-      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
-      
-      // Get email-sized logo (resize if needed)
-      emailLogoUrl = null;
-      if (clientLogoUrl && clientLogoUrl.trim()) {
-        try {
-          if (clientLogoUrl.startsWith('http://') || clientLogoUrl.startsWith('https://')) {
-            try {
-              emailLogoUrl = await getResizedImage(clientLogoUrl, clientId, 'email');
-              console.log(`✅ Logo resized for email: ${emailLogoUrl}`);
-              if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
-                emailLogoUrl = clientLogoUrl;
-              }
-            } catch (resizeError) {
-              emailLogoUrl = clientLogoUrl;
-            }
-          }
-        } catch (error) {
-          emailLogoUrl = null;
-        }
-      }
-      
-      // Extract financial data
-      balanceDue = statementResult.summary?.closingBalance || 0;
-      creditBalance = statementData.creditInfo?.currentBalance || 0;
-      netAmount = balanceDue - creditBalance;
-      
-      // Extract bank payment info from client config
-      const bankDetails = clientData.feeStructure?.bankDetails || {};
-      bankName = bankDetails.bankName || bankDetails.name || '';
-      bankAccount = bankDetails.accountNumber || bankDetails.account || bankDetails.accountNo || bankDetails.cuenta || '';
-      bankClabe = bankDetails.clabe || '';
-      beneficiary = bankDetails.accountName || bankDetails.beneficiary || clientName;
-      reference = bankDetails.reference || `Unit ${unitId}`;
-      
-      // Get brand color
-      brandColor = clientData.branding?.brandColors?.primary || '#1a365d';
-      
-      // Format owner names
-      ownerNames = owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner';
-      
-      // Format statement date
-      const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun');
-      const isSpanish = language === 'spanish' || language === 'es';
-      asOfDate = isSpanish 
-        ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
-        : statementDate.toFormat('MMMM d, yyyy');
     }
     
     const isSpanish = language === 'spanish' || language === 'es';
