@@ -418,8 +418,10 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     setEmailResult(null);
     
     try {
-      // Pass current display language so email matches what user is viewing
-      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language);
+      // Pass current display language and pre-calculated emailContent if available
+      // This allows backend to skip expensive recalculation (90% faster)
+      const emailContent = statementData?.emailContent || null;
+      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language, emailContent);
       setEmailResult({ 
         success: true, 
         message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''} (${language})` 

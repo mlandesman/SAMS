@@ -11,7 +11,10 @@ import { buildWaterBillTemplateVariables } from '../templates/waterBills/templat
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
+import { getStatementData } from '../services/statementDataService.js';
 import { generatePdf } from '../services/pdfService.js';
+import { generateStatementEmailHtml } from '../templates/statementEmailTemplate.js';
+import { getResizedImage } from '../services/imageResizeService.js';
 import crypto from 'crypto';
 import axios from 'axios';
 import { getApp } from '../firebase.js';
@@ -894,7 +897,7 @@ function getDefaultStatementTemplate() {
 /**
  * Send Statement of Account email to unit owners/managers
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null) {
   try {
     console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}`);
     
@@ -934,75 +937,217 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     const clientName = clientData.basicInfo?.fullName || clientData.name || clientId;
     const clientLogoUrl = clientData.branding?.logoUrl || '';
     
-    // Create API client for generateStatementData
-    // Note: For internal calls, we create a minimal API client
-    // generateStatementData uses api for some operations but can work with minimal client
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-    const api = axios.create({
-      baseURL: baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-      },
-      timeout: 60000
-    });
+    // OPTIMIZATION: Use pre-calculated emailContent if available (from preview)
+    // This skips expensive recalculation when data is already available
+    let balanceDue, creditBalance, netAmount, bankName, bankAccount, bankClabe, beneficiary, reference;
+    let brandColor, ownerNames, asOfDate;
+    let pdfBuffer, pdfUrls, emailLogoUrl, statementResult;
+    let statementMeta = null;
     
-    // Generate statement HTML
-    const statementResult = await generateStatementData(api, clientId, unitId, { fiscalYear, language });
-    const statementHtml = statementResult.html;
-    
-    // Generate PDF URLs
-    const pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
-    
-    // Get email template
-    const templateDoc = await db.collection('clients').doc(clientId)
-      .collection('config').doc('emailTemplates').get();
-    
-    let template;
-    if (templateDoc.exists && templateDoc.data().statementOfAccount) {
-      template = templateDoc.data().statementOfAccount;
+    if (emailContent) {
+      // Use pre-calculated data (fast path - no recalculation)
+      console.log(`⚡ Using pre-calculated emailContent (optimized path)`);
+      balanceDue = emailContent.balanceDue || 0;
+      creditBalance = emailContent.creditBalance || 0;
+      netAmount = emailContent.netAmount || 0;
+      bankName = emailContent.bankName || '';
+      bankAccount = emailContent.bankAccount || '';
+      bankClabe = emailContent.bankClabe || '';
+      beneficiary = emailContent.beneficiary || '';
+      reference = emailContent.reference || '';
+      brandColor = emailContent.brandColor || '#1a365d';
+      ownerNames = emailContent.ownerNames || 'Owner';
+      
+      // Format statement date
+      const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun');
+      const isSpanish = language === 'spanish' || language === 'es';
+      asOfDate = isSpanish 
+        ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
+        : statementDate.toFormat('MMMM d, yyyy');
+      
+      // Still need to generate PDF (but can use HTML from emailContent if available)
+      // For now, we'll still generate it, but this could be further optimized
+      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+      const api = axios.create({
+        baseURL: baseURL,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        timeout: 60000
+      });
+      
+      // Generate statement HTML for PDF (still needed for attachment)
+      statementResult = await generateStatementData(api, clientId, unitId, { 
+        fiscalYear, 
+        language
+      });
+      statementMeta = statementResult.meta;
+      
+      // Generate PDF buffer for attachment
+      pdfBuffer = await generatePdf(statementResult.html, {
+        footerMeta: {
+          statementId: statementResult.meta?.statementId,
+          generatedAt: statementResult.meta?.generatedAt,
+          language: statementResult.meta?.language
+        }
+      });
+      
+      // Generate and upload PDFs to storage for download links (backup)
+      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+      
+      // Get email-sized logo (resize if needed)
+      const logoUrl = emailContent.logoUrl || clientLogoUrl;
+      emailLogoUrl = null;
+      if (logoUrl && logoUrl.trim()) {
+        try {
+          if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+            try {
+              emailLogoUrl = await getResizedImage(logoUrl, clientId, 'email');
+              console.log(`✅ Logo resized for email: ${emailLogoUrl}`);
+              if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
+                emailLogoUrl = logoUrl;
+              }
+            } catch (resizeError) {
+              emailLogoUrl = logoUrl;
+            }
+          }
+        } catch (error) {
+          emailLogoUrl = null;
+        }
+      }
     } else {
-      template = getDefaultStatementTemplate();
+      // Fallback: Full calculation (for bulk email or when emailContent not available)
+      console.log(`🔄 Calculating statement data (full path)`);
+      const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+      const api = axios.create({
+        baseURL: baseURL,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        timeout: 60000
+      });
+      
+      // Get statement data first (needed for credit balance)
+      const statementData = await getStatementData(api, clientId, unitId, fiscalYear);
+      
+      // Generate statement HTML for PDF (use default format, not email format)
+      statementResult = await generateStatementData(api, clientId, unitId, { 
+        fiscalYear, 
+        language
+      });
+      statementMeta = statementResult.meta;
+      
+      // Generate PDF buffer for attachment
+      pdfBuffer = await generatePdf(statementResult.html, {
+        footerMeta: {
+          statementId: statementResult.meta?.statementId,
+          generatedAt: statementResult.meta?.generatedAt,
+          language: statementResult.meta?.language
+        }
+      });
+      
+      // Generate and upload PDFs to storage for download links (backup)
+      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+      
+      // Get email-sized logo (resize if needed)
+      emailLogoUrl = null;
+      if (clientLogoUrl && clientLogoUrl.trim()) {
+        try {
+          if (clientLogoUrl.startsWith('http://') || clientLogoUrl.startsWith('https://')) {
+            try {
+              emailLogoUrl = await getResizedImage(clientLogoUrl, clientId, 'email');
+              console.log(`✅ Logo resized for email: ${emailLogoUrl}`);
+              if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
+                emailLogoUrl = clientLogoUrl;
+              }
+            } catch (resizeError) {
+              emailLogoUrl = clientLogoUrl;
+            }
+          }
+        } catch (error) {
+          emailLogoUrl = null;
+        }
+      }
+      
+      // Extract financial data
+      balanceDue = statementResult.summary?.closingBalance || 0;
+      creditBalance = statementData.creditInfo?.currentBalance || 0;
+      netAmount = balanceDue - creditBalance;
+      
+      // Extract bank payment info from client config
+      const bankDetails = clientData.feeStructure?.bankDetails || {};
+      bankName = bankDetails.bankName || bankDetails.name || '';
+      bankAccount = bankDetails.accountNumber || bankDetails.account || bankDetails.accountNo || bankDetails.cuenta || '';
+      bankClabe = bankDetails.clabe || '';
+      beneficiary = bankDetails.accountName || bankDetails.beneficiary || clientName;
+      reference = bankDetails.reference || `Unit ${unitId}`;
+      
+      // Get brand color
+      brandColor = clientData.branding?.brandColors?.primary || '#1a365d';
+      
+      // Format owner names
+      ownerNames = owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner';
+      
+      // Format statement date
+      const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun');
+      const isSpanish = language === 'spanish' || language === 'es';
+      asOfDate = isSpanish 
+        ? statementDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
+        : statementDate.toFormat('MMMM d, yyyy');
     }
     
-    // Build template variables
-    const ownerName = owners[0]?.name || 'Owner';
-    const statementDate = DateTime.fromJSDate(getNow()).setZone('America/Cancun').toFormat('MM/dd/yyyy');
-    const balanceDue = statementResult.summary?.closingBalance || 0;
-    const balanceDueFormatted = balanceDue >= 0 
-      ? `$${Math.abs(balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : `-$${Math.abs(balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    
-    const variables = {
-      __OwnerName__: ownerName,
-      __UnitNumber__: unitId,
-      __FiscalYearLabel__: `${fiscalYear}`,
-      __StatementDate__: statementDate,
-      __BalanceDue__: balanceDueFormatted,
-      __ClientName__: clientName,
-      __ClientLogoUrl__: clientLogoUrl,
-      __StatementHtml__: statementHtml,
-      __PdfLinkEn__: pdfUrls.en,
-      __PdfLinkEs__: pdfUrls.es
-    };
-    
-    // Process template
     const isSpanish = language === 'spanish' || language === 'es';
-    const subject = processWaterBillTemplate(isSpanish ? template.subject_es : template.subject_en, variables);
-    const body = processWaterBillTemplate(isSpanish ? template.body_es : template.body_en, variables);
+    
+    // Build email HTML using new notification-style template
+    const emailHtml = generateStatementEmailHtml({
+      unitNumber: unitId,
+      ownerNames: ownerNames,
+      fiscalYear: fiscalYear.toString(),
+      asOfDate: asOfDate,
+      balanceDue: balanceDue,
+      creditBalance: creditBalance,
+      netAmount: netAmount,
+      bankName: bankName,
+      bankAccount: bankAccount,
+      bankClabe: bankClabe,
+      beneficiary: beneficiary,
+      reference: reference,
+      logoUrl: emailLogoUrl,
+      brandColor: brandColor,
+      pdfDownloadUrlEn: pdfUrls.en || '',
+      pdfDownloadUrlEs: pdfUrls.es || '',
+      clientName: clientName,
+      contactEmail: clientData.contactInfo?.primaryEmail || 'pm@sandyland.com.mx'
+    }, isSpanish ? 'es' : 'en');
+    
+    // Build email subject
+    const subject = isSpanish
+      ? `Estado de Cuenta - Depto ${unitId} - Año Fiscal ${fiscalYear}`
+      : `Statement of Account - Unit ${unitId} - Fiscal Year ${fiscalYear}`;
     
     // Apply test email override for non-production environments
     const { to: finalToEmails, wasOverridden } = applyEmailOverride(toEmails);
     
-    // Send email
+    // Send email with PDF attachment
     const transporter = createGmailTransporter();
     const info = await transporter.sendMail({
       from: { name: `${clientName} Administrators`, address: 'pm@sandyland.com.mx' },
       to: finalToEmails,
       cc: wasOverridden ? undefined : (ccEmails.length > 0 ? ccEmails : undefined),  // Skip CC in test mode
       subject: subject,
-      html: body,
-      replyTo: 'pm@sandyland.com.mx'
+      html: emailHtml,
+      replyTo: 'pm@sandyland.com.mx',
+      attachments: [
+        {
+          filename: `Statement_${clientId}_${unitId}_FY${fiscalYear}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+          contentDisposition: 'inline',  // Allow Mac Mail to auto-render PDF
+          cid: 'statement-pdf'  // Content-ID for inline reference (if needed)
+        }
+      ]
     });
     
     // Audit log

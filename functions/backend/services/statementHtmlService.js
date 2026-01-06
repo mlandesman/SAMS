@@ -591,6 +591,148 @@ function generateWaterBarsSvg(periods, language) {
 }
 
 /**
+ * Format period label with year for email tables
+ * @param {number} year - Fiscal year
+ * @param {number} month - Fiscal month (0-11)
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12, default 7 for AVII)
+ * @param {string} language - 'english' or 'spanish'
+ * @returns {string} Formatted label (e.g., "Jul 2025" or "Jul 2025" in Spanish)
+ */
+function formatPeriodLabelWithYear(year, month, fiscalYearStartMonth = 7, language = 'english') {
+  // Convert fiscal month (0-11) to calendar month (0-11)
+  const calendarMonth = ((fiscalYearStartMonth - 1) + month) % 12;
+  
+  const isSpanish = language === 'spanish' || language === 'es';
+  const monthNames = isSpanish 
+    ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+       'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Handle year rollover: if calendar month is before fiscal start, it's the next year
+  let displayYear = year;
+  if (calendarMonth < (fiscalYearStartMonth - 1)) {
+    displayYear = year + 1;
+  }
+  
+  return `${monthNames[calendarMonth]} ${displayYear}`;
+}
+
+/**
+ * Generate water consumption table for email (email-compatible, no SVG)
+ * @param {Array} periods - Array of { year, month, consumption, fiscalYearStartMonth } objects
+ * @param {string} language - 'english' or 'spanish'
+ * @returns {string} HTML table markup
+ */
+function generateWaterTableHtml(periods, language) {
+  const isSpanish = language === 'spanish' || language === 'es';
+  const title = isSpanish ? 'CONSUMO DE AGUA' : 'WATER CONSUMPTION';
+  const monthHeader = isSpanish ? 'Mes' : 'Month';
+  const usageHeader = isSpanish ? 'Uso' : 'Usage';
+  
+  if (!periods || periods.length === 0) {
+    return '';
+  }
+  
+  // Take last 6 periods
+  const recentPeriods = periods.slice(-6);
+  
+  // Pad to 6 if we have fewer
+  while (recentPeriods.length < 6) {
+    recentPeriods.unshift({ year: 0, month: 0, consumption: 0 });
+  }
+  
+  // Split into left (0-2) and right (3-5)
+  const leftPeriods = recentPeriods.slice(0, 3);
+  const rightPeriods = recentPeriods.slice(3, 6);
+  
+  // Fiscal year start month for label formatting
+  const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
+  
+  // Build table rows
+  const rows = [];
+  for (let i = 0; i < 3; i++) {
+    const left = leftPeriods[i];
+    const right = rightPeriods[i];
+    const isLatest = (i === 2);
+    
+    const leftLabel = left.year > 0 ? formatPeriodLabelWithYear(left.year, left.month, fiscalYearStartMonth, language) : '--';
+    const rightLabel = right.year > 0 ? formatPeriodLabelWithYear(right.year, right.month, fiscalYearStartMonth, language) : '--';
+    const leftValue = left.consumption > 0 ? `${left.consumption} m³` : '--';
+    const rightValue = right.consumption > 0 ? `${right.consumption} m³` : '--';
+    
+    rows.push(`
+      <tr>
+        <td style="padding: 5px 10px; border: 1px solid #ddd;">${leftLabel}</td>
+        <td style="padding: 5px 10px; border: 1px solid #ddd; text-align: right;">${leftValue}</td>
+        <td style="padding: 5px 10px; border: 1px solid #ddd;${isLatest ? ' font-weight: bold;' : ''}">${rightLabel}</td>
+        <td style="padding: 5px 10px; border: 1px solid #ddd; text-align: right;${isLatest ? ' font-weight: bold;' : ''}">${rightValue}</td>
+      </tr>
+    `);
+  }
+  
+  return `
+    <table style="border-collapse: collapse; font-size: 10pt; margin-top: 10px;">
+      <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${title}</caption>
+      <thead>
+        <tr style="background-color: #f0f0f0;">
+          <th style="padding: 5px 10px; border: 1px solid #ddd; text-align: left;">${monthHeader}</th>
+          <th style="padding: 5px 10px; border: 1px solid #ddd; text-align: right;">${usageHeader}</th>
+          <th style="padding: 5px 10px; border: 1px solid #ddd; text-align: left;">${monthHeader}</th>
+          <th style="padding: 5px 10px; border: 1px solid #ddd; text-align: right;">${usageHeader}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Generate propane status table for email (email-compatible, no SVG)
+ * @param {number} level - Tank level percentage (0-100)
+ * @param {Object} thresholds - { critical: number, low: number }
+ * @param {string} language - 'english' or 'spanish'
+ * @returns {string} HTML table markup
+ */
+function generatePropaneTableHtml(level, thresholds, language) {
+  const isSpanish = language === 'spanish' || language === 'es';
+  const title = isSpanish ? 'NIVEL DEL TANQUE DE GAS' : 'PROPANE TANK LEVEL';
+  const levelLabel = isSpanish ? 'Nivel Actual' : 'Current Level';
+  const statusLabel = isSpanish ? 'Estado' : 'Status';
+  
+  // Determine status color and text
+  let statusColor, statusText;
+  if (level <= (thresholds?.critical || 10)) {
+    statusColor = '#dc3545';
+    statusText = isSpanish ? 'CRÍTICO' : 'CRITICAL';
+  } else if (level <= (thresholds?.low || 30)) {
+    statusColor = '#ffc107';
+    statusText = isSpanish ? 'BAJO' : 'LOW';
+  } else {
+    statusColor = '#28a745';
+    statusText = isSpanish ? 'BUENO' : 'GOOD';
+  }
+  
+  return `
+    <table style="border-collapse: collapse; font-size: 10pt; margin-top: 10px;">
+      <caption style="background-color: #4472C4; color: #fff; padding: 5px 10px; font-size: 10pt; font-weight: bold; text-align: center; caption-side: top;">${title}</caption>
+      <tbody>
+        <tr>
+          <td style="padding: 8px 15px; border: 1px solid #ddd; font-weight: bold;">${levelLabel}</td>
+          <td style="padding: 8px 15px; border: 1px solid #ddd; text-align: center; font-size: 14pt; font-weight: bold;">${level}%</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 15px; border: 1px solid #ddd; font-weight: bold;">${statusLabel}</td>
+          <td style="padding: 8px 15px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${statusColor};">${statusText}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+/**
  * Generate Statement data for a unit, including HTML, metadata and line items.
  * This is the primary entrypoint for building Statement of Account outputs.
  *
@@ -613,8 +755,9 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
 
   
-  // Determine language
+  // Determine language and output format
   const language = options.language || 'english';
+  const outputFormat = options.outputFormat || 'default';
   const t = getTranslations(language);
   
   // Filter out future items for display
@@ -1514,9 +1657,13 @@ export async function generateStatementData(api, clientId, unitId, options = {})
       </div>
       ${data.utilityGraph ? `
       <div class="mini-graph-container">
-        ${data.utilityGraph.type === 'propane-gauge' 
-          ? generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)
-          : generateWaterBarsSvg(data.utilityGraph.periods, language)
+        ${outputFormat === 'email'
+          ? (data.utilityGraph.type === 'propane-gauge' 
+              ? generatePropaneTableHtml(data.utilityGraph.level, data.utilityGraph.thresholds, language)
+              : generateWaterTableHtml(data.utilityGraph.periods, language))
+          : (data.utilityGraph.type === 'propane-gauge' 
+              ? generatePropaneGaugeSvg(data.utilityGraph.level, data.utilityGraph.thresholds, language)
+              : generateWaterBarsSvg(data.utilityGraph.periods, language))
         }
       </div>
       ` : ''}
@@ -1715,6 +1862,31 @@ export async function generateStatementData(api, clientId, unitId, options = {})
 </body>
 </html>`;
   
+  // Prepare email content metadata (all data needed for email generation)
+  // This allows email endpoint to skip recalculation when data is already available
+  const emailContent = {
+    // Financial data
+    balanceDue: actualClosingBalance,
+    creditBalance: accountCreditBalance,
+    netAmount: actualClosingBalance - accountCreditBalance,
+    // Unit info
+    unitNumber: unitId,
+    ownerNames: data.unitInfo.owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner',
+    fiscalYear: data.statementInfo.fiscalYear,
+    statementDate: data.statementInfo.statementDate,
+    // Bank payment info
+    bankName: data.clientInfo.bankAccountInfo?.bankName || '',
+    bankAccount: data.clientInfo.bankAccountInfo?.accountNumber || data.clientInfo.bankAccountInfo?.account || '',
+    bankClabe: data.clientInfo.bankAccountInfo?.clabe || '',
+    beneficiary: data.clientInfo.bankAccountInfo?.beneficiary || data.clientInfo.bankAccountInfo?.accountName || '',
+    reference: data.clientInfo.bankAccountInfo?.reference || '',
+    // Client branding
+    clientName: data.clientInfo.name,
+    logoUrl: data.clientInfo.logoUrl || '',
+    brandColor: data.clientInfo.branding?.primaryColor || data.clientInfo.branding?.brandColors?.primary || '#1a365d',
+    contactEmail: contactEmail
+  };
+
   return {
     html,
     meta: {
@@ -1728,7 +1900,10 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     // to the rows actually displayed (non-future items). This will be
     // useful for future exports and row-level drill-down without needing
     // to re-run the aggregation pipeline.
-    lineItems: currentItems
+    lineItems: currentItems,
+    // Email content metadata - all data needed for email generation
+    // Allows email endpoint to skip recalculation when this data is available
+    emailContent: emailContent
   };
 }
 
