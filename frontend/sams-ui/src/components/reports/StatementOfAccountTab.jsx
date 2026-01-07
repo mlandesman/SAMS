@@ -319,7 +319,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
 
         // Store data with selected language HTML for backward compatibility
         // Preserve both htmlEn and htmlEs for email PDF generation
-        setStatementData({
+        const dataToStore = {
           ...data,
           html: selectedHtml,  // Selected language HTML (for backward compatibility)
           meta: selectedMeta,  // Selected language meta (for backward compatibility)
@@ -328,7 +328,18 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           htmlEs: data.htmlEs || null,
           metaEn: data.metaEn || null,
           metaEs: data.metaEs || null
+        };
+        
+        // Debug: Verify what we're storing
+        console.log('💾 Storing statementData:', {
+          hasHtmlEn: !!dataToStore.htmlEn,
+          htmlEnLength: dataToStore.htmlEn?.length || 0,
+          hasHtmlEs: !!dataToStore.htmlEs,
+          htmlEsLength: dataToStore.htmlEs?.length || 0,
+          keys: Object.keys(dataToStore).join(', ')
         });
+        
+        setStatementData(dataToStore);
         setHtmlPreview(selectedHtml);
         setHasGenerated(true);
 
