@@ -451,6 +451,18 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       const statementHtml = htmlPreview || (language === 'spanish' ? statementData?.htmlEs : statementData?.htmlEn) || null;
       const statementMeta = statementData?.meta || (language === 'spanish' ? statementData?.metaEs : statementData?.metaEn) || null;
       
+      // Debug: Check statementData before extraction
+      console.log('🔍 statementData check:', {
+        exists: !!statementData,
+        keys: statementData ? Object.keys(statementData).join(',') : 'none',
+        hasHtmlEn: !!statementData?.htmlEn,
+        htmlEnLength: statementData?.htmlEn?.length || 0,
+        hasHtmlEs: !!statementData?.htmlEs,
+        htmlEsLength: statementData?.htmlEs?.length || 0,
+        hasMetaEn: !!statementData?.metaEn,
+        hasMetaEs: !!statementData?.metaEs
+      });
+      
       // Extract dual-language HTMLs and metadata (if available from generateBothLanguages)
       const statementHtmlEn = statementData?.htmlEn || null;  // English HTML
       const statementMetaEn = statementData?.metaEn || null;  // English metadata
@@ -466,6 +478,8 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         hasStatementMetaEn: !!statementMetaEn,
         hasStatementHtmlEs: !!statementHtmlEs,
         hasStatementMetaEs: !!statementMetaEs,
+        statementHtmlEsType: typeof statementHtmlEs,
+        statementHtmlEsLength: statementHtmlEs?.length || 0,
         statementMetaKeys: statementMeta ? Object.keys(statementMeta).join(',') : 'none',
         statementMetaValue: statementMeta
       });
