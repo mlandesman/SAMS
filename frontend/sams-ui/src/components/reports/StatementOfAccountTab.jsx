@@ -646,12 +646,31 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   );
   // Automatically generate statement whenever unit, year, or language changes
   // Only auto-generate if a unit is selected (not for bulk generation)
+  // If we already have both language HTMLs, just switch the preview without regenerating
   useEffect(() => {
     if (!selectedClient || !selectedUnitId || !fiscalYear) {
       return;
     }
+    
+    // If we have both htmlEn and htmlEs, just switch the preview (no regeneration needed)
+    if (statementData?.htmlEn && statementData?.htmlEs) {
+      const selectedHtml = language === 'spanish' ? statementData.htmlEs : statementData.htmlEn;
+      const selectedMeta = language === 'spanish' ? statementData.metaEs : statementData.metaEn;
+      
+      setHtmlPreview(selectedHtml);
+      // Update the backward-compatible html and meta fields
+      setStatementData({
+        ...statementData,
+        html: selectedHtml,
+        meta: selectedMeta
+      });
+      console.log(`🔄 Language switched to ${language} - using pre-generated HTML (${selectedHtml.length} chars)`);
+      return;
+    }
+    
+    // Otherwise, regenerate (first time or single-language data)
     handleGenerate();
-  }, [handleGenerate, selectedClient, selectedUnitId, fiscalYear, language]);
+  }, [handleGenerate, selectedClient, selectedUnitId, fiscalYear, language, statementData]);
 
   const showUnitFilter = units.length > 20;
 
