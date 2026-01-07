@@ -288,12 +288,21 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           { language, generateBothLanguages: true }
         );
 
+        // Select HTML based on current language preference (saves 1/3 data transfer)
+        // Handle both dual-language (htmlEn/htmlEs) and single-language (html) responses
+        const selectedHtml = data.htmlEn && data.htmlEs 
+          ? (language === 'spanish' ? data.htmlEs : data.htmlEn)
+          : data.html;  // Fallback to single-language html if dual-language not available
+        const selectedMeta = data.metaEn && data.metaEs
+          ? (language === 'spanish' ? data.metaEs : data.metaEn)
+          : data.meta;  // Fallback to single-language meta if dual-language not available
+
         // Debug: inspect the raw HTML returned from the backend
         try {
-          const snippet = data.html.slice(0, 800);
+          const snippet = selectedHtml?.slice(0, 800) || '';
           console.log(
             '🧾 [StatementOfAccountTab] HTML response length:',
-            data.html.length
+            selectedHtml?.length || 0
           );
           console.log('🧾 [StatementOfAccountTab] HTML snippet:\n', snippet);
         } catch (logError) {
@@ -303,8 +312,13 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           );
         }
 
-        setStatementData(data);
-        setHtmlPreview(data.html);
+        // Store data with selected language HTML for backward compatibility
+        setStatementData({
+          ...data,
+          html: selectedHtml,  // Selected language HTML (for backward compatibility)
+          meta: selectedMeta   // Selected language meta (for backward compatibility)
+        });
+        setHtmlPreview(selectedHtml);
         setHasGenerated(true);
 
         // NOTE: PDF generation is NOT automatic for single-unit preview
@@ -422,8 +436,9 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       // Pass current display language and pre-calculated data if available
       // This allows backend to skip expensive recalculation (90% faster)
       const emailContent = statementData?.emailContent || null;
-      const statementHtml = htmlPreview || null;  // Pre-generated HTML (primary language)
-      const statementMeta = statementData?.meta || null;  // Statement metadata (primary language)
+      // Use selected language HTML (from htmlPreview) or fall back to language-specific HTMLs
+      const statementHtml = htmlPreview || (language === 'spanish' ? statementData?.htmlEs : statementData?.htmlEn) || null;
+      const statementMeta = statementData?.meta || (language === 'spanish' ? statementData?.metaEs : statementData?.metaEn) || null;
       
       // Extract dual-language HTMLs and metadata (if available from generateBothLanguages)
       const statementHtmlEn = statementData?.htmlEn || null;  // English HTML

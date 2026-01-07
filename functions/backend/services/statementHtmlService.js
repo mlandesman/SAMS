@@ -852,10 +852,11 @@ export async function generateStatementData(api, clientId, unitId, options = {})
 /**
  * Generate both English and Spanish HTML statements from the same data
  * This avoids recalculation when both languages are needed (e.g., for email PDFs)
+ * Returns only htmlEn/htmlEs (not redundant primary html) to save ~1/3 data transfer
  * @param {Object} data - Statement data from getStatementData (language-agnostic)
  * @param {string} reportCommonCss - CSS content
  * @param {Object} options - Options including fiscalYear
- * @returns {Promise<Object>} Object with html, htmlEn, htmlEs, meta, metaEn, metaEs, etc.
+ * @returns {Promise<Object>} Object with htmlEn, htmlEs, metaEn, metaEs, summary, lineItems, emailContent
  */
 async function generateBothLanguageStatements(data, reportCommonCss, options = {}) {
   // Generate English version
@@ -866,15 +867,11 @@ async function generateBothLanguageStatements(data, reportCommonCss, options = {
   const tEs = getTranslations('spanish');
   const resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs);
   
-  // Return both, with primary language as default (for backward compatibility)
-  const primaryLanguage = options.language || 'english';
-  const primaryResult = primaryLanguage === 'spanish' ? resultEs : resultEn;
-  
+  // Return both languages - frontend decides which to display
+  // This saves ~1/3 of data transfer by not sending redundant primary html
   return {
-    html: primaryResult.html,  // Primary language (for backward compatibility)
     htmlEn: resultEn.html,     // English HTML
     htmlEs: resultEs.html,     // Spanish HTML
-    meta: primaryResult.meta,   // Primary language meta
     metaEn: resultEn.meta,      // English meta
     metaEs: resultEs.meta,      // Spanish meta
     summary: data.summary,
