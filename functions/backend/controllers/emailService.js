@@ -754,9 +754,10 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
   
   // Determine which HTMLs we have pre-generated
   // Priority: explicit dual-language params > single preGeneratedHtml > generate both
-  const hasPreGeneratedEn = preGeneratedHtmlEn && preGeneratedMetaEn;
-  const hasPreGeneratedEs = preGeneratedHtmlEs && preGeneratedMetaEs;
-  const hasSinglePreGenerated = preGeneratedHtml && preGeneratedMeta;
+  // Validate that HTML strings are non-empty (not just truthy)
+  const hasPreGeneratedEn = preGeneratedHtmlEn && typeof preGeneratedHtmlEn === 'string' && preGeneratedHtmlEn.trim().length > 100 && preGeneratedMetaEn;
+  const hasPreGeneratedEs = preGeneratedHtmlEs && typeof preGeneratedHtmlEs === 'string' && preGeneratedHtmlEs.trim().length > 100 && preGeneratedMetaEs;
+  const hasSinglePreGenerated = preGeneratedHtml && typeof preGeneratedHtml === 'string' && preGeneratedHtml.trim().length > 100 && preGeneratedMeta;
   const singleLanguage = hasSinglePreGenerated ? preGeneratedMeta.language : null;
   
   // Generate and upload English PDF
@@ -811,11 +812,14 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
   // Generate and upload Spanish PDF
   let pdfBufferEs;
   if (hasPreGeneratedEs) {
-    console.log(`⚡ Using pre-generated HTML for Spanish PDF (from explicit ES param)`);
+    console.log(`⚡ Using pre-generated HTML for Spanish PDF (from explicit ES param) - HTML length: ${preGeneratedHtmlEs?.length || 0} chars`);
+    if (!preGeneratedMetaEs?.statementId) {
+      console.warn(`⚠️ Spanish meta missing statementId, using fallback`);
+    }
     pdfBufferEs = await generatePdf(preGeneratedHtmlEs, {
       footerMeta: {
-        statementId: preGeneratedMetaEs.statementId,
-        generatedAt: preGeneratedMetaEs.generatedAt,
+        statementId: preGeneratedMetaEs?.statementId || 'unknown',
+        generatedAt: preGeneratedMetaEs?.generatedAt || new Date().toLocaleString(),
         language: 'spanish'
       }
     });
@@ -834,10 +838,13 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
       fiscalYear,
       language: 'spanish'
     });
+    if (!statementEs.html || statementEs.html.trim().length < 100) {
+      throw new Error(`Spanish HTML generation failed: HTML is empty or too short (${statementEs.html?.length || 0} chars)`);
+    }
     pdfBufferEs = await generatePdf(statementEs.html, {
       footerMeta: {
-        statementId: statementEs.meta?.statementId,
-        generatedAt: statementEs.meta?.generatedAt,
+        statementId: statementEs.meta?.statementId || 'unknown',
+        generatedAt: statementEs.meta?.generatedAt || new Date().toLocaleString(),
         language: 'spanish'
       }
     });

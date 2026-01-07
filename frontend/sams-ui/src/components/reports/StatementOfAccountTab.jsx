@@ -304,6 +304,11 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
             '🧾 [StatementOfAccountTab] HTML response length:',
             selectedHtml?.length || 0
           );
+          console.log('🧾 [StatementOfAccountTab] Dual-language HTML lengths:', {
+            htmlEn: data.htmlEn?.length || 0,
+            htmlEs: data.htmlEs?.length || 0,
+            selected: selectedHtml?.length || 0
+          });
           console.log('🧾 [StatementOfAccountTab] HTML snippet:\n', snippet);
         } catch (logError) {
           console.warn(
@@ -313,10 +318,16 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         }
 
         // Store data with selected language HTML for backward compatibility
+        // Preserve both htmlEn and htmlEs for email PDF generation
         setStatementData({
           ...data,
           html: selectedHtml,  // Selected language HTML (for backward compatibility)
-          meta: selectedMeta   // Selected language meta (for backward compatibility)
+          meta: selectedMeta,  // Selected language meta (for backward compatibility)
+          // Ensure htmlEn and htmlEs are preserved (they should already be in data)
+          htmlEn: data.htmlEn || null,
+          htmlEs: data.htmlEs || null,
+          metaEn: data.metaEn || null,
+          metaEs: data.metaEs || null
         });
         setHtmlPreview(selectedHtml);
         setHasGenerated(true);

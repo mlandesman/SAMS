@@ -858,14 +858,14 @@ export async function generateStatementData(api, clientId, unitId, options = {})
  * @param {Object} options - Options including fiscalYear
  * @returns {Promise<Object>} Object with htmlEn, htmlEs, metaEn, metaEs, summary, lineItems, emailContent
  */
-async function generateBothLanguageStatements(data, reportCommonCss, options = {}) {
+async function generateBothLanguageStatements(data, reportCommonCss, options = {}, clientId, unitId) {
   // Generate English version
   const tEn = getTranslations('english');
-  const resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn);
+  const resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn, clientId, unitId);
   
   // Generate Spanish version
   const tEs = getTranslations('spanish');
-  const resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs);
+  const resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs, clientId, unitId);
   
   // Return both languages - frontend decides which to display
   // This saves ~1/3 of data transfer by not sending redundant primary html
