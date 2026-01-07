@@ -54,6 +54,17 @@ async function getAuthHeaders() {
  * @returns {Promise<Object>} Result with success status and recipient info
  */
 export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementHtmlEs = null, statementMetaEn = null, statementMetaEs = null) {
+  // Debug: Log all parameters received
+  console.log('📥 email.js received parameters:', {
+    statementHtmlEnType: typeof statementHtmlEn,
+    statementHtmlEnLength: statementHtmlEn?.length,
+    statementHtmlEnTruthy: !!statementHtmlEn,
+    statementHtmlEsType: typeof statementHtmlEs,
+    statementHtmlEsLength: statementHtmlEs?.length,
+    statementHtmlEsTruthy: !!statementHtmlEs,
+    statementHtmlEsValue: statementHtmlEs ? String(statementHtmlEs).substring(0, 100) : 'null/undefined'
+  });
+  
   const headers = await getAuthHeaders();
   
   const body = { unitId, fiscalYear };
