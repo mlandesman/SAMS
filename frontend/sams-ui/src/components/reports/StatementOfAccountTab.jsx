@@ -422,19 +422,41 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
       // Pass current display language and pre-calculated data if available
       // This allows backend to skip expensive recalculation (90% faster)
       const emailContent = statementData?.emailContent || null;
-      const statementHtml = htmlPreview || null;  // Pre-generated HTML
-      const statementMeta = statementData?.meta || null;  // Statement metadata
+      const statementHtml = htmlPreview || null;  // Pre-generated HTML (primary language)
+      const statementMeta = statementData?.meta || null;  // Statement metadata (primary language)
+      
+      // Extract dual-language HTMLs and metadata (if available from generateBothLanguages)
+      const statementHtmlEn = statementData?.htmlEn || null;  // English HTML
+      const statementMetaEn = statementData?.metaEn || null;  // English metadata
+      const statementHtmlEs = statementData?.htmlEs || null;  // Spanish HTML
+      const statementMetaEs = statementData?.metaEs || null;  // Spanish metadata
       
       // Debug logging
       console.log('📧 Frontend sending email:', {
         hasEmailContent: !!emailContent,
         hasStatementHtml: !!statementHtml,
         hasStatementMeta: !!statementMeta,
+        hasStatementHtmlEn: !!statementHtmlEn,
+        hasStatementMetaEn: !!statementMetaEn,
+        hasStatementHtmlEs: !!statementHtmlEs,
+        hasStatementMetaEs: !!statementMetaEs,
         statementMetaKeys: statementMeta ? Object.keys(statementMeta).join(',') : 'none',
         statementMetaValue: statementMeta
       });
       
-      const result = await sendStatementEmail(selectedClient.id, selectedUnitId, fiscalYear, language, emailContent, statementHtml, statementMeta);
+      const result = await sendStatementEmail(
+        selectedClient.id, 
+        selectedUnitId, 
+        fiscalYear, 
+        language, 
+        emailContent, 
+        statementHtml, 
+        statementMeta,
+        statementHtmlEn,
+        statementMetaEn,
+        statementHtmlEs,
+        statementMetaEs
+      );
       setEmailResult({ 
         success: true, 
         message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''} (${language})` 

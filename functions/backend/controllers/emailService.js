@@ -726,7 +726,7 @@ function getStorageBucketName() {
  * @param {Object|null} preGeneratedMeta - Optional metadata for pre-generated HTML
  * @returns {Promise<Object>} Object with en and es PDF URLs
  */
-export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYear, authToken = null, preGeneratedHtml = null, preGeneratedMeta = null) {
+export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYear, authToken = null, preGeneratedHtml = null, preGeneratedMeta = null, preGeneratedHtmlEn = null, preGeneratedMetaEn = null, preGeneratedHtmlEs = null, preGeneratedMetaEs = null) {
   const now = getNow();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -752,15 +752,26 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
     timeout: 60000
   });
   
-  // Determine which language we have pre-generated HTML for
-  const preGeneratedLanguage = preGeneratedMeta?.language || null;
-  const hasPreGeneratedEn = preGeneratedLanguage === 'english' && preGeneratedHtml;
-  const hasPreGeneratedEs = preGeneratedLanguage === 'spanish' && preGeneratedHtml;
+  // Determine which HTMLs we have pre-generated
+  // Priority: explicit dual-language params > single preGeneratedHtml > generate both
+  const hasPreGeneratedEn = preGeneratedHtmlEn && preGeneratedMetaEn;
+  const hasPreGeneratedEs = preGeneratedHtmlEs && preGeneratedMetaEs;
+  const hasSinglePreGenerated = preGeneratedHtml && preGeneratedMeta;
+  const singleLanguage = hasSinglePreGenerated ? preGeneratedMeta.language : null;
   
   // Generate and upload English PDF
   let pdfBufferEn;
   if (hasPreGeneratedEn) {
-    console.log(`⚡ Using pre-generated HTML for English PDF`);
+    console.log(`⚡ Using pre-generated HTML for English PDF (from explicit EN param)`);
+    pdfBufferEn = await generatePdf(preGeneratedHtmlEn, {
+      footerMeta: {
+        statementId: preGeneratedMetaEn.statementId,
+        generatedAt: preGeneratedMetaEn.generatedAt,
+        language: 'english'
+      }
+    });
+  } else if (hasSinglePreGenerated && singleLanguage === 'english') {
+    console.log(`⚡ Using pre-generated HTML for English PDF (from primary param)`);
     pdfBufferEn = await generatePdf(preGeneratedHtml, {
       footerMeta: {
         statementId: preGeneratedMeta.statementId,
@@ -769,7 +780,7 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
       }
     });
   } else {
-    console.log(`🔄 Generating English HTML for PDF`);
+    console.log(`🔄 Generating English HTML for PDF (no pre-generated HTML available)`);
     const statementEn = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
       language: 'english'
@@ -800,7 +811,16 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
   // Generate and upload Spanish PDF
   let pdfBufferEs;
   if (hasPreGeneratedEs) {
-    console.log(`⚡ Using pre-generated HTML for Spanish PDF`);
+    console.log(`⚡ Using pre-generated HTML for Spanish PDF (from explicit ES param)`);
+    pdfBufferEs = await generatePdf(preGeneratedHtmlEs, {
+      footerMeta: {
+        statementId: preGeneratedMetaEs.statementId,
+        generatedAt: preGeneratedMetaEs.generatedAt,
+        language: 'spanish'
+      }
+    });
+  } else if (hasSinglePreGenerated && singleLanguage === 'spanish') {
+    console.log(`⚡ Using pre-generated HTML for Spanish PDF (from primary param)`);
     pdfBufferEs = await generatePdf(preGeneratedHtml, {
       footerMeta: {
         statementId: preGeneratedMeta.statementId,
@@ -809,7 +829,7 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
       }
     });
   } else {
-    console.log(`🔄 Generating Spanish HTML for PDF`);
+    console.log(`🔄 Generating Spanish HTML for PDF (no pre-generated HTML available)`);
     const statementEs = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
       language: 'spanish'
@@ -1029,11 +1049,12 @@ function getDefaultStatementTemplate() {
 /**
  * Send Statement of Account email to unit owners/managers
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementMetaEn = null, statementHtmlEs = null, statementMetaEs = null) {
   try {
     // Debug: Log what we received
     console.log(`📧 Service received: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta && typeof statementMeta === 'object' ? Object.keys(statementMeta).join(',') : 'none'})`);
-    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}`);
+    console.log(`📧 Service received dual-language: htmlEn=${!!statementHtmlEn} (${statementHtmlEn?.length || 0} chars), metaEn=${!!statementMetaEn}, htmlEs=${!!statementHtmlEs} (${statementHtmlEs?.length || 0} chars), metaEs=${!!statementMetaEs}`);
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${languageOverride ? ` [override: ${languageOverride}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}${statementHtmlEn && statementHtmlEs ? ' [using dual-language HTMLs]' : ''}`);
     
     const db = await getDb();
     
@@ -1099,9 +1120,20 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       });
       
       // Generate PDFs for download links (both languages needed)
-      // We have HTML for current language, but need to generate the other language
-      console.log(`⚡ Generating PDFs for download links (using pre-generated HTML for current language)`);
-      pdfUrls = await generateAndUploadPdfsOptimized(clientId, unitId, fiscalYear, authToken, statementHtml, statementMeta);
+      // Use dual-language HTMLs if available, otherwise use single HTML and generate the other
+      console.log(`⚡ Generating PDFs for download links${statementHtmlEn && statementHtmlEs ? ' (using dual-language HTMLs - fastest path)' : ' (using single HTML, generating other language)'}`);
+      pdfUrls = await generateAndUploadPdfsOptimized(
+        clientId, 
+        unitId, 
+        fiscalYear, 
+        authToken, 
+        statementHtml, 
+        statementMeta,
+        statementHtmlEn,
+        statementMetaEn,
+        statementHtmlEs,
+        statementMetaEs
+      );
       statementMeta = statementMeta; // Use provided meta
     } else {
       // Need to generate HTML (either missing or invalid)

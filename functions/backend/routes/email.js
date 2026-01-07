@@ -332,7 +332,18 @@ router.post('/generate-pdfs', authenticateUserWithProfile, async (req, res) => {
 router.post('/send-statement', async (req, res) => {
   try {
     const clientId = req.params.clientId;
-    const { unitId, fiscalYear, language, emailContent, statementHtml, statementMeta } = req.body;  // Optional pre-calculated data
+    const { 
+      unitId, 
+      fiscalYear, 
+      language, 
+      emailContent, 
+      statementHtml, 
+      statementMeta,
+      statementHtmlEn,
+      statementMetaEn,
+      statementHtmlEs,
+      statementMetaEs
+    } = req.body;  // Optional pre-calculated data (single or dual-language)
     const user = req.user;
     
     if (!clientId) {
@@ -357,14 +368,29 @@ router.post('/send-statement', async (req, res) => {
     }
     
     console.log(`📧 Route received: emailContent=${!!emailContent}, statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'})`);
-    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${language ? ` [language override: ${language}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}`);
+    console.log(`📧 Route received dual-language: htmlEn=${!!statementHtmlEn} (${statementHtmlEn?.length || 0} chars), metaEn=${!!statementMetaEn}, htmlEs=${!!statementHtmlEs} (${statementHtmlEs?.length || 0} chars), metaEs=${!!statementMetaEs}`);
+    console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${language ? ` [language override: ${language}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}${statementHtmlEn && statementHtmlEs ? ' [using dual-language HTMLs]' : ''}`);
     
     // Extract auth token from request headers
     const authHeader = req.headers.authorization || req.headers.Authorization;
     const authToken = authHeader ? authHeader.replace('Bearer ', '') : null;
     
     // Pass language override, emailContent, and HTML if provided (for single email from Report View)
-    const result = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken, language, emailContent, statementHtml, statementMeta);
+    const result = await sendStatementEmail(
+      clientId, 
+      unitId, 
+      fiscalYear, 
+      user, 
+      authToken, 
+      language, 
+      emailContent, 
+      statementHtml, 
+      statementMeta,
+      statementHtmlEn,
+      statementMetaEn,
+      statementHtmlEs,
+      statementMetaEs
+    );
     
     if (result.success) {
       res.json({ success: true, message: 'Statement email sent successfully', ...result });
