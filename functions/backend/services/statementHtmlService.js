@@ -861,11 +861,28 @@ export async function generateStatementData(api, clientId, unitId, options = {})
 async function generateBothLanguageStatements(data, reportCommonCss, options = {}, clientId, unitId) {
   // Generate English version
   const tEn = getTranslations('english');
-  const resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn, clientId, unitId);
+  let resultEn;
+  try {
+    resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn, clientId, unitId);
+    console.log(`✅ English HTML generated: ${resultEn.html?.length || 0} chars`);
+  } catch (error) {
+    console.error(`❌ Error generating English HTML:`, error);
+    throw error;
+  }
   
   // Generate Spanish version
   const tEs = getTranslations('spanish');
-  const resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs, clientId, unitId);
+  let resultEs;
+  try {
+    resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs, clientId, unitId);
+    console.log(`✅ Spanish HTML generated: ${resultEs.html?.length || 0} chars`);
+    if (!resultEs.html || resultEs.html.length === 0) {
+      console.error(`❌ Spanish HTML is empty! resultEs keys:`, Object.keys(resultEs || {}));
+    }
+  } catch (error) {
+    console.error(`❌ Error generating Spanish HTML:`, error);
+    throw error;
+  }
   
   // Return both languages - frontend decides which to display
   // This saves ~1/3 of data transfer by not sending redundant primary html
