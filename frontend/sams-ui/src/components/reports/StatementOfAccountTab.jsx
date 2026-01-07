@@ -317,6 +317,15 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           );
         }
 
+        // Debug: Check data before storing
+        console.log('💾 Before storing - data object:', {
+          hasHtmlEn: !!data.htmlEn,
+          htmlEnLength: data.htmlEn?.length || 0,
+          hasHtmlEs: !!data.htmlEs,
+          htmlEsLength: data.htmlEs?.length || 0,
+          dataKeys: Object.keys(data).join(', ')
+        });
+        
         // Store data with selected language HTML for backward compatibility
         // Preserve both htmlEn and htmlEs for email PDF generation
         const dataToStore = {
