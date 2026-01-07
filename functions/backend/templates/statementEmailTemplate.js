@@ -127,14 +127,28 @@ export function generateStatementEmailHtml(data, language = 'es') {
               </div>
               
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; color: #333333;">
+                ${balanceDue < 0 ? `
+                <!-- Negative balance = credit, no payment due -->
+                <tr>
+                  <td style="padding: 5px 0;">${isSpanish ? 'Saldo Pendiente:' : 'Balance Due:'}</td>
+                  <td style="text-align: right; padding: 5px 0; font-weight: bold; color: #28a745;">${isSpanish ? 'SIN PAGO PENDIENTE' : 'NO PAYMENT DUE'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0;">${labels.credit}</td>
+                  <td style="text-align: right; padding: 5px 0; color: #28a745;">${formatCurrency(Math.abs(balanceDue))}</td>
+                </tr>
+                ` : `
+                <!-- Positive balance = payment due -->
                 <tr>
                   <td style="padding: 5px 0;">${labels.balanceDue}</td>
                   <td style="text-align: right; padding: 5px 0; font-weight: bold;">${formatCurrency(balanceDue)}</td>
                 </tr>
+                ${creditBalance > 0 ? `
                 <tr>
                   <td style="padding: 5px 0;">${labels.credit}</td>
-                  <td style="text-align: right; padding: 5px 0; color: #28a745;">(${formatCurrency(Math.abs(creditBalance))})</td>
+                  <td style="text-align: right; padding: 5px 0; color: #28a745;">(${formatCurrency(creditBalance)})</td>
                 </tr>
+                ` : ''}
                 <tr>
                   <td colspan="2" style="padding: 10px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;">
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -145,6 +159,7 @@ export function generateStatementEmailHtml(data, language = 'es') {
                     </table>
                   </td>
                 </tr>
+                `}
               </table>
             </td>
           </tr>
