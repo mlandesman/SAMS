@@ -765,7 +765,7 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     return await generateBothLanguageStatements(data, reportCommonCss, options, clientId, unitId);
   }
   
-  // Single language generation (original behavior)
+  // Single language generation (uses same extracted HTML building function)
   const t = getTranslations(language);
   
   // Filter out future items for display
@@ -798,7 +798,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   const generatedNow = getNow();
   const generatedTimestamp = DateTime.fromJSDate(generatedNow).setZone('America/Cancun');
   
-  // Build HTML
+  // Build HTML using extracted function (same as dual-language path)
+  const html = buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, currentItems, actualClosingBalance, accountCreditBalance, expirationDate, nextPaymentDue, statementId, contactEmail, contactPhone, generatedTimestamp, outputFormat);
+  
+  // OLD HTML BUILDING CODE REMOVED - now using buildHtmlContent() function
+  // This was ~1000 lines of HTML template that is now extracted and reusable
+  /*
   const html = `<!DOCTYPE html>
 <html lang="${language === 'spanish' ? 'es' : 'en'}">
 <head>
