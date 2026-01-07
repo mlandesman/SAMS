@@ -72,9 +72,13 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, language 
   // Both language HTMLs (when generateBothLanguages=true was used)
   if (statementHtmlEn) {
     body.statementHtmlEn = statementHtmlEn;  // Pre-generated English HTML
+    console.log(`📤 Frontend sending htmlEn: ${statementHtmlEn.length} chars`);
   }
   if (statementHtmlEs) {
     body.statementHtmlEs = statementHtmlEs;  // Pre-generated Spanish HTML
+    console.log(`📤 Frontend sending htmlEs: ${statementHtmlEs.length} chars`);
+  } else {
+    console.warn(`⚠️ Frontend: statementHtmlEs is falsy (${typeof statementHtmlEs}), not sending`);
   }
   if (statementMetaEn) {
     body.statementMetaEn = statementMetaEn;  // English metadata
@@ -82,6 +86,10 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, language 
   if (statementMetaEs) {
     body.statementMetaEs = statementMetaEs;  // Spanish metadata
   }
+  
+  // Debug: Check body size before sending
+  const bodyString = JSON.stringify(body);
+  console.log(`📤 Frontend request body size: ${bodyString.length} chars, htmlEs in body: ${body.statementHtmlEs?.length || 0} chars`);
   
   const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-statement`, {
     method: 'POST',

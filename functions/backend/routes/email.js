@@ -368,7 +368,18 @@ router.post('/send-statement', async (req, res) => {
     }
     
     console.log(`📧 Route received: emailContent=${!!emailContent}, statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta ? Object.keys(statementMeta).join(',') : 'none'})`);
-    console.log(`📧 Route received dual-language: htmlEn=${!!statementHtmlEn} (${statementHtmlEn?.length || 0} chars), metaEn=${!!statementMetaEn}, htmlEs=${!!statementHtmlEs} (${statementHtmlEs?.length || 0} chars), metaEs=${!!statementMetaEs}`);
+    console.log(`📧 Route received dual-language: htmlEn=${!!statementHtmlEn} (${statementHtmlEn?.length || 0} chars, type=${typeof statementHtmlEn}), metaEn=${!!statementMetaEn}, htmlEs=${!!statementHtmlEs} (${statementHtmlEs?.length || 0} chars, type=${typeof statementHtmlEs}), metaEs=${!!statementMetaEs}`);
+    
+    // Debug: Check raw request body size
+    const rawBodySize = JSON.stringify(req.body).length;
+    console.log(`📧 Route raw body size: ${rawBodySize} chars`);
+    
+    // Debug: Check if htmlEs exists in req.body but is empty
+    if (req.body.statementHtmlEs !== undefined) {
+      console.log(`📧 Route: req.body.statementHtmlEs exists, type=${typeof req.body.statementHtmlEs}, length=${req.body.statementHtmlEs?.length || 0}, value preview: ${String(req.body.statementHtmlEs).substring(0, 100)}`);
+    } else {
+      console.log(`📧 Route: req.body.statementHtmlEs is undefined`);
+    }
     console.log(`📧 Sending statement email for ${clientId} Unit ${unitId} (FY ${fiscalYear})${language ? ` [language override: ${language}]` : ''}${emailContent ? ' [using pre-calculated data]' : ''}${statementHtml ? ` [using pre-generated HTML (${statementHtml.length} chars)]` : ' [HTML not provided]'}${statementHtmlEn && statementHtmlEs ? ' [using dual-language HTMLs]' : ''}`);
     
     // Extract auth token from request headers
