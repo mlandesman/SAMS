@@ -513,8 +513,8 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
         statementHtml, 
         statementMeta,
         statementHtmlEn,
+        statementHtmlEs,  // Fixed: htmlEs comes before metaEn
         statementMetaEn,
-        statementHtmlEs,
         statementMetaEs
       );
       setEmailResult({ 
