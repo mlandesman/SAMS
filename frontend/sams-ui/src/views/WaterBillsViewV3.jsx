@@ -10,12 +10,14 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
 import WaterBillsList from '../components/water/WaterBillsList';
 import WaterHistoryGrid from '../components/water/WaterHistoryGrid';
+import WaterConsumptionAnalysis from '../components/water/WaterConsumptionAnalysis';
 import waterAPI from '../api/waterAPI';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTint, 
   faFileInvoice, 
   faHistory,
+  faChartLine,
   faChevronLeft,
   faChevronRight,
   faSync,
@@ -327,6 +329,16 @@ function WaterBillsViewV3() {
             <FontAwesomeIcon icon={faHistory} />
             <span>History</span>
           </button>
+          <button 
+            className={`tab-button ${activeTab === 'analysis' ? 'active' : ''}`}
+            onClick={() => {
+              console.log('🔍 Switching to analysis tab');
+              setActiveTab('analysis');
+            }}
+          >
+            <FontAwesomeIcon icon={faChartLine} />
+            <span>Analysis</span>
+          </button>
         </div>
         
         {/* Tab Content */}
@@ -365,6 +377,15 @@ function WaterBillsViewV3() {
                 clientId={selectedClient.id}
                 onBillSelection={handleBillSelection}
                 selectedBill={selectedBill}
+              />
+            </div>
+          )}
+          
+          {activeTab === 'analysis' && (
+            <div className="tab-panel">
+              <WaterConsumptionAnalysis 
+                key={`analysis-${refreshKey}`}
+                fiscalYear={selectedYear}
               />
             </div>
           )}

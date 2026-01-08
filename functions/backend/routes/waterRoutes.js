@@ -401,6 +401,28 @@ router.get('/clients/:clientId/bills/:year', enforceClientAccess, async (req, re
   }
 });
 
+// ============= CONSUMPTION ANALYSIS =============
+// GET /water/clients/:clientId/consumption-analysis/:year
+router.get('/clients/:clientId/consumption-analysis/:year', enforceClientAccess, async (req, res) => {
+  try {
+    const { clientId, year } = req.params;
+    const { calculateConsumptionAnalysis } = await import('../services/waterConsumptionAnalysisService.js');
+    
+    const analysisData = await calculateConsumptionAnalysis(clientId, parseInt(year));
+    
+    res.json({
+      success: true,
+      data: analysisData
+    });
+  } catch (error) {
+    console.error('Error calculating consumption analysis:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // ============= CONFIGURATION =============
 // GET /water/clients/:clientId/config
 router.get('/clients/:clientId/config', enforceClientAccess, getBillingConfig);
