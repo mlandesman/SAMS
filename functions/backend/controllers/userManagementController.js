@@ -927,7 +927,7 @@ export async function updateUser(req, res) {
     // Handle profile updates
     if (profile) {
       updateData.profile = {
-        ...currentUserData.profile,
+        ...(currentUserData.profile || {}),
         ...profile
       };
     }
@@ -935,7 +935,7 @@ export async function updateUser(req, res) {
     // Handle notification preference updates
     if (notifications) {
       updateData.notifications = {
-        ...currentUserData.notifications,
+        ...(currentUserData.notifications || {}),
         ...notifications
       };
     }
@@ -1046,6 +1046,13 @@ export async function updateUser(req, res) {
 
   } catch (error) {
     console.error('Error updating user:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      userId: req.params.userId,
+      updateDataKeys: Object.keys(req.body || {}),
+      errorName: error.name,
+      errorMessage: error.message
+    });
     res.status(500).json({ 
       error: 'Failed to update user',
       details: error.message 
