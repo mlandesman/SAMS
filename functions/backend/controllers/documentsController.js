@@ -109,6 +109,33 @@ export const uploadDocument = async (req, res) => {
         // Get download URL
         const downloadURL = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
         
+        // Helper function to safely parse JSON strings from FormData
+        const safeJsonParse = (value, defaultValue = null) => {
+          // Handle null, undefined, or already-parsed values
+          if (value == null) {
+            return defaultValue;
+          }
+          
+          // If already an object/array (shouldn't happen with FormData, but be defensive)
+          if (typeof value !== 'string') {
+            return value;
+          }
+          
+          // Handle empty strings or string representations of null/undefined
+          const trimmed = value.trim();
+          if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+            return defaultValue;
+          }
+          
+          // Try to parse as JSON
+          try {
+            return JSON.parse(value);
+          } catch (error) {
+            console.warn('⚠️ Failed to parse JSON value, using default:', { value, error: error.message });
+            return defaultValue;
+          }
+        };
+        
         // Create document record in Firestore
         const documentData = {
           id: documentId,
@@ -124,15 +151,15 @@ export const uploadDocument = async (req, res) => {
           documentType: documentType,
           category: category,
           
-          // Linking to other records
-          linkedTo: linkedTo ? JSON.parse(linkedTo) : null,
+          // Linking to other records - safely parse from FormData
+          linkedTo: safeJsonParse(linkedTo, null),
           
           // File storage references
           storageRef: storagePath,
           downloadURL: downloadURL,
           
-          // Metadata
-          tags: tags ? JSON.parse(tags) : [],
+          // Metadata - safely parse from FormData
+          tags: safeJsonParse(tags, []),
           notes: notes || '',
           isArchived: false,
           
