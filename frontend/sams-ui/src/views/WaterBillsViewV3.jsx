@@ -3,8 +3,6 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
-import { getAuthInstance } from '../firebaseClient';
-import { config } from '../config/index.js';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WaterReadingEntry from '../components/water/WaterReadingEntry';
@@ -110,50 +108,23 @@ function WaterBillsViewV3() {
   
   // SIMPLIFIED: Refresh function that re-fetches fresh bill data
   const handleRefresh = async () => {
-    console.log('🔄 [WaterBillsViewV3] Action Bar refresh triggered - refetching bills');
-    console.log('🔍 [WaterBillsViewV3] selectedClient:', selectedClient);
-    console.log('🔍 [WaterBillsViewV3] selectedYear:', selectedYear);
+    console.log('🔄 [WaterBillsViewV3] Refreshing water data...');
     
     // Set loading state (will show Sandyland spinner)
     setIsRefreshing(true);
     
     try {
-      // STEP 1: Clear and rebuild aggregatedData on backend
-      console.log('🗑️ [WaterBillsViewV3] Clearing and rebuilding aggregatedData...');
-      const API_BASE_URL = config.api.baseUrl;
-      const clearResponse = await fetch(`${API_BASE_URL}/water/clients/${selectedClient.id}/aggregatedData/clear?year=${selectedYear}&rebuild=true`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getAuthInstance().currentUser.getIdToken()}`
-        }
-      });
-      
-      if (!clearResponse.ok) {
-        throw new Error(`Failed to rebuild aggregatedData: ${clearResponse.statusText}`);
-      }
-      
-      const clearResult = await clearResponse.json();
-      console.log('✅ [WaterBillsViewV3] AggregatedData rebuilt:', clearResult);
-      
-      // STEP 2: Refresh frontend data from rebuilt aggregatedData
-      console.log('📞 [WaterBillsViewV3] Refreshing frontend data...');
+      // Refresh frontend data directly - aggregatedData system was removed
       if (window.waterBillsRefresh) {
         await window.waterBillsRefresh();
-        console.log('✅ [WaterBillsViewV3] Fresh data loaded via context');
       }
       
       // Increment refresh key to force all components to reload
       setRefreshKey(prev => prev + 1);
       
-      console.log('🎉 [WaterBillsViewV3] Refresh complete - aggregatedData rebuilt and fresh data loaded!');
+      console.log('✅ [WaterBillsViewV3] Refresh complete!');
     } catch (error) {
       console.error('❌ [WaterBillsViewV3] Error during refresh:', error);
-      console.error('❌ [WaterBillsViewV3] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response
-      });
       alert(`Error refreshing data: ${error.message}`);
     } finally {
       // Clear loading state
