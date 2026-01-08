@@ -195,12 +195,12 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       console.log(`📊 [Water Bars] ${data.year}-${data.month}: Unit ${unitId} reading=${currentReading}, prior=${priorReading}, consumption=${consumption} m³`);
       
       // Only include periods where we can calculate consumption (have prior reading)
-      // Note: consumption calculated from reading[month] - reading[month-1] represents consumption FOR month-1
-      // So if we have reading at end of month 1, it represents consumption for month 0
+      // After migration: reading document month X represents consumption FOR month X
+      // Consumption is calculated from reading[month] - reading[month-1], which represents consumption FOR month
       if (priorReading !== null && consumption >= 0) {
-        // The consumption is for the PRIOR month (the month the reading was taken at the end of)
-        const consumptionMonth = data.month === 0 ? 11 : data.month - 1; // If month 0, prior is month 11 of previous year
-        const consumptionYear = data.month === 0 ? data.year - 1 : data.year;
+        // The consumption is for the current month (the month the reading was taken at the end of)
+        const consumptionMonth = data.month; // Reading document month IS the consumption month
+        const consumptionYear = data.year;
         
         periods.push({
           year: consumptionYear,

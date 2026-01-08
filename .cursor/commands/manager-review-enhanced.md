@@ -95,7 +95,13 @@ Log your review to Memory Bank:
 
 When a review is **APPROVED** without challenges, you MUST complete this full archiving workflow:
 
-#### Step 1: Create Archive Directory Structure
+#### Step 1: Commit, Push and Merge is user agrees
+- Check git to see if all code changes related to this task are committed and pushed to GitHub
+- If changes are not committed, ask if they are ready to commit and push
+- Ask if this code should be merged into main and merge if approved
+- Ask if the branch should be deleted or left open for other related tasks
+
+#### Step 2: Create Archive Directory Structure
 ```bash
 # For completed phases/tasks, create organized archive
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory/Archive"
@@ -108,7 +114,7 @@ mkdir -p "[Phase_Name]_[Date]/Test_Results"
 
 **Example**: `Phase_3_Shared_Services_Extraction_2025-10-27/`
 
-#### Step 2: Move Task Assignment Files (MOVE - prevents confusion)
+#### Step 3: Move Task Assignment Files (MOVE - prevents confusion)
 ```bash
 # Move task assignments from /apm_session/ root to archive
 # These are the files new agents might mistake as "not done yet"
@@ -119,7 +125,7 @@ mv Task_[Phase]*.md Memory/Archive/[Archive_Dir]/Task_Assignments/
 
 **Why MOVE**: Task assignments in root confuse new agents who assume work is incomplete
 
-#### Step 3: Copy Completion Logs to Archive (COPY - keep originals)
+#### Step 4: Copy Completion Logs to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) completion logs - keep originals in Task_Completion_Logs/
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
@@ -129,7 +135,7 @@ cp Task_Completion_Logs/Task_[Phase]*_Complete*.md Archive/[Archive_Dir]/Complet
 
 **Why COPY**: Keep originals accessible for quick reference
 
-#### Step 4: Copy Manager Reviews to Archive (COPY - keep originals)
+#### Step 5: Copy Manager Reviews to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) manager reviews - keep originals in Reviews/
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
@@ -140,7 +146,7 @@ cp Reviews/Phase_[X]_Complete_Handoff*.md Archive/[Archive_Dir]/Reviews/
 
 **Why COPY**: Keep originals for reference, archive for organization
 
-#### Step 5: Move Summary Documents to Archive (MOVE)
+#### Step 6: Move Summary Documents to Archive (MOVE)
 ```bash
 # Move phase/project summary documents from /apm_session/ root to archive
 cd "/Users/michael/Projects/SAMS-Docs/apm_session"
@@ -149,7 +155,7 @@ mv [PHASE]_MANAGER_REVIEW_COMPLETE_SUMMARY.md Memory/Archive/[Archive_Dir]/
 mv [PHASE]_COMPLETION_SUMMARY.md Memory/Archive/[Archive_Dir]/ (if exists)
 ```
 
-#### Step 6: Create Archive README
+#### Step 7: Create Archive README
 Create comprehensive README in archive directory explaining:
 - What was accomplished (deliverables, metrics)
 - Why it's archived (phase complete)
@@ -157,7 +163,7 @@ Create comprehensive README in archive directory explaining:
 - Archive contents (organized by subdirectory)
 - References to Implementation Plan and Project Tracking
 
-#### Step 7: Update Implementation Plan
+#### Step 8: Update Implementation Plan
 ```markdown
 # Mark phase/task as COMPLETE with:
 - ✅ COMPLETE status and date
@@ -167,17 +173,6 @@ Create comprehensive README in archive directory explaining:
 - Quality rating (⭐⭐⭐⭐⭐)
 - Documentation references (completion log, review)
 - Strategic value/impact
-```
-
-#### Step 8: Update PROJECT_TRACKING_MASTER.md
-```markdown
-# Add new milestone entry:
-### ✅ [Phase Name] Complete - [Date]
-- Achievement summary
-- Deliverables breakdown
-- Testing and quality metrics
-- Strategic impact
-- Documentation references
 ```
 
 #### Step 9: Create Archive Log Entry
@@ -193,6 +188,10 @@ Document:
 #### Step 10: Update TODO List
 Mark all related TODOs as completed
 
+
+#### Step 11: Update GitHub Issues
+If GitHub issues (Bugs or Enhancements) were linked to this task, update or close them.
+
 ---
 
 ### MANDATORY ARCHIVING CHECKLIST (For Approved Reviews)
@@ -207,7 +206,6 @@ Use this checklist for EVERY approved review:
 - [ ] Summary documents MOVED to archive
 - [ ] Archive README.md created
 - [ ] Implementation_Plan.md updated with completion
-- [ ] PROJECT_TRACKING_MASTER.md updated with milestone
 - [ ] Archive log entry created/updated
 - [ ] TODO list updated
 - [ ] GitHub issues reviewed and updated if applicable

@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.6.3",
-  "buildDate": "2026-01-07T01:06:23.046Z",
-  "buildTimestamp": 1767747983047,
+  "buildDate": "2026-01-08T15:29:24.741Z",
+  "buildTimestamp": 1767886164742,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "b7aae5b",
-    "branch": "fix/water-bills-sprint-2026-01",
-    "lastCommitDate": "2026-01-06 19:52:49 -0500"
+    "hash": "8bc14ed",
+    "branch": "fix/water-readings-103",
+    "lastCommitDate": "2026-01-07 19:19:53 -0500"
   },
   "build": {
-    "timestamp": "2026-01-07T01:06:23.046Z",
+    "timestamp": "2026-01-08T15:29:24.741Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260106.2006"
+    "buildNumber": "260108.1029"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-01-07T01:06:23.046Z",
+    "date": "2026-01-08T15:29:24.741Z",
     "automated": true
   },
   "releaseNotes": {

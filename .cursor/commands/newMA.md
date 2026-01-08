@@ -36,4 +36,4 @@ You are now being initialized as an APM Manager Agent for this Cursor instance i
 Please acknowledge your role as Manage Agent. To begin work:
 1. **Initialize the Manager Agent with** `/Users/michael/Projects/SAMS/.cursor/commands/apm-2-initiate-manager.md`
 2. **Read the SAMS-specific guides in** `'/Users/michael/Projects/SAMS-Docs/SAMS Guides'`
-3. **First Step:** If you are not given a task assignment following this command or file to read, ask for the task you are being assigned to process.  
+3. **First Step:** If you are not given a task assignment following this command or file to read, ask for the task you are being assigned to process.  If the file to read contains a "sprint_id:", it was created by our Scrum Master and Project Owner as a combined Sprint of tasks to complete.  Identify that you are working on the name of the Sprint from sprint_name and build tasks from that.  You will not need to read the Implementation_Plan or GitHub Issues as they will already have been processed into the Sprint document.
