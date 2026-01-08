@@ -35,6 +35,25 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
     }).format(numAmount);
   };
 
+  // Convert amount from centavos to pesos if needed
+  // API should return pesos, but the backend may still return centavos
+  // Expenses are stored as negative centavos (e.g., -1000000 for -10000 pesos)
+  const convertToPesos = (amount) => {
+    if (amount == null || amount === undefined) return 0;
+    const numAmount = parseFloat(amount) || 0;
+    
+    // Check if amount is likely in centavos:
+    // - Absolute value > 100 (most expenses are < 100 pesos when converted)
+    // - Whole number (centavos are always integers)
+    // This handles both positive and negative amounts
+    if (Math.abs(numAmount) > 100 && Number.isInteger(numAmount)) {
+      // Likely centavos, convert to pesos by dividing by 100
+      return numAmount / 100;
+    }
+    // Already in pesos (or very small amount)
+    return numAmount;
+  };
+
   const formatDate = (dateInput) => {
     try {
       if (!dateInput) return 'Not specified';
@@ -180,7 +199,9 @@ const ExpenseConfirmation = ({ result, clientId, onAddAnother, onDone }) => {
                     Amount
                   </Typography>
                   <Typography variant="h6" color="primary">
-                    {parseFloat(transaction.amount || 0).toLocaleString('en-US', { 
+                    {convertToPesos(transaction.amount).toLocaleString('en-US', { 
+                      style: 'currency',
+                      currency: 'MXN',
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
                     })}
