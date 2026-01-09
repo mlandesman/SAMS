@@ -448,29 +448,45 @@ export const generateUploadUrl = async (req, res) => {
     const file = bucket.file(objectPath);
     
     // Generate v4 signed URL for PUT upload (15 minutes expiration)
-    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
+    const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
+    
+    console.log('📤 Attempting to generate signed URL:', {
+      objectPath,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      contentType,
+      bucket: bucket.name
+    });
     
     const [uploadUrl] = await file.getSignedUrl({
       version: 'v4',
       action: 'write',
-      expires: expiresAt,
+      expires: expiresAtMs,
       contentType: contentType
     });
     
-    console.log('✅ Upload URL generated:', {
+    console.log('✅ Upload URL generated successfully:', {
       objectPath,
-      expiresAt: expiresAt.toISOString()
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      uploadUrlLength: uploadUrl?.length || 0
     });
     
     res.status(200).json({
       uploadUrl,
       objectPath,
-      expiresAt: new Date(expiresAt).toISOString()
+      expiresAt: new Date(expiresAtMs).toISOString()
     });
     
   } catch (error) {
-    console.error('❌ Generate upload URL error:', error);
-    res.status(500).json({ error: 'Failed to generate upload URL' });
+    console.error('❌ Generate upload URL error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name
+    });
+    res.status(500).json({ 
+      error: 'Failed to generate upload URL',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
