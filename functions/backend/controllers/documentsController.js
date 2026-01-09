@@ -515,6 +515,15 @@ export const generateUploadUrl = async (req, res) => {
  * Output: { documentId, downloadUrl, ... }
  */
 export const finalizeUpload = async (req, res) => {
+  console.log('📤 Finalize upload route HIT:', {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    params: req.params,
+    clientId: req.params?.clientId,
+    body: req.body
+  });
+  
   try {
     const { clientId } = req.params;
     const { 
