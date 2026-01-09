@@ -3,11 +3,7 @@ import admin from 'firebase-admin';
 import multer from 'multer';
 import path from 'path';
 import { getNow } from '../services/DateService.js';
-import { createRequire } from 'module';
-
-// Busboy is CommonJS, need to use createRequire for ES modules
-const require = createRequire(import.meta.url);
-const Busboy = require('busboy');
+import { randomUUID } from 'crypto';
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
@@ -40,8 +36,18 @@ function generateDocumentId() {
   return `doc_${getNow().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Generate storage path
-function generateStoragePath(clientId, documentId, originalName) {
+// Generate storage path (UUID-based for signed URL approach)
+function generateStoragePath(clientId, originalName) {
+  const now = getNow();
+  const year = now.getFullYear();
+  const uuid = randomUUID();
+  const extension = path.extname(originalName) || '';
+  
+  return `clients/${clientId}/documents/${year}/${uuid}${extension}`;
+}
+
+// Generate storage path (legacy - with documentId for backward compatibility)
+function generateStoragePathWithId(clientId, documentId, originalName) {
   const now = getNow();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -82,7 +88,7 @@ export const uploadDocument = async (req, res) => {
     
     // Generate document metadata
     const documentId = generateDocumentId();
-    const storagePath = generateStoragePath(clientId, documentId, file.originalname);
+    const storagePath = generateStoragePathWithId(clientId, documentId, file.originalname);
     
     console.log('📁 Storage path generated:', storagePath);
 
@@ -390,132 +396,219 @@ export const updateDocumentMetadata = async (req, res) => {
 };
 
 /**
- * Firebase Functions-compatible upload middleware
- * Uses Busboy with req.rawBody when available (Firebase Functions), 
- * falls back to Multer for local development
+ * Generate signed URL for direct upload to Cloud Storage
+ * POST /documents/upload-url
+ * 
+ * Input: { clientId, filename, contentType }
+ * Output: { uploadUrl, objectPath, expiresAt }
  */
-export const uploadMiddleware = (req, res, next) => {
-  // Check if req.rawBody is available (Firebase Functions)
-  const hasRawBody = req.rawBody !== undefined && req.rawBody !== null;
-  const contentType = (req.headers['content-type'] || '').toLowerCase();
-  const isMultipart = contentType.startsWith('multipart/form-data');
-  
-  console.log('📤 Upload middleware - rawBody check:', {
-    hasRawBody,
-    rawBodyType: typeof req.rawBody,
-    isBuffer: Buffer.isBuffer(req.rawBody),
-    isMultipart,
-    contentType
-  });
-  
-  // If in Firebase Functions with multipart, use Busboy with rawBody
-  if (hasRawBody && isMultipart && Buffer.isBuffer(req.rawBody)) {
-    console.log('📤 Using Busboy with req.rawBody for Firebase Functions upload');
+export const generateUploadUrl = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { filename, contentType } = req.body;
     
-    // Busboy is a factory function, expects { headers: { ... } }
-    const busboy = Busboy({ headers: req.headers });
-    const fields = {};
-    let fileProcessed = false;
-    let processingError = null;
-    
-    busboy.on('field', (fieldname, val) => {
-      fields[fieldname] = val;
+    console.log('📤 Generate upload URL request:', {
+      clientId,
+      filename,
+      contentType,
+      user: req.user?.email
     });
     
-    busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-      // Only process the 'file' field (single file upload)
-      if (fieldname !== 'file' || fileProcessed) {
-        file.resume(); // Drain the stream if not processing
-        return;
-      }
-      
-      const buffers = [];
-      
-      file.on('data', (data) => {
-        buffers.push(data);
-      });
-      
-      file.on('end', () => {
-        if (fileProcessed) return; // Already processed
-        fileProcessed = true;
-        
-        try {
-          const buffer = Buffer.concat(buffers);
-          
-          // Validate file type
-          const allowedTypes = [
-            'application/pdf',
-            'image/jpeg',
-            'image/jpg', 
-            'image/png',
-            'image/gif',
-            'image/webp'
-          ];
-          
-          if (!allowedTypes.includes(mimetype)) {
-            processingError = new Error('Invalid file type. Only PDF, JPEG, PNG, GIF, and WebP files are allowed.');
-            return;
-          }
-          
-          // Validate file size (10MB limit)
-          if (buffer.length > 10 * 1024 * 1024) {
-            processingError = new Error('File too large. Maximum size is 10MB.');
-            return;
-          }
-          
-          // Attach file to req.file (Multer-compatible format)
-          req.file = {
-            fieldname: 'file',
-            originalname: filename || 'upload',
-            encoding: encoding,
-            mimetype: mimetype,
-            buffer: buffer,
-            size: buffer.length
-          };
-        } catch (err) {
-          processingError = err;
-        }
-      });
-      
-      file.on('error', (err) => {
-        if (!processingError) {
-          processingError = err;
-        }
-      });
-    });
-    
-    busboy.on('finish', () => {
-      if (processingError) {
-        return next(processingError);
-      }
-      
-      if (!req.file) {
-        return next(new Error('No file provided'));
-      }
-      
-      // Attach parsed fields to req.body
-      req.body = { ...req.body, ...fields };
-      next();
-    });
-    
-    busboy.on('error', (err) => {
-      if (!processingError) {
-        processingError = err;
-      }
-      next(processingError || err);
-    });
-    
-    // Process the raw body - req.rawBody should be a Buffer in Firebase Functions
-    try {
-      busboy.end(req.rawBody); // req.rawBody is already a Buffer
-    } catch (err) {
-      console.error('❌ Error processing rawBody with Busboy:', err);
-      return next(err);
+    // Validate input
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' });
     }
-  } else {
-    // Local dev or non-multipart or no rawBody: use Multer
-    console.log('📤 Using Multer for upload (local dev or no rawBody)');
-    upload.single('file')(req, res, next);
+    
+    if (!contentType) {
+      return res.status(400).json({ error: 'Content-Type is required' });
+    }
+    
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+    
+    if (!allowedTypes.includes(contentType)) {
+      return res.status(400).json({ 
+        error: 'Invalid file type. Only PDF, JPEG, PNG, GIF, and WebP files are allowed.' 
+      });
+    }
+    
+    // Generate UUID-based object path
+    const objectPath = generateStoragePath(clientId, filename);
+    
+    // Get Firebase Storage bucket
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const file = bucket.file(objectPath);
+    
+    // Generate v4 signed URL for PUT upload (15 minutes expiration)
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
+    
+    const [uploadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: expiresAt,
+      contentType: contentType
+    });
+    
+    console.log('✅ Upload URL generated:', {
+      objectPath,
+      expiresAt: expiresAt.toISOString()
+    });
+    
+    res.status(200).json({
+      uploadUrl,
+      objectPath,
+      expiresAt: new Date(expiresAt).toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Generate upload URL error:', error);
+    res.status(500).json({ error: 'Failed to generate upload URL' });
+  }
+};
+
+/**
+ * Finalize document upload after file is uploaded to Cloud Storage
+ * POST /documents/finalize
+ * 
+ * Input: { clientId, objectPath, originalFilename, documentType, category, linkedTo, notes, tags, ... }
+ * Output: { documentId, downloadUrl, ... }
+ */
+export const finalizeUpload = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { 
+      objectPath, 
+      originalFilename,
+      documentType = 'receipt',
+      category = 'expense_receipt',
+      linkedTo,
+      notes,
+      tags
+    } = req.body;
+    
+    console.log('📤 Finalize upload request:', {
+      clientId,
+      objectPath,
+      originalFilename,
+      user: req.user?.email
+    });
+    
+    // Validate input
+    if (!objectPath) {
+      return res.status(400).json({ error: 'objectPath is required' });
+    }
+    
+    if (!originalFilename) {
+      return res.status(400).json({ error: 'originalFilename is required' });
+    }
+    
+    // Verify file exists in Cloud Storage
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const file = bucket.file(objectPath);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ 
+        error: 'File not found in storage. Upload may have failed or object path is incorrect.' 
+      });
+    }
+    
+    // Get file metadata (size, contentType)
+    const [metadata] = await file.getMetadata();
+    const fileSize = parseInt(metadata.size || '0', 10);
+    const mimeType = metadata.contentType || 'application/octet-stream';
+    
+    // Validate file size (10MB limit)
+    if (fileSize > 10 * 1024 * 1024) {
+      // Delete oversized file
+      await file.delete();
+      return res.status(400).json({ 
+        error: 'File too large. Maximum size is 10MB.' 
+      });
+    }
+    
+    // Make file publicly readable (adjust based on security requirements)
+    await file.makePublic();
+    
+    // Generate download URL
+    const downloadURL = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+    
+    // Generate document ID
+    const documentId = generateDocumentId();
+    
+    // Helper function to safely parse JSON strings
+    const safeJsonParse = (value, defaultValue = null) => {
+      if (value == null) return defaultValue;
+      if (typeof value !== 'string') return value;
+      const trimmed = value.trim();
+      if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+        return defaultValue;
+      }
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        console.warn('⚠️ Failed to parse JSON value:', { value, error: error.message });
+        return defaultValue;
+      }
+    };
+    
+    // Create document record in Firestore
+    const db = await getDb();
+    const documentData = {
+      id: documentId,
+      filename: `${documentId}${path.extname(originalFilename)}`,
+      originalName: originalFilename,
+      mimeType: mimeType,
+      fileSize: fileSize,
+      uploadedBy: req.user?.email || 'unknown',
+      uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+      clientId: clientId,
+      
+      // Document categorization
+      documentType: documentType,
+      category: category,
+      
+      // Linking to other records
+      linkedTo: safeJsonParse(linkedTo, null),
+      
+      // File storage references
+      storageRef: objectPath,
+      downloadURL: downloadURL,
+      
+      // Metadata
+      tags: safeJsonParse(tags, []),
+      notes: notes || '',
+      isArchived: false,
+      
+      // Security & audit
+      accessLevel: 'admin',
+      lastAccessed: admin.firestore.FieldValue.serverTimestamp(),
+      accessCount: 0
+    };
+    
+    await db.collection('clients').doc(clientId).collection('documents').doc(documentId).set(documentData);
+    
+    console.log(`✅ Document finalized successfully: ${documentId}`);
+    
+    res.status(201).json({
+      success: true,
+      documentId: documentId,
+      downloadURL: downloadURL,
+      document: documentData
+    });
+    
+  } catch (error) {
+    console.error('❌ Finalize upload error:', error);
+    res.status(500).json({ error: 'Failed to finalize document upload' });
   }
 };
 
