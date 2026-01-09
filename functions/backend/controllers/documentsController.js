@@ -208,6 +208,15 @@ export const getDocuments = async (req, res) => {
     const { clientId } = req.params;
     const { documentType, category, linkedToType, linkedToId, limit = 50 } = req.query;
     
+    console.log('📋 Get documents query:', {
+      clientId,
+      documentType,
+      category,
+      linkedToType,
+      linkedToId,
+      limit
+    });
+    
     const db = await getDb();
     let query = db.collection('clients').doc(clientId).collection('documents');
     
@@ -224,9 +233,19 @@ export const getDocuments = async (req, res) => {
     }
     
     // Add ordering and limit
+    // CRITICAL: isArchived filter must come before orderBy for index to work
     query = query.where('isArchived', '==', false)
                  .orderBy('uploadedAt', 'desc')
                  .limit(parseInt(limit));
+    
+    console.log('📋 Executing query with filters:', {
+      hasDocumentType: !!documentType,
+      hasCategory: !!category,
+      hasLinkedTo: !!(linkedToType && linkedToId),
+      hasIsArchived: true,
+      orderBy: 'uploadedAt desc',
+      limit: parseInt(limit)
+    });
     
     const snapshot = await query.get();
     const documents = [];
