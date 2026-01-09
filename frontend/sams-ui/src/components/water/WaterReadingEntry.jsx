@@ -5,7 +5,7 @@ import WashModal from './WashModal';
 import './WaterReadingEntry.css';
 
 const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
-  const { waterData, loading: contextLoading } = useWaterBills();
+  const { waterData, loading: contextLoading, refreshData } = useWaterBills();
   
   const [readings, setReadings] = useState({});
   const [priorReadings, setPriorReadings] = useState({});
@@ -419,15 +419,22 @@ const WaterReadingEntry = ({ clientId, units, year, month, onSaveSuccess }) => {
       const { calendarMonth, calendarYear } = getCalendarDate(year, month);
       setMessage(`Successfully saved readings for ${monthNames[calendarMonth]} ${calendarYear}`);
       
-      // Call parent callback if provided
+      // Force refresh of context data to clear cache and reload fresh data
+      console.log('🔄 [WaterReadingEntry] Refreshing context data after save...');
+      if (refreshData) {
+        await refreshData();
+        console.log('✅ [WaterReadingEntry] Context data refreshed');
+      }
+      
+      // Reload to show updated data from refreshed context
+      setTimeout(() => {
+        loadPriorReadings();
+      }, 500);
+      
+      // Call parent callback if provided (for other refresh mechanisms)
       if (onSaveSuccess) {
         onSaveSuccess();
       }
-      
-      // Reload to show updated data
-      setTimeout(() => {
-        loadPriorReadings();
-      }, 1000);
       
     } catch (error) {
       console.error('Error saving readings:', error);

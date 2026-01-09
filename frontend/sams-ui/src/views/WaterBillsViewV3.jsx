@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
-import { WaterBillsProvider } from '../context/WaterBillsContext';
+import { WaterBillsProvider, useWaterBills } from '../context/WaterBillsContext';
 import { useNavigate } from 'react-router-dom';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -106,6 +106,9 @@ function WaterBillsViewV3() {
     'January', 'February', 'March', 'April', 'May', 'June'
   ];
   
+  // Ref to store context refresh function (set by inner component)
+  const contextRefreshRef = useRef(null);
+  
   // SIMPLIFIED: Refresh function that re-fetches fresh bill data
   const handleRefresh = async () => {
     console.log('🔄 [WaterBillsViewV3] Refreshing water data...');
@@ -114,7 +117,14 @@ function WaterBillsViewV3() {
     setIsRefreshing(true);
     
     try {
-      // Refresh frontend data directly - aggregatedData system was removed
+      // First, refresh the context data (clears cache and reloads from Firestore)
+      if (contextRefreshRef.current) {
+        console.log('🔄 [WaterBillsViewV3] Refreshing context data...');
+        await contextRefreshRef.current();
+        console.log('✅ [WaterBillsViewV3] Context data refreshed');
+      }
+      
+      // Then refresh frontend components
       if (window.waterBillsRefresh) {
         await window.waterBillsRefresh();
       }
@@ -230,8 +240,16 @@ function WaterBillsViewV3() {
   }
   
   
-  return (
-    <WaterBillsProvider>
+  // Inner component that has access to WaterBillsContext
+  const WaterBillsContent = () => {
+    const { refreshData } = useWaterBills();
+    
+    // Expose context refresh function to parent via ref
+    useEffect(() => {
+      contextRefreshRef.current = refreshData;
+    }, [refreshData]);
+    
+    return (
       <div className="water-bills-integrated-view">
         {/* Sandyland Loading Spinner Overlay */}
         {isRefreshing && (
@@ -363,6 +381,12 @@ function WaterBillsViewV3() {
         </div>
       </div>
       </div>
+    );
+  };
+  
+  return (
+    <WaterBillsProvider>
+      <WaterBillsContent />
     </WaterBillsProvider>
   );
 }
