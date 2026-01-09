@@ -29,10 +29,6 @@ router.post('/upload',
     const contentType = req.headers['content-type'] || '';
     const isMultipart = contentType.toLowerCase().startsWith('multipart/form-data');
     
-    // CRITICAL: Do NOT check req.body !== undefined for multipart requests
-    // Even checking req.body can trigger Express to attempt body parsing, consuming the stream
-    const bodyAlreadyRead = req.readableEnded;
-    
     console.log('📤 Document upload route - Request details:', {
       contentType: contentType,
       isMultipart: isMultipart,
@@ -45,8 +41,8 @@ router.post('/upload',
       // Check for mobile-specific headers
       isMobile: /Mobile|iPhone|Android/i.test(req.headers['user-agent'] || ''),
       transferEncoding: req.headers['transfer-encoding'],
-      // Check if body was already consumed (only check readableEnded, NOT req.body)
-      bodyAlreadyRead: bodyAlreadyRead
+      // Check if body was already consumed
+      bodyAlreadyRead: req.readableEnded || req.body !== undefined
     });
     
     // Warn if body might have been consumed

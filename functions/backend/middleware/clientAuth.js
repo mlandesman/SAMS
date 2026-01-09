@@ -146,29 +146,7 @@ export const enforceClientAccess = async (req, res, next) => {
     //   originalParams: req.originalParams
     // });
     
-    // CRITICAL FIX: For multipart/form-data requests, DO NOT access req.body
-    // 
-    // ROOT CAUSE: In Production (Firebase Functions), accessing req.body.clientId before multer
-    // can trigger Express body parsing middleware to attempt parsing, which consumes the 
-    // request stream. This only happens in Prod because:
-    // - Dev: Direct Express server (app.listen) - different request handling
-    // - Prod: Firebase Functions onRequest wrapper - may trigger parsing on req.body access
-    //
-    // For upload routes, clientId comes from URL params: /clients/:clientId/documents/upload
-    // So we don't need req.body.clientId for multipart requests anyway.
-    const contentType = (req.headers['content-type'] || '').toLowerCase();
-    const isMultipart = contentType.startsWith('multipart/form-data');
-    
-    // Extract clientId - avoid req.body for multipart requests to prevent body stream consumption
-    // NOTE: Even checking req.body !== undefined can trigger parsing, so we avoid ALL req.body access for multipart
-    let requestedClientId;
-    if (isMultipart) {
-      // For multipart requests, only check params and query (body not parsed yet, and accessing it would consume stream)
-      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.query.clientId;
-    } else {
-      // For non-multipart requests, can safely check body (already parsed by Express/Firebase Functions)
-      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body?.clientId || req.query.clientId;
-    }
+    const requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body.clientId || req.query.clientId;
     
     // console.log('🔍 [CLIENT AUTH] Client ID extraction result:', requestedClientId);
     

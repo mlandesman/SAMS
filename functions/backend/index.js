@@ -33,7 +33,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5001;
 
-
 // Increase timeout for file uploads (Firebase Functions default is 60s, but we need more for mobile networks)
 // This helps with slower mobile network connections
 app.use((req, res, next) => {
@@ -56,7 +55,6 @@ const allowedOrigins = [
   'https://sams.sandyland.com.mx',
   'https://mobile.sams.sandyland.com.mx'
 ];
-
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -87,7 +85,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Length', 'Content-Type']
 }));
-
 
 // Increase request body size limit for email attachments (receipt images)
 // CRITICAL: Body parsers must NOT run for multipart/form-data (multer handles it)
