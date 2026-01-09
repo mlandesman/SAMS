@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.6.3",
-  "buildDate": "2026-01-08T15:29:24.741Z",
-  "buildTimestamp": 1767886164742,
+  "buildDate": "2026-01-09T03:39:42.154Z",
+  "buildTimestamp": 1767929982155,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "8bc14ed",
-    "branch": "fix/water-readings-103",
-    "lastCommitDate": "2026-01-07 19:19:53 -0500"
+    "hash": "070109e",
+    "branch": "fix/aggregated-data-cleanup",
+    "lastCommitDate": "2026-01-08 22:36:31 -0500"
   },
   "build": {
-    "timestamp": "2026-01-08T15:29:24.741Z",
+    "timestamp": "2026-01-09T03:39:42.154Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260108.1029"
+    "buildNumber": "260108.2239"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-01-08T15:29:24.741Z",
+    "date": "2026-01-09T03:39:42.154Z",
     "automated": true
   },
   "releaseNotes": {
