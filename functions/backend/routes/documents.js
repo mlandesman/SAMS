@@ -25,12 +25,13 @@ router.post('/upload',
   requirePermission('documents.upload'),
   logSecurityEvent('DOCUMENT_UPLOAD'),
   (req, res, next) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documents.js:BEFORE_MULTER',message:'Before multer middleware',data:{url:req.url,readableEnded:req.readableEnded,bodyExists:req.body!==undefined,contentType:req.headers['content-type']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
-    // #endregion
     // Log request details for debugging - especially important for mobile vs desktop differences
     const contentType = req.headers['content-type'] || '';
     const isMultipart = contentType.toLowerCase().startsWith('multipart/form-data');
+    
+    // CRITICAL: Do NOT check req.body !== undefined for multipart requests
+    // Even checking req.body can trigger Express to attempt body parsing, consuming the stream
+    const bodyAlreadyRead = req.readableEnded;
     
     console.log('📤 Document upload route - Request details:', {
       contentType: contentType,
@@ -44,8 +45,8 @@ router.post('/upload',
       // Check for mobile-specific headers
       isMobile: /Mobile|iPhone|Android/i.test(req.headers['user-agent'] || ''),
       transferEncoding: req.headers['transfer-encoding'],
-      // Check if body was already consumed
-      bodyAlreadyRead: req.readableEnded || req.body !== undefined
+      // Check if body was already consumed (only check readableEnded, NOT req.body)
+      bodyAlreadyRead: bodyAlreadyRead
     });
     
     // Warn if body might have been consumed

@@ -33,14 +33,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5001;
 
-// #region agent log
-app.use((req, res, next) => {
-  if (req.url && req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:VERY_FIRST',message:'Very first middleware - check if body already consumed',data:{url:req.url,readableEnded:req.readableEnded,bodyExists:req.body!==undefined,contentType:req.headers['content-type'],origin:req.headers['origin']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  }
-  next();
-});
-// #endregion
 
 // Increase timeout for file uploads (Firebase Functions default is 60s, but we need more for mobile networks)
 // This helps with slower mobile network connections
@@ -65,14 +57,6 @@ const allowedOrigins = [
   'https://mobile.sams.sandyland.com.mx'
 ];
 
-// #region agent log
-app.use((req, res, next) => {
-  if (req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:BEFORE_CORS',message:'Before CORS middleware',data:{url:req.url,contentType:req.headers['content-type'],readableEnded:req.readableEnded,bodyExists:req.body!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  next();
-});
-// #endregion
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -104,14 +88,6 @@ app.use(cors({
   exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 
-// #region agent log
-app.use((req, res, next) => {
-  if (req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:AFTER_CORS',message:'After CORS middleware',data:{url:req.url,contentType:req.headers['content-type'],readableEnded:req.readableEnded,bodyExists:req.body!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  next();
-});
-// #endregion
 
 // Increase request body size limit for email attachments (receipt images)
 // CRITICAL: Body parsers must NOT run for multipart/form-data (multer handles it)
@@ -120,32 +96,17 @@ app.use((req, res, next) => {
 
 // Middleware to mark multipart requests so body parsers skip them
 app.use((req, res, next) => {
-  // #region agent log
-  if (req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:BEFORE_SKIP_LOGIC',message:'Before skip body parsing logic',data:{url:req.url,contentType:req.headers['content-type'],readableEnded:req.readableEnded,bodyExists:req.body!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
   const contentType = (req.headers['content-type'] || '').toLowerCase();
   if (contentType.startsWith('multipart/form-data')) {
     // Mark request to skip body parsing - multer will handle it
     req._skipBodyParsing = true;
     console.log('📤 Marked request to skip body parsing for multipart:', contentType);
   }
-  // #region agent log
-  if (req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:AFTER_SKIP_LOGIC',message:'After skip body parsing logic',data:{url:req.url,contentType:req.headers['content-type'],skipBodyParsing:req._skipBodyParsing,readableEnded:req.readableEnded,bodyExists:req.body!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
   next();
 });
 
 // JSON parser - only runs if not multipart
 app.use((req, res, next) => {
-  // #region agent log
-  if (req.url.includes('/upload') && req.method === 'POST') {
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.js:JSON_PARSER',message:'JSON parser middleware',data:{url:req.url,skipBodyParsing:req._skipBodyParsing,readableEnded:req.readableEnded,bodyExists:req.body!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
   if (req._skipBodyParsing) {
     return next(); // Skip body parsing for multipart
   }
