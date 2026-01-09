@@ -220,25 +220,37 @@ export const getDocuments = async (req, res) => {
     const db = await getDb();
     let query = db.collection('clients').doc(clientId).collection('documents');
     
-    // CRITICAL: For Firestore indexes to match, filter order matters
-    // Index order: isArchived, linkedTo.id, linkedTo.type, uploadedAt
-    // So we must apply filters in the same order as the index
+    // CRITICAL: Firestore composite index matching rules:
+    // 1. All equality filters before orderBy must be in index field order
+    // 2. Cannot combine filters from different indexes (e.g., documentType + linkedTo)
+    // 3. Index order: isArchived, linkedTo.id, linkedTo.type, uploadedAt
+    //    OR: isArchived, documentType, uploadedAt
+    //    OR: isArchived, category, uploadedAt
+    //    OR: isArchived, uploadedAt (basic)
     
     // Always apply isArchived filter first (required for all indexes)
     query = query.where('isArchived', '==', false);
     
-    // Apply linkedTo filters second (if provided) - matches index order
+    // Apply linkedTo filters if provided (use composite index with linkedTo)
     if (linkedToType && linkedToId) {
+      // When using linkedTo filters, cannot also filter by documentType/category
+      // (would require a different composite index)
+      if (documentType || category) {
+        console.warn('⚠️ Cannot combine linkedTo filters with documentType/category - ignoring documentType/category');
+      }
       query = query.where('linkedTo.id', '==', linkedToId)
                    .where('linkedTo.type', '==', linkedToType);
-    }
-    
-    // Apply other filters (these have separate indexes)
-    if (documentType) {
-      query = query.where('documentType', '==', documentType);
-    }
-    if (category) {
-      query = query.where('category', '==', category);
+    } else {
+      // Apply documentType or category filters (use separate indexes)
+      // Note: Cannot combine documentType + category (would need another index)
+      if (documentType && category) {
+        console.warn('⚠️ Cannot filter by both documentType and category - using documentType only');
+        query = query.where('documentType', '==', documentType);
+      } else if (documentType) {
+        query = query.where('documentType', '==', documentType);
+      } else if (category) {
+        query = query.where('category', '==', category);
+      }
     }
     
     // Add ordering and limit - must match index order
