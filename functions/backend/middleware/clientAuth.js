@@ -146,7 +146,40 @@ export const enforceClientAccess = async (req, res, next) => {
     //   originalParams: req.originalParams
     // });
     
-    const requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body.clientId || req.query.clientId;
+    // #region agent log
+    if (req.url && req.url.includes('/upload') && req.method === 'POST') {
+      fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clientAuth.js:BEFORE_CLIENT_ID',message:'Before extracting clientId in enforceClientAccess',data:{url:req.url,readableEnded:req.readableEnded,bodyExists:req.body!==undefined,contentType:req.headers['content-type'],isMultipart:(req.headers['content-type']||'').includes('multipart')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+    // #endregion
+    
+    // CRITICAL FIX: For multipart/form-data requests, DO NOT access req.body
+    // 
+    // ROOT CAUSE: In Production (Firebase Functions), accessing req.body.clientId before multer
+    // can trigger Express body parsing middleware to attempt parsing, which consumes the 
+    // request stream. This only happens in Prod because:
+    // - Dev: Direct Express server (app.listen) - different request handling
+    // - Prod: Firebase Functions onRequest wrapper - may trigger parsing on req.body access
+    //
+    // For upload routes, clientId comes from URL params: /clients/:clientId/documents/upload
+    // So we don't need req.body.clientId for multipart requests anyway.
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    const isMultipart = contentType.startsWith('multipart/form-data');
+    
+    // Extract clientId - avoid req.body for multipart requests to prevent body stream consumption
+    let requestedClientId;
+    if (isMultipart) {
+      // For multipart requests, only check params and query (body not parsed yet, and accessing it would consume stream)
+      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.query.clientId;
+    } else {
+      // For non-multipart requests, can safely check body (already parsed by Express/Firebase Functions)
+      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body?.clientId || req.query.clientId;
+    }
+    
+    // #region agent log
+    if (req.url && req.url.includes('/upload') && req.method === 'POST') {
+      fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clientAuth.js:AFTER_CLIENT_ID',message:'After extracting clientId in enforceClientAccess',data:{url:req.url,readableEnded:req.readableEnded,bodyExists:req.body!==undefined,requestedClientId:requestedClientId,isMultipart:isMultipart,skippedBody:isMultipart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    }
+    // #endregion
     
     // console.log('🔍 [CLIENT AUTH] Client ID extraction result:', requestedClientId);
     

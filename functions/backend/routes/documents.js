@@ -25,6 +25,9 @@ router.post('/upload',
   requirePermission('documents.upload'),
   logSecurityEvent('DOCUMENT_UPLOAD'),
   (req, res, next) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documents.js:BEFORE_MULTER',message:'Before multer middleware',data:{url:req.url,readableEnded:req.readableEnded,bodyExists:req.body!==undefined,contentType:req.headers['content-type']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
+    // #endregion
     // Log request details for debugging - especially important for mobile vs desktop differences
     const contentType = req.headers['content-type'] || '';
     const isMultipart = contentType.toLowerCase().startsWith('multipart/form-data');
