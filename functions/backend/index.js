@@ -88,25 +88,47 @@ app.use(cors({
 
 // Increase request body size limit for email attachments (receipt images)
 // CRITICAL: Body parsers must NOT run for multipart/form-data (multer handles it)
-// Register body parsers with type checking to avoid consuming multipart streams
-app.use(express.json({ 
-  limit: '50mb',
-  type: (req) => {
-    const contentType = (req.headers['content-type'] || '').toLowerCase();
-    // Only parse if it's actually JSON, not multipart
-    return contentType.includes('application/json') && !contentType.startsWith('multipart');
-  }
-}));
+// The type function approach doesn't prevent stream consumption, so we use a different strategy:
+// Only register body parsers for non-multipart requests by checking in middleware
 
-app.use(express.urlencoded({ 
-  limit: '50mb', 
-  extended: true,
-  type: (req) => {
-    const contentType = (req.headers['content-type'] || '').toLowerCase();
-    // Only parse if it's URL encoded, not multipart
-    return contentType.includes('application/x-www-form-urlencoded') && !contentType.startsWith('multipart');
+// Middleware to mark multipart requests so body parsers skip them
+app.use((req, res, next) => {
+  const contentType = (req.headers['content-type'] || '').toLowerCase();
+  if (contentType.startsWith('multipart/form-data')) {
+    // Mark request to skip body parsing - multer will handle it
+    req._skipBodyParsing = true;
+    console.log('📤 Marked request to skip body parsing for multipart:', contentType);
   }
-}));
+  next();
+});
+
+// JSON parser - only runs if not multipart
+app.use((req, res, next) => {
+  if (req._skipBodyParsing) {
+    return next(); // Skip body parsing for multipart
+  }
+  // Only parse JSON content type
+  const contentType = (req.headers['content-type'] || '').toLowerCase();
+  if (contentType.includes('application/json')) {
+    express.json({ limit: '50mb' })(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// URL encoded parser - only runs if not multipart
+app.use((req, res, next) => {
+  if (req._skipBodyParsing) {
+    return next(); // Skip body parsing for multipart
+  }
+  // Only parse URL encoded content type
+  const contentType = (req.headers['content-type'] || '').toLowerCase();
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
+  } else {
+    next();
+  }
+});
 
 // Add middleware to handle multer errors before they become 500 errors
 app.use((err, req, res, next) => {
