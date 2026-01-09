@@ -220,30 +220,44 @@ export const getDocuments = async (req, res) => {
     const db = await getDb();
     let query = db.collection('clients').doc(clientId).collection('documents');
     
-    // Apply filters
+    // CRITICAL: For Firestore indexes to match, filter order matters
+    // Index order: isArchived, linkedTo.id, linkedTo.type, uploadedAt
+    // So we must apply filters in the same order as the index
+    
+    // Always apply isArchived filter first (required for all indexes)
+    query = query.where('isArchived', '==', false);
+    
+    // Apply linkedTo filters second (if provided) - matches index order
+    if (linkedToType && linkedToId) {
+      query = query.where('linkedTo.id', '==', linkedToId)
+                   .where('linkedTo.type', '==', linkedToType);
+    }
+    
+    // Apply other filters (these have separate indexes)
     if (documentType) {
       query = query.where('documentType', '==', documentType);
     }
     if (category) {
       query = query.where('category', '==', category);
     }
-    if (linkedToType && linkedToId) {
-      query = query.where('linkedTo.type', '==', linkedToType)
-                   .where('linkedTo.id', '==', linkedToId);
-    }
     
-    // Add ordering and limit
-    // CRITICAL: isArchived filter must come before orderBy for index to work
-    query = query.where('isArchived', '==', false)
-                 .orderBy('uploadedAt', 'desc')
+    // Add ordering and limit - must match index order
+    query = query.orderBy('uploadedAt', 'desc')
                  .limit(parseInt(limit));
     
-    console.log('📋 Executing query with filters:', {
+    console.log('📋 Executing query with filters (index order):', {
+      queryOrder: [
+        'isArchived',
+        ...(linkedToType && linkedToId ? ['linkedTo.id', 'linkedTo.type'] : []),
+        ...(documentType ? ['documentType'] : []),
+        ...(category ? ['category'] : []),
+        'uploadedAt (desc)'
+      ],
+      hasLinkedTo: !!(linkedToType && linkedToId),
+      linkedToType,
+      linkedToId,
       hasDocumentType: !!documentType,
       hasCategory: !!category,
-      hasLinkedTo: !!(linkedToType && linkedToId),
-      hasIsArchived: true,
-      orderBy: 'uploadedAt desc',
       limit: parseInt(limit)
     });
     
