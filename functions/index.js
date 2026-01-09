@@ -52,7 +52,9 @@ export const api = onRequest(
   {
     timeoutSeconds: 300,
     memory: '512MiB',
-    cors: true,
+    // CRITICAL: Do NOT use cors: true here - it may consume the request body stream
+    // Express app already handles CORS via cors() middleware
+    cors: false, // Let Express handle CORS to preserve request stream for multer
     secrets: ['GMAIL_APP_PASSWORD'],
   },
   async (req, res) => {
