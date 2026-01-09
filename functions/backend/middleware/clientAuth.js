@@ -146,21 +146,38 @@ export const enforceClientAccess = async (req, res, next) => {
     //   originalParams: req.originalParams
     // });
     
-    const requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body.clientId || req.query.clientId;
+    // CRITICAL: For multipart/form-data requests, DO NOT access req.body
+    // Accessing req.body triggers Express/Firebase Functions to parse the body, consuming the stream
+    // For upload routes (/clients/:clientId/documents/upload), clientId comes from URL params
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    const isMultipart = contentType.startsWith('multipart/form-data');
+    
+    let requestedClientId;
+    if (isMultipart) {
+      // For multipart requests, only check params and query (body not parsed yet)
+      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.query.clientId;
+    } else {
+      // For non-multipart requests, can safely check body
+      requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body?.clientId || req.query.clientId;
+    }
     
     // console.log('🔍 [CLIENT AUTH] Client ID extraction result:', requestedClientId);
     
     if (!requestedClientId) {
       console.error('❌ [CLIENT AUTH] No client ID found in any location');
+      // Don't access req.body in error response for multipart requests
+      const debugInfo = {
+        params: req.params,
+        originalParams: req.originalParams,
+        query: req.query
+      };
+      if (!isMultipart) {
+        debugInfo.body_keys = Object.keys(req.body || {});
+      }
       return res.status(400).json({ 
         error: 'Client ID is required',
         code: 'MISSING_CLIENT_ID',
-        debug: {
-          params: req.params,
-          originalParams: req.originalParams,
-          body_keys: Object.keys(req.body || {}),
-          query: req.query
-        }
+        debug: debugInfo
       });
     }
     
