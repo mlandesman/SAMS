@@ -11,7 +11,8 @@ import {
   getDocument,
   deleteDocument,
   updateDocumentMetadata,
-  upload
+  upload,
+  uploadMiddleware
 } from '../controllers/documentsController.js';
 
 const router = express.Router({ mergeParams: true }); // mergeParams to access clientId from parent route
@@ -64,7 +65,7 @@ router.post('/upload',
     
     next();
   },
-  upload.single('file'),
+  uploadMiddleware,
   (err, req, res, next) => {
     // Handle multer errors specifically for this route
     if (err) {

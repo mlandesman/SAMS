@@ -3,6 +3,11 @@ import admin from 'firebase-admin';
 import multer from 'multer';
 import path from 'path';
 import { getNow } from '../services/DateService.js';
+import { createRequire } from 'module';
+
+// Busboy is CommonJS, need to use createRequire for ES modules
+const require = createRequire(import.meta.url);
+const Busboy = require('busboy');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
@@ -381,6 +386,136 @@ export const updateDocumentMetadata = async (req, res) => {
   } catch (error) {
     console.error('❌ Update document metadata error:', error);
     res.status(500).json({ error: 'Failed to update document metadata' });
+  }
+};
+
+/**
+ * Firebase Functions-compatible upload middleware
+ * Uses Busboy with req.rawBody when available (Firebase Functions), 
+ * falls back to Multer for local development
+ */
+export const uploadMiddleware = (req, res, next) => {
+  // Check if req.rawBody is available (Firebase Functions)
+  const hasRawBody = req.rawBody !== undefined && req.rawBody !== null;
+  const contentType = (req.headers['content-type'] || '').toLowerCase();
+  const isMultipart = contentType.startsWith('multipart/form-data');
+  
+  console.log('📤 Upload middleware - rawBody check:', {
+    hasRawBody,
+    rawBodyType: typeof req.rawBody,
+    isBuffer: Buffer.isBuffer(req.rawBody),
+    isMultipart,
+    contentType
+  });
+  
+  // If in Firebase Functions with multipart, use Busboy with rawBody
+  if (hasRawBody && isMultipart && Buffer.isBuffer(req.rawBody)) {
+    console.log('📤 Using Busboy with req.rawBody for Firebase Functions upload');
+    
+    // Busboy is a factory function, expects { headers: { ... } }
+    const busboy = Busboy({ headers: req.headers });
+    const fields = {};
+    let fileProcessed = false;
+    let processingError = null;
+    
+    busboy.on('field', (fieldname, val) => {
+      fields[fieldname] = val;
+    });
+    
+    busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+      // Only process the 'file' field (single file upload)
+      if (fieldname !== 'file' || fileProcessed) {
+        file.resume(); // Drain the stream if not processing
+        return;
+      }
+      
+      const buffers = [];
+      
+      file.on('data', (data) => {
+        buffers.push(data);
+      });
+      
+      file.on('end', () => {
+        if (fileProcessed) return; // Already processed
+        fileProcessed = true;
+        
+        try {
+          const buffer = Buffer.concat(buffers);
+          
+          // Validate file type
+          const allowedTypes = [
+            'application/pdf',
+            'image/jpeg',
+            'image/jpg', 
+            'image/png',
+            'image/gif',
+            'image/webp'
+          ];
+          
+          if (!allowedTypes.includes(mimetype)) {
+            processingError = new Error('Invalid file type. Only PDF, JPEG, PNG, GIF, and WebP files are allowed.');
+            return;
+          }
+          
+          // Validate file size (10MB limit)
+          if (buffer.length > 10 * 1024 * 1024) {
+            processingError = new Error('File too large. Maximum size is 10MB.');
+            return;
+          }
+          
+          // Attach file to req.file (Multer-compatible format)
+          req.file = {
+            fieldname: 'file',
+            originalname: filename || 'upload',
+            encoding: encoding,
+            mimetype: mimetype,
+            buffer: buffer,
+            size: buffer.length
+          };
+        } catch (err) {
+          processingError = err;
+        }
+      });
+      
+      file.on('error', (err) => {
+        if (!processingError) {
+          processingError = err;
+        }
+      });
+    });
+    
+    busboy.on('finish', () => {
+      if (processingError) {
+        return next(processingError);
+      }
+      
+      if (!req.file) {
+        return next(new Error('No file provided'));
+      }
+      
+      // Attach parsed fields to req.body
+      req.body = { ...req.body, ...fields };
+      next();
+    });
+    
+    busboy.on('error', (err) => {
+      if (!processingError) {
+        processingError = err;
+      }
+      next(processingError || err);
+    });
+    
+    // Process the raw body - req.rawBody should be a Buffer in Firebase Functions
+    try {
+      busboy.end(req.rawBody); // req.rawBody is already a Buffer
+    } catch (err) {
+      console.error('❌ Error processing rawBody with Busboy:', err);
+      return next(err);
+    }
+  } else {
+    // Local dev or non-multipart or no rawBody: use Multer
+    console.log('📤 Using Multer for upload (local dev or no rawBody)');
+    upload.single('file')(req, res, next);
   }
 };
 
