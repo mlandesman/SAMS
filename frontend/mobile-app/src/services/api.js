@@ -189,7 +189,9 @@ export const clientAPI = {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
-      metadata
+      metadata,
+      apiBaseUrl: API_BASE_URL,
+      environment: import.meta.env.MODE
     });
 
     const user = auth.currentUser;
@@ -212,9 +214,18 @@ export const clientAPI = {
       if (metadata.notes) formData.append('notes', metadata.notes);
       if (metadata.tags) formData.append('tags', JSON.stringify(metadata.tags));
       
-      console.log('📦 FormData prepared, making request to:', `${API_BASE_URL}/clients/${clientId}/documents/upload`);
+      const uploadUrl = `${API_BASE_URL}/clients/${clientId}/documents/upload`;
+      console.log('📦 FormData prepared, making request to:', uploadUrl);
+      console.log('📦 Request details:', {
+        method: 'POST',
+        url: uploadUrl,
+        hasFile: !!file,
+        fileSize: file.size,
+        fileType: file.type,
+        origin: window.location.origin
+      });
       
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/upload`, {
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -224,6 +235,40 @@ export const clientAPI = {
       });
       
       console.log('📬 Upload response status:', response.status, response.statusText);
+      console.log('📬 Upload response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Check for CORS errors
+      if (response.status === 0 || response.type === 'opaque') {
+        console.error('🚫 CORS error detected - response type:', response.type);
+        throw new Error('CORS error: Request blocked. Please check backend CORS configuration.');
+      }
+      
+      // Check for network errors
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        console.error('❌ Upload failed with status:', response.status);
+        console.error('❌ Error response:', errorText);
+        
+        // Provide more specific error messages
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please log in again.');
+        } else if (response.status === 403) {
+          throw new Error('Permission denied. You may not have access to upload documents.');
+        } else if (response.status === 413) {
+          throw new Error('File too large. Maximum size is 10MB.');
+        } else if (response.status === 415) {
+          throw new Error('File type not supported. Please use PDF, JPEG, PNG, GIF, or WebP.');
+        } else if (response.status >= 500) {
+          throw new Error(`Server error (${response.status}). Please try again later.`);
+        } else {
+          try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.error || `Upload failed: ${response.status} ${response.statusText}`);
+          } catch {
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+          }
+        }
+      }
       
       const result = await handleResponse(response);
       console.log('✅ Upload successful:', result);
@@ -231,6 +276,14 @@ export const clientAPI = {
       
     } catch (error) {
       console.error('❌ Upload error:', error);
+      
+      // Enhance error message for network/CORS issues
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.');
+      } else if (error.message.includes('CORS')) {
+        throw error; // Already has good message
+      }
+      
       throw error;
     }
   },

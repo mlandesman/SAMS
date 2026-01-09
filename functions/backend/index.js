@@ -33,6 +33,17 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5001;
 
+// Increase timeout for file uploads (Firebase Functions default is 60s, but we need more for mobile networks)
+// This helps with slower mobile network connections
+app.use((req, res, next) => {
+  // For multipart uploads, extend timeout to handle slower mobile networks
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    req.setTimeout(120000); // 2 minutes for uploads
+    res.setTimeout(120000);
+  }
+  next();
+});
+
 // Configure CORS to allow credentials from frontend, PWA, and production
 const allowedOrigins = [
   'http://localhost:5173',
@@ -47,26 +58,91 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow any localhost origin
-    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+    // Allow requests with no origin (like mobile apps, curl, or PWA)
+    if (!origin) {
+      console.log('🌐 CORS: Allowing request with no origin (mobile app/PWA)');
       return callback(null, true);
     }
     
+    // In development, allow any localhost origin
+    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+      console.log('🌐 CORS: Allowing localhost origin in development:', origin);
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('🌐 CORS: Allowing origin:', origin);
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.error('🚫 CORS: Blocked origin:', origin);
+      console.error('🚫 CORS: Allowed origins:', allowedOrigins);
+      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
     }
   },
-  credentials: true // Allow cookies and credentials
+  credentials: true, // Allow cookies and credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 
 // Increase request body size limit for email attachments (receipt images)
-app.use(express.json({ limit: '50mb' })); // for parsing application/json
-app.use(express.urlencoded({ limit: '50mb', extended: true })); // for parsing application/x-www-form-urlencoded
+// CRITICAL: Body parsers must NOT run for multipart/form-data (multer handles it)
+// Register body parsers with type checking to avoid consuming multipart streams
+app.use(express.json({ 
+  limit: '50mb',
+  type: (req) => {
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    // Only parse if it's actually JSON, not multipart
+    return contentType.includes('application/json') && !contentType.startsWith('multipart');
+  }
+}));
+
+app.use(express.urlencoded({ 
+  limit: '50mb', 
+  extended: true,
+  type: (req) => {
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    // Only parse if it's URL encoded, not multipart
+    return contentType.includes('application/x-www-form-urlencoded') && !contentType.startsWith('multipart');
+  }
+}));
+
+// Add middleware to handle multer errors before they become 500 errors
+app.use((err, req, res, next) => {
+  if (err.name === 'MulterError') {
+    console.error('📤 Multer error caught in middleware:', {
+      code: err.code,
+      message: err.message,
+      field: err.field,
+      url: req.url,
+      method: req.method,
+      contentType: req.headers['content-type']
+    });
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large. Maximum size is 10MB.' });
+    }
+    return res.status(400).json({ error: `File upload error: ${err.message}` });
+  }
+  
+  // Handle "Unexpected end of form" errors from busboy
+  if (err.message && err.message.includes('Unexpected end of form')) {
+    console.error('📤 Busboy "Unexpected end of form" error:', {
+      message: err.message,
+      url: req.url,
+      method: req.method,
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length']
+    });
+    return res.status(400).json({ 
+      error: 'File upload incomplete. The request was truncated. Please try again.',
+      code: 'UPLOAD_INCOMPLETE'
+    });
+  }
+  
+  next(err);
+});
 
 // Initialize Firebase before mounting routes
 // Wrap in async function for Vercel serverless compatibility
@@ -189,9 +265,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware for malformed JSON - must be before app.listen()
+// Error handling middleware - must be before app.listen()
 app.use((err, req, res, next) => {
-  // Only handle JSON syntax errors specifically
+  console.error('🚨 Error middleware caught error:', {
+    message: err.message,
+    stack: err.stack,
+    name: err.name,
+    code: err.code,
+    status: err.status,
+    url: req.url,
+    method: req.method
+  });
+
+  // Handle JSON syntax errors
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({
       error: "Invalid JSON format",
@@ -199,8 +285,47 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Let other errors pass through to existing handlers
-  next(err);
+  // Handle multer errors (file upload errors)
+  if (err.name === 'MulterError') {
+    console.error('📤 Multer error:', err.code, err.message);
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: 'File too large. Maximum size is 10MB.',
+        code: 'FILE_TOO_LARGE'
+      });
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        error: 'Too many files. Maximum is 1 file per upload.',
+        code: 'TOO_MANY_FILES'
+      });
+    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        error: 'Unexpected file field. Expected field name: "file".',
+        code: 'UNEXPECTED_FILE_FIELD'
+      });
+    } else {
+      return res.status(400).json({
+        error: `File upload error: ${err.message}`,
+        code: 'MULTER_ERROR'
+      });
+    }
+  }
+  
+  // Handle other known errors
+  if (err.status) {
+    return res.status(err.status).json({
+      error: err.message || 'An error occurred',
+      code: err.code || 'UNKNOWN_ERROR'
+    });
+  }
+  
+  // Default 500 error for unhandled errors
+  console.error('❌ Unhandled error, returning 500:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    code: 'INTERNAL_ERROR',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // For local development
