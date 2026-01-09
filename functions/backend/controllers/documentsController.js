@@ -442,10 +442,13 @@ export const generateUploadUrl = async (req, res) => {
     // Generate UUID-based object path
     const objectPath = generateStoragePath(clientId, filename);
     
-    // Get Firebase Storage bucket
+    // Get Firebase Storage bucket (same pattern as Statement PDF uploads)
     const app = await getApp();
     const bucket = app.storage().bucket();
+    console.log('📤 Storage bucket:', bucket.name);
+    
     const file = bucket.file(objectPath);
+    console.log('📤 File reference created:', objectPath);
     
     // Generate v4 signed URL for PUT upload (15 minutes expiration)
     const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
@@ -454,15 +457,29 @@ export const generateUploadUrl = async (req, res) => {
       objectPath,
       expiresAt: new Date(expiresAtMs).toISOString(),
       contentType,
-      bucket: bucket.name
+      bucket: bucket.name,
+      expiresTimestamp: expiresAtMs
     });
     
-    const [uploadUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: expiresAtMs,
-      contentType: contentType
-    });
+    // Try to generate signed URL (same pattern as Statement PDFs, but for client upload)
+    let uploadUrl;
+    try {
+      [uploadUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: expiresAtMs,
+        contentType: contentType
+      });
+      console.log('✅ Signed URL generated successfully');
+    } catch (urlError) {
+      console.error('❌ getSignedUrl failed:', {
+        message: urlError.message,
+        code: urlError.code,
+        name: urlError.name,
+        stack: urlError.stack
+      });
+      throw new Error(`Failed to generate signed URL: ${urlError.message}. This may require "Service Account Token Creator" role.`);
+    }
     
     console.log('✅ Upload URL generated successfully:', {
       objectPath,
