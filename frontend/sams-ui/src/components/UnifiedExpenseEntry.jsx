@@ -7,11 +7,12 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../context/ClientContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faArrowLeft, faFile, faFilePdf, faImage } from '@fortawesome/free-solid-svg-icons';
 import SplitEntryModal from './transactions/SplitEntryModal';
 import { clientAPI } from '../api/client';
 import { getCurrentUser } from '../firebaseClient';
 import { DocumentUploader } from './documents';
+import { getTransactionDocuments } from '../api/documents';
 import { getMexicoDateString } from '../utils/timezone';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 import './UnifiedExpenseEntry.css';
@@ -64,6 +65,7 @@ const UnifiedExpenseEntry = ({
   
   // Document upload state - use local state for deferred upload
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [existingDocuments, setExistingDocuments] = useState([]); // Documents already attached to transaction
 
   // Split entry modal state
   const [showSplitModal, setShowSplitModal] = useState(false);
@@ -132,8 +134,8 @@ const UnifiedExpenseEntry = ({
            formData.vendorId && 
            formData.amount > 0 && 
            formData.paymentMethodId && 
-           formData.accountId &&
-           !initialData; // Only allow split for new transactions, not edits
+           formData.accountId;
+    // Allow split for both new transactions AND edits
   };
 
   // Handle Split button click
@@ -230,40 +232,51 @@ const UnifiedExpenseEntry = ({
           // Split transaction: use hardcoded categoryId and allocations
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          // Convert allocation amounts from cents to dollars and make negative for expenses
+          // CRITICAL: Allocations from handleSplitSave are already in centavos (cents) as integers
+          // Do NOT convert them - send them as-is to the backend
           transactionData.allocations = splitAllocations.map(allocation => ({
-            ...allocation,
-            amount: -Math.abs(databaseFieldMappings.centsToDollars(allocation.amount)) // Convert to dollars and ensure negative for expenses
+            categoryId: allocation.categoryId,
+            categoryName: allocation.categoryName,
+            // allocation.amount is already in centavos (cents) as an integer - send as-is
+            amount: Math.round(allocation.amount || 0), // Ensure integer
+            notes: allocation.notes || ''
           }));
         } else if (addBankFees) {
           // Auto-create split allocations for bank fees
-          const originalAmount = parseFloat(formData.amount);
-          const commissionAmount = 5.00;
-          const ivaAmount = 0.80;
-          const totalAmount = originalAmount + commissionAmount + ivaAmount;
+          // CRITICAL: Convert dollar amounts to centavos (integers)
+          const originalAmountDollars = parseFloat(formData.amount);
+          const commissionAmountDollars = 5.00;
+          const ivaAmountDollars = 0.80;
+          const totalAmountDollars = originalAmountDollars + commissionAmountDollars + ivaAmountDollars;
+          
+          // Convert to centavos (integers)
+          const originalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(originalAmountDollars));
+          const commissionAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(commissionAmountDollars));
+          const ivaAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(ivaAmountDollars));
+          const totalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(totalAmountDollars));
           
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          transactionData.amount = -Math.abs(totalAmount); // Update total to include fees
+          transactionData.amount = -Math.abs(totalAmountCentavos); // Update total to include fees (in centavos)
           transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionData.allocations = [
             {
               categoryName: selectedCategory?.name || '',
-              amount: -Math.abs(originalAmount),
+              amount: -Math.abs(originalAmountCentavos), // INTEGER in centavos
               notes: 'Main expense'
             },
             {
               categoryName: 'Bank: Commission Charges',
-              amount: -Math.abs(commissionAmount),
+              amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer fee'
             },
             {
               categoryName: 'Bank: IVA',
-              amount: -Math.abs(ivaAmount),
+              amount: -Math.abs(ivaAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer IVA'
             }
           ];
-          console.log('💰 Auto-created bank fee allocations:', transactionData.allocations);
+          console.log('💰 Auto-created bank fee allocations (centavos, integers):', transactionData.allocations);
         } else {
           // Regular transaction: use single category ID
           transactionData.categoryId = formData.categoryId;
@@ -309,32 +322,40 @@ const UnifiedExpenseEntry = ({
         
         // Handle bank fees if checkbox is checked
         if (addBankFees) {
-          const originalAmount = parseFloat(formData.amount);
-          const commissionAmount = 5.00;
-          const ivaAmount = 0.80;
-          const totalAmount = originalAmount + commissionAmount + ivaAmount;
+          // CRITICAL: Convert dollar amounts to centavos (integers) for allocations
+          const originalAmountDollars = parseFloat(formData.amount);
+          const commissionAmountDollars = 5.00;
+          const ivaAmountDollars = 0.80;
+          const totalAmountDollars = originalAmountDollars + commissionAmountDollars + ivaAmountDollars;
           
-          transactionAmount = -Math.abs(totalAmount);
+          // Transaction amount stays in dollars (backend converts to centavos)
+          transactionAmount = -Math.abs(totalAmountDollars);
           transactionNotes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionCategoryId = '-split-';
+          
+          // Allocations must be in centavos (integers) - convert from dollars
+          const originalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(originalAmountDollars));
+          const commissionAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(commissionAmountDollars));
+          const ivaAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(ivaAmountDollars));
+          
           transactionAllocations = [
             {
               categoryName: selectedCategory?.name || '',
-              amount: -Math.abs(originalAmount),
+              amount: -Math.abs(originalAmountCentavos), // INTEGER in centavos
               notes: 'Main expense'
             },
             {
               categoryName: 'Bank: Commission Charges',
-              amount: -Math.abs(commissionAmount),
+              amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer fee'
             },
             {
               categoryName: 'Bank: IVA',
-              amount: -Math.abs(ivaAmount),
+              amount: -Math.abs(ivaAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer IVA'
             }
           ];
-          console.log('💰 Auto-created bank fee allocations (direct API):', transactionAllocations);
+          console.log('💰 Auto-created bank fee allocations (direct API, centavos, integers):', transactionAllocations);
         }
         
         const transactionData = {
@@ -540,8 +561,104 @@ const UnifiedExpenseEntry = ({
         unitId: initialData.unitId || '',
         notes: initialData.notes || ''
       }));
+      
+      // Load existing allocations if this is a split transaction
+      if (initialData.allocations && Array.isArray(initialData.allocations) && initialData.allocations.length > 0) {
+        console.log('🔄 Loading existing split allocations:', initialData.allocations.length, 'allocations');
+        // CRITICAL: Allocations from database are ALREADY stored in CENTAVOS (cents) as INTEGERS
+        // Do NOT convert them - they're already in the correct format
+        // Only ensure they're integers (handle any floating point values from bad writes)
+        const formattedAllocations = initialData.allocations.map((allocation, index) => {
+          let amountInCents = allocation.amount || 0;
+          
+          console.log(`🔄 Allocation ${index + 1} original:`, {
+            categoryName: allocation.categoryName,
+            originalAmount: allocation.amount,
+            amountType: typeof allocation.amount
+          });
+          
+          // Allocations from database are ALREADY in centavos (cents) - ensure they're integers
+          if (typeof amountInCents === 'number') {
+            // Round to integer (handles any floating point values from bad writes)
+            amountInCents = Math.round(amountInCents);
+            // Ensure negative for expenses (allocations should match transaction sign)
+            if (amountInCents > 0 && initialData.amount) {
+              const transactionAmount = typeof initialData.amount === 'number' 
+                ? initialData.amount 
+                : parseFloat(initialData.amount) || 0;
+              if (transactionAmount < 0) {
+                amountInCents = -Math.abs(amountInCents);
+              }
+            }
+            console.log(`  Rounded to integer centavos: ${amountInCents}`);
+          } else if (typeof amountInCents === 'string' && amountInCents !== '') {
+            // String value, parse and round to integer
+            const numValue = parseFloat(amountInCents);
+            if (!isNaN(numValue)) {
+              amountInCents = Math.round(numValue);
+              // Ensure negative for expenses
+              if (amountInCents > 0 && initialData.amount) {
+                const transactionAmount = typeof initialData.amount === 'number' 
+                  ? initialData.amount 
+                  : parseFloat(initialData.amount) || 0;
+                if (transactionAmount < 0) {
+                  amountInCents = -Math.abs(amountInCents);
+                }
+              }
+              console.log(`  Parsed and rounded to integer centavos: ${amountInCents}`);
+            } else {
+              amountInCents = 0;
+              console.log(`  Invalid amount string: "${amountInCents}", defaulting to 0`);
+            }
+          }
+          
+          console.log(`  Final allocation ${index + 1}: ${allocation.categoryName || 'No category'} = ${amountInCents} centavos (integer)`);
+          
+          return {
+            ...allocation,
+            amount: amountInCents // Already in centavos, ensure integer
+          };
+        });
+        console.log('🔄 Formatted allocations (centavos):', formattedAllocations);
+        setSplitAllocations(formattedAllocations);
+      }
+      
+      // Load existing documents if editing a transaction with ID
+      if (initialData.transactionId && clientId) {
+        const loadExistingDocuments = async () => {
+          try {
+            console.log('📄 Loading existing documents for transaction:', initialData.transactionId);
+            const response = await getTransactionDocuments(clientId, initialData.transactionId);
+            console.log('📄 Loaded documents response:', response);
+            
+            // Handle different response formats from API
+            let documents = [];
+            if (Array.isArray(response)) {
+              documents = response;
+            } else if (response?.documents && Array.isArray(response.documents)) {
+              documents = response.documents;
+            } else if (response?.data && Array.isArray(response.data)) {
+              documents = response.data;
+            } else if (response?.success && Array.isArray(response.data)) {
+              documents = response.data;
+            }
+            
+            console.log('📄 Extracted documents array:', documents);
+            setExistingDocuments(documents);
+          } catch (error) {
+            console.error('❌ Error loading existing documents:', error);
+            setExistingDocuments([]);
+          }
+        };
+        loadExistingDocuments();
+      } else {
+        setExistingDocuments([]);
+      }
+    } else {
+      // Clear existing documents when not editing
+      setExistingDocuments([]);
     }
-  }, [initialData]);
+  }, [initialData, clientId]);
 
   // Don't render if modal mode and not open
   if (mode === 'modal' && !isOpen) {
@@ -849,6 +966,108 @@ const UnifiedExpenseEntry = ({
               {/* Document Upload Section */}
               <div className="form-section">
                 <h3 className="section-title">Documents</h3>
+                
+                {/* Existing Documents Display */}
+                {existingDocuments && existingDocuments.length > 0 && (
+                  <div className="existing-documents" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                    <h4 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Attached Documents:</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem' }}>
+                      {existingDocuments.map((doc) => (
+                        <div 
+                          key={doc.id} 
+                          style={{ 
+                            border: '1px solid #ddd', 
+                            borderRadius: '4px', 
+                            padding: '0.5rem', 
+                            backgroundColor: 'white',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            cursor: doc.downloadURL ? 'pointer' : 'default'
+                          }}
+                          onClick={() => {
+                            if (doc.downloadURL) {
+                              window.open(doc.downloadURL, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          title={doc.downloadURL ? 'Click to open document' : 'Document (no download URL available)'}
+                        >
+                          {/* Document Thumbnail */}
+                          {doc.downloadURL && (doc.mimeType?.startsWith('image/') || doc.mimeType?.includes('image')) ? (
+                            <img 
+                              src={doc.downloadURL} 
+                              alt={doc.filename || doc.originalName || 'Document'} 
+                              style={{ 
+                                width: '100%', 
+                                maxWidth: '120px', 
+                                height: 'auto', 
+                                maxHeight: '120px', 
+                                objectFit: 'contain',
+                                marginBottom: '0.5rem',
+                                borderRadius: '4px',
+                                pointerEvents: 'none' // Prevent image click from bubbling
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '100px',
+                              height: '100px',
+                              backgroundColor: '#e0e0e0',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '4px',
+                              marginBottom: '0.5rem'
+                            }}>
+                              {doc.mimeType?.includes('pdf') ? (
+                                <FontAwesomeIcon icon={faFilePdf} style={{ fontSize: '2rem', color: '#dc3545' }} />
+                              ) : (
+                                <FontAwesomeIcon icon={faFile} style={{ fontSize: '2rem', color: '#999' }} />
+                              )}
+                              <span style={{ fontSize: '0.7rem', color: '#666', marginTop: '0.25rem' }}>
+                                {doc.mimeType?.includes('pdf') ? 'PDF' : 'File'}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Document ID */}
+                          <div style={{ 
+                            fontSize: '0.7rem', 
+                            color: '#666', 
+                            wordBreak: 'break-all',
+                            textAlign: 'center',
+                            marginTop: '0.25rem'
+                          }}>
+                            <strong>ID:</strong> {doc.id}
+                          </div>
+                          
+                          {/* Document Name */}
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#333', 
+                            marginTop: '0.25rem',
+                            textAlign: 'center',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            width: '100%'
+                          }} title={doc.filename || doc.originalName || doc.id}>
+                            {doc.filename || doc.originalName || doc.id}
+                          </div>
+                          
+                          {/* Document Size (if available) */}
+                          {doc.size && (
+                            <div style={{ fontSize: '0.65rem', color: '#999', marginTop: '0.25rem' }}>
+                              {(doc.size / 1024).toFixed(1)} KB
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <DocumentUploader
                   clientId={clientId}
                   onFilesSelected={setSelectedFiles}
@@ -872,18 +1091,16 @@ const UnifiedExpenseEntry = ({
                   Cancel
                 </button>
                 
-                {/* Split button - only show for new transactions */}
-                {!initialData && (
-                  <button 
-                    type="button"
-                    onClick={handleSplitTransaction}
-                    className={`btn-split ${isSplitButtonEnabled() ? 'enabled' : 'disabled'}`}
-                    disabled={submitting || !isSplitButtonEnabled()}
-                    title="Split transaction across multiple categories"
-                  >
-                    Split
-                  </button>
-                )}
+                {/* Split button - show for both new transactions and edits */}
+                <button 
+                  type="button"
+                  onClick={handleSplitTransaction}
+                  className={`btn-split ${isSplitButtonEnabled() ? 'enabled' : 'disabled'}`}
+                  disabled={submitting || !isSplitButtonEnabled()}
+                  title={splitAllocations.length > 0 ? "Edit split allocations" : "Split transaction across multiple categories"}
+                >
+                  {splitAllocations.length > 0 ? 'Edit Split' : 'Split'}
+                </button>
                 
                 <button 
                   type="submit" 
@@ -924,7 +1141,8 @@ const UnifiedExpenseEntry = ({
           date: formData.date,
           vendorId: formData.vendorId,
           vendorName: clientData.vendors.find(v => v.id === formData.vendorId)?.name || '',
-          amount: databaseFieldMappings.dollarsToCents(formData.amount),
+          // Convert to cents and make negative for expenses (expenses are always negative)
+          amount: -Math.abs(databaseFieldMappings.dollarsToCents(formData.amount || 0)),
           accountId: formData.accountId,
           accountType: clientData.accounts.find(a => a.id === formData.accountId)?.name || '',
           paymentMethodId: formData.paymentMethodId,

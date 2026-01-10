@@ -373,14 +373,10 @@ export const TransactionsProvider = ({ children }) => {
           break;
         case 'edit':
           if (selectedTransaction) {
-            // Check if this is a split transaction
-            if (isSplitTransaction(selectedTransaction)) {
-              console.log('Opening split transaction for editing:', selectedTransaction);
-              setShowSplitEntryModal(true);  // Open split modal for editing
-            } else {
-              console.log('Opening regular transaction for editing:', selectedTransaction);
-              setShowExpenseModal(true);  // Open regular modal for editing
-            }
+            // Always use UnifiedExpenseEntry for editing (both split and regular)
+            // UnifiedExpenseEntry now supports editing top-level fields AND allocations
+            console.log('Opening transaction for editing:', selectedTransaction);
+            setShowExpenseModal(true);  // Open UnifiedExpenseEntry modal for editing
           } else {
             alert('Please select a transaction to edit');
           }

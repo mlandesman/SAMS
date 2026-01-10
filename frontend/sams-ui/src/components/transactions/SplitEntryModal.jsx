@@ -41,15 +41,74 @@ const SplitEntryModal = ({
   }, [isOpen, existingAllocations]);
 
   const initializeAllocations = () => {
+    // Determine transaction type (expense = negative, income = positive)
+    const transactionAmountCents = typeof transactionData?.amount === 'number' 
+      ? transactionData.amount 
+      : (transactionData?.amount ? dollarsToCents(transactionData.amount) : 0);
+    const isExpense = transactionAmountCents <= 0;
+    
+    console.log('🔄 Initializing allocations:', { 
+      existingAllocationsCount: existingAllocations?.length || 0, 
+      transactionAmountCents, 
+      isExpense 
+    });
+    
     if (existingAllocations && existingAllocations.length > 0) {
       // Editing existing split transaction
-      setAllocations(existingAllocations.map(allocation => ({
-        id: allocation.id || Date.now() + Math.random(),
-        categoryId: allocation.categoryId || '',
-        categoryName: allocation.categoryName || '',
-        amount: allocation.amount || '',
-        notes: allocation.notes || ''
-      })));
+      // CRITICAL: Allocations from database are ALREADY stored in CENTAVOS (cents) as INTEGERS
+      // Do NOT convert them - they're already in the correct format
+      // Only ensure they're integers (handle any floating point values from bad writes)
+      setAllocations(existingAllocations.map((allocation, index) => {
+        let amountInCentavos = allocation.amount || 0;
+        
+        console.log(`🔄 Loading allocation ${index + 1}:`, {
+          categoryName: allocation.categoryName,
+          originalAmount: allocation.amount,
+          amountType: typeof allocation.amount
+        });
+        
+        // Allocations from database are ALREADY in centavos (cents) - ensure they're integers
+        if (typeof amountInCentavos === 'number') {
+          // Round to integer (handles any floating point values from bad writes)
+          amountInCentavos = Math.round(amountInCentavos);
+          // Ensure negative for expenses (match transaction sign)
+          if (isExpense && amountInCentavos > 0) {
+            amountInCentavos = -Math.abs(amountInCentavos);
+            console.log(`  Made negative for expense: ${amountInCentavos} centavos`);
+          } else if (!isExpense && amountInCentavos < 0) {
+            amountInCentavos = Math.abs(amountInCentavos);
+            console.log(`  Made positive for income: ${amountInCentavos} centavos`);
+          } else {
+            console.log(`  Rounded to integer centavos: ${amountInCentavos}`);
+          }
+        } else if (typeof amountInCentavos === 'string' && amountInCentavos !== '') {
+          // String value, parse and round to integer
+          const numValue = parseFloat(amountInCentavos);
+          if (!isNaN(numValue)) {
+            amountInCentavos = Math.round(numValue);
+            // Ensure negative for expenses
+            if (isExpense && amountInCentavos > 0) {
+              amountInCentavos = -Math.abs(amountInCentavos);
+            } else if (!isExpense && amountInCentavos < 0) {
+              amountInCentavos = Math.abs(amountInCentavos);
+            }
+            console.log(`  Parsed and rounded to integer centavos: ${amountInCentavos}`);
+          } else {
+            amountInCentavos = 0;
+            console.log(`  Invalid amount string: "${amountInCentavos}", defaulting to 0`);
+          }
+        }
+        
+        console.log(`  Final allocation ${index + 1}: ${allocation.categoryName || 'No category'} = ${amountInCentavos} centavos (integer)`);
+        
+        return {
+          id: allocation.id || Date.now() + Math.random(),
+          categoryId: allocation.categoryId || '',
+          categoryName: allocation.categoryName || '',
+          amount: amountInCentavos, // Already in centavos, ensure integer
+          notes: allocation.notes || ''
+        };
+      }));
     } else {
       // New split transaction - start with one empty allocation
       setAllocations([{
@@ -64,33 +123,89 @@ const SplitEntryModal = ({
 
   // Calculate remaining balance
   const getRemainingBalance = () => {
-    if (!transactionData?.amount) return 0;
-    const transactionAmountCents = typeof transactionData.amount === 'number' 
-      ? transactionData.amount 
-      : dollarsToCents(transactionData.amount);
+    if (!transactionData?.amount) {
+      console.log('⚠️ No transaction amount available');
+      return 0;
+    }
+    
+    // CRITICAL: transactionData.amount should ALREADY be in centavos (cents) as an integer
+    // If it's a string (from formData), convert from dollars to centavos (for new splits)
+    // If it's a number, assume it's already in centavos
+    let transactionAmountCentavos = typeof transactionData.amount === 'number' 
+      ? Math.round(transactionData.amount) // Already in centavos, ensure integer
+      : Math.round(dollarsToCents(transactionData.amount)); // Convert from dollars to centavos (for new splits)
+    
+    // Ensure transaction amount is negative for expenses (expenses are always negative in centavos)
+    if (transactionAmountCentavos > 0) {
+      transactionAmountCentavos = -Math.abs(transactionAmountCentavos);
+    }
+    
+    console.log('💰 Transaction amount (centavos, integer):', transactionAmountCentavos);
     
     const allocatedTotal = allocations.reduce((sum, allocation) => {
       if (allocation.amount === '' || allocation.amount === null || allocation.amount === undefined) {
         return sum;
       }
-      const amount = typeof allocation.amount === 'number' 
-        ? allocation.amount 
-        : dollarsToCents(allocation.amount);
+      // allocation.amount should already be in centavos (from initialization or user input)
+      // If it's a string, user is typing dollars - convert to centavos (for user input)
+      // If it's a number, it's already in centavos from initialization or previous user input
+      let amount = typeof allocation.amount === 'number' 
+        ? Math.round(allocation.amount) // Already in centavos, ensure integer
+        : Math.round(dollarsToCents(allocation.amount || 0)); // User typing dollars, convert to centavos
+      
+      // Ensure allocation amounts are negative for expenses (matching transaction amount sign)
+      // If amount is positive, make it negative to match expense format
+      if (amount > 0 && transactionAmountCentavos < 0) {
+        amount = -Math.abs(amount);
+      }
+      
+      console.log(`  Allocation: ${allocation.categoryName || 'No category'} = ${amount} centavos (integer)`);
       return sum + amount;
     }, 0);
     
-    return transactionAmountCents - allocatedTotal;
+    console.log('💰 Allocated total (centavos, integer):', allocatedTotal);
+    
+    // For expenses: transactionAmountCentavos is negative, allocatedTotal is negative
+    // Use absolute values for comparison (both should be negative, but we compare magnitudes)
+    const remaining = Math.abs(transactionAmountCentavos) - Math.abs(allocatedTotal);
+    console.log('💰 Remaining balance (centavos):', remaining);
+    
+    return remaining;
   };
 
   // Check if save is enabled (remaining balance = 0)
   const isSaveEnabled = () => {
     const remaining = getRemainingBalance();
-    const hasValidAllocations = allocations.every(allocation => {
+    // Allow small rounding differences (within 1 cent)
+    const isBalanced = Math.abs(remaining) <= 1;
+    
+    console.log('🔍 Save enabled check:', { remaining, isBalanced });
+    
+    const hasValidAllocations = allocations.length > 0 && allocations.every((allocation, index) => {
       const hasCategory = allocation.categoryName && allocation.categoryName !== '';
-      const hasValidAmount = allocation.amount !== '' && allocation.amount !== null && allocation.amount !== undefined && allocation.amount > 0;
+      // Amount can be positive (will be converted to negative) or negative (already in expense format)
+      // Also handle string amounts (user input)
+      let amountValue = 0;
+      if (allocation.amount === '' || allocation.amount === null || allocation.amount === undefined) {
+        amountValue = 0;
+      } else if (typeof allocation.amount === 'string') {
+        // String input (user typing), convert to cents
+        const numValue = parseFloat(allocation.amount);
+        amountValue = isNaN(numValue) ? 0 : Math.abs(dollarsToCents(numValue));
+      } else if (typeof allocation.amount === 'number') {
+        // Already in cents (positive or negative), use absolute value
+        amountValue = Math.abs(allocation.amount);
+      }
+      
+      const hasValidAmount = amountValue > 0;
+      console.log(`  Allocation ${index + 1}: category=${hasCategory}, amount=${amountValue}, valid=${hasValidAmount}`);
       return hasCategory && hasValidAmount;
     });
-    return remaining === 0 && hasValidAllocations && allocations.length > 0;
+    
+    const isEnabled = isBalanced && hasValidAllocations;
+    console.log('🔍 Save enabled result:', { isBalanced, hasValidAllocations, isEnabled, allocationsCount: allocations.length });
+    
+    return isEnabled;
   };
 
   // Add new allocation row
@@ -125,12 +240,46 @@ const SplitEntryModal = ({
           updated.categoryId = selectedCategory ? selectedCategory.id : '';
         }
         
-        // Convert amount to cents for storage
+        // Convert amount to centavos (cents) for storage - must be INTEGER
         if (field === 'amount') {
           if (value === '' || value === null || value === undefined) {
             updated.amount = '';
           } else {
-            updated.amount = typeof value === 'string' ? dollarsToCents(value) : value;
+            // User enters dollars in input field, convert to centavos (integers)
+            // If value is string (user typing), it's dollars - convert to centavos
+            // If value is number, it might be from existing allocation (already in centavos) or from user input (dollars)
+            // For safety, always treat user input as dollars and convert
+            let amountInCentavos;
+            if (typeof value === 'string') {
+              // User typing dollars - convert to centavos (integers)
+              const numValue = parseFloat(value);
+              amountInCentavos = isNaN(numValue) ? 0 : Math.round(dollarsToCents(numValue));
+            } else if (typeof value === 'number') {
+              // If number, check if it looks like dollars (< 1000) or centavos (>= 1000)
+              // For user input in number field, treat as dollars if < 1000
+              // But actually, the input always gives us a string, so if we get a number here,
+              // it's likely from existing allocation (already in centavos) - just round to integer
+              amountInCentavos = Math.round(value);
+            } else {
+              amountInCentavos = 0;
+            }
+            
+            // Determine if this is an expense transaction (negative amount) or income (positive)
+            const transactionAmountCentavos = typeof transactionData?.amount === 'number' 
+              ? Math.round(transactionData.amount) 
+              : Math.round(dollarsToCents(transactionData?.amount || 0));
+            const isExpense = transactionAmountCentavos <= 0;
+            
+            // For expenses, ensure allocation amounts are negative (matching transaction)
+            // User enters positive value in input (dollars), we convert to negative centavos (integers) for storage
+            if (isExpense && amountInCentavos > 0) {
+              amountInCentavos = -Math.abs(amountInCentavos);
+            } else if (!isExpense && amountInCentavos < 0) {
+              amountInCentavos = Math.abs(amountInCentavos);
+            }
+            
+            // CRITICAL: Ensure amount is an INTEGER (centavos)
+            updated.amount = Math.round(amountInCentavos);
           }
         }
         
@@ -144,13 +293,47 @@ const SplitEntryModal = ({
   const handleSave = () => {
     if (!isSaveEnabled()) return;
     
-    const allocationData = allocations.map(allocation => ({
-      categoryId: allocation.categoryId,
-      categoryName: allocation.categoryName,
-      amount: typeof allocation.amount === 'number' ? allocation.amount : dollarsToCents(allocation.amount || 0),
-      notes: allocation.notes || ''
-    }));
+    // CRITICAL: All allocations should already be in centavos (cents) as integers
+    // Just ensure they're properly formatted before saving
+    const allocationData = allocations.map(allocation => {
+      // allocation.amount should already be in centavos (from updateAllocation or initialization)
+      // Ensure it's an integer
+      let amount = typeof allocation.amount === 'number' 
+        ? Math.round(allocation.amount) // Already in centavos, ensure integer
+        : 0; // If it's a string here, something went wrong - default to 0
+      
+      // If amount is somehow a string at this point, it shouldn't happen, but handle it
+      if (typeof allocation.amount === 'string' && allocation.amount !== '') {
+        // User might have left an incomplete entry, but save validation should prevent this
+        const numValue = parseFloat(allocation.amount);
+        amount = isNaN(numValue) ? 0 : Math.round(dollarsToCents(numValue));
+      }
+      
+      // Amount should already be negative for expenses (from updateAllocation), but ensure it
+      const transactionAmountCentavos = typeof transactionData?.amount === 'number' 
+        ? Math.round(transactionData.amount) 
+        : Math.round(dollarsToCents(transactionData?.amount || 0));
+      const isExpense = transactionAmountCentavos <= 0;
+      
+      // For expenses, ensure amounts are negative (matching transaction amount sign)
+      if (isExpense && amount > 0) {
+        amount = -Math.abs(amount);
+      } else if (!isExpense && amount < 0) {
+        amount = Math.abs(amount);
+      }
+      
+      // CRITICAL: Ensure amount is an INTEGER (centavos) before saving
+      amount = Math.round(amount);
+      
+      return {
+        categoryId: allocation.categoryId,
+        categoryName: allocation.categoryName,
+        amount: amount, // INTEGER in centavos (cents)
+        notes: allocation.notes || ''
+      };
+    });
     
+    console.log('💾 Saving allocations (centavos, integers):', allocationData);
     onSave(allocationData);
   };
 
@@ -231,7 +414,7 @@ const SplitEntryModal = ({
                       <span className="currency-symbol">$</span>
                       <input
                         type="number"
-                        value={allocation.amount === '' ? '' : centsToDollars(allocation.amount)}
+                        value={allocation.amount === '' ? '' : centsToDollars(Math.abs(allocation.amount || 0))}
                         onChange={(e) => updateAllocation(allocation.id, 'amount', e.target.value)}
                         className="amount-input"
                         placeholder="0.00"
