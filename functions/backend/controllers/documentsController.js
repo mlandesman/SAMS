@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 import multer from 'multer';
 import path from 'path';
 import { getNow } from '../services/DateService.js';
+import { randomUUID } from 'crypto';
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
@@ -35,8 +36,18 @@ function generateDocumentId() {
   return `doc_${getNow().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Generate storage path
-function generateStoragePath(clientId, documentId, originalName) {
+// Generate storage path (UUID-based for signed URL approach)
+function generateStoragePath(clientId, originalName) {
+  const now = getNow();
+  const year = now.getFullYear();
+  const uuid = randomUUID();
+  const extension = path.extname(originalName) || '';
+  
+  return `clients/${clientId}/documents/${year}/${uuid}${extension}`;
+}
+
+// Generate storage path (legacy - with documentId for backward compatibility)
+function generateStoragePathWithId(clientId, documentId, originalName) {
   const now = getNow();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -77,7 +88,7 @@ export const uploadDocument = async (req, res) => {
     
     // Generate document metadata
     const documentId = generateDocumentId();
-    const storagePath = generateStoragePath(clientId, documentId, file.originalname);
+    const storagePath = generateStoragePathWithId(clientId, documentId, file.originalname);
     
     console.log('📁 Storage path generated:', storagePath);
 
@@ -197,25 +208,70 @@ export const getDocuments = async (req, res) => {
     const { clientId } = req.params;
     const { documentType, category, linkedToType, linkedToId, limit = 50 } = req.query;
     
+    console.log('📋 Get documents query:', {
+      clientId,
+      documentType,
+      category,
+      linkedToType,
+      linkedToId,
+      limit
+    });
+    
     const db = await getDb();
     let query = db.collection('clients').doc(clientId).collection('documents');
     
-    // Apply filters
-    if (documentType) {
-      query = query.where('documentType', '==', documentType);
-    }
-    if (category) {
-      query = query.where('category', '==', category);
-    }
+    // CRITICAL: Firestore composite index matching rules:
+    // 1. All equality filters before orderBy must be in index field order
+    // 2. Cannot combine filters from different indexes (e.g., documentType + linkedTo)
+    // 3. Index order: isArchived, linkedTo.id, linkedTo.type, uploadedAt
+    //    OR: isArchived, documentType, uploadedAt
+    //    OR: isArchived, category, uploadedAt
+    //    OR: isArchived, uploadedAt (basic)
+    
+    // Always apply isArchived filter first (required for all indexes)
+    query = query.where('isArchived', '==', false);
+    
+    // Apply linkedTo filters if provided (use composite index with linkedTo)
     if (linkedToType && linkedToId) {
-      query = query.where('linkedTo.type', '==', linkedToType)
-                   .where('linkedTo.id', '==', linkedToId);
+      // When using linkedTo filters, cannot also filter by documentType/category
+      // (would require a different composite index)
+      if (documentType || category) {
+        console.warn('⚠️ Cannot combine linkedTo filters with documentType/category - ignoring documentType/category');
+      }
+      query = query.where('linkedTo.id', '==', linkedToId)
+                   .where('linkedTo.type', '==', linkedToType);
+    } else {
+      // Apply documentType or category filters (use separate indexes)
+      // Note: Cannot combine documentType + category (would need another index)
+      if (documentType && category) {
+        console.warn('⚠️ Cannot filter by both documentType and category - using documentType only');
+        query = query.where('documentType', '==', documentType);
+      } else if (documentType) {
+        query = query.where('documentType', '==', documentType);
+      } else if (category) {
+        query = query.where('category', '==', category);
+      }
     }
     
-    // Add ordering and limit
-    query = query.where('isArchived', '==', false)
-                 .orderBy('uploadedAt', 'desc')
+    // Add ordering and limit - must match index order
+    query = query.orderBy('uploadedAt', 'desc')
                  .limit(parseInt(limit));
+    
+    console.log('📋 Executing query with filters (index order):', {
+      queryOrder: [
+        'isArchived',
+        ...(linkedToType && linkedToId ? ['linkedTo.id', 'linkedTo.type'] : []),
+        ...(documentType ? ['documentType'] : []),
+        ...(category ? ['category'] : []),
+        'uploadedAt (desc)'
+      ],
+      hasLinkedTo: !!(linkedToType && linkedToId),
+      linkedToType,
+      linkedToId,
+      hasDocumentType: !!documentType,
+      hasCategory: !!category,
+      limit: parseInt(limit)
+    });
     
     const snapshot = await query.get();
     const documents = [];
@@ -381,6 +437,279 @@ export const updateDocumentMetadata = async (req, res) => {
   } catch (error) {
     console.error('❌ Update document metadata error:', error);
     res.status(500).json({ error: 'Failed to update document metadata' });
+  }
+};
+
+/**
+ * Generate signed URL for direct upload to Cloud Storage
+ * POST /documents/upload-url
+ * 
+ * Input: { clientId, filename, contentType }
+ * Output: { uploadUrl, objectPath, expiresAt }
+ */
+export const generateUploadUrl = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { filename, contentType } = req.body;
+    
+    console.log('📤 Generate upload URL request:', {
+      clientId,
+      filename,
+      contentType,
+      user: req.user?.email
+    });
+    
+    // Validate input
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' });
+    }
+    
+    if (!contentType) {
+      return res.status(400).json({ error: 'Content-Type is required' });
+    }
+    
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+    
+    if (!allowedTypes.includes(contentType)) {
+      return res.status(400).json({ 
+        error: 'Invalid file type. Only PDF, JPEG, PNG, GIF, and WebP files are allowed.' 
+      });
+    }
+    
+    // Generate UUID-based object path
+    const objectPath = generateStoragePath(clientId, filename);
+    
+    // Get Firebase Storage bucket (same pattern as Statement PDF uploads)
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    console.log('📤 Storage bucket:', bucket.name);
+    
+    const file = bucket.file(objectPath);
+    console.log('📤 File reference created:', objectPath);
+    
+    // Generate v4 signed URL for PUT upload (15 minutes expiration)
+    const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
+    
+    console.log('📤 Attempting to generate signed URL:', {
+      objectPath,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      contentType,
+      bucket: bucket.name,
+      expiresTimestamp: expiresAtMs
+    });
+    
+    // Try to generate signed URL (same pattern as Statement PDFs, but for client upload)
+    // For Firebase Functions v2, we may need to use the firebase-adminsdk service account
+    let uploadUrl;
+    try {
+      const signUrlOptions = {
+        version: 'v4',
+        action: 'write',
+        expires: expiresAtMs,
+        contentType: contentType
+      };
+      
+      // In production, try to specify the service account that has Storage Admin permissions
+      // This helps when the default Compute Engine service account has permission issues
+      if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod' || process.env.NODE_ENV === 'production') {
+        // Use the firebase-adminsdk service account which has Storage Admin + Service Account Token Creator
+        signUrlOptions.virtualHostedStyle = false;
+        // Note: serviceAccountEmail is not a direct option, but we can try using the bucket's IAM
+        // For now, rely on the serviceAccount set in setGlobalOptions in functions/index.js
+      }
+      
+      [uploadUrl] = await file.getSignedUrl(signUrlOptions);
+      console.log('✅ Signed URL generated successfully');
+    } catch (urlError) {
+      console.error('❌ getSignedUrl failed:', {
+        message: urlError.message,
+        code: urlError.code,
+        name: urlError.name,
+        stack: urlError.stack,
+        project: process.env.GCLOUD_PROJECT,
+        nodeEnv: process.env.NODE_ENV
+      });
+      throw new Error(`Failed to generate signed URL: ${urlError.message}. This may require "Service Account Token Creator" role on the service account used by Firebase Functions.`);
+    }
+    
+    console.log('✅ Upload URL generated successfully:', {
+      objectPath,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      uploadUrlLength: uploadUrl?.length || 0
+    });
+    
+    res.status(200).json({
+      uploadUrl,
+      objectPath,
+      expiresAt: new Date(expiresAtMs).toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Generate upload URL error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name
+    });
+    res.status(500).json({ 
+      error: 'Failed to generate upload URL',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Finalize document upload after file is uploaded to Cloud Storage
+ * POST /documents/finalize
+ * 
+ * Input: { clientId, objectPath, originalFilename, documentType, category, linkedTo, notes, tags, ... }
+ * Output: { documentId, downloadUrl, ... }
+ */
+export const finalizeUpload = async (req, res) => {
+  console.log('📤 Finalize upload route HIT:', {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    params: req.params,
+    clientId: req.params?.clientId,
+    body: req.body
+  });
+  
+  try {
+    const { clientId } = req.params;
+    const { 
+      objectPath, 
+      originalFilename,
+      documentType = 'receipt',
+      category = 'expense_receipt',
+      linkedTo,
+      notes,
+      tags
+    } = req.body;
+    
+    console.log('📤 Finalize upload request:', {
+      clientId,
+      objectPath,
+      originalFilename,
+      user: req.user?.email
+    });
+    
+    // Validate input
+    if (!objectPath) {
+      return res.status(400).json({ error: 'objectPath is required' });
+    }
+    
+    if (!originalFilename) {
+      return res.status(400).json({ error: 'originalFilename is required' });
+    }
+    
+    // Verify file exists in Cloud Storage
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const file = bucket.file(objectPath);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ 
+        error: 'File not found in storage. Upload may have failed or object path is incorrect.' 
+      });
+    }
+    
+    // Get file metadata (size, contentType)
+    const [metadata] = await file.getMetadata();
+    const fileSize = parseInt(metadata.size || '0', 10);
+    const mimeType = metadata.contentType || 'application/octet-stream';
+    
+    // Validate file size (10MB limit)
+    if (fileSize > 10 * 1024 * 1024) {
+      // Delete oversized file
+      await file.delete();
+      return res.status(400).json({ 
+        error: 'File too large. Maximum size is 10MB.' 
+      });
+    }
+    
+    // Make file publicly readable (adjust based on security requirements)
+    await file.makePublic();
+    
+    // Generate download URL
+    const downloadURL = `https://storage.googleapis.com/${bucket.name}/${objectPath}`;
+    
+    // Generate document ID
+    const documentId = generateDocumentId();
+    
+    // Helper function to safely parse JSON strings
+    const safeJsonParse = (value, defaultValue = null) => {
+      if (value == null) return defaultValue;
+      if (typeof value !== 'string') return value;
+      const trimmed = value.trim();
+      if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+        return defaultValue;
+      }
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        console.warn('⚠️ Failed to parse JSON value:', { value, error: error.message });
+        return defaultValue;
+      }
+    };
+    
+    // Create document record in Firestore
+    const db = await getDb();
+    const documentData = {
+      id: documentId,
+      filename: `${documentId}${path.extname(originalFilename)}`,
+      originalName: originalFilename,
+      mimeType: mimeType,
+      fileSize: fileSize,
+      uploadedBy: req.user?.email || 'unknown',
+      uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+      clientId: clientId,
+      
+      // Document categorization
+      documentType: documentType,
+      category: category,
+      
+      // Linking to other records
+      linkedTo: safeJsonParse(linkedTo, null),
+      
+      // File storage references
+      storageRef: objectPath,
+      downloadURL: downloadURL,
+      
+      // Metadata
+      tags: safeJsonParse(tags, []),
+      notes: notes || '',
+      isArchived: false,
+      
+      // Security & audit
+      accessLevel: 'admin',
+      lastAccessed: admin.firestore.FieldValue.serverTimestamp(),
+      accessCount: 0
+    };
+    
+    await db.collection('clients').doc(clientId).collection('documents').doc(documentId).set(documentData);
+    
+    console.log(`✅ Document finalized successfully: ${documentId}`);
+    
+    res.status(201).json({
+      success: true,
+      documentId: documentId,
+      downloadURL: downloadURL,
+      document: documentData
+    });
+    
+  } catch (error) {
+    console.error('❌ Finalize upload error:', error);
+    res.status(500).json({ error: 'Failed to finalize document upload' });
   }
 };
 

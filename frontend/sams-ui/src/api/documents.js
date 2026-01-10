@@ -50,26 +50,64 @@ export async function uploadDocument(clientId, file, metadata = {}) {
   }
   
   const token = await user.getIdToken();
-  const formData = new FormData();
-  formData.append('file', file);
   
-  // Add metadata to form data
-  if (metadata.documentType) formData.append('documentType', metadata.documentType);
-  if (metadata.category) formData.append('category', metadata.category);
-  if (metadata.linkedTo) formData.append('linkedTo', JSON.stringify(metadata.linkedTo));
-  if (metadata.notes) formData.append('notes', metadata.notes);
-  if (metadata.tags) formData.append('tags', JSON.stringify(metadata.tags));
-  
-  const response = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/upload`, {
+  // Step 1: Request signed upload URL
+  const uploadUrlResponse = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/upload-url`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
-      // Note: Don't set Content-Type for FormData, let browser set it with boundary
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     },
-    body: formData
+    body: JSON.stringify({
+      filename: file.name,
+      contentType: file.type
+    })
   });
   
-  return handleResponse(response);
+  if (!uploadUrlResponse.ok) {
+    const errorText = await uploadUrlResponse.text().catch(() => 'Unable to read error response');
+    throw new Error(`Failed to get upload URL: ${errorText}`);
+  }
+  
+  const { uploadUrl, objectPath } = await handleResponse(uploadUrlResponse);
+  
+  // Step 2: Upload file directly to Cloud Storage
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type
+    },
+    body: file
+  });
+  
+  if (!uploadResponse.ok) {
+    throw new Error(`Failed to upload file to Cloud Storage: ${uploadResponse.status} ${uploadResponse.statusText}`);
+  }
+  
+  // Step 3: Finalize upload and save metadata to Firestore
+  const finalizeResponse = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/finalize`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      objectPath,
+      originalFilename: file.name,
+      documentType: metadata.documentType || 'receipt',
+      category: metadata.category || 'expense_receipt',
+      linkedTo: metadata.linkedTo || null,
+      notes: metadata.notes || '',
+      tags: metadata.tags || []
+    })
+  });
+  
+  if (!finalizeResponse.ok) {
+    const errorText = await finalizeResponse.text().catch(() => 'Unable to read error response');
+    throw new Error(`Failed to finalize upload: ${errorText}`);
+  }
+  
+  return handleResponse(finalizeResponse);
 }
 
 /**

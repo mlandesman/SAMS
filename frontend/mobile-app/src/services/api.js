@@ -184,12 +184,14 @@ export const clientAPI = {
    * Upload document
    */
   async uploadDocument(clientId, file, metadata = {}) {
-    console.log('📤 Starting document upload:', {
+    console.log('📤 Starting document upload (signed URL flow):', {
       clientId,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
-      metadata
+      metadata,
+      apiBaseUrl: API_BASE_URL,
+      environment: import.meta.env.MODE
     });
 
     const user = auth.currentUser;
@@ -202,35 +204,82 @@ export const clientAPI = {
       const token = await user.getIdToken();
       console.log('🔑 Got auth token for upload');
       
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Add metadata to form data
-      if (metadata.documentType) formData.append('documentType', metadata.documentType);
-      if (metadata.category) formData.append('category', metadata.category);
-      if (metadata.linkedTo) formData.append('linkedTo', JSON.stringify(metadata.linkedTo));
-      if (metadata.notes) formData.append('notes', metadata.notes);
-      if (metadata.tags) formData.append('tags', JSON.stringify(metadata.tags));
-      
-      console.log('📦 FormData prepared, making request to:', `${API_BASE_URL}/clients/${clientId}/documents/upload`);
-      
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/upload`, {
+      // Step 1: Request signed upload URL
+      console.log('📤 Step 1: Requesting signed upload URL...');
+      const uploadUrlResponse = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/upload-url`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-          // Note: Don't set Content-Type for FormData, let browser set it with boundary
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: formData
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type
+        })
       });
       
-      console.log('📬 Upload response status:', response.status, response.statusText);
+      if (!uploadUrlResponse.ok) {
+        const errorText = await uploadUrlResponse.text().catch(() => 'Unable to read error response');
+        throw new Error(`Failed to get upload URL: ${errorText}`);
+      }
       
-      const result = await handleResponse(response);
-      console.log('✅ Upload successful:', result);
+      const { uploadUrl, objectPath, expiresAt } = await handleResponse(uploadUrlResponse);
+      console.log('✅ Step 1 complete: Got signed upload URL', { objectPath, expiresAt });
+      
+      // Step 2: Upload file directly to Cloud Storage
+      console.log('📤 Step 2: Uploading file directly to Cloud Storage...');
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type
+        },
+        body: file
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file to Cloud Storage: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
+      console.log('✅ Step 2 complete: File uploaded to Cloud Storage');
+      
+      // Step 3: Finalize upload and save metadata to Firestore
+      console.log('📤 Step 3: Finalizing upload and saving metadata...');
+      const finalizeResponse = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/finalize`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          objectPath,
+          originalFilename: file.name,
+          documentType: metadata.documentType || 'receipt',
+          category: metadata.category || 'expense_receipt',
+          linkedTo: metadata.linkedTo || null,
+          notes: metadata.notes || '',
+          tags: metadata.tags || []
+        })
+      });
+      
+      if (!finalizeResponse.ok) {
+        const errorText = await finalizeResponse.text().catch(() => 'Unable to read error response');
+        console.error('❌ Finalize failed:', errorText);
+        throw new Error(`Failed to finalize upload: ${errorText}`);
+      }
+      
+      const result = await handleResponse(finalizeResponse);
+      console.log('✅ Step 3 complete: Upload finalized successfully', result);
       return result;
       
     } catch (error) {
       console.error('❌ Upload error:', error);
+      
+      // Enhance error message for network/CORS issues
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.');
+      } else if (error.message.includes('CORS')) {
+        throw error; // Already has good message
+      }
+      
       throw error;
     }
   },

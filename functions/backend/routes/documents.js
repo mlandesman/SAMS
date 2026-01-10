@@ -6,7 +6,9 @@ import {
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
 import {
-  uploadDocument,
+  uploadDocument, // Legacy endpoint - kept for backward compatibility
+  generateUploadUrl, // New: Signed URL generation
+  finalizeUpload, // New: Finalize upload after direct GCS upload
   getDocuments,
   getDocument,
   deleteDocument,
@@ -20,11 +22,27 @@ const router = express.Router({ mergeParams: true }); // mergeParams to access c
 router.use(authenticateUserWithProfile);
 router.use(enforceClientAccess);
 
-// Document management routes with proper security
+// NEW: Signed URL-based upload flow (recommended approach - works in Dev and Prod)
+// Step 1: Generate signed upload URL
+router.post('/upload-url',
+  requirePermission('documents.upload'),
+  logSecurityEvent('DOCUMENT_UPLOAD_URL_REQUEST'),
+  generateUploadUrl
+);
+
+// Step 2: Finalize upload after client uploads directly to GCS
+router.post('/finalize',
+  requirePermission('documents.upload'),
+  logSecurityEvent('DOCUMENT_UPLOAD_FINALIZE'),
+  finalizeUpload
+);
+
+// LEGACY: Multipart upload endpoint (kept for backward compatibility, but broken in Prod)
+// TODO: Remove this once client is updated to use signed URL flow
 router.post('/upload', 
   requirePermission('documents.upload'),
   logSecurityEvent('DOCUMENT_UPLOAD'),
-  upload.single('file'), 
+  upload.single('file'),
   uploadDocument
 );
 
