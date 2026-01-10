@@ -33,6 +33,8 @@ if (!admin.apps.length) {
 setGlobalOptions({
   region: 'us-central1',
   maxInstances: 10,
+  // Use Firebase Admin SDK service account for Storage operations (has Storage Admin + Service Account Token Creator)
+  serviceAccount: 'firebase-adminsdk-fbsvc@sams-sandyland-prod.iam.gserviceaccount.com',
 });
 
 // ============================================================================

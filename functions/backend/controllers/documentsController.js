@@ -507,23 +507,37 @@ export const generateUploadUrl = async (req, res) => {
     });
     
     // Try to generate signed URL (same pattern as Statement PDFs, but for client upload)
+    // For Firebase Functions v2, we may need to use the firebase-adminsdk service account
     let uploadUrl;
     try {
-      [uploadUrl] = await file.getSignedUrl({
+      const signUrlOptions = {
         version: 'v4',
         action: 'write',
         expires: expiresAtMs,
         contentType: contentType
-      });
+      };
+      
+      // In production, try to specify the service account that has Storage Admin permissions
+      // This helps when the default Compute Engine service account has permission issues
+      if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod' || process.env.NODE_ENV === 'production') {
+        // Use the firebase-adminsdk service account which has Storage Admin + Service Account Token Creator
+        signUrlOptions.virtualHostedStyle = false;
+        // Note: serviceAccountEmail is not a direct option, but we can try using the bucket's IAM
+        // For now, rely on the serviceAccount set in setGlobalOptions in functions/index.js
+      }
+      
+      [uploadUrl] = await file.getSignedUrl(signUrlOptions);
       console.log('✅ Signed URL generated successfully');
     } catch (urlError) {
       console.error('❌ getSignedUrl failed:', {
         message: urlError.message,
         code: urlError.code,
         name: urlError.name,
-        stack: urlError.stack
+        stack: urlError.stack,
+        project: process.env.GCLOUD_PROJECT,
+        nodeEnv: process.env.NODE_ENV
       });
-      throw new Error(`Failed to generate signed URL: ${urlError.message}. This may require "Service Account Token Creator" role.`);
+      throw new Error(`Failed to generate signed URL: ${urlError.message}. This may require "Service Account Token Creator" role on the service account used by Firebase Functions.`);
     }
     
     console.log('✅ Upload URL generated successfully:', {
