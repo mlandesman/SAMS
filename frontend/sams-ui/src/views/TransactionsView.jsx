@@ -1485,7 +1485,8 @@ function TransactionsView() {
               return Math.abs((amountField || 0) / 100);
             };
             
-            return {
+            const initialDataObj = {
+              transactionId: selectedTransaction.id, // Include transaction ID for fetching documents
               date: extractDate(selectedTransaction.date),
               amount: extractAmount(selectedTransaction.amount),
               vendorId: selectedTransaction.vendorId || '',  // Use ID field
@@ -1495,6 +1496,14 @@ function TransactionsView() {
               unitId: selectedTransaction.unitId || '',  // Use ID field
               notes: selectedTransaction.notes || ''
             };
+            
+            // Include allocations if this is a split transaction
+            if (selectedTransaction.allocations && Array.isArray(selectedTransaction.allocations) && selectedTransaction.allocations.length > 0) {
+              initialDataObj.allocations = selectedTransaction.allocations;
+              console.log('🔄 Including allocations in initialData for split transaction edit:', selectedTransaction.allocations.length, 'allocations');
+            }
+            
+            return initialDataObj;
           })() : null}
           onClose={() => {
             console.log('UnifiedExpenseEntry onClose in TransactionsView');
