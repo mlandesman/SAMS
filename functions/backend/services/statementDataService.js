@@ -994,9 +994,6 @@ function createChronologicalTransactionList(
     }
   }
   
-  // Extract water payments from transactions
-  // ... (existing water loop) ...
-  
   // Extract remaining "Orphaned" or General payments
   // This catches payments found in Step 6.5 that weren't processed as HOA or Water
   // EXCLUDE project/special assessment payments - they appear ONLY in Special Projects section
@@ -1183,19 +1180,59 @@ async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth
 }
 
 /**
+ * Determine the correct creditBalances document name for a fiscal year.
+ * For current/recent fiscal years: 'creditBalances'
+ * For past fiscal years: 'creditBalances_YYYY'
+ * 
+ * @param {number} fiscalYear - The fiscal year to get document for
+ * @param {number} fiscalYearStartMonth - Month fiscal year starts (1-12)
+ * @returns {string} Document name (e.g., 'creditBalances' or 'creditBalances_2025')
+ */
+function getCreditBalancesDocName(fiscalYear, fiscalYearStartMonth = 7) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-indexed
+  
+  // Determine current fiscal year based on start month
+  let currentFiscalYear;
+  if (fiscalYearStartMonth === 1) {
+    // Calendar year fiscal (like MTC)
+    currentFiscalYear = currentYear;
+  } else {
+    // Mid-year fiscal (like AVII with July start)
+    currentFiscalYear = currentMonth >= fiscalYearStartMonth ? currentYear + 1 : currentYear;
+  }
+  
+  // If requested fiscal year is before current fiscal year, use archived document
+  if (fiscalYear < currentFiscalYear) {
+    return `creditBalances_${fiscalYear}`;
+  }
+  
+  // Current or future fiscal year uses the main document
+  return 'creditBalances';
+}
+
+/**
  * Get credit balance at a specific date from credit history
  * Uses the new architecture: calculates balance by summing history entries up to asOfDate
  * @param {Firestore} db - Firestore instance
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID  
  * @param {Date} asOfDate - Date to get balance as of
+ * @param {number} fiscalYear - Fiscal year for document lookup (optional)
+ * @param {number} fiscalYearStartMonth - Month fiscal year starts (optional, default 7)
  * @returns {Promise<number>} Balance in pesos (negative = credit)
  */
-async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate) {
+async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate, fiscalYear = null, fiscalYearStartMonth = 7) {
   try {
+    // Determine correct creditBalances document
+    const docName = fiscalYear 
+      ? getCreditBalancesDocName(fiscalYear, fiscalYearStartMonth)
+      : 'creditBalances';
+    
     // Fetch creditBalances document
     const creditBalancesRef = db.collection('clients').doc(clientId)
-      .collection('units').doc('creditBalances');
+      .collection('units').doc(docName);
     const creditBalancesDoc = await creditBalancesRef.get();
     
     if (!creditBalancesDoc.exists) {
@@ -1861,7 +1898,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     
     // Step 7.9: Get opening balance from credit history at fiscal year start
     const db = await getDb();
-    const openingBalance = await getCreditBalanceAsOf(db, clientId, unitId, fiscalYearBounds.startDate);
+    const openingBalance = await getCreditBalanceAsOf(db, clientId, unitId, fiscalYearBounds.startDate, currentFiscalYear, fiscalYearStartMonth);
     
     // Step 7.10: Fetch credit history entries for manual credit adjustments
     // These are credit changes not associated with money transactions
@@ -1869,8 +1906,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     let unitCreditData = null;
     let hasCreditStartingBalance = false;
     try {
+      // Use correct creditBalances document based on fiscal year
+      const creditDocName = getCreditBalancesDocName(currentFiscalYear, fiscalYearStartMonth);
       const creditBalancesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc('creditBalances');
+        .collection('units').doc(creditDocName);
       const creditBalancesDoc = await creditBalancesRef.get();
       
       if (creditBalancesDoc.exists) {
@@ -1938,48 +1977,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // ONLY include credit_used entries in the running balance
-            // credit_added (overpayments) are ALREADY captured in the payment amounts
-            // When owner pays $5,000 for $4,400 dues, balance goes negative by $600 - that IS the credit
-            // We don't need a separate line for credit_added - it would double-count
-            //
-            // credit_used entries need to appear as CHARGES to undo the credit portion
-            // when it's applied to pay bills
-            
-            // Skip credit_added entries - they're already in the payment amounts
-            if (entry.type !== 'credit_used') {
-              continue;
-            }
-            
-            // credit_used: amount is negative in history (e.g., -380000 centavos = -$3,800)
-            // We need this to appear as a CHARGE (positive) to increase the balance
-            // This undoes the credit that was previously accumulated from overpayments
-            const entryAmountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
-            const entryAmountPesos = centavosToPesos(entryAmountCentavos);
-            const chargeAmount = Math.abs(entryAmountPesos); // Make positive for charge
-            
-            // Build description - use notes field, fallback to type
-            let description = entry.notes || entry.note || entry.description || 'Credit Applied';
-            
-            creditAdjustments.push({
-              type: 'credit_adjustment',
-              category: 'credit',
-              date: entryDate,
-              description: description,
-              amount: chargeAmount, // Positive = increases balance
-              charge: chargeAmount, // Shows in charge column
-              payment: 0, // Not a payment
-              balance: 0, // Will be set later when calculating running balance
-              transactionId: entry.transactionId || null,
-              creditAdjustmentRef: {
-                id: entry.id,
-                type: entry.type,
-                amount: entry.amount,
-                note: entry.note,
-                description: entry.description,
-                source: entry.source
-              }
-            });
+            // Credit is handled IMPLICITLY through the running balance.
+            // When opening balance is negative (credit) and charges come in,
+            // the credit is consumed naturally as the balance moves from negative to positive.
+            // No separate "Credit Applied" line items are needed.
           }
         }
       }
@@ -1992,8 +1993,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // This section shows ALL credit activity: deposits and applied amounts
     const creditActivityEntries = [];
     try {
+      // Use correct creditBalances document based on fiscal year
+      const creditActivityDocName = getCreditBalancesDocName(currentFiscalYear, fiscalYearStartMonth);
       const creditBalancesRef = db.collection('clients').doc(clientId)
-        .collection('units').doc('creditBalances');
+        .collection('units').doc(creditActivityDocName);
       const creditBalancesDoc = await creditBalancesRef.get();
       
       if (creditBalancesDoc.exists) {
@@ -2176,31 +2179,18 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const totalPaid = duesData.totalPaid || 0;
     
     // Determine final balance from the last visible transaction
-    let finalBalance = chronologicalTransactions.length > 0 
+    // Issue #142 FIX: The running balance IS the source of truth for the statement.
+    // Credit is consumed IMPLICITLY as charges push negative balances positive.
+    // No separate "Credit Applied" lines needed - just like a bank statement.
+    const finalBalance = chronologicalTransactions.length > 0 
       ? chronologicalTransactions[chronologicalTransactions.length - 1].balance 
       : openingBalance;
     
-    // Tick and Tie: If final balance is negative (credit), it should match the credit balance
-    // The credit balance is the source of truth for credit amounts
+    // Log reconciliation info for debugging (warning only, no override)
     const currentCreditBalance = creditBalanceData.creditBalance || 0;
-    const expectedFinalBalance = -currentCreditBalance; // Negate because credit reduces debt
-    
-    // Reconcile: If final balance is negative (indicating credit), use credit balance as source of truth
-    // This ensures the statement "ticks and ties" correctly
-    // Exception: If there's both credit AND positive balance due (not enough credit to cover all charges),
-    // we use the calculated balance (which will be positive or less negative than credit balance)
-    if (finalBalance < 0 && finalBalance <= expectedFinalBalance) {
-      // Final balance is negative and matches or is more negative than credit balance
-      // This means we have credit, and it should match the credit balance exactly
-      // Use credit balance as source of truth to ensure reconciliation
-      finalBalance = expectedFinalBalance;
-    } else if (finalBalance < 0 && Math.abs(finalBalance - expectedFinalBalance) > 0.01) {
-      // There's a discrepancy - log warning
-      // This can happen if there are unbilled items or timing differences
-      console.warn(`Balance reconciliation check for ${clientId}/${unitId}: ` +
-        `Final balance (${finalBalance.toFixed(2)}) doesn't match credit balance (${expectedFinalBalance.toFixed(2)}). ` +
-        `Difference: ${Math.abs(finalBalance - expectedFinalBalance).toFixed(2)}. ` +
-        `This may be due to unbilled items or timing differences.`);
+    if (process.env.DEBUG_STATEMENT === 'true' && Math.abs(finalBalance) > 0.01) {
+      console.log(`[Statement Reconciliation] ${clientId}/${unitId}: ` +
+        `Running Balance=${finalBalance.toFixed(2)}, Current Credit=${currentCreditBalance.toFixed(2)}`);
     }
 
     // If filtering future bills, totalOutstanding should reflect current reality (finalBalance)
@@ -2897,18 +2887,16 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     },
     summary: (() => {
       const closingBalance = roundTo2Decimals(rawData.summary.finalBalance);
-      // Use credit balance from API response (already calculated by getter in creditService)
-      // rawData.creditBalance.creditBalance is in dollars (already converted by API)
-      const creditBalance = roundTo2Decimals(rawData.creditBalance?.creditBalance || 0);
-      const netAmountDue = roundTo2Decimals(Math.max(0, closingBalance - creditBalance));
+      // The closing balance IS the final answer (like a bank statement)
+      // Positive = amount owed, Negative = credit balance (no payment needed)
+      // Credit is consumed IMPLICITLY through the running balance - no separate subtraction
       return {
         totalDue: roundTo2Decimals(rawData.summary.totalDue),
         totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
         totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
         openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
-        closingBalance: closingBalance,
-        creditBalance: creditBalance,
-        netAmountDue: netAmountDue
+        closingBalance: closingBalance
+        // Removed: creditBalance and netAmountDue (no longer needed - closing balance is the answer)
       };
     })(),
     lineItems: lineItems,

@@ -228,7 +228,7 @@ function getTranslations(language) {
       creditApplied: 'Applied to Dues',
       creditAppliedPlural: 'Applied',
       netAmountDue: 'NET AMOUNT DUE',
-      paidInFull: 'PAID IN FULL',
+      paidInFull: 'NO PAYMENT NEEDED',
       statementId: 'Statement ID',
       generatedOn: 'Generated',
       pageOf: 'Page',
@@ -290,7 +290,7 @@ function getTranslations(language) {
       creditApplied: 'Aplicado a Cuotas',
       creditAppliedPlural: 'Aplicado',
       netAmountDue: 'IMPORTE NETO ADEUDADO',
-      paidInFull: 'PAGADO COMPLETO',
+      paidInFull: 'NO SE REQUIERE PAGO',
       statementId: 'ID del Estado de Cuenta',
       generatedOn: 'Generado',
       pageOf: 'Página',
@@ -1771,22 +1771,14 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
     </div>
     
     <!-- Balance Due/Credit Summary (immediately after activity table) -->
+    <!-- The closing balance IS the final answer (like a bank statement) -->
+    <!-- No "Less: Credit on Account" needed - credit is already reflected in running balance -->
     <div class="balance-due-box">
       <table>
         <tr>
-          <td>${actualClosingBalance >= 0 ? t.balanceDue : t.creditBalance}</td>
+          <td>${actualClosingBalance > 0 ? t.balanceDue : t.creditBalance}</td>
           <td>${formatCurrency(Math.abs(actualClosingBalance))}</td>
         </tr>
-        ${actualClosingBalance > 0 && accountCreditBalance > 0 ? `
-        <tr>
-          <td>${t.lessCredit}</td>
-          <td>(${formatCurrency(accountCreditBalance)})</td>
-        </tr>
-        <tr style="border-top: 1px solid #333; font-weight: bold;">
-          <td>${t.netAmountDue}</td>
-          <td>${formatCurrency(Math.max(0, actualClosingBalance - accountCreditBalance))}</td>
-        </tr>
-        ` : ''}
         ${actualClosingBalance <= 0 ? `
         <tr>
           <td colspan="2" style="text-align: center;">${t.paidInFull}</td>
