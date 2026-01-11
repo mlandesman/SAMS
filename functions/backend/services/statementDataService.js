@@ -1896,15 +1896,14 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       }
     }
     
-    // Step 7.9: Get opening balance from credit history at fiscal year start
+    // Step 7.9: Fetch credit history and get opening balance from history[0]
+    // For SoA (full fiscal year), history[0] is always the starting_balance for that year
     const db = await getDb();
-    const openingBalance = await getCreditBalanceAsOf(db, clientId, unitId, fiscalYearBounds.startDate, currentFiscalYear, fiscalYearStartMonth);
-    
-    // Step 7.10: Fetch credit history entries for manual credit adjustments
-    // These are credit changes not associated with money transactions
     const creditAdjustments = [];
     let unitCreditData = null;
     let hasCreditStartingBalance = false;
+    let openingBalance = 0;
+    
     try {
       // Use correct creditBalances document based on fiscal year
       const creditDocName = getCreditBalancesDocName(currentFiscalYear, fiscalYearStartMonth);
@@ -1915,7 +1914,16 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       if (creditBalancesDoc.exists) {
         const creditBalancesData = creditBalancesDoc.data();
         unitCreditData = creditBalancesData[unitId];
-        hasCreditStartingBalance = !!(unitCreditData?.history && Array.isArray(unitCreditData.history) && unitCreditData.history.some(e => e.type === 'starting_balance'));
+        
+        // Get opening balance directly from history[0] if it's a starting_balance
+        if (unitCreditData?.history && Array.isArray(unitCreditData.history) && unitCreditData.history.length > 0) {
+          const firstEntry = unitCreditData.history[0];
+          if (firstEntry.type === 'starting_balance' && typeof firstEntry.amount === 'number') {
+            // Amount is in centavos, convert to pesos (negative = credit on account)
+            openingBalance = -(firstEntry.amount / 100);
+          }
+          hasCreditStartingBalance = firstEntry.type === 'starting_balance';
+        }
         
         if (unitCreditData && unitCreditData.history && Array.isArray(unitCreditData.history)) {
           const fyStartTimestamp = fiscalYearBounds.startDate.getTime() / 1000;
