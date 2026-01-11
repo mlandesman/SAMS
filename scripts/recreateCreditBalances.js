@@ -203,6 +203,46 @@ async function getClientUnits(clientId) {
 }
 
 /**
+ * Get the existing starting balance from the current creditBalances document
+ * Trust history[0] as source of truth - it may have been manually adjusted
+ */
+async function getExistingStartingBalance(clientId, unitId, fiscalYear) {
+  const docName = getCreditBalancesDocName(fiscalYear, clientId);
+  
+  try {
+    const ref = db.collection('clients').doc(clientId).collection('units').doc(docName);
+    const doc = await ref.get();
+    
+    if (!doc.exists) {
+      console.log(`      No ${docName} doc - using 0`);
+      return { balance: 0, entry: null };
+    }
+    
+    const data = doc.data();
+    const unitData = data[unitId];
+    
+    if (!unitData?.history || !Array.isArray(unitData.history) || unitData.history.length === 0) {
+      console.log(`      No history for ${unitId} - using 0`);
+      return { balance: 0, entry: null };
+    }
+    
+    const firstEntry = unitData.history[0];
+    if (firstEntry.type === 'starting_balance' && typeof firstEntry.amount === 'number') {
+      // Amount is in centavos, convert to pesos (negative = credit on account)
+      const balancePesos = -(firstEntry.amount / 100);
+      console.log(`      Existing starting balance: $${balancePesos.toFixed(2)} (trusted)`);
+      return { balance: balancePesos, entry: firstEntry };
+    }
+    
+    console.log(`      No starting_balance entry - using 0`);
+    return { balance: 0, entry: null };
+  } catch (error) {
+    console.warn(`      Error reading existing balance: ${error.message}`);
+    return { balance: 0, entry: null };
+  }
+}
+
+/**
  * Process a single unit
  */
 async function processUnit(api, clientId, unitId, fiscalYear, currentCreditBalances) {
@@ -228,12 +268,28 @@ async function processUnit(api, clientId, unitId, fiscalYear, currentCreditBalan
     // Get fiscal year start date
     const fiscalYearStart = new Date(data.statementInfo?.fiscalYearBounds?.startDate || `${fiscalYear - 1}-07-01`);
     
-    // Calculate new credit history from running balance
+    // TRUST the existing starting_balance from history[0]
+    // It may have been manually adjusted for valid business reasons
+    const { balance: openingBalance, entry: existingStartEntry } = await getExistingStartingBalance(clientId, unitId, fiscalYear);
+    
+    // Calculate new credit history from running balance (credit_used/credit_added only)
     const computed = calculateCreditHistoryFromRunningBalance(
       data.lineItems,
-      data.summary?.openingBalance || 0,
+      openingBalance,
       fiscalYearStart
     );
+    
+    // If there was an existing starting_balance entry, preserve it exactly
+    // Otherwise use the computed one (if any)
+    if (existingStartEntry) {
+      // Replace computed starting_balance with the original one
+      const hasComputedStart = computed.entries.length > 0 && computed.entries[0].type === 'starting_balance';
+      if (hasComputedStart) {
+        computed.entries[0] = existingStartEntry; // Preserve original
+      } else if (openingBalance !== 0) {
+        computed.entries.unshift(existingStartEntry); // Add original at start
+      }
+    }
     
     result.entries = computed.entries;
     result.newEntryCount = computed.entries.length;

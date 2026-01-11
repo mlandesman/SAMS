@@ -313,6 +313,49 @@ function getTranslations(language) {
  * @param {Array} entries - Array of credit activity entries
  * @returns {Array} Collapsed entries
  */
+/**
+ * Helper to get quarter from a date
+ */
+function getQuarterFromDate(date) {
+  let dt;
+  if (date instanceof Date) {
+    dt = DateTime.fromJSDate(date).setZone('America/Cancun');
+  } else if (typeof date === 'string') {
+    dt = DateTime.fromISO(date, { zone: 'America/Cancun' });
+    if (!dt.isValid) {
+      dt = DateTime.fromSQL(date, { zone: 'America/Cancun' });
+    }
+  }
+  if (!dt || !dt.isValid) return null;
+  
+  const month = dt.month;
+  const year = dt.year;
+  const quarter = Math.ceil(month / 3);
+  return { quarter, year, month, dt };
+}
+
+/**
+ * Extract category from notes (HOA, Water, etc.)
+ */
+function getCategoryFromNotes(notes) {
+  if (!notes) return 'other';
+  const lowerNotes = notes.toLowerCase();
+  if (lowerNotes.includes('hoa') || lowerNotes.includes('dues') || lowerNotes.includes('maintenance')) {
+    return 'hoa';
+  }
+  if (lowerNotes.includes('water')) {
+    return 'water';
+  }
+  if (lowerNotes.includes('penalty') || lowerNotes.includes('interest')) {
+    return 'penalty';
+  }
+  return 'other';
+}
+
+/**
+ * Collapse credit entries for display by grouping quarterly entries of the same type/category
+ * This keeps the report concise while preserving granular data for CSV export
+ */
 function collapseCreditEntries(entries) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return [];
@@ -321,57 +364,93 @@ function collapseCreditEntries(entries) {
   const grouped = {};
   
   entries.forEach(entry => {
-    // Create date key in YYYY-MM-DD format for grouping
-    let dateKey;
-    if (entry.date instanceof Date) {
-      // Use Luxon to format in Cancun timezone, then extract date part
-      const dt = DateTime.fromJSDate(entry.date).setZone('America/Cancun');
-      dateKey = dt.toFormat('yyyy-MM-dd');
-    } else if (typeof entry.date === 'string') {
-      // Parse string date and format
-      const dt = DateTime.fromISO(entry.date, { zone: 'America/Cancun' });
-      if (!dt.isValid) {
-        const dt2 = DateTime.fromSQL(entry.date, { zone: 'America/Cancun' });
-        dateKey = dt2.isValid ? dt2.toFormat('yyyy-MM-dd') : entry.date.split('T')[0];
-      } else {
-        dateKey = dt.toFormat('yyyy-MM-dd');
-      }
-    } else {
-      // Fallback: use entry date as-is if it's already a string
-      dateKey = entry.date || '';
+    const quarterInfo = getQuarterFromDate(entry.date);
+    if (!quarterInfo) {
+      // Can't parse date - keep as standalone
+      const key = `standalone_${Date.now()}_${Math.random()}`;
+      grouped[key] = { ...entry, count: 1, originalEntries: [entry] };
+      return;
     }
     
-    // Infer type from amount if type is missing or undefined
+    // Infer type from amount if type is missing
     const amount = entry.amount || 0;
     const entryType = entry.type && entry.type !== 'undefined' 
       ? entry.type 
       : (amount >= 0 ? 'credit_added' : 'credit_used');
-    const typeKey = entryType || 'unknown';
-    const groupKey = `${dateKey}_${typeKey}`;
+    
+    // Get category from notes
+    const category = getCategoryFromNotes(entry.notes);
+    
+    // For starting_balance, don't group - keep as standalone
+    if (entryType === 'starting_balance') {
+      const key = `starting_${quarterInfo.year}_${quarterInfo.month}`;
+      grouped[key] = { ...entry, count: 1, originalEntries: [entry] };
+      return;
+    }
+    
+    // Group by: year + quarter + type + category
+    const groupKey = `${quarterInfo.year}_Q${quarterInfo.quarter}_${entryType}_${category}`;
     
     if (!grouped[groupKey]) {
       grouped[groupKey] = {
         ...entry,
         count: 1,
-        originalEntries: [entry]
+        originalEntries: [entry],
+        quarterInfo,
+        category,
+        entryType
       };
     } else {
       // Combine amounts
       grouped[groupKey].amount += entry.amount;
       grouped[groupKey].count++;
       grouped[groupKey].originalEntries.push(entry);
+      // Update date range - use earliest date
+      const existingQuarter = grouped[groupKey].quarterInfo;
+      if (quarterInfo.dt < existingQuarter.dt) {
+        grouped[groupKey].date = entry.date;
+        grouped[groupKey].quarterInfo = quarterInfo;
+      }
     }
   });
   
-  // Convert grouped object to array and format notes
-  return Object.values(grouped).map(groupedEntry => {
+  // Convert grouped object to array and format notes for combined entries
+  const result = Object.values(grouped).map(groupedEntry => {
     if (groupedEntry.count > 1) {
-      // Multiple entries - use first note or "Combined: N entries"
-      groupedEntry.notes = groupedEntry.originalEntries[0]?.notes || 
-        `Combined: ${groupedEntry.count} entries`;
+      // Multiple entries - create summary note
+      const months = groupedEntry.originalEntries.map(e => {
+        const q = getQuarterFromDate(e.date);
+        return q ? q.dt.toFormat('MMM') : '';
+      }).filter(Boolean);
+      
+      const uniqueMonths = [...new Set(months)];
+      const monthRange = uniqueMonths.length > 2 
+        ? `${uniqueMonths[0]}-${uniqueMonths[uniqueMonths.length - 1]}`
+        : uniqueMonths.join(', ');
+      
+      const categoryLabel = {
+        'hoa': 'HOA Dues',
+        'water': 'Water Bills',
+        'penalty': 'Penalties',
+        'other': 'Items'
+      }[groupedEntry.category] || 'Items';
+      
+      const actionLabel = groupedEntry.entryType === 'credit_used' ? 'Used for' : 'Added from';
+      const year = groupedEntry.quarterInfo?.year || '';
+      
+      groupedEntry.notes = `${actionLabel} ${categoryLabel} (${monthRange} ${year}) - ${groupedEntry.count} entries`;
     }
     return groupedEntry;
   });
+  
+  // Sort by date
+  result.sort((a, b) => {
+    const dateA = a.quarterInfo?.dt || DateTime.fromISO('1970-01-01');
+    const dateB = b.quarterInfo?.dt || DateTime.fromISO('1970-01-01');
+    return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
+  });
+  
+  return result;
 }
 
 /**
