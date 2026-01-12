@@ -155,7 +155,7 @@ class CreditService {
         parentPath: `clients/${clientId}/units`,
         docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance`,
-        notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${source} | Transaction: ${transactionId}`
+        notes: `${notes} | Amount: ${formatCurrency(amount, 'MXN', true)} | New Balance: ${formatCurrency(newBalance, 'MXN', true)} | Source: ${source} | Transaction: ${transactionId}`
       });
       
       return {
