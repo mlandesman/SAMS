@@ -653,17 +653,12 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     }
     
     // If we have both htmlEn and htmlEs, just switch the preview (no regeneration needed)
+    // NOTE: Do NOT call setStatementData here - it would cause an infinite loop
+    // since statementData is in the dependency array
     if (statementData?.htmlEn && statementData?.htmlEs) {
       const selectedHtml = language === 'spanish' ? statementData.htmlEs : statementData.htmlEn;
-      const selectedMeta = language === 'spanish' ? statementData.metaEs : statementData.metaEn;
       
       setHtmlPreview(selectedHtml);
-      // Update the backward-compatible html and meta fields
-      setStatementData({
-        ...statementData,
-        html: selectedHtml,
-        meta: selectedMeta
-      });
       console.log(`🔄 Language switched to ${language} - using pre-generated HTML (${selectedHtml.length} chars)`);
       return;
     }
