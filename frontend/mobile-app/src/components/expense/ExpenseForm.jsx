@@ -370,7 +370,7 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
             notes: 'Main expense'
           },
           {
-            categoryName: 'Bank: Commission Charges',
+            categoryName: 'Bank: Transfer Fees',
             amount: -Math.abs(commissionAmount),
             notes: 'Bank transfer fee'
           },

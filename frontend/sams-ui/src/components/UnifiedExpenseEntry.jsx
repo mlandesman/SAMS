@@ -266,7 +266,7 @@ const UnifiedExpenseEntry = ({
               notes: 'Main expense'
             },
             {
-              categoryName: 'Bank: Commission Charges',
+              categoryName: 'Bank: Transfer Fees',
               amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer fee'
             },
@@ -345,7 +345,7 @@ const UnifiedExpenseEntry = ({
               notes: 'Main expense'
             },
             {
-              categoryName: 'Bank: Commission Charges',
+              categoryName: 'Bank: Transfer Fees',
               amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
               notes: 'Bank transfer fee'
             },
