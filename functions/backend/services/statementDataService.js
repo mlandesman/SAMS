@@ -2041,10 +2041,33 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               continue; // Already handled as opening balance
             }
             
-            // Credit is handled IMPLICITLY through the running balance.
-            // When opening balance is negative (credit) and charges come in,
-            // the credit is consumed naturally as the balance moves from negative to positive.
-            // No separate "Credit Applied" line items are needed.
+            // Only show standalone adjustments with explicit admin/correction sources
+            // Skip: unifiedPayment (payment-linked), running_balance_computation (synthetic), 
+            //       year_end_rollover (FY transition), and any other system-generated sources
+            const standalonesSources = ['admin', 'correction'];
+            if (!standalonesSources.includes(entry.source)) {
+              continue; // Not a standalone adjustment, skip
+            }
+            
+            // Create line item for standalone credit adjustment
+            const amountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
+            const amountPesos = amountCentavos / 100;
+            
+            creditAdjustments.push({
+              type: 'credit_adjustment',
+              date: entryDate,
+              description: entry.notes || 'Credit Adjustment',
+              // Negative amount = reduces balance due (credit to the account)
+              amount: -amountPesos,
+              payment: amountCentavos > 0 ? amountPesos : 0,
+              charge: amountCentavos < 0 ? Math.abs(amountPesos) : 0,
+              category: entry.category || 'credit',
+              source: entry.source,
+              isStandaloneCredit: true,
+              creditEntryId: entry.id || null
+            });
+            
+            console.log(`   💳 [STATEMENT] Added standalone credit adjustment: ${entry.notes}, amount: ${amountPesos}, source: ${entry.source}`);
           }
         }
       }
@@ -2178,13 +2201,12 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     cutoffDate.setHours(23, 59, 59, 999);
     const HOA_BUFFER_DAYS = 15;
     
-    // For visible list: exclude credit adjustments (already captured in payment amounts) and pre-FY payments
+    // For visible list: exclude payment-linked credit adjustments (already captured in payment amounts) and pre-FY payments
+    // BUT keep standalone credit adjustments (billing corrections, admin credits, etc.)
     let visibleTransactions = allTransactions.filter(txn => {
-      // EXCLUDE credit_adjustments from visible list
-      // credit_added: already captured in payment amounts (overpayments make balance negative)
-      // credit_used: already captured in payment amounts (payment includes credit applied)
-      // The Credit Balance Activity section shows credit history separately for reference
-      if (txn.type === 'credit_adjustment') return false;
+      // Filter out payment-linked credit adjustments (already in payment transaction)
+      // Keep standalone adjustments (isStandaloneCredit: true) - these are the only record of that financial event
+      if (txn.type === 'credit_adjustment' && !txn.isStandaloneCredit) return false;
       
       // For payments: exclude if dated before fiscal year start (already in opening balance)
       if (txn.type === 'payment' || txn.payment > 0) {
@@ -2666,7 +2688,12 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       categoryBreakdown: txn.categoryBreakdown || {},
       billRef: txn.billRef || null,
       chargeRef: txn.chargeRef || null,
-      penaltyRef: txn.penaltyRef || null
+      penaltyRef: txn.penaltyRef || null,
+      
+      // Credit adjustment specific fields
+      source: txn.source || null,
+      isStandaloneCredit: txn.isStandaloneCredit || false,
+      creditEntryId: txn.creditEntryId || null
     };
   });
   
