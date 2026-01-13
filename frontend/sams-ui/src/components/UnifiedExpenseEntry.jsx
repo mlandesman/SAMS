@@ -128,6 +128,36 @@ const UnifiedExpenseEntry = ({
     return Object.keys(errors).length === 0;
   };
 
+  // Handle vendor change - auto-populate category if vendor has default (Issue #135)
+  const handleVendorChange = (vendorId) => {
+    setFormData(prev => ({ ...prev, vendorId }));
+    
+    // Clear vendor field error
+    if (fieldErrors.vendorId) {
+      setFieldErrors(prev => ({ ...prev, vendorId: null }));
+    }
+    
+    // Find the selected vendor
+    const selectedVendor = clientData.vendors.find(v => v.id === vendorId);
+    
+    if (selectedVendor?.category) {
+      // Find the category ID matching vendor's default category
+      const matchingCategory = clientData.categories.find(
+        c => c.name.toLowerCase() === selectedVendor.category.toLowerCase() ||
+             c.id === selectedVendor.category
+      );
+      
+      if (matchingCategory) {
+        console.log('🏷️ Auto-populating category from vendor:', matchingCategory.name);
+        setFormData(prev => ({ 
+          ...prev, 
+          vendorId,
+          categoryId: matchingCategory.id 
+        }));
+      }
+    }
+  };
+
   // Check if Split button should be enabled (exclude category requirement for splits)
   const isSplitButtonEnabled = () => {
     return formData.date && 
@@ -498,7 +528,10 @@ const UnifiedExpenseEntry = ({
             .filter(obj => obj.name && !obj.name.includes('Unknown'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
           vendors: rawVendors
-            .map(item => extractIdNameObject(item, 'Vendor'))
+            .map(item => ({
+              ...extractIdNameObject(item, 'Vendor'),
+              category: item.category || '' // Preserve vendor's default category for auto-population
+            }))
             .filter(obj => obj.name && !obj.name.includes('Unknown'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
           accounts: rawAccounts
@@ -750,7 +783,7 @@ const UnifiedExpenseEntry = ({
             </div>
           ) : (
             <>
-              {/* First Row: Date, Amount, and Category */}
+              {/* First Row: Date, Amount, and Vendor (Issue #135: Vendor before Category for auto-population) */}
               <div className="form-row triple">
                 <div className="form-group">
                   <label htmlFor="date" className="form-label">Date</label>
@@ -781,35 +814,25 @@ const UnifiedExpenseEntry = ({
                   {fieldErrors.amount && <span className="field-error">{fieldErrors.amount}</span>}
                 </div>
 
+                {/* Vendor - moved before Category for auto-population (Issue #135) */}
                 <div className="form-group">
-                  <label htmlFor="category" className="form-label">Category</label>
-                  {splitAllocations.length > 0 ? (
-                    <div className="split-category-display">
-                      <input
-                        type="text"
-                        value="-Split-"
-                        disabled
-                        className="split-category-input"
-                        title="Transaction is split across multiple categories"
-                      />
-                    </div>
-                  ) : (
-                    <select
-                      id="category"
-                      value={formData.categoryId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
-                      className={fieldErrors.categoryId ? 'error' : ''}
-                      required
-                    >
-                      <option value="">Select category</option>
-                      {clientData.categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {fieldErrors.category && <span className="field-error">{fieldErrors.category}</span>}
+                  <label htmlFor="vendor" className="form-label">Vendor</label>
+                  <select
+                    id="vendor"
+                    value={formData.vendorId}
+                    onChange={(e) => handleVendorChange(e.target.value)}
+                    className={fieldErrors.vendorId ? 'error' : ''}
+                    required
+                  >
+                    <option value="">Select vendor</option>
+                    {clientData.vendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                        {vendor.category && ` (${vendor.category})`}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.vendor && <span className="field-error">{fieldErrors.vendor}</span>}
                 </div>
               </div>
 
@@ -843,25 +866,38 @@ const UnifiedExpenseEntry = ({
                 </div>
               )}
 
-              {/* Second Row: Vendor, Payment Method, Account */}
+              {/* Second Row: Category, Payment Method, Account */}
               <div className="form-row triple">
+                {/* Category - moved after Vendor for auto-population (Issue #135) */}
                 <div className="form-group">
-                  <label htmlFor="vendor" className="form-label">Vendor</label>
-                  <select
-                    id="vendor"
-                    value={formData.vendorId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, vendorId: e.target.value }))}
-                    className={fieldErrors.vendorId ? 'error' : ''}
-                    required
-                  >
-                    <option value="">Select vendor</option>
-                    {clientData.vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.vendor && <span className="field-error">{fieldErrors.vendor}</span>}
+                  <label htmlFor="category" className="form-label">Category</label>
+                  {splitAllocations.length > 0 ? (
+                    <div className="split-category-display">
+                      <input
+                        type="text"
+                        value="-Split-"
+                        disabled
+                        className="split-category-input"
+                        title="Transaction is split across multiple categories"
+                      />
+                    </div>
+                  ) : (
+                    <select
+                      id="category"
+                      value={formData.categoryId}
+                      onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+                      className={fieldErrors.categoryId ? 'error' : ''}
+                      required
+                    >
+                      <option value="">Select category</option>
+                      {clientData.categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {fieldErrors.category && <span className="field-error">{fieldErrors.category}</span>}
                 </div>
 
                 <div className="form-group">
