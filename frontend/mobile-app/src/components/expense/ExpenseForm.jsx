@@ -410,15 +410,21 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
       
       console.log('✅ Expense submission complete');
       
-      // Reset form
+      // Reset form - preserve defaults for payment method and account
+      const defaultPaymentMethod = clientData.paymentMethods.find(p => 
+        p.id === 'etransfer' || p.name?.toLowerCase() === 'etransfer'
+      );
+      const defaultAccount = clientData.accounts.find(a => a.id === 'bank-001') 
+        || (clientData.accounts.length === 1 ? clientData.accounts[0] : null);
+      
       setFormData({
         date: getMexicoDateString(),
         amount: '',
         categoryId: '',
         vendorId: '',
         notes: '',
-        accountId: clientData.accounts.length === 1 ? clientData.accounts[0].id : '',
-        paymentMethodId: '',
+        accountId: defaultAccount?.id || '',
+        paymentMethodId: defaultPaymentMethod?.id || '',
       });
       setAddBankFees(false);
       setSplitAllocations([]);

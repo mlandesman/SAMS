@@ -563,9 +563,28 @@ const UnifiedExpenseEntry = ({
         setClientData(processedData);
         setRawAccountData(rawAccounts); // Store raw account data for mapping
 
-        // Auto-select first account if only one - use ID for form state
-        if (processedData.accounts.length === 1) {
-          setFormData(prev => ({ ...prev, accountId: processedData.accounts[0].id }));
+        // Auto-select defaults for common transaction patterns (Issue #135 enhancement)
+        // Default to eTransfer payment method and bank-001 account (99% of transactions)
+        const defaultPaymentMethod = processedData.paymentMethods.find(p => 
+          p.id === 'etransfer' || p.name?.toLowerCase() === 'etransfer'
+        );
+        const defaultAccount = processedData.accounts.find(a => 
+          a.id === 'bank-001'
+        ) || (processedData.accounts.length === 1 ? processedData.accounts[0] : null);
+        
+        if (defaultPaymentMethod || defaultAccount) {
+          setFormData(prev => ({ 
+            ...prev, 
+            ...(defaultPaymentMethod && { paymentMethodId: defaultPaymentMethod.id }),
+            ...(defaultAccount && { accountId: defaultAccount.id })
+          }));
+          
+          // Auto-check bank fees for bank accounts
+          if (defaultAccount) {
+            const accountData = rawAccounts.find(a => a.id === defaultAccount.id || a.name === defaultAccount.name);
+            const isBankAccount = accountData && accountData.type !== 'cash';
+            setAddBankFees(isBankAccount);
+          }
         }
 
       } catch (error) {
