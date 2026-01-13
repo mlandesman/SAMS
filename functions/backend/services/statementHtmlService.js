@@ -862,9 +862,24 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
   const expirationDate = statementDate.plus({ days: 30 });
   
-  // Find next payment due date (first future charge)
-  const firstFutureItem = data.lineItems.find(item => item.isFuture === true && item.charge > 0);
-  const nextPaymentDue = firstFutureItem ? formatDate(firstFutureItem.date) : 'TBD';
+  // ============================================
+  // NEXT PAYMENT DATE - Using pre-calculated value from UPC (Issue #144b)
+  // ============================================
+  // Rule 1: If balance > 0 TODAY → "NOW"
+  // Rule 2: If balance <= 0 → use pre-calculated nextPaymentDueDate from UPC billsPaid
+  // Rule 3: If no date available → "N/A"
+  
+  const closingBalance = data.summary?.closingBalance || 0;
+  let nextPaymentDue = 'N/A';
+  
+  if (closingBalance > 0) {
+    // Rule 1: Balance due > 0 TODAY → payment needed NOW
+    nextPaymentDue = 'NOW';
+  } else if (data.nextPaymentDueDate) {
+    // Rule 2: Use pre-calculated date from UPC (first unpaid bill or next billing cycle)
+    nextPaymentDue = formatDate(data.nextPaymentDueDate);
+  }
+  // Rule 3: If no nextPaymentDueDate, stays 'N/A'
   
   // Generate statement ID (clientId-unitId-fiscalYear-statementDate)
   const statementId = `${clientId}-${unitId}-${data.statementInfo.fiscalYear}-${data.statementInfo.statementDate.replace(/-/g, '')}`;
@@ -999,9 +1014,24 @@ async function buildStatementHtml(data, reportCommonCss, language, options, t, c
   const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
   const expirationDate = statementDate.plus({ days: 30 });
   
-  // Find next payment due date (first future charge)
-  const firstFutureItem = data.lineItems.find(item => item.isFuture === true && item.charge > 0);
-  const nextPaymentDue = firstFutureItem ? formatDate(firstFutureItem.date) : 'TBD';
+  // ============================================
+  // NEXT PAYMENT DATE - Using pre-calculated value from UPC (Issue #144b)
+  // ============================================
+  // Rule 1: If balance > 0 TODAY → "NOW"
+  // Rule 2: If balance <= 0 → use pre-calculated nextPaymentDueDate from UPC billsPaid
+  // Rule 3: If no date available → "N/A"
+  
+  const closingBalance = data.summary?.closingBalance || 0;
+  let nextPaymentDue = 'N/A';
+  
+  if (closingBalance > 0) {
+    // Rule 1: Balance due > 0 TODAY → payment needed NOW
+    nextPaymentDue = 'NOW';
+  } else if (data.nextPaymentDueDate) {
+    // Rule 2: Use pre-calculated date from UPC (first unpaid bill or next billing cycle)
+    nextPaymentDue = formatDate(data.nextPaymentDueDate);
+  }
+  // Rule 3: If no nextPaymentDueDate, stays 'N/A'
   
   // Generate statement ID and timestamp
   const statementId = `${clientId}-${unitId}-${data.statementInfo.fiscalYear}-${data.statementInfo.statementDate.replace(/-/g, '')}`;
@@ -1763,7 +1793,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
               <td>${t.date}:</td>
               <td>${statementDate.toFormat('MM/dd/yyyy')}</td>
             </tr>
-            ${data.summary.closingBalance >= 0 ? `
+            ${nextPaymentDue !== 'N/A' ? `
             <tr>
               <td>${t.nextPaymentDue}:</td>
               <td>${nextPaymentDue}</td>

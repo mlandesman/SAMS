@@ -32,21 +32,13 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
       .collection('config').doc('propaneTanks')
       .get();
     
-    console.log(`🔍 [Utility Graph] Checking config for ${clientId}/${unitId}, exists: ${configDoc.exists}`);
-    
     if (configDoc.exists) {
       // MTC: Propane gauge
-      console.log(`📊 [Utility Graph] Fetching propane gauge data for ${clientId}/${unitId}`);
-      const result = await getPropaneGaugeData(db, clientId, unitId, configDoc.data());
-      console.log(`✅ [Utility Graph] Propane gauge result:`, result ? `Level ${result.level}%` : 'null');
-      return result;
+      return await getPropaneGaugeData(db, clientId, unitId, configDoc.data());
     }
     
     // AVII: Water consumption bars
-    console.log(`📊 [Utility Graph] Fetching water bars data for ${clientId}/${unitId}`);
-    const result = await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth);
-    console.log(`✅ [Utility Graph] Water bars result:`, result ? `${result.periods?.length} periods` : 'null');
-    return result;
+    return await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth);
   } catch (error) {
     console.error(`❌ [Utility Graph] Error fetching utility graph data for ${clientId}/${unitId}:`, error);
     return null;
@@ -71,10 +63,7 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
       .collection('readings')
       .get();
     
-    console.log(`📊 [Propane Gauge] Query returned ${readingsSnap.size} documents for ${clientId}`);
-    
     if (readingsSnap.empty) {
-      console.log(`⚠️ [Propane Gauge] No readings found for ${clientId}`);
       return null;
     }
     
@@ -88,13 +77,9 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
     
     const doc = sortedDocs[0];
     const data = doc.data();
-    console.log(`📊 [Propane Gauge] Latest reading: ${data.year}-${data.month}, unit keys:`, Object.keys(data.readings || {}));
     
     const unitReading = data.readings?.[unitId];
-    console.log(`📊 [Propane Gauge] Unit ${unitId} reading:`, unitReading, typeof unitReading);
-    
     if (!unitReading) {
-      console.log(`⚠️ [Propane Gauge] No reading data for unit ${unitId}`);
       return null;
     }
     
@@ -105,19 +90,15 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
     } else if (typeof unitReading === 'object' && unitReading.level !== undefined) {
       level = unitReading.level;
     } else {
-      console.log(`⚠️ [Propane Gauge] Invalid reading format for unit ${unitId}:`, unitReading);
       return null;
     }
     
-    const result = {
+    return {
       type: 'propane-gauge',
       level: Math.max(0, Math.min(100, level)), // Clamp to 0-100
       thresholds: config.thresholds || { critical: 10, low: 30 },
       readingDate: `${data.year}-${String(data.month).padStart(2, '0')}`
     };
-    
-    console.log(`✅ [Propane Gauge] Returning data:`, result);
-    return result;
   } catch (error) {
     console.error(`❌ [Propane Gauge] Error fetching propane gauge data for ${clientId}/${unitId}:`, error);
     return null;
@@ -142,10 +123,7 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       .collection('readings')
       .get();
     
-    console.log(`📊 [Water Bars] Query returned ${readingsSnap.size} documents for ${clientId}`);
-    
     if (readingsSnap.empty) {
-      console.log(`⚠️ [Water Bars] No readings found for ${clientId}`);
       return null;
     }
     
@@ -168,7 +146,6 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       const unitReading = data.readings?.[unitId];
       
       if (!unitReading) {
-        console.log(`⚠️ [Water Bars] No reading data for unit ${unitId} in ${data.year}-${data.month}`);
         priorReading = null; // Reset prior reading if gap in data
         continue;
       }
@@ -191,8 +168,6 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       if (priorReading !== null && currentReading > 0) {
         consumption = Math.max(0, currentReading - priorReading);
       }
-      
-      console.log(`📊 [Water Bars] ${data.year}-${data.month}: Unit ${unitId} reading=${currentReading}, prior=${priorReading}, consumption=${consumption} m³`);
       
       // Only include periods where we can calculate consumption (have prior reading)
       // After migration: reading document month X represents consumption FOR month X
@@ -217,21 +192,15 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
     // Take last 6-8 periods (most recent)
     const recentPeriods = periods.slice(-8);
     
-    console.log(`📊 [Water Bars] Filtered to ${recentPeriods.length} periods with consumption data`);
-    
     if (recentPeriods.length === 0) {
-      console.log(`⚠️ [Water Bars] No periods with consumption data for unit ${unitId}`);
       return null;
     }
     
-    const result = {
+    return {
       type: 'water-bars',
       periods: recentPeriods,
       latestConsumption: recentPeriods[recentPeriods.length - 1].consumption
     };
-    
-    console.log(`✅ [Water Bars] Returning data with ${result.periods.length} periods`);
-    return result;
   } catch (error) {
     console.error(`❌ [Water Bars] Error fetching water bars data for ${clientId}/${unitId}:`, error);
     return null;
@@ -774,149 +743,155 @@ function createChronologicalTransactionList(
       }
     }
   } else {
-    // Monthly billing - use global processedTransactionIds
-    for (const payment of payments) {
-      if (!payment.month) continue;
+    // Monthly billing - generate charges for all 12 months
+    for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
+      const payment = payments.find(p => p.month === fiscalMonth);
       
-      // Add charge for this month
-      let dueDate = parseDueDate(payment.dueDate);
+      // Calculate due date - use payment.dueDate if available, otherwise calculate
+      let dueDate = payment ? parseDueDate(payment.dueDate) : null;
       
-      // Fallback: derive due date from fiscal configuration if missing
-      if ((!dueDate || isNaN(dueDate.getTime())) && fiscalYearBounds?.startDate) {
-        const fallbackDate = new Date(fiscalYearBounds.startDate);
-        fallbackDate.setMonth(fallbackDate.getMonth() + (payment.month - 1));
-        dueDate = fallbackDate;
+      // Fallback: calculate due date from fiscal month (same pattern as getCalendarMonthName)
+      if (!dueDate || isNaN(dueDate.getTime())) {
+        const fiscalMonthIndex = fiscalMonth - 1; // Convert to 0-indexed
+        const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+        const monthsFromStart = fiscalYearStartMonth - 1 + fiscalMonthIndex;
+        const calendarYear = fiscalYear + Math.floor(monthsFromStart / 12) - (fiscalYearStartMonth > 1 ? 1 : 0);
+        dueDate = new Date(calendarYear, calendarMonth, 1);
       }
       
+      // Always generate the charge
       if (dueDate && !isNaN(dueDate.getTime())) {
         transactions.push({
           type: 'charge',
           category: 'hoa',
           date: dueDate,
-          description: `HOA Dues ${getCalendarMonthName(payment.month - 1, fiscalYearStartMonth, fiscalYear)}`,
+          description: `HOA Dues ${getCalendarMonthName(fiscalMonth - 1, fiscalYearStartMonth, fiscalYear)}`,
           amount: scheduledAmount,
           charge: scheduledAmount,
           payment: 0,
           balance: 0, // Will be set later when calculating running balance
-          month: payment.month,
+          month: fiscalMonth,
           chargeRef: {
-            month: payment.month,
+            month: fiscalMonth,
             scheduledAmount: scheduledAmount,
             fiscalYear: fiscalYear
           }
         });
       }
       
-      // Add payment if paid (only once per transaction ID)
-      const hasPayment = (payment.paid || payment.amount > 0 || payment.transactionId || payment.reference);
-      if (hasPayment) {
-        const txnId = payment.transactionId || payment.reference;
-        
-        // Skip if no valid transaction ID or already processed globally
-        if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
-          continue;
-        }
-        
-        processedTransactionIds.add(txnId);
-        
-        const paymentDate = parseDate(payment.date);
-        const transaction = transactionMap.get(txnId);
-        
-        const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
-          ? paymentDate 
-          : (transaction?.date ? parseDate(transaction.date) : null);
-        
-        if (effectiveDate && !isNaN(effectiveDate.getTime())) {
-          let paymentAmount = payment.amount || 0;
-          let description = 'Payment';
+      // Process payment if exists (keep existing payment processing logic)
+      if (payment) {
+        // Add payment if paid (only once per transaction ID)
+        const hasPayment = (payment.paid || payment.amount > 0 || payment.transactionId || payment.reference);
+        if (hasPayment) {
+          const txnId = payment.transactionId || payment.reference;
           
-          if (transaction) {
-            // Payment amount is CASH ONLY (transaction.amount)
-            // Do NOT add credit_used - it's already reflected in accumulated overpayments
-            // Adding it would double-count the credit
-            paymentAmount = centavosToPesos(transaction.amount || 0);
-            
-            // Build description from allocations
-            const allocations = transaction.allocations || [];
-            
-            const hoaMonths = [...new Set(allocations
-              .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
-              .map(a => a.targetName))];
-            const waterBills = [...new Set(allocations
-              .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
-                          a.type === 'water_bill' || a.type === 'water-bill' ||
-                          (a.categoryId && (a.categoryId.includes('water') || a.categoryId.includes('consumo') || a.categoryId.includes('lavado'))))
-              .map(a => {
-                const match = a.targetName?.match(/Q\d/);
-                return match ? match[0] : (a.targetName || 'Bill');
-              }))];
-            
-            const parts = [];
-            if (hoaMonths.length > 0) {
-              parts.push(`HOA ${hoaMonths.join(', ')}`);
-            }
-            if (waterBills.length > 0) {
-              parts.push(`Water ${waterBills.join(', ')}`);
-            }
-            
-            if (parts.length > 0) {
-              description = `Payment - ${parts.join('; ')}`;
-            } else {
-              // Fallback to month-based description
-              const paymentMonths = payments
-                .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
-                .map(p => p.month)
-                .sort((a, b) => a - b);
-              
-              description = paymentMonths.length === 1
-                ? `Payment Month ${payment.month}`
-                : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
-            }
+          // Skip if no valid transaction ID or already processed globally
+          if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
+            continue;
           }
           
-          // Calculate category breakdown from allocations
-          const categoryBreakdown = transaction 
-            ? calculateCategoryBreakdown(transaction)
-            : {};
-          const primaryCategory = transaction 
-            ? getPrimaryCategory(categoryBreakdown)
-            : 'other';
+          processedTransactionIds.add(txnId);
           
-          transactions.push({
-            type: 'payment',
-            category: primaryCategory,
-            date: effectiveDate,
-            description: description,
-            amount: -paymentAmount,
-            charge: 0,
-            payment: paymentAmount,
-            balance: 0, // Will be set later when calculating running balance
-            transactionId: txnId,
-            transactionRef: transaction ? {
-              id: txnId,
-              date: transaction.date,
-              description: transaction.description,
-              amount: transaction.amount,
-              method: transaction.method,
-              reference: transaction.reference,
-              notes: transaction.notes,
-              categoryId: transaction.categoryId || null,
-              categoryName: transaction.categoryName || null
-            } : null,
-            allocations: transaction 
-              ? (transaction.allocations || []).map(alloc => ({
-                  categoryId: alloc.categoryId,
-                  categoryName: alloc.categoryName,
-                  type: alloc.type,
-                  amount: centavosToPesos(alloc.amount || 0),
-                  targetId: alloc.targetId,
-                  targetName: alloc.targetName,
-                  notes: alloc.notes
-                }))
-              : [],
-            categoryBreakdown: categoryBreakdown,
-            month: payment.month
-          });
+          const paymentDate = parseDate(payment.date);
+          const transaction = transactionMap.get(txnId);
+          
+          const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
+            ? paymentDate 
+            : (transaction?.date ? parseDate(transaction.date) : null);
+          
+          if (effectiveDate && !isNaN(effectiveDate.getTime())) {
+            let paymentAmount = payment.amount || 0;
+            let description = 'Payment';
+            
+            if (transaction) {
+              // Payment amount is CASH ONLY (transaction.amount)
+              // Do NOT add credit_used - it's already reflected in accumulated overpayments
+              // Adding it would double-count the credit
+              paymentAmount = centavosToPesos(transaction.amount || 0);
+              
+              // Build description from allocations
+              const allocations = transaction.allocations || [];
+              
+              const hoaMonths = [...new Set(allocations
+                .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
+                .map(a => a.targetName))];
+              const waterBills = [...new Set(allocations
+                .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
+                            a.type === 'water_bill' || a.type === 'water-bill' ||
+                            (a.categoryId && (a.categoryId.includes('water') || a.categoryId.includes('consumo') || a.categoryId.includes('lavado'))))
+                .map(a => {
+                  const match = a.targetName?.match(/Q\d/);
+                  return match ? match[0] : (a.targetName || 'Bill');
+                }))];
+              
+              const parts = [];
+              if (hoaMonths.length > 0) {
+                parts.push(`HOA ${hoaMonths.join(', ')}`);
+              }
+              if (waterBills.length > 0) {
+                parts.push(`Water ${waterBills.join(', ')}`);
+              }
+              
+              if (parts.length > 0) {
+                description = `Payment - ${parts.join('; ')}`;
+              } else {
+                // Fallback to month-based description
+                const paymentMonths = payments
+                  .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
+                  .map(p => p.month)
+                  .sort((a, b) => a - b);
+                
+                description = paymentMonths.length === 1
+                  ? `Payment Month ${payment.month}`
+                  : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
+              }
+            }
+            
+            // Calculate category breakdown from allocations
+            const categoryBreakdown = transaction 
+              ? calculateCategoryBreakdown(transaction)
+              : {};
+            const primaryCategory = transaction 
+              ? getPrimaryCategory(categoryBreakdown)
+              : 'other';
+            
+            transactions.push({
+              type: 'payment',
+              category: primaryCategory,
+              date: effectiveDate,
+              description: description,
+              amount: -paymentAmount,
+              charge: 0,
+              payment: paymentAmount,
+              balance: 0, // Will be set later when calculating running balance
+              transactionId: txnId,
+              transactionRef: transaction ? {
+                id: txnId,
+                date: transaction.date,
+                description: transaction.description,
+                amount: transaction.amount,
+                method: transaction.method,
+                reference: transaction.reference,
+                notes: transaction.notes,
+                categoryId: transaction.categoryId || null,
+                categoryName: transaction.categoryName || null
+              } : null,
+              allocations: transaction 
+                ? (transaction.allocations || []).map(alloc => ({
+                    categoryId: alloc.categoryId,
+                    categoryName: alloc.categoryName,
+                    type: alloc.type,
+                    amount: centavosToPesos(alloc.amount || 0),
+                    targetId: alloc.targetId,
+                    targetName: alloc.targetName,
+                    notes: alloc.notes
+                  }))
+                : [],
+              categoryBreakdown: categoryBreakdown,
+              month: payment.month
+            });
+          }
         }
       }
     }
@@ -1440,7 +1415,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const transactionMap = transactions;
     
     // Step 5: Fetch water bills
+    // Always try to fetch water bills - the API will return empty if client doesn't have them
+    // This is more reliable than checking clientData.projects which may not be populated
     const waterBills = await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth);
+    // Water bills fetched silently - only logged on error
     
     // Step 6: Also fetch transactions from water bill payments
     for (const bill of waterBills) {
@@ -1501,6 +1479,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     
     let hoaPenalties = [];
     let waterPenalties = [];
+    let nextPaymentDueDate = null; // Issue #144b: Pre-calculated next payment date from UPC
     try {
       const payOnDateStr = today.toISOString().split('T')[0];
       const unifiedPreviewResponse = await api.post(`/payments/unified/preview`, {
@@ -1615,8 +1594,85 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
           }
         }
       }
+      
+      // Issue #144b Enhancement: Extract Next Payment Due Date from first unpaid bill
+      // This uses the UPC preview which already knows what's paid/unpaid
+      if (unifiedPreviewResponse.data?.success && unifiedPreviewResponse.data.preview) {
+        const preview = unifiedPreviewResponse.data.preview;
+        const hoaBillsPaid = preview.hoa?.billsPaid || [];
+        const waterBillsPaid = preview.water?.billsPaid || [];
+        
+        // Find first unpaid HOA bill (totalBaseDue > 0 means still owes money)
+        const firstUnpaidHoaBill = hoaBillsPaid.find(bill => (bill.totalBaseDue || 0) > 0 || (bill.totalPenaltyDue || 0) > 0);
+        
+        if (firstUnpaidHoaBill) {
+          // Calculate due date from billPeriod
+          const billPeriod = firstUnpaidHoaBill.billPeriod || '';
+          const cleanPeriod = billPeriod.replace('hoa:', '');
+          
+          if (cleanPeriod.includes('-Q')) {
+            // Quarterly: "2026-Q3" format
+            const [yearStr, quarterStr] = cleanPeriod.split('-Q');
+            const fiscalYear = parseInt(yearStr);
+            const quarter = parseInt(quarterStr);
+            const fiscalMonthIndex = (quarter - 1) * 3;
+            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+            nextPaymentDueDate = new Date(calendarYear, calendarMonth, 1);
+          } else if (cleanPeriod.includes('-')) {
+            // Monthly: "2026-7" format
+            const [yearStr, monthStr] = cleanPeriod.split('-');
+            const fiscalYear = parseInt(yearStr);
+            const fiscalMonthIndex = parseInt(monthStr);
+            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+            nextPaymentDueDate = new Date(calendarYear, calendarMonth, 1);
+          }
+        } else {
+          // All HOA bills paid - calculate next billing cycle
+          // Determine if monthly or quarterly from billsPaid structure
+          const isQuarterly = hoaBillsPaid.some(b => (b.billPeriod || '').includes('-Q'));
+          
+          if (isQuarterly) {
+            // Next quarter start: Jan 1, Apr 1, Jul 1, Oct 1
+            const currentMonth = today.getMonth(); // 0-11
+            const quarterStarts = [0, 3, 6, 9]; // Jan, Apr, Jul, Oct
+            const nextQuarterStart = quarterStarts.find(m => m > currentMonth) ?? quarterStarts[0];
+            const nextYear = nextQuarterStart <= currentMonth ? today.getFullYear() + 1 : today.getFullYear();
+            nextPaymentDueDate = new Date(nextYear, nextQuarterStart, 1);
+          } else {
+            // Monthly: next month 1st
+            const nextMonth = today.getMonth() + 1;
+            const nextYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
+            nextPaymentDueDate = new Date(nextYear, nextMonth % 12, 1);
+          }
+        }
+        
+        // Also check for unpaid water bills - use earlier of HOA or water due date
+        const firstUnpaidWaterBill = waterBillsPaid.find(bill => (bill.totalBaseDue || 0) > 0 || (bill.totalPenaltyDue || 0) > 0);
+        if (firstUnpaidWaterBill) {
+          const billPeriod = firstUnpaidWaterBill.billPeriod || '';
+          const cleanPeriod = billPeriod.replace('water:', '');
+          
+          if (cleanPeriod.includes('-Q')) {
+            const [yearStr, quarterStr] = cleanPeriod.split('-Q');
+            const fiscalYear = parseInt(yearStr);
+            const quarter = parseInt(quarterStr);
+            // Water bills due at start of NEXT quarter (in arrears)
+            const fiscalMonthIndex = (quarter) * 3;
+            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
+            const waterDueDate = new Date(calendarYear, calendarMonth, 1);
+            
+            // Use earlier of HOA or water due date
+            if (!nextPaymentDueDate || waterDueDate < nextPaymentDueDate) {
+              nextPaymentDueDate = waterDueDate;
+            }
+          }
+        }
+      }
     } catch (error) {
-      // Silently handle errors - penalties will be empty arrays
+      // Silently handle errors - penalties will be empty arrays, nextPaymentDueDate stays null
     }
     
     // Step 7.1: Add stored HOA penalties from dues document (for paid historical penalties)
@@ -2238,6 +2294,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       
       // Processed data
       chronologicalTransactions: chronologicalTransactions,
+      allTransactions: allTransactions, // Issue #144b: Include unfiltered list for Next Payment calculation
+      nextPaymentDueDate: nextPaymentDueDate, // Issue #144b: Pre-calculated from UPC billsPaid
       
       // Calculated summaries
       summary: {
@@ -2436,14 +2494,12 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   try {
     const { getDb } = await import('../firebase.js');
     const db = await getDb();
-    console.log(`🔍 [Statement Data] Fetching utility graph for ${clientId}/${unitId}`);
     // Pass fiscal year start month for proper month label formatting
     const fiscalYearStartMonth = rawData.clientConfig?.fiscalYearStartMonth || 7; // Default to July for AVII
     utilityGraph = await getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth);
-    console.log(`✅ [Statement Data] Utility graph result:`, utilityGraph ? JSON.stringify(utilityGraph, null, 2) : 'null');
   } catch (error) {
     // Utility graph is optional - don't fail if it can't be loaded
-    console.error(`❌ [Statement Data] Could not load utility graph data for ${clientId}/${unitId}:`, error);
+    console.error(`[Statement] Could not load utility graph for ${clientId}/${unitId}:`, error.message);
   }
   
   // Format address string
@@ -2908,6 +2964,10 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       };
     })(),
     lineItems: lineItems,
+    // Issue #144b: Include unfiltered transactions for Next Payment calculation
+    allTransactions: rawData.allTransactions || [],
+    // Issue #144b: Pre-calculated next payment date from UPC billsPaid
+    nextPaymentDueDate: rawData.nextPaymentDueDate || null,
     creditInfo: {
       // Use credit balance from API response (already calculated by getter in creditService)
       currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),

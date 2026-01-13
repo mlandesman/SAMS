@@ -281,104 +281,123 @@ function createChronologicalTransactionList(
       }
     }
   } else {
-    // Monthly billing - use global processedTransactionIds
-    for (const payment of payments) {
-      if (!payment.month) continue;
+    // Monthly billing - generate charges for all 12 months
+    for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
+      const payment = payments.find(p => p.month === fiscalMonth);
       
-      const dueDate = parseDate(payment.dueDate);
+      // Calculate due date - use payment.dueDate if available, otherwise calculate
+      let dueDate;
+      if (payment?.dueDate) {
+        dueDate = parseDate(payment.dueDate);
+      }
+      
+      // Fallback: calculate due date from fiscal month (same pattern as getCalendarMonthName)
+      if (!dueDate || isNaN(dueDate.getTime())) {
+        const fiscalMonthIndex = fiscalMonth - 1; // Convert to 0-indexed
+        const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+        const monthsFromStart = fiscalYearStartMonth - 1 + fiscalMonthIndex;
+        const calendarYear = fiscalYear + Math.floor(monthsFromStart / 12) - (fiscalYearStartMonth > 1 ? 1 : 0);
+        dueDate = new Date(calendarYear, calendarMonth, 1);
+      }
+      
+      // Always generate the charge
       if (dueDate && !isNaN(dueDate.getTime())) {
         transactions.push({
           type: 'charge',
           category: 'hoa',
           date: dueDate,
-          description: `HOA Dues ${getCalendarMonthName(payment.month - 1, fiscalYearStartMonth, fiscalYear)}`,
+          description: `HOA Dues ${getCalendarMonthName(fiscalMonth - 1, fiscalYearStartMonth, fiscalYear)}`,
           amount: scheduledAmount,
           charge: scheduledAmount,
           payment: 0,
-          month: payment.month
+          month: fiscalMonth
         });
       }
       
-      const hasPayment = (payment.paid || payment.amount > 0 || payment.transactionId || payment.reference);
-      if (hasPayment) {
-        const txnId = payment.transactionId || payment.reference;
-        
-        // Skip if no valid transaction ID or already processed globally
-        if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
-          continue;
-        }
-        
-        processedTransactionIds.add(txnId);
-        
-        const paymentDate = parseDate(payment.date);
-        const transaction = transactionMap.get(txnId);
-        
-        const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
-          ? paymentDate 
-          : (transaction?.date ? parseDate(transaction.date) : null);
-        
-        if (effectiveDate && !isNaN(effectiveDate.getTime())) {
-          let paymentAmount = payment.amount || 0;
-          let description = 'Payment';
+      // Process payment if exists (keep existing payment processing logic)
+      if (payment) {
+        const hasPayment = (payment.paid || payment.amount > 0 || payment.transactionId || payment.reference);
+        if (hasPayment) {
+          const txnId = payment.transactionId || payment.reference;
           
-          if (transaction) {
-            // NOTE: Do NOT override paymentAmount with transaction.amount
-            // payment.amount is the full amount applied to the bill (cash + credit)
-            // transaction.amount is only the cash deposit portion
-            // We still use transaction for building descriptions below
-            
-            // Build description from allocations
-            const allocations = transaction.allocations || [];
-            const hoaMonths = [...new Set(allocations
-              .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
-              .map(a => a.targetName))];
-            const waterBills = [...new Set(allocations
-              .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
-                          a.type === 'water_bill' || a.type === 'water-bill' ||
-                          (a.categoryId && a.categoryId.includes('water')))
-              .map(a => {
-                const match = a.targetName?.match(/Q\d/);
-                return match ? match[0] : (a.targetName || 'Bill');
-              }))];
-            
-            const parts = [];
-            if (hoaMonths.length > 0) {
-              parts.push(`HOA ${hoaMonths.join(', ')}`);
-            }
-            if (waterBills.length > 0) {
-              parts.push(`Water ${waterBills.join(', ')}`);
-            }
-            
-            if (parts.length > 0) {
-              description = `Payment - ${parts.join('; ')}`;
-            } else {
-              // Fallback to month-based description
-              const paymentMonths = payments
-                .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
-                .map(p => p.month)
-                .sort((a, b) => a - b);
-              
-              description = paymentMonths.length === 1
-                ? `Payment Month ${payment.month}`
-                : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
-            }
+          // Skip if no valid transaction ID or already processed globally
+          if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) {
+            continue;
           }
           
-          transactions.push({
-            type: 'payment',
-            category: 'hoa',
-            date: effectiveDate,
-            description: description,
-            amount: -paymentAmount,
-            charge: 0,
-            payment: paymentAmount,
-            transactionId: txnId,
-            month: payment.month
-          });
+          processedTransactionIds.add(txnId);
+          
+          const paymentDate = parseDate(payment.date);
+          const transaction = transactionMap.get(txnId);
+          
+          const effectiveDate = paymentDate && !isNaN(paymentDate.getTime()) 
+            ? paymentDate 
+            : (transaction?.date ? parseDate(transaction.date) : null);
+          
+          if (effectiveDate && !isNaN(effectiveDate.getTime())) {
+            let paymentAmount = payment.amount || 0;
+            let description = 'Payment';
+            
+            if (transaction) {
+              // NOTE: Do NOT override paymentAmount with transaction.amount
+              // payment.amount is the full amount applied to the bill (cash + credit)
+              // transaction.amount is only the cash deposit portion
+              // We still use transaction for building descriptions below
+              
+              // Build description from allocations
+              const allocations = transaction.allocations || [];
+              const hoaMonths = [...new Set(allocations
+                .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
+                .map(a => a.targetName))];
+              const waterBills = [...new Set(allocations
+                .filter(a => a.type === 'water_consumption' || a.type === 'water-consumption' || 
+                            a.type === 'water_bill' || a.type === 'water-bill' ||
+                            (a.categoryId && a.categoryId.includes('water')))
+                .map(a => {
+                  const match = a.targetName?.match(/Q\d/);
+                  return match ? match[0] : (a.targetName || 'Bill');
+                }))];
+              
+              const parts = [];
+              if (hoaMonths.length > 0) {
+                parts.push(`HOA ${hoaMonths.join(', ')}`);
+              }
+              if (waterBills.length > 0) {
+                parts.push(`Water ${waterBills.join(', ')}`);
+              }
+              
+              if (parts.length > 0) {
+                description = `Payment - ${parts.join('; ')}`;
+              } else {
+                // Fallback to month-based description
+                const paymentMonths = payments
+                  .filter(p => (p.transactionId || p.reference) === txnId && p.paid)
+                  .map(p => p.month)
+                  .sort((a, b) => a - b);
+                
+                description = paymentMonths.length === 1
+                  ? `Payment Month ${payment.month}`
+                  : `Payment Months ${paymentMonths[0]}-${paymentMonths[paymentMonths.length - 1]}`;
+              }
+            }
+            
+            transactions.push({
+              type: 'payment',
+              category: 'hoa',
+              date: effectiveDate,
+              description: description,
+              amount: -paymentAmount,
+              charge: 0,
+              payment: paymentAmount,
+              transactionId: txnId,
+              month: payment.month
+            });
+          }
         }
       }
     }
   }
+
   
   // Extract water payments from transactions
   // Only process transactions that weren't already handled in the HOA section
@@ -462,6 +481,80 @@ function createChronologicalTransactionList(
   return transactions;
 }
 
+
+/**
+ * Fetch water bills for a unit (using API endpoint)
+ * @param {Object} api - API client
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {number} year - Fiscal year
+ * @param {number} fiscalYearStartMonth - Fiscal year start month (default: 7)
+ * @returns {Promise<Array>} Array of water bill objects
+ */
+async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth = 7) {
+  try {
+    const response = await api.get(`/water/clients/${clientId}/bills/quarterly/${year}`);
+    
+    if (!response.data || !response.data.success || !response.data.data || !Array.isArray(response.data.data)) {
+      return [];
+    }
+    
+    const quarterlyBills = response.data.data;
+    const unitBills = [];
+    
+    for (const quarterlyBill of quarterlyBills) {
+      if (quarterlyBill.bills && quarterlyBill.bills.units && quarterlyBill.bills.units[unitId]) {
+        const unitBill = quarterlyBill.bills.units[unitId];
+        const fiscalYear = quarterlyBill.fiscalYear || year;
+        const fiscalQuarter = quarterlyBill.fiscalQuarter || 1;
+        const billId = quarterlyBill._billId || quarterlyBill.billId || `${fiscalYear}-Q${fiscalQuarter}`;
+        
+        const billAmount = unitBill.currentCharge || unitBill.waterCharge || 0;
+        const penaltyAmount = unitBill.penaltyAmount || 0;
+        const unpaidAmount = unitBill.unpaidAmount || unitBill.displayDue || 0;
+        const totalAmount = unitBill.totalAmount || (unpaidAmount > 0 ? unpaidAmount : (billAmount + penaltyAmount));
+        
+        if (!unitBill || (totalAmount === 0 && billAmount === 0)) {
+          continue;
+        }
+        
+        const dueDate = quarterlyBill.dueDate || quarterlyBill.billDate;
+        const quarterStartMonth = ((fiscalQuarter - 1) * 3);
+        const calendarMonth = ((fiscalYearStartMonth - 1) + quarterStartMonth) % 12;
+        const calendarYear = year - 1 + Math.floor(((fiscalYearStartMonth - 1) + quarterStartMonth) / 12);
+        
+        unitBills.push({
+          billId,
+          year: quarterlyBill.fiscalYear || year,
+          month: calendarMonth + 1,
+          fiscalQuarter: fiscalQuarter,
+          fiscalMonth: quarterStartMonth,
+          calendarYear: calendarYear,
+          calendarMonth: calendarMonth,
+          dueDate: dueDate,
+          currentCharge: billAmount,
+          penaltyAmount: penaltyAmount,
+          totalAmount: totalAmount,
+          paidAmount: unitBill.paidAmount || 0,
+          status: unitBill.status || 'unpaid',
+          consumption: unitBill.totalConsumption || unitBill.consumption || 0,
+          billNotes: unitBill.billNotes || `Water Bill Q${fiscalQuarter} ${year}`,
+          payments: unitBill.payments || [],
+          transactionId: unitBill.transactionId || (unitBill.payments && unitBill.payments.length > 0 ? unitBill.payments[unitBill.payments.length - 1].transactionId : null)
+        });
+      }
+    }
+    
+    return unitBills;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return [];
+    }
+    return [];
+  }
+}
+
+
 /**
  * Generate Statement of Account
  * PORTED FROM PROTOTYPE queryDuesPayments() function
@@ -536,8 +629,11 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
       }
     }
     
-    // Step 4: Fetch water bills (using API endpoint - returns data in pesos)
-    const waterBills = await fetchWaterBills(api, clientId, unitId, fiscalYear, fiscalYearStartMonth);
+    // Step 4: Fetch water bills (only if client has water bills project)
+    const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+    const waterBills = hasWaterBillsProject
+      ? await fetchWaterBills(api, clientId, unitId, fiscalYear, fiscalYearStartMonth)
+      : [];
     
     // Step 5: Fetch transactions from water bills
     for (const bill of waterBills) {

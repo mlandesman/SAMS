@@ -182,6 +182,32 @@ export async function previewYearEnd(req, res) {
 }
 
 /**
+ * Generate 12 monthly payment entries with due dates for a fiscal year
+ * @param {number} fiscalYear - The fiscal year
+ * @param {number} fiscalYearStartMonth - The month the fiscal year starts (1-12)
+ * @returns {Array} Array of 12 payment objects with month and dueDate
+ */
+function generateMonthlyPayments(fiscalYear, fiscalYearStartMonth) {
+  const payments = [];
+  for (let fiscalMonth = 1; fiscalMonth <= 12; fiscalMonth++) {
+    const fiscalMonthIndex = fiscalMonth - 1;
+    const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
+    const monthsFromStart = fiscalYearStartMonth - 1 + fiscalMonthIndex;
+    const calendarYear = fiscalYear + Math.floor(monthsFromStart / 12) - (fiscalYearStartMonth > 1 ? 1 : 0);
+    const dueDate = new Date(calendarYear, calendarMonth, 1);
+    
+    payments.push({
+      month: fiscalMonth,
+      dueDate: dueDate.toISOString(),
+      paid: false,
+      amount: 0
+    });
+  }
+  return payments;
+}
+
+
+/**
  * Execute year-end processing
  * POST /api/clients/:clientId/year-end/execute
  */
@@ -230,7 +256,7 @@ export async function executeYearEnd(req, res) {
           unitId,
           scheduledAmount: nextYearScheduledAmount, // Already in centavos
           totalPaid: 0,
-          payments: [],
+          payments: generateMonthlyPayments(openingYear, fiscalYearStartMonth),
           priorYearClosed: true,
           priorYearClosedAt: now.toISOString(),
           priorYearClosedBy: user.email || user.uid,
