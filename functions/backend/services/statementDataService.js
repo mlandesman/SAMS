@@ -2347,9 +2347,6 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // If filtering future bills, totalOutstanding should reflect current reality (finalBalance)
     // Otherwise use the annual calculation
     const totalOutstanding = excludeFutureBills ? ledgerResult.summary.amountDue : (totalDue - totalPaid);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'functions/backend/services/statementDataService.js:getConsolidatedUnitData:summary',message:'Statement summary computed',data:{clientId,unitId,excludeFutureBills,openingBalance,finalBalance,totalOutstanding,totalDue,totalPaid,visibleTransactionCount:chronologicalTransactions.length,currentCreditBalance:creditBalanceData?.creditBalance || 0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     
     // Step 11: Extract credit allocations
     const creditAllocations = [];
