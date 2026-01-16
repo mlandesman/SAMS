@@ -600,24 +600,25 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           ]);
         }
 
-        // Credit Balance Summary Footer
-        const closingBalance = statementData.summary?.closingBalance || 0;
-        const creditBalance = statementData.summary?.creditBalance || 0;
-        const netAmountDue = statementData.summary?.netAmountDue || 0;
+        // Summary row (Balance Due only)
+        const closingBalance =
+          typeof statementData.summary?.closingBalance === 'number'
+            ? statementData.summary.closingBalance
+            : 0;
 
         // Add blank row before summary
         rows.push(['', '', '', '', '', '']);
         
-        // Summary rows
         rows.push(['', 'BALANCE DUE', '', '', closingBalance.toFixed(2), 'summary']);
-        
-        if (creditBalance > 0) {
-          rows.push(['', 'Less: Credit on Account', '', '', `(${creditBalance.toFixed(2)})`, 'summary']);
-          rows.push(['', 'NET AMOUNT DUE', '', '', netAmountDue.toFixed(2), 'summary']);
-        }
 
         const escapeCell = value => {
-          const str = value == null ? '' : String(value);
+          if (value === null || value === undefined || value === '') {
+            return '""';
+          }
+          if (typeof value === 'number') {
+            return String(value);
+          }
+          const str = String(value);
           const escaped = str.replace(/"/g, '""');
           return `"${escaped}"`;
         };

@@ -13,6 +13,7 @@ import { getNow, parseDate as parseDateFromService } from '../../shared/services
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
+import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 
 /**
@@ -660,14 +661,12 @@ function createChronologicalTransactionList(
             let description = 'Payment';
             
             if (transaction) {
-              // Payment amount is CASH ONLY (transaction.amount)
-              // Do NOT add credit_used - it's already reflected in accumulated overpayments
-              // Adding it would double-count the credit
+              // CASH ONLY: credit usage never changes SofA balance
+              // This is a cash receipt event, not a credit allocation event
               paymentAmount = centavosToPesos(transaction.amount || 0);
               
               // Build description from allocations
               const allocations = transaction.allocations || [];
-              
               const hoaQuarters = [...new Set(allocations
                 .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
                 .map(a => a.targetName))];
@@ -805,14 +804,12 @@ function createChronologicalTransactionList(
             let description = 'Payment';
             
             if (transaction) {
-              // Payment amount is CASH ONLY (transaction.amount)
-              // Do NOT add credit_used - it's already reflected in accumulated overpayments
-              // Adding it would double-count the credit
+              // CASH ONLY: credit usage never changes SofA balance
+              // This is a cash receipt event, not a credit allocation event
               paymentAmount = centavosToPesos(transaction.amount || 0);
               
               // Build description from allocations
               const allocations = transaction.allocations || [];
-              
               const hoaMonths = [...new Set(allocations
                 .filter(a => a.type === 'hoa_month' || a.type === 'hoa-month')
                 .map(a => a.targetName))];
@@ -1047,36 +1044,73 @@ function createChronologicalTransactionList(
   // The Credit Activity table at the bottom shows the full history separately
   transactions.push(...creditAdjustments);
   
-  // Sort chronologically by date
-  transactions.sort((a, b) => {
-    const dateA = a.date.getTime();
-    const dateB = b.date.getTime();
-    if (dateA !== dateB) {
-      return dateA - dateB;
-    }
-    // If same date, charges come before payments, penalties come after regular charges
-    if (a.type === 'penalty' && b.type !== 'penalty') return 1;
-    if (a.type !== 'penalty' && b.type === 'penalty') return -1;
-    if (a.type === 'charge' && b.type === 'payment') return -1;
-    if (a.type === 'payment' && b.type === 'charge') return 1;
-    return 0;
-  });
-  
   // Running balance is now computed after filtering in getConsolidatedUnitData
   return transactions;
 }
 
 /**
- * Compute running balance on a list of transactions (mutates balance fields).
- * Expects amounts where charges are positive and payments are negative.
+ * Build input arrays for generateStatementData from raw transactions.
+ * This does not sort or compute balances.
  */
-function computeRunningBalance(transactions, openingBalance = 0) {
-  let runningBalance = openingBalance;
+function buildLedgerInputs(transactions = []) {
+  const hoaDuesCharges = [];
+  const waterBillCharges = [];
+  const postedPenalties = [];
+  const cashPayments = [];
+  const adminCreditAdjustments = [];
+
   transactions.forEach(txn => {
-    runningBalance += txn.amount;
-    txn.balance = runningBalance;
+    if (!txn || typeof txn !== 'object') return;
+
+    const baseRow = {
+      date: txn.date,
+      description: txn.description || '',
+      amount: txn.amount,
+      category: txn.category || null,
+      transactionId: txn.transactionId || null,
+      transactionRef: txn.transactionRef || null,
+      allocations: txn.allocations || [],
+      categoryBreakdown: txn.categoryBreakdown || {},
+      billRef: txn.billRef || null,
+      chargeRef: txn.chargeRef || null,
+      penaltyRef: txn.penaltyRef || null,
+      source: txn.source || null,
+      isStandaloneCredit: txn.isStandaloneCredit || false,
+      creditEntryId: txn.creditEntryId || null
+    };
+
+    if (txn.type === 'payment' || txn.payment > 0) {
+      cashPayments.push(baseRow);
+      return;
+    }
+
+    if (txn.type === 'credit_adjustment') {
+      adminCreditAdjustments.push(baseRow);
+      return;
+    }
+
+    if (txn.type === 'penalty') {
+      postedPenalties.push(baseRow);
+      return;
+    }
+
+    if (txn.type === 'charge' && txn.category === 'water') {
+      waterBillCharges.push(baseRow);
+      return;
+    }
+
+    if (txn.type === 'charge') {
+      hoaDuesCharges.push(baseRow);
+    }
   });
-  return transactions;
+
+  return {
+    hoaDuesCharges,
+    waterBillCharges,
+    postedPenalties,
+    cashPayments,
+    adminCreditAdjustments
+  };
 }
 
 /**
@@ -2057,10 +2091,11 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               type: 'credit_adjustment',
               date: entryDate,
               description: entry.notes || 'Credit Adjustment',
-              // Negative amount = reduces balance due (credit to the account)
-              amount: -amountPesos,
-              payment: amountCentavos > 0 ? amountPesos : 0,
-              charge: amountCentavos < 0 ? Math.abs(amountPesos) : 0,
+              // Admin credit adjustment: affects net position once (reduces balance)
+              // Preserve sign from credit history (positive credit added)
+              amount: amountPesos,
+              payment: 0,
+              charge: amountCentavos > 0 ? Math.abs(amountPesos) : 0,
               category: entry.category || 'credit',
               source: entry.source,
               isStandaloneCredit: true,
@@ -2251,26 +2286,56 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       });
     }
     
-    // Recompute running balance on the visible list only
-    // NOTE: This excludes credit_adjustments from running balance, which is INCORRECT
-    // TODO: Fix this - credit_adjustments must be included in balance calculation
-    const chronologicalTransactions = computeRunningBalance(visibleTransactions, openingBalance);
+    // Build ledger inputs and generate authoritative ledger rows
+    const {
+      hoaDuesCharges,
+      waterBillCharges,
+      postedPenalties,
+      cashPayments,
+      adminCreditAdjustments
+    } = buildLedgerInputs(visibleTransactions);
+    
+    const ledgerResult = generateLedgerData({
+      openingBalance,
+      hoaDuesCharges,
+      waterBillCharges,
+      postedPenalties,
+      cashPayments,
+      adminCreditAdjustments
+    });
+    
+    // Map ledger rows to legacy chronologicalTransactions shape (exclude opening balance row)
+    const chronologicalTransactions = ledgerResult.rows
+      .filter(row => row.type !== 'opening')
+      .map(row => ({
+        date: row.date ? parseDate(row.date) : null,
+        description: row.description || '',
+        amount: row.amount,
+        charge: row.charge || 0,
+        payment: row.payment || 0,
+        balance: row.balance || 0,
+        type: row.isPenalty ? 'penalty' : (row.type || 'charge'),
+        category: row.category || null,
+        transactionId: row.transactionId || null,
+        transactionRef: row.transactionRef || null,
+        allocations: row.allocations || [],
+        categoryBreakdown: row.categoryBreakdown || {},
+        billRef: row.billRef || null,
+        chargeRef: row.chargeRef || null,
+        penaltyRef: row.penaltyRef || null,
+        source: row.source || null,
+        isStandaloneCredit: row.isStandaloneCredit || false,
+        creditEntryId: row.creditEntryId || null
+      }));
     
     // Step 9: Fetch credit balance
     const creditBalanceData = await fetchCreditBalance(api, clientId, unitId);
     
-    // Step 10: Calculate summary (using visible transactions)
+    // Step 10: Calculate summary (using authoritative ledger)
     const calculatedTotalDue = scheduledAmount * 12;
     const totalDue = calculatedTotalDue;
     const totalPaid = duesData.totalPaid || 0;
-    
-    // Determine final balance from the last visible transaction
-    // Issue #142 FIX: The running balance IS the source of truth for the statement.
-    // Credit is consumed IMPLICITLY as charges push negative balances positive.
-    // No separate "Credit Applied" lines needed - just like a bank statement.
-    const finalBalance = chronologicalTransactions.length > 0 
-      ? chronologicalTransactions[chronologicalTransactions.length - 1].balance 
-      : openingBalance;
+    const finalBalance = ledgerResult.summary.finalBalance;
     
     // Log reconciliation info for debugging (warning only, no override)
     const currentCreditBalance = creditBalanceData.creditBalance || 0;
@@ -2281,7 +2346,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 
     // If filtering future bills, totalOutstanding should reflect current reality (finalBalance)
     // Otherwise use the annual calculation
-    const totalOutstanding = excludeFutureBills ? finalBalance : (totalDue - totalPaid);
+    const totalOutstanding = excludeFutureBills ? ledgerResult.summary.amountDue : (totalDue - totalPaid);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/7a86046c-0eb9-4295-a5e5-7c38e10f1c9d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'functions/backend/services/statementDataService.js:getConsolidatedUnitData:summary',message:'Statement summary computed',data:{clientId,unitId,excludeFutureBills,openingBalance,finalBalance,totalOutstanding,totalDue,totalPaid,visibleTransactionCount:chronologicalTransactions.length,currentCreditBalance:creditBalanceData?.creditBalance || 0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     
     // Step 11: Extract credit allocations
     const creditAllocations = [];
@@ -2325,7 +2393,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         totalPaid: totalPaid,
         totalOutstanding: totalOutstanding,
         finalBalance: finalBalance,
-        openingBalance: openingBalance,
+        openingBalance: ledgerResult.summary.openingBalance,
+        amountDue: ledgerResult.summary.amountDue,
+        totalCharges: ledgerResult.summary.totalCharges,
+        totalPayments: ledgerResult.summary.totalPayments,
         scheduledAmount: scheduledAmount,
         transactionCount: chronologicalTransactions.length
       }
@@ -2978,6 +3049,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     },
     summary: (() => {
       const closingBalance = roundTo2Decimals(rawData.summary.finalBalance);
+      const creditBalance = roundTo2Decimals(rawData.creditBalance?.creditBalance || 0);
+      const amountDue = roundTo2Decimals(rawData.summary.amountDue || 0);
       // The closing balance IS the final answer (like a bank statement)
       // Positive = amount owed, Negative = credit balance (no payment needed)
       // Credit is consumed IMPLICITLY through the running balance - no separate subtraction
@@ -2986,8 +3059,12 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
         totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
         totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
         openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
-        closingBalance: closingBalance
-        // Removed: creditBalance and netAmountDue (no longer needed - closing balance is the answer)
+        closingBalance: closingBalance,
+        totalCharges: roundTo2Decimals(rawData.summary.totalCharges || 0),
+        totalPayments: roundTo2Decimals(rawData.summary.totalPayments || 0),
+        creditBalance: creditBalance,
+        amountDue: amountDue,
+        netAmountDue: amountDue
       };
     })(),
     lineItems: lineItems,

@@ -10,7 +10,6 @@ import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
 import statementController from '../controllers/statementController.js';
 import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
-import { generateTextTable } from '../services/statementTextTableService.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
@@ -475,60 +474,6 @@ router.get('/statement/raw', authenticateUserWithProfile, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Error fetching raw statement data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      details: error.stack 
-    });
-  }
-});
-
-/**
- * Get Statement of Account as plain text table
- * GET /api/clients/:clientId/reports/statement/text
- * Query params:
- *   - unitId: Unit ID (e.g., '101', '102')
- *   - fiscalYear (optional): Fiscal year (defaults to current)
- * 
- * Returns plain text table matching prototype format exactly
- */
-router.get('/statement/text', authenticateUserWithProfile, async (req, res) => {
-  try {
-    const clientId = req.originalParams?.clientId || req.params.clientId;
-    const unitId = req.query.unitId;
-    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
-    const excludeFutureBills = req.query.excludeFutureBills === 'true';
-    
-    if (!unitId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'unitId query parameter is required' 
-      });
-    }
-    
-    // Create API client with auth token (for internal API calls)
-    const authToken = req.headers.authorization?.replace('Bearer ', '');
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-    
-    const api = axios.create({
-      baseURL: baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
-    
-    // Get statement data
-    const statementData = await getStatementData(api, clientId, unitId, fiscalYear, excludeFutureBills);
-    
-    // Generate text table output
-    const textOutput = generateTextTable(statementData);
-    
-    // Return as plain text
-    res.setHeader('Content-Type', 'text/plain');
-    res.send(textOutput);
-  } catch (error) {
-    console.error('Error generating statement text:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,

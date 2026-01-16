@@ -1866,33 +1866,37 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
         </tr>
         
         <!-- All Transaction Rows -->
-        ${currentItems.map(item => `
-        <tr class="clickable" data-transaction-id="${item.transactionId || ''}">
+        ${currentItems.map(item => {
+          const isAdjustment = item.isStandaloneCredit;
+          const chargeValue = item.charge;
+          const showCharge = !isAdjustment && item.charge > 0;
+          const showPayment = item.payment !== 0;
+          return `
+        <tr class="${isAdjustment ? 'credit-adjustment-row' : 'clickable'}" data-transaction-id="${item.transactionId || ''}">
           <td class="col-date">${formatDate(item.date)}</td>
-          <td class="col-description">${translateDescription(item.description, language)}</td>
-          <td class="col-charge amount">${item.charge > 0 ? formatCurrency(item.charge) : ''}</td>
-          <td class="col-payment amount ${item.payment > 0 ? 'payment-red' : ''}">${item.payment > 0 ? formatCurrency(item.payment) : ''}</td>
+          <td class="col-description ${isAdjustment ? 'credit-adjustment-text' : ''}">${translateDescription(item.description, language)}</td>
+          <td class="col-charge amount">${showCharge ? formatCurrency(chargeValue) : ''}</td>
+          <td class="col-payment amount ${showPayment && item.payment > 0 ? 'payment-red' : ''}">${showPayment ? formatCurrency(item.payment) : ''}</td>
           <td class="col-balance amount">${formatCurrency(item.balance)}</td>
-        </tr>
-        `).join('')}
+        </tr>`;
+        }).join('')}
       </tbody>
     </table>
     </div>
     
-    <!-- Balance Due/Credit Summary (immediately after activity table) -->
-    <!-- The closing balance IS the final answer (like a bank statement) -->
-    <!-- No "Less: Credit on Account" needed - credit is already reflected in running balance -->
+    <!-- Balance Due (final Statement balance) -->
     <div class="balance-due-box">
       <table>
+        ${actualClosingBalance > 0 ? `
         <tr>
-          <td>${actualClosingBalance > 0 ? t.balanceDue : t.creditBalance}</td>
-          <td>${formatCurrency(Math.abs(actualClosingBalance))}</td>
+          <td>${t.balanceDue}</td>
+          <td>${formatCurrency(actualClosingBalance)}</td>
         </tr>
-        ${actualClosingBalance <= 0 ? `
+        ` : `
         <tr>
           <td colspan="2" style="text-align: center;">${t.paidInFull}</td>
         </tr>
-        ` : ''}
+        `}
       </table>
     </div>
     

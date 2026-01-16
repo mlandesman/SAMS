@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { getNow } from '../../shared/services/DateService.js';
+import { getNow, parseDate as parseDateFromService } from '../../shared/services/DateService.js';
 
 const DEFAULT_TIMEZONE = 'America/Cancun';
 
@@ -8,6 +8,11 @@ const toDateTime = (value) => {
 
   if (DateTime.isDateTime(value)) {
     return value.setZone(DEFAULT_TIMEZONE);
+  }
+
+  if (value instanceof Date) {
+    const normalized = parseDateFromService(value);
+    return normalized ? DateTime.fromJSDate(normalized).setZone(DEFAULT_TIMEZONE) : null;
   }
 
   if (typeof value === 'string') {
@@ -84,7 +89,18 @@ const buildRows = ({
         inputIndex: nextIndexRef.value++,
         paymentDisplayUsesRawAmount: row.paymentDisplayUsesRawAmount === true,
         isAdjustment: row.isAdjustment === true,
-        isPenalty: row.isPenalty === true
+        isPenalty: row.isPenalty === true,
+        category: row.category || null,
+        transactionId: row.transactionId || null,
+        transactionRef: row.transactionRef || null,
+        allocations: row.allocations || [],
+        categoryBreakdown: row.categoryBreakdown || {},
+        billRef: row.billRef || null,
+        chargeRef: row.chargeRef || null,
+        penaltyRef: row.penaltyRef || null,
+        source: row.source || null,
+        isStandaloneCredit: row.isStandaloneCredit || false,
+        creditEntryId: row.creditEntryId || null
       };
     })
     .filter((row) => row.amountCentavos !== 0);
@@ -290,13 +306,29 @@ export function generateStatementData({
   });
 
   const finalBalance = centavosToPesos(balanceCentavos);
+  const totals = sortedLedger.reduce(
+    (acc, row) => {
+      if (row.type === 'opening') {
+        return acc;
+      }
+      if (row.type === 'payment') {
+        acc.totalPaymentsCentavos += Math.abs(row.amountCentavos);
+      } else {
+        acc.totalChargesCentavos += row.amountCentavos;
+      }
+      return acc;
+    },
+    { totalChargesCentavos: 0, totalPaymentsCentavos: 0 }
+  );
 
   return {
     rows,
     summary: {
       openingBalance: centavosToPesos(sortedLedger[0]?.amountCentavos || 0),
       finalBalance,
-      amountDue: finalBalance > 0 ? finalBalance : 0
+      amountDue: finalBalance > 0 ? finalBalance : 0,
+      totalCharges: centavosToPesos(totals.totalChargesCentavos),
+      totalPayments: centavosToPesos(totals.totalPaymentsCentavos)
     }
   };
 }
