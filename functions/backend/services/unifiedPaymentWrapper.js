@@ -1673,27 +1673,40 @@ export class UnifiedPaymentWrapper {
         const penaltyPaid = payment.penaltyPaid || 0;
         const totalPaid = payment.amountPaid || 0;
         
+        // CRITICAL: Get remaining amounts from original bill (from generateUPCData)
+        // These reflect prior payments, not just this payment preview
+        const baseRemainingCentavos = originalBill?.remainingCentavos ?? billToUse.remainingCentavos ?? 0;
+        const penaltyRemainingCentavos = originalBill?.penaltyRemainingCentavos ?? billToUse.penaltyRemainingCentavos ?? 0;
+        const totalRemainingCentavos = originalBill?.totalRemainingCentavos ?? billToUse.totalRemainingCentavos ?? 0;
+        const billStatus = originalBill?.status ?? billToUse.status ?? 'unpaid';
+        const isPartial = billStatus === 'partial';
+        
         const hoaMonth = {
           month: billToUse._hoaMetadata?.month,
           monthIndex: billToUse._metadata?.monthIndex,
           billPeriod: displayPeriod,
           dueDate: originalBill?.dueDate || payment.dueDate,  // Payment date for auto-pay
-          // Due amounts (always present)
+          // Due amounts (always present) - ORIGINAL amounts for display
           baseDue: baseDue,
           penaltyDue: penaltyDue,
           totalDue: totalDue,
+          // Remaining amounts (reflects prior payments) - for actual payment calculation
+          remainingDue: centavosToPesos(totalRemainingCentavos),
+          baseRemaining: centavosToPesos(baseRemainingCentavos),
+          penaltyRemaining: centavosToPesos(penaltyRemainingCentavos),
           // Paid amounts (0 when no payment, actual amounts when payment > 0)
           basePaid: basePaid,
           penaltyPaid: penaltyPaid,
           totalPaid: totalPaid,
-          status: payment.newStatus,
+          status: payment.newStatus || billStatus,
+          isPartial: isPartial,
           priority: billToUse._metadata?.priority,  // For frontend sorting
           isQuarterly: isQuarterly,
           quarterIndex: billToUse._hoaMetadata?.quarterIndex,
           monthsInQuarter: billToUse._hoaMetadata?.monthsInQuarter
         };
         
-        console.log(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}`);
+        console.log(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}, remaining=$${hoaMonth.remainingDue}, isPartial=${isPartial}`);
         result.hoa.monthsAffected.push(hoaMonth);
         
       } else if (moduleType === 'water') {
@@ -1710,18 +1723,31 @@ export class UnifiedPaymentWrapper {
         const waterPenaltyPaid = payment.penaltyPaid || 0;
         const waterTotalPaid = payment.amountPaid || 0;
         
+        // CRITICAL: Get remaining amounts from original bill (from generateUPCData)
+        // These reflect prior payments, not just this payment preview
+        const waterBaseRemainingCentavos = originalBill?.remainingCentavos ?? billToUse.remainingCentavos ?? 0;
+        const waterPenaltyRemainingCentavos = originalBill?.penaltyRemainingCentavos ?? billToUse.penaltyRemainingCentavos ?? 0;
+        const waterTotalRemainingCentavos = originalBill?.totalRemainingCentavos ?? billToUse.totalRemainingCentavos ?? 0;
+        const waterBillStatus = originalBill?.status ?? billToUse.status ?? 'unpaid';
+        const waterIsPartial = waterBillStatus === 'partial';
+        
         result.water.billsAffected.push({
           billPeriod: displayPeriod,
           dueDate: originalBill?.dueDate || payment.dueDate,  // Payment date for auto-pay
-          // Due amounts (always present)
+          // Due amounts (always present) - ORIGINAL amounts for display
           baseDue: waterBaseDue,
           penaltyDue: waterPenaltyDue,
           totalDue: waterTotalDue,
+          // Remaining amounts (reflects prior payments) - for actual payment calculation
+          remainingDue: centavosToPesos(waterTotalRemainingCentavos),
+          baseRemaining: centavosToPesos(waterBaseRemainingCentavos),
+          penaltyRemaining: centavosToPesos(waterPenaltyRemainingCentavos),
           // Paid amounts (0 when no payment, actual amounts when payment > 0)
           basePaid: waterBasePaid,
           penaltyPaid: waterPenaltyPaid,
           totalPaid: waterTotalPaid,
-          status: payment.newStatus,
+          status: payment.newStatus || waterBillStatus,
+          isPartial: waterIsPartial,
           priority: billToUse._metadata?.priority  // For frontend sorting
         });
       }
