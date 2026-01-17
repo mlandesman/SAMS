@@ -311,10 +311,16 @@ async function getTransactionsForUnit(db, clientId, unitId, fiscalYear) {
  * Compute per-bill remaining from bill documents
  * Bill documents are AUTHORITATIVE for UPC
  * 
+ * Returns bills with metadata compatible with previewUnifiedPayment():
+ * - `period` field for unique identification
+ * - `_metadata` for module type, priority, etc.
+ * - `_hoaMetadata` for HOA-specific data (quarterly, monthIndex, etc.)
+ * - Fields compatible with PaymentDistributionService
+ * 
  * @param {object} rawData - Raw data from gatherRawData
  * @param {Array} waivedPenalties - Penalties to waive
  * @param {Array} excludedBills - Bills to exclude
- * @returns {Array} Bills with computed remaining amounts
+ * @returns {Array} Bills with computed remaining amounts and metadata
  */
 function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
   const bills = [];
@@ -352,29 +358,79 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     // Determine status based on total remaining
     let status;
     if (totalRemainingCentavos <= 0) {
-      status = 'PAID';
+      status = 'paid';
     } else if (totalPaidCentavos > 0) {
-      status = 'PARTIAL';
+      status = 'partial';
     } else {
-      status = 'UNPAID';
+      status = 'unpaid';
     }
     
+    // Build HOA-specific metadata for recording
+    const isQuarterly = hoaBill.isQuarterly || false;
+    const quarterNum = hoaBill.quarter || 0; // 1-based from gatherRawData
+    const monthIndex = hoaBill.monthIndex ?? (isQuarterly ? (quarterNum - 1) * 3 : 0);
+    
+    // Build _hoaMetadata for recording compatibility
+    const _hoaMetadata = isQuarterly ? {
+      quarterIndex: quarterNum - 1, // 0-based for recording
+      monthsInQuarter: [(quarterNum - 1) * 3, (quarterNum - 1) * 3 + 1, (quarterNum - 1) * 3 + 2],
+      isQuarterly: true,
+      monthIndex: (quarterNum - 1) * 3 // First month of quarter
+    } : {
+      monthIndex: monthIndex,
+      month: monthIndex + 1, // 1-based month number
+      isQuarterly: false
+    };
+    
     bills.push({
+      // Core identification
       billId: hoaBill.billId,
+      period: hoaBill.billId, // Alias for compatibility with PaymentDistributionService
       billType: 'hoa',
       description: hoaBill.description,
+      
+      // Original amounts (in centavos)
       originalCentavos,
-      paidCentavos: basePaidCentavos,
-      remainingCentavos: baseRemainingCentavos,
+      currentCharge: originalCentavos, // Alias for PaymentDistributionService
+      baseCharge: originalCentavos,    // Alias for PaymentDistributionService
+      baseAmount: originalCentavos,    // Alias for PaymentDistributionService
+      
+      // Penalty amounts (in centavos)
       penaltyCentavos,
+      penaltyAmount: penaltyCentavos,  // Alias for PaymentDistributionService
+      
+      // Paid amounts (in centavos)
+      paidCentavos: basePaidCentavos,
+      basePaid: basePaidCentavos,      // Alias for PaymentDistributionService
+      paidAmount: totalPaidCentavos,   // Total paid for status display
       penaltyPaidCentavos,
-      penaltyRemainingCentavos,
+      penaltyPaid: penaltyPaidCentavos, // Alias for PaymentDistributionService
       totalPaidCentavos,
+      
+      // Remaining amounts (in centavos)
+      remainingCentavos: baseRemainingCentavos,
+      penaltyRemainingCentavos,
       totalRemainingCentavos,
+      
+      // Total charge
+      totalCharge: totalDueCentavos,
+      
+      // Status and dates
       dueDate: hoaBill.dueDate,
       status,
-      isQuarterly: hoaBill.isQuarterly || false,
-      fiscalYear: hoaBill.fiscalYear
+      
+      // HOA-specific fields
+      isQuarterly,
+      fiscalYear: hoaBill.fiscalYear,
+      
+      // Metadata for previewUnifiedPayment() compatibility
+      _metadata: {
+        moduleType: 'hoa',
+        monthIndex: monthIndex,
+        billPeriod: hoaBill.billId,
+        priority: null // Calculated later by _prioritizeAndSortBills()
+      },
+      _hoaMetadata
     });
   }
   
@@ -411,28 +467,64 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     // Determine status based on total remaining
     let status;
     if (totalRemainingCentavos <= 0) {
-      status = 'PAID';
+      status = 'paid';
     } else if (totalPaidCentavos > 0) {
-      status = 'PARTIAL';
+      status = 'partial';
     } else {
-      status = 'UNPAID';
+      status = 'unpaid';
     }
     
+    // Extract month index from period (e.g., "2026-00" -> 0)
+    const periodMatch = waterBill.billId?.match(/\d{4}-(\d{2})/);
+    const monthIndex = periodMatch ? parseInt(periodMatch[1]) : null;
+    
     bills.push({
+      // Core identification
       billId: waterBill.billId,
+      period: waterBill.billId, // Alias for compatibility with PaymentDistributionService
       billType: 'water',
       description: waterBill.description,
+      
+      // Original amounts (in centavos)
       originalCentavos,
-      paidCentavos: basePaidCentavos,
-      remainingCentavos: baseRemainingCentavos,
+      currentCharge: originalCentavos, // Alias for PaymentDistributionService
+      baseCharge: originalCentavos,    // Alias for PaymentDistributionService
+      baseAmount: originalCentavos,    // Alias for PaymentDistributionService
+      
+      // Penalty amounts (in centavos)
       penaltyCentavos,
+      penaltyAmount: penaltyCentavos,  // Alias for PaymentDistributionService
+      
+      // Paid amounts (in centavos)
+      paidCentavos: basePaidCentavos,
+      basePaid: basePaidCentavos,      // Alias for PaymentDistributionService
+      paidAmount: totalPaidCentavos,   // Total paid for status display
       penaltyPaidCentavos,
-      penaltyRemainingCentavos,
+      penaltyPaid: penaltyPaidCentavos, // Alias for PaymentDistributionService
       totalPaidCentavos,
+      
+      // Remaining amounts (in centavos)
+      remainingCentavos: baseRemainingCentavos,
+      penaltyRemainingCentavos,
       totalRemainingCentavos,
+      
+      // Total charge
+      totalCharge: totalDueCentavos,
+      
+      // Status and dates
       dueDate: waterBill.dueDate,
       status,
-      consumption: waterBill.consumption
+      
+      // Water-specific fields
+      consumption: waterBill.consumption,
+      
+      // Metadata for previewUnifiedPayment() compatibility
+      _metadata: {
+        moduleType: 'water',
+        monthIndex: monthIndex,
+        billPeriod: waterBill.billId,
+        priority: null // Calculated later by _prioritizeAndSortBills()
+      }
     });
   }
   

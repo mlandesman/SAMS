@@ -39,14 +39,13 @@
 import { getNow, createDate, toISOString } from '../../shared/services/DateService.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
 import { pesosToCentavos, centavosToPesos, formatCurrency } from '../../shared/utils/currencyUtils.js';
-import { getCreditBalance as getCreditBalanceFromAPI } from '../../shared/services/CreditBalanceService.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import { getDb } from '../firebase.js';
 import { createTransaction } from '../controllers/transactionsController.js';
 import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
-import { hydrateBillsForResponse, getBaseOwed, getPenaltyOwed, getTotalOwed } from '../../shared/utils/billCalculations.js';
+import { generateUPCData } from './generateUPCData.js';
 
 // Import module-specific functions
 import { 
@@ -111,7 +110,7 @@ export class UnifiedPaymentWrapper {
    * @param {Array} excludedBills - Array of excluded bill periods
    * @returns {object} Unified payment distribution preview
    */
-  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = [], options = {}) {
+  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = []) {
     await this._initializeDb();
     
     console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
@@ -120,22 +119,24 @@ export class UnifiedPaymentWrapper {
     const calculationDate = paymentDate ? new Date(paymentDate) : getNow();
     console.log(`   📅 Calculation date: ${calculationDate.toISOString()}`);
     
-    // Step 1: Aggregate bills from both modules
-    let { allBills, configs } = await this._aggregateBills(clientId, unitId, calculationDate);
+    // Step 1: Get UPC-specific projection from generateUPCData()
+    // This is the SINGLE data source for bills, credit, and discrepancy
+    const upcData = await generateUPCData({
+      clientId,
+      unitId,
+      asOfDate: calculationDate,
+      waivedPenalties: waivedPenalties || [],
+      excludedBills: excludedBills || []
+    });
     
-    // Step 1.5: Apply penalty waivers to bills
-    if (waivedPenalties && waivedPenalties.length > 0) {
-      console.log(`   🚫 Applying ${waivedPenalties.length} penalty waivers`);
-      waivedPenalties.forEach(waiver => {
-        const bill = allBills.find(b => b.period === waiver.billId);
-        if (bill) {
-          console.log(`      ✗ Waiving penalty for ${bill.period}: ${formatCurrency(bill.penaltyAmount)} (${waiver.reason})`);
-          bill.penaltyAmount = 0; // Zero out the penalty
-        }
-      });
-    }
+    // Extract data from UPC projection
+    let allBills = upcData.bills;
+    const currentCredit = upcData.creditAvailable || 0; // In pesos
+    const discrepancy = upcData.discrepancy;
     
-    // Step 1.6: Mark excluded bills (don't remove them, just mark for skipping during allocation)
+    console.log(`   📋 UPC Data: ${allBills.length} bills, $${upcData.totalRemaining} remaining, $${currentCredit} credit`);
+    
+    // Step 1.5: Mark excluded bills (for any that weren't already filtered by generateUPCData)
     if (excludedBills && excludedBills.length > 0) {
       console.log(`   🚫 Marking ${excludedBills.length} bills as excluded`);
       allBills.forEach(bill => {
@@ -143,33 +144,34 @@ export class UnifiedPaymentWrapper {
         const isExcluded = excludedBills.includes(billPeriod) || excludedBills.includes(bill.period);
         if (isExcluded) {
           console.log(`      ✗ Marking bill as excluded: ${billPeriod}`);
-          bill._metadata.excluded = true; // Mark as excluded instead of filtering out
+          bill._metadata.excluded = true;
         }
       });
     }
     
+    // Get fiscal year config for priority calculation
+    const configs = await this._getMergedConfig(clientId);
+    
     if (allBills.length === 0) {
       console.log(`   ℹ️  No unpaid bills found for unit ${unitId}`);
-      // Get current credit balance
-      const creditData = await getCreditBalanceFromAPI(clientId, unitId);
       
       return {
         totalAmount: paymentAmount,
-        currentCreditBalance: creditData.creditBalance || 0,
-        newCreditBalance: roundCurrency((creditData.creditBalance || 0) + paymentAmount),
+        currentCreditBalance: currentCredit,
+        newCreditBalance: roundCurrency(currentCredit + paymentAmount),
         hoa: { billsPaid: [], totalPaid: 0, monthsAffected: [] },
         water: { billsPaid: [], totalPaid: 0, billsAffected: [] },
         credit: {
           used: 0,
           added: paymentAmount,
-          final: roundCurrency((creditData.creditBalance || 0) + paymentAmount)
+          final: roundCurrency(currentCredit + paymentAmount)
         },
         summary: {
           totalBills: 0,
           totalAllocated: 0,
-          allocationCount: 0,
-          authoritativeAmountDue: options?.authoritativeAmountDue ?? null
-        }
+          allocationCount: 0
+        },
+        discrepancy: discrepancy
       };
     }
     
@@ -188,9 +190,7 @@ export class UnifiedPaymentWrapper {
       _originalPeriod: bill.period // Keep original for reference
     }));
     
-    // Step 3: Get current credit balance
-    const creditData = await getCreditBalanceFromAPI(clientId, unitId);
-    const currentCredit = creditData.creditBalance || 0;
+    // Credit balance already loaded from generateUPCData()
     console.log(`   💰 Current credit balance: $${currentCredit}`);
     
     // Step 4: MULTI-PASS PRIORITY ALGORITHM
@@ -275,11 +275,10 @@ export class UnifiedPaymentWrapper {
         const moduleType = bill._metadata.moduleType;
         const displayPeriod = bill._originalPeriod || bill.period.replace(`${moduleType}:`, '');
         
-        // Calculate actual bill amounts (in centavos, will be converted to pesos by PaymentDistributionService)
-        const baseOwedCentavos = getBaseOwed(bill); // Returns centavos
-        const penaltyOwedCentavos = getPenaltyOwed(bill); // Returns centavos
-        const totalOwedCentavos = getTotalOwed(bill); // Returns centavos
-        
+        const baseOwedCentavos = bill.baseAmount ?? bill.baseCharge ?? bill.currentCharge ?? 0;
+        const penaltyOwedCentavos = bill.penaltyAmount ?? 0;
+        const totalOwedCentavos = baseOwedCentavos + penaltyOwedCentavos;
+
         // Convert to pesos for consistency with PaymentDistributionService output
         const baseOwedPesos = centavosToPesos(baseOwedCentavos);
         const penaltyOwedPesos = centavosToPesos(penaltyOwedCentavos);
@@ -321,14 +320,14 @@ export class UnifiedPaymentWrapper {
     // Step 5: Split results by module (use bills with unique periods for accurate matching)
     const splitResults = this._splitDistributionByModule(distribution, billsWithUniquePeroids);
     
-    // Add netCreditAdded to the split results
+    // Add netCreditAdded and discrepancy to the split results
     splitResults.netCreditAdded = distribution.netCreditAdded;
     splitResults.currentCreditBalance = currentCredit;
-    splitResults.authoritativeAmountDue = options?.authoritativeAmountDue ?? null;
-    splitResults.summary = {
-      ...splitResults.summary,
-      authoritativeAmountDue: splitResults.authoritativeAmountDue
-    };
+    splitResults.discrepancy = discrepancy;
+    
+    // UPC totals from generateUPCData() (bill-document authoritative)
+    splitResults.upcTotalRemaining = upcData.totalRemaining;
+    splitResults.upcTotalRemainingCentavos = upcData.totalRemainingCentavos;
     
     // Log payment calculation details
     console.log(`   💰 Payment calculation - Credit allocation:`);
@@ -400,22 +399,18 @@ export class UnifiedPaymentWrapper {
     
     console.log(`   📋 Payment details: Method=${paymentMethod}, Date=${paymentDate}, Reference=${reference || 'none'}`);
     
-    // Step 1: Verify preview data matches current state
-    console.log(`   🔍 Verifying preview data matches current state...`);
-    // Pass waivedPenalties and excludedBills to verification so it calculates the same amounts
-    const currentPreview = await this.previewUnifiedPayment(clientId, unitId, amount, paymentDate, false, waivedPenalties, excludedBills);
-    
-    // Compare totals (allow small floating point differences)
+    // Step 1: Sanity check preview totals (do NOT recalculate)
+    console.log(`   🔍 Verifying preview totals match payment amount...`);
     const previewTotal = preview.summary?.totalAllocated || 0;
-    const currentTotal = currentPreview.summary?.totalAllocated || 0;
-    
-    if (Math.abs(previewTotal - currentTotal) > 0.01) {
-      console.error(`   ❌ Preview mismatch: Expected $${previewTotal}, Current $${currentTotal}`);
-      console.error(`   ❌ Waivers applied: ${waivedPenalties.length}`);
-      throw new Error('Bill status changed since preview. Please refresh and try again.');
+    const netCreditAdded = preview.netCreditAdded ?? ((preview.credit?.added || 0) - (preview.credit?.used || 0));
+    const expectedPayment = roundCurrency(previewTotal + netCreditAdded);
+
+    if (Math.abs(expectedPayment - amount) > 0.01) {
+      console.error(`   ❌ Preview mismatch: Expected payment $${expectedPayment}, Received $${amount}`);
+      throw new Error('Preview total does not match payment amount. Please refresh and try again.');
     }
-    
-    console.log(`   ✅ Preview verified: $${currentTotal} allocation matches`);
+
+    console.log(`   ✅ Preview verified: $${expectedPayment} matches payment amount`);
     
     // Parse payment date
     const paymentDateObj = parseDate(paymentDate);

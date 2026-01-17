@@ -21,11 +21,9 @@
  * - Uses existing UnifiedPaymentWrapper service
  */
 
-import axios from 'axios';
 import { unifiedPaymentWrapper } from '../services/unifiedPaymentWrapper.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
-import { getConsolidatedUnitData } from '../services/statementDataService.js';
 
 /**
  * Validate client ID
@@ -229,36 +227,15 @@ export const previewUnifiedPayment = async (req, res) => {
     console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${effectiveAmount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
     
     // Call UnifiedPaymentWrapper service (expects PESOS)
-    // No special "zero-amount request" flag - just pass the actual amount
-    const authToken = req.headers.authorization?.replace('Bearer ', '');
-    const requestSource = req.body?.source || req.headers['x-sams-source'];
-    const shouldSkipAuthoritativeAmountDue = requestSource === 'statementDataService' || requestSource === 'statement';
-    let authoritativeAmountDue = null;
-    if (authToken && !shouldSkipAuthoritativeAmountDue) {
-      try {
-        const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
-        const api = axios.create({
-          baseURL,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`
-          }
-        });
-        const rawData = await getConsolidatedUnitData(api, clientId, unitId, null, false);
-        authoritativeAmountDue = rawData?.summary?.amountDue ?? null;
-      } catch (error) {
-        console.error('❌ [UNIFIED PAYMENT CONTROLLER] Failed to load authoritative amountDue:', error.message);
-      }
-    }
+    // generateUPCData() provides all data (bills, credit, discrepancy) - no Statement call needed
     const preview = await unifiedPaymentWrapper.previewUnifiedPayment(
       clientId,
       unitId,
       amountInPesos,
       paymentDate,
-      false, // No longer need special zero-amount handling
-      waivedPenalties || [], // Pass waived penalties array
-      excludedBills || [], // Pass excluded bills array
-      { authoritativeAmountDue }
+      false, // Deprecated parameter
+      waivedPenalties || [],
+      excludedBills || []
     );
     
     // Return successful preview
