@@ -41,6 +41,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   // Preview state
   const [preview, setPreview] = useState(null);
   const [creditUsed, setCreditUsed] = useState(0);
+  const [creditAdded, setCreditAdded] = useState(0);
   const [creditRemaining, setCreditRemaining] = useState(0);
   
   // Penalty waiver state
@@ -114,6 +115,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setCreditBalance(0);
       setTotalDue(0);
       setCreditUsed(0);
+      setCreditAdded(0);
       setCreditRemaining(0);
       setError(null);
       setWaivedPenalties([]); // Clear waived penalties when unit changes
@@ -326,7 +328,8 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setUnpaidBills(billsToDisplay);
       setPreview(previewData);
       
-      // Calculate total due from filtered bills (fallback if authoritative amount not provided)
+      // Calculate total due from filtered bills using REMAINING amounts (not original)
+      // Use remainingDue when available (for partial bills), otherwise fall back to totalDue
       const calculatedTotalDue = billsToDisplay.reduce(
         (sum, bill) => {
           // Skip excluded bills
@@ -334,19 +337,25 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
             return sum;
           }
           
-          const baseTotal = bill.totalDue || 0;
+          // Use remainingDue for accurate total (accounts for prior payments)
+          // Fall back to totalDue only if remainingDue is not available
+          const remaining = bill.remainingDue !== null && bill.remainingDue !== undefined
+            ? bill.remainingDue
+            : bill.totalDue || 0;
+          
           // Subtract waived penalty if this bill has one
           const waived = waivedPenalties.find(w => w.billId === bill.billPeriod);
           const waivedAmount = waived ? waived.amount : 0;
-          return sum + (baseTotal - waivedAmount);
+          return sum + (remaining - waivedAmount);
         }, 
         0
       );
 
-      const authoritativeAmountDue = previewData?.authoritativeAmountDue ?? previewData?.summary?.authoritativeAmountDue;
-      const totalDueToDisplay = typeof authoritativeAmountDue === 'number'
-        ? authoritativeAmountDue
-        : calculatedTotalDue;
+      // Use calculated total from displayed bills (accounts for prior payments via remainingDue)
+      // Only fall back to authoritativeAmountDue if calculated total is 0 and we expect bills
+      const totalDueToDisplay = calculatedTotalDue > 0 
+        ? calculatedTotalDue 
+        : (previewData?.authoritativeAmountDue ?? previewData?.summary?.authoritativeAmountDue ?? 0);
       setTotalDue(totalDueToDisplay);
       
       console.log(`💰 Total amount due (authoritative): ${formatAsMXN(totalDueToDisplay)}`);
@@ -355,11 +364,13 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       // Update credit calculations
       // Use credit.final or newCreditBalance - both should represent the final credit balance
       const finalCreditBalance = previewData.credit?.final ?? previewData.newCreditBalance ?? 0;
+      const overpaymentToCredit = previewData.credit?.added ?? previewData.overpayment ?? 0;
       setCreditBalance(previewData.currentCreditBalance || 0);
       setCreditUsed(previewData.creditUsed || 0);
+      setCreditAdded(overpaymentToCredit);
       setCreditRemaining(finalCreditBalance);
       
-      console.log(`💰 Credit Balance - Current: ${formatAsMXN(previewData.currentCreditBalance || 0)}, Final: ${formatAsMXN(finalCreditBalance)}, Used: ${formatAsMXN(previewData.creditUsed || 0)}`);
+      console.log(`💰 Credit Balance - Starting: ${formatAsMXN(previewData.currentCreditBalance || 0)}, Applied: ${formatAsMXN(previewData.creditUsed || 0)}, Added: ${formatAsMXN(overpaymentToCredit)}, Final: ${formatAsMXN(finalCreditBalance)}`);
       
       console.log(`💰 Preview shows ${previewData.billPayments?.length || 0} bills affected by $${amount} payment`);
       
@@ -530,7 +541,11 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       return { text: 'EXCLUDED', className: 'status-excluded' };
     }
     
-    if (bill.totalPayment >= bill.totalDue) {
+    const remainingDue = bill.remainingDue !== null && bill.remainingDue !== undefined
+      ? bill.remainingDue
+      : bill.totalDue;
+
+    if (bill.totalPayment >= remainingDue) {
       return { text: 'Will be paid in full', className: 'status-paid' };
     } else if (bill.totalPayment > 0) {
       return { text: 'PARTIAL', className: 'status-partial' };
@@ -752,6 +767,9 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                           const adjustedTotalDue = penaltyWaived 
                             ? bill.totalDue - waivedPenalty.amount 
                             : bill.totalDue;
+                          const totalDueToDisplay = bill.remainingDue !== null && bill.remainingDue !== undefined
+                            ? bill.remainingDue
+                            : adjustedTotalDue;
                           
                           return (
                             <tr key={index}>
@@ -781,7 +799,10 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                                   {formatAsMXN(bill.penaltyDue)}
                                 </span>
                               </td>
-                              <td><strong>{formatAsMXN(adjustedTotalDue)}</strong></td>
+                              <td>
+                                <strong>{formatAsMXN(totalDueToDisplay)}</strong>
+                                {bill.isPartial && <span className="remaining-badge">(remaining)</span>}
+                              </td>
                               <td className={statusInfo.className}>{statusInfo.text}</td>
                             </tr>
                           );
@@ -821,7 +842,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                   </div>
                 </div>
                 
-                {/* Credit Calculation Display */}
+                {/* Credit Calculation Display - Clear action-oriented messaging */}
                 {(paymentAmount !== '' || (selectedUnit && currentCreditBalance > 0)) && (
                   <div className="funds-calculation">
                     {calculating ? (
@@ -831,9 +852,27 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                       </div>
                     ) : (
                       <>
-                        <p><strong>Total Available Funds:</strong> <span className="total-funds">{formatAsMXN((parseFloat(paymentAmount) || 0) + currentCreditBalance)}</span></p>
-                        <p><strong>Credit Balance Used:</strong> {formatAsMXN(creditUsed)}</p>
-                        <p><strong>Credit Balance Remaining:</strong> {formatAsMXN(creditRemaining)}</p>
+                        {/* Show cash payment entered */}
+                        <p><strong>Cash Payment:</strong> <span className="total-funds">{formatAsMXN(parseFloat(paymentAmount) || 0)}</span></p>
+                        
+                        {/* Show credit applied to bills (only if credit is actually used) */}
+                        <p><strong>Credit Applied to Bills:</strong> {formatAsMXN(creditUsed)}</p>
+                        
+                        {/* Show overpayment converted to credit (only if there's overpayment) */}
+                        <p><strong>Overpayment to Credit:</strong> {formatAsMXN(creditAdded)}</p>
+                        
+                        {/* Show projected final credit balance with formula explanation */}
+                        <p style={{ borderTop: '1px solid #b3d9ff', paddingTop: '6px', marginTop: '6px' }}>
+                          <strong>Projected Credit Balance:</strong>{' '}
+                          <span style={{ fontWeight: 'bold', color: creditRemaining > 0 ? '#27ae60' : '#2c3e50' }}>
+                            {formatAsMXN(creditRemaining)}
+                          </span>
+                          {currentCreditBalance > 0 && (
+                            <span style={{ fontSize: '0.85em', color: '#666', marginLeft: '8px' }}>
+                              ({formatAsMXN(currentCreditBalance)} − {formatAsMXN(creditUsed)} + {formatAsMXN(creditAdded)})
+                            </span>
+                          )}
+                        </p>
                       </>
                     )}
                   </div>
