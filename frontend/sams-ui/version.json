@@ -3,10 +3,10 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "1.6.10",
-  "buildDate": "2026-01-17T19:02:40.580Z",
-  "buildTimestamp": 1768676560581,
-  "environment": "staging",
+  "version": "1.7.0",
+  "buildDate": "2026-01-17T22:00:11.988Z",
+  "buildTimestamp": 1768687211993,
+  "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
   "developers": [
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "7fdfd97",
-    "branch": "fix/issue-150-upc-statement-alignment",
-    "lastCommitDate": "2026-01-17 13:45:49 -0500"
+    "hash": "264ee34",
+    "branch": "main",
+    "lastCommitDate": "2026-01-17 16:59:29 -0500"
   },
   "build": {
-    "timestamp": "2026-01-17T19:02:40.580Z",
-    "environment": "staging",
+    "timestamp": "2026-01-17T22:00:11.988Z",
+    "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260117.1402"
+    "buildNumber": "260117.1700"
   },
   "deployment": {
-    "target": "staging",
-    "date": "2026-01-17T19:02:40.580Z",
+    "target": "development",
+    "date": "2026-01-17T22:00:11.988Z",
     "automated": true
   },
   "releaseNotes": {
