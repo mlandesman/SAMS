@@ -4,9 +4,9 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.6.10",
-  "buildDate": "2026-01-16T03:12:29.156Z",
-  "buildTimestamp": 1768533149157,
-  "environment": "development",
+  "buildDate": "2026-01-17T19:02:40.580Z",
+  "buildTimestamp": 1768676560581,
+  "environment": "staging",
   "gitBranch": "main",
   "gitCommit": "local",
   "developers": [
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "9e0ba8a",
-    "branch": "main",
-    "lastCommitDate": "2026-01-15 22:02:13 -0500"
+    "hash": "7fdfd97",
+    "branch": "fix/issue-150-upc-statement-alignment",
+    "lastCommitDate": "2026-01-17 13:45:49 -0500"
   },
   "build": {
-    "timestamp": "2026-01-16T03:12:29.156Z",
-    "environment": "development",
+    "timestamp": "2026-01-17T19:02:40.580Z",
+    "environment": "staging",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260115.2212"
+    "buildNumber": "260117.1402"
   },
   "deployment": {
-    "target": "development",
-    "date": "2026-01-16T03:12:29.156Z",
+    "target": "staging",
+    "date": "2026-01-17T19:02:40.580Z",
     "automated": true
   },
   "releaseNotes": {

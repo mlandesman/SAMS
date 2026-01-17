@@ -146,6 +146,13 @@
   border-radius: 3px;
 }
 
+.remaining-badge {
+  margin-left: 6px;
+  color: #f39c12;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
 .no-bills {
   color: #7f8c8d;
   font-style: italic;

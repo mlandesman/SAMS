@@ -24,6 +24,9 @@ function convertPreviewFromCentavos(data) {
     baseChargeDue: month.baseDue || 0,  // Due amount (always present)
     penaltyDue: month.penaltyDue || 0,   // Due amount (always present)
     totalDue: month.totalDue || 0,       // Due amount (always present)
+    remainingDue: month.remainingDue ?? null,
+    originalTotalDue: month.originalTotalDue ?? null,
+    isPartial: month.isPartial || false,
     baseChargePayment: month.basePaid || 0,  // Paid amount (0 when no payment)
     penaltyPayment: month.penaltyPaid || 0,  // Paid amount (0 when no payment)
     totalPayment: month.totalPaid || 0,      // Paid amount (0 when no payment)
@@ -44,6 +47,9 @@ function convertPreviewFromCentavos(data) {
     baseChargeDue: bill.baseDue || 0,    // Due amount (always present)
     penaltyDue: bill.penaltyDue || 0,     // Due amount (always present)
     totalDue: bill.totalDue || 0,         // Due amount (always present)
+    remainingDue: bill.remainingDue ?? null,
+    originalTotalDue: bill.originalTotalDue ?? null,
+    isPartial: bill.isPartial || false,
     baseChargePayment: bill.basePaid || 0,  // Paid amount (0 when no payment)
     penaltyPayment: bill.penaltyPaid || 0,  // Paid amount (0 when no payment)
     totalPayment: bill.totalPaid || 0,      // Paid amount (0 when no payment)

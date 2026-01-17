@@ -15,6 +15,13 @@
           "sams-mobile-pwa"
         ]
       }
+    },
+    "sandyland-management-system": {
+      "hosting": {
+        "desktop": [
+          "sams-sandyland-prod"
+        ]
+      }
     }
   },
   "etags": {}

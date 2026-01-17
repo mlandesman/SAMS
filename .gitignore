@@ -177,3 +177,6 @@ functions/backend/testing/test*.js
 
 # Old .claude commands (migrated to .cursor)
 .claude/
+
+# SAMS-Docs copied for agent access (original at /Users/michael/Projects/SAMS-Docs)
+SAMS-Docs/
