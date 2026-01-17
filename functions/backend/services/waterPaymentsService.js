@@ -829,30 +829,43 @@ class WaterPaymentsService {
         console.log(`🔍 [DEBUG] Bill ${doc.id}: totalDue=${totalDue}, paidAmount=${paidAmount}, totalUnpaidAmount=${totalUnpaidAmount}`);
         
         if (totalUnpaidAmount > 0) {
-          // Use existing waterDataService fiscal-to-calendar conversion
-          // Format: YYYY-MM where YYYY is fiscal year and MM is fiscal month (00-11)
-          const [fiscalYearStr, fiscalMonthStr] = doc.id.split('-');
-          const fiscalYear = parseInt(fiscalYearStr);
-          const fiscalMonth = parseInt(fiscalMonthStr);
-          
-          // Use waterDataService methods for proper fiscal year conversion
-          const calendarYear = waterDataService.getCalendarYear(fiscalYear, fiscalMonth);
-          
-          // Convert fiscal month to calendar month using existing logic
-          // Fiscal month 0 (July) = calendar month 7, etc.
-          const calendarMonth = fiscalMonth + 7; // July = 7, adjust if > 12
-          const actualCalendarMonth = calendarMonth > 12 ? calendarMonth - 12 : calendarMonth;
-          
-          const dueDate = `${calendarYear}-${String(actualCalendarMonth).padStart(2, '0')}-01`;
-          
-          console.log(`📅 Bill ${doc.id}: Fiscal FY${fiscalYear}-${fiscalMonthStr} → Calendar ${dueDate} (${waterDataService.getMonthName(fiscalMonth)})`);
-          
+          // Bill IDs can be YYYY-MM, YYYY-Qn, or other YYYY-<descriptor> formats.
+          // Extract year from first 4 chars; remainder (after optional hyphen) is the period key.
+          const docId = String(doc.id || '');
+          const yearPart = docId.slice(0, 4);
+          const remainder = docId[4] === '-' ? docId.slice(5) : docId.slice(4);
+          const fiscalYear = parseInt(yearPart, 10);
+          const fiscalMonth = remainder?.match(/^\d{2}$/) ? parseInt(remainder, 10) : null;
+
+          let dueDate = billData?.dueDate || null;
+
+          if (!Number.isNaN(fiscalYear) && fiscalMonth !== null && !Number.isNaN(fiscalMonth)) {
+            // Use waterDataService methods for proper fiscal year conversion
+            const calendarYear = waterDataService.getCalendarYear(fiscalYear, fiscalMonth);
+
+            // Convert fiscal month to calendar month using existing logic
+            // Fiscal month 0 (July) = calendar month 7, etc.
+            const calendarMonth = fiscalMonth + 7; // July = 7, adjust if > 12
+            const actualCalendarMonth = calendarMonth > 12 ? calendarMonth - 12 : calendarMonth;
+
+            dueDate = `${calendarYear}-${String(actualCalendarMonth).padStart(2, '0')}-01`;
+
+            console.log(
+              `📅 Bill ${doc.id}: Fiscal FY${fiscalYear}-${String(fiscalMonth).padStart(2, '0')} → Calendar ${dueDate} (${waterDataService.getMonthName(fiscalMonth)})`
+            );
+          } else {
+            console.log(`📅 Bill ${doc.id}: Non-month period "${remainder}" using stored dueDate`);
+          }
+
           // Store metadata for bill construction
           billsMetadata.push({
             id: doc.id,
             period: doc.id,
             originalData: unitBill,
-            billData: billData, // Store bill document data for dueDate access
+            billData: {
+              ...billData,
+              dueDate: dueDate || billData?.dueDate || null
+            },
             paidAmount,
             basePaid,
             penaltyPaid: unitBill.penaltyPaid || 0,

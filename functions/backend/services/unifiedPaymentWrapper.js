@@ -111,7 +111,7 @@ export class UnifiedPaymentWrapper {
    * @param {Array} excludedBills - Array of excluded bill periods
    * @returns {object} Unified payment distribution preview
    */
-  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = []) {
+  async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = [], options = {}) {
     await this._initializeDb();
     
     console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
@@ -167,7 +167,8 @@ export class UnifiedPaymentWrapper {
         summary: {
           totalBills: 0,
           totalAllocated: 0,
-          allocationCount: 0
+          allocationCount: 0,
+          authoritativeAmountDue: options?.authoritativeAmountDue ?? null
         }
       };
     }
@@ -323,6 +324,11 @@ export class UnifiedPaymentWrapper {
     // Add netCreditAdded to the split results
     splitResults.netCreditAdded = distribution.netCreditAdded;
     splitResults.currentCreditBalance = currentCredit;
+    splitResults.authoritativeAmountDue = options?.authoritativeAmountDue ?? null;
+    splitResults.summary = {
+      ...splitResults.summary,
+      authoritativeAmountDue: splitResults.authoritativeAmountDue
+    };
     
     // Log payment calculation details
     console.log(`   💰 Payment calculation - Credit allocation:`);

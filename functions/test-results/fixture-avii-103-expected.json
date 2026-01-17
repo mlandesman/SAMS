@@ -1,0 +1,22 @@
+{
+  "clientId": "AVII",
+  "unitId": "103",
+  "asOfDate": "2026-01-16",
+  "statementClosingBalance": 4655.58,
+  "expectedUpcTotal": 4655.58,
+  "bills": [
+    {
+      "billId": "HOA-2026-Q3",
+      "original": 14726.94,
+      "expectedRemaining": 3855.82,
+      "status": "PARTIAL"
+    },
+    {
+      "billId": "WATER-2026-Q2",
+      "original": 800,
+      "expectedRemaining": 800,
+      "status": "UNPAID"
+    }
+  ],
+  "notes": "Captured from Statement raw (AVII unit 103, fiscalYear 2026, excludeFutureBills=false)."
+}

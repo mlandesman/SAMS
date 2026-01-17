@@ -326,7 +326,7 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
       setUnpaidBills(billsToDisplay);
       setPreview(previewData);
       
-      // Calculate and display total due from filtered bills, excluding waived penalties and excluded bills
+      // Calculate total due from filtered bills (fallback if authoritative amount not provided)
       const calculatedTotalDue = billsToDisplay.reduce(
         (sum, bill) => {
           // Skip excluded bills
@@ -342,9 +342,14 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
         }, 
         0
       );
-      setTotalDue(calculatedTotalDue);
+
+      const authoritativeAmountDue = previewData?.authoritativeAmountDue ?? previewData?.summary?.authoritativeAmountDue;
+      const totalDueToDisplay = typeof authoritativeAmountDue === 'number'
+        ? authoritativeAmountDue
+        : calculatedTotalDue;
+      setTotalDue(totalDueToDisplay);
       
-      console.log(`💰 Total amount due (filtered): ${formatAsMXN(calculatedTotalDue)}`);
+      console.log(`💰 Total amount due (authoritative): ${formatAsMXN(totalDueToDisplay)}`);
       console.log(`✅ Preview complete - ${billsToDisplay.length} bills will be displayed`);
       
       // Update credit calculations

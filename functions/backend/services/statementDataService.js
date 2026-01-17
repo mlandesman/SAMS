@@ -1520,7 +1520,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         clientId,
         unitId,
         amount: null, // Use null to get all bills with credit = 0 (TD-019 enhancement)
-        paymentDate: payOnDateStr
+        paymentDate: payOnDateStr,
+        source: 'statementDataService'
       });
       
       if (unifiedPreviewResponse.data?.success && unifiedPreviewResponse.data.preview) {
