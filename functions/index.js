@@ -57,7 +57,7 @@ export const api = onRequest(
     // CRITICAL: Do NOT use cors: true here - it may consume the request body stream
     // Express app already handles CORS via cors() middleware
     cors: false, // Let Express handle CORS to preserve request stream for multer
-    secrets: ['GMAIL_APP_PASSWORD'],
+    secrets: ['GMAIL_APP_PASSWORD', 'DEEPL_AUTH_KEY'],
   },
   async (req, res) => {
     const app = await getApp();
