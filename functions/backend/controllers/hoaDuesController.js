@@ -1965,7 +1965,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
         changeAmountCentavos,
         null,
         adjustmentNote,
-        'manual'  // Use 'manual' source so Statement of Account shows these adjustments
+        'admin'  // Use 'admin' source so Statement of Account shows these adjustments
       );
       console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos`);
     }
