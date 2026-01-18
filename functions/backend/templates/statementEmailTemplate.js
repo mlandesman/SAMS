@@ -30,7 +30,8 @@ export function generateStatementEmailHtml(data, language = 'es') {
     logoUrl = null,
     brandColor = '#1a365d',
     pdfDownloadUrlEn = '',
-    pdfDownloadUrlEs = ''
+    pdfDownloadUrlEs = '',
+    prependText = null
   } = data;
   
   // Format currency
@@ -93,6 +94,19 @@ export function generateStatementEmailHtml(data, language = 'es') {
           <tr>
             <td style="text-align: center; padding-bottom: 20px;">
               <img src="${logoUrl}" alt="${data.clientName || ''}" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" onerror="this.style.display='none';">
+            </td>
+          </tr>
+        </table>
+        ` : ''}
+        
+        <!-- Prepend Message (custom text added by admin) -->
+        ${prependText && prependText.trim() ? `
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 20px;">
+          <tr>
+            <td style="background: #fff8e1; padding: 16px 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
+              <p style="margin: 0; color: #333; line-height: 1.6; font-size: 14px; white-space: pre-wrap;">
+                ${prependText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </p>
             </td>
           </tr>
         </table>

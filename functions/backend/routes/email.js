@@ -342,7 +342,9 @@ router.post('/send-statement', async (req, res) => {
       statementHtmlEn,
       statementMetaEn,
       statementHtmlEs,
-      statementMetaEs
+      statementMetaEs,
+      prependEn,
+      prependEs
     } = req.body;  // Optional pre-calculated data (single or dual-language)
     const user = req.user;
     
@@ -386,7 +388,7 @@ router.post('/send-statement', async (req, res) => {
     const authHeader = req.headers.authorization || req.headers.Authorization;
     const authToken = authHeader ? authHeader.replace('Bearer ', '') : null;
     
-    // Pass language override, emailContent, and HTML if provided (for single email from Report View)
+    // Pass language override, emailContent, HTML, and prepend text if provided
     const result = await sendStatementEmail(
       clientId, 
       unitId, 
@@ -400,7 +402,9 @@ router.post('/send-statement', async (req, res) => {
       statementHtmlEn,
       statementMetaEn,
       statementHtmlEs,
-      statementMetaEs
+      statementMetaEs,
+      prependEn,
+      prependEs
     );
     
     if (result.success) {

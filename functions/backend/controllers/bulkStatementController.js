@@ -547,7 +547,7 @@ export async function getBulkEmailProgress(req, res) {
  * Uses Firestore-based progress tracking for reliable polling
  */
 export async function bulkSendStatementEmails(req, res) {
-  const { clientId, fiscalYear: requestedFiscalYear } = req.body;
+  const { clientId, fiscalYear: requestedFiscalYear, prependEn, prependEs } = req.body;
   
   try {
     const user = req.user;
@@ -644,7 +644,24 @@ export async function bulkSendStatementEmails(req, res) {
       
       try {
         // Send email using existing sendStatementEmail function
-        const emailResult = await sendStatementEmail(clientId, unitId, fiscalYear, user, authToken);
+        // Pass prepend text (translated at authoring time, not send time)
+        const emailResult = await sendStatementEmail(
+          clientId, 
+          unitId, 
+          fiscalYear, 
+          user, 
+          authToken,
+          null,  // languageOverride - let it auto-detect
+          null,  // emailContent
+          null,  // statementHtml
+          null,  // statementMeta
+          null,  // statementHtmlEn
+          null,  // statementMetaEn
+          null,  // statementHtmlEs
+          null,  // statementMetaEs
+          prependEn,
+          prependEs
+        );
         
         if (!emailResult.success) {
           if (emailResult.error?.includes('No owner email')) {

@@ -1,0 +1,244 @@
+.email-prepend-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.email-prepend-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.email-prepend-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.email-prepend-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.email-prepend-modal .modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+}
+
+.email-prepend-modal .modal-close-btn:hover {
+  color: #333;
+}
+
+.email-prepend-modal-body {
+  padding: 20px;
+}
+
+.email-prepend-modal .modal-description {
+  color: #666;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.email-prepend-modal .text-area-group {
+  margin-bottom: 16px;
+}
+
+.email-prepend-modal .text-area-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+}
+
+.email-prepend-modal .char-count {
+  font-weight: normal;
+  font-size: 0.85rem;
+}
+
+.email-prepend-modal .char-warning {
+  display: block;
+  font-size: 0.8rem;
+  color: #e67e22;
+  margin-top: 4px;
+}
+
+.email-prepend-modal .hint {
+  font-weight: normal;
+  font-size: 0.85rem;
+  color: #888;
+  margin-left: 8px;
+}
+
+.email-prepend-modal .text-area-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+
+.email-prepend-modal .text-area-group textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.email-prepend-modal .text-area-group textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.email-prepend-modal .translate-button-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.email-prepend-modal .translate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #4a90d9;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.email-prepend-modal .translate-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.email-prepend-modal .translate-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.email-prepend-modal .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: email-prepend-spin 0.8s linear infinite;
+}
+
+@keyframes email-prepend-spin {
+  to { transform: rotate(360deg); }
+}
+
+.email-prepend-modal .billed-chars {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.email-prepend-modal .translation-error {
+  background: #fee;
+  color: #c00;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.email-prepend-modal .modal-info-box {
+  background: #f0f7ff;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+  margin-top: 16px;
+}
+
+.email-prepend-modal .modal-info-box strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.email-prepend-modal .modal-info-box ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #555;
+}
+
+.email-prepend-modal .modal-info-box li {
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.email-prepend-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+  border-radius: 0 0 8px 8px;
+}
+
+.email-prepend-modal .btn-secondary {
+  padding: 10px 18px;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.email-prepend-modal .btn-secondary:hover {
+  background: #eee;
+}
+
+.email-prepend-modal .btn-primary {
+  padding: 10px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.email-prepend-modal .btn-primary:hover:not(:disabled) {
+  background: #218838;
+}
+
+.email-prepend-modal .btn-primary:disabled {
+  background: #94d3a2;
+  cursor: not-allowed;
+}

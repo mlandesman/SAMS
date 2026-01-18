@@ -10,6 +10,7 @@ import reportService from '../../services/reportService';
 import { bulkGenerateStatements, bulkSendStatementEmails } from '../../api/admin';
 import { sendStatementEmail } from '../../api/email';
 import { printReport } from '../../utils/printUtils';
+import EmailPrependModal from '../modals/EmailPrependModal';
 import LocalPrintshopIcon from '@mui/icons-material/LocalPrintshop';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import GetAppIcon from '@mui/icons-material/GetApp';
@@ -131,6 +132,10 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
   const [bulkEmailProgress, setBulkEmailProgress] = useState(null);
   const [bulkEmailResults, setBulkEmailResults] = useState(null);
   const [bulkEmailError, setBulkEmailError] = useState(null);
+
+  // Email prepend modal state
+  const [showEmailPrependModal, setShowEmailPrependModal] = useState(false);
+  const [pendingEmailAction, setPendingEmailAction] = useState(null); // 'single' or 'bulk'
 
   // Initialise language and fiscal year when client or user changes
   useEffect(() => {
@@ -448,6 +453,128 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     }
   }, [selectedClient, fiscalYear]);
 
+  // Open prepend modal before sending email
+  const handleEmailButtonClick = useCallback(() => {
+    if (!selectedUnitId) {
+      // Bulk email
+      setPendingEmailAction('bulk');
+    } else {
+      // Single email
+      setPendingEmailAction('single');
+    }
+    setShowEmailPrependModal(true);
+  }, [selectedUnitId]);
+
+  // Handle prepend modal confirmation
+  const handlePrependConfirm = useCallback(async (prependData) => {
+    setShowEmailPrependModal(false);
+    
+    if (pendingEmailAction === 'bulk') {
+      await handleBulkEmailWithPrepend(prependData);
+    } else {
+      await handleSingleEmailWithPrepend(prependData);
+    }
+    
+    setPendingEmailAction(null);
+  }, [pendingEmailAction]);
+
+  // Single email with prepend text
+  const handleSingleEmailWithPrepend = async (prependData) => {
+    if (!selectedClient) {
+      setEmailResult({ success: false, message: 'Please select a client first' });
+      return;
+    }
+    
+    setEmailSending(true);
+    setEmailResult(null);
+    
+    try {
+      const emailContent = statementData?.emailContent || null;
+      const statementHtml = htmlPreview || (language === 'spanish' ? statementData?.htmlEs : statementData?.htmlEn) || null;
+      const statementMeta = statementData?.meta || (language === 'spanish' ? statementData?.metaEs : statementData?.metaEn) || null;
+      const statementHtmlEn = statementData?.htmlEn || null;
+      const statementMetaEn = statementData?.metaEn || null;
+      const statementHtmlEs = statementData?.htmlEs || null;
+      const statementMetaEs = statementData?.metaEs || null;
+      
+      const result = await sendStatementEmail(
+        selectedClient.id, 
+        selectedUnitId, 
+        fiscalYear, 
+        language, 
+        emailContent, 
+        statementHtml, 
+        statementMeta,
+        statementHtmlEn,
+        statementHtmlEs,
+        statementMetaEn,
+        statementMetaEs,
+        prependData.prependEn,
+        prependData.prependEs
+      );
+      setEmailResult({ 
+        success: true, 
+        message: `Email sent to ${result.to.join(', ')}${result.cc?.length ? ` (CC: ${result.cc.join(', ')})` : ''} (${language})` 
+      });
+    } catch (error) {
+      console.error('Failed to send statement email:', error);
+      setEmailResult({ success: false, message: error.message });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // Bulk email with prepend text
+  const handleBulkEmailWithPrepend = async (prependData) => {
+    if (!selectedClient) {
+      return;
+    }
+
+    setBulkEmailing(true);
+    setBulkEmailError(null);
+    setBulkEmailProgress(null);
+    setBulkEmailResults(null);
+
+    try {
+      const result = await bulkSendStatementEmails(
+        selectedClient.id,
+        fiscalYear,
+        (progress) => {
+          setBulkEmailProgress({
+            current: progress.current,
+            total: progress.total,
+            sent: progress.sent,
+            skipped: progress.skipped,
+            failed: progress.failed,
+            message: progress.message,
+            status: progress.status
+          });
+        },
+        prependData.prependEn,
+        prependData.prependEs
+      );
+
+      if (result.success && result.data) {
+        setBulkEmailResults(result.data);
+        setBulkEmailProgress({
+          total: result.data.totalUnits,
+          sent: result.data.sent,
+          skipped: result.data.skipped,
+          failed: result.data.failed,
+          current: result.data.totalUnits
+        });
+      } else {
+        throw new Error(result.error || 'Bulk email failed');
+      }
+    } catch (err) {
+      console.error('Bulk email error:', err);
+      setBulkEmailError(err.message || 'Failed to send bulk emails. Please try again.');
+    } finally {
+      setBulkEmailing(false);
+    }
+  };
+
+  // Legacy handler - now delegates to prepend modal
   const handleSendEmail = async () => {
     if (!selectedClient) {
       setEmailResult({ success: false, message: 'Please select a client first' });
@@ -816,7 +943,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           <button
             type="button"
             className="secondary-button"
-            onClick={handleSendEmail}
+            onClick={handleEmailButtonClick}
             disabled={(selectedUnitId && !htmlPreview) || emailSending || bulkEmailing}
           >
             <EmailIcon style={{ fontSize: 16, marginRight: 4 }} />
@@ -1127,6 +1254,18 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
           </div>
         )}
       </div>
+
+      {/* Email Prepend Modal */}
+      <EmailPrependModal
+        isOpen={showEmailPrependModal}
+        onClose={() => {
+          setShowEmailPrependModal(false);
+          setPendingEmailAction(null);
+        }}
+        onConfirm={handlePrependConfirm}
+        isBulkEmail={pendingEmailAction === 'bulk'}
+        reportType="Statement of Account"
+      />
       </div>
   );
 }

@@ -22,6 +22,7 @@ import emailRoutesComm from './routes/emailRoutes.js'; // Import communication e
 import paymentRoutes from './routes/paymentRoutes.js'; // Import unified payment routes
 import reportsRoutes from './routes/reports.js'; // Import reports routes for Statement of Account
 import budgetRoutes from './routes/budgets.js'; // Import budget routes
+import translateRoutes from './routes/translateRoutes.js'; // Import translation routes for DeepL
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 
 // New comment for testing
@@ -256,6 +257,10 @@ app.use('/payments', paymentRoutes); // Unified payment endpoints (authenticatio
 // BUDGET DOMAIN (budget entry and management)
 console.log('Mounting budget domain routes');
 app.use('/budgets', budgetRoutes); // Budget endpoints (authentication handled in routes)
+
+// TRANSLATION DOMAIN (DeepL translation proxy)
+console.log('Mounting translation routes');
+app.use('/translate', translateRoutes); // Translation endpoints (authentication handled in routes)
 
 // SYSTEM HEALTH CHECK (under system domain)
 app.get('/system/health', (req, res) => {

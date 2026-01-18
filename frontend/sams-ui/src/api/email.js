@@ -53,7 +53,7 @@ async function getAuthHeaders() {
  * @param {Object} statementMeta - Optional statement metadata (from statementData.meta) for PDF footer
  * @returns {Promise<Object>} Result with success status and recipient info
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementHtmlEs = null, statementMetaEn = null, statementMetaEs = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, language = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementHtmlEs = null, statementMetaEn = null, statementMetaEs = null, prependEn = null, prependEs = null) {
   // Debug: Log all parameters received
   console.log('📥 email.js received parameters:', {
     statementHtmlEnType: typeof statementHtmlEn,
@@ -96,6 +96,13 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, language 
   }
   if (statementMetaEs) {
     body.statementMetaEs = statementMetaEs;  // Spanish metadata
+  }
+  // Prepend text for email (translation done at authoring time, not send time)
+  if (prependEn) {
+    body.prependEn = prependEn;
+  }
+  if (prependEs) {
+    body.prependEs = prependEs;
   }
   
   // Debug: Check body size before sending

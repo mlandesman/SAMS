@@ -1056,7 +1056,7 @@ function getDefaultStatementTemplate() {
 /**
  * Send Statement of Account email to unit owners/managers
  */
-export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementMetaEn = null, statementHtmlEs = null, statementMetaEs = null) {
+export async function sendStatementEmail(clientId, unitId, fiscalYear, user, authToken = null, languageOverride = null, emailContent = null, statementHtml = null, statementMeta = null, statementHtmlEn = null, statementMetaEn = null, statementHtmlEs = null, statementMetaEs = null, prependEn = null, prependEs = null) {
   try {
     // Debug: Log what we received
     console.log(`📧 Service received: statementHtml=${!!statementHtml} (${statementHtml?.length || 0} chars), statementMeta=${!!statementMeta} (type=${typeof statementMeta}, keys: ${statementMeta && typeof statementMeta === 'object' ? Object.keys(statementMeta).join(',') : 'none'})`);
@@ -1251,6 +1251,9 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     const isSpanish = language === 'spanish' || language === 'es';
     
     // Build email HTML using new notification-style template
+    // Select prepend text based on recipient language preference
+    const prependText = isSpanish ? prependEs : prependEn;
+    
     const emailHtml = generateStatementEmailHtml({
       unitNumber: unitId,
       ownerNames: ownerNames,
@@ -1269,7 +1272,8 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
       pdfDownloadUrlEn: pdfUrls.en || '',
       pdfDownloadUrlEs: pdfUrls.es || '',
       clientName: clientName,
-      contactEmail: clientData.contactInfo?.primaryEmail || 'pm@sandyland.com.mx'
+      contactEmail: clientData.contactInfo?.primaryEmail || 'pm@sandyland.com.mx',
+      prependText: prependText
     }, isSpanish ? 'es' : 'en');
     
     // Build email subject

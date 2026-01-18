@@ -194,7 +194,7 @@ export async function getBulkEmailProgress(clientId) {
  * @param {Function} onProgress - Callback for progress updates: (progress) => void
  * @returns {Promise<Object>} Response with email results
  */
-export async function bulkSendStatementEmails(clientId, fiscalYear = null, onProgress = null) {
+export async function bulkSendStatementEmails(clientId, fiscalYear = null, onProgress = null, prependEn = null, prependEs = null) {
   let pollingInterval = null;
   
   try {
@@ -206,6 +206,14 @@ export async function bulkSendStatementEmails(clientId, fiscalYear = null, onPro
     
     if (fiscalYear !== null) {
       body.fiscalYear = fiscalYear;
+    }
+    
+    // Add prepend text if provided (translation done at authoring time)
+    if (prependEn) {
+      body.prependEn = prependEn;
+    }
+    if (prependEs) {
+      body.prependEs = prependEs;
     }
     
     // Start polling for progress updates
