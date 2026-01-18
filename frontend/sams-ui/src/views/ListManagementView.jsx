@@ -35,6 +35,13 @@ import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '.
 import { createUnit, updateUnit, deleteUnit } from '../api/units';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseClient';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToCSV } from '../utils/csvExport';
+import { getVendors } from '../api/vendors';
+import { getCategories } from '../api/categories';
+import { getPaymentMethods } from '../api/paymentMethods';
+import { getUnits } from '../api/units';
+import { fetchAllExchangeRates } from '../api/exchangeRates';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
@@ -738,6 +745,239 @@ function ListManagementView() {
       isSearchActive: searchTerm && searchTerm.length > 0
     });
   }, [updateEntryCount, setStatusInfo, searchTerm]);
+
+  // CSV Export handlers for each list type
+  const handleExportCategories = useCallback(async () => {
+    if (!selectedClient?.id) {
+      console.warn('No client selected');
+      return;
+    }
+    try {
+      const response = await getCategories(selectedClient.id);
+      const categories = response.data || [];
+      const headers = ['ID', 'Name', 'Description', 'Type', 'Status'];
+      const rows = categories.map(cat => [
+        cat.id || '',
+        cat.name || '',
+        cat.description || '',
+        cat.type || '',
+        cat.status === 'inactive' ? 'Inactive' : 'Active'
+      ]);
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `categories-${selectedClient.id}-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting categories:', error);
+      alert('Failed to export categories');
+    }
+  }, [selectedClient]);
+
+  const handleExportVendors = useCallback(async () => {
+    if (!selectedClient?.id) {
+      console.warn('No client selected');
+      return;
+    }
+    try {
+      const response = await getVendors(selectedClient.id);
+      const vendors = response.data || [];
+      const headers = ['ID', 'Name', 'Category', 'Contact', 'Email', 'Phone', 'Status'];
+      const rows = vendors.map(v => [
+        v.id || '',
+        v.name || '',
+        v.category || '',
+        v.contactPerson || '',
+        v.email || '',
+        v.phone || '',
+        v.status === 'inactive' ? 'Inactive' : 'Active'
+      ]);
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `vendors-${selectedClient.id}-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting vendors:', error);
+      alert('Failed to export vendors');
+    }
+  }, [selectedClient]);
+
+  const handleExportPaymentMethods = useCallback(async () => {
+    if (!selectedClient?.id) {
+      console.warn('No client selected');
+      return;
+    }
+    try {
+      const response = await getPaymentMethods(selectedClient.id);
+      const methods = response.data || [];
+      const headers = ['ID', 'Name', 'Type', 'Currency', 'Account Number', 'Status'];
+      const rows = methods.map(m => [
+        m.id || '',
+        m.name || '',
+        m.type || '',
+        m.currency || '',
+        m.details || '',
+        m.status === 'inactive' ? 'Inactive' : 'Active'
+      ]);
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `payment-methods-${selectedClient.id}-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting payment methods:', error);
+      alert('Failed to export payment methods');
+    }
+  }, [selectedClient]);
+
+  const handleExportUnits = useCallback(async () => {
+    if (!selectedClient?.id) {
+      console.warn('No client selected');
+      return;
+    }
+    try {
+      const response = await getUnits(selectedClient.id);
+      const units = response.data || [];
+      const headers = ['Unit ID', 'Unit Name', 'Owners', 'Managers', 'Status', 'Property Type', 'Square Feet', 'Notes'];
+      const rows = units.map(u => {
+        // Format owners
+        const owners = u.owners || [];
+        const ownerNames = owners.map(o => o.name || '').filter(Boolean).join('; ');
+        
+        // Format managers
+        const managers = u.managers || [];
+        const managerNames = managers.map(m => m.name || '').filter(Boolean).join('; ');
+        
+        return [
+          u.unitId || '',
+          u.unitName || '',
+          ownerNames,
+          managerNames,
+          u.status || 'active',
+          u.propertyType || '',
+          u.squareFeet || '',
+          u.notes || ''
+        ];
+      });
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `units-${selectedClient.id}-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting units:', error);
+      alert('Failed to export units');
+    }
+  }, [selectedClient]);
+
+  const handleExportExchangeRates = useCallback(async () => {
+    try {
+      const rates = await fetchAllExchangeRates();
+      const headers = ['Date', 'MXN_USD', 'MXN_CAD', 'MXN_EUR', 'MXN_COP'];
+      const rows = rates.map(rate => {
+        const ratesObj = rate.rates || {};
+        return [
+          rate.dateFormatted || rate.date || '',
+          ratesObj.MXN_USD?.rate || '',
+          ratesObj.MXN_CAD?.rate || '',
+          ratesObj.MXN_EUR?.rate || '',
+          ratesObj.MXN_COP?.rate || ''
+        ];
+      });
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `exchange-rates-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting exchange rates:', error);
+      alert('Failed to export exchange rates');
+    }
+  }, []);
+
+  const handleExportUsers = useCallback(async () => {
+    try {
+      const response = await secureApi.getSystemUsers();
+      const users = response.users || [];
+      const headers = ['Name', 'Email', 'Global Role', 'Client Access', 'Status', 'Last Login', 'Preferred Language', 'Preferred Currency', 'UID'];
+      const rows = users.map(user => {
+        // Format client access
+        let clientAccess = 'None';
+        if (user.propertyAccess) {
+          const accessList = Object.entries(user.propertyAccess).map(([clientId, access]) => {
+            return `${clientId}: ${access.role}`;
+          });
+          clientAccess = accessList.join('; ');
+        }
+
+        // Format last login
+        let lastLogin = 'Never';
+        if (user.firebaseMetadata?.lastSignInTime) {
+          const lastSignIn = user.firebaseMetadata.lastSignInTime;
+          if (lastSignIn.relative) {
+            lastLogin = lastSignIn.relative;
+          } else if (lastSignIn.display) {
+            lastLogin = lastSignIn.display;
+          } else {
+            lastLogin = new Date(lastSignIn).toLocaleString();
+          }
+        }
+
+        // Format status
+        const status = user.accountState === 'disabled' ? 'Disabled' : 
+                      user.canLogin === false ? 'Cannot Login' : 'Active';
+
+        // Get display role
+        const getUserDisplayRole = (user) => {
+          if (user.email === 'michael@landesman.com') return 'SuperAdmin';
+          if (user.globalRole === 'superAdmin') return 'SuperAdmin';
+          if (user.globalRole === 'admin') return 'Admin';
+          if (user.globalRole === 'unitOwner') return 'Unit Owner';
+          if (user.globalRole === 'unitManager') return 'Unit Manager';
+          return 'User';
+        };
+
+        // Get preferred language and currency (check common field locations)
+        const preferredLanguage = user.preferences?.language || 
+                                  user.profile?.preferredLanguage || 
+                                  user.preferredLanguage || 
+                                  '';
+        const preferredCurrency = user.preferences?.currency || 
+                                 user.profile?.preferredCurrency || 
+                                 user.preferredCurrency || 
+                                 '';
+        
+        // Get UID (could be user.id or user.uid)
+        const uid = user.id || user.uid || '';
+
+        return [
+          user.profile?.displayName || user.name || '',
+          user.email || '',
+          getUserDisplayRole(user),
+          clientAccess,
+          status,
+          lastLogin,
+          preferredLanguage,
+          preferredCurrency,
+          uid
+        ];
+      });
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportToCSV({ headers, rows, filename: `users-${dateStr}` });
+    } catch (error) {
+      console.error('Error exporting users:', error);
+      alert('Failed to export users');
+    }
+  }, [secureApi]);
+
+  // Get the appropriate export handler based on current tab
+  const getCurrentExportHandler = useCallback(() => {
+    if (availableLists.length === 0 || tabIndex >= availableLists.length) return null;
+    const currentList = availableLists[tabIndex];
+    switch (currentList.id) {
+      case 'category':
+        return handleExportCategories;
+      case 'vendor':
+        return handleExportVendors;
+      case 'method':
+        return handleExportPaymentMethods;
+      case 'unit':
+        return handleExportUnits;
+      case 'exchangerates':
+        return handleExportExchangeRates;
+      case 'users':
+        return handleExportUsers;
+      default:
+        return null;
+    }
+  }, [availableLists, tabIndex, handleExportCategories, handleExportVendors, handleExportPaymentMethods, handleExportUnits, handleExportExchangeRates, handleExportUsers]);
   
   // Handle saving vendor data (create or update)
   const handleSaveVendor = async (vendorData) => {
@@ -1115,17 +1355,36 @@ function ListManagementView() {
               <FontAwesomeIcon icon={faEye} />
               <span>View Details</span>
             </button>
+            {getCurrentExportHandler() && (
+              <ExportMenu
+                onExportCSV={getCurrentExportHandler()}
+              />
+            )}
           </>
         )}
         {isAdminComponent && (
-          <div style={{ padding: '10px', color: '#666', fontStyle: 'italic' }}>
-            User management controls are within the component below
-          </div>
+          <>
+            <div style={{ padding: '10px', color: '#666', fontStyle: 'italic' }}>
+              User management controls are within the component below
+            </div>
+            {getCurrentExportHandler() && (
+              <ExportMenu
+                onExportCSV={getCurrentExportHandler()}
+              />
+            )}
+          </>
         )}
         {isReadOnlyTab && (
-          <div style={{ padding: '10px', color: '#666', fontStyle: 'italic' }}>
-            Exchange rates are read-only. Use Settings → Exchange Rates for management functions.
-          </div>
+          <>
+            <div style={{ padding: '10px', color: '#666', fontStyle: 'italic' }}>
+              Exchange rates are read-only. Use Settings → Exchange Rates for management functions.
+            </div>
+            {getCurrentExportHandler() && (
+              <ExportMenu
+                onExportCSV={getCurrentExportHandler()}
+              />
+            )}
+          </>
         )}
       </ActivityActionBar>
 

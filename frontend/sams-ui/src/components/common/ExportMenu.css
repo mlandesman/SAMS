@@ -1,0 +1,106 @@
+.export-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.export-menu-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 6px 10px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #333;
+  min-width: 90px;
+  text-align: center;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.export-menu-button:hover:not(:disabled) {
+  background-color: #e9ecef;
+  border-color: #bbb;
+}
+
+.export-menu-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f8f9fa;
+  border-color: #ddd;
+}
+
+.export-menu-button:disabled:hover {
+  background-color: #f8f9fa;
+  border-color: #ddd;
+}
+
+.export-menu-button.loading {
+  gap: 0;
+}
+
+.export-menu-button svg {
+  font-size: 1.3em;
+  margin-bottom: 4px;
+}
+
+.export-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ccc;
+  border-top-color: #666;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.export-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.export-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+.export-menu-item:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.export-menu-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.export-menu-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+.export-menu-item svg {
+  width: 16px;
+  color: var(--icon-color, #666);
+}

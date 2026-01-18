@@ -15,6 +15,8 @@ import { getUnits } from '../../api/units';
 import { LoadingSpinner } from '../common';
 import { formatUnitDisplay } from '../../utils/unitDisplayUtils';
 import { fetchClients } from '../../utils/fetchClients';
+import ExportMenu from '../common/ExportMenu';
+import { exportToCSV } from '../../utils/csvExport';
 import './UserManagement.css';
 
 const UserManagement = ({ 
@@ -121,6 +123,75 @@ const UserManagement = ({
     return false;
   };
 
+  // CSV Export handler
+  const handleExportCSV = () => {
+    if (!users || users.length === 0) {
+      console.warn('No users to export');
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Global Role', 'Client Access', 'Status', 'Last Login', 'Preferred Language', 'Preferred Currency', 'UID'];
+    const rows = users.map(user => {
+      // Format client access
+      let clientAccess = 'None';
+      if (user.propertyAccess) {
+        const accessList = Object.entries(user.propertyAccess).map(([clientId, access]) => {
+          return `${clientId}: ${access.role}`;
+        });
+        clientAccess = accessList.join('; ');
+      }
+
+      // Format last login
+      let lastLogin = 'Never';
+      if (user.firebaseMetadata?.lastSignInTime) {
+        const lastSignIn = user.firebaseMetadata.lastSignInTime;
+        if (lastSignIn.relative) {
+          lastLogin = lastSignIn.relative;
+        } else if (lastSignIn.display) {
+          lastLogin = lastSignIn.display;
+        } else {
+          lastLogin = new Date(lastSignIn).toLocaleString();
+        }
+      }
+
+      // Format status
+      const status = user.accountState === 'disabled' ? 'Disabled' : 
+                    user.canLogin === false ? 'Cannot Login' : 'Active';
+
+      // Get preferred language and currency (check common field locations)
+      const preferredLanguage = user.preferences?.language || 
+                                user.profile?.preferredLanguage || 
+                                user.preferredLanguage || 
+                                '';
+      const preferredCurrency = user.preferences?.currency || 
+                               user.profile?.preferredCurrency || 
+                               user.preferredCurrency || 
+                               '';
+      
+      // Get UID (could be user.id or user.uid)
+      const uid = user.id || user.uid || '';
+
+      return [
+        user.profile?.displayName || user.name || '',
+        user.email || '',
+        getUserDisplayRole(user),
+        clientAccess,
+        status,
+        lastLogin,
+        preferredLanguage,
+        preferredCurrency,
+        uid
+      ];
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV({
+      headers,
+      rows,
+      filename: `users-${dateStr}`
+    });
+  };
+
   if (loading) {
     return <LoadingSpinner variant="logo" message="Loading users..." size="medium" />;
   }
@@ -139,6 +210,13 @@ const UserManagement = ({
             <button onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
+
+        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+          <ExportMenu
+            onExportCSV={handleExportCSV}
+            disabled={!users?.length}
+          />
+        </div>
 
         <div className="users-list">
           {users.length === 0 ? (

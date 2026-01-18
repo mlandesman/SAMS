@@ -44,6 +44,9 @@ import '../layout/ActionBar.css';
 import './TransactionsDetail.css';
 import { isSuperAdmin } from '../utils/userRoles';
 import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToCSV } from '../utils/csvExport';
+import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
@@ -1240,6 +1243,76 @@ function TransactionsView() {
       clearAccountsCache(selectedClient.id);
     }
   };
+
+  // CSV Export handler
+  const handleExportCSV = useCallback(() => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      console.warn('No transactions to export');
+      return;
+    }
+
+    const headers = [
+      'Transaction ID', 'Date', 'Unit ID', 'Type', 'Category', 'Vendor', 'Description', 
+      'Account', 'Payment Method', 'Amount', 'Currency', 'Exchange Rate', 'Reference', 'Notes', 'Created', 'Last Updated'
+    ];
+    
+    // Helper function to format date for CSV
+    const formatDateForCSV = (dateValue) => {
+      if (!dateValue) return '';
+      if (dateValue.display) {
+        // Convert MM/DD/YYYY to YYYY-MM-DD
+        const [month, day, year] = dateValue.display.split('/');
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      if (dateValue.timestamp) {
+        const timestamp = dateValue.timestamp._seconds 
+          ? new Date(dateValue.timestamp._seconds * 1000)
+          : new Date(dateValue.timestamp);
+        return timestamp.toISOString().split('T')[0];
+      }
+      if (dateValue.iso) {
+        return dateValue.iso.split('T')[0];
+      }
+      return new Date(dateValue).toISOString().split('T')[0];
+    };
+    
+    const rows = filteredTransactions.map(tx => {
+      // Format transaction date
+      const dateStr = formatDateForCSV(tx.date);
+
+      // Convert centavos to pesos for export
+      // filteredTransactions comes from Firebase/API, so amounts are always in centavos
+      const amountInCentavos = tx.amount || 0;
+      const amountValue = databaseFieldMappings.centsToDollars(amountInCentavos);
+
+      return [
+        tx.id || '',
+        dateStr,
+        tx.unitId || tx.unit || '',
+        tx.type || '',
+        tx.categoryName || tx.category || '',
+        tx.vendorName || tx.vendor || '',
+        tx.description || '',
+        tx.accountName || tx.account || '',
+        tx.paymentMethodName || tx.paymentMethod || '',
+        amountValue,
+        tx.currency || 'MXN',
+        tx.exchangeRate || '',
+        tx.reference || '',
+        tx.notes || '',
+        formatDateForCSV(tx.created),
+        formatDateForCSV(tx.updated)
+      ];
+    });
+    
+    const clientId = selectedClient?.id || 'unknown';
+    const dateStr = new Date().toISOString().split('T')[0];
+    exportToCSV({
+      headers,
+      rows,
+      filename: `transactions-${clientId}-${dateStr}`
+    });
+  }, [filteredTransactions, selectedClient]);
   
   // Handle navigation state for opening unified payment from other views
   useEffect(() => {
@@ -1304,10 +1377,10 @@ function TransactionsView() {
           <FontAwesomeIcon icon={faFilter} />
           <span>Filter</span>
         </button>
-        <button className="action-item" onClick={() => handleAction('print')}>
-          <FontAwesomeIcon icon={faPrint} />
-          <span>Print</span>
-        </button>
+        <ExportMenu
+          onExportCSV={handleExportCSV}
+          disabled={!filteredTransactions?.length}
+        />
         <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
           <FontAwesomeIcon icon={faCheckDouble} />
           <span>Reconcile Accounts</span>
