@@ -1,19 +1,35 @@
 #!/usr/bin/env node
 
-import { initializeFirebase } from './utils/environment-config.js';
+import { initializeFirebase, printEnvironmentInfo } from './utils/environment-config.js';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Initialize Firebase
-const { db } = await initializeFirebase();
+// Parse command line arguments
+const args = process.argv.slice(2);
+const useProd = args.includes('--prod');
+const firestorePathArg = args.find(arg => !arg.startsWith('--'));
+
+// Initialize Firebase with appropriate environment
+const env = useProd ? 'prod' : 'dev';
+const { db } = await initializeFirebase(env, { useADC: useProd });
+
+if (useProd) {
+  console.log('\x1b[31m🔴 Connected to PRODUCTION database (read-only)\x1b[0m\n');
+}
 
 async function firestoreToJson(firestorePath) {
   try {
     if (!firestorePath) {
       console.error('❌ Please provide a Firestore path');
-      console.log('Usage: node firestore-to-json.js <path>');
-      console.log('Example: node firestore-to-json.js clients/MTC/units/PH4D/dues/2025');
-      console.log('        node firestore-to-json.js /clients/MTC  (leading slash optional)');
+      console.log('Usage: node firestore-to-json.js <path> [--prod]');
+      console.log('');
+      console.log('Options:');
+      console.log('  --prod    Read from production database (uses ADC)');
+      console.log('');
+      console.log('Examples:');
+      console.log('  node firestore-to-json.js clients/MTC/units/PH4D/dues/2025');
+      console.log('  node firestore-to-json.js clients/MTC --prod');
+      console.log('  node firestore-to-json.js /clients/MTC  (leading slash optional)');
       process.exit(1);
     }
 
@@ -65,8 +81,9 @@ async function firestoreToJson(firestorePath) {
       outputName = pathSegments[pathSegments.length - 1];
     }
     
-    // Save to file
-    const outputPath = `/Users/michael/Projects/SAMS/test-results/${outputName}.json`;
+    // Save to file (include environment suffix for clarity)
+    const envSuffix = useProd ? '-PROD' : '';
+    const outputPath = `/Users/michael/Projects/SAMS/test-results/${outputName}${envSuffix}.json`;
     await fs.writeFile(outputPath, JSON.stringify(data, null, 2));
     
     console.log(`✅ Data saved to: ${outputPath}`);
@@ -78,7 +95,6 @@ async function firestoreToJson(firestorePath) {
   }
 }
 
-// Get path from command line
-const firestorePath = process.argv[2];
-await firestoreToJson(firestorePath);
+// Run with parsed path
+await firestoreToJson(firestorePathArg);
 process.exit(0);
