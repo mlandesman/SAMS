@@ -1,8 +1,8 @@
 # SAMS (Sandyland Association Management System) – Implementation Plan
 
 **Memory Strategy:** dynamic-md
-**Last Modification:** Manager Agent - PWA Expense Refactor + Issue #124 (January 5, 2026)
-**Current Version:** v1.5.6 - PWA Expense Entry Refactor
+**Last Modification:** Manager Agent - Task #137 CSV Export Complete (January 18, 2026)
+**Current Version:** v1.8.0 - Reusable CSV Export Infrastructure
 **Product Manager:** Michael  
 **Development Team:** Cursor APM Framework  
 **Project Overview:** SAMS is a production-ready multi-tenant association management system. Current focus: Year-End 2025 processing for MTC (deadline Dec 31), then continued PWA/Mobile work.
@@ -64,10 +64,22 @@
 | **#43** | Client Management 404 | 🔴 OPEN |
 | **#12** | Transaction Link modal formatting | 🔴 OPEN |
 
-### ✅ Recently Closed (December 23 - January 4, 2026)
+### ✅ Recently Closed (December 23 - January 18, 2026)
 
 | Issue | Title | Closed |
 |-------|-------|--------|
+| **#137** | Reusable CSV Export Menu | Jan 18, 2026 ✅ |
+| **#151** | Email Prepend Text with DeepL Translation | Jan 17, 2026 ✅ |
+| **#150** | UPC Calculation Bug - Statement/Payment Mismatch | Jan 17, 2026 ✅ |
+| **#149** | Statement standalone credit adjustments | Jan 16, 2026 ✅ |
+| **#144** | Statement Next Payment + monthly billing | Jan 13, 2026 ✅ |
+| **#143** | Credit balance audit log variable fix | Jan 13, 2026 ✅ |
+| **#142** | Statement double-counting credit balance | Jan 12, 2026 ✅ |
+| **#141** | UPC split allocation categories | Jan 10, 2026 ✅ |
+| **#140** | Bank fees category correction | Jan 13, 2026 ✅ |
+| **#139** | Transaction split edit fix | Jan 10, 2026 ✅ |
+| **#136** | PWA document upload 500 error | Jan 10, 2026 ✅ |
+| **#135** | Auto-categorization per vendor | Jan 13, 2026 ✅ |
 | **#118** | 500 Error uploading documents in Production | Jan 4, 2026 ✅ |
 | **#117** | Edit Transaction Split - categories not shown | Jan 4, 2026 ✅ |
 | **#116** | Bank Fees checkbox for AVII transfers | Jan 4, 2026 ✅ |
@@ -95,6 +107,55 @@
 ---
 
 ## 🏆 RECENT MILESTONES
+
+### v1.7.1 - Email Prepend Text with DeepL Translation (January 17, 2026)
+**STATUS:** ✅ COMPLETE - Production ready
+
+**Commit:** `10b33fe`
+**GitHub Issue:** #151
+
+#### Deliverables
+- ✅ **EmailPrependModal Component** — React modal for bilingual message entry
+- ✅ **DeepL Translation API** — Backend proxy with secure key handling
+- ✅ **Statement Email Enhancement** — Prepend text with language-aware delivery
+- ✅ **Audit Trail** — All translations logged for compliance
+
+#### Key Features
+- Translation at authoring time (not send time) for deterministic results
+- Recipients receive prepend in their preferred language (EN/ES)
+- Skip option for sending without custom message
+- XSS prevention in template rendering
+
+#### Files Created
+- `frontend/sams-ui/src/components/modals/EmailPrependModal.jsx`
+- `frontend/sams-ui/src/components/modals/EmailPrependModal.css`
+- `frontend/sams-ui/src/api/translate.js`
+- `functions/backend/controllers/translateController.js`
+- `functions/backend/routes/translateRoutes.js`
+
+**Duration:** ~4 hours | **Quality:** ⭐⭐⭐⭐⭐
+
+---
+
+### v1.7.0 - UPC Calculation Fix (January 17, 2026)
+**STATUS:** ✅ COMPLETE - Critical bug fixed
+
+**Commit:** `5b2fce1` through `10b33fe`
+**GitHub Issue:** #150
+
+#### Issue Resolved
+- Statement of Account and Payment Modal showed different balance amounts
+- Root cause: UPC was calculating projections differently than statement ledger
+
+#### Key Fixes
+- Added `generateUPCData()` as single source of truth for payment calculations
+- Centralized ledger generation in statement service
+- UPC preview now uses ledger-derived `authoritativeAmountDue`
+- Added `remainingDue` and `isPartial` to UPC preview response
+
+**Duration:** ~6 hours | **Quality:** ⭐⭐⭐⭐⭐
+
+---
 
 ### v1.5.4 - UPS Partial Payments + Credit Auto-Pay Email (January 3, 2026)
 **STATUS:** 🔄 FEATURE BRANCH - Ready for deployment
