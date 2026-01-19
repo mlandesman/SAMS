@@ -104,9 +104,7 @@ export function generateStatementEmailHtml(data, language = 'es') {
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 20px;">
           <tr>
             <td style="background: #fff8e1; padding: 16px 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
-              <p style="margin: 0; color: #333; line-height: 1.6; font-size: 14px; white-space: pre-wrap;">
-                ${prependText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-              </p>
+              <p style="margin: 0; color: #333; line-height: 1.6; font-size: 14px;">${prependText.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>
             </td>
           </tr>
         </table>
