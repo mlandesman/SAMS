@@ -103,6 +103,14 @@
           "function": "api"
         },
         {
+          "source": "/translate/**",
+          "function": "api"
+        },
+        {
+          "source": "/translate",
+          "function": "api"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -208,6 +216,14 @@
         },
         {
           "source": "/budgets/**",
+          "function": "api"
+        },
+        {
+          "source": "/translate/**",
+          "function": "api"
+        },
+        {
+          "source": "/translate",
           "function": "api"
         },
         {
