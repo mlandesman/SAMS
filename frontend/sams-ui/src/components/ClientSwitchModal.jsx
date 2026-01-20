@@ -11,6 +11,7 @@ import { config as appConfig } from '../config';
 import { getAuthInstance } from '../firebaseClient';
 import ImportFileUploader, { validateRequiredImportFiles } from './ImportFileUploader';
 import { uploadImportFilesWithProgress, deleteImportFiles } from '../api/importStorage';
+import { performHardReset } from '../utils/cacheManagement';
 
 function ClientSwitchModal({ onClose }) {
   const [clients, setClients] = useState([]);
@@ -259,10 +260,30 @@ function ClientSwitchModal({ onClose }) {
   const handleConfirm = async () => {
     if (preview) {
       try {
-        // Clear all sessionStorage (including HOA cache) when switching clients
-        console.log('🧹 Clearing cache for client switch...');
-        sessionStorage.clear();
-        console.log('✅ Session storage cleared');
+        // If switching from existing client, perform hard reset
+        if (selectedClient && selectedClient.id !== preview.id) {
+          console.log('🔄 Switching clients - performing hard reset...');
+          try {
+            await performHardReset();
+            console.log('✅ Hard reset complete');
+          } catch (error) {
+            console.error('❌ Hard reset failed during client switch:', error);
+            // Continue anyway - don't block client switch
+          }
+        }
+        
+        // Clear only client-specific sessionStorage keys (preserve authentication state)
+        console.log('🧹 Clearing client-specific cache...');
+        const clientSpecificKeys = [
+          'hardResetPerformed', // Task 4 flag
+          // Add other client-specific sessionStorage keys here as needed
+        ];
+        clientSpecificKeys.forEach(key => {
+          if (sessionStorage.getItem(key)) {
+            sessionStorage.removeItem(key);
+          }
+        });
+        console.log('✅ Client-specific session storage cleared');
         
         const clientData = await getClient(preview.id);
         
@@ -433,7 +454,7 @@ function ClientSwitchModal({ onClose }) {
             <option value="">-- Select Client --</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
-                {client.id} {/* Display doc.id (short name) */}
+                {client.fullName || client.summary?.fullName || client.basicInfo?.fullName || client.name || client.id}
               </option>
             ))}
             {isSuperAdmin && (
