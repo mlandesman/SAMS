@@ -1,5 +1,5 @@
 {
-  "appName": "SAMS",
+  "appName": "Sandyland Association Management System",
   "build": {
     "timestamp": "2025-07-02T17:35:12.809Z",
     "environment": "development",
@@ -10,15 +10,14 @@
   "buildDate": "2025-07-02T17:35:12.809Z",
   "buildTimestamp": 1751477712809,
   "companyName": "Sandyland Properties",
-  "copyright": "2025",
+  "copyright": "2026",
   "deployment": {
     "target": "development",
     "date": "2025-07-02T17:35:12.809Z",
     "automated": true
   },
   "developers": [
-    "Michael Landesman",
-    "Claude AI"
+    "Michael Landesman"
   ],
   "environment": "development",
   "features": [

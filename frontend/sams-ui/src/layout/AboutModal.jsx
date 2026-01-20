@@ -6,7 +6,6 @@ import {
   Typography,
   Box,
   Button,
-  Avatar,
   Chip,
   Divider,
   Grid,
@@ -15,15 +14,13 @@ import {
   IconButton
 } from '@mui/material';
 import {
-  Business as BusinessIcon,
   Close as CloseIcon,
-  Computer as ComputerIcon,
-  Cloud as CloudIcon,
-  Security as SecurityIcon,
-  Speed as SpeedIcon,
-  Phone as PhoneIcon,
-  Assessment as ReportIcon
+  Computer as ComputerIcon
 } from '@mui/icons-material';
+
+// Sandyland Properties logo from Firebase Storage - using same URL as Sidebar
+// TODO: Update to use transparent logo from sams-sandyland-prod bucket once file permissions are configured
+const SANDYLAND_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
 
 const AboutModal = ({ open, onClose, versionInfo }) => {
   const environmentColors = {
@@ -32,13 +29,6 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
     production: '#4caf50'
   };
 
-  const featureIcons = {
-    'PWA Support': PhoneIcon,
-    'Multi-Client Management': BusinessIcon,
-    'Financial Reporting': ReportIcon,
-    'Document Storage': CloudIcon,
-    'Unit Management': SecurityIcon
-  };
 
   return (
     <Dialog 
@@ -74,17 +64,22 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
         <Box sx={{ p: 4 }}>
           {/* App Header Section */}
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            {/* App Icon */}
-            <Avatar sx={{ 
-              width: 80, 
-              height: 80, 
-              mx: 'auto', 
-              mb: 2, 
-              bgcolor: '#1976d2',
-              boxShadow: '0 8px 24px rgba(25, 118, 210, 0.3)'
-            }}>
-              <BusinessIcon sx={{ fontSize: 40 }} />
-            </Avatar>
+            {/* App Logo */}
+            <Box
+              component="img"
+              src={SANDYLAND_LOGO_URL}
+              alt="Sandyland Properties Logo"
+              sx={{ 
+                maxWidth: 300,
+                maxHeight: 80,
+                width: 'auto',
+                height: 'auto',
+                mx: 'auto', 
+                mb: 2,
+                display: 'block',
+                objectFit: 'contain'
+              }}
+            />
             
             {/* App Name */}
             <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
@@ -137,11 +132,6 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Build Date:</strong> {versionInfo.buildTimeFormatted}
                     </Typography>
-                    {versionInfo.build?.buildNumber && (
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        <strong>Build Number:</strong> {versionInfo.build.buildNumber}
-                      </Typography>
-                    )}
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Environment:</strong> {versionInfo.displayEnvironment}
                     </Typography>
@@ -155,11 +145,6 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                         </Typography>
                       </>
                     )}
-                    {versionInfo.build?.platform && (
-                      <Typography variant="body2">
-                        <strong>Platform:</strong> {versionInfo.build.platform} / Node {versionInfo.build.nodeVersion}
-                      </Typography>
-                    )}
                   </Box>
                 </CardContent>
               </Card>
@@ -169,8 +154,7 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
             <Grid item xs={12} md={6}>
               <Card sx={{ height: '100%', border: '1px solid #e0e0e0' }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <BusinessIcon color="primary" />
+                  <Typography variant="h6" gutterBottom>
                     Company Information
                   </Typography>
                   <Box sx={{ mt: 2 }}>
@@ -178,10 +162,10 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
                       <strong>Company:</strong> {versionInfo?.companyName || 'Sandyland Properties'}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Copyright:</strong> © {versionInfo?.copyright || '2025'} {versionInfo?.companyName || 'Sandyland Properties'}
+                      <strong>Copyright:</strong> © {versionInfo?.copyright || '2026'} {versionInfo?.companyName || 'Sandyland Properties'}
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Developers:</strong> {versionInfo?.developers && Array.isArray(versionInfo.developers) ? versionInfo.developers.join(' & ') : 'Michael Landesman & Claude AI'}
+                      <strong>Developers:</strong> {versionInfo?.developers && Array.isArray(versionInfo.developers) ? versionInfo.developers.join(' & ') : 'Michael Landesman'}
                     </Typography>
                     <Typography variant="body2">
                       <strong>Type:</strong> Property Management System
@@ -191,66 +175,6 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
               </Card>
             </Grid>
           </Grid>
-
-          {/* Features Section */}
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SpeedIcon color="primary" />
-              Key Features
-            </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              flexWrap: 'wrap', 
-              gap: 1.5, 
-              mt: 2,
-              p: 2,
-              bgcolor: '#f8f9fa',
-              borderRadius: 2
-            }}>
-              {(versionInfo?.features || ['PWA Support', 'Multi-Client Management', 'Financial Reporting', 'Document Storage', 'Unit Management']).map(feature => {
-                const IconComponent = featureIcons[feature] || SecurityIcon;
-                return (
-                  <Chip 
-                    key={feature}
-                    icon={<IconComponent />}
-                    label={feature}
-                    variant="outlined"
-                    sx={{ 
-                      bgcolor: 'white',
-                      '& .MuiChip-icon': {
-                        color: '#1976d2'
-                      }
-                    }}
-                  />
-                );
-              })}
-            </Box>
-          </Box>
-
-          {/* System Status */}
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SecurityIcon color="success" />
-              System Status
-            </Typography>
-            <Box sx={{ 
-              mt: 2,
-              p: 2,
-              bgcolor: '#e8f5e9',
-              borderRadius: 2,
-              border: '1px solid #c8e6c9'
-            }}>
-              <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
-                  bgcolor: '#4caf50' 
-                }} />
-                <strong>All systems operational</strong> - Connected to backend services
-              </Typography>
-            </Box>
-          </Box>
         </Box>
       </DialogContent>
 

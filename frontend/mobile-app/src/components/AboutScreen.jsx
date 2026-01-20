@@ -7,42 +7,28 @@ import {
   Avatar,
   Chip,
   IconButton,
-  Divider,
-  Grid,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  Divider
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Business as BusinessIcon,
-  Computer as ComputerIcon,
-  Phone as PhoneIcon,
-  Cloud as CloudIcon,
-  Assessment as ReportIcon,
-  Security as SecurityIcon,
-  CheckCircle as CheckCircleIcon
+  Computer as ComputerIcon
 } from '@mui/icons-material';
+
+// Sandyland Properties logo from Firebase Storage - using same URL as Sidebar
+// TODO: Update to use transparent logo from sams-sandyland-prod bucket once file permissions are configured
+const SANDYLAND_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
 import { useNavigate } from 'react-router-dom';
-import { getVersionInfo, getEnvironmentStyles } from '../utils/versionUtils';
+import { getVersionInfo } from '../utils/versionUtils';
 
 const AboutScreen = () => {
   const navigate = useNavigate();
   const versionInfo = getVersionInfo();
-  const envStyles = getEnvironmentStyles();
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const featureIcons = {
-    'PWA Support': PhoneIcon,
-    'Multi-Client Management': BusinessIcon,
-    'Financial Reporting': ReportIcon,
-    'Document Storage': CloudIcon,
-    'Unit Management': SecurityIcon
-  };
 
   return (
     <Box className="mobile-content" sx={{ 
@@ -92,7 +78,7 @@ const AboutScreen = () => {
           position: 'relative',
           mt: -2 // Overlap with header slightly
         }}>
-          {/* App Icon - Floating Above Card */}
+          {/* App Logo - Floating Above Card */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'center',
@@ -100,15 +86,23 @@ const AboutScreen = () => {
             top: -30,
             mb: -2
           }}>
-            <Avatar sx={{ 
-              width: 80, 
-              height: 80, 
-              bgcolor: '#1976d2',
-              boxShadow: '0 8px 24px rgba(25, 118, 210, 0.3)',
-              border: '4px solid white'
-            }}>
-              <BusinessIcon sx={{ fontSize: 40 }} />
-            </Avatar>
+            <Box
+              component="img"
+              src={SANDYLAND_LOGO_URL}
+              alt="Sandyland Properties Logo"
+              sx={{ 
+                maxWidth: 250,
+                maxHeight: 60,
+                width: 'auto',
+                height: 'auto',
+                bgcolor: 'transparent',
+                boxShadow: '0 8px 24px rgba(25, 118, 210, 0.3)',
+                border: '4px solid white',
+                borderRadius: 1,
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
           </Box>
 
           <CardContent sx={{ pt: 1, textAlign: 'center' }}>
@@ -163,11 +157,8 @@ const AboutScreen = () => {
                 <Typography variant="body2" sx={{ mb: 1 }}>
                   <strong>Environment:</strong> {versionInfo.displayEnvironment}
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Platform:</strong> Progressive Web App
-                </Typography>
                 <Typography variant="body2">
-                  <strong>Port:</strong> 5174 (Mobile PWA)
+                  <strong>Platform:</strong> Progressive Web App
                 </Typography>
               </Box>
             </Box>
@@ -192,85 +183,16 @@ const AboutScreen = () => {
                   <strong>Company:</strong> {versionInfo.companyName}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Copyright:</strong> © {versionInfo.copyright}
+                  <strong>Copyright:</strong> © {versionInfo.copyright || '2026'}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Developers:</strong> {versionInfo.developers.join(' & ')}
+                  <strong>Developers:</strong> {versionInfo?.developers && Array.isArray(versionInfo.developers) && versionInfo.developers.length > 0 ? versionInfo.developers.filter(d => d !== 'Claude AI').join(' & ') || 'Michael Landesman' : 'Michael Landesman'}
                 </Typography>
               </Box>
             </Box>
 
-            <Divider sx={{ my: 2 }} />
-
-            {/* Features List */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom sx={{ 
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                mb: 2
-              }}>
-                <PhoneIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                Key Features
-              </Typography>
-              
-              <List dense sx={{ pl: 1 }}>
-                {versionInfo.features.map((feature, index) => {
-                  const IconComponent = featureIcons[feature] || SecurityIcon;
-                  return (
-                    <ListItem key={index} sx={{ py: 0.5 }}>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <IconComponent sx={{ fontSize: 16, color: 'primary.main' }} />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={feature}
-                        primaryTypographyProps={{ 
-                          variant: 'body2',
-                          fontWeight: 500
-                        }}
-                      />
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Box>
-
-            {/* System Status */}
-            <Box sx={{ 
-              bgcolor: '#e8f5e9',
-              borderRadius: 2,
-              p: 2,
-              border: '1px solid #c8e6c9'
-            }}>
-              <Typography variant="body2" sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1,
-                justifyContent: 'center',
-                fontWeight: 500
-              }}>
-                <CheckCircleIcon sx={{ fontSize: 18, color: '#4caf50' }} />
-                All systems operational
-              </Typography>
-            </Box>
           </CardContent>
         </Card>
-
-        {/* Additional Mobile-Specific Information */}
-        <Box sx={{ mt: 3, px: 1 }}>
-          <Card sx={{ 
-            borderRadius: '12px',
-            bgcolor: 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)'
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                Optimized for mobile devices and PWA installation
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
       </Box>
     </Box>
   );
