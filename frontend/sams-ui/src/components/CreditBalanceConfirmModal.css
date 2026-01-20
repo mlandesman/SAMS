@@ -1,0 +1,26 @@
+/* Credit Balance Confirmation Modal */
+.credit-balance-confirm-modal {
+  border-radius: 8px;
+}
+
+.credit-balance-confirm-modal .confirm-message {
+  color: #4a5568;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Warning button style */
+.sandyland-btn-warning {
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+}
+
+.sandyland-btn-warning:hover {
+  background-color: #d97706;
+}
+
+.sandyland-btn-warning:active {
+  background-color: #b45309;
+}

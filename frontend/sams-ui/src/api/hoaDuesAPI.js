@@ -48,9 +48,9 @@ class HOADuesAPI {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
+          'Authorization': `Bearer ${token}`
+          // Removed Cache-Control and Pragma headers - they cause CORS preflight issues
+          // Cache-busting query parameter (_t=timestamp) is sufficient for fresh data
         }
       }
     );

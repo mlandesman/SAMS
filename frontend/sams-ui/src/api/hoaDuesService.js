@@ -125,9 +125,10 @@ export const recordDuesPayment = async (clientId, unitId, year, paymentData, dis
  * @param {number} year - The year
  * @param {number} creditBalance - The new credit balance
  * @param {string} notes - User notes explaining the change
+ * @param {string} [entryDate] - Optional date for the history entry (YYYY-MM-DD format)
  * @returns {Promise<object>} The result of the update
  */
-export const updateCreditBalance = async (clientId, unitId, year, creditBalance, notes) => {
+export const updateCreditBalance = async (clientId, unitId, year, creditBalance, notes, entryDate) => {
   try {
     // Use the same API base URL for consistency
     const API_BASE_URL = config.api.baseUrl;
@@ -150,16 +151,24 @@ export const updateCreditBalance = async (clientId, unitId, year, creditBalance,
     }
     
     try {
+      const requestBody = {
+        creditBalance,
+        notes,
+        source: 'admin'
+      };
+      
+      // Add entryDate if provided
+      if (entryDate) {
+        requestBody.entryDate = entryDate;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/hoadues/${clientId}/credit/${unitId}/${year}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          creditBalance,
-          notes
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       return handleApiResponse(response);
@@ -243,5 +252,156 @@ export const getTransactionById = async (clientId, transactionId) => {
   } catch (error) {
     console.error('Error fetching transaction:', error);
     throw new Error(`Failed to fetch transaction: ${error.message}`);
+  }
+};
+
+/**
+ * Delete a credit history entry by entry ID
+ * @param {string} clientId - The client ID
+ * @param {string} unitId - The unit ID
+ * @param {string} entryId - The entry ID to delete
+ * @returns {Promise<object>} Delete result
+ */
+export const deleteCreditHistoryEntry = async (clientId, unitId, entryId) => {
+  try {
+    const API_BASE_URL = config.api.baseUrl;
+    
+    const { getCurrentUser } = await import('../firebaseClient');
+    const currentUser = getCurrentUser();
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const { getAuthInstance } = await import('../firebaseClient');
+    const auth = getAuthInstance();
+    const token = await auth.currentUser?.getIdToken();
+    
+    if (!token) {
+      throw new Error('Failed to get authentication token');
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/credit/${clientId}/${unitId}/history/entry/${entryId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error deleting credit history entry:', error);
+    throw new Error(`Failed to delete credit history entry: ${error.message}`);
+  }
+};
+
+/**
+ * Add a credit history entry directly (for Add/Remove operations)
+ * This bypasses the balance calculation and directly adds the specified amount
+ * @param {string} clientId - The client ID
+ * @param {string} unitId - The unit ID
+ * @param {number} amount - Amount in pesos (positive for add, negative for remove)
+ * @param {string} date - Date for the entry (ISO string)
+ * @param {string} notes - Notes explaining the entry
+ * @param {string} [source='admin'] - Source of the entry
+ * @returns {Promise<object>} Add result
+ */
+export const addCreditHistoryEntry = async (clientId, unitId, amount, date, notes, source = 'admin') => {
+  try {
+    const API_BASE_URL = config.api.baseUrl;
+    
+    const { getCurrentUser } = await import('../firebaseClient');
+    const currentUser = getCurrentUser();
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const { getAuthInstance } = await import('../firebaseClient');
+    const auth = getAuthInstance();
+    const token = await auth.currentUser?.getIdToken();
+    
+    if (!token) {
+      throw new Error('Failed to get authentication token');
+    }
+    
+    // Convert amount from pesos to centavos
+    const { pesosToCentavos } = await import('../utils/currencyUtils');
+    const amountCentavos = pesosToCentavos(amount);
+    
+    const response = await fetch(`${API_BASE_URL}/credit/${clientId}/${unitId}/history`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: amountCentavos,
+        date: date,
+        transactionId: null, // Admin entries don't have transaction IDs
+        note: notes,
+        source: source
+      })
+    });
+
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error adding credit history entry:', error);
+    throw new Error(`Failed to add credit history entry: ${error.message}`);
+  }
+};
+
+/**
+ * Update a credit history entry (edit date, amount, notes, source)
+ * @param {string} clientId - The client ID
+ * @param {string} unitId - The unit ID
+ * @param {string} entryId - The entry ID to update
+ * @param {Object} updates - Fields to update
+ * @param {string} [updates.date] - New date (ISO string YYYY-MM-DD)
+ * @param {number} [updates.amount] - New amount in pesos
+ * @param {string} [updates.notes] - New notes
+ * @param {string} [updates.source] - New source
+ * @returns {Promise<object>} Update result
+ */
+export const updateCreditHistoryEntry = async (clientId, unitId, entryId, updates) => {
+  try {
+    const API_BASE_URL = config.api.baseUrl;
+    
+    const { getCurrentUser } = await import('../firebaseClient');
+    const currentUser = getCurrentUser();
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const { getAuthInstance } = await import('../firebaseClient');
+    const auth = getAuthInstance();
+    const token = await auth.currentUser?.getIdToken();
+    
+    if (!token) {
+      throw new Error('Failed to get authentication token');
+    }
+    
+    // Convert amount from pesos to centavos if provided
+    const requestBody = { ...updates };
+    if (updates.amount !== undefined) {
+      const { pesosToCentavos } = await import('../utils/currencyUtils');
+      requestBody.amount = pesosToCentavos(updates.amount);
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/credit/${clientId}/${unitId}/history/entry/${entryId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error updating credit history entry:', error);
+    throw new Error(`Failed to update credit history entry: ${error.message}`);
   }
 };

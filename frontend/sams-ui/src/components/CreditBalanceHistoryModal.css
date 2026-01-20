@@ -1,0 +1,314 @@
+/* Credit Balance History Modal */
+.credit-balance-history-modal {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 95%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal header */
+.credit-balance-history-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eaeaea;
+  background-color: #0066cc !important;
+}
+
+.credit-balance-history-modal .modal-header h3 {
+  margin: 0 !important;
+  font-size: 20px !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.credit-balance-history-modal .close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: white !important;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.credit-balance-history-modal .close-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Modal body */
+.credit-balance-history-modal .modal-body {
+  padding: 20px;
+  flex: 1;
+}
+
+/* Current balance display */
+.current-balance-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #dee2e6;
+}
+
+.current-balance-display .label {
+  font-weight: 600;
+  color: #333;
+}
+
+.current-balance-display .amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #0066cc;
+}
+
+/* Action buttons section */
+.action-buttons-section {
+  margin-bottom: 20px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.action-hint {
+  font-size: 12px;
+  color: #6c757d;
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.btn-add-credit,
+.btn-remove-credit {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-credit {
+  background-color: #198754;
+  color: white;
+}
+
+.btn-add-credit:hover {
+  background-color: #157347;
+}
+
+.btn-remove-credit {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-remove-credit:hover {
+  background-color: #bb2d3b;
+}
+
+/* No history */
+.no-history {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6c757d;
+}
+
+/* History table container */
+.history-table-container {
+  overflow-x: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+/* History table */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.history-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.history-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-right: 1px solid #dee2e6;
+}
+
+.history-table th:last-child {
+  border-right: none;
+}
+
+.history-table tbody tr {
+  border-bottom: 1px solid #dee2e6;
+  transition: background-color 0.2s;
+}
+
+.history-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.history-table tbody tr.editable-row {
+  cursor: context-menu;
+}
+
+.history-table tbody tr.editable-row:hover {
+  background-color: #f0f0f0;
+}
+
+.history-table td {
+  padding: 12px;
+  border-right: 1px solid #dee2e6;
+  vertical-align: top;
+}
+
+.history-table td:last-child {
+  border-right: none;
+}
+
+/* Type badge */
+.type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-badge.type-starting_balance,
+.type-badge.type-add {
+  background-color: #d1e7dd;
+  color: #198754;
+}
+
+.type-badge.type-credit_used,
+.type-badge.type-remove {
+  background-color: #f8d7da;
+  color: #dc3545;
+}
+
+.type-badge.type-adjustment {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.type-badge.type-unknown {
+  background-color: #e9ecef;
+  color: #6c757d;
+}
+
+/* Amount cells */
+.amount-positive {
+  color: #198754;
+  font-weight: 600;
+}
+
+.amount-negative {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.running-balance {
+  font-weight: 600;
+  color: #0066cc;
+}
+
+.notes-cell {
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+.source-cell {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+
+/* Modal footer */
+.credit-balance-history-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #eaeaea;
+  background-color: #f8f9fa;
+}
+
+.credit-balance-history-modal .btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+  background-color: #6c757d;
+  color: white;
+}
+
+.credit-balance-history-modal .btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .credit-balance-history-modal {
+    width: 98%;
+    margin: 10px;
+  }
+  
+  .credit-balance-history-modal .modal-header h3 {
+    font-size: 18px !important;
+  }
+  
+  .credit-balance-history-modal .modal-body {
+    padding: 16px;
+  }
+  
+  .history-table-container {
+    overflow-x: scroll;
+  }
+  
+  .history-table {
+    font-size: 12px;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 8px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .btn-add-credit,
+  .btn-remove-credit {
+    width: 100%;
+  }
+}

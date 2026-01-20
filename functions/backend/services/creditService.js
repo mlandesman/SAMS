@@ -239,12 +239,13 @@ class CreditService {
   /**
    * Add credit history entry (for historical records or corrections)
    * NEW IMPLEMENTATION: Updates simplified storage location
+   * Sorts history array chronologically after adding entry
    * 
    * @param {string} clientId - Client identifier
    * @param {string} unitId - Unit identifier
    * @param {number} amount - Amount to add (positive) or subtract (negative) in cents
    * @param {string} date - ISO date string for the entry
-   * @param {string} transactionId - Transaction identifier
+   * @param {string} transactionId - Transaction identifier (can be null for admin entries)
    * @param {string} note - Description of the entry
    * @param {string} source - Source module
    * @returns {Promise<Object>} Operation result
@@ -260,6 +261,9 @@ class CreditService {
         throw new Error(`Invalid date format: ${date}`);
       }
       
+      // Validate amount is integer (centavos)
+      const validAmount = validateCentavos(amount, 'amount');
+      
       // NEW IMPLEMENTATION: Update simplified structure
       const creditBalancesRef = db.collection('clients').doc(clientId)
         .collection('units').doc('creditBalances');
@@ -270,21 +274,27 @@ class CreditService {
       
       // Calculate current balance using getter (always fresh)
       const currentBalance = getCreditBalance(unitData);
-      const newBalance = currentBalance + amount;
       
       // Create clean history entry (no stale balance fields)
       const historyEntry = createCreditHistoryEntry({
-        amount,
-        transactionId,
-        note,
-        type: amount > 0 ? 'credit_added' : 'credit_used',
+        amount: validAmount,
+        transactionId: transactionId || null,
+        notes: note,
+        type: validAmount > 0 ? 'credit_added' : 'credit_used',
         timestamp: new Date(dateMillis).toISOString(), // Use provided date
-        source
+        source: source || 'admin'
       });
       
       // Initialize or update history array
       const history = unitData.history || [];
       history.push(historyEntry);
+      
+      // CRITICAL: Sort history array chronologically by timestamp (oldest first)
+      history.sort((a, b) => {
+        const dateA = new Date(a.timestamp || 0).getTime();
+        const dateB = new Date(b.timestamp || 0).getTime();
+        return dateA - dateB; // Oldest first
+      });
       
       // Update unit data
       // DO NOT write creditBalance field - it becomes stale
@@ -300,6 +310,9 @@ class CreditService {
       // Write back to Firestore
       await creditBalancesRef.set(allData);
       
+      // Recalculate balance after sorting
+      const newBalance = getCreditBalance({ history });
+      
       console.log(`✅ [CREDIT] Added history entry for ${clientId}/${unitId}: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
       
       // Write audit log
@@ -309,7 +322,7 @@ class CreditService {
         parentPath: `clients/${clientId}/units`,
         docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance History`,
-        notes: `${note} | Amount: ${formatCurrency(amount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId} | Source: ${source}`
+        notes: `${note} | Amount: ${formatCurrency(validAmount, 'MXN', true)} | Date: ${date} | Transaction: ${transactionId || 'N/A'} | Source: ${source}`
       });
       
       return {
@@ -402,17 +415,238 @@ class CreditService {
         parentPath: `clients/${clientId}/units`,
         docId: 'creditBalances',
         friendlyName: `Unit ${unitId} Credit Balance History`,
-        notes: `Deleted ${entriesDeleted} history entries for transaction ${transactionId} | Balance: ${unitData.creditBalance} → ${recalculatedBalance} centavos`
+        notes: `Deleted ${entriesDeleted} history entries for transaction ${transactionId} | Balance: ${currentBalance} → ${newBalance} centavos`
       });
       
       return {
         success: true,
         entriesDeleted,
-        newBalance: recalculatedBalance,
-        previousBalance: unitData.creditBalance
+        newBalance,
+        previousBalance: currentBalance
       };
     } catch (error) {
       console.error(`Error deleting credit history entry for ${clientId}/${unitId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete credit history entry by entry ID
+   * Used for admin deletion of individual history entries
+   * 
+   * @param {string} clientId - Client identifier
+   * @param {string} unitId - Unit identifier
+   * @param {string} entryId - Entry ID to delete
+   * @returns {Promise<Object>} Operation result
+   */
+  async deleteCreditHistoryEntryById(clientId, unitId, entryId) {
+    try {
+      const db = await getDb();
+      const fiscalYear = this._getCurrentFiscalYear();
+      
+      // Read current data
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      
+      const doc = await creditBalancesRef.get();
+      if (!doc.exists || !doc.data()[unitId]) {
+        console.log(`⚠️ [CREDIT] No credit data found for ${clientId}/${unitId}`);
+        return {
+          success: false,
+          error: 'No credit data found',
+          entriesDeleted: 0,
+          newBalance: 0
+        };
+      }
+      
+      const allData = doc.data();
+      const unitData = allData[unitId];
+      const history = unitData.history || [];
+      
+      // Find entry by ID
+      const entryToDelete = history.find(entry => entry.id === entryId);
+      if (!entryToDelete) {
+        const currentBalance = getCreditBalance(unitData);
+        console.log(`ℹ️ [CREDIT] No history entry found with ID ${entryId}`);
+        return {
+          success: false,
+          error: 'Entry not found',
+          entriesDeleted: 0,
+          newBalance: currentBalance
+        };
+      }
+      
+      // Remove the entry
+      const newHistory = history.filter(entry => entry.id !== entryId);
+      
+      // Calculate new balance using getter (always correct)
+      const newBalance = getCreditBalance({ history: newHistory });
+      const currentBalance = getCreditBalance(unitData);
+      
+      console.log(`🗑️ [CREDIT] Deleting history entry ${entryId} for ${clientId}/${unitId}`);
+      console.log(`💰 [CREDIT] Balance: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
+      
+      // Update unit data
+      allData[unitId] = {
+        lastChange: {
+          year: fiscalYear.toString(),
+          historyIndex: Math.max(0, newHistory.length - 1),
+          timestamp: getNow().toISOString()
+        },
+        history: newHistory
+      };
+      
+      // Write back to Firestore
+      await creditBalancesRef.set(allData);
+      
+      console.log(`✅ [CREDIT] Deleted credit history entry ${entryId} for ${clientId}/${unitId}`);
+      
+      // Write audit log
+      await writeAuditLog({
+        module: 'credit',
+        action: 'delete_history_entry',
+        parentPath: `clients/${clientId}/units`,
+        docId: 'creditBalances',
+        friendlyName: `Unit ${unitId} Credit Balance History`,
+        notes: `Deleted history entry ${entryId} | Amount: ${formatCurrency(entryToDelete.amount, 'MXN', true)} | Balance: ${currentBalance / 100} → ${newBalance / 100} pesos`
+      });
+      
+      return {
+        success: true,
+        entriesDeleted: 1,
+        newBalance,
+        previousBalance: currentBalance
+      };
+    } catch (error) {
+      console.error(`Error deleting credit history entry ${entryId} for ${clientId}/${unitId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update credit history entry (edit date, amount, notes, source)
+   * Resorts array chronologically after update
+   * 
+   * @param {string} clientId - Client identifier
+   * @param {string} unitId - Unit identifier
+   * @param {string} entryId - Entry ID to update
+   * @param {Object} updates - Fields to update
+   * @param {string} [updates.date] - New date (ISO string)
+   * @param {number} [updates.amount] - New amount in centavos
+   * @param {string} [updates.notes] - New notes
+   * @param {string} [updates.source] - New source
+   * @returns {Promise<Object>} Operation result
+   */
+  async updateCreditHistoryEntry(clientId, unitId, entryId, updates) {
+    try {
+      const db = await getDb();
+      const fiscalYear = this._getCurrentFiscalYear();
+      
+      // Read current data
+      const creditBalancesRef = db.collection('clients').doc(clientId)
+        .collection('units').doc('creditBalances');
+      
+      const doc = await creditBalancesRef.get();
+      if (!doc.exists || !doc.data()[unitId]) {
+        return {
+          success: false,
+          error: 'No credit data found',
+          newBalance: 0
+        };
+      }
+      
+      const allData = doc.data();
+      const unitData = allData[unitId];
+      const history = unitData.history || [];
+      
+      // Find entry by ID
+      const entryIndex = history.findIndex(entry => entry.id === entryId);
+      if (entryIndex === -1) {
+        return {
+          success: false,
+          error: 'Entry not found',
+          newBalance: getCreditBalance(unitData)
+        };
+      }
+      
+      const originalEntry = history[entryIndex];
+      
+      // Update entry fields
+      const updatedEntry = { ...originalEntry };
+      
+      if (updates.date !== undefined) {
+        const dateMillis = Date.parse(updates.date);
+        if (isNaN(dateMillis)) {
+          throw new Error(`Invalid date format: ${updates.date}`);
+        }
+        updatedEntry.timestamp = new Date(dateMillis).toISOString();
+      }
+      
+      if (updates.amount !== undefined) {
+        updatedEntry.amount = validateCentavos(updates.amount, 'amount');
+        // Update type based on new amount
+        updatedEntry.type = updatedEntry.amount > 0 ? 'credit_added' : 'credit_used';
+      }
+      
+      if (updates.notes !== undefined) {
+        updatedEntry.notes = updates.notes;
+      }
+      
+      if (updates.source !== undefined) {
+        updatedEntry.source = updates.source;
+      }
+      
+      // Replace entry in history
+      const newHistory = [...history];
+      newHistory[entryIndex] = updatedEntry;
+      
+      // CRITICAL: Sort history array chronologically by timestamp (oldest first)
+      newHistory.sort((a, b) => {
+        const dateA = new Date(a.timestamp || 0).getTime();
+        const dateB = new Date(b.timestamp || 0).getTime();
+        return dateA - dateB; // Oldest first
+      });
+      
+      // Calculate new balance using getter (always correct)
+      const newBalance = getCreditBalance({ history: newHistory });
+      const currentBalance = getCreditBalance(unitData);
+      
+      console.log(`✏️ [CREDIT] Updated history entry ${entryId} for ${clientId}/${unitId}`);
+      console.log(`💰 [CREDIT] Balance: ${currentBalance} → ${newBalance} centavos (${currentBalance / 100} → ${newBalance / 100} pesos)`);
+      
+      // Update unit data
+      allData[unitId] = {
+        lastChange: {
+          year: fiscalYear.toString(),
+          historyIndex: Math.max(0, newHistory.length - 1),
+          timestamp: getNow().toISOString()
+        },
+        history: newHistory
+      };
+      
+      // Write back to Firestore
+      await creditBalancesRef.set(allData);
+      
+      console.log(`✅ [CREDIT] Updated credit history entry ${entryId} for ${clientId}/${unitId}`);
+      
+      // Write audit log
+      await writeAuditLog({
+        module: 'credit',
+        action: 'update_history_entry',
+        parentPath: `clients/${clientId}/units`,
+        docId: 'creditBalances',
+        friendlyName: `Unit ${unitId} Credit Balance History`,
+        notes: `Updated history entry ${entryId} | Changes: ${JSON.stringify(updates)} | Balance: ${currentBalance / 100} → ${newBalance / 100} pesos`
+      });
+      
+      return {
+        success: true,
+        entryUpdated: true,
+        newBalance,
+        previousBalance: currentBalance
+      };
+    } catch (error) {
+      console.error(`Error updating credit history entry ${entryId} for ${clientId}/${unitId}:`, error);
       throw error;
     }
   }

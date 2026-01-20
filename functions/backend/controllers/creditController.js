@@ -175,11 +175,7 @@ export class CreditController {
         });
       }
 
-      if (!transactionId) {
-        return res.status(400).json({ 
-          error: 'transactionId is required' 
-        });
-      }
+      // transactionId is optional for admin entries (can be null)
 
       if (!note) {
         return res.status(400).json({ 
@@ -222,7 +218,7 @@ export class CreditController {
         unitId, 
         amountNum, 
         date, 
-        transactionId, 
+        transactionId || null, // Allow null for admin entries
         note, 
         source
       );
@@ -263,6 +259,103 @@ export class CreditController {
       console.error('Error deleting credit history entry:', error);
       res.status(500).json({ 
         error: 'Failed to delete credit history entry',
+        message: error.message 
+      });
+    }
+  };
+
+  /**
+   * DELETE /credit/:clientId/:unitId/history/entry/:entryId
+   * Delete credit history entry by entry ID (for admin deletion)
+   */
+  deleteCreditHistoryEntryById = async (req, res) => {
+    try {
+      const { clientId, unitId, entryId } = req.params;
+      
+      // Input validation
+      if (!clientId || !unitId || !entryId) {
+        return res.status(400).json({ 
+          error: 'clientId, unitId, and entryId are required' 
+        });
+      }
+
+      const result = await this.creditService.deleteCreditHistoryEntryById(
+        clientId, 
+        unitId, 
+        entryId
+      );
+      
+      if (!result.success) {
+        return res.status(404).json(result);
+      }
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error deleting credit history entry by ID:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete credit history entry',
+        message: error.message 
+      });
+    }
+  };
+
+  /**
+   * PUT /credit/:clientId/:unitId/history/entry/:entryId
+   * Update credit history entry (edit date, amount, notes, source)
+   */
+  updateCreditHistoryEntry = async (req, res) => {
+    try {
+      const { clientId, unitId, entryId } = req.params;
+      const { date, amount, notes, source } = req.body;
+      
+      // Input validation
+      if (!clientId || !unitId || !entryId) {
+        return res.status(400).json({ 
+          error: 'clientId, unitId, and entryId are required' 
+        });
+      }
+
+      // Build updates object (only include provided fields)
+      const updates = {};
+      if (date !== undefined) updates.date = date;
+      if (amount !== undefined) {
+        const amountNum = Number(amount);
+        if (isNaN(amountNum)) {
+          return res.status(400).json({ 
+            error: 'amount must be a valid number' 
+          });
+        }
+        updates.amount = amountNum;
+      }
+      if (notes !== undefined) updates.notes = notes;
+      if (source !== undefined) updates.source = source;
+
+      // Validate date if provided
+      if (updates.date !== undefined) {
+        const testDate = Date.parse(updates.date);
+        if (isNaN(testDate)) {
+          return res.status(400).json({ 
+            error: 'date must be a valid ISO date string' 
+          });
+        }
+      }
+
+      const result = await this.creditService.updateCreditHistoryEntry(
+        clientId, 
+        unitId, 
+        entryId,
+        updates
+      );
+      
+      if (!result.success) {
+        return res.status(404).json(result);
+      }
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error updating credit history entry:', error);
+      res.status(500).json({ 
+        error: 'Failed to update credit history entry',
         message: error.message 
       });
     }
