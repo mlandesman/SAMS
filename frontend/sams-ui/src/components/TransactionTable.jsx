@@ -154,7 +154,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                 <div key={index} className="split-allocation-item">
                   <span className="allocation-category">{allocation.categoryName}</span>
                   <span className="allocation-amount">
-                    {databaseFieldMappings.formatCurrency(allocation.amount, transaction.currency || 'USD', false)}
+                    {databaseFieldMappings.formatCurrency(allocation.amount, transaction.currency || 'USD', true)}
                   </span>
                 </div>
               ))}
@@ -220,7 +220,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                   {getAmountDisplay(tx).prefix}{databaseFieldMappings.formatCurrency(
                     Math.abs(tx.amount || 0), // Always show positive amount
                     tx.currency || 'USD',
-                    false // No cents display
+                    true // Show cents (centavos)
                   )}
                 </td>
                 <td className="account-column">{tx.accountName || tx.accountType || tx.account || ''}</td>
