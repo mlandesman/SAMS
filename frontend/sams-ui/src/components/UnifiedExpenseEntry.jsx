@@ -530,7 +530,8 @@ const UnifiedExpenseEntry = ({
           vendors: rawVendors
             .map(item => ({
               ...extractIdNameObject(item, 'Vendor'),
-              category: item.category || '' // Preserve vendor's default category for auto-population
+              category: item.category || '', // Preserve vendor's default category for auto-population
+              status: item.status || 'active' // Preserve vendor status (default to 'active' if not set)
             }))
             .filter(obj => obj.name && !obj.name.includes('Unknown'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
@@ -844,12 +845,14 @@ const UnifiedExpenseEntry = ({
                     required
                   >
                     <option value="">Select vendor</option>
-                    {clientData.vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                        {vendor.category && ` (${vendor.category})`}
-                      </option>
-                    ))}
+                    {clientData.vendors
+                      .filter(vendor => vendor.status !== 'inactive' || vendor.id === formData.vendorId)
+                      .map((vendor) => (
+                        <option key={vendor.id} value={vendor.id}>
+                          {vendor.name}
+                          {vendor.category && ` (${vendor.category})`}
+                        </option>
+                      ))}
                   </select>
                   {fieldErrors.vendor && <span className="field-error">{fieldErrors.vendor}</span>}
                 </div>
