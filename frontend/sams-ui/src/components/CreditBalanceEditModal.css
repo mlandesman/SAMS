@@ -21,6 +21,14 @@
   background-color: #0066cc !important;
 }
 
+.credit-balance-modal .modal-header.header-add {
+  background-color: #198754 !important;
+}
+
+.credit-balance-modal .modal-header.header-remove {
+  background-color: #dc3545 !important;
+}
+
 .credit-balance-modal .modal-header h3 {
   margin: 0 !important;
   font-size: 20px !important;
@@ -122,6 +130,67 @@
   border: 1px solid #f1aeb5;
 }
 
+/* Balance preview */
+.balance-preview {
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.balance-preview.preview-add {
+  background-color: #d1e7dd;
+  border: 1px solid #a3d9a4;
+}
+
+.balance-preview.preview-remove {
+  background-color: #f8d7da;
+  border: 1px solid #f1aeb5;
+}
+
+.preview-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.preview-amount {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.balance-preview.preview-add .preview-amount {
+  color: #198754;
+}
+
+.balance-preview.preview-remove .preview-amount {
+  color: #dc3545;
+}
+
+.preview-change {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.balance-preview.preview-add .preview-change {
+  color: #198754;
+}
+
+.balance-preview.preview-remove .preview-change {
+  color: #dc3545;
+}
+
+/* Form hint */
+.form-hint {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 /* Form note */
 .credit-balance-modal .form-note {
   padding: 12px;
@@ -172,6 +241,22 @@
 
 .credit-balance-modal .btn-primary:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.credit-balance-modal .btn-primary.btn-add {
+  background-color: #198754;
+}
+
+.credit-balance-modal .btn-primary.btn-add:hover:not(:disabled) {
+  background-color: #157347;
+}
+
+.credit-balance-modal .btn-primary.btn-remove {
+  background-color: #dc3545;
+}
+
+.credit-balance-modal .btn-primary.btn-remove:hover:not(:disabled) {
+  background-color: #bb2d3b;
 }
 
 .credit-balance-modal .btn-primary:disabled {

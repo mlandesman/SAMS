@@ -1912,43 +1912,24 @@ async function getAllDuesDataForYear(clientId, year) {
 
 /**
  * Update credit balance for a unit
+ * Now supports entryDate for chronological sorting
+ * Auto-detects add/remove based on amount change
+ * 
+ * NOTE: Credit balances are now stored in centralized credit service at
+ * /clients/{clientId}/units/creditBalances, not in dues documents.
+ * This function no longer needs to initialize or access dues documents.
  * 
  * @param {string} clientId - ID of the client
  * @param {string} unitId - ID of the unit
- * @param {number} year - Year for which to update credit balance
- * @param {number} newCreditBalance - New credit balance value
+ * @param {number} year - Year for which to update credit balance (used for audit logging only)
+ * @param {number} newCreditBalance - New credit balance value (in pesos)
  * @param {string} notes - User notes explaining the change
+ * @param {string} [entryDate] - Optional: ISO date string for the history entry (defaults to now)
  * @returns {boolean} Success status
  */
-async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes) {
+async function updateCreditBalance(clientId, unitId, year, newCreditBalance, notes, entryDate) {
   try {
-    // Get the database instance if not already initialized
-    if (!dbInstance) {
-      dbInstance = await getDb();
-    }
-    
-    // Create document reference using new structure
-    const duesRef = dbInstance.collection('clients').doc(clientId)
-                      .collection('units').doc(unitId).collection('dues').doc(year.toString());
-    const duesDoc = await duesRef.get();
-    
-    if (!duesDoc.exists) {
-      await initializeYearDocument(clientId, unitId, year);
-      // Re-fetch the document
-      await duesRef.set({
-        year,
-        unitId,
-        payments: Array(12).fill(null).map(() => ({
-          paid: false,
-          amount: 0,
-          date: null,
-          reference: null
-        })),
-        totalPaid: 0,
-        updated: admin.firestore.Timestamp.now()
-      }, { merge: true });
-    }
-    
+    // Get current credit balance from centralized service
     const currentCreditInfo = await creditService.getCreditBalance(clientId, unitId);
     const currentBalancePesos = currentCreditInfo.creditBalance || 0;
     const newBalancePesos = newCreditBalance;
@@ -1956,31 +1937,52 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
 
     if (Math.abs(changeAmountPesos) < 0.005) {
       console.log('💳 [CREDIT] Manual update requested but no change detected');
-    } else {
-      const changeAmountCentavos = dollarsToCents(changeAmountPesos);
-      const adjustmentNote = notes ? `Manual HOA adjustment: ${notes}` : 'Manual HOA credit adjustment';
-      await creditService.updateCreditBalance(
-        clientId,
-        unitId,
-        changeAmountCentavos,
-        null,
-        adjustmentNote,
-        'admin'  // Use 'admin' source so Statement of Account shows these adjustments
-      );
-      console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos`);
+      return true;
     }
+    
+    // Convert pesos to centavos for credit service
+    const changeAmountCentavos = pesosToCentavos(changeAmountPesos);
+    const adjustmentNote = notes ? `Manual HOA adjustment: ${notes}` : 'Manual HOA credit adjustment';
+    
+    // Use entryDate if provided, otherwise use current date
+    const entryDateToUse = entryDate || getNow().toISOString();
+    
+    // Use addCreditHistoryEntry to support date and automatic sorting
+    // This stores the entry in the centralized credit service
+    await creditService.addCreditHistoryEntry(
+      clientId,
+      unitId,
+      changeAmountCentavos,
+      entryDateToUse,
+      null, // transactionId - null for admin entries
+      adjustmentNote,
+      'admin'  // Use 'admin' source so Statement of Account shows these adjustments
+    );
+    console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos (${changeAmountPesos} pesos)`);
 
-    // Remove legacy fields from dues document if they still exist
+    // Clean up legacy credit fields from dues documents (best-effort, non-blocking)
+    // This is done asynchronously to avoid blocking the credit update
     try {
-      await duesRef.update({
-        creditBalance: admin.firestore.FieldValue.delete(),
-        creditBalanceHistory: admin.firestore.FieldValue.delete(),
-        updated: admin.firestore.Timestamp.now()
-      });
-    } catch (updateError) {
-      if (updateError.code !== 'not-found') {
-        throw updateError;
+      if (!dbInstance) {
+        dbInstance = await getDb();
       }
+      
+      // Try to clean up legacy fields from dues document if it exists
+      // We don't require the document to exist, so we catch and ignore errors
+      const duesRef = dbInstance.collection('clients').doc(clientId)
+                        .collection('units').doc(unitId).collection('dues').doc(year?.toString() || '2026');
+      
+      const duesDoc = await duesRef.get();
+      if (duesDoc.exists) {
+        await duesRef.update({
+          creditBalance: admin.firestore.FieldValue.delete(),
+          creditBalanceHistory: admin.firestore.FieldValue.delete(),
+          updated: admin.firestore.Timestamp.now()
+        });
+      }
+    } catch (legacyCleanupError) {
+      // Non-critical - just log and continue
+      console.log(`ℹ️ [CREDIT] Legacy cleanup skipped (non-critical): ${legacyCleanupError.message}`);
     }
     
     // Log the action
@@ -1988,13 +1990,14 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       module: 'hoadues',
       action: 'update',
       parentPath: `clients/${clientId}/units/${unitId}/dues`,
-      docId: `${year}`,
+      docId: `${year || 'unknown'}`,
       friendlyName: `Unit ${unitId} Credit Balance Update`,
-      notes: notes || `Updated credit balance to ${newCreditBalance} for year ${year}`,
+      notes: notes || `Updated credit balance to ${newCreditBalance} for year ${year || 'unknown'}`,
       metadata: {
         unitId,
         newCreditBalance,
-        previousCreditBalance: currentCreditInfo.creditBalance
+        previousCreditBalance: currentCreditInfo.creditBalance,
+        entryDate: entryDate || 'now'
       }
     });
     

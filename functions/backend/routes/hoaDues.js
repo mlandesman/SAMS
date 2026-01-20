@@ -13,6 +13,7 @@ import { checkFirestoreConnection, getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { getNow, parseDate } from '../../shared/services/DateService.js';
 import { centavosToPesos, pesosToCentavos } from '../../shared/utils/currencyUtils.js';
+import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 
 const router = express.Router();
 
@@ -731,7 +732,7 @@ router.put('/:clientId/credit/:unitId/:year', async (req, res) => {
   try {
     // Access clientId from path parameters (domain-specific mounting)
     const { clientId, unitId, year } = req.params;
-    const { creditBalance, notes } = req.body;
+    const { creditBalance, notes, entryDate } = req.body;
     
     if (!clientId) {
       return res.status(400).json({ error: 'Missing clientId parameter' });
@@ -761,18 +762,37 @@ router.put('/:clientId/credit/:unitId/:year', async (req, res) => {
       });
     }
     
+    // Parse year, with fallback to fiscal year if invalid
+    const yearNum = parseInt(year);
+    let validYear;
+    
+    if (isNaN(yearNum)) {
+      // Get client configuration to determine fiscal year
+      const db = await getDb();
+      const clientDoc = await db.collection('clients').doc(clientId).get();
+      const clientConfig = clientDoc.exists ? clientDoc.data() : {};
+      const fiscalYearStartMonth = clientConfig?.configuration?.fiscalYearStartMonth || 1;
+      
+      // Calculate current fiscal year
+      validYear = getFiscalYear(getNow(), fiscalYearStartMonth);
+      console.log(`[CREDIT] Year was NaN, using fiscal year ${validYear} (start month: ${fiscalYearStartMonth})`);
+    } else {
+      validYear = yearNum;
+    }
+    
     const result = await updateCreditBalance(
       clientId, 
       unitId, 
-      parseInt(year), 
+      validYear, 
       parseFloat(creditBalance),
-      notes
+      notes,
+      entryDate // Pass entryDate if provided
     );
     
     res.json({ success: result });
   } catch (error) {
     console.error('Error updating credit balance:', error);
-    res.status(500).json({ error: 'Failed to update credit balance' });
+    res.status(500).json({ error: 'Failed to update credit balance', message: error.message });
   }
 });
 

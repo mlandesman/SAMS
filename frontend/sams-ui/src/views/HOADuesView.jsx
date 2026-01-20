@@ -4,6 +4,9 @@ import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CreditBalanceEditModal from '../components/CreditBalanceEditModal';
+import CreditBalanceHistoryModal from '../components/CreditBalanceHistoryModal';
+import CreditBalanceAddModal from '../components/CreditBalanceAddModal';
+import CreditBalanceRemoveModal from '../components/CreditBalanceRemoveModal';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import { LoadingSpinner } from '../components/common';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -71,6 +74,13 @@ function HOADuesView() {
   const [showCreditEditModal, setShowCreditEditModal] = useState(false);
   const [creditEditUnitId, setCreditEditUnitId] = useState(null);
   const [creditEditCurrentBalance, setCreditEditCurrentBalance] = useState(0);
+  
+  // Credit balance modals state
+  const [showCreditHistoryModal, setShowCreditHistoryModal] = useState(false);
+  const [showCreditAddModal, setShowCreditAddModal] = useState(false);
+  const [showCreditRemoveModal, setShowCreditRemoveModal] = useState(false);
+  const [creditModalUnitId, setCreditModalUnitId] = useState(null);
+  const [creditModalBalance, setCreditModalBalance] = useState(0);
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState({
@@ -333,22 +343,15 @@ function HOADuesView() {
       options.push({ type: 'divider' });
     }
     
-    options.push(
-      {
-        label: 'View History',
-        icon: '📋',
-        onClick: () => {
-          alert('Credit history feature coming soon!');
-        }
-      },
-      {
-        label: 'Details',
-        icon: 'ℹ️',
-        onClick: () => {
-          alert('Credit details feature coming soon!');
-        }
+    options.push({
+      label: 'View History',
+      icon: '📋',
+      onClick: () => {
+        setCreditModalUnitId(unitId);
+        setCreditModalBalance(creditBalance);
+        setShowCreditHistoryModal(true);
       }
-    );
+    });
     
     setContextMenu({
       isOpen: true,
@@ -401,10 +404,25 @@ function HOADuesView() {
   };
 
   // Handle credit balance update
-  const handleCreditBalanceUpdate = () => {
+  const handleCreditBalanceUpdate = async () => {
     // Refresh the dues data to show the updated credit balance
-    refreshData();
+    await refreshData();
     closeCreditEditModal();
+  };
+
+  // Get credit balance history for a unit
+  const getCreditBalanceHistory = (unitId) => {
+    const unitData = duesData[unitId];
+    return unitData?.creditBalanceHistory || [];
+  };
+
+  // Close credit modals
+  const closeCreditModals = () => {
+    setShowCreditHistoryModal(false);
+    setShowCreditAddModal(false);
+    setShowCreditRemoveModal(false);
+    setCreditModalUnitId(null);
+    setCreditModalBalance(0);
   };
 
   // Calculate payment status for a unit in a specific fiscal month
@@ -926,7 +944,11 @@ function HOADuesView() {
                   <td 
                     key={`credit-${unit.unitId}`}
                     className={`credit-cell ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''} ${(unitData.creditBalance || 0) < 0 ? 'negative-credit' : ''} ${hasCreditHistory ? 'has-credit-history' : ''} ${canEditCredit ? 'editable' : ''}`}
-                    onClick={() => handlePaymentClick(unit.unitId, 'credit')}
+                    onClick={() => {
+                      setCreditModalUnitId(unit.unitId);
+                      setCreditModalBalance(unitData.creditBalance || 0);
+                      setShowCreditHistoryModal(true);
+                    }}
                     onContextMenu={(e) => handleCreditContextMenu(e, unit.unitId, unitData.creditBalance || 0)}
                     title={(() => {
                       const creditBalance = unitData.creditBalance || 0;
@@ -939,7 +961,7 @@ function HOADuesView() {
                         }
                       }
                       
-                      tooltip += '\n\nClick: Edit balance';
+                      tooltip += '\n\nClick: View history';
                       tooltip += '\nRight-click: More options ⋮';
                       
                       return tooltip;
@@ -1220,6 +1242,38 @@ function HOADuesView() {
         year={selectedYear}
         onUpdate={handleCreditBalanceUpdate}
       />
+      
+      {/* Credit Balance History Modal */}
+      <CreditBalanceHistoryModal
+        isOpen={showCreditHistoryModal}
+        onClose={closeCreditModals}
+        unitId={creditModalUnitId}
+        currentBalance={creditModalBalance}
+        creditBalanceHistory={creditModalUnitId ? getCreditBalanceHistory(creditModalUnitId) : []}
+        year={selectedYear}
+        onUpdate={handleCreditBalanceUpdate}
+      />
+      
+      {/* Credit Balance Add Modal */}
+      <CreditBalanceAddModal
+        isOpen={showCreditAddModal}
+        onClose={closeCreditModals}
+        unitId={creditModalUnitId}
+        currentBalance={creditModalBalance}
+        year={selectedYear}
+        onUpdate={handleCreditBalanceUpdate}
+      />
+      
+      {/* Credit Balance Remove Modal */}
+      <CreditBalanceRemoveModal
+        isOpen={showCreditRemoveModal}
+        onClose={closeCreditModals}
+        unitId={creditModalUnitId}
+        currentBalance={creditModalBalance}
+        year={selectedYear}
+        onUpdate={handleCreditBalanceUpdate}
+      />
+      
       
       {/* Context Menu */}
       <ContextMenu
