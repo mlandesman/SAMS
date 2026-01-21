@@ -14,7 +14,7 @@
 /**
  * Generate PDF from HTML content using PDFShift.
  * @param {string} htmlContent - Complete HTML document
- * @param {Object} options - { format?: string, footerMeta?: { statementId?: string, generatedAt?: string, language?: string } }
+ * @param {Object} options - { format?: string, landscape?: boolean, footerMeta?: { statementId?: string, generatedAt?: string, language?: string } }
  * @returns {Buffer} PDF buffer
  */
 export async function generatePdf(htmlContent, options = {}) {
@@ -27,6 +27,7 @@ export async function generatePdf(htmlContent, options = {}) {
     
     const {
       format = 'Letter',
+      landscape = false,
       footerMeta = {}
     } = options;
     
@@ -94,7 +95,7 @@ export async function generatePdf(htmlContent, options = {}) {
         source: htmlContent,
         sandbox: useSandbox,
         use_print: true,
-        landscape: false,
+        landscape: landscape,
         format,
         margin: {
           top: '15mm',

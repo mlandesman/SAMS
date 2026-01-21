@@ -605,6 +605,120 @@ class ReportService {
       window.URL.revokeObjectURL(url);
     }, 60 * 1000);
   }
+
+  /**
+   * Export Transactions PDF from pre-generated HTML
+   * POST /reports/:clientId/transactions/export?format=pdf
+   *
+   * @param {string} clientId
+   * @param {object} params
+   * @param {string} params.html - Complete HTML document
+   * @param {object} [params.filterSummary] - Optional filter summary metadata
+   * @param {string} [params.clientName] - Client name for filename
+   */
+  async exportTransactionsPdfFromHtml(clientId, params) {
+    const headers = await this.getAuthHeaders();
+
+    const query = new URLSearchParams();
+    query.append('format', 'pdf');
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/transactions/export?${query.toString()}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          html: params.html,
+          filterSummary: params.filterSummary || {}
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => null);
+      throw new Error(
+        errorText || `Failed to export transactions PDF (status ${response.status})`
+      );
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    // Generate meaningful filename
+    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const clientName = params.clientName || clientId;
+    
+    // Build filename from filter summary
+    let filenameParts = ['Transaction Report', clientName];
+    
+    if (params.filterSummary) {
+      const { dateRange, advancedFilters } = params.filterSummary;
+      
+      // Add date range to filename
+      if (dateRange && dateRange !== 'all') {
+        if (typeof dateRange === 'object' && dateRange.startDate && dateRange.endDate) {
+          const start = new Date(dateRange.startDate).toISOString().split('T')[0];
+          const end = new Date(dateRange.endDate).toISOString().split('T')[0];
+          filenameParts.push(`${start}_to_${end}`);
+        } else {
+          filenameParts.push(String(dateRange));
+        }
+      }
+      
+      // Add unit filter to filename if present
+      if (advancedFilters?.unit && advancedFilters.unit.length > 0) {
+        const units = Array.isArray(advancedFilters.unit) 
+          ? advancedFilters.unit.join('-') 
+          : String(advancedFilters.unit);
+        filenameParts.push(`Unit-${units}`);
+      }
+      
+      // Add vendor filter if present
+      if (advancedFilters?.vendor && advancedFilters.vendor.length > 0) {
+        const vendors = Array.isArray(advancedFilters.vendor)
+          ? advancedFilters.vendor.join('-')
+          : String(advancedFilters.vendor);
+        // Sanitize vendor names for filename (remove special chars)
+        const sanitized = vendors.replace(/[^a-zA-Z0-9-]/g, '-').substring(0, 30);
+        filenameParts.push(`Vendor-${sanitized}`);
+      }
+    }
+    
+    // Add date to filename
+    filenameParts.push(dateStr);
+    
+    // Create filename (sanitize and join)
+    const filename = filenameParts
+      .filter(part => part && part.trim())
+      .join('_')
+      .replace(/[^a-zA-Z0-9_-]/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 200) + '.pdf';
+
+    // Create download link with proper filename
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    
+    // Trigger download with proper filename
+    a.click();
+    
+    // Also open in new tab for viewing/printing
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+      console.warn('Unable to open PDF window (popup blocked?)');
+    }
+
+    // Cleanup
+    document.body.removeChild(a);
+    
+    // Revoke URL after some time to avoid breaking the viewer immediately
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 60 * 1000);
+  }
 }
 
 // Export singleton instance
