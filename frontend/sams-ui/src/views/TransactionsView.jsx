@@ -47,6 +47,8 @@ import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToCSV } from '../utils/csvExport';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { generateTransactionsPdfHtml } from '../utils/transactionPdfTemplate';
+import reportService from '../services/reportService';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
@@ -1313,6 +1315,51 @@ function TransactionsView() {
       filename: `transactions-${clientId}-${dateStr}`
     });
   }, [filteredTransactions, selectedClient]);
+
+  // PDF Export handler
+  const handleExportPDF = useCallback(async () => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
+      console.warn('No transactions to export');
+      return;
+    }
+
+    if (!selectedClient?.id) {
+      console.error('No client selected');
+      return;
+    }
+
+    try {
+      // Get client name for filename
+      const clientName = selectedClient?.basicInfo?.displayName || 
+                         selectedClient?.basicInfo?.fullName ||
+                         selectedClient?.name ||
+                         selectedClient?.id;
+
+      // Generate HTML from transactions
+      // Pass the entire selectedClient object so template can access basicInfo.displayName
+      const html = generateTransactionsPdfHtml({
+        transactions: filteredTransactions,
+        clientInfo: selectedClient, // Pass entire object to access nested basicInfo
+        filterSummary: {
+          dateRange: currentDateRange,
+          advancedFilters: advancedFilters
+        }
+      });
+
+      // Export PDF via backend
+      await reportService.exportTransactionsPdfFromHtml(selectedClient.id, {
+        html,
+        clientName,
+        filterSummary: {
+          dateRange: currentDateRange,
+          advancedFilters: advancedFilters
+        }
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      showError('Failed to export PDF: ' + (error.message || 'Unknown error'));
+    }
+  }, [filteredTransactions, selectedClient, currentDateRange, advancedFilters, showError]);
   
   // Handle navigation state for opening unified payment from other views
   useEffect(() => {
@@ -1379,6 +1426,7 @@ function TransactionsView() {
         </button>
         <ExportMenu
           onExportCSV={handleExportCSV}
+          onExportPDF={handleExportPDF}
           disabled={!filteredTransactions?.length}
         />
         <button className="action-item" onClick={() => setShowReconciliationModal(true)}>

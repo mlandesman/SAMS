@@ -1321,4 +1321,87 @@ router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) =
   }
 });
 
+/**
+ * Export Transactions PDF from pre-generated HTML
+ * POST /reports/:clientId/transactions/export?format=pdf
+ *
+ * Body:
+ * {
+ *   html: string,
+ *   filterSummary?: {
+ *     dateRange?: string | object,
+ *     advancedFilters?: object
+ *   }
+ * }
+ *
+ * Returns PDF export of transactions report
+ */
+router.post('/transactions/export', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { html, filterSummary = {} } = req.body || {};
+    const format = (req.query.format || 'pdf').toLowerCase();
+    const user = req.user;
+
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+
+    // Validate propertyAccess
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+
+    if (!html) {
+      return res.status(400).json({
+        success: false,
+        error: 'html field is required in request body'
+      });
+    }
+
+    if (format !== 'pdf') {
+      return res.status(400).json({
+        success: false,
+        error: 'Unsupported export format. Supported formats: "pdf".'
+      });
+    }
+
+    // Generate PDF from HTML (landscape orientation)
+    const pdfBuffer = await generatePdf(html, {
+      format: 'Letter',
+      landscape: true,
+      footerMeta: {
+        statementId: `TRANSACTIONS-${clientId}-${Date.now()}`,
+        generatedAt: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        language: 'english'
+      }
+    });
+
+    const safeClientId = clientId || 'client';
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `transactions-${safeClientId}-${dateStr}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error exporting transactions PDF:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.stack
+    });
+  }
+});
+
 export default router;
