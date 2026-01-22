@@ -15,45 +15,147 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SAMS" />
     <title>SAMS - Sandyland Asset Management</title>
+    <style>
+      /* Version Update Modal Styles */
+      #version-update-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      #version-update-modal.show {
+        display: flex;
+      }
+      
+      #version-update-modal .modal-content {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        text-align: center;
+      }
+      
+      #version-update-modal .modal-content h2 {
+        margin: 0 0 1rem 0;
+        color: #2FB6C4;
+        font-size: 1.5rem;
+      }
+      
+      #version-update-modal .modal-content p {
+        margin: 0 0 1.5rem 0;
+        color: #333;
+        font-size: 1rem;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Version Update Modal -->
+    <div id="version-update-modal">
+      <div class="modal-content">
+        <h2>New Version Available</h2>
+        <p>New version has been loaded. The app will reload automatically...</p>
+      </div>
+    </div>
+    
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Register service worker for PWA functionality with update detection
+    <script type="module">
+      // Service Worker registration with version-based auto-invalidation
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
+        window.addEventListener('load', async () => {
+          try {
+            // Dynamically import cacheManagement utilities
+            const { performHardReset, getCurrentAppVersion, storeVersion, checkVersionMismatch } = await import('/src/utils/cacheManagement.js');
+            
+            // Register Service Worker
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('[index] Service Worker registered:', registration);
+            
+            // Check for version mismatch on initial load
+            const hasVersionMismatch = await checkVersionMismatch();
+            
+            if (hasVersionMismatch) {
+              // Version mismatch detected - perform hard reset and show modal
+              console.log('[index] Version mismatch detected - performing hard reset');
               
-              // Check for updates every hour
-              setInterval(() => {
-                registration.update();
-              }, 3600000);
+              // Show modal
+              const modal = document.getElementById('version-update-modal');
+              if (modal) {
+                modal.classList.add('show');
+              }
               
-              // Listen for update found
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                console.log('New service worker available');
+              // Perform hard reset
+              await performHardReset();
+              
+              // Store current version
+              const currentVersion = await getCurrentAppVersion();
+              await storeVersion(currentVersion);
+              
+              // Auto-reload after 2.5 seconds
+              setTimeout(() => {
+                window.location.reload();
+              }, 2500);
+            } else {
+              // No version mismatch - store current version and proceed normally
+              const currentVersion = await getCurrentAppVersion();
+              await storeVersion(currentVersion);
+            }
+            
+            // Listen for Service Worker activation messages
+            navigator.serviceWorker.addEventListener('message', async (event) => {
+              if (event.data && event.data.type === 'SW_ACTIVATED') {
+                // Service Worker activated - check for version mismatch again
+                const hasMismatch = await checkVersionMismatch();
                 
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'activated' && !document.hidden) {
-                    // Only show update prompt once per session
-                    const updatePromptShown = sessionStorage.getItem('updatePromptShown');
-                    if (!updatePromptShown) {
-                      sessionStorage.setItem('updatePromptShown', 'true');
-                      if (confirm('New version available! Reload to update?')) {
-                        window.location.reload();
-                      }
-                    }
+                if (hasMismatch) {
+                  console.log('[index] Version mismatch detected after SW activation');
+                  
+                  // Show modal
+                  const modal = document.getElementById('version-update-modal');
+                  if (modal) {
+                    modal.classList.add('show');
                   }
-                });
-              });
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+                  
+                  // Perform hard reset
+                  await performHardReset();
+                  
+                  // Store current version
+                  const currentVersion = await getCurrentAppVersion();
+                  await storeVersion(currentVersion);
+                  
+                  // Auto-reload after 2.5 seconds
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2500);
+                }
+              }
             });
+            
+            // Handle Service Worker updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('[index] New Service Worker found');
+              
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  console.log('[index] New Service Worker activated');
+                  // Version check will happen via message listener
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('[index] Service Worker registration failed:', error);
+          }
         });
       }
     </script>

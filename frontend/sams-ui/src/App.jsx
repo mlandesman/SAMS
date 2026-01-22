@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ClientProvider, useClient } from './context/ClientContext';
 import { TransactionsProvider } from './context/TransactionsContext';
 import TransactionFiltersProvider from './context/TransactionFiltersContext.jsx';
@@ -31,6 +31,7 @@ import './App.css';
 import { forceProductionMobileMode } from './utils/mobileDetection';
 import './styles/force-mobile-overrides.css';
 import { initializeVersionCheck } from './utils/versionChecker';
+import { performHardReset } from './utils/cacheManagement';
 
 // Initialize mobile detection
 if (typeof window !== 'undefined') {
@@ -55,6 +56,7 @@ function AppContent() {
   const { isModalVisible, modalStatus, closeModal, checkAndUpdateWithGapFill } = useExchangeRates();
   const [showClientModal, setShowClientModal] = useState(false);
   const [currentActivity, setCurrentActivity] = useState('dashboard'); // Track current activity
+  const navigate = useNavigate();
   
   // Clear client selection from localStorage on app start
   useEffect(() => {
@@ -68,8 +70,29 @@ function AppContent() {
       console.log('User not authenticated, showing login form');
       showLogin();
     } else if (isAuthenticated && !selectedClient) {
-      console.log('User is authenticated but no client selected, showing client selection');
-      setShowClientModal(true);
+      // Perform hard reset before showing Select Client modal
+      // Use sessionStorage flag to prevent multiple resets per session
+      const resetPerformed = sessionStorage.getItem('hardResetPerformed');
+      
+      if (!resetPerformed) {
+        console.log('🧹 Performing hard reset on app startup before showing client selection...');
+        performHardReset()
+          .then(() => {
+            console.log('✅ Hard reset complete - showing client selection');
+            sessionStorage.setItem('hardResetPerformed', 'true');
+            setShowClientModal(true);
+          })
+          .catch((error) => {
+            console.error('❌ Hard reset failed:', error);
+            // Still show modal even if reset fails (never block the app)
+            sessionStorage.setItem('hardResetPerformed', 'true');
+            setShowClientModal(true);
+          });
+      } else {
+        // Reset already performed this session, just show modal
+        console.log('User is authenticated but no client selected, showing client selection');
+        setShowClientModal(true);
+      }
     } else if (isAuthenticated && selectedClient) {
       console.log('🔄 User authenticated and client selected - checking exchange rates with gap fill');
       checkAndUpdateWithGapFill();
@@ -94,10 +117,47 @@ function AppContent() {
   };
 
   // This function will be passed to the Sidebar to handle "Change Client"
-  const handleChangeClient = () => {
-    setClient(null);
-    openClientModal();
-    // Note: Exchange rate check will happen when new client is selected
+  const handleChangeClient = async () => {
+    console.log('🔄 Change Client triggered - performing hard reset...');
+    
+    try {
+      // Perform hard reset BEFORE clearing client (Service Workers and Cache Storage only)
+      await performHardReset();
+      console.log('✅ Hard reset complete');
+      
+      // Clear client context
+      setClient(null);
+      
+      // Clear client-specific localStorage
+      localStorage.removeItem('selectedClient');
+      localStorage.removeItem('transactionFilter');
+      
+      // Clear only client-specific sessionStorage keys (preserve authentication state)
+      // Known client-specific keys to clear:
+      const clientSpecificKeys = [
+        'hardResetPerformed', // Task 4 flag
+        // Add other client-specific sessionStorage keys here as needed
+      ];
+      clientSpecificKeys.forEach(key => sessionStorage.removeItem(key));
+      
+      // Show Select Client modal without reloading (preserves authentication)
+      setShowClientModal(true);
+      
+      // Navigate to root to ensure clean route state
+      navigate('/');
+      
+    } catch (error) {
+      console.error('❌ Hard reset failed during client change:', error);
+      // Still proceed with client change even if reset fails
+      setClient(null);
+      localStorage.removeItem('selectedClient');
+      localStorage.removeItem('transactionFilter');
+      // Only clear client-specific sessionStorage keys
+      const clientSpecificKeys = ['hardResetPerformed'];
+      clientSpecificKeys.forEach(key => sessionStorage.removeItem(key));
+      setShowClientModal(true);
+      navigate('/');
+    }
   };
 
   // Function to update the current activity

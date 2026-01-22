@@ -116,9 +116,9 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
           <Divider sx={{ my: 3 }} />
 
           {/* Information Grid */}
-          <Grid container spacing={3}>
+          <Grid container spacing={3} justifyContent="center">
             {/* Build Information */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={10} md={5}>
               <Card sx={{ height: '100%', border: '1px solid #e0e0e0' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -151,7 +151,7 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
             </Grid>
 
             {/* Company Information */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={10} md={5}>
               <Card sx={{ height: '100%', border: '1px solid #e0e0e0' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>

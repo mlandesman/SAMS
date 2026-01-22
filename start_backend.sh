@@ -51,49 +51,6 @@ start_backend() {
 }
 
 
-
-# Function to start frontend server
-start_frontend() {
-  echo "🔄 Starting frontend server..."
-  cd "$FRONTEND_DIR" || { echo "❌ Unable to access frontend directory"; exit 1; }
-  
-  # Kill any existing frontend server
-  kill_port 5173 "frontend server"
-  
-  # Check for .vite directory and clean if necessary
-  if [ -d "node_modules/.vite" ]; then
-    echo "🧹 Cleaning Vite cache..."
-    rm -rf node_modules/.vite
-  fi
-  
-  echo "🚀 Starting frontend Vite dev server"
-  npm run dev &
-  FRONTEND_PID=$!
-  echo "✅ Frontend server started with PID: $FRONTEND_PID"
-  echo "📝 Frontend server logs will appear in this terminal"
-}
-
-# Function to start PWA mobile app
-start_pwa() {
-  echo "🔄 Starting PWA mobile app..."
-  cd "$PWA_DIR" || { echo "❌ Unable to access PWA directory"; exit 1; }
-  
-  # Kill any existing PWA server
-  kill_port 5174 "PWA mobile app"
-  
-  # Check for .vite directory and clean if necessary
-  if [ -d "node_modules/.vite" ]; then
-    echo "🧹 Cleaning PWA Vite cache..."
-    rm -rf node_modules/.vite
-  fi
-  
-  echo "🚀 Starting PWA mobile app on port 5174"
-  npm run dev &
-  PWA_PID=$!
-  echo "✅ PWA mobile app started with PID: $PWA_PID"
-  echo "📝 PWA mobile app logs will appear in this terminal"
-}
-
 # Main execution
 echo "🔍 Checking environment..."
 
@@ -126,31 +83,13 @@ start_backend
 # Give the backend a moment to start
 sleep 2
 
-# Start frontend
-start_frontend
-
-# Give the frontend a moment to start
-sleep 2
-
-# Start PWA mobile app
-start_pwa
-
-# Give the PWA frontend a moment to start
-sleep 4
-
 echo ""
 echo "======================================================"
 echo "🌐 Services Status:"
 echo "   Backend: http://localhost:5001"
-echo "   Frontend: http://localhost:5173"
-echo "   PWA Mobile App: http://localhost:5174"
 echo "======================================================"
 echo ""
 echo "💡 Press Ctrl+C to stop all services"
-
-# start Chrome browser in Incognito mode
-# open -a "Google Chrome" --args --incognito "http://localhost:5173"
-open -a "Google Chrome" --args "http://localhost:5173"
 
 # Trap Ctrl+C and properly terminate all processes
 cleanup() {
