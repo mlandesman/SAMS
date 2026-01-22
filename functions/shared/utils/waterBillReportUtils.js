@@ -387,3 +387,6 @@ export async function getQuarterMonthlyData(db, clientId, fiscalYear, fiscalQuar
     payments
   };
 }
+
+// Export fiscal year constant for use in report services
+export { FISCAL_YEAR_START_MONTH };
