@@ -3,9 +3,9 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "1.8.3",
-  "buildDate": "2026-01-22T03:48:56.516Z",
-  "buildTimestamp": 1769053736517,
+  "version": "1.9.0",
+  "buildDate": "2026-01-22T22:53:15.428Z",
+  "buildTimestamp": 1769122395430,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "0b0fbce",
-    "branch": "feature/issue-129-water-consumption-report",
-    "lastCommitDate": "2026-01-21 22:47:30 -0500"
+    "hash": "817e097",
+    "branch": "main",
+    "lastCommitDate": "2026-01-22 17:52:18 -0500"
   },
   "build": {
-    "timestamp": "2026-01-22T03:48:56.516Z",
+    "timestamp": "2026-01-22T22:53:15.428Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260121.2248"
+    "buildNumber": "260122.1753"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-01-22T03:48:56.516Z",
+    "date": "2026-01-22T22:53:15.428Z",
     "automated": true
   },
   "releaseNotes": {
