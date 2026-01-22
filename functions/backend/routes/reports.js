@@ -16,6 +16,10 @@ import { getBudgetActualData } from '../services/budgetActualDataService.js';
 import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
 import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
+import { 
+  generateWaterConsumptionReportHtml,
+  generateBothLanguageReports 
+} from '../services/waterBillReportHtmlService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
@@ -1400,6 +1404,188 @@ router.post('/transactions/export', authenticateUserWithProfile, async (req, res
       success: false,
       error: error.message,
       details: error.stack
+    });
+  }
+});
+
+/**
+ * Generate Water Consumption Report HTML
+ * GET /api/clients/:clientId/reports/water/:unitId
+ * 
+ * Query Parameters:
+ *   - format: 'html' | 'json' (default: 'html')
+ *   - language: 'english' | 'spanish' (default: 'english')
+ *   - generateBothLanguages: 'true' | 'false' (default: 'false')
+ */
+router.get('/water/:unitId', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { unitId } = req.params;
+    const user = req.user;
+    
+    // Validate inputs
+    if (!clientId || !unitId) {
+      return res.status(400).json({ 
+        error: 'Client ID and Unit ID are required' 
+      });
+    }
+    
+    // Verify user has access to this client
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied to this client' 
+      });
+    }
+    
+    // Check unit access (admins and unit owners/managers)
+    if (!hasUnitAccess(propertyAccess, unitId, user.samsProfile?.globalRole)) {
+      return res.status(403).json({ 
+        error: 'Access denied to this unit' 
+      });
+    }
+    
+    // Parse query parameters
+    const language = req.query.language || 'english';
+    const generateBothLanguages = req.query.generateBothLanguages === 'true';
+    const format = req.query.format || 'html';
+    
+    // Validate language
+    if (!['english', 'spanish'].includes(language)) {
+      return res.status(400).json({
+        error: 'Invalid language. Use "english" or "spanish".'
+      });
+    }
+    
+    // Generate report
+    let result;
+    if (generateBothLanguages) {
+      result = await generateBothLanguageReports(clientId, unitId);
+      
+      return res.json({
+        success: true,
+        htmlEn: result.htmlEn,
+        htmlEs: result.htmlEs,
+        metaEn: result.metaEn,
+        metaEs: result.metaEs,
+        reportData: result.reportData
+      });
+    } else {
+      result = await generateWaterConsumptionReportHtml(clientId, unitId, { language });
+      
+      if (result.error) {
+        return res.status(500).json({
+          error: 'Failed to generate report',
+          message: result.error
+        });
+      }
+      
+      if (format === 'html') {
+        // Return HTML content directly
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(result.html);
+      }
+      
+      return res.json({
+        success: true,
+        html: result.html,
+        meta: result.meta,
+        reportData: result.reportData
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error generating water consumption report:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate report',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Generate Water Consumption Report PDF
+ * GET /api/clients/:clientId/reports/water/:unitId/pdf
+ * 
+ * Query Parameters:
+ *   - language: 'english' | 'spanish' (default: 'english')
+ */
+router.get('/water/:unitId/pdf', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { unitId } = req.params;
+    const user = req.user;
+    
+    // Validate inputs
+    if (!clientId || !unitId) {
+      return res.status(400).json({ 
+        error: 'Client ID and Unit ID are required' 
+      });
+    }
+    
+    // Verify user has access
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied to this client' 
+      });
+    }
+    
+    if (!hasUnitAccess(propertyAccess, unitId, user.samsProfile?.globalRole)) {
+      return res.status(403).json({ 
+        error: 'Access denied to this unit' 
+      });
+    }
+    
+    // Parse query parameters
+    const language = req.query.language || 'english';
+    
+    // Validate language
+    if (!['english', 'spanish'].includes(language)) {
+      return res.status(400).json({
+        error: 'Invalid language. Use "english" or "spanish".'
+      });
+    }
+    
+    // Generate HTML first
+    const result = await generateWaterConsumptionReportHtml(clientId, unitId, { language });
+    
+    if (result.error) {
+      return res.status(500).json({
+        error: 'Failed to generate report HTML',
+        message: result.error
+      });
+    }
+    
+    if (!result.html) {
+      return res.status(500).json({
+        error: 'Failed to generate report HTML'
+      });
+    }
+    
+    // Convert to PDF
+    const pdfBuffer = await generatePdf(result.html, {
+      format: 'Letter',
+      footerMeta: {
+        statementId: result.meta.reportId,
+        generatedAt: result.meta.generatedAt,
+        language: language
+      }
+    });
+    
+    // Set response headers for PDF download
+    const filename = `water-consumption-${unitId}-${language}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    return res.send(pdfBuffer);
+    
+  } catch (error) {
+    console.error('Error generating water consumption PDF:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate PDF',
+      message: error.message 
     });
   }
 });
