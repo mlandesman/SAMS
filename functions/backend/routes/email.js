@@ -6,7 +6,7 @@
 import express from 'express';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getEmailConfig, setEmailConfig, initializeMTCEmailConfig } from '../controllers/emailConfigController.js';
-import { sendReceiptEmail, testEmailConfig, sendWaterBillEmail, testWaterBillEmail, sendStatementEmail, generateAndUploadPdfs } from '../controllers/emailService.js';
+import { sendReceiptEmail, testEmailConfig, sendWaterBillEmail, testWaterBillEmail, sendStatementEmail, sendWaterReportEmail, generateAndUploadPdfs } from '../controllers/emailService.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -418,6 +418,62 @@ router.post('/send-statement', async (req, res) => {
       success: false, 
       error: 'Failed to send statement email',
       details: error.message 
+    });
+  }
+});
+
+// POST /api/clients/:clientId/email/send-water-report - Send Water Consumption Report email
+router.post('/send-water-report', async (req, res) => {
+  try {
+    const clientId = req.params.clientId;
+    const { unitId, language, fiscalYear, prependText } = req.body;
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Client ID is required' 
+      });
+    }
+    
+    if (!unitId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Unit ID is required' 
+      });
+    }
+    
+    // Check user has admin access
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Access denied to this client' 
+      });
+    }
+    
+    if (propertyAccess.role !== 'Admin' && user.samsProfile?.globalRole !== 'superAdmin') {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Admin access required to send emails' 
+      });
+    }
+    
+    console.log(`📧 Sending water report email for client: ${clientId}, unit: ${unitId}`);
+    
+    const result = await sendWaterReportEmail(clientId, unitId, {
+      language: language || 'english',
+      fiscalYear,
+      prependText
+    }, user);
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Error sending water report email:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to send email'
     });
   }
 });

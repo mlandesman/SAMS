@@ -341,3 +341,42 @@ export function blobToBase64(blob) {
     reader.readAsDataURL(blob);
   });
 }
+
+/**
+ * Send water consumption report email for a single unit
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {string} language - Language ('english' or 'spanish')
+ * @param {number} fiscalYear - Optional fiscal year
+ * @param {string} prependText - Optional prepend text for email
+ * @returns {Promise<Object>} Result with success status and message
+ */
+export async function sendWaterReportEmail(clientId, unitId, language = 'english', fiscalYear = null, prependText = null) {
+  const headers = await getAuthHeaders();
+  
+  const body = { unitId, language };
+  if (fiscalYear) {
+    body.fiscalYear = fiscalYear;
+  }
+  if (prependText) {
+    body.prependText = prependText;
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/clients/${clientId}/email/send-water-report`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify(body)
+  });
+  
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error || 'Failed to send water report email');
+  }
+  
+  return result;
+}

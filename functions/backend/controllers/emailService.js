@@ -14,6 +14,8 @@ import { generateStatementData } from '../services/statementHtmlService.js';
 import { getStatementData } from '../services/statementDataService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { generateStatementEmailHtml } from '../templates/statementEmailTemplate.js';
+import { generateWaterReportEmailHtml } from '../templates/waterReportEmailTemplate.js';
+import { generateWaterConsumptionReportHtml } from '../services/waterBillReportHtmlService.js';
 import { getResizedImage } from '../services/imageResizeService.js';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -1336,11 +1338,187 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
   }
 }
 
+/**
+ * Send Water Consumption Report email to unit owner
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {Object} options - { language, fiscalYear, prependText }
+ * @param {Object} user - Authenticated user object
+ * @returns {Promise<Object>} - { success, message, emailId, reportId }
+ */
+export async function sendWaterReportEmail(clientId, unitId, options = {}, user = null) {
+  try {
+    const { language = 'english', fiscalYear, prependText = null } = options;
+    
+    const db = await getDb();
+    
+    // 1. Get unit data
+    const unitDoc = await db.collection('clients').doc(clientId)
+      .collection('units').doc(unitId).get();
+    
+    if (!unitDoc.exists) {
+      throw new Error(`Unit ${unitId} not found`);
+    }
+    
+    const unitData = unitDoc.data();
+    const unit = { id: unitDoc.id, ...unitData };
+    
+    // Extract recipients (same pattern as sendStatementEmail)
+    const owners = normalizeOwners(unit.owners);
+    const managers = normalizeManagers(unit.managers);
+    
+    const toEmails = owners.filter(o => o.email).map(o => o.email);
+    const ccEmails = managers.filter(m => m.email).map(m => m.email);
+    
+    if (toEmails.length === 0) {
+      throw new Error(`No owner email addresses found for unit ${unitId}`);
+    }
+    
+    // 2. Get client info
+    const clientDoc = await db.collection('clients').doc(clientId).get();
+    if (!clientDoc.exists) {
+      throw new Error(`Client ${clientId} not found`);
+    }
+    const clientData = clientDoc.data();
+    const clientName = clientData.basicInfo?.fullName || clientData.name || clientId;
+    const clientLogoUrl = clientData.branding?.logoUrl || '';
+    const brandColor = clientData.branding?.brandColors?.primary || '#1a365d';
+    
+    // 3. Generate report HTML and PDF
+    const reportResult = await generateWaterConsumptionReportHtml(clientId, unitId, { language, fiscalYear });
+    if (reportResult.error) {
+      throw new Error(reportResult.error);
+    }
+    
+    const pdfBuffer = await generatePdf(reportResult.html, {
+      format: 'Letter',
+      footerMeta: {
+        statementId: reportResult.meta.reportId,
+        generatedAt: reportResult.meta.generatedAt,
+        language: reportResult.meta.language
+      }
+    });
+    
+    // 4. Get email-sized logo (resize if needed)
+    let emailLogoUrl = null;
+    if (clientLogoUrl && clientLogoUrl.trim()) {
+      try {
+        if (clientLogoUrl.startsWith('http://') || clientLogoUrl.startsWith('https://')) {
+          try {
+            emailLogoUrl = await getResizedImage(clientLogoUrl, clientId, 'email');
+            if (!emailLogoUrl || !emailLogoUrl.startsWith('http')) {
+              emailLogoUrl = clientLogoUrl;
+            }
+          } catch (resizeError) {
+            emailLogoUrl = clientLogoUrl;
+          }
+        }
+      } catch (error) {
+        emailLogoUrl = null;
+      }
+    }
+    
+    // 5. Generate email HTML
+    const isSpanish = language === 'spanish' || language === 'es';
+    const ownerNames = owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner';
+    
+    // Format date
+    const reportDate = DateTime.fromISO(reportResult.reportData.generatedAt).setZone('America/Cancun');
+    const asOfDate = isSpanish 
+      ? reportDate.toFormat("d 'de' MMMM 'de' yyyy", { locale: 'es' })
+      : reportDate.toFormat('MMMM d, yyyy');
+    
+    // Get fiscal year from report data
+    const reportFiscalYear = reportResult.reportData.fiscalYears?.[0]?.fiscalYear || 
+                             fiscalYear || 
+                             new Date().getFullYear();
+    
+    const emailData = {
+      unitNumber: unitId,
+      ownerNames: ownerNames,
+      fiscalYear: reportFiscalYear.toString(),
+      asOfDate: asOfDate,
+      ytdConsumption: reportResult.reportData.summary?.ytdConsumption || 0,
+      ytdCharges: reportResult.reportData.summary?.ytdCharges || 0,
+      dailyAverage: reportResult.reportData.summary?.dailyAverage || 0,
+      percentile: reportResult.reportData.comparison?.percentile || null,
+      logoUrl: emailLogoUrl,
+      brandColor: brandColor,
+      contactEmail: reportResult.reportData.client?.contactEmail || clientData.contactInfo?.primaryEmail || 'pm@sandyland.com.mx',
+      contactPhone: reportResult.reportData.client?.contactPhone || clientData.contactInfo?.primaryPhone || '',
+      prependText: prependText
+    };
+    
+    const emailHtml = generateWaterReportEmailHtml(emailData, isSpanish ? 'es' : 'en');
+    
+    // 6. Build email subject
+    const subject = isSpanish
+      ? `Reporte de Consumo de Agua - Unidad ${unitId}`
+      : `Water Consumption Report - Unit ${unitId}`;
+    
+    // 7. Apply test email override for non-production environments
+    const { to: finalToEmails, wasOverridden } = applyEmailOverride(toEmails);
+    
+    // 8. Send email with PDF attachment
+    const transporter = createGmailTransporter();
+    const info = await transporter.sendMail({
+      from: { name: `${clientName} Administrators`, address: 'pm@sandyland.com.mx' },
+      to: finalToEmails,
+      cc: wasOverridden ? undefined : (ccEmails.length > 0 ? ccEmails : undefined),  // Skip CC in test mode
+      subject: subject,
+      html: emailHtml,
+      replyTo: 'pm@sandyland.com.mx',
+      attachments: [
+        {
+          filename: `water-report-${unitId}-${reportFiscalYear}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+          contentDisposition: 'inline',
+          cid: `water-report-${clientId}-${unitId}-${reportFiscalYear}`,
+          headers: {
+            'Content-Disposition': 'inline',
+            'Content-ID': `<water-report-${clientId}-${unitId}-${reportFiscalYear}>`
+          }
+        }
+      ]
+    });
+    
+    // 9. Audit log
+    await writeAuditLog({
+      module: 'email',
+      action: 'send_water_report',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: `Water Report email for Unit ${unitId}`,
+      notes: `Sent to: ${toEmails.join(', ')}${wasOverridden ? ' (redirected to test)' : ''}. CC: ${ccEmails.join(', ') || 'none'}. Language: ${language}. Report ID: ${reportResult.meta.reportId}`,
+      userId: user?.uid || null
+    });
+    
+    return {
+      success: true,
+      message: `Email sent to ${wasOverridden ? `(dev) ${finalToEmails[0]}` : toEmails.join(', ')}`,
+      emailId: info.messageId,
+      reportId: reportResult.meta.reportId
+    };
+    
+  } catch (error) {
+    console.error('❌ Error sending water report email:', error);
+    await writeAuditLog({
+      module: 'email',
+      action: 'send_water_report_failed',
+      parentPath: `clients/${clientId}/units/${unitId}`,
+      docId: unitId,
+      friendlyName: `Failed Water Report Email: Unit ${unitId}`,
+      notes: `Failed: ${error.message}`,
+      userId: user?.uid || null
+    });
+    throw error;
+  }
+}
+
 export {
   sendReceiptEmail,
   sendWaterBillEmail,
-  
-  
   testWaterBillEmail,
   testEmailConfig,
   createGmailTransporter,

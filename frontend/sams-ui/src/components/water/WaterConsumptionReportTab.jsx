@@ -7,8 +7,10 @@ import { getAuthInstance } from '../../firebaseClient';
 import { config } from '../../config';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { printReport } from '../../utils/printUtils';
+import { sendWaterReportEmail } from '../../api/email';
 import LocalPrintshopIcon from '@mui/icons-material/LocalPrintshop';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import EmailIcon from '@mui/icons-material/Email';
 import './WaterConsumptionReportTab.css';
 
 // Get authentication headers with Firebase ID token
@@ -82,6 +84,8 @@ function WaterConsumptionReportTab({ clientId }) {
   const [htmlPreview, setHtmlPreview] = useState(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState(null);
 
   // Initialize language when client or user changes
   useEffect(() => {
@@ -248,6 +252,45 @@ function WaterConsumptionReportTab({ clientId }) {
     printReport('.water-report-preview-frame');
   }, []);
 
+  const handleSendEmail = useCallback(
+    async event => {
+      if (event) {
+        event.preventDefault();
+      }
+
+      const effectiveClientId = clientId || selectedClient?.id;
+      if (!effectiveClientId || !selectedUnitId) {
+        setEmailResult({ success: false, message: 'Please select a unit to send email.' });
+        return;
+      }
+
+      setEmailSending(true);
+      setEmailResult(null);
+
+      try {
+        const result = await sendWaterReportEmail(
+          effectiveClientId,
+          selectedUnitId,
+          language
+        );
+        
+        setEmailResult({
+          success: true,
+          message: result.message || `Email sent successfully (${language})`
+        });
+      } catch (err) {
+        console.error('Email send failed:', err);
+        setEmailResult({
+          success: false,
+          message: err.message || 'Failed to send email. Please try again.'
+        });
+      } finally {
+        setEmailSending(false);
+      }
+    },
+    [clientId, selectedClient, selectedUnitId, language]
+  );
+
   const handleRetry = useCallback(() => {
     handleGenerate();
   }, [handleGenerate]);
@@ -256,6 +299,7 @@ function WaterConsumptionReportTab({ clientId }) {
   const hasReport = !!htmlPreview;
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
   const isPrintDisabled = !hasReport || loading;
+  const isEmailDisabled = !selectedUnitId || loading || emailSending;
 
   const showUnitFilter = units.length > 20;
   const effectiveClientId = clientId || selectedClient?.id;
@@ -359,11 +403,29 @@ function WaterConsumptionReportTab({ clientId }) {
             className="secondary-button"
             onClick={handleDownloadPdf}
             disabled={isPdfDisabled}
+            title="Download PDF"
           >
             <PictureAsPdfIcon style={{ fontSize: 16, marginRight: 4 }} />
             {downloadingPdf ? 'PDF…' : 'PDF'}
           </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleSendEmail}
+            disabled={isEmailDisabled}
+            title="Send email to unit owner"
+          >
+            <EmailIcon style={{ fontSize: 16, marginRight: 4 }} />
+            {emailSending ? 'Sending...' : 'Email'}
+          </button>
         </div>
+        
+        {emailResult && (
+          <div className={`email-result ${emailResult.success ? 'success' : 'error'}`} style={{ marginTop: '10px', padding: '10px', borderRadius: '4px', backgroundColor: emailResult.success ? '#d4edda' : '#f8d7da', color: emailResult.success ? '#155724' : '#721c24' }}>
+            {emailResult.message}
+            <button onClick={() => setEmailResult(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'inherit' }}>×</button>
+          </div>
+        )}
       </div>
 
       <div className="water-report-preview">
