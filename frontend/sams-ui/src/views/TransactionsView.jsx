@@ -1261,6 +1261,11 @@ function TransactionsView() {
     // Helper function to format date for CSV
     const formatDateForCSV = (dateValue) => {
       if (!dateValue) return '';
+      // Use ISO_8601 property if available (new format from DateService)
+      if (dateValue.ISO_8601) {
+        return dateValue.ISO_8601;
+      }
+      // Fallback to parsing display format (legacy support)
       if (dateValue.display) {
         // Convert MM/DD/YYYY to YYYY-MM-DD
         const [month, day, year] = dateValue.display.split('/');

@@ -55,7 +55,10 @@ class DateService {
       monthNumber: dt.month,
       day: dt.day,
       timestamp: timestamp, // Keep original for sorting
-      timezone: this.timezone
+      timezone: this.timezone,
+      // Additional unambiguous formats for international use
+      unambiguous_long_date: dt.toFormat('dd MMM yyyy'),  // e.g., "22 Jan 2026"
+      ISO_8601: dt.toFormat('yyyy-MM-dd')                 // e.g., "2026-01-22"
     };
   }
 

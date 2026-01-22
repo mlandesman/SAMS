@@ -209,7 +209,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                 style={{ cursor: 'pointer' }}
                 title="Double-click to view details"
               >
-                <td className="date-column">{tx.date?.display || tx.created?.display || ''}</td>
+                <td className="date-column">{tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display || ''}</td>
                 <td className="vendor-column">{tx.vendorName || tx.vendor || ''}</td>
                 <td className="category-column">{renderCategoryCell(tx)}</td>
                 <td className="unit-column">{tx.unitId || tx.unit || ''}</td>
