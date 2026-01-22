@@ -1,0 +1,252 @@
+.water-consumption-report-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+}
+
+.water-report-tab-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.water-report-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.water-report-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.water-report-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 4px 4px 0 0;
+  flex-wrap: wrap;
+}
+
+.water-report-controls .control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.water-report-controls label {
+  font-size: 13px;
+  color: #555;
+}
+
+.water-report-controls .action-buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.water-report-select {
+  min-width: 160px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 13px;
+}
+
+.unit-group .unit-select-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unit-filter-input {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 12px;
+}
+
+.inline-status {
+  font-size: 11px;
+  color: #666;
+  margin-left: 4px;
+}
+
+.inline-status.error-text {
+  color: #d9534f;
+}
+
+.language-toggle {
+  display: inline-flex;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.language-toggle button {
+  padding: 6px 12px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.language-toggle button.active {
+  background: #007bff;
+  color: white;
+}
+
+.water-report-generate-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  background: #007bff;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.water-report-generate-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.water-report-generate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #ffffff;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.water-report-preview {
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: #ffffff;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.water-report-preview-empty {
+  max-width: 520px;
+  margin: 20px auto;
+  padding: 20px;
+  text-align: center;
+  color: #555;
+}
+
+.water-report-preview-empty h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.water-report-preview-empty p {
+  margin-bottom: 8px;
+}
+
+.water-report-preview-empty ul {
+  list-style: disc;
+  text-align: left;
+  padding-left: 24px;
+  margin-top: 8px;
+}
+
+.water-report-preview-loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.water-report-preview-error {
+  max-width: 420px;
+  margin: 20px auto;
+  padding: 16px;
+  border-radius: 4px;
+  background: #fdf2f2;
+  border: 1px solid #f5c2c2;
+  color: #b94a48;
+  text-align: center;
+}
+
+.water-report-preview-error p {
+  margin-bottom: 12px;
+}
+
+.water-report-preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.water-report-preview-frame-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+.water-report-preview-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .water-report-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-report-controls .action-buttons {
+    margin-left: 0;
+  }
+}

@@ -122,7 +122,7 @@ function buildHtmlContent(data, language) {
   const summaryBoxHtml = buildSummaryBox(data, t);
   const chartHtml = buildConsumptionChart(data, t);
   const comparisonHtml = buildPercentileComparison(data, t);
-  const quartersHtml = buildQuarterlyDetails(data, t);
+  const quartersHtml = buildQuarterlyDetails(data, t, language);
   const leakCheckHtml = buildLeakCheckInfo(t);
   const footerHtml = buildFooter(data, t, generatedAt);
   
@@ -324,6 +324,13 @@ function buildPercentileComparison(data, t) {
   
   const percentile = comparison.percentile;
   
+  // Build SVG gradient bar for print compatibility (CSS gradients don't print well)
+  // Using SVG ensures the gradient prints correctly, unlike CSS linear-gradient
+  const barWidth = 600;
+  const barHeight = 20;
+  const markerX = (percentile / 100) * barWidth;
+  const svgHeight = barHeight + 40; // Extra space for labels
+  
   return `
     <div class="comparison-section">
       <div class="section-title">${t.howYouCompare}</div>
@@ -333,14 +340,27 @@ function buildPercentileComparison(data, t) {
       </p>
       
       <div class="percentile-bar">
-        <div class="percentile-track">
-          <div class="percentile-marker" style="left: ${percentile}%"></div>
-        </div>
-        <div class="percentile-labels">
-          <span>0%<br>${t.lowUsage}</span>
-          <span>50%</span>
-          <span>100%<br>${t.highUsage}</span>
-        </div>
+        <svg width="${barWidth}" height="${svgHeight}" viewBox="0 0 ${barWidth} ${svgHeight}" class="percentile-chart" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="percentile-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#38a169"/>
+              <stop offset="50%" stop-color="#d69e2e"/>
+              <stop offset="100%" stop-color="#e53e3e"/>
+            </linearGradient>
+          </defs>
+          <!-- Gradient bar -->
+          <rect x="0" y="5" width="${barWidth}" height="${barHeight}" 
+                fill="url(#percentile-gradient)" rx="10"/>
+          <!-- Marker diamond (centered on bar) -->
+          <polygon points="${markerX},${5 + barHeight/2 - 6} ${markerX + 6},${5 + barHeight/2} ${markerX},${5 + barHeight/2 + 6} ${markerX - 6},${5 + barHeight/2}" 
+                   fill="#1a365d" stroke="#ffffff" stroke-width="1"/>
+          <!-- Labels -->
+          <text x="0" y="${barHeight + 25}" text-anchor="start" class="percentile-label">0%</text>
+          <text x="0" y="${barHeight + 38}" text-anchor="start" class="percentile-label-small">${t.lowUsage}</text>
+          <text x="${barWidth / 2}" y="${barHeight + 25}" text-anchor="middle" class="percentile-label">50%</text>
+          <text x="${barWidth}" y="${barHeight + 25}" text-anchor="end" class="percentile-label">100%</text>
+          <text x="${barWidth}" y="${barHeight + 38}" text-anchor="end" class="percentile-label-small">${t.highUsage}</text>
+        </svg>
       </div>
       
       <p class="percentile-text">
@@ -357,7 +377,7 @@ function buildPercentileComparison(data, t) {
 /**
  * Build quarterly details section (single language)
  */
-function buildQuarterlyDetails(data, t) {
+function buildQuarterlyDetails(data, t, language) {
   const { fiscalYears } = data;
   
   if (fiscalYears.length === 0) {
@@ -368,7 +388,7 @@ function buildQuarterlyDetails(data, t) {
   
   for (const fy of fiscalYears) {
     for (const quarter of fy.quarters) {
-      quartersHtml += buildQuarterSection(quarter, t);
+      quartersHtml += buildQuarterSection(quarter, t, language);
     }
   }
   
@@ -378,18 +398,32 @@ function buildQuarterlyDetails(data, t) {
 /**
  * Build single quarter section (single language)
  */
-function buildQuarterSection(quarter, t) {
+function buildQuarterSection(quarter, t, language) {
   const statusClass = `status-${quarter.status}`;
   const statusText = t[`status_${quarter.status}`] || quarter.status.toUpperCase();
+  
+  // Use Spanish period label if language is Spanish
+  const displayPeriodLabel = language === 'spanish' ? quarter.periodLabelSpanish : quarter.periodLabel;
+  const displayQuarterLabel = language === 'spanish' ? quarter.quarterLabelSpanish : quarter.quarterLabel;
   
   // Build month rows
   let monthRows = '';
   for (const month of quarter.months) {
-    const aboveAvgIndicator = month.isAboveAverage ? ' <span class="above-avg">▲</span>' : ' <span class="below-avg">▼</span>';
+    // Only show indicator if there's a significant variation (>10%)
+    let aboveAvgIndicator = '';
+    if (month.isAboveAverage === true) {
+      aboveAvgIndicator = ' <span class="above-avg">▲</span>';
+    } else if (month.isAboveAverage === false) {
+      aboveAvgIndicator = ' <span class="below-avg">▼</span>';
+    }
+    // If isAboveAverage is null, no indicator is shown
+    
+    // Use Spanish month name if language is Spanish
+    const displayMonthName = language === 'spanish' ? month.monthNameSpanish : month.monthName;
     
     monthRows += `
       <tr>
-        <td>${month.monthName}</td>
+        <td>${displayMonthName}</td>
         <td class="amount">${formatNumber(month.meterStart)}</td>
         <td class="amount">${formatNumber(month.meterEnd)}</td>
         <td class="amount">${month.consumption !== null ? `${month.consumption} m³${aboveAvgIndicator}` : '-'}</td>
@@ -415,9 +449,11 @@ function buildQuarterSection(quarter, t) {
         <div class="payments-title">${t.payments}</div>`;
     
     for (const payment of quarter.payments) {
+      // Use Spanish date format if language is Spanish
+      const displayDate = language === 'spanish' ? payment.dateFormattedSpanish : payment.dateFormatted;
       paymentsHtml += `
         <div class="payment-row">
-          <span>${payment.dateFormatted}</span>
+          <span>${displayDate}</span>
           <span>${formatCurrency(payment.amount * 100)}</span>
         </div>`;
     }
@@ -428,7 +464,7 @@ function buildQuarterSection(quarter, t) {
   return `
     <div class="quarter-section">
       <div class="quarter-header">
-        <span class="quarter-title">${quarter.quarterLabel} (${quarter.periodLabel})</span>
+        <span class="quarter-title">${displayQuarterLabel} (${displayPeriodLabel})</span>
         <span class="${statusClass}">${statusText}</span>
       </div>
       <table class="consumption-table">
@@ -805,7 +841,7 @@ body {
   padding: 10px;
   background: white;
   border-radius: 5px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e0;
 }
 
 .metric.highlight {
@@ -840,6 +876,10 @@ body {
 /* Chart section */
 .chart-section {
   margin-bottom: 25px;
+  border: 2px solid #718096;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f7fafc;
 }
 
 .consumption-chart {
@@ -868,7 +908,7 @@ body {
 /* Percentile comparison */
 .comparison-section {
   background: #f7fafc;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #718096;
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 25px;
@@ -880,8 +920,33 @@ body {
 
 .percentile-bar {
   margin: 15px 0;
+  display: flex;
+  justify-content: center;
 }
 
+.percentile-chart {
+  display: block !important;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.percentile-label {
+  font-size: 10px;
+  fill: #666;
+  font-family: Arial, sans-serif;
+  font-weight: 500;
+}
+
+.percentile-label-small {
+  font-size: 9px;
+  fill: #666;
+  font-family: Arial, sans-serif;
+}
+
+/* Legacy CSS classes kept for backward compatibility but not used */
 .percentile-track {
   height: 20px;
   background: linear-gradient(to right, #38a169, #d69e2e, #e53e3e);
@@ -940,7 +1005,7 @@ body {
 .quarter-header {
   background: #f7fafc;
   padding: 10px 15px;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #718096;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   display: flex;
@@ -963,7 +1028,7 @@ body {
 .consumption-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #718096;
 }
 
 .consumption-table th {
@@ -998,7 +1063,7 @@ body {
 .payments-section {
   background: #f7fafc;
   padding: 10px 15px;
-  border: 1px solid #e2e8f0;
+  border: 2px solid #718096;
   border-top: none;
   border-radius: 0 0 8px 8px;
 }
@@ -1100,6 +1165,21 @@ body {
   .quarter-section { page-break-inside: avoid; }
   .summary-box { page-break-inside: avoid; }
   .leak-check-section { page-break-inside: avoid; }
+  .percentile-chart {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  .percentile-chart rect,
+  .percentile-chart line,
+  .percentile-chart polygon {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
 }
 `;
 }

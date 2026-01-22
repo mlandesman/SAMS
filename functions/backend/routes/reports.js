@@ -20,6 +20,7 @@ import {
   generateWaterConsumptionReportHtml,
   generateBothLanguageReports 
 } from '../services/waterBillReportHtmlService.js';
+import { generateAllUnitsReportData } from '../services/waterBillReportService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
@@ -1404,6 +1405,92 @@ router.post('/transactions/export', authenticateUserWithProfile, async (req, res
       success: false,
       error: error.message,
       details: error.stack
+    });
+  }
+});
+
+/**
+ * Generate Water Consumption Report for ALL units
+ * GET /api/clients/:clientId/reports/water/all
+ * 
+ * Query Parameters:
+ *   - language: 'english' | 'spanish' (default: 'english')
+ *   - format: 'json' | 'summary' (default: 'json')
+ * 
+ * Returns:
+ *   - JSON array of report data for each unit
+ *   - Or summary with counts/totals
+ */
+router.get('/water/all', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const user = req.user;
+    
+    // Validate inputs
+    if (!clientId) {
+      return res.status(400).json({ 
+        error: 'Client ID is required' 
+      });
+    }
+    
+    // Verify user has ADMIN access to this client (not unit-level)
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({ 
+        error: 'Access denied to this client' 
+      });
+    }
+    
+    // Only admins can generate all units report
+    if (propertyAccess.role !== 'Admin' && user.samsProfile?.globalRole !== 'superAdmin') {
+      return res.status(403).json({ 
+        error: 'Admin access required for bulk report generation' 
+      });
+    }
+    
+    // Parse query parameters
+    const language = req.query.language || 'english';
+    const format = req.query.format || 'json';
+    
+    // Validate language
+    if (!['english', 'spanish'].includes(language)) {
+      return res.status(400).json({
+        error: 'Invalid language. Use "english" or "spanish".'
+      });
+    }
+    
+    // Generate reports for all units
+    const reports = await generateAllUnitsReportData(clientId, { language });
+    
+    if (format === 'summary') {
+      // Return summary only
+      const totalConsumption = reports.reduce((sum, r) => sum + (r.summary?.ytdConsumption || 0), 0);
+      const totalCharges = reports.reduce((sum, r) => sum + (r.summary?.ytdCharges || 0), 0);
+      
+      return res.json({
+        success: true,
+        summary: {
+          totalUnits: reports.length,
+          totalConsumption,
+          totalCharges,
+          generatedAt: getNow().toISOString()
+        }
+      });
+    }
+    
+    // Return full reports
+    return res.json({
+      success: true,
+      count: reports.length,
+      reports,
+      generatedAt: getNow().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error generating all units water report:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate reports',
+      message: error.message 
     });
   }
 });

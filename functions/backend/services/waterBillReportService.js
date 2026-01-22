@@ -144,7 +144,7 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
           consumption: month.consumption,
           daysInMonth,
           dailyAverage,
-          isAboveAverage: false, // Will be set after calculating average
+          isAboveAverage: null, // Will be set after calculating average (null = no indicator, true = above, false = below)
           waterCharge: centavosToPesos(month.waterCharge),
           carWashCharge: centavosToPesos(month.carWashCharge),
           boatWashCharge: centavosToPesos(month.boatWashCharge),
@@ -164,7 +164,9 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
       const payments = quarterData.payments.map(payment => ({
         date: payment.date,
         dateFormatted: formatDate(payment.date),
+        dateFormattedSpanish: formatDateSpanish(payment.date),
         dateFormattedLong: formatDateLong(payment.date),
+        dateFormattedLongSpanish: formatDateLongSpanish(payment.date),
         amount: centavosToPesos(payment.amount)
       }));
       
@@ -234,8 +236,30 @@ export async function generateWaterConsumptionReportData(clientId, unitId, optio
   const currentFiscalYearData = fiscalYearsData.find(fy => fy.fiscalYear === fiscalYear) || fiscalYearsData[fiscalYearsData.length - 1];
   const summary = calculateSummaryMetrics(currentFiscalYearData || { quarters: [] });
   
-  // Build chart data
+  // Build chart data (this also calculates the overall average)
   const chartData = buildChartData(fiscalYearsData);
+  
+  // Set isAboveAverage for quarter months based on overall average
+  // Only show indicators for significant variations (>10% difference)
+  const overallAverage = chartData.average;
+  const upperThreshold = overallAverage * 1.10; // 10% above average
+  const lowerThreshold = overallAverage * 0.90; // 10% below average
+  
+  for (const fy of fiscalYearsData) {
+    for (const quarter of fy.quarters) {
+      for (const month of quarter.months) {
+        // Only mark as above/below if variation is significant (>10%)
+        if (month.consumption > upperThreshold) {
+          month.isAboveAverage = true;
+        } else if (month.consumption < lowerThreshold) {
+          month.isAboveAverage = false;
+        } else {
+          // Within ±10% of average - no indicator (set to null to indicate no display)
+          month.isAboveAverage = null;
+        }
+      }
+    }
+  }
   
   // Calculate comparison (percentile)
   const comparison = await calculateComparison(db, clientId, unitId, summary.ytdConsumption);
@@ -469,7 +493,7 @@ function buildChartData(fiscalYearsData) {
           consumption: month.consumption || 0, // Default to 0 if null
           daysInMonth: month.daysInMonth,
           dailyAvg: month.dailyAverage,
-          isAboveAverage: false // Will be set after calculating average
+          isAboveAverage: null // Will be set after calculating average (null = no indicator, true = above, false = below)
         });
         
         // Only count non-zero consumption for average calculation
@@ -486,9 +510,19 @@ function buildChartData(fiscalYearsData) {
     ? Math.max(...months.map(m => m.consumption))
     : 0;
   
-  // Mark months above average
+  // Mark months above average (only for significant variations >10%)
+  const upperThreshold = average * 1.10; // 10% above average
+  const lowerThreshold = average * 0.90; // 10% below average
+  
   months.forEach(month => {
-    month.isAboveAverage = month.consumption > average;
+    if (month.consumption > upperThreshold) {
+      month.isAboveAverage = true;
+    } else if (month.consumption < lowerThreshold) {
+      month.isAboveAverage = false;
+    } else {
+      // Within ±10% of average - no indicator
+      month.isAboveAverage = null;
+    }
   });
   
   return {
@@ -655,11 +689,31 @@ function formatDate(dateValue) {
 }
 
 /**
+ * Format date as dd-MMM-yy in Spanish (e.g., "20-Jul-25")
+ */
+function formatDateSpanish(dateValue) {
+  if (!dateValue) return '';
+  const dt = DateTime.fromISO(dateValue, { zone: 'America/Cancun' }).setLocale('es');
+  if (!dt.isValid) return '';
+  return dt.toFormat('dd-MMM-yy');
+}
+
+/**
  * Format date long
  */
 function formatDateLong(dateValue) {
   if (!dateValue) return '';
   const dt = DateTime.fromISO(dateValue, { zone: 'America/Cancun' });
+  if (!dt.isValid) return '';
+  return dt.toFormat('MMMM d, yyyy');
+}
+
+/**
+ * Format date long in Spanish
+ */
+function formatDateLongSpanish(dateValue) {
+  if (!dateValue) return '';
+  const dt = DateTime.fromISO(dateValue, { zone: 'America/Cancun' }).setLocale('es');
   if (!dt.isValid) return '';
   return dt.toFormat('MMMM d, yyyy');
 }
