@@ -289,6 +289,7 @@ export async function generateAllUnitsReportData(clientId, options = {}) {
 
 /**
  * Get unit information (owners, address)
+ * IMPORTANT: Filters out managers from owner list
  */
 async function getUnitInfo(db, clientId, unitId) {
   try {
@@ -302,11 +303,23 @@ async function getUnitInfo(db, clientId, unitId) {
     
     const data = unitDoc.data();
     
+    // Get owners and managers
+    const allOwners = getOwnerNames(data.owners);
+    const managers = getManagerNames(data.managers);
+    
+    // Filter out managers from owner list
+    // If someone is listed as both owner AND manager, exclude them from owner display
+    const ownersOnly = allOwners.filter(ownerName => 
+      !managers.some(managerName => 
+        ownerName.toLowerCase().trim() === managerName.toLowerCase().trim()
+      )
+    );
+    
     return {
       id: unitId,
       address: data.address || `Unit ${unitId}`,
-      owners: getOwnerNames(data.owners),
-      managers: getManagerNames(data.managers)
+      owners: ownersOnly.join(', ') || 'N/A',
+      managers: managers.join(', ')
     };
   } catch (error) {
     console.error(`Error fetching unit info for ${clientId}/${unitId}:`, error);
@@ -327,21 +340,28 @@ async function getClientConfig(db, clientId) {
     
     const data = clientDoc.data();
     
-    // Get water bills config for rate
+    // Get water bills config for rate (correct path: clients/{clientId}/config/waterBills)
     const waterConfigDoc = await db.collection('clients').doc(clientId)
-      .collection('projects').doc('waterBills')
-      .collection('config').doc('settings')
+      .collection('config').doc('waterBills')
       .get();
     
     const waterConfig = waterConfigDoc.exists ? waterConfigDoc.data() : {};
     const ratePerM3 = waterConfig.ratePerM3 ? centavosToPesos(waterConfig.ratePerM3) : 0;
     
+    // Get contact info from governance.managementCompany
+    const governance = data.governance || {};
+    const managementCompany = governance.managementCompany || {};
+    
+    // Get full client name from basicInfo
+    const basicInfo = data.basicInfo || {};
+    const clientName = basicInfo.fullName || basicInfo.displayName || data.name || clientId;
+    
     return {
       id: clientId,
-      name: data.name || clientId,
+      name: clientName,
       ratePerM3,
-      contactEmail: data.contactEmail || '',
-      contactPhone: data.contactPhone || ''
+      contactEmail: managementCompany.email || '',
+      contactPhone: managementCompany.phone || ''
     };
   } catch (error) {
     console.error(`Error fetching client config for ${clientId}:`, error);
@@ -432,6 +452,7 @@ function calculateDailyAverage(consumption, days) {
 /**
  * Build chart data for SVG bar graph
  * Extracts monthly consumption into array for graphing
+ * IMPORTANT: Include ALL months, even with 0 consumption, for chart continuity
  */
 function buildChartData(fiscalYearsData) {
   const months = [];
@@ -441,15 +462,18 @@ function buildChartData(fiscalYearsData) {
   for (const fy of fiscalYearsData) {
     for (const quarter of fy.quarters) {
       for (const month of quarter.months) {
+        // FIXED: Include ALL months, even with 0 consumption
+        months.push({
+          label: month.calendarLabel,
+          shortLabel: month.calendarLabel.split(' ')[0], // "Jul" from "Jul 2025"
+          consumption: month.consumption || 0, // Default to 0 if null
+          daysInMonth: month.daysInMonth,
+          dailyAvg: month.dailyAverage,
+          isAboveAverage: false // Will be set after calculating average
+        });
+        
+        // Only count non-zero consumption for average calculation
         if (month.consumption > 0) {
-          months.push({
-            label: month.calendarLabel,
-            shortLabel: month.calendarLabel.split(' ')[0], // "Jul" from "Jul 2025"
-            consumption: month.consumption,
-            daysInMonth: month.daysInMonth,
-            dailyAvg: month.dailyAverage,
-            isAboveAverage: false // Will be set after calculating average
-          });
           totalConsumption += month.consumption;
           monthCount++;
         }
@@ -620,13 +644,14 @@ function getDaysInMonth(year, month) {
 }
 
 /**
- * Format date
+ * Format date as dd-MMM-yy (e.g., "20-Jan-26")
+ * Changed from MM/dd/yyyy per user request to avoid DD/MM vs MM/DD confusion
  */
 function formatDate(dateValue) {
   if (!dateValue) return '';
   const dt = DateTime.fromISO(dateValue, { zone: 'America/Cancun' });
   if (!dt.isValid) return '';
-  return dt.toFormat('MM/dd/yyyy');
+  return dt.toFormat('dd-MMM-yy');
 }
 
 /**
