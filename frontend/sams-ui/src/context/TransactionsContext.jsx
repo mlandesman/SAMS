@@ -209,7 +209,36 @@ export const TransactionsProvider = ({ children }) => {
     setError(null);
     
     try {
-      await updateTransaction(clientId, transactionId, transactionData);
+      // Normalize documents array: extract IDs if objects are provided
+      // Schema expects array of strings (document IDs), but database may return objects
+      const normalizedData = { ...transactionData };
+      if (normalizedData.documents && Array.isArray(normalizedData.documents) && normalizedData.documents.length > 0) {
+        const firstItem = normalizedData.documents[0];
+        // If first item is an object (has 'id' property), extract IDs
+        if (typeof firstItem === 'object' && firstItem !== null && 'id' in firstItem) {
+          console.log('🔄 Normalizing documents array: extracting IDs from objects');
+          normalizedData.documents = normalizedData.documents.map(doc => {
+            if (typeof doc === 'object' && doc !== null && doc.id) {
+              return doc.id;
+            }
+            return doc; // Already a string or invalid, pass through
+          });
+          console.log(`   ✅ Normalized ${normalizedData.documents.length} document IDs`);
+        }
+      }
+      
+      console.log('🔄 [TransactionsContext] Calling updateTransaction API:', {
+        clientId,
+        transactionId,
+        type: normalizedData.type,
+        amount: normalizedData.amount,
+        documentsCount: normalizedData.documents?.length || 0,
+        hasDocuments: !!normalizedData.documents
+      });
+      
+      await updateTransaction(clientId, transactionId, normalizedData);
+      
+      console.log('✅ [TransactionsContext] updateTransaction API call succeeded');
       
       // Update the transaction in the list with proper formatting
       setFilteredTransactions(prev => 

@@ -8,6 +8,8 @@ import { formatAsMXN } from '../../utils/hoaDuesUtils';
 import { getMexicoDateString } from '../../utils/timezone';
 import { LoadingSpinner } from '../common';
 import { getOwnerNames } from '../../utils/unitContactUtils.js';
+import DocumentUploader from '../documents/DocumentUploader';
+import { uploadDocumentsForTransaction, linkDocumentsToTransaction } from '../../api/documents';
 import './UnifiedPaymentModal.css';
 
 /**
@@ -28,6 +30,9 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
   const [accountToCredit, setAccountToCredit] = useState(null);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  
+  // Document upload state
+  const [selectedFiles, setSelectedFiles] = useState([]);
   
   // Data state
   const [units, setUnits] = useState([]);
@@ -432,6 +437,26 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
     setError(null);
     
     try {
+      // Upload documents if any are selected
+      let uploadedDocuments = [];
+      if (selectedFiles.length > 0) {
+        console.log('📤 Uploading documents for payment...');
+        try {
+          uploadedDocuments = await uploadDocumentsForTransaction(
+            selectedClient.id,
+            selectedFiles,
+            'receipt',
+            'payment_receipt'
+          );
+          console.log('✅ Documents uploaded:', uploadedDocuments.map(d => d.id));
+        } catch (uploadError) {
+          console.error('❌ Document upload failed:', uploadError);
+          setError('Document upload failed: ' + uploadError.message);
+          setLoading(false);
+          return; // Prevent payment submission
+        }
+      }
+      
       const result = await unifiedPaymentAPI.recordUnifiedPayment(
         selectedClient.id,
         selectedUnit,
@@ -445,12 +470,39 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
           reference: reference,
           notes: notes,
           waivedPenalties: waivedPenalties,
-          excludedBills: excludedBills
+          excludedBills: excludedBills,
+          documents: uploadedDocuments.map(d => d.id), // Add document IDs
         },
         preview
       );
       
       console.log('✅ Unified payment recorded successfully:', result);
+      
+      // Link documents to transaction
+      if (uploadedDocuments.length > 0) {
+        // Try to get transaction ID from result
+        const transactionId = result.transactionId || result.transaction?.id || result.id;
+        if (transactionId) {
+          console.log('🔗 Linking documents to transaction...');
+          try {
+            await linkDocumentsToTransaction(
+              selectedClient.id,
+              uploadedDocuments.map(d => d.id),
+              transactionId
+            );
+            console.log('✅ Documents linked to transaction');
+          } catch (linkError) {
+            console.error('⚠️ Document linking failed (payment recorded):', linkError);
+            // Don't fail the payment - documents uploaded but linking failed
+            // Log for investigation
+          }
+        } else {
+          console.warn('⚠️ No transaction ID in result, cannot link documents:', result);
+        }
+      }
+      
+      // Clear selected files on success
+      setSelectedFiles([]);
       
       // Call success callback to refresh views
       if (onSuccess) {
@@ -946,6 +998,21 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
                       placeholder="Additional payment details..."
                     />
                   </div>
+                </div>
+                
+                {/* Document Upload Section */}
+                <div className="form-section">
+                  <h3 className="section-title">Documents</h3>
+                  <DocumentUploader
+                    clientId={selectedClient?.id}
+                    onFilesSelected={setSelectedFiles}
+                    selectedFiles={selectedFiles}
+                    mode="deferred"
+                    onUploadError={(error) => {
+                      console.error('❌ Document selection error:', error);
+                      setError('Document validation failed: ' + error.message);
+                    }}
+                  />
                 </div>
                 
                 {error && <div className="error-message">{error}</div>}

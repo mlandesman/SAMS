@@ -178,6 +178,7 @@ const unifiedPaymentAPI = {
    * @param {string} [paymentData.notes] - Optional notes
    * @param {Array} [paymentData.waivedPenalties] - Optional array of waived penalties
    * @param {Array} [paymentData.excludedBills] - Optional array of excluded bill periods
+   * @param {string[]} [paymentData.documents] - Optional array of document IDs to link to transaction
    * @param {Object} preview - Preview object from previewUnifiedPayment
    * @returns {Promise<Object>} Payment result
    */
@@ -204,6 +205,7 @@ const unifiedPaymentAPI = {
         notes: paymentData.notes || null,          // Use null instead of empty string
         waivedPenalties: paymentData.waivedPenalties || [],
         excludedBills: paymentData.excludedBills || [],
+        documents: paymentData.documents || [], // Add documents array
         preview: preview  // Pass the actual preview object from the preview call
       };
       

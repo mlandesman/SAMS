@@ -1620,7 +1620,8 @@ function TransactionsView() {
               accountId: selectedTransaction.accountId || '',  // Use ID field
               paymentMethodId: selectedTransaction.paymentMethodId || selectedTransaction.paymentMethod || '',  // Check both ID and string
               unitId: selectedTransaction.unitId || '',  // Use ID field
-              notes: selectedTransaction.notes || ''
+              notes: selectedTransaction.notes || '',
+              type: selectedTransaction.type || 'expense' // Preserve transaction type (income for deposits, expense for expenses)
             };
             
             // Include allocations if this is a split transaction
@@ -1653,9 +1654,76 @@ function TransactionsView() {
               let savedTransaction;
               let transactionId;
               if (selectedTransaction) {
+                // Step 1: Upload new documents if any are selected
+                let uploadedDocuments = [];
+                const normalizedData = { ...data };
+                
+                // Separate existing document IDs from new files to upload
+                const existingDocIds = [];
+                const filesToUpload = [];
+                
+                if (normalizedData.documents && Array.isArray(normalizedData.documents) && normalizedData.documents.length > 0) {
+                  normalizedData.documents.forEach(doc => {
+                    if (typeof doc === 'object' && doc !== null) {
+                      // If it's a File object or has file property, it needs to be uploaded
+                      if (doc.file instanceof File) {
+                        filesToUpload.push(doc.file);
+                      } else if (doc.id) {
+                        // Existing document ID
+                        existingDocIds.push(doc.id);
+                      }
+                    } else if (typeof doc === 'string') {
+                      // Already a document ID string
+                      existingDocIds.push(doc);
+                    }
+                  });
+                }
+                
+                // Upload new files if any
+                if (filesToUpload.length > 0) {
+                  console.log('📤 Uploading new documents for transaction edit...');
+                  const { uploadDocumentsForTransaction } = await import('../api/documents');
+                  uploadedDocuments = await uploadDocumentsForTransaction(
+                    clientId,
+                    filesToUpload,
+                    'receipt',
+                    'expense_receipt'
+                  );
+                  console.log('✅ New documents uploaded:', uploadedDocuments.map(d => d.id));
+                }
+                
+                // Combine existing and newly uploaded document IDs
+                const allDocumentIds = [...existingDocIds, ...uploadedDocuments.map(d => d.id)];
+                normalizedData.documents = allDocumentIds;
+                
+                if (allDocumentIds.length > 0) {
+                  console.log(`📄 Total documents for update: ${allDocumentIds.length} (${existingDocIds.length} existing + ${uploadedDocuments.length} new)`);
+                }
+                
+                // Link newly uploaded documents to transaction
+                if (uploadedDocuments.length > 0) {
+                  console.log('🔗 Linking new documents to transaction...');
+                  const { linkDocumentsToTransaction } = await import('../api/documents');
+                  await linkDocumentsToTransaction(
+                    clientId,
+                    uploadedDocuments.map(d => d.id),
+                    selectedTransaction.id
+                  );
+                  console.log('✅ New documents linked to transaction');
+                }
+                
                 // For editing, use the existing edit function
-                savedTransaction = await editTransaction(selectedTransaction.id, data);
+                console.log('🔄 Editing transaction:', {
+                  transactionId: selectedTransaction.id,
+                  type: normalizedData.type,
+                  amount: normalizedData.amount,
+                  documentsCount: normalizedData.documents?.length || 0
+                });
+                
+                savedTransaction = await editTransaction(selectedTransaction.id, normalizedData);
                 transactionId = selectedTransaction.id; // Use the existing transaction ID
+                
+                console.log('✅ Transaction edit completed:', transactionId);
               } else {
                 // For new transactions, implement atomic workflow
                 console.log('🔄 Implementing atomic upload workflow for new transaction');
@@ -1901,6 +1969,18 @@ function TransactionsView() {
                 notes: selectedTransaction.notes,
                 allocations: allocations
               };
+              
+              // Normalize documents if present (extract IDs from objects)
+              if (selectedTransaction.documents && Array.isArray(selectedTransaction.documents)) {
+                transactionData.documents = selectedTransaction.documents
+                  .map(doc => {
+                    if (typeof doc === 'object' && doc !== null && doc.id) {
+                      return doc.id;
+                    }
+                    return typeof doc === 'string' ? doc : null;
+                  })
+                  .filter(id => id !== null);
+              }
               
               console.log('Saving split transaction edit:', transactionData);
               

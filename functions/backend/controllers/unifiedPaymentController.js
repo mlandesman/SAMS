@@ -295,6 +295,7 @@ export const recordUnifiedPayment = async (req, res) => {
       notes,
       waivedPenalties,
       excludedBills,
+      documents, // Optional: array of document IDs
       preview 
     } = req.body;
     
@@ -361,6 +362,7 @@ export const recordUnifiedPayment = async (req, res) => {
     console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Method: ${paymentMethod}`);
     if (reference) console.log(`   ℹ️  Reference: ${reference}`);
     if (notes) console.log(`   ℹ️  Notes: ${notes}`);
+    if (documents && documents.length > 0) console.log(`   ℹ️  Documents: ${documents.length} document(s) to link`);
     
     // Prepare payment data (include user ID from auth middleware)
     const paymentData = {
@@ -371,6 +373,7 @@ export const recordUnifiedPayment = async (req, res) => {
       notes: notes || null,
       waivedPenalties: waivedPenalties || [],
       excludedBills: excludedBills || [],
+      documents: documents || [], // Optional: array of document IDs
       preview,
       userId: req.user?.uid || 'system',
       accountId: req.body.accountId || 'bank-001', // Required for account balance updates

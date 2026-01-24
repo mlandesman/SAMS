@@ -240,22 +240,42 @@ const UnifiedExpenseEntry = ({
         const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
         const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
         
+        // Preserve transaction type when editing (income for deposits, expense for expenses)
+        // Default to 'expense' for new transactions
+        const transactionType = initialData?.type || 'expense';
+        
+        // Handle amount sign based on transaction type
+        // Expenses are negative, income (deposits) are positive
+        let transactionAmount;
+        if (transactionType === 'income') {
+          transactionAmount = Math.abs(parseFloat(formData.amount)); // Positive for income
+        } else {
+          transactionAmount = -Math.abs(parseFloat(formData.amount)); // Negative for expenses
+        }
+        
+        // When editing, preserve original transaction fields that might not be in form
         const transactionData = {
           date: formData.date, // Send date as string, let backend handle timezone conversion
-          amount: -Math.abs(parseFloat(formData.amount)), // Always send dollars, let backend convert to cents
-          vendorId: formData.vendorId, // PRIMARY: vendor ID
-          vendorName: selectedVendor?.name || '', // For success modal display
+          amount: transactionAmount, // Sign depends on transaction type
+          vendorId: formData.vendorId || initialData?.vendorId || 'deposit', // PRIMARY: vendor ID (preserve 'deposit' for income transactions)
+          vendorName: selectedVendor?.name || initialData?.vendorName || 'Deposit', // For success modal display
           notes: formData.notes,
-          accountId: formData.accountId, // PRIMARY: account ID
-          accountName: selectedAccountData?.name || '', // For success modal display
-          accountType: selectedAccountData?.type || 'bank', // Account metadata
-          paymentMethodId: formData.paymentMethodId, // PRIMARY: payment method ID
-          paymentMethod: selectedPaymentMethod?.name || '', // For success modal display
-          unitId: formData.unitId || null, // PRIMARY: unit ID
-          type: 'expense',
+          accountId: formData.accountId || initialData?.accountId, // PRIMARY: account ID
+          accountName: selectedAccountData?.name || initialData?.accountName || '', // For success modal display
+          accountType: selectedAccountData?.type || initialData?.accountType || 'bank', // Account metadata
+          paymentMethodId: formData.paymentMethodId || initialData?.paymentMethodId, // PRIMARY: payment method ID
+          paymentMethod: selectedPaymentMethod?.name || initialData?.paymentMethod || '', // For success modal display
+          unitId: formData.unitId || initialData?.unitId || null, // PRIMARY: unit ID
+          type: transactionType, // Preserve type when editing
           clientId: clientId,
           enteredBy: userEmail,
         };
+        
+        // Preserve categoryId/categoryName when editing (especially for split transactions)
+        if (initialData?.categoryId) {
+          transactionData.categoryId = initialData.categoryId;
+          transactionData.categoryName = initialData.categoryName || '';
+        }
 
         // Handle split vs regular transactions differently
         if (splitAllocations.length > 0) {
@@ -313,14 +333,38 @@ const UnifiedExpenseEntry = ({
           transactionData.categoryName = selectedCategory?.name || ''; // For success modal display
         }
 
-        // Only include documents array if there are files to upload
+        // Include documents: existing documents (from initialData) + new files to upload
+        const documentArray = [];
+        
+        // Include existing documents if editing (extract IDs from objects)
+        if (initialData?.transactionId && existingDocuments && existingDocuments.length > 0) {
+          const existingDocIds = existingDocuments
+            .map(doc => {
+              if (typeof doc === 'object' && doc !== null && doc.id) {
+                return doc.id;
+              }
+              return typeof doc === 'string' ? doc : null;
+            })
+            .filter(id => id !== null);
+          documentArray.push(...existingDocIds);
+          console.log(`📄 Including ${existingDocIds.length} existing document IDs`);
+        }
+        
+        // Include new files to upload (as objects with file property)
         if (selectedFiles.length > 0) {
-          transactionData.documents = selectedFiles.map(file => ({
+          const newFileObjects = selectedFiles.map(file => ({
             name: file.name,
             size: file.size,
             type: file.type,
             file: file, // Keep the file object for upload
           }));
+          documentArray.push(...newFileObjects);
+          console.log(`📄 Including ${selectedFiles.length} new files to upload`);
+        }
+        
+        // Only include documents array if there are any documents
+        if (documentArray.length > 0) {
+          transactionData.documents = documentArray;
         }
 
         await onSubmit(transactionData);

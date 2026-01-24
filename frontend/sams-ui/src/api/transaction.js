@@ -147,7 +147,18 @@ export async function updateTransaction(clientId, transactionId, data) {
 
     // Call secure backend API
     const API_BASE_URL = config.api.baseUrl;
-    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/transactions/${transactionId}`, {
+    const url = `${API_BASE_URL}/clients/${clientId}/transactions/${transactionId}`;
+    
+    console.log('🔄 [transaction.js] PUT request to update transaction:', {
+      url,
+      transactionId,
+      method: 'PUT',
+      type: transactionData.type,
+      amount: transactionData.amount,
+      documentsCount: transactionData.documents?.length || 0
+    });
+    
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,

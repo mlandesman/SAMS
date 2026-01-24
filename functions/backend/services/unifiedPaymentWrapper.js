@@ -380,6 +380,7 @@ export class UnifiedPaymentWrapper {
       notes = null,
       waivedPenalties = [],
       excludedBills = [],
+      documents = [], // Optional: array of document IDs
       preview,
       userId = 'system',
       accountId, // Required - no default
@@ -639,6 +640,7 @@ export class UnifiedPaymentWrapper {
       vendorName: 'Deposit', // Display name for reporting
       allocations: allocations, // CRITICAL: TransactionView needs this for split display
       allocationSummary: allocationSummary,
+      documents: documents || [], // Include document IDs in transaction
       metadata: {
         hoaBillsPaid: preview.hoa?.billsPaid?.length || 0,
         waterBillsPaid: preview.water?.billsPaid?.length || 0,
@@ -652,10 +654,16 @@ export class UnifiedPaymentWrapper {
     console.log(`      Account: ${transactionData.accountId} (${transactionData.accountType})`);
     console.log(`      Allocations: ${allocations.length}`);
     console.log(`      AllocationSummary.totalAllocated: ${allocationSummary.totalAllocated}`);
+    if (documents && documents.length > 0) {
+      console.log(`      Documents: ${documents.length} document(s) to link`);
+    }
     
     // Step 3a: Create transaction using batch mode (Option B)
     const transactionId = await createTransaction(clientId, transactionData, { batch });
     console.log(`   ✅ Transaction added to batch: ${transactionId}`);
+    
+    // Note: Documents are included in transactionData.documents array, which will be stored in the transaction
+    // Frontend's linkDocumentsToTransaction() will update document's linkedTo field for bidirectional linking
     
     // Now add the transaction ID to the comprehensive notes
     const comprehensiveNotesWithSeq = `${notesWithoutSeq}\nTxnID: ${transactionId}`;

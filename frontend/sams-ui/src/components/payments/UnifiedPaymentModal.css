@@ -208,6 +208,19 @@
   font-family: inherit;
 }
 
+.form-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #333;
+}
+
 .input-group {
   position: relative;
 }
