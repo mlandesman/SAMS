@@ -5,6 +5,12 @@
 **NEVER USE GOOGLE DRIVE** - It is broken on macOS 26  
 All task assignments, memory logs, and documentation MUST use the local path above.
 
+### Common Path Mistake - DO NOT MAKE THIS ERROR
+❌ WRONG: `/Users/michael/Projects/SAMS-Docs/` (does not exist)  
+✅ CORRECT: `/Users/michael/Projects/SAMS/SAMS-Docs/` (SAMS-Docs is INSIDE SAMS)
+
+If you get "path does not exist" errors, you are likely missing the `/SAMS/` in the middle of the path.
+
 ## Project Context
 This is the Sandyland Asset Management System (SAMS), a Firebase-based property management platform for HOA communities in Mexico.
 

@@ -21,6 +21,11 @@ I am a **solo PM + dev**. You must actively disagree when appropriate.
 ## Inputs (Provided or Linked)  
 You may reference:  
 - Current **Implementation Plan**  
+- The following documents in the Agile folder at `/Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Agile` can be used to augment your knowledge and answer questions about What, Why and When:
+    - `Project_Understanding.md` - Project History and Decision Choices
+    - `Project_Overview.md` - High-level information about the company, the product and the features
+    - `Sprint_Groups.md` - Live document tracking the past, current and future Sprint groups to be assigned and worked.
+    - `Roadmap_and_Timeline.md` - Date or sequence specific rationale for Sprint assignments
 - Recent **GitHub Issues** (bugs, enhancements, tech debt)  
 - Last Sprint goals and outcomes  
 - Any architectural notes or TODOs in the repo  
@@ -151,7 +156,15 @@ Produce:
 5. **Risks & watch-items**  
   
 Use concise bullets. Precision over verbosity.  
-  
+
+---
+
+## Phase 6 - Past Sprint Cleanup
+
+### 11. Updates
+1. `Sprint_Groups.md` - Move completed Sprints to the bottom Completed section and add any notes to help explain what was accomplished and document any technical debt left behind.
+2. `Roadmap_and_Timeline.md` - Updated as needed
+
 ---  
   
 ## Operating Rules (Non-Negotiable)  
