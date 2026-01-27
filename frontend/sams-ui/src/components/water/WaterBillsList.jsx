@@ -424,76 +424,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
     return <div className="error-message">{contextError}</div>;
   }
 
-  // MINIMAL QUARTERLY GENERATOR - Show simple generator for quarterly billing
-  if (isQuarterly) {
-    return (
-      <div className="water-bills-container">
-        <div className="quarterly-generator">
-          <h3>Generate Quarterly Water Bill</h3>
-          
-          <div className="generator-controls">
-            <label>
-              Quarter:
-              <select 
-                value={selectedQuarter} 
-                onChange={(e) => setSelectedQuarter(parseInt(e.target.value))}
-                className="quarter-dropdown"
-              >
-                <option value={1}>Q1 (Jul-Sep)</option>
-                <option value={2}>Q2 (Oct-Dec)</option>
-                <option value={3}>Q3 (Jan-Mar)</option>
-                <option value={4}>Q4 (Apr-Jun)</option>
-              </select>
-            </label>
-            
-            <label>
-              Due Date:
-              <input 
-                type="date" 
-                value={selectedDueDate} 
-                onChange={(e) => setSelectedDueDate(e.target.value)}
-                className="due-date-input"
-              />
-            </label>
-            
-            <button 
-              onClick={generateQuarterlyBill} 
-              disabled={generating || !selectedDueDate}
-              className="btn btn-primary generate-button"
-            >
-              {generating ? 'Generating...' : 'Generate Quarterly Bill'}
-            </button>
-          </div>
-          
-          {error && (
-            <div className="error-message">
-              <i className="fas fa-exclamation-triangle"></i> {error}
-            </div>
-          )}
-          
-          {message && (
-            <div className="success-message">
-              <i className="fas fa-check-circle"></i> {message}
-            </div>
-          )}
-          
-          {generationResult && generationResult.success && (
-            <div className="success-message">
-              ✅ Bill generated for {generationResult.units} units. 
-              Total billed: ${generationResult.total.toLocaleString('en-US', { 
-                minimumFractionDigits: 2, 
-                maximumFractionDigits: 2 
-              })}
-            </div>
-          )}
-          
-          <p className="info-text">
-            After generating, view bills in the Statement of Accounts report.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Quarterly bills flow to table display; generator controls live in the main controls-bar below.
 
   // For quarterly billing, get the selected quarter's bill
   let monthData = null;
@@ -530,6 +461,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           totalPenalties: unitBill.penaltyAmount || 0, // For display consistency
           displayPenalties: unitBill.penaltyAmount || 0, // Current penalties for this bill
           displayTotalDue: unpaidAmount, // Total amount still owed
+          displayOverdue: 0, // Quarterly bills: no prior-period overdue in this view
           displayTotalPenalties: unitBill.penaltyAmount || 0,
           status: unitBill.status || 'unpaid',
           carWashCount: unitBill.carWashCount || 0,
@@ -537,6 +469,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
           currentReading: {
             washes: unitBill.washes || []
           },
+          payments: unitBill.payments || [], // For transaction linking in status cell
           // Add monthly breakdown for reference (still in centavos, but not used in Bills tab display)
           monthlyBreakdown: unitBill.monthlyBreakdown || []
         };
@@ -717,7 +650,7 @@ const WaterBillsList = ({ clientId, onBillSelection, selectedBill, onRefresh }) 
         
         <div className="controls-buttons">
           <button 
-            onClick={() => generateBills(selectedMonth)}
+            onClick={() => (isQuarterly ? generateQuarterlyBill() : generateBills(selectedMonth))}
             disabled={hasBills || generating || !selectedDueDate}
             className="btn btn-primary generate-bills-btn"
           >
@@ -1034,8 +967,8 @@ ${washCharges.toFixed(2)}
         </div>
       ) : (
         <div className="no-bills-message">
-          <p>No bills data available for the selected month.</p>
-          <p>Select a month from the dropdown above to view or generate bills.</p>
+          <p>No bills data available for the selected {isQuarterly ? 'quarter' : 'month'}.</p>
+          <p>Select a {isQuarterly ? 'quarter' : 'month'} from the dropdown above to view or generate bills.</p>
         </div>
       )}
 
