@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.9.2 | **Build:** 260124.1800  
-**Last Updated:** January 24, 2026 — Sprint W1 (Water Bills UI) now current, #115 moved to B2  
+**Version:** v1.9.3 | **Build:** 260128  
+**Last Updated:** January 28, 2026 — Sprint B2 complete  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,31 +25,50 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint W1: Water Bills Quarterly UI
-**Status:** 📋 READY TO START  
-**Issue:** #105 (105B phase)  
-**Priority:** HIGH — Complete quarterly billing UI  
-**Estimated Effort:** 4-6 hours  
-**Deadline:** March 15, 2026 (Q1 billing)
+### ⏸️ No Active Sprint
+*Ready to start next sprint when prioritized*
 
-**Objective:** Complete the quarterly billing UI refactor for AVII. The minimal generator (105A) is complete. 105B requires marrying the correct calculation logic to the existing UI and updating the History tab.
-
-**Key Context:**
-- Structural change to bills documents broke UI display
-- Minimal path has correct calculation logic
-- UI code exists but is bypassed
-- Month pulldown was off by one (may be fixed)
-- Review fix scripts and manual edits from Jan 20
-
-**Reference Files:**
-- Fix scripts: `scripts/fix-consumption-misallocation.js`, `scripts/correct-water-bills-from-readings.js`
-- Test results: `test-results/Water Bill Corrections 20-Jan-2026/`
-- Task 103 log: Off-by-one month fix and migration script
-- Task 105A log: Minimal quarterly generator implementation
+**Next Sprint:** CL1 — Changelog Feature (3-4h)
 
 ---
 
 ## Recently Completed
+
+### Sprint B2: General Bug Fixes #1 ✅ COMPLETE
+**Completed:** January 28, 2026  
+**Issues:** #115, #60, #156, #108  
+**Duration:** ~3 hours (vs 4-5h estimated)  
+**Quality:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- Adjustment transactions preserve sign when editing (#115)
+- Water service checks prevent API errors for non-water clients (#60)
+- Date format standardized to dd-MMM-yy across all reports (#156)
+- Maintenance role available in user management (#108)
+
+**Files:** 14 files  
+**Commit:** `137b8a0`
+
+---
+
+### Sprint W1: Water Bills Quarterly UI ✅ COMPLETE
+**Completed:** January 27, 2026  
+**Issue:** #105 — Water Bills quarterly refactor (105B)  
+**Duration:** ~3 hours (vs 4-6h estimated)  
+**Quality:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- Quarterly bills display in Water Bills tab table
+- Quarter selector with table display
+- Generate button integrated with table view
+- History tab grid layout re-enabled for quarterly
+- Common Area & Building Meter columns populated
+
+**Key Finding:** No structural mismatch existed — UI bypass was intentional from Task 105A  
+**Files:** `WaterBillsList.jsx`, `WaterHistoryGrid.jsx`  
+**Commits:** `1693990`, `403bc45`
+
+---
 
 ### Sprint U1: Document Upload for UPC ✅ COMPLETE
 **Completed:** January 24, 2026  
@@ -78,7 +97,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 | Deadline | Issue | Description |
 |----------|-------|-------------|
-| **March 15, 2026** | #105 | Water Bills quarterly display (Q1 billing) |
+| ~~**March 15, 2026**~~ | ~~#105~~ | ~~Water Bills quarterly display~~ ✅ COMPLETE |
 | **June 2026** | #124 | Year-End centavos bug (AVII year-end) |
 
 ---
