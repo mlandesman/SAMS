@@ -12,8 +12,44 @@ import {
   isFiscalYear
 } from '../../utils/fiscalYearUtils';
 import waterAPI from '../../api/waterAPI';
-import WaterHistoryQuarterly from './WaterHistoryQuarterly';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
+
+// Fiscal month name to index (Jul=0 ... Jun=11) for quarterly bill monthlyBreakdown
+const FISCAL_MONTH_NAME_TO_INDEX = {
+  July: 0, August: 1, September: 2, October: 3, November: 4, December: 5,
+  January: 6, February: 7, March: 8, April: 9, May: 10, June: 11
+};
+
+/**
+ * Transform quarterly bills API response into grid's yearData.months shape.
+ * monthlyBreakdown amounts are in centavos (per WaterHistoryQuarterly); we convert to pesos for display.
+ */
+function transformQuarterlyToMonths(bills) {
+  const months = Array.from({ length: 12 }, (_, idx) => ({ month: idx, units: {} }));
+  const unitIdSet = new Set();
+  bills.forEach((bill) => {
+    const units = bill.bills?.units || {};
+    Object.entries(units).forEach(([unitId, unitBill]) => {
+      unitIdSet.add(unitId);
+      const breakdown = unitBill.monthlyBreakdown || [];
+      breakdown.forEach((monthData) => {
+        const monthKey = monthData.month;
+        const fiscalIndex = typeof monthKey === 'string'
+          ? FISCAL_MONTH_NAME_TO_INDEX[monthKey]
+          : (Math.floor(monthKey) === monthKey ? monthKey : null);
+        if (fiscalIndex != null && fiscalIndex >= 0 && fiscalIndex < 12 && months[fiscalIndex]) {
+          const waterCharge = monthData.waterCharge ?? 0;
+          months[fiscalIndex].units[unitId] = {
+            consumption: monthData.consumption ?? 0,
+            billAmount: waterCharge / 100,
+            ownerLastName: unitBill.ownerLastName ?? unitBill.ownerName ?? ''
+          };
+        }
+      });
+    });
+  });
+  return { months, units: Array.from(unitIdSet).sort() };
+}
 
 const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const { waterData, loading: contextLoading, error: contextError } = useWaterBills();
@@ -21,6 +57,9 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [billingConfig, setBillingConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [quarterlyBills, setQuarterlyBills] = useState([]);
+  const [yearReadings, setYearReadings] = useState(null);
+  const [quarterlyLoading, setQuarterlyLoading] = useState(false);
   const navigate = useNavigate();
   
   // Get fiscal year configuration (AVII starts in July = month 7)
@@ -36,6 +75,35 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
       setYearData(waterData);
     }
   }, [waterData]);
+
+  const isQuarterly = billingConfig?.billingPeriod === 'quarterly';
+
+  useEffect(() => {
+    if (!isQuarterly || !clientId) return;
+    let cancelled = false;
+    const fetchQuarterlyData = async () => {
+      setQuarterlyLoading(true);
+      try {
+        const [billsRes, readingsRes] = await Promise.all([
+          waterAPI.getQuarterlyBills(clientId, selectedYear),
+          waterAPI.getReadingsForYear(clientId, selectedYear)
+        ]);
+        if (cancelled) return;
+        setQuarterlyBills(billsRes?.data ?? []);
+        setYearReadings(typeof readingsRes === 'object' && readingsRes !== null ? readingsRes : null);
+      } catch (err) {
+        console.error('[WaterHistoryGrid] Error fetching quarterly data:', err);
+        if (!cancelled) {
+          setQuarterlyBills([]);
+          setYearReadings(null);
+        }
+      } finally {
+        if (!cancelled) setQuarterlyLoading(false);
+      }
+    };
+    fetchQuarterlyData();
+    return () => { cancelled = true; };
+  }, [clientId, selectedYear, isQuarterly]);
 
   const fetchBillingConfig = async () => {
     try {
@@ -61,7 +129,8 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     return amount.toFixed(0);
   };
 
-  if (contextLoading || configLoading) {
+  const loading = contextLoading || configLoading || (isQuarterly && quarterlyLoading);
+  if (loading) {
     return <div className="loading-container">Loading water history...</div>;
   }
 
@@ -69,57 +138,48 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     return <div className="error-message">{contextError}</div>;
   }
 
-  // Check if quarterly billing - render quarterly component
-  const isQuarterly = billingConfig?.billingPeriod === 'quarterly';
-  
+  // Single data source for grid: quarterly transformed (with CA/BM from readings) or monthly from context
+  let displayData;
   if (isQuarterly) {
-    return (
-      <div className="hoa-dues-view">
-        <div className="hoa-dues-content">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
-            <h3 style={{ margin: 0, color: '#333' }}>Water Bill History</h3>
-            <div className="year-navigation">
-              <button 
-                className="year-nav-button"
-                onClick={() => setSelectedYear(selectedYear - 1)}
-              >
-                <FontAwesomeIcon icon={faChevronLeft} />
-              </button>
-              <div className="year-display">
-                <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#1ebbd7' }}>
-                  {selectedYear}
-                </span>
-              </div>
-              <button 
-                className="year-nav-button"
-                onClick={() => setSelectedYear(selectedYear + 1)}
-              >
-                <FontAwesomeIcon icon={faChevronRight} />
-              </button>
-            </div>
-          </div>
-          <WaterHistoryQuarterly clientId={clientId} year={selectedYear} />
-        </div>
-      </div>
-    );
+    const base = quarterlyBills.length > 0
+      ? transformQuarterlyToMonths(quarterlyBills)
+      : { months: Array.from({ length: 12 }, (_, i) => ({ month: i, units: {} })), units: [] };
+    const detailed = yearReadings?.detailedData;
+    if (detailed && base.months) {
+      base.months.forEach((month, i) => {
+        const rd = detailed[i];
+        if (rd) {
+          const caConsumption = rd.commonArea?.consumption;
+          if (caConsumption != null) {
+            month.commonArea = { consumption: Math.max(0, caConsumption) };
+          }
+          const bmConsumption = rd.buildingMeter?.consumption;
+          if (bmConsumption != null) {
+            month.buildingMeter = { consumption: Math.max(0, bmConsumption) };
+          }
+        }
+      });
+    }
+    displayData = base;
+  } else {
+    displayData = yearData;
   }
 
-  // Monthly billing - existing grid view
-  if (!yearData || !yearData.months) {
+  if (!displayData || !displayData.months) {
     return <div className="no-data-message">No water history data available</div>;
   }
 
   // Get all unique unit IDs - handle both array of strings and array of objects
   let unitIds = [];
-  if (yearData.units) {
-    if (typeof yearData.units[0] === 'string') {
-      unitIds = yearData.units;
-    } else if (typeof yearData.units[0] === 'object') {
-      unitIds = yearData.units.map(u => u.unitId || u.id || u);
+  if (displayData.units) {
+    if (typeof displayData.units[0] === 'string') {
+      unitIds = displayData.units;
+    } else if (typeof displayData.units[0] === 'object') {
+      unitIds = displayData.units.map(u => u.unitId || u.id || u);
     }
-  } else if (yearData.months && yearData.months.length > 0 && yearData.months[0].units) {
+  } else if (displayData.months && displayData.months.length > 0 && displayData.months[0].units) {
     // Fallback: extract unit IDs from first month's data
-    unitIds = Object.keys(yearData.months[0].units).sort();
+    unitIds = Object.keys(displayData.months[0].units).sort();
   }
 
   // Calculate totals
@@ -133,7 +193,7 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
     totals.commonArea = { consumption: 0, amount: 0 };
     totals.buildingMeter = { consumption: 0, amount: 0 };
     
-    yearData.months.forEach((month, monthIdx) => {
+    displayData.months.forEach((month, monthIdx) => {
       if (month.units) {
         Object.entries(month.units).forEach(([unitId, unit]) => {
           if (totals[unitId]) {
@@ -230,7 +290,7 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
               <tr className="owner-header-row">
                 <th></th>
                 {unitIds.map(unitId => {
-                  const unitData = yearData.months?.[0]?.units?.[unitId];
+                  const unitData = displayData.months?.[0]?.units?.[unitId];
                   const ownerName = unitData?.ownerLastName || unitData?.ownerName || '';
                   return (
                     <th key={unitId} className="owner-header">
@@ -259,8 +319,8 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                 const fiscalMonth = index + 1; // Fiscal month 1-12
                 const calendarMonth = fiscalToCalendarMonth(fiscalMonth, fiscalYearStartMonth);
                 
-                // Find month data from yearData if it exists
-                const monthData = yearData.months?.find(m => m.month === index) || null;
+                // Find month data from displayData if it exists
+                const monthData = displayData.months?.find(m => m.month === index) || null;
                 
                 // Format month label with correct year
                 let displayYear = selectedYear;
@@ -553,29 +613,29 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
           </table>
         </div>
 
-        {/* Annual Summary */}
-        {yearData.summary && (
+        {/* Annual Summary - only for monthly data (quarterly has no aggregated summary) */}
+        {displayData.summary && (
           <div className="summary-section">
             <h4>Annual Summary</h4>
             <div className="summary-row">
               <div className="summary-item">
                 <span className="summary-label">Total Consumption:</span>
-                <span className="summary-value">{formatNumber(yearData.summary.totalConsumption)} m³</span>
+                <span className="summary-value">{formatNumber(displayData.summary.totalConsumption)} m³</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Total Billed:</span>
-                <span className="summary-value">${formatCurrency(yearData.summary.totalBilled)}</span>
+                <span className="summary-value">${formatCurrency(displayData.summary.totalBilled)}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Total Collected:</span>
                 <span className="summary-value" style={{ color: '#28a745' }}>
-                  ${formatCurrency(yearData.summary.totalPaid)}
+                  ${formatCurrency(displayData.summary.totalPaid)}
                 </span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Outstanding:</span>
                 <span className="summary-value" style={{ color: '#dc3545' }}>
-                  ${formatCurrency(yearData.summary.totalUnpaid)}
+                  ${formatCurrency(displayData.summary.totalUnpaid)}
                 </span>
               </div>
             </div>
