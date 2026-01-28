@@ -1448,11 +1448,14 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     
     const transactionMap = transactions;
     
-    // Step 5: Fetch water bills
-    // Always try to fetch water bills - the API will return empty if client doesn't have them
-    // This is more reliable than checking clientData.projects which may not be populated
-    const waterBills = await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth);
-    // Water bills fetched silently - only logged on error
+    // Step 5: Fetch water bills (only if client has water bills project)
+    // Issue #60: Check if client has water service before calling water API
+    // MTC has no water service (projects.waterBills is undefined)
+    // AVII has water service (projects.waterBills exists)
+    const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+    const waterBills = hasWaterBillsProject
+      ? await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth)
+      : [];
     
     // Step 6: Also fetch transactions from water bill payments
     for (const bill of waterBills) {

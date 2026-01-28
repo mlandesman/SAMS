@@ -7,6 +7,7 @@
 import { generatePdf } from './pdfService.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { getNow } from '../services/DateService.js';
+import { DateTime } from 'luxon';
 
 /**
  * Generate Board Report PDF
@@ -20,13 +21,10 @@ export async function generateBoardReportPDF(previewData, language = 'english', 
   
   const { client, closingYear, openingYear, snapshotDate, accounts, units } = previewData;
   
-  // Format date
+  // Format date as dd-MMM-yy (unambiguous for international clients)
   const generatedDate = getNow();
-  const formattedDate = generatedDate.toLocaleDateString(isSpanish ? 'es-MX' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const dt = DateTime.fromJSDate(generatedDate).setZone('America/Cancun');
+  const formattedDate = dt.toFormat('dd-MMM-yy');
   
   // Calculate totals
   // Note: accounts.balance is in centavos, balanceDue is in centavos, creditBalance is in pesos

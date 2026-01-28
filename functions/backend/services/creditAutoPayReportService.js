@@ -25,7 +25,7 @@ export async function generateCreditAutoPayReportData(filterClientId = null) {
   const nowCancun = DateTime.now().setZone('America/Cancun');
   
   const report = {
-    date: nowCancun.toFormat('MMMM d, yyyy'),
+    date: nowCancun.toFormat('dd-MMM-yy'),
     dateISO: today,
     clients: [],
     totals: {
@@ -206,11 +206,11 @@ export function generateCreditAutoPayEmailHTML(report) {
   // Helper to format currency
   const fmt = (amount) => `$${amount.toFixed(2)}`;
   
-  // Helper to format date
+  // Helper to format date as dd-MMM-yy (unambiguous for international clients)
   const fmtDate = (dateStr) => {
     if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const dt = DateTime.fromISO(dateStr, { zone: 'America/Cancun' });
+    return dt.isValid ? dt.toFormat('dd-MMM-yy') : '-';
   };
   
   // Build client sections

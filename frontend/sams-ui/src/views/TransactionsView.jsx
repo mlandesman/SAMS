@@ -1605,23 +1605,34 @@ function TransactionsView() {
               return new Date(dateField).toISOString().split('T')[0];
             };
             
-            const extractAmount = (amountField) => {
+            const extractAmount = (amountField, preserveSign = false) => {
               if (!amountField && amountField !== 0) return '';
-              if (amountField.integerValue !== undefined) return Math.abs(amountField.integerValue / 100);
-              return Math.abs((amountField || 0) / 100);
+              // Convert from cents to dollars
+              // For expenses, we use Math.abs because form shows positive values
+              // For adjustments, we preserve the sign for proper handling
+              if (amountField.integerValue !== undefined) {
+                return preserveSign ? amountField.integerValue / 100 : Math.abs(amountField.integerValue / 100);
+              }
+              return preserveSign ? (amountField || 0) / 100 : Math.abs((amountField || 0) / 100);
             };
+            
+            // Determine transaction type first to know if we need to preserve sign
+            const txType = selectedTransaction.type || 'expense';
             
             const initialDataObj = {
               transactionId: selectedTransaction.id, // Include transaction ID for fetching documents
               date: extractDate(selectedTransaction.date),
-              amount: extractAmount(selectedTransaction.amount),
+              // For form display, always use absolute value (users enter positive numbers)
+              amount: extractAmount(selectedTransaction.amount, false),
+              // For adjustments, store the original amount with sign for use when saving
+              originalAmount: extractAmount(selectedTransaction.amount, true),
               vendorId: selectedTransaction.vendorId || '',  // Use ID field
               categoryId: selectedTransaction.categoryId || '',  // Use ID field
               accountId: selectedTransaction.accountId || '',  // Use ID field
               paymentMethodId: selectedTransaction.paymentMethodId || selectedTransaction.paymentMethod || '',  // Check both ID and string
               unitId: selectedTransaction.unitId || '',  // Use ID field
               notes: selectedTransaction.notes || '',
-              type: selectedTransaction.type || 'expense' // Preserve transaction type (income for deposits, expense for expenses)
+              type: txType // Preserve transaction type (income for deposits, expense for expenses, adjustment for reconciliation)
             };
             
             // Include allocations if this is a split transaction

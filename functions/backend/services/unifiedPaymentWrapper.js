@@ -801,9 +801,12 @@ export class UnifiedPaymentWrapper {
     const hoaBills = await this._getHOABills(clientId, unitId, calculationDate, configs.hoa);
     console.log(`   📋 HOA: ${hoaBills.length} bills loaded`);
     
-    // Aggregate Water bills
-    const waterBills = await this._getWaterBills(clientId, unitId, calculationDate, configs.water);
-    console.log(`   📋 Water: ${waterBills.length} bills loaded`);
+    // Aggregate Water bills (only if client has water service)
+    // Issue #60: Skip water bill fetch for clients without water service (e.g., MTC)
+    const waterBills = configs.hasWaterService
+      ? await this._getWaterBills(clientId, unitId, calculationDate, configs.water)
+      : [];
+    console.log(`   📋 Water: ${waterBills.length} bills loaded${!configs.hasWaterService ? ' (no water service)' : ''}`);
     
     // Combine all bills
     const allBills = [...hoaBills, ...waterBills];
@@ -1952,13 +1955,22 @@ export class UnifiedPaymentWrapper {
     const hoaConfig = await getHOABillingConfig(clientId);
     const waterConfig = await getWaterBillingConfig(this.db, clientId, 'water');
     
+    // Issue #60: Check if client has water service
+    // MTC has no water service (projects.waterBills is undefined)
+    // AVII has water service (projects.waterBills exists)
+    const clientDoc = await this.db.collection('clients').doc(clientId).get();
+    const clientData = clientDoc.exists ? clientDoc.data() : {};
+    const hasWaterService = clientData.projects?.waterBills !== undefined;
+    
     // Note: Each module maintains separate config
     // Return both for module-specific penalty calculations
     return {
       hoa: hoaConfig,
       water: waterConfig,
       // Client-level fiscal year config (system-wide)
-      fiscalYearStartMonth: hoaConfig.fiscalYearStartMonth || 1
+      fiscalYearStartMonth: hoaConfig.fiscalYearStartMonth || 1,
+      // Issue #60: Flag indicating whether client has water service
+      hasWaterService
     };
   }
 

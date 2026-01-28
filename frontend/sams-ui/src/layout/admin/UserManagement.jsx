@@ -204,6 +204,10 @@ const getUserDisplayRole = (user) => {
     return 'Unit Manager';
   }
   
+  if (user.globalRole === 'maintenance') {
+    return 'Maintenance';
+  }
+  
   // Default to 'User' for regular users
   return 'User';
 };
@@ -500,6 +504,7 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
               <option value="unitOwner">Unit Owner</option>
               <option value="unitManager">Unit Manager</option>
               {isSuperAdmin && <option value="admin">Admin</option>}
+              {isSuperAdmin && <option value="maintenance">Maintenance</option>}
               {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
             </select>
           </div>
@@ -958,6 +963,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                 <option value="admin">Admin</option>
                 <option value="unitOwner">Unit Owner</option>
                 <option value="unitManager">Unit Manager</option>
+                <option value="maintenance">Maintenance</option>
                 <option value="superAdmin">Super Admin</option>
               </select>
             </div>

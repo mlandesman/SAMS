@@ -107,10 +107,17 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
   
   console.log(`   📅 Fiscal year: ${fiscalYear}, Start month: ${fiscalYearStartMonth}, Frequency: ${duesFrequency}`);
   
-  // Gather data in parallel
+  // Issue #60: Check if client has water service before calling water API
+  // MTC has no water service (projects.waterBills is undefined)
+  // AVII has water service (projects.waterBills exists)
+  const clientDoc = await db.collection('clients').doc(clientId).get();
+  const clientData = clientDoc.exists ? clientDoc.data() : {};
+  const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+  
+  // Gather data in parallel - only fetch water bills if client has water service
   const [hoaDues, waterBills, transactions] = await Promise.all([
     getHOADuesForUnit(db, clientId, unitId, fiscalYear, fiscalYearStartMonth, duesFrequency),
-    getWaterBillsForUnit(db, clientId, unitId),
+    hasWaterBillsProject ? getWaterBillsForUnit(db, clientId, unitId) : Promise.resolve([]),
     getTransactionsForUnit(db, clientId, unitId, fiscalYear)
   ]);
   

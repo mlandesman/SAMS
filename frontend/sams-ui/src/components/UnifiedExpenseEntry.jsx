@@ -240,15 +240,21 @@ const UnifiedExpenseEntry = ({
         const selectedPaymentMethod = clientData.paymentMethods.find(p => p.id === formData.paymentMethodId);
         const selectedCategory = clientData.categories.find(c => c.id === formData.categoryId);
         
-        // Preserve transaction type when editing (income for deposits, expense for expenses)
+        // Preserve transaction type when editing (income for deposits, expense for expenses, adjustment for reconciliation)
         // Default to 'expense' for new transactions
         const transactionType = initialData?.type || 'expense';
         
         // Handle amount sign based on transaction type
-        // Expenses are negative, income (deposits) are positive
+        // Expenses are negative, income (deposits) are positive, adjustments preserve their original sign
         let transactionAmount;
         if (transactionType === 'income') {
           transactionAmount = Math.abs(parseFloat(formData.amount)); // Positive for income
+        } else if (transactionType === 'adjustment') {
+          // Adjustments (from reconciliation) can be positive or negative - preserve original sign
+          // Use originalAmount (with sign preserved) if available, otherwise use amount
+          const originalValue = initialData?.originalAmount ?? initialData?.amount ?? 0;
+          const originalSign = originalValue >= 0 ? 1 : -1;
+          transactionAmount = originalSign * Math.abs(parseFloat(formData.amount));
         } else {
           transactionAmount = -Math.abs(parseFloat(formData.amount)); // Negative for expenses
         }

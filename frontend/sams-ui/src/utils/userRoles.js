@@ -9,6 +9,7 @@
 export const USER_ROLES = {
   SUPER_ADMIN: 'superAdmin',
   ADMIN: 'admin', 
+  MAINTENANCE: 'maintenance',
   UNIT_OWNER: 'unitOwner',
   UNIT_MANAGER: 'unitManager'
 };
@@ -112,6 +113,13 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.EXCHANGE_RATES
   ],
   
+  [USER_ROLES.MAINTENANCE]: [
+    // Maintenance role has limited access for maintenance-related tasks
+    PERMISSIONS.UNITS_VIEW,
+    PERMISSIONS.DOCUMENTS_VIEW,
+    PERMISSIONS.DASHBOARD_VIEW
+  ],
+
   [USER_ROLES.UNIT_OWNER]: [
     // Unit Owner has read-only access to their unit data only
     PERMISSIONS.OWN_TRANSACTIONS_VIEW,

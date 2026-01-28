@@ -33,7 +33,8 @@ function formatCurrency(centavos, showSign = false) {
 }
 
 /**
- * Format date as MM/DD/YYYY using America/Cancun timezone
+ * Format date as dd-MMM-yy (e.g., "15-Jan-26") using America/Cancun timezone
+ * Uses unambiguous format to avoid DD/MM vs MM/DD confusion for international clients
  */
 function formatDate(dateValue) {
   if (!dateValue) return '';
@@ -52,7 +53,7 @@ function formatDate(dateValue) {
   }
   
   if (!dt.isValid) return '';
-  return dt.toFormat('MM/dd/yyyy');
+  return dt.toFormat('dd-MMM-yy');
 }
 
 /**
@@ -549,7 +550,7 @@ export function generateBudgetActualHtml(data, options = {}) {
             </tr>
             <tr>
               <td>${t.reportDate}:</td>
-              <td>${reportDate.toFormat('MM/dd/yyyy')}</td>
+              <td>${reportDate.toFormat('dd-MMM-yy')}</td>
             </tr>
             <tr>
               <td>${t.percentElapsed}:</td>
@@ -731,7 +732,7 @@ export function generateBudgetActualHtml(data, options = {}) {
     <div class="report-footer">
       <div class="footer-row">
         <div>${t.reportId}: ${reportInfo.reportId}</div>
-        <div>${t.generatedOn}: ${generatedTimestamp.toFormat('MM/dd/yyyy, h:mm:ss a')}</div>
+        <div>${t.generatedOn}: ${generatedTimestamp.toFormat('dd-MMM-yy, h:mm:ss a')}</div>
       </div>
     </div>
   </div>

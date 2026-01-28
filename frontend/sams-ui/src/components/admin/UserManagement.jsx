@@ -284,6 +284,10 @@ const getUserDisplayRole = (user) => {
     return 'Unit Manager';
   }
   
+  if (user.globalRole === 'maintenance') {
+    return 'Maintenance';
+  }
+  
   // Default to 'User' for regular users
   return 'User';
 };

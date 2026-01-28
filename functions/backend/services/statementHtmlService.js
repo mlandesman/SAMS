@@ -69,8 +69,8 @@ function formatDate(dateValue) {
   
   if (!dt.isValid) return '';
   
-  // Format as dd MMM yyyy (e.g., "22 Jan 2026")
-  return dt.toFormat('dd MMM yyyy');
+  // Format as dd-MMM-yy (e.g., "22-Jan-26") - unambiguous for international clients
+  return dt.toFormat('dd-MMM-yy');
 }
 
 /**
@@ -927,7 +927,7 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     html,
     meta: {
       statementId,
-      generatedAt: generatedTimestamp.toFormat('dd MMM yyyy HH:mm'),
+      generatedAt: generatedTimestamp.toFormat('dd-MMM-yy HH:mm'),
       language
     },
     summary: data.summary,
@@ -1073,7 +1073,7 @@ async function buildStatementHtml(data, reportCommonCss, language, options, t, c
     html,
     meta: {
       statementId,
-      generatedAt: generatedTimestamp.toFormat('dd MMM yyyy HH:mm'),
+      generatedAt: generatedTimestamp.toFormat('dd-MMM-yy HH:mm'),
       language
     },
     lineItems: currentItems,
@@ -1791,7 +1791,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
             </tr>
             <tr>
               <td>${t.date}:</td>
-              <td>${statementDate.toFormat('dd MMM yyyy')}</td>
+              <td>${statementDate.toFormat('dd-MMM-yy')}</td>
             </tr>
             ${nextPaymentDue !== 'N/A' ? `
             <tr>
@@ -2111,7 +2111,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
       <div class="footer-row">
         <div>${t.statementId}: ${statementId}</div>
         <div>${t.pageOf} 1 of 1</div>
-        <div>${t.generatedOn}: ${generatedTimestamp.toFormat('dd MMM yyyy HH:mm')}</div>
+        <div>${t.generatedOn}: ${generatedTimestamp.toFormat('dd-MMM-yy HH:mm')}</div>
       </div>
       <div class="footer-center">
         ${t.questionsContact

@@ -5,6 +5,21 @@
  * Follows statementTextTableService.js pattern for consistency
  */
 
+import { DateTime } from 'luxon';
+
+/**
+ * Format date as dd-MMM-yy (unambiguous for international clients)
+ * @param {string|Date} dateValue - Date to format
+ * @returns {string} Formatted date
+ */
+function formatDate(dateValue) {
+  if (!dateValue) return '';
+  const dt = typeof dateValue === 'string'
+    ? DateTime.fromISO(dateValue, { zone: 'America/Cancun' })
+    : DateTime.fromJSDate(new Date(dateValue)).setZone('America/Cancun');
+  return dt.isValid ? dt.toFormat('dd-MMM-yy') : '';
+}
+
 /**
  * Format centavos to pesos with commas
  * @param {number} centavos - Amount in centavos
@@ -191,7 +206,7 @@ export function generateBudgetActualText(data) {
   output += `BUDGET VS ACTUAL REPORT\n`;
   output += `Client: ${clientInfo.name}\n`;
   output += `Fiscal Year: ${reportInfo.fiscalYear}\n`;
-  output += `Report Date: ${new Date(reportInfo.reportDate).toLocaleDateString()}\n`;
+  output += `Report Date: ${formatDate(reportInfo.reportDate)}\n`;
   output += `% of Year Elapsed: ${reportInfo.percentOfYearElapsed.toFixed(1)}%\n`;
   output += '='.repeat(80) + '\n\n';
 
@@ -204,7 +219,7 @@ export function generateBudgetActualText(data) {
   // Footer
   output += '='.repeat(80) + '\n';
   output += `Report ID: ${reportInfo.reportId}\n`;
-  output += `Generated: ${new Date(reportInfo.reportDate).toLocaleString()}\n`;
+  output += `Generated: ${formatDate(reportInfo.reportDate)}\n`;
 
   return output;
 }

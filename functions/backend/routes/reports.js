@@ -8,6 +8,7 @@ import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getDb } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
+import { DateTime } from 'luxon';
 import statementController from '../controllers/statementController.js';
 import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
@@ -1306,7 +1307,7 @@ router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) =
       format: 'Letter',
       footerMeta: {
         statementId: `BUDGET-${clientId}-${fiscalYear}`,
-        generatedAt: new Date().toLocaleDateString(),
+        generatedAt: DateTime.now().setZone('America/Cancun').toFormat('dd-MMM-yy'),
         language
       }
     });
@@ -1383,11 +1384,7 @@ router.post('/transactions/export', authenticateUserWithProfile, async (req, res
       landscape: true,
       footerMeta: {
         statementId: `TRANSACTIONS-${clientId}-${Date.now()}`,
-        generatedAt: new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }),
+        generatedAt: DateTime.now().setZone('America/Cancun').toFormat('dd-MMM-yy'),
         language: 'english'
       }
     });
