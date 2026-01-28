@@ -1,0 +1,3150 @@
+{
+  "releases": [
+    {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "158"
+          ],
+          "text": "Changelog display in About modal with scrollable history"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "105"
+          ],
+          "text": "Water Bills quarterly display with history grid and meter columns"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "115"
+          ],
+          "text": "Reconcile Accounts preserves positive adjustment signs"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "60"
+          ],
+          "text": "MTC statements no longer call water routes"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "156"
+          ],
+          "text": "Date format standardized to dd-MMM-yy across reports"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "108"
+          ],
+          "text": "Maintenance role added to user management"
+        }
+      ]
+    },
+    {
+      "version": "1.9.1",
+      "date": "2026-01-24",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add document upload to Unified Payment Controller (UPC) modal"
+        }
+      ]
+    },
+    {
+      "version": "1.9.0",
+      "date": "2026-01-22",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "156"
+          ],
+          "text": "Add unambiguous date formats (dd MMM yyyy)"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "129"
+          ],
+          "text": "Add Water Consumption Report UI and Generate All endpoint"
+        }
+      ]
+    },
+    {
+      "version": "1.8.3",
+      "date": "2026-01-21",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "129"
+          ],
+          "text": "Water Consumption Report"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "56"
+          ],
+          "text": "Complete Credit Balance Context Menu"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement PDF export for transactions"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "110"
+          ],
+          "text": "Show full client name in Client Switch Modal"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "134"
+          ],
+          "text": "Hide inactive vendors from expense entry dropdown"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "145",
+            "152"
+          ],
+          "text": "Show centavos in Transaction Log and clean up About modal"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add /translate route to Firebase Hosting rewrites"
+        }
+      ]
+    },
+    {
+      "version": "1.8.2",
+      "date": "2026-01-19",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "151"
+          ],
+          "text": "Remove extra indentation from email prepend text"
+        }
+      ]
+    },
+    {
+      "version": "1.8.1",
+      "date": "2026-01-18",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "137"
+          ],
+          "text": "Add reusable CSV export functionality"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add --prod flag to firestore-to-json for production reads"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use 'admin' source for manual credit adjustments"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add scripts symlink in functions/ for relative path resolution"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Replace backend/ directory with symlink to functions/backend/"
+        }
+      ]
+    },
+    {
+      "version": "1.8.0",
+      "date": "2026-01-18",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "151"
+          ],
+          "text": "Add email prepend text with DeepL translation"
+        }
+      ]
+    },
+    {
+      "version": "1.7.0",
+      "date": "2026-01-17",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "150"
+          ],
+          "text": "UPC modal displays remaining amounts correctly"
+        }
+      ]
+    },
+    {
+      "version": "1.6.10",
+      "date": "2026-01-15",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add standalone generator and raw harness"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Display standalone credit adjustments on Statement of Account"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Centralize ledger generation"
+        }
+      ]
+    },
+    {
+      "version": "1.6.9",
+      "date": "2026-01-12",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "135"
+          ],
+          "text": "Auto-populate category from vendor"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Default to eTransfer and bank-001 for faster entry"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "144"
+          ],
+          "text": "Next Payment logic + monthly billing fixes"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "140"
+          ],
+          "text": "Use correct category for bank fees"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "143"
+          ],
+          "text": "Correct variable name in audit log"
+        }
+      ]
+    },
+    {
+      "version": "1.6.8",
+      "date": "2026-01-12",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix infinite loop in StatementOfAccountTab language switching"
+        }
+      ]
+    },
+    {
+      "version": "1.6.7",
+      "date": "2026-01-11",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "139"
+          ],
+          "text": "Fix split transaction edit and centavo conversion"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "136"
+          ],
+          "text": "Implement signed URL-based document upload to fix PWA production issue"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Quarterly grouping for credit history & trust history[0]"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Read opening balance directly from history[0]"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove Credit Applied lines - use implicit running balance"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Specify Firebase Admin SDK service account for Cloud Functions v2"
+        }
+      ]
+    },
+    {
+      "version": "1.6.6",
+      "date": "2026-01-09",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Update client code to use signed URL upload flow"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement signed URL-based document upload (replaces broken multipart)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Prevent incompatible filter combinations in getDocuments query"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Reorder query filters to match Firestore index field order"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add query logging to getDocuments for index debugging"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add Firestore composite indexes for documents collection"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Configure CORS for GCS bucket and debug finalize route"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Improve error handling in generateUploadUrl"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix expiresAt.toISOString bug in generateUploadUrl"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use Busboy with req.rawBody for Firebase Functions uploads"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Disable cors in Firebase Function options to preserve request stream"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Prevent req.body access for multipart requests in enforceClientAccess"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove req.body checks that trigger body parsing for multipart requests"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Prevent body stream consumption in enforceClientAccess for multipart requests"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Prevent body parsers from consuming multipart stream"
+        }
+      ]
+    },
+    {
+      "version": "1.6.5",
+      "date": "2026-01-09",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "136"
+          ],
+          "text": "Fix document upload 'Unexpected end of form' error"
+        }
+      ]
+    },
+    {
+      "version": "1.6.4",
+      "date": "2026-01-08",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "131"
+          ],
+          "text": "Add Water Consumption Analysis view for leak detection"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "104"
+          ],
+          "text": "Force context refresh after save to clear cache"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "136"
+          ],
+          "text": "Resolve document upload 500 error"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "107"
+          ],
+          "text": "Resolve 500 error on user edit"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix double currency conversion in expense confirmation modal"
+        },
+        {
+          "type": "other",
+          "issues": [
+            "103",
+            "131"
+          ],
+          "text": "Water Bills Sprint complete: #103 migration fix, #131 analysis view"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix email template logic for negative balances (credits)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Optimize language switching to use pre-generated HTMLs"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix parameter order bug - statementHtmlEs was being passed as statementMetaEn"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix dual-language HTML generation and PDF generation errors"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Optimize dual-language HTML return to save ~1/3 data transfer"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Optimize dual-language PDF generation to use pre-generated HTMLs"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove duplicate HTML template code from single-language path"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Refactor single-language path to use extracted buildHtmlContent"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete dual-language statement generation: Extract HTML template building"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "WIP: Implement dual-language statement generation for email optimization"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix fast path: Generate PDF download URLs and improve inline PDF support"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix critical bug: Remove variable shadowing of statementMeta parameter"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add service-level debug logging and improve statementMeta validation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add frontend debug logging for statementMeta"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix confusing log message: Show reason for HTML generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix statementMeta validation: Check for object with keys"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix syntax error: Remove orphaned else block"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Relax HTML validation: Check for non-empty string instead of statementId"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix email optimization: Check HTML first before emailContent"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add progress logging to bulk statement generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix email optimization: Accept pre-generated HTML to skip full recalculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Optimize statement email generation and add PDF inline rendering"
+        }
+      ]
+    },
+    {
+      "version": "1.6.3",
+      "date": "2026-01-05",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add About card to Dashboard + Aggressive SW cache busting"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add client defaults and fix date object rendering"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Refactor ExpenseForm with ID-first architecture"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add PWA-only deployment option to deploySams.sh (Option 7)"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "125",
+            "126",
+            "127"
+          ],
+          "text": "Issues #125, #126, #127 - Statement of Account bug fixes"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use dynamic version from version.json instead of hardcoded values"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix ExpenseEntryScreen for superAdmin and field names"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add Firebase Hosting URLs to allowed origins"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove hardcoded localhost URLs from waterReadingService.js"
+        }
+      ]
+    },
+    {
+      "version": "1.6.2",
+      "date": "2026-01-04",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "61",
+            "75"
+          ],
+          "text": "Issues #61 and #75 - Version display improvements"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add version to correct LoginForm component (components/ not layout/)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Create backend-specific versionUtils to avoid browser code syntax issues"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Remove unused layout/LoginForm duplicate files"
+        }
+      ]
+    },
+    {
+      "version": "1.6.1",
+      "date": "2026-01-04",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "116",
+            "117",
+            "118"
+          ],
+          "text": "Issues #116, #117, #118 - Quick fixes batch"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "120"
+          ],
+          "text": "Exclude creditBalances_* yearly archives from unit lists"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use michael@landesman.com as default Gmail user for all email services"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add GMAIL_APP_PASSWORD secret to nightlyScheduler"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use Luxon DateTime instead of Date for toFormatin scheduler"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Update credit auto-pay email from address to pm@sandyland.com.mx"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug: Add Gmail config logging to diagnose auth failure"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Security: Remove exposed Gmail password from README and fix logging"
+        }
+      ]
+    },
+    {
+      "version": "1.6.0",
+      "date": "2026-01-03",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "90"
+          ],
+          "text": "Add credit auto-pay HTML email & nightly scheduler (#90 Phase 2)"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "119"
+          ],
+          "text": "Implement partial payments in priority order"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix nightly backups, archive MTC year-end, and update docs"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add MTC credit balance inspection scripts"
+        }
+      ]
+    },
+    {
+      "version": "1.5.3",
+      "date": "2025-12-31",
+      "changes": [
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix AVII credit balance reconciliation and statement generation"
+        }
+      ]
+    },
+    {
+      "version": "1.5.2",
+      "date": "2025-12-29",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "48",
+            "66",
+            "107",
+            "108"
+          ],
+          "text": "User Management Phase 1 & 2"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "111"
+          ],
+          "text": "Include credit adjustments in running balance - Issue #111"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update statementDataService filters and credit handling"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add credit balance patch scripts"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Email language support and preferredLanguage fixes"
+        }
+      ]
+    },
+    {
+      "version": "1.5.1",
+      "date": "2025-12-24",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "101"
+          ],
+          "text": "Add unified nightly scheduler"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "105"
+          ],
+          "text": "Water bills Q2 not appearing in Statement of Accounts"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove undefined normalizedOwners reference in unitUtils.js"
+        }
+      ]
+    },
+    {
+      "version": "1.5.0",
+      "date": "2025-12-24",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "100"
+          ],
+          "text": "Add print buttons and MUI icons to all reports"
+        }
+      ]
+    },
+    {
+      "version": "1.4.0",
+      "date": "2025-12-24",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "55"
+          ],
+          "text": "Mini utility graphs for Statement of Accounts"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add visual separation with sand-colored theme for Credit Balance Activity"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "99"
+          ],
+          "text": "Credit history entries and verbose transaction notes"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove dashboard caching - always fetch fresh data"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Credit Balance Activity section to Statement of Accounts"
+        }
+      ]
+    },
+    {
+      "version": "1.3.1",
+      "date": "2025-12-23",
+      "changes": [
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update Implementation Plan with new GitHub issues (Dec 23, 2025)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Transaction Edit Modal field population"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "TASK-77: Client-specific statement footers"
+        }
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2025-12-22",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "YE-088 Budget vs Actual Accrual Basis Income"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "YE-087 Budget Copy Buttons + Report Year Fix"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Account Reconciliation Module"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add bill selection checkboxes to Unified Payment Modal"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Align Budget Entry table columns between Income and Expenses sections"
+        }
+      ]
+    },
+    {
+      "version": "1.2.1",
+      "date": "2025-12-21",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "83"
+          ],
+          "text": "Filter one-time project categories from Budget tools and group by Income/Expense"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add FIREBASE_ENV support for production script execution"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add production support to fixProjectTransactionIds script"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add script to fix project collection transactionIds"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add transaction enrichment to Special Projects (pending data fix)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Enrich Special Projects with transaction notes"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "80",
+            "81"
+          ],
+          "text": "Budget vs Actual CSS and Statement project payments filter"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Rewrite script to use ADC pattern from working migration scripts"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Restore backend/services symlink"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Sync functions/backend Budget vs Actual with restored backend version"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Restore working Budget vs Actual HTML structure"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Close report-table-container divs in Budget vs Actual report"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Declare GMAIL_APP_PASSWORD secret in api function"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use public URLs in email service to avoid signBlob permission"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use public URL instead of signed URL for bulk statements"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Script uses standalone Firebase init, revert firebase.js"
+        }
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2025-12-20",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Email All functionality for bulk statement emails"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Bulk statement progress polling + public PDF URLs"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Sandyland Properties app icon for PWA"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Service worker was caching API responses causing stale data"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Disable Firestore persistence to prevent stale cache"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Pass waivedPenalties to verification preview"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Restore service account key copy in predeploy"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove destructive predeploy commands that deleted backend"
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2025-12-20",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "74"
+          ],
+          "text": "Enhancement #74 Phase 2 - 15-day HOA buffer and related fixes"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add credit balance summary to Statement of Account"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add penalty waiver feature to UPS modal"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement core partial payment support (ENH74)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use getCreditBalance getter for fresh balance"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use getCreditBalance getter throughout codebase"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Recalculate Owed fields after penalty recalculation (ENH74-Penalties)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add Owed fields to quarterly billing path (ENH74-Quarterly)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use remaining amounts (Owed) not full amounts in distribution (ENH74)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Reset backend/ UPS files to stable (was missed in earlier revert)"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Replace duplicate code folders with symlinks to functions/"
+        }
+      ]
+    },
+    {
+      "version": "1.0.3",
+      "date": "2025-12-18",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Email Statement Integration - Responsive CSS & Email Functionality"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "69"
+          ],
+          "text": "Prevent credit balance from going negative in UPS"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Budget Report uses highest available year instead of current fiscal year"
+        }
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "date": "2025-12-16",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Budget Report with reusable report components"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Apply cache-busting and refresh pattern to all list views"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Force data reload with delay after unit save in Production"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add GitHub Issue: List View Refresh Cache-Busting for All Tabs"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update: Production go-live status and remaining tasks"
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2025-12-16",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add refreshTrigger support to ModernBaseList and ModernUnitList"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add .js extension to unitContactUtils import"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add error handling and fallback for owner/manager rendering"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Migration script authentication - use Application Default Credentials"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Migration script --prod flag to connect to Production"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Correct serviceAccountKey path in firebase.json predeploy"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Migration script to handle semicolon-separated emails"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "UI Unit Contact Structure + PropertyAccess Map Creation"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add propane API route to Firebase Hosting rewrites"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Correct service account key path to backend/ directory"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Copy production service account key during deployment"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add shared/ directory to Firebase Functions deployment"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Cleanup: Remove debug logging and improve script flexibility"
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-12-15",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "50"
+          ],
+          "text": "Bulk Statement Generation & Storage (GitHub )"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "46",
+            "47"
+          ],
+          "text": "Dashboard Enhancements (GitHub #46, #47) + Bulk PDF Generator"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Credit Balance Opening Balance Integration (CREDIT-BAL-001)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Use unitAccounting.json as complete source of truth for rebuild script"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add categoryId/categoryName to transactionRef for debugging"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Step 7.1 - Include stored HOA penalties in statement generation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Separate HOA and water penalties in import service"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "AVII Water Bills Reconciliation Complete"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Projects Module Complete (v0.4.2) - Special Assessments in Statements"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "WM-3 NumericKeypad Integration + Auto-Login Fix"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "PWA Maintenance Tools (WM-2 + PT-1) Complete"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Budget vs Actual Report (Steps 1-4)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Budget vs Actual HTML service and API routes (Steps 2-3)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Task B1.1 + B1.2 Step 1 - Budget Entry UI & Data Services"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Polish statement PDF layout for page breaks and margins"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add HTML/PDF statement generation - Step 2B complete"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement atomic batch operations for unified payment system"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Fix duplicate payments and enhance text statement report"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Statement Data Service refactor + User CRUD Enhancement"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Statement of Account data collection with TD-019 enhancement"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete data collection test harness and remove totalDue field"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Reports to client menu configuration"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Phase 1 - Reports Module Foundation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement quarterly water billing system"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Integrate context menu with enhanced tooltips and fix dashboard for quarterly billing"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add reusable context menu and payment details modal components"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement quarterly billing display and payment recording"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add hoaDues config creation script"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add UnifiedPaymentWrapper service"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add owner last names to dashboard past due hover"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Enforce code/docs split - prevent APM docs in code repo"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete HOA Dues Refactor + Architectural Remediation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Document reusable components from Water Bills module"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add comprehensive MacBook setup automation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add workspace file for Code + Docs together"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Fix Water Bills import due dates and add centavos conversion"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Task 1 AggregatedData status fix and prepare Task 3"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete delete reversal implementation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add data consistency validation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Integrate penalty recalc into surgical update"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add /credit REST endpoint (Task 0A)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement Water Bills Surgical Updates with 94% performance improvement"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "31",
+            "33"
+          ],
+          "text": "Fetch units with owner data separately from dues (Issues #31, )"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "33"
+          ],
+          "text": "Owner names showing 'No Name'"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Load bill document before accessing bills object"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Clear calculated penalties when Sheets shows none for unit"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove Total Paid column from Allocation Summary"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Accept 'HOA Penalties' category name in extractHoaPenalties"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Extract water penalties from bill documents for Allocation Summary"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Apply payments from unitAccounting.json to Q1 water bills"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove Credit Balance from Allocation Summary"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add description-based fallback for HOA payment categorization"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use transaction categoryId for single-purpose payments, allocations only for splits"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Merge penalty categories into parent rows and improve water payment categorization"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Separate HOA Dues/Penalties and Water Consumption/Penalties in Allocation Summary"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use credit balance document as single source of truth"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Improve Allocation Summary accuracy and filtering"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Normalize unitId at import layer, remove normalizedUnitId patches"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Sort combined transaction query results by date"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Update queryTransactions to use normalizedUnitId for statement queries"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Preserve normalizedUnitId field in createTransaction"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Normalize unitId when matching penalties in generateQuarterBills"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Move client config loading before penalty extraction"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Import timezone handling (UTC→Cancun) + Projects.json support"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "TD-026 Unit filter returning zero rows"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Complete quarterly water bills import with transaction linking"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Convert water bills import from monthly to quarterly aggregation"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "HOA payment critical bugs and add test utilities"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Phase 2 Statement Reports - Q1 missing, date handling, water consumption"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Display penalty amounts in Bills tab for quarterly water bills"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Calculate penalties dynamically when fetching quarterly water bills"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Dashboard quarterly calculation and monthly client allocation errors"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Correct past-due quarter highlighting logic"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Calculate totalDue in dashboard for quarterly billing"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Correct variable scope for duesFrequency in dashboard calculations"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "HOA Dues import payment dates were null"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "HOA Dues import broken since Phase 4 refactor"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "PERMANENT migration - NEVER use Google Drive paths"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Update documentation paths from Google Drive to local storage"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Dashboard tooltip NaN - field name mismatch (amountDue vs amount)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Also fix pre-paid calculation - same payment.paid bug"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Clean up table headers - show only unit ID and last name"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Convert credit balance from centavos to pesos in payment modal"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Recursive Timestamp cleaner for Firestore serialization errors"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add dynamic penalty calculation to batch read code path"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use document-level dueDate for penalty calculation"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Penalties column for nobill months (avoid double-counting)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Penalty calculated on full charge instead of unpaid amount"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Penalty recalculation was resetting basePaid to 0"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Calculate dynamic carryover for displayOverdue (no static previousBalance)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Carryover calculation using wrong paidAmount field"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Modal showing wrong amounts for partial payments (same || operator bug)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Batch fetch methods not initializing database and wrong parameters"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Partial payments not reflected in displayTotalDue calculation"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Display current month penalties only (not cumulative)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Payment modal showing stale penalty amount when penalties are --"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Backend was overriding Firestore status with recalculated value"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add cache-busting to water bills API to prevent stale data"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Exclude creditBalances from units list and fix credit balance deletion undefined error"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove remaining merge conflict markers from importService.js"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Force cache clear after payment to ensure table updates"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix import to use default export from creditService"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Convert credit balance from centavos to dollars in API"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Handle undefined type in credit history tooltip"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Allow payments for units with overdue amounts (NOBILL fix)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use display fields for paid bills in Water Bills table"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add display fields for paid bills showing $0"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Update waterPaymentsService to use /credit endpoint"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Move completed Priority 1 (Credit Balance) to COMPLETED section and renumber priorities"
+        },
+        {
+          "type": "perf",
+          "issues": [],
+          "text": "Implement batch Firestore reads for water bills"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Remove description parsing, use only categoryId/categoryName/allocations"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Preserve transaction & allocation data through statement pipeline"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Update report system with orphaned transaction detection and Q0 handling"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Clean up old test results and prototype files"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Remove deprecated DuesPaymentModal, use UnifiedPaymentModal"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Remove duplicate docs (moved to SAMS-Docs)"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Clean up old test results and moved APM docs"
+        },
+        {
+          "type": "other",
+          "issues": [
+            "39"
+          ],
+          "text": "📝 Update: Reprioritize Issue #39 and mark Unified Payment complete"
+        },
+        {
+          "type": "other",
+          "issues": [
+            "37"
+          ],
+          "text": "Fix Issue #37: Payment-date-based penalty calculation + unified penalty logic"
+        },
+        {
+          "type": "other",
+          "issues": [
+            "11",
+            "22"
+          ],
+          "text": "Phase 1: Water Bills Performance Optimization Complete (Issues #11 + )"
+        },
+        {
+          "type": "other",
+          "issues": [
+            "23"
+          ],
+          "text": "Hotfix: Fix currentYear undefined error in water bills payment"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix AVII import: Add unit ID normalization, import penalties/lavado, disable auto-penalties"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add AVII water bills reconciliation and diagnostic scripts"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Statement of Account UI with HTML-based PDF/CSV exports and language support"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Wire Statement UI PDF export via pre-generated HTML and add zoom/status UX"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Statement of Account UI and reports domain endpoints"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Align header blocks and keep logo visible"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Adjust statement header offsets"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix statement charges and header alignment"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Improve statement footer layout and PDFShift docs"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Statement Report: Single chronological table with allocation summary"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Statement Step 1 - Universal Data Service implementation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix statement report generation: credit balance, date ranges, and balance calculations"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🎉 Merge Phase 5: Quarterly Billing Support (COMPLETE)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "✨ Add prior year backward scan to unified payment allocation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🚀 Merge: Unified Payment System (Complete)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "📝 Update: Final documentation and tracking for Unified Payment System"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🐛 Fix: Use consistent hyphenated categoryIds throughout"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "♻️ Refactor: Keep allocations array for single allocation transactions"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🐛 Fix: Delete/reversal for single allocation transactions"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "✨ Enhancement: Single allocation transactions now create regular transactions"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🚀 Task 4 Complete + HOA Hover Fix + Vendor Correction"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "✅ Complete Unified Payment Tasks 1-3.5 with critical bug fixes"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update PROJECT_TRACKING_MASTER with Unified Payment System milestone"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add APM task assignment requirements to .cursorrules"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug: Add logging to pastDueDetails to diagnose NaN values"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Style(hoa): Increase unit ID font size and boldness in table headers"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug: Add extensive logging to diagnose owner names and payment structure"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Timestamp import syntax error"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Backend Timestamp Serialization Bug (Critical Fix)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Phase 4 (Tasks 4.1-4.3): HOA Dues Backend, API, and Frontend Context"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Manager Agent: Status reports and reviews (pre-migration commit)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add comprehensive local migration guides (code local, docs in Drive)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "✅ TASK COMPLETE: Simplify Water Bills - Remove All Caching"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Feature: Calculate penalties dynamically as of today (like overdue)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug: Add logging for modal unpaid amount calculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove ALL caching mechanisms from Water Bills context"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add delay to refresh after payment for Firestore propagation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "REVERT & FIX: Transaction allocations need credit for receipts/reports"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix credit balance calculation logic"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "CRITICAL FIX: Transaction creation - remove credit allocations"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix payment display bugs: paidAmount, modal Total Due, and DATA_INCONSISTENCY warnings"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Bills tab readings preview - restore ability to see data before bill generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add detailed memory log of Water Bills Bills tab issues"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Restore Bills tab to show readings preview when bills don't exist"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix missing closing brace in WaterBillsList map function"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix template literal syntax issues in WaterBillsList"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Revert WaterBillsList to original approach using waterData context"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "WIP: Current state with broken bills preview - need to revert to working version"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Bills tab to show readings data preview when bills don't exist"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix undefined property crashes in WaterBillsList totals"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Bills tab to show readings data before bill generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix null pointer crashes in WaterBillsList component"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix month selection and bills data fetching in WaterBillsList"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix fiscal year mapping in WaterBillsList dropdown"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix response data access issue in WaterBillsList"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add component lifecycle logging to debug why functions aren't called"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add extensive logging to debug dropdown population"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix bill dropdown to use context data instead of separate API call"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add missing backend route for getReadingsForYear API"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix bill dropdown to show sequential months based on readings data"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix bill dropdown to show months with readings data (not existing bills)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Modify dropdowns to show sequential months for bill/reading generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix config location and field name: Use correct config path and penaltyDays field"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix grace period default: Change from 7 to 10 days"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix penalty calculation grace period and aggressive recalculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix penalty calculation: Use actual due date from bill document"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix async state timing bug: Pass new date directly to calculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix payment modal initial date: Use today's date instead of bill date"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix payment modal display: 1) Backend now returns total amounts due (not just payment amounts) 2) Frontend displays total amounts due in table 3) Frontend uses backend credit usage values"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix payment distribution: Prioritize penalties over base charges (accounting convention) - was paying base charges first, now pays penalties first"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix frontend UI: Update penalty amounts in payment modal when recalculating (backend was correct, frontend wasn't displaying recalculated penalties)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Water Bills issues: 1) Month dropdown shows reading months (not just bill months) for generating next bills 2) Payment modal recalculates penalties when amount or date changes"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Optimize: Stop building months when no bills exist (was checking readings, now checks bills)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove debug logging for Units 106/203 and verbose build messages"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add postcss dependency to shared-components"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add buildYearDataForDisplay - calculates on-the-fly without writing to aggregatedData"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update dashboard hook to use getBillsForYear"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update WaterBillsViewV3 to use getBillsForYear"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update WaterBillsContext to use getBillsForYear instead of getAggregatedData"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Replace getAggregatedData with getBillsForYear in waterAPI"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add direct year bills endpoint, remove aggregatedData conversion function"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove aggregatedData surgical updates from controllers"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove cache methods from waterDataService (getYearData, updateMonthInCache)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove aggregatedData build/update methods and endpoints from backend"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove surgical update and cache management from waterPaymentsService"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Water Bills Payment System - Multiple Critical Fixes Applied"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add payOnDate parameter to payment distribution calculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix generateBills to update aggregatedData after bill generation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix refresh button to use proper API base URL"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix refresh button API endpoint path"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix two critical Water Bills issues"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix surgical update to use full calculation instead of hardcoded zeros"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix surgical update display fields bug"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Phase 2: Add implementation summary document"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Phase 2: Add Memory Log and Testing Checklist"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Phase 2: Eliminate Water Bills cache system"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Manager Agent: Update tracking documents and add completion logs for Tasks 1B & 1C"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add executive summary for Phase 1B and 1C completion"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add comprehensive completion documentation for Tasks 1B and 1C"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Task 1C memory log"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add credit balance import testing and targeted history cleanup"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add data cleanup script for centavos contamination"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix credit balance import to use Phase 1A new structure"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add centavos validation utility with tolerance-based integer enforcement"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update Task 1B memory log with data cleanup results"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add data cleanup script for centavos contamination"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Apply centavos validation to Transactions Controller"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Apply centavos validation to Import Service (client onboarding/data reload)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Apply centavos validation to Water Bills Service calculations"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Apply centavos validation to Credit Service balance calculations"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add centavos validation utility with tolerance-based integer enforcement"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update tracking documents with HOA Dues Refactor Roadmap"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "V0.1.0 - Water Bills Architecture Foundation Complete"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Water Bills Payment Modal Credit Balance Calculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "WB1A: Architecture validation - Confirm WB1 provides 100% pesos to frontend"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "WB1: Convert Water Bills backend to centavos (integer storage)"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete handover documentation for surgical update issue"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug(surgical-update): Identify payment cascade calculation issue"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Debug(water-payment): Add detailed logging to trace credit balance issue"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Create Task 4 - Fix import dueDate logic"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Verify Issue 3 fix - full refresh shows correct amounts"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Document import issue with bill due dates"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Create comprehensive testing guide for agents"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add CRITICAL testHarness requirement to all tasks"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Task 1 penalty integration tests"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Implementation Agent onboarding materials"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add investigation reports and task assignments"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Phase 2: Water Bills Surgical Updates - Backend Implementation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Task 2: Complete cache optimization with lightweight timestamp validation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Task 2: feat: Frontend reads from aggregatedData with fast performance"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Task 1: feat: Add Firestore write to water bills aggregator"
+        }
+      ]
+    },
+    {
+      "version": "0.0.11",
+      "date": "2025-10-12",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add SAMS API endpoint documentation"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add version 'set' command and reset to 0.0.10 for pre-production"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add interactive deployment manager with monitoring"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete version management system with automated bump and deploy"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Migrate to Firebase Hosting + Cloud Functions v2"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Water Bills Recovery - Restore lost styling and UX improvements"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Load fiscal year start month dynamically from client config"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Implement chronological water bills import with readings, bills, and payments"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Water Bills CrossRef generation during transaction import"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "19"
+          ],
+          "text": "Document upload 500 error after Firebase migration"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "18"
+          ],
+          "text": "Filter active payment methods in Expense Entry modal"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Load version.json at runtime instead of build-time bundling"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Actually fix version display by copying to public folder and enabling prebuild"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Update version info and add custom domain setup guide"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add /clients route rewrite for Firebase Hosting"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Correct backend copy in predeploy and improve .gitignore for service account keys"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Update frontend API URL to use same-origin Firebase hosting"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Improve backend copy command in predeploy"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use relative path for backend import"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Copy backend directory into functions during deployment"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Lazy-load backend app to avoid top-level await during deployment"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use namespace import for cheerio compatibility"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add production service account file to repository for Vercel deployment"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Move service account requireinside initializeFirebase function"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Make backend compatible with Vercel serverless architecture"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add missing production service account file"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix server startup by ensuring Firebase initialization happens before routes"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add comprehensive error handling for Firebase initialization"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Actually call Firebase initialization function"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Improve Firebase initialization error handling"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use environment variables for Firebase credentials instead of files"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Recover critical deployment fixes from lost commits"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add Firebase Hosting domain to CORS allowed origins"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Wrap Firebase initialization in async function for Vercel compatibility"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove conflicting routes from backend vercel.json"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add local version.json to backend deployment"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add missing getNow import to penaltyRecalculationService (pre-existing bug)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add missing getNow import to penaltyRecalculationService"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Replace fileExistswith try-catch loadJsonFilepattern"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Remove requirecalls in ES modules, use imported getFiscalYear"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Make import system client-agnostic and fix account mapping"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Final cleanup and cache updates for Firebase migration"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Major cleanup and water bills investigation complete"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Sync with main - accept remote documentation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Archiving of old scripts and test files"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Security: Use Firebase default credentials in Cloud Functions"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Security: Remove service account key from repository"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Cleanup: Remove Vercel configuration files - migration complete"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Trigger: Redeploy backend to test Oct 9 working state"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Water Bills transaction linking - cross-reference now working"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Checkpoint before checking out cursor/review-water-bill-payment-code-for-new-structure-54ba"
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2025-10-06",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Import File Upload implementation with Firebase Storage integration"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Unified import/onboarding flow via Data Management"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add 'Create New Client' to Client Selector for SuperAdmins"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add client onboarding endpoint and UI"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add client preview endpoint and critical safety check for imports"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Make Settings always available to SuperAdmins + import scripts"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Add Client, Config, and PaymentTypes to import/purge system"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use window.location.assign to force navigation to Settings"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Don't auto-close modal during onboarding"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Simple onboarding flow with success message"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use window.location.href to bypass React Router during onboarding"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Keep client selected during onboarding to avoid splash screen"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Prevent 'Redirecting' screen when selecting 'New Client'"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Reset dropdown selection when going back from onboarding"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add missing existsSync import to fix fs is not defined error"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Exclude importMetadata from recursive purge count to prevent >100% progress"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Add emitProgress function and restore config script"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Use shared progress tracker in recursive purge to prevent looping"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Add 'New Client' as dropdown option instead of button"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Remove temporary import scripts (replaced by onboarding endpoint)"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Clean up Data Management UI with sticky progress and info tooltips"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Simplify purge to single recursive client deletion with progress tracking"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Change PaymentTypes to paymentMethods with object key format support"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix transaction ID date generation bug"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix file lifecycle management and case sensitivity issues"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 CRITICAL FIX: Stop backend from deleting uploaded import files"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 RESTORE progress tracking: Fix getImportDataCounts for Firebase Storage"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 Fix dev environment: Handle Firebase Storage paths in utility functions"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "✨ Improve purge progress feedback: Show counting status with running totals"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 CRITICAL: Fix production dataPath to use Firebase Storage"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 Fix frontend dataPath logic: Use firebase_storage for onboarding"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "🔧 Fix critical import bug: Replace filesystem check with Firebase Storage check"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Production deployment: Fix backend imports and update frontend routes"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix timezone issue in expense entry and transaction API"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix paymentMethods import: Change collection name from paymentTypes to paymentMethods"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add Priority 1.5: Water Bills Data Import/Export System"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Update Implementation PlanImport/Purge System marked COMPLETE"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "CRITICAL FIX: Remove getMexicoDateTime call from DuesPaymentModal"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Remove redundant sequence list from progress display"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "CRITICAL: Add scheduledAmount and totalPaid to HOA Dues import"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix progress bars to stay at 100% when completed"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix progress bars for Categories and Vendors import"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add progress tracking to Import Metadata purge"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add real-time progress updates to purge and import operations"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix progress tracking by making import/purge async"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add starting balance support to credit balance history"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix credit balance history to match allocation calculation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix import allocation structure to match working AVII format"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix progress tracking by connecting ImportService progress callbacks"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add debugging to import progress display"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix HOA Dues Import Currency and Reference Issues"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix HOA Dues payment processing"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Split Transaction Logic - Correct Import Method"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Split Transaction Grouping Implementation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Import/Purge System - Complete Overhaul"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix transaction date timezone issues and archive completed work"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix credit balance delete reversal functionality"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix DuesPaymentModal and DigitalReceipt functionality"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Restore working HOA Dues Payment Modal functionality"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Credit Balance Edit Notes Not Being Saved"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix HOA Dues View credit balance update ReferenceError"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Infrastructure Optimization & Critical Fixes"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Split Transactions, Communications & Water Bills Integration"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Water Bills Desktop UI Washes Array Integration"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Water Bills Washes Array Integration - Desktop & PWA Compatibility"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete PWA Water Meter Data Entry Implementation"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Add water bill template save functionality to demo interface"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Fix Water Bills template processing and add MCP-enhanced development workflow"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Phase 2A Communications Enhancement - Professional Email System"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Create Communications Enhancement Master Plan & Technical Specifications"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Complete Water Bills Phase 1 - Full Transaction Linking & Service Charges"
+        },
+        {
+          "type": "other",
+          "issues": [],
+          "text": "Initial commit: SAMS (Sandy's Accounting Management System)"
+        }
+      ]
+    }
+  ]
+}

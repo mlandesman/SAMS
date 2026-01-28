@@ -218,6 +218,21 @@ if [ "$DEPLOY_TYPE" = "full" ] || [ "$DEPLOY_TYPE" = "bump-only" ]; then
         else
             print_warning "Tag v$NEW_VERSION already exists"
         fi
+        
+        # Finalize pending changelog entry
+        print_step "Finalizing changelog for v$NEW_VERSION"
+        if node scripts/finalizeChangelog.js --version $NEW_VERSION; then
+            # Commit changelog if it was updated
+            if git diff --quiet frontend/sams-ui/public/changelog.json 2>/dev/null; then
+                print_info "No pending changelog entries to finalize"
+            else
+                git add frontend/sams-ui/public/changelog.json
+                git commit --amend --no-edit
+                print_success "Changelog finalized and included in version commit"
+            fi
+        else
+            print_warning "Changelog finalization skipped (no pending entries)"
+        fi
     else
         print_error "Version bump failed"
         exit 1

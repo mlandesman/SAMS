@@ -17,6 +17,7 @@ import {
   Close as CloseIcon,
   Computer as ComputerIcon
 } from '@mui/icons-material';
+import ChangelogDisplay from '../components/ChangelogDisplay';
 
 // Sandyland Properties logo from Firebase Storage - using same URL as Sidebar
 // TODO: Update to use transparent logo from sams-sandyland-prod bucket once file permissions are configured
@@ -175,6 +176,12 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
               </Card>
             </Grid>
           </Grid>
+
+          {/* Changelog Section */}
+          <Divider sx={{ my: 3 }} />
+          <Box sx={{ px: 1 }}>
+            <ChangelogDisplay />
+          </Box>
         </Box>
       </DialogContent>
 

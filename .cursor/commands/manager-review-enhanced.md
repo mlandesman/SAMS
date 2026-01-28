@@ -95,13 +95,50 @@ Log your review to Memory Bank:
 
 When a review is **APPROVED** without challenges, you MUST complete this full archiving workflow:
 
-#### Step 1: Commit, Push and Merge is user agrees
+#### Step 1: Commit, Push and Merge if user agrees
 - Check git to see if all code changes related to this task are committed and pushed to GitHub
 - If changes are not committed, ask if they are ready to commit and push
 - Ask if this code should be merged into main and merge if approved
 - Ask if the branch should be deleted or left open for other related tasks
 
-#### Step 2: Create Archive Directory Structure
+#### Step 2: Add Changelog Entry (MANDATORY)
+
+Add an entry to the changelog for this completed work:
+
+1. **Summarize the changes** from the completion log:
+   - For single-task deployments: 2-3 bullet points describing the change
+   - For multi-task deployments: One line per task summarizing each
+   
+2. **Determine the change type:**
+   - `feat` — New feature or enhancement
+   - `fix` — Bug fix
+   - `maint` — Refactoring, maintenance, code cleanup
+   - `perf` — Performance improvement
+
+3. **Identify linked GitHub issues** (if any)
+
+4. **Run the changelog helper script:**
+   ```bash
+   node scripts/updateChangelogPending.js --type <type> --issues "<issue_numbers>" --text "<description>"
+   ```
+   
+   **Examples:**
+   ```bash
+   # Single feature with issue
+   node scripts/updateChangelogPending.js --type feat --issues "158" --text "Changelog display in About modal"
+   
+   # Bug fix with multiple issues
+   node scripts/updateChangelogPending.js --type fix --issues "115,60" --text "Fixed reconcile accounts sign flip and water service checks"
+   
+   # Feature without issue
+   node scripts/updateChangelogPending.js --type feat --text "Document upload in payment controller"
+   ```
+
+5. **Confirm the entry was added** by checking the script output
+
+**Note:** Entries are added with `version: "pending"`. The deploy script (`deploySams.sh`) will finalize by replacing "pending" with the actual version number.
+
+#### Step 3: Create Archive Directory Structure
 ```bash
 # For completed phases/tasks, create organized archive
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory/Archive"
@@ -114,7 +151,7 @@ mkdir -p "[Phase_Name]_[Date]/Test_Results"
 
 **Example**: `Phase_3_Shared_Services_Extraction_2025-10-27/`
 
-#### Step 3: Move Task Assignment Files (MOVE - prevents confusion)
+#### Step 4: Move Task Assignment Files (MOVE - prevents confusion)
 ```bash
 # Move task assignments from /apm_session/ root to archive
 # These are the files new agents might mistake as "not done yet"
@@ -125,7 +162,7 @@ mv Task_[Phase]*.md Memory/Archive/[Archive_Dir]/Task_Assignments/
 
 **Why MOVE**: Task assignments in root confuse new agents who assume work is incomplete
 
-#### Step 4: Copy Completion Logs to Archive (COPY - keep originals)
+#### Step 5: Copy Completion Logs to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) completion logs - keep originals in Task_Completion_Logs/
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
@@ -135,7 +172,7 @@ cp Task_Completion_Logs/Task_[Phase]*_Complete*.md Archive/[Archive_Dir]/Complet
 
 **Why COPY**: Keep originals accessible for quick reference
 
-#### Step 5: Copy Manager Reviews to Archive (COPY - keep originals)
+#### Step 6: Copy Manager Reviews to Archive (COPY - keep originals)
 ```bash
 # Copy (don't move) manager reviews - keep originals in Reviews/
 cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
@@ -146,7 +183,7 @@ cp Reviews/Phase_[X]_Complete_Handoff*.md Archive/[Archive_Dir]/Reviews/
 
 **Why COPY**: Keep originals for reference, archive for organization
 
-#### Step 6: Move Summary Documents to Archive (MOVE)
+#### Step 7: Move Summary Documents to Archive (MOVE)
 ```bash
 # Move phase/project summary documents from /apm_session/ root to archive
 cd "/Users/michael/Projects/SAMS-Docs/apm_session"
@@ -155,7 +192,7 @@ mv [PHASE]_MANAGER_REVIEW_COMPLETE_SUMMARY.md Memory/Archive/[Archive_Dir]/
 mv [PHASE]_COMPLETION_SUMMARY.md Memory/Archive/[Archive_Dir]/ (if exists)
 ```
 
-#### Step 7: Create Archive README
+#### Step 8: Create Archive README
 Create comprehensive README in archive directory explaining:
 - What was accomplished (deliverables, metrics)
 - Why it's archived (phase complete)
@@ -163,7 +200,7 @@ Create comprehensive README in archive directory explaining:
 - Archive contents (organized by subdirectory)
 - References to Implementation Plan and Project Tracking
 
-#### Step 8: Update Implementation Plan
+#### Step 9: Update Implementation Plan
 ```markdown
 # Mark phase/task as COMPLETE with:
 - ✅ COMPLETE status and date
@@ -175,7 +212,7 @@ Create comprehensive README in archive directory explaining:
 - Strategic value/impact
 ```
 
-#### Step 9: Create Archive Log Entry
+#### Step 10: Create Archive Log Entry
 Create or append to: `Memory/ARCHIVE_LOG_[YYYY-MM-DD].md`
 
 Document:
@@ -185,11 +222,11 @@ Document:
 - Archive structure created
 - Files moved vs copied
 
-#### Step 10: Update TODO List
+#### Step 11: Update TODO List
 Mark all related TODOs as completed
 
 
-#### Step 11: Update GitHub Issues
+#### Step 12: Update GitHub Issues
 If GitHub issues (Bugs or Enhancements) were linked to this task, update or close them.
 
 ---
@@ -198,6 +235,7 @@ If GitHub issues (Bugs or Enhancements) were linked to this task, update or clos
 
 Use this checklist for EVERY approved review:
 
+- [ ] **Changelog entry added** via `node scripts/updateChangelogPending.js`
 - [ ] Archive directory created: `/Memory/Archive/[Phase_Name]_[Date]/`
 - [ ] Subdirectories created: `Task_Assignments/`, `Completion_Logs/`, `Reviews/`
 - [ ] Task assignments MOVED to archive (prevents agent confusion)
