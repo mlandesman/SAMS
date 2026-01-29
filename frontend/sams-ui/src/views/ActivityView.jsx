@@ -8,6 +8,7 @@ import ListManagementView from './ListManagementView';
 import SettingsView from './SettingsView';
 import ReportsView from './ReportsView';
 import BudgetView from './BudgetView';
+import ProjectsView from './ProjectsView';
 import PropaneView from '../components/propane/PropaneView';
 import { HOADuesProvider } from '../context/HOADuesContext';
 import { WaterBillsProvider } from '../context/WaterBillsContext';
@@ -25,8 +26,8 @@ const ACTIVITY_VIEWS = {
   ),
   'waterbills': () => <WaterBillsSimple />,
   'reports': () => <ReportsView />,
-  // We could dynamically load these, but for now we'll handle unimplemented views with a placeholder
-  'projects': () => <PlaceholderView title="Projects" />,
+  // Special Assessment Projects view
+  'projects': () => <ProjectsView />,
   'budgets': () => <BudgetView />,
   'listmanagement': () => (
     <ListManagementProvider>

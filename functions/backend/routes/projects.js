@@ -2,6 +2,13 @@
 import express from 'express';
 import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/clientAuth.js';
 import {
+  listProjectsHandler,
+  getProjectHandler,
+  createProjectHandler,
+  updateProjectHandler,
+  deleteProjectHandler
+} from '../controllers/projectsController.js';
+import {
   getProjectPeriod,
   updateProjectData,
   processProjectPayment,
@@ -24,7 +31,34 @@ router.use(authenticateUserWithProfile);
 router.use(enforceClientAccess);
 
 /**
- * Generic project routes
+ * Special Assessment Projects Routes (MUST be before :projectType routes)
+ * These handle actual project entities like "column-repairs-2025"
+ */
+
+// List all projects for a client
+// GET /api/clients/:clientId/projects
+// Query params: year (optional) - filter by fiscal year
+router.get('/', listProjectsHandler);
+
+// Create a new project
+// POST /api/clients/:clientId/projects
+router.post('/', createProjectHandler);
+
+// Get a single project by ID
+// GET /api/clients/:clientId/projects/:projectId
+// Note: If projectId matches a known projectType (waterBills, etc), it falls through to the next handler
+router.get('/:projectId', getProjectHandler);
+
+// Update a project
+// PUT /api/clients/:clientId/projects/:projectId
+router.put('/:projectId', updateProjectHandler);
+
+// Delete a project
+// DELETE /api/clients/:clientId/projects/:projectId
+router.delete('/:projectId', deleteProjectHandler);
+
+/**
+ * Generic project TYPE routes
  * These work for any project type: waterBills, propane, roofAssessments, etc.
  */
 

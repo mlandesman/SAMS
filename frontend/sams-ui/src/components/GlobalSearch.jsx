@@ -3,10 +3,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
 import './GlobalSearch.css';
 
-const GlobalSearch = ({ onSearch, onClear, isActive }) => {
+const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder = "Search..." }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const inputRef = useRef(null);
+  const containerRef = useRef(null);  // For click-outside detection
+  const inputRef = useRef(null);       // For auto-focus
 
   const handleClose = useCallback(() => {
     setIsExpanded(false);
@@ -26,7 +27,7 @@ const GlobalSearch = ({ onSearch, onClear, isActive }) => {
   // Handle clicking outside to close
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (inputRef.current && !inputRef.current.contains(event.target)) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
         handleClose();
       }
     };
@@ -57,17 +58,21 @@ const GlobalSearch = ({ onSearch, onClear, isActive }) => {
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       handleClose();
+    } else if (e.key === 'Enter' && searchTerm.trim() && onEnter) {
+      // Allow parent to handle Enter (e.g., select first result)
+      onEnter(searchTerm.trim());
     }
   };
 
   return (
     <div className={`global-search ${isExpanded ? 'expanded' : ''} ${isActive ? 'active' : ''}`}>
       {isExpanded ? (
-        <div className="search-input-container" ref={inputRef}>
+        <div className="search-input-container" ref={containerRef}>
           <FontAwesomeIcon icon={faSearch} className="search-icon" />
           <input
+            ref={inputRef}
             type="text"
-            placeholder="Search all transactions..."
+            placeholder={placeholder}
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -85,7 +90,7 @@ const GlobalSearch = ({ onSearch, onClear, isActive }) => {
         <button 
           className="search-toggle-btn" 
           onClick={handleToggle}
-          title="Search transactions"
+          title="Search"
         >
           <FontAwesomeIcon icon={faSearch} />
         </button>

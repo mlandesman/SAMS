@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.9.3 | **Build:** 260128  
-**Last Updated:** January 28, 2026 — Sprint B2 complete  
+**Version:** v1.10.0 | **Build:** 260128  
+**Last Updated:** January 28, 2026 — Sprint PM (PM1 complete)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,14 +25,47 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### ⏸️ No Active Sprint
-*Ready to start next sprint when prioritized*
+### Sprint PM: Project Management & Special Assessments 🚧 IN PROGRESS
+**Started:** January 28, 2026  
+**Branch:** `sprint/PM-projects-module`
 
-**Next Sprint:** CL1 — Changelog Feature (3-4h)
+#### PM1: Projects View + API ✅ COMPLETE
+- Backend: `projectsController.js` with list/get handlers
+- Frontend: `ProjectsView.jsx` with SAMS UI patterns
+- Search: Cross-year search with GlobalSearch integration
+- UI: FA icons, YearNavigation, auto-select, empty states
+
+#### PM2: Project Detail + CRUD ⏳ NEXT
+- ProjectDetailView with unit assessments table
+- VendorPaymentsTable component
+- ProjectFormModal for create/edit
+- Delete functionality
+
+**Memory Log:** `SAMS-Docs/apm_session/Memory/Task_Completion_Logs/PM1_Projects_View_API_2026-01-28.md`
 
 ---
 
 ## Recently Completed
+
+### Sprint CL1: Changelog Feature ✅ COMPLETE
+**Completed:** January 28, 2026  
+**Issue:** #158 — Add Changelog Feature to About Modal  
+**Duration:** ~4 hours (vs 3-4h estimated)  
+**Quality:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- ChangelogDisplay component in About modal with color-coded types
+- Curated changelog.json with 556 entries from git history
+- updateChangelogPending.js script for adding entries during reviews
+- finalizeChangelog.js script for version stamping at deploy
+- transformChangelog.js for regenerating from seed data
+- Updated manager-review-enhanced command with changelog step
+- deploySams.sh auto-finalizes pending changelog on version bump
+
+**Files:** 5 scripts, 1 component, 2 config files  
+**Commit:** `8989fca`
+
+---
 
 ### Sprint B2: General Bug Fixes #1 ✅ COMPLETE
 **Completed:** January 28, 2026  
