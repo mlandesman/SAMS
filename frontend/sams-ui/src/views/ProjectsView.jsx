@@ -476,12 +476,34 @@ function ProjectsView() {
   };
   
   /**
+   * Check if project can be deleted (no financial records)
+   */
+  const canDeleteProject = (project) => {
+    if (!project) return false;
+    const hasCollections = project.collections && project.collections.length > 0;
+    const hasPayments = project.payments && project.payments.length > 0;
+    return !hasCollections && !hasPayments;
+  };
+  
+  /**
    * Handle opening delete confirmation
    */
   const handleDeleteClick = () => {
-    if (selectedProject) {
-      setIsDeleteDialogOpen(true);
+    if (!selectedProject) return;
+    
+    // Check for financial records before showing confirmation
+    if (!canDeleteProject(selectedProject)) {
+      const collectionCount = selectedProject.collections?.length || 0;
+      const paymentCount = selectedProject.payments?.length || 0;
+      setError(
+        `Cannot delete project with financial records. ` +
+        `This project has ${collectionCount} collection(s) and ${paymentCount} payment(s). ` +
+        `Change the status to "Archived" instead.`
+      );
+      return;
     }
+    
+    setIsDeleteDialogOpen(true);
   };
   
   /**
@@ -501,8 +523,17 @@ function ProjectsView() {
       
       setIsDeleteDialogOpen(false);
     } catch (err) {
-      console.error('Error deleting project:', err);
-      setError(`Failed to delete project: ${err.message}`);
+      // Close dialog first
+      setIsDeleteDialogOpen(false);
+      
+      // Check if this is the "has financial records" validation
+      if (err.message && err.message.includes('Cannot delete project with financial records')) {
+        // Show as a warning, not an error
+        setError(err.message);
+      } else {
+        console.error('Error deleting project:', err);
+        setError(`Failed to delete project: ${err.message}`);
+      }
     } finally {
       setIsSaving(false);
     }

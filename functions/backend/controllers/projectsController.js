@@ -334,6 +334,22 @@ export async function deleteProject(clientId, projectId) {
     throw new Error('Project not found');
   }
   
+  const projectData = existing.data();
+  
+  // Check for associated transactions - cannot delete if any exist
+  const hasCollections = projectData.collections && projectData.collections.length > 0;
+  const hasPayments = projectData.payments && projectData.payments.length > 0;
+  
+  if (hasCollections || hasPayments) {
+    const collectionCount = projectData.collections?.length || 0;
+    const paymentCount = projectData.payments?.length || 0;
+    throw new Error(
+      `Cannot delete project with financial records. ` +
+      `This project has ${collectionCount} collection(s) and ${paymentCount} payment(s). ` +
+      `Archive the project instead.`
+    );
+  }
+  
   await docRef.delete();
   
   return true;
@@ -367,10 +383,14 @@ export async function createProjectHandler(req, res) {
     const project = await createProject(clientId, projectData);
     
     // Audit log
-    const userId = req.user?.uid || 'system';
-    await writeAuditLog(clientId, userId, 'project_created', {
-      projectId: project.projectId,
-      projectName: project.name
+    await writeAuditLog({
+      module: 'projects',
+      action: 'create',
+      parentPath: `clients/${clientId}/projects`,
+      docId: project.projectId,
+      friendlyName: project.name,
+      notes: `Created by ${req.user?.email || 'system'}`,
+      clientId: clientId
     });
     
     console.log(`✅ Created project: ${project.name}`);
@@ -425,10 +445,14 @@ export async function updateProjectHandler(req, res) {
     const project = await updateProject(clientId, projectId, updates);
     
     // Audit log
-    const userId = req.user?.uid || 'system';
-    await writeAuditLog(clientId, userId, 'project_updated', {
-      projectId: project.projectId,
-      projectName: project.name
+    await writeAuditLog({
+      module: 'projects',
+      action: 'update',
+      parentPath: `clients/${clientId}/projects`,
+      docId: project.projectId,
+      friendlyName: project.name,
+      notes: `Updated by ${req.user?.email || 'system'}`,
+      clientId: clientId
     });
     
     console.log(`✅ Updated project: ${project.name}`);
@@ -482,9 +506,14 @@ export async function deleteProjectHandler(req, res) {
     await deleteProject(clientId, projectId);
     
     // Audit log
-    const userId = req.user?.uid || 'system';
-    await writeAuditLog(clientId, userId, 'project_deleted', {
-      projectId: projectId
+    await writeAuditLog({
+      module: 'projects',
+      action: 'delete',
+      parentPath: `clients/${clientId}/projects`,
+      docId: projectId,
+      friendlyName: `Project ${projectId}`,
+      notes: `Deleted by ${req.user?.email || 'system'}`,
+      clientId: clientId
     });
     
     console.log(`✅ Deleted project: ${projectId}`);
@@ -495,6 +524,16 @@ export async function deleteProjectHandler(req, res) {
     });
     
   } catch (error) {
+    // Check if this is a validation rejection (not a real error)
+    if (error.message.includes('Cannot delete project with financial records')) {
+      console.log(`ℹ️ Delete blocked for ${req.params.projectId}: has financial records`);
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // Actual errors
     console.error('❌ Error deleting project:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,

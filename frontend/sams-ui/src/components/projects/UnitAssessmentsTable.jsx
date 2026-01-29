@@ -190,6 +190,14 @@ function UnitAssessmentsTable({ unitAssessments, collections }) {
       });
   }, [unitAssessments]);
   
+  // Calculate totals - must be before any early returns (React hooks rule)
+  const totals = useMemo(() => {
+    return assessmentsList.reduce((acc, a) => ({
+      expected: acc.expected + (a.exempt ? 0 : (a.expectedAmount || 0)),
+      paid: acc.paid + (a.actualPaid || 0)
+    }), { expected: 0, paid: 0 });
+  }, [assessmentsList]);
+  
   if (assessmentsList.length === 0) {
     return (
       <Box sx={{ py: 2, textAlign: 'center' }}>
@@ -199,14 +207,6 @@ function UnitAssessmentsTable({ unitAssessments, collections }) {
       </Box>
     );
   }
-  
-  // Calculate totals
-  const totals = useMemo(() => {
-    return assessmentsList.reduce((acc, a) => ({
-      expected: acc.expected + (a.exempt ? 0 : (a.expectedAmount || 0)),
-      paid: acc.paid + (a.actualPaid || 0)
-    }), { expected: 0, paid: 0 });
-  }, [assessmentsList]);
   
   return (
     <TableContainer component={Paper} variant="outlined">
