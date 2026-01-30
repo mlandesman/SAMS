@@ -27,7 +27,8 @@ import { getProjects, getProject, createProject, updateProject, deleteProject } 
 import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import GlobalSearch from '../components/GlobalSearch';
-import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal } from '../components/projects';
+import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal } from '../components/projects';
+import { faGavel } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './HOADuesView.css'; // Reuse HOADuesView styling
@@ -116,6 +117,9 @@ function ProjectsView() {
   const [editingProject, setEditingProject] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Bids modal state
+  const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
   
   /**
    * Extract fiscal year from a project's startDate
@@ -547,6 +551,29 @@ function ProjectsView() {
     console.log('Navigate to transaction:', transactionId);
   };
   
+  /**
+   * Handle opening the bids modal
+   */
+  const handleOpenBids = () => {
+    if (selectedProject) {
+      setIsBidsModalOpen(true);
+    }
+  };
+  
+  /**
+   * Handle project update from bids modal (when bid is selected/unselected)
+   */
+  const handleProjectUpdateFromBids = async (updatedProject) => {
+    // Refresh the project list
+    await loadProjects();
+    
+    // Also refresh the selected project details since selectedProjectId hasn't changed
+    // but the project data has
+    if (selectedProjectId) {
+      await loadProjectDetails(selectedProjectId);
+    }
+  };
+  
   if (!selectedClient) {
     return <Alert severity="info">Please select a client</Alert>;
   }
@@ -760,6 +787,47 @@ function ProjectsView() {
                 </Box>
               )}
               
+              {/* Bids Summary Section */}
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  mt: 3, 
+                  p: 2, 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  backgroundColor: selectedProject.selectedBidId ? 'rgba(76, 175, 80, 0.04)' : 'rgba(25, 118, 210, 0.04)'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <FontAwesomeIcon icon={faGavel} style={{ color: '#666', fontSize: 18 }} />
+                  {selectedProject.selectedBidId ? (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Selected Bid
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedProject.vendor?.name || 'Vendor'} • {formatCurrency(selectedProject.totalCost)}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      {selectedProject.status === 'bidding' || selectedProject.status === 'proposed' 
+                        ? 'No bid selected yet' 
+                        : 'Bids'}
+                    </Typography>
+                  )}
+                </Box>
+                <button 
+                  className="action-item"
+                  onClick={handleOpenBids}
+                  style={{ padding: '6px 12px', fontSize: '0.875rem' }}
+                >
+                  <FontAwesomeIcon icon={faGavel} />
+                  <span>{selectedProject.selectedBidId ? 'View All Bids' : 'Manage Bids'}</span>
+                </button>
+              </Paper>
+              
               {/* Unit Assessments Section */}
               <Box sx={{ mt: 4 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
@@ -815,6 +883,14 @@ function ProjectsView() {
         onConfirm={handleDeleteConfirm}
         onClose={() => setIsDeleteDialogOpen(false)}
         confirmButtonClass="danger"
+      />
+      
+      {/* Bids Management Modal */}
+      <BidsManagementModal
+        isOpen={isBidsModalOpen}
+        onClose={() => setIsBidsModalOpen(false)}
+        project={selectedProject}
+        onProjectUpdate={handleProjectUpdateFromBids}
       />
     </div>
   );

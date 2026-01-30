@@ -6,7 +6,15 @@ import {
   getProjectHandler,
   createProjectHandler,
   updateProjectHandler,
-  deleteProjectHandler
+  deleteProjectHandler,
+  // Bids handlers
+  listBidsHandler,
+  getBidHandler,
+  createBidHandler,
+  updateBidHandler,
+  deleteBidHandler,
+  selectBidHandler,
+  unselectBidHandler
 } from '../controllers/projectsController.js';
 import {
   getProjectPeriod,
@@ -56,6 +64,39 @@ router.put('/:projectId', updateProjectHandler);
 // Delete a project
 // DELETE /api/clients/:clientId/projects/:projectId
 router.delete('/:projectId', deleteProjectHandler);
+
+/**
+ * Bids Routes (subcollection under projects)
+ * These handle bid management for special assessment projects
+ */
+
+// List all bids for a project
+// GET /api/clients/:clientId/projects/:projectId/bids
+router.get('/:projectId/bids', listBidsHandler);
+
+// Unselect current bid (must be before /:bidId routes)
+// POST /api/clients/:clientId/projects/:projectId/bids/unselect
+router.post('/:projectId/bids/unselect', unselectBidHandler);
+
+// Create a new bid
+// POST /api/clients/:clientId/projects/:projectId/bids
+router.post('/:projectId/bids', createBidHandler);
+
+// Get a single bid
+// GET /api/clients/:clientId/projects/:projectId/bids/:bidId
+router.get('/:projectId/bids/:bidId', getBidHandler);
+
+// Update a bid
+// PUT /api/clients/:clientId/projects/:projectId/bids/:bidId
+router.put('/:projectId/bids/:bidId', updateBidHandler);
+
+// Delete a bid
+// DELETE /api/clients/:clientId/projects/:projectId/bids/:bidId
+router.delete('/:projectId/bids/:bidId', deleteBidHandler);
+
+// Select a bid
+// POST /api/clients/:clientId/projects/:projectId/bids/:bidId/select
+router.post('/:projectId/bids/:bidId/select', selectBidHandler);
 
 /**
  * Generic project TYPE routes

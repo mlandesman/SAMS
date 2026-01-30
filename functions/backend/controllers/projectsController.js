@@ -10,6 +10,7 @@
 
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { getMexicoDateString } from '../utils/timezone.js';
 
 // Documents to exclude from project listings (structural, not projects)
 const EXCLUDED_PROJECT_IDS = ['waterBills', 'propaneTanks'];
@@ -536,6 +537,575 @@ export async function deleteProjectHandler(req, res) {
     // Actual errors
     console.error('❌ Error deleting project:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+// ============================================================
+// BIDS MANAGEMENT
+// Bids are stored as a subcollection: clients/{clientId}/projects/{projectId}/bids/{bidId}
+// ============================================================
+
+/**
+ * List all bids for a project
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @returns {Promise<Array>} Array of bid objects
+ */
+export async function listBids(clientId, projectId) {
+  const db = await getDb();
+  
+  const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
+  const snapshot = await bidsRef.orderBy('createdAt', 'desc').get();
+  
+  const bids = [];
+  snapshot.forEach(doc => {
+    bids.push({
+      id: doc.id,
+      ...doc.data()
+    });
+  });
+  
+  return bids;
+}
+
+/**
+ * Get a single bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @returns {Promise<Object|null>} Bid object or null
+ */
+export async function getBid(clientId, projectId, bidId) {
+  const db = await getDb();
+  
+  const docRef = db.doc(`clients/${clientId}/projects/${projectId}/bids/${bidId}`);
+  const doc = await docRef.get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+  
+  return {
+    id: doc.id,
+    ...doc.data()
+  };
+}
+
+/**
+ * Create a new bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {Object} bidData - The bid data
+ * @returns {Promise<Object>} Created bid object
+ */
+export async function createBid(clientId, projectId, bidData) {
+  const db = await getDb();
+  
+  const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
+  
+  // Create initial revision from bid data
+  const initialRevision = {
+    revisionNumber: 1,
+    submittedAt: bidData.submittedAt || getMexicoDateString(),
+    amount: bidData.amount || 0,
+    timeline: bidData.timeline || '',
+    description: bidData.description || '',
+    inclusions: bidData.inclusions || '',
+    exclusions: bidData.exclusions || '',
+    paymentTerms: bidData.paymentTerms || '',
+    notes: bidData.notes || '',
+    documents: bidData.documents || []
+  };
+  
+  const bid = {
+    vendorName: bidData.vendorName,
+    vendorContact: bidData.vendorContact || {},
+    status: 'active',
+    currentRevision: 1,
+    revisions: [initialRevision],
+    communications: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const docRef = await bidsRef.add(bid);
+  
+  return {
+    id: docRef.id,
+    ...bid
+  };
+}
+
+/**
+ * Update a bid (add revision or update metadata)
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @param {Object} updates - The updates
+ * @returns {Promise<Object>} Updated bid object
+ */
+export async function updateBid(clientId, projectId, bidId, updates) {
+  const db = await getDb();
+  
+  const docRef = db.doc(`clients/${clientId}/projects/${projectId}/bids/${bidId}`);
+  const doc = await docRef.get();
+  
+  if (!doc.exists) {
+    throw new Error('Bid not found');
+  }
+  
+  const currentData = doc.data();
+  
+  // If adding a new revision
+  if (updates.newRevision) {
+    const newRevisionNumber = currentData.currentRevision + 1;
+    const newRevision = {
+      revisionNumber: newRevisionNumber,
+      submittedAt: updates.newRevision.submittedAt || getMexicoDateString(),
+      amount: updates.newRevision.amount,
+      timeline: updates.newRevision.timeline || '',
+      description: updates.newRevision.description || '',
+      inclusions: updates.newRevision.inclusions || '',
+      exclusions: updates.newRevision.exclusions || '',
+      paymentTerms: updates.newRevision.paymentTerms || '',
+      notes: updates.newRevision.notes || '',
+      documents: updates.newRevision.documents || []
+    };
+    
+    await docRef.update({
+      currentRevision: newRevisionNumber,
+      revisions: [...currentData.revisions, newRevision],
+      updatedAt: new Date().toISOString()
+    });
+  } 
+  // If adding a communication
+  else if (updates.newCommunication) {
+    const comm = {
+      date: getMexicoDateString(),
+      type: updates.newCommunication.type || 'note',
+      message: updates.newCommunication.message,
+      by: updates.newCommunication.by || 'Unknown'
+    };
+    
+    await docRef.update({
+      communications: [...currentData.communications, comm],
+      updatedAt: new Date().toISOString()
+    });
+  }
+  // General metadata update
+  else {
+    const allowedFields = ['vendorName', 'vendorContact', 'status'];
+    const updateData = { updatedAt: new Date().toISOString() };
+    
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        updateData[field] = updates[field];
+      }
+    }
+    
+    await docRef.update(updateData);
+  }
+  
+  // Fetch and return updated bid
+  const updated = await docRef.get();
+  return {
+    id: updated.id,
+    ...updated.data()
+  };
+}
+
+/**
+ * Delete a bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @returns {Promise<boolean>} True if deleted
+ */
+export async function deleteBid(clientId, projectId, bidId) {
+  const db = await getDb();
+  
+  const docRef = db.doc(`clients/${clientId}/projects/${projectId}/bids/${bidId}`);
+  const doc = await docRef.get();
+  
+  if (!doc.exists) {
+    throw new Error('Bid not found');
+  }
+  
+  const bidData = doc.data();
+  
+  // Cannot delete a selected bid
+  if (bidData.status === 'selected') {
+    throw new Error('Cannot delete a selected bid. Unselect it first.');
+  }
+  
+  await docRef.delete();
+  
+  return true;
+}
+
+/**
+ * Select a bid - marks it as selected, rejects others, updates project
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID to select
+ * @returns {Promise<Object>} Updated project object
+ */
+export async function selectBid(clientId, projectId, bidId) {
+  const db = await getDb();
+  
+  // Get the bid to select
+  const bidRef = db.doc(`clients/${clientId}/projects/${projectId}/bids/${bidId}`);
+  const bidDoc = await bidRef.get();
+  
+  if (!bidDoc.exists) {
+    throw new Error('Bid not found');
+  }
+  
+  const bidData = bidDoc.data();
+  const currentRevision = bidData.revisions[bidData.currentRevision - 1];
+  
+  // Get all bids for this project
+  const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
+  const allBids = await bidsRef.get();
+  
+  // Update all bids: selected one gets 'selected', others get 'rejected'
+  const batch = db.batch();
+  
+  allBids.forEach(doc => {
+    if (doc.id === bidId) {
+      batch.update(doc.ref, { 
+        status: 'selected',
+        selectedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    } else if (doc.data().status === 'active') {
+      batch.update(doc.ref, { 
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+    }
+  });
+  
+  // Update the project with vendor and cost from selected bid
+  const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+  batch.update(projectRef, {
+    vendor: {
+      name: bidData.vendorName,
+      contact: bidData.vendorContact?.phone || bidData.vendorContact?.email || '',
+      notes: `Selected from bid on ${getMexicoDateString()}`
+    },
+    vendors: [bidData.vendorName],
+    totalCost: currentRevision.amount,
+    selectedBidId: bidId,
+    status: 'approved',
+    'metadata.updatedAt': new Date().toISOString()
+  });
+  
+  await batch.commit();
+  
+  // Return updated project
+  const updatedProject = await projectRef.get();
+  return {
+    projectId: updatedProject.id,
+    ...updatedProject.data()
+  };
+}
+
+/**
+ * Unselect the current bid - allows re-selection
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @returns {Promise<Object>} Updated project object
+ */
+export async function unselectBid(clientId, projectId) {
+  const db = await getDb();
+  
+  // Get all bids for this project
+  const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
+  const allBids = await bidsRef.get();
+  
+  // Reset all bids to 'active'
+  const batch = db.batch();
+  
+  allBids.forEach(doc => {
+    const status = doc.data().status;
+    if (status === 'selected' || status === 'rejected') {
+      batch.update(doc.ref, { 
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      });
+    }
+  });
+  
+  // Clear project's selected bid info, set back to bidding
+  const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+  batch.update(projectRef, {
+    selectedBidId: null,
+    status: 'bidding',
+    'metadata.updatedAt': new Date().toISOString()
+  });
+  
+  await batch.commit();
+  
+  // Return updated project
+  const updatedProject = await projectRef.get();
+  return {
+    projectId: updatedProject.id,
+    ...updatedProject.data()
+  };
+}
+
+// ============================================================
+// BIDS EXPRESS HANDLERS
+// ============================================================
+
+/**
+ * List all bids for a project
+ * GET /api/clients/:clientId/projects/:projectId/bids
+ */
+export async function listBidsHandler(req, res) {
+  try {
+    const { clientId, projectId } = req.params;
+    
+    console.log(`📋 Fetching bids for project ${projectId}`);
+    
+    const bids = await listBids(clientId, projectId);
+    
+    console.log(`✅ Found ${bids.length} bids`);
+    
+    return res.json({
+      success: true,
+      count: bids.length,
+      data: bids
+    });
+    
+  } catch (error) {
+    console.error('❌ Error listing bids:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Get a single bid
+ * GET /api/clients/:clientId/projects/:projectId/bids/:bidId
+ */
+export async function getBidHandler(req, res) {
+  try {
+    const { clientId, projectId, bidId } = req.params;
+    
+    const bid = await getBid(clientId, projectId, bidId);
+    
+    if (!bid) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bid not found'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      data: bid
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting bid:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Create a new bid
+ * POST /api/clients/:clientId/projects/:projectId/bids
+ */
+export async function createBidHandler(req, res) {
+  try {
+    const { clientId, projectId } = req.params;
+    const bidData = req.body;
+    
+    if (!bidData.vendorName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Vendor name is required'
+      });
+    }
+    
+    console.log(`📝 Creating bid for project ${projectId}`);
+    
+    const bid = await createBid(clientId, projectId, bidData);
+    
+    // Audit log
+    await writeAuditLog({
+      module: 'bids',
+      action: 'create',
+      parentPath: `clients/${clientId}/projects/${projectId}/bids`,
+      docId: bid.id,
+      friendlyName: `Bid from ${bid.vendorName}`,
+      notes: `Created by ${req.user?.email || 'system'}`,
+      clientId: clientId
+    });
+    
+    console.log(`✅ Created bid from ${bid.vendorName}`);
+    
+    return res.status(201).json({
+      success: true,
+      data: bid
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating bid:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Update a bid
+ * PUT /api/clients/:clientId/projects/:projectId/bids/:bidId
+ */
+export async function updateBidHandler(req, res) {
+  try {
+    const { clientId, projectId, bidId } = req.params;
+    const updates = req.body;
+    
+    console.log(`📝 Updating bid ${bidId}`);
+    
+    const bid = await updateBid(clientId, projectId, bidId, updates);
+    
+    console.log(`✅ Updated bid ${bidId}`);
+    
+    return res.json({
+      success: true,
+      data: bid
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating bid:', error);
+    return res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Delete a bid
+ * DELETE /api/clients/:clientId/projects/:projectId/bids/:bidId
+ */
+export async function deleteBidHandler(req, res) {
+  try {
+    const { clientId, projectId, bidId } = req.params;
+    
+    console.log(`🗑️ Deleting bid ${bidId}`);
+    
+    await deleteBid(clientId, projectId, bidId);
+    
+    // Audit log
+    await writeAuditLog({
+      module: 'bids',
+      action: 'delete',
+      parentPath: `clients/${clientId}/projects/${projectId}/bids`,
+      docId: bidId,
+      friendlyName: `Bid ${bidId}`,
+      notes: `Deleted by ${req.user?.email || 'system'}`,
+      clientId: clientId
+    });
+    
+    console.log(`✅ Deleted bid ${bidId}`);
+    
+    return res.json({
+      success: true,
+      message: 'Bid deleted'
+    });
+    
+  } catch (error) {
+    // Handle validation errors cleanly
+    if (error.message.includes('Cannot delete')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    console.error('❌ Error deleting bid:', error);
+    return res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Select a bid
+ * POST /api/clients/:clientId/projects/:projectId/bids/:bidId/select
+ */
+export async function selectBidHandler(req, res) {
+  try {
+    const { clientId, projectId, bidId } = req.params;
+    
+    console.log(`✅ Selecting bid ${bidId} for project ${projectId}`);
+    
+    const project = await selectBid(clientId, projectId, bidId);
+    
+    // Audit log
+    await writeAuditLog({
+      module: 'bids',
+      action: 'select',
+      parentPath: `clients/${clientId}/projects/${projectId}/bids`,
+      docId: bidId,
+      friendlyName: `Selected bid for ${project.name}`,
+      notes: `Selected by ${req.user?.email || 'system'}, amount: ${project.totalCost}`,
+      clientId: clientId
+    });
+    
+    console.log(`✅ Bid selected, project updated`);
+    
+    return res.json({
+      success: true,
+      data: project
+    });
+    
+  } catch (error) {
+    console.error('❌ Error selecting bid:', error);
+    return res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Unselect the current bid
+ * POST /api/clients/:clientId/projects/:projectId/bids/unselect
+ */
+export async function unselectBidHandler(req, res) {
+  try {
+    const { clientId, projectId } = req.params;
+    
+    console.log(`↩️ Unselecting bid for project ${projectId}`);
+    
+    const project = await unselectBid(clientId, projectId);
+    
+    console.log(`✅ Bid unselected, project back to bidding`);
+    
+    return res.json({
+      success: true,
+      data: project
+    });
+    
+  } catch (error) {
+    console.error('❌ Error unselecting bid:', error);
+    return res.status(500).json({
       success: false,
       error: error.message
     });

@@ -224,3 +224,270 @@ export async function deleteProject(clientId, projectId) {
     throw error;
   }
 }
+
+// ============================================================
+// BIDS API
+// ============================================================
+
+/**
+ * Get all bids for a project
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @returns {Promise<Object>} Response with bids data
+ */
+export async function getBids(clientId, projectId) {
+  try {
+    console.log(`📋 Fetching bids for project: ${projectId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids`,
+      {
+        method: 'GET',
+        headers,
+        credentials: 'include'
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Fetched ${result.count} bids`);
+      return result;
+    } else {
+      console.error('❌ Failed to fetch bids:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching bids:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @returns {Promise<Object>} Response with bid data
+ */
+export async function getBid(clientId, projectId, bidId) {
+  try {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/${bidId}`,
+      {
+        method: 'GET',
+        headers,
+        credentials: 'include'
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      return result;
+    } else {
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching bid:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a new bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {Object} bidData - The bid data
+ * @returns {Promise<Object>} Response with created bid data
+ */
+export async function createBid(clientId, projectId, bidData) {
+  try {
+    console.log(`📝 Creating bid for project: ${projectId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids`,
+      {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(bidData)
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Created bid from ${result.data.vendorName}`);
+      return result;
+    } else {
+      console.error('❌ Failed to create bid:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error creating bid:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @param {Object} updates - The updates (can include newRevision or newCommunication)
+ * @returns {Promise<Object>} Response with updated bid data
+ */
+export async function updateBid(clientId, projectId, bidId, updates) {
+  try {
+    console.log(`📝 Updating bid: ${bidId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/${bidId}`,
+      {
+        method: 'PUT',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Updated bid: ${bidId}`);
+      return result;
+    } else {
+      console.error('❌ Failed to update bid:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error updating bid:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a bid
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID
+ * @returns {Promise<Object>} Response confirming deletion
+ */
+export async function deleteBid(clientId, projectId, bidId) {
+  try {
+    console.log(`🗑️ Deleting bid: ${bidId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/${bidId}`,
+      {
+        method: 'DELETE',
+        headers,
+        credentials: 'include'
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Deleted bid: ${bidId}`);
+      return result;
+    } else {
+      console.error('❌ Failed to delete bid:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error deleting bid:', error);
+    throw error;
+  }
+}
+
+/**
+ * Select a bid (marks as selected, updates project)
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} bidId - The bid ID to select
+ * @returns {Promise<Object>} Response with updated project data
+ */
+export async function selectBid(clientId, projectId, bidId) {
+  try {
+    console.log(`✅ Selecting bid ${bidId} for project: ${projectId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/${bidId}/select`,
+      {
+        method: 'POST',
+        headers,
+        credentials: 'include'
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Bid selected, project updated`);
+      return result;
+    } else {
+      console.error('❌ Failed to select bid:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error selecting bid:', error);
+    throw error;
+  }
+}
+
+/**
+ * Unselect the current bid (allows re-selection)
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @returns {Promise<Object>} Response with updated project data
+ */
+export async function unselectBid(clientId, projectId) {
+  try {
+    console.log(`↩️ Unselecting bid for project: ${projectId}`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/unselect`,
+      {
+        method: 'POST',
+        headers,
+        credentials: 'include'
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Bid unselected`);
+      return result;
+    } else {
+      console.error('❌ Failed to unselect bid:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error unselecting bid:', error);
+    throw error;
+  }
+}
