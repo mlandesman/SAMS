@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Projects module with bids management, document attachments, folder grouping, and full CRUD operations (PM1-PM4)"
+        }
+      ]
+    },
+    {
       "version": "1.10.0",
       "date": "2026-01-28",
       "changes": [
