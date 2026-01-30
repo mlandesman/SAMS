@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.10.0 | **Build:** 260128  
-**Last Updated:** January 28, 2026 — Sprint PM (PM1 complete)  
+**Version:** v1.10.0 | **Build:** 260129  
+**Last Updated:** January 29, 2026 — Sprint PM (PM1-PM4 complete, PM5 deferred)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,9 +25,10 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint PM: Project Management & Special Assessments 🚧 IN PROGRESS
+### Sprint PM: Project Management & Special Assessments ✅ PHASES 1-4 COMPLETE
 **Started:** January 28, 2026  
-**Branch:** `sprint/PM-projects-module`
+**Merged to Main:** January 29, 2026  
+**Branch:** `sprint/PM-projects-module` (merged)
 
 #### PM1: Projects View + API ✅ COMPLETE
 - Backend: `projectsController.js` with list/get handlers
@@ -35,13 +36,34 @@ All planning and backlog management is maintained in the Agile documentation:
 - Search: Cross-year search with GlobalSearch integration
 - UI: FA icons, YearNavigation, auto-select, empty states
 
-#### PM2: Project Detail + CRUD ⏳ NEXT
-- ProjectDetailView with unit assessments table
-- VendorPaymentsTable component
-- ProjectFormModal for create/edit
-- Delete functionality
+#### PM2: Project Detail + CRUD ✅ COMPLETE
+- ProjectDetailView with unit assessments and vendor payments tables
+- UnitAssessmentsTable and VendorPaymentsTable components
+- ProjectFormModal for create/edit with validation
+- Delete protection for projects with financial records
+- Currency formatting (US style, no currency prefix)
 
-**Memory Log:** `SAMS-Docs/apm_session/Memory/Task_Completion_Logs/PM1_Projects_View_API_2026-01-28.md`
+#### PM3: Bids Management ✅ COMPLETE
+- BidsManagementModal with full bidding workflow
+- BidFormModal with vendor dropdown, contact auto-fill
+- Bid revisions, communications, and comparison view
+- Select/unselect bid updates project vendor and cost
+- Timezone-aware date handling with getMexicoDateString()
+
+#### PM4: Document Attachments ✅ COMPLETE
+- ProjectDocumentsList component with folder grouping
+- Document upload for both projects and bids
+- Folder selection with custom folder creation
+- Description/notes with inline editing
+- Multi-file upload support
+- Collapsed sections by default for better UX
+
+#### PM5: UPC Integration ⏸️ DEFERRED
+- Add project assessments to unified payment center
+- **Reason:** Core UPC functionality must remain stable
+- **Status:** Will be scheduled in future sprint after production stabilizes
+
+**Commits:** `99585de` (PM1+PM2), `166cd39` (fixes), `71d86f1` (PM3), `b641ac7` (PM4)
 
 ---
 
