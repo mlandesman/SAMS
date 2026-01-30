@@ -27,8 +27,8 @@ import { getProjects, getProject, createProject, updateProject, deleteProject } 
 import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import GlobalSearch from '../components/GlobalSearch';
-import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal } from '../components/projects';
-import { faGavel } from '@fortawesome/free-solid-svg-icons';
+import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal, ProjectDocumentsList } from '../components/projects';
+import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './HOADuesView.css'; // Reuse HOADuesView styling
@@ -826,6 +826,22 @@ function ProjectsView() {
                   <FontAwesomeIcon icon={faGavel} />
                   <span>{selectedProject.selectedBidId ? 'View All Bids' : 'Manage Bids'}</span>
                 </button>
+              </Paper>
+              
+              {/* Project Documents Section */}
+              <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <FontAwesomeIcon icon={faFileAlt} style={{ color: '#666' }} />
+                  <Typography variant="h6">Project Documents</Typography>
+                </Box>
+                <ProjectDocumentsList
+                  linkedToType="project"
+                  linkedToId={selectedProject.projectId}
+                  documentType="project_document"
+                  category="project"
+                  title=""
+                  showUploader={true}
+                />
               </Paper>
               
               {/* Unit Assessments Section */}

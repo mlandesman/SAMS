@@ -380,7 +380,7 @@ export const updateDocumentMetadata = async (req, res) => {
 
   try {
     const { clientId, documentId } = req.params;
-    const { documentType, category, linkedTo, notes, tags } = req.body;
+    const { documentType, category, linkedTo, notes, tags, folder } = req.body;
     
     const db = await getDb();
     const docRef = db.collection('clients').doc(clientId).collection('documents').doc(documentId);
@@ -405,6 +405,7 @@ export const updateDocumentMetadata = async (req, res) => {
     if (linkedTo !== undefined) updateData.linkedTo = linkedTo;
     if (notes !== undefined) updateData.notes = notes;
     if (tags !== undefined) updateData.tags = tags;
+    if (folder !== undefined) updateData.folder = folder;
     
     console.log('🔄 About to update document with data:', updateData);
     

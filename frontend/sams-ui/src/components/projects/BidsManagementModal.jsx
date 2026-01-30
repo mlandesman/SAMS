@@ -33,6 +33,7 @@ import { useClient } from '../../context/ClientContext';
 import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from '../../api/projects';
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';
+import ProjectDocumentsList from './ProjectDocumentsList';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -506,7 +507,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 
                 {/* Revision history accordion */}
                 {selectedBid.revisions.length > 1 && (
-                  <Accordion sx={{ mb: 2 }}>
+                  <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
                     <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
                       <FontAwesomeIcon icon={faHistory} style={{ marginRight: 8 }} />
                       <Typography>Revision History ({selectedBid.revisions.length})</Typography>
@@ -538,7 +539,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 )}
                 
                 {/* Communications accordion */}
-                <Accordion sx={{ mb: 2 }}>
+                <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
                   <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
                     <FontAwesomeIcon icon={faComments} style={{ marginRight: 8 }} />
                     <Typography>Messages ({selectedBid.communications?.length || 0})</Typography>
@@ -589,28 +590,21 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 </Accordion>
                 
                 {/* Documents accordion */}
-                <Accordion>
+                <Accordion defaultExpanded={false}>
                   <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
                     <FontAwesomeIcon icon={faFileAlt} style={{ marginRight: 8 }} />
-                    <Typography>Documents ({currentRevision?.documents?.length || 0})</Typography>
+                    <Typography>Bid Documents</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    {currentRevision?.documents?.length > 0 ? (
-                      <List dense>
-                        {currentRevision.documents.map((doc, idx) => (
-                          <ListItemButton key={idx}>
-                            <ListItemText primary={doc.name || `Document ${idx + 1}`} />
-                          </ListItemButton>
-                        ))}
-                      </List>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No documents attached to this revision
-                      </Typography>
-                    )}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      Document upload coming in PM4
-                    </Typography>
+                    <ProjectDocumentsList
+                      linkedToType="bid"
+                      linkedToId={selectedBid?.id}
+                      documentType="bid_document"
+                      category="bid"
+                      title=""
+                      showUploader={true}
+                      compact={true}
+                    />
                   </AccordionDetails>
                 </Accordion>
               </Box>

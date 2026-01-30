@@ -10,3 +10,4 @@ export { default as ProjectFormModal } from './ProjectFormModal';
 export { default as BidsManagementModal } from './BidsManagementModal';
 export { default as BidFormModal } from './BidFormModal';
 export { default as BidComparisonView } from './BidComparisonView';
+export { default as ProjectDocumentsList } from './ProjectDocumentsList';
