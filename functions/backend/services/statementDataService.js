@@ -15,6 +15,7 @@ import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
+import { hasActivity } from '../utils/clientFeatures.js';
 
 /**
  * Get utility graph data for a unit
@@ -913,10 +914,12 @@ function createChronologicalTransactionList(
       
       const paymentDate = parseDate(transaction.date);
       if (paymentDate && !isNaN(paymentDate.getTime())) {
-        // Sum all water allocations for this transaction
-        const totalWaterAmount = waterAllocations.reduce((sum, alloc) => {
-          return sum + centavosToPesos(alloc.amount || 0);
-        }, 0);
+        // Use full transaction amount (not just water allocations)
+        // SofA must show actual cash received, not how it was allocated
+        // Credit additions from overpayments appear in Credit Activity table
+        // See: SAMS Accounting & Payment Architecture - Statement of Account and UPC.md
+        // Fix for Issue #162
+        const totalWaterAmount = centavosToPesos(transaction.amount || 0);
         
         if (totalWaterAmount > 0) {
           // Build descriptive label for pure water payments (deduplicate quarter names)
@@ -1449,10 +1452,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const transactionMap = transactions;
     
     // Step 5: Fetch water bills (only if client has water bills project)
-    // Issue #60: Check if client has water service before calling water API
-    // MTC has no water service (projects.waterBills is undefined)
-    // AVII has water service (projects.waterBills exists)
-    const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+    // Issue #60/#161: Check if client has water service via activities menu
+    // AVII has WaterBills activity enabled, MTC does not
+    const db = await getDb();
+    const hasWaterBillsProject = await hasActivity(db, clientId, 'WaterBills');
     const waterBills = hasWaterBillsProject
       ? await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth)
       : [];
@@ -1992,7 +1995,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     
     // Step 7.9: Fetch credit history and get opening balance from history[0]
     // For SoA (full fiscal year), history[0] is always the starting_balance for that year
-    const db = await getDb();
+    // Note: db already declared at Step 5 for hasActivity check
     const creditAdjustments = [];
     let unitCreditData = null;
     let hasCreditStartingBalance = false;

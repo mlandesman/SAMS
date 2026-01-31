@@ -10,6 +10,23 @@
             "161"
           ],
           "text": "Water bills missing from Statement of Accounts and UPC - hasWaterBillsProject check was using wrong data source"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Q1 2026 water bills showing incorrect amounts ($188.86 penalty instead of $5,388.86 total) - fixed status and currentCharge fields for all AVII units"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Q1 water bill payment linkage issues for units 101 and 104 - corrected paidAmount to reflect actual payments received"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "162"
+          ],
+          "text": "Water-only payments on Statement of Account now show full payment amount, not just allocated portion (overpayments to credit were hidden)"
         }
       ]
     },

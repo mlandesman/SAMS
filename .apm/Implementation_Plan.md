@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.10.0 | **Build:** 260129  
-**Last Updated:** January 29, 2026 — Sprint PM (PM1-PM4 complete, PM5 deferred)  
+**Version:** v1.11.1 | **Build:** 260131  
+**Last Updated:** January 31, 2026 — Hotfix: Q1 Water Bills Data Correction (Issue #161)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -58,16 +58,49 @@ All planning and backlog management is maintained in the Agile documentation:
 - Multi-file upload support
 - Collapsed sections by default for better UX
 
-#### PM5: UPC Integration ⏸️ DEFERRED
+#### PM5: Assessment Allocation ⏸️ DEFERRED
+- Calculate unit assessments based on % ownership from selected bid
+- Option to exclude specific units from assessment calculation
+- Admin controls for allocation adjustments
+
+#### PM6: Statement of Account Integration ⏸️ DEFERRED
+- Add Special Assessment as billable line item on Statement of Account
+- Show assessment amount, paid, and balance per unit
+
+#### PM7: UPC Payment Integration ⏸️ DEFERRED
 - Add project assessments to unified payment center
+- Accept payments against assessment amounts
 - **Reason:** Core UPC functionality must remain stable
-- **Status:** Will be scheduled in future sprint after production stabilizes
+- **Status:** PM5-7 will be scheduled in future sprint after PM1-4 production stabilizes
 
 **Commits:** `99585de` (PM1+PM2), `166cd39` (fixes), `71d86f1` (PM3), `b641ac7` (PM4)
 
 ---
 
 ## Recently Completed
+
+### Hotfix: Q1 Water Bills Data Correction ✅ COMPLETE
+**Completed:** January 31, 2026  
+**Issue:** #161 — Water bills showing incorrect amounts on Statement of Accounts  
+**Duration:** ~3 hours (debugging + data fixes)  
+**Type:** Data fix only (no code deployment)
+
+**Root Cause:**
+- `hasWaterBillsProject` check was using wrong data source (code fix deployed in v1.11.1)
+- Q1 2026 water bills had incorrect `currentCharge`, `status`, `paidAmount`, and `payments[]` data
+- Dynamic penalty recalculation was producing $188.86 instead of $5,388.86 for unit 203
+
+**Scripts Created:**
+- `fix-q1-currentCharge.js` — Set status='paid' and currentCharge=0 for all Q1 units
+- `fix-q1-paidAmount.js` — Corrected paidAmount for units 101, 104
+- `fix-q1-payments-array.js` — Added reconciliation payments to payments[] array
+
+**Verification:**
+- Statement of Accounts shows correct water bill amounts
+- Water Consumption Reports show Q1 as PAID for all applicable units
+- Bills view correctly displays payment status
+
+---
 
 ### Sprint CL1: Changelog Feature ✅ COMPLETE
 **Completed:** January 28, 2026  
