@@ -530,11 +530,14 @@ function createChronologicalTransactionList(
     return parseDate(dueDateValue);
   };
   
-  // Add water bill charges
+  // Add water bill charges (Issue #163: Separate base charge and penalty)
   for (const bill of waterBills) {
     const dueDate = parseDueDate(bill.dueDate);
-    // Include bills with amounts > 0, even if dueDate is missing (use month start date as fallback)
-    if (bill.totalAmount > 0) {
+    const penaltyAmount = bill.penaltyAmount || 0;
+    const baseAmount = bill.totalAmount - penaltyAmount;
+    
+    // Include bills with base amounts > 0 or penalty > 0, even if dueDate is missing (use month start date as fallback)
+    if (baseAmount > 0 || penaltyAmount > 0) {
       let billDate = dueDate;
       if (!billDate || isNaN(billDate.getTime())) {
         // Fallback: use calendar year and month from bill data
@@ -549,32 +552,39 @@ function createChronologicalTransactionList(
         const monthName = billDate.toLocaleString('en-US', { month: 'short' });
         // Use fiscal year from bill (stored as 'year' field) if available, otherwise use calendar year of bill date
         const displayYear = bill.year || bill.fiscalYear || billDate.getFullYear();
-        const description = quarterName 
-          ? `Water Bill ${quarterName} ${displayYear}` 
-          : `Water Bill ${monthName} ${displayYear}`;
         
-        transactions.push({
-          type: 'charge',
-          category: 'water',
-          date: billDate,
-          description: description,
-          amount: bill.totalAmount, // In pesos (already converted by API)
-          charge: bill.totalAmount,
-          payment: 0,
-          balance: 0, // Will be set later when calculating running balance
-          billId: bill.billId,
-          billRef: {
+        // Create base charge entry (if baseAmount > 0)
+        if (baseAmount > 0) {
+          const description = quarterName 
+            ? `Water Bill ${quarterName} ${displayYear}` 
+            : `Water Bill ${monthName} ${displayYear}`;
+          
+          transactions.push({
+            type: 'charge',
+            category: 'water',
+            date: billDate,
+            description: description,
+            amount: baseAmount, // Base amount only (excludes penalty) - Issue #163
+            charge: baseAmount,
+            payment: 0,
+            balance: 0, // Will be set later when calculating running balance
             billId: bill.billId,
-            fiscalYear: bill.fiscalYear,
-            fiscalQuarter: bill.fiscalQuarter,
-            dueDate: bill.dueDate,
-            totalAmount: bill.totalAmount,
+            billRef: {
+              billId: bill.billId,
+              fiscalYear: bill.fiscalYear,
+              fiscalQuarter: bill.fiscalQuarter,
+              dueDate: bill.dueDate,
+              totalAmount: bill.totalAmount,
+              consumption: bill.consumption,
+              penaltyAmount: penaltyAmount
+            },
             consumption: bill.consumption,
-            penaltyAmount: bill.penaltyAmount || 0
-          },
-          consumption: bill.consumption,
-          penaltyAmount: bill.penaltyAmount || 0
-        });
+            penaltyAmount: 0 // Penalty is now a separate line item
+          });
+        }
+        
+        // Note: Penalty entries are created separately in the waterPenalties section (around line 1661)
+        // to avoid duplicate penalty lines. This section only creates the base charge.
       }
     }
   }
@@ -1590,50 +1600,9 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         }
         
         // Extract water penalties from billsPaid
-        const waterBillsPaid = preview.water?.billsPaid || [];
-        for (const bill of waterBillsPaid) {
-          if (bill.totalPenaltyDue && bill.totalPenaltyDue > 0) {
-            const billPeriod = bill.billPeriod || '';
-            const cleanPeriod = billPeriod.replace('water:', '');
-            let dueDate = null;
-            
-            if (cleanPeriod.includes('-Q')) {
-              const [yearStr, quarterStr] = cleanPeriod.split('-Q');
-              const fiscalYear = parseInt(yearStr);
-              const quarter = parseInt(quarterStr);
-              // Water bills are in arrears, due at start of next quarter
-              // e.g., Q1 (Jul-Sep) is due Oct 1
-              // So base date for penalty calculation is start of NEXT quarter
-              const fiscalMonthIndex = (quarter) * 3;
-              const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-              const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
-              dueDate = new Date(calendarYear, calendarMonth, 1);
-            }
-            
-            if (dueDate && !isNaN(dueDate.getTime())) {
-              const penaltyDate = new Date(dueDate);
-              penaltyDate.setMonth(penaltyDate.getMonth() + 1);
-              penaltyDate.setDate(1);
-              
-              const quarter = cleanPeriod.includes('-Q') ? parseInt(cleanPeriod.split('-Q')[1]) : '';
-              const displayQuarter = quarter === 0 ? 4 : quarter;
-              const description = `Water Penalty - Q${displayQuarter} ${dueDate.getFullYear()}`;
-              
-              waterPenalties.push({
-                type: 'penalty',
-                category: 'water',
-                date: penaltyDate,
-                description: description,
-                amount: bill.totalPenaltyDue,
-                charge: bill.totalPenaltyDue,
-                payment: 0,
-                balance: 0, // Will be set later when calculating running balance
-                billId: cleanPeriod,
-                baseAmount: bill.totalBaseDue || 0
-              });
-            }
-          }
-        }
+        // Issue #163: Skip this section - water penalties are created from waterBills array (Step 7.6)
+        // to avoid duplicate penalty lines. The waterBills array has better deduplication logic.
+        // The UPC preview penalties were causing duplicates with the waterBills penalties.
       }
       
       // Issue #144b Enhancement: Extract Next Payment Due Date from first unpaid bill
