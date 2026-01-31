@@ -181,3 +181,15 @@ functions/backend/testing/test*.js
 # SAMS-Docs copied for agent access (original at /Users/michael/Projects/SAMS-Docs)
 SAMS-Docs/
 backend.OLD/
+
+# Test results and artifacts (entire directory)
+test-results/
+
+# Old backup archives
+backend.OLD.zip
+
+# Firebase public folder (dev artifacts)
+public/
+
+# Test harness examples
+functions/backend/testing/testHarness examples/

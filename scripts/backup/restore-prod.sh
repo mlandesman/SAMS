@@ -63,7 +63,8 @@ echo "Target project: $PROD_PROJECT_ID"
 echo ""
 
 # Find backup prefix
-BACKUP_PREFIX=$(gsutil ls "gs://${BUCKET_NAME}/manifests/${BACKUP_DATE}_*.json" 2>/dev/null | head -1 | xargs basename .json)
+BACKUP_FILE=$(gsutil ls "gs://${BUCKET_NAME}/manifests/${BACKUP_DATE}_*.json" 2>/dev/null | head -1)
+BACKUP_PREFIX=$(basename "$BACKUP_FILE" .json)
 if [ -z "$BACKUP_PREFIX" ]; then
     echo "❌ No backup found for date: $BACKUP_DATE"
     echo "   Available backups:"
@@ -174,24 +175,36 @@ gsutil -m rsync -r "$STORAGE_PATH/" "gs://${PROD_STORAGE_BUCKET}/"
 echo "   ✅ Storage sync complete"
 echo ""
 
-# Step 4: Wait for imports
+# Step 4: Wait for imports to complete
 echo "⏳ Step 4: Waiting for Firestore imports to complete..."
-echo "   This may take 10-20 minutes for large databases"
 echo ""
-echo "   Check status with:"
-echo "   gcloud firestore operations list --project=$PROD_PROJECT_ID"
-echo ""
-echo "   Waiting up to 20 minutes (checking every 30 seconds)..."
 
 MAX_WAIT=1200
-WAIT_INTERVAL=30
+WAIT_INTERVAL=10
 ELAPSED=0
 
 while [ $ELAPSED -lt $MAX_WAIT ]; do
+    # Check if any import operations are still running
+    RUNNING=$(gcloud firestore operations list --project="$PROD_PROJECT_ID" 2>/dev/null | grep -c "operationState: PROCESSING" || true)
+    
+    if [ "$RUNNING" -eq 0 ]; then
+        # Verify both imports succeeded
+        SUCCESS=$(gcloud firestore operations list --project="$PROD_PROJECT_ID" 2>/dev/null | grep "ImportDocumentsMetadata" -A 10 | grep -c "operationState: SUCCESSFUL" || true)
+        if [ "$SUCCESS" -ge 2 ]; then
+            echo "   ✅ Both Firestore imports completed successfully!"
+            break
+        fi
+    fi
+    
     sleep $WAIT_INTERVAL
     ELAPSED=$((ELAPSED + WAIT_INTERVAL))
-    echo "   Waiting... (${ELAPSED}s elapsed)"
+    echo "   ⏳ Checking... (${ELAPSED}s elapsed, ${RUNNING} operations running)"
 done
+
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+    echo "   ⚠️  Timeout reached. Check status manually:"
+    echo "      gcloud firestore operations list --project=$PROD_PROJECT_ID"
+fi
 
 echo ""
 echo "✅ Restore Complete!"

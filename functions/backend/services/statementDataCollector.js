@@ -16,6 +16,7 @@ import { getTransaction, queryTransactions } from '../controllers/transactionsCo
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { UnifiedPaymentWrapper } from './unifiedPaymentWrapper.js';
 import waterBillsService from './waterBillsService.js';
+import { hasActivity } from '../utils/clientFeatures.js';
 
 const unifiedPaymentWrapper = new UnifiedPaymentWrapper();
 
@@ -630,7 +631,9 @@ export async function generateStatement(api, clientId, unitId, fiscalYear, asOfD
     }
     
     // Step 4: Fetch water bills (only if client has water bills project)
-    const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+    // Issue #60/#161: Check if client has water service via activities menu
+    const db = await getDb();
+    const hasWaterBillsProject = await hasActivity(db, clientId, 'WaterBills');
     const waterBills = hasWaterBillsProject
       ? await fetchWaterBills(api, clientId, unitId, fiscalYear, fiscalYearStartMonth)
       : [];

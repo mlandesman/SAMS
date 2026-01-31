@@ -29,6 +29,7 @@ import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { centavosToPesos, pesosToCentavos } from '../utils/currencyUtils.js';
 import { queryTransactions } from '../controllers/transactionsController.js';
 import { getHOABillingConfig } from '../controllers/hoaDuesController.js';
+import { hasActivity } from '../utils/clientFeatures.js';
 
 /**
  * Generate UPC-specific projection from raw data.
@@ -107,12 +108,9 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
   
   console.log(`   📅 Fiscal year: ${fiscalYear}, Start month: ${fiscalYearStartMonth}, Frequency: ${duesFrequency}`);
   
-  // Issue #60: Check if client has water service before calling water API
-  // MTC has no water service (projects.waterBills is undefined)
-  // AVII has water service (projects.waterBills exists)
-  const clientDoc = await db.collection('clients').doc(clientId).get();
-  const clientData = clientDoc.exists ? clientDoc.data() : {};
-  const hasWaterBillsProject = clientData.projects?.waterBills !== undefined;
+  // Issue #60/#161: Check if client has water service via activities menu
+  // AVII has WaterBills activity enabled, MTC does not
+  const hasWaterBillsProject = await hasActivity(db, clientId, 'WaterBills');
   
   // Gather data in parallel - only fetch water bills if client has water service
   const [hoaDues, waterBills, transactions] = await Promise.all([

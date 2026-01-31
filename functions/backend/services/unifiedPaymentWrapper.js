@@ -65,6 +65,7 @@ import { waterPaymentsService } from './waterPaymentsService.js';
 import { getFiscalYearBounds, getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { parseDate } from '../../shared/services/DateService.js';
 import { calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
+import { hasActivity } from '../utils/clientFeatures.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -1955,12 +1956,9 @@ export class UnifiedPaymentWrapper {
     const hoaConfig = await getHOABillingConfig(clientId);
     const waterConfig = await getWaterBillingConfig(this.db, clientId, 'water');
     
-    // Issue #60: Check if client has water service
-    // MTC has no water service (projects.waterBills is undefined)
-    // AVII has water service (projects.waterBills exists)
-    const clientDoc = await this.db.collection('clients').doc(clientId).get();
-    const clientData = clientDoc.exists ? clientDoc.data() : {};
-    const hasWaterService = clientData.projects?.waterBills !== undefined;
+    // Issue #60/#161: Check if client has water service via activities menu
+    // AVII has WaterBills activity enabled, MTC does not
+    const hasWaterService = await hasActivity(this.db, clientId, 'WaterBills');
     
     // Note: Each module maintains separate config
     // Return both for module-specific penalty calculations
@@ -1969,7 +1967,7 @@ export class UnifiedPaymentWrapper {
       water: waterConfig,
       // Client-level fiscal year config (system-wide)
       fiscalYearStartMonth: hoaConfig.fiscalYearStartMonth || 1,
-      // Issue #60: Flag indicating whether client has water service
+      // Issue #60/#161: Flag indicating whether client has water service
       hasWaterService
     };
   }
