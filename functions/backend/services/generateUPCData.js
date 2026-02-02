@@ -30,6 +30,7 @@ import { centavosToPesos, pesosToCentavos } from '../utils/currencyUtils.js';
 import { queryTransactions } from '../controllers/transactionsController.js';
 import { getHOABillingConfig } from '../controllers/hoaDuesController.js';
 import { hasActivity } from '../utils/clientFeatures.js';
+import { calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
 
 /**
  * Generate UPC-specific projection from raw data.
@@ -59,6 +60,34 @@ export async function generateUPCData({
   
   // 1. GATHER: Collect raw data (same sources as Statement)
   const rawData = await gatherRawData(db, clientId, unitId, effectiveDate);
+  
+  // ============================================================================
+  // 1.5 RECALCULATE PENALTIES - CRITICAL: DO NOT REMOVE
+  // ============================================================================
+  // 
+  // HISTORY & CONTEXT (2026-02-02):
+  // This penalty recalculation step was added to fix a regression introduced
+  // on 2026-01-17 (commit 7fdfd97) when generateUPCData() replaced _aggregateBills().
+  // 
+  // The old _aggregateBills() code called:
+  //   - _calculateHOAPenaltiesInMemory() for HOA bills
+  //   - calculateWaterPenalties() for water bills
+  // 
+  // When generateUPCData() was created, it read stored penalty values from
+  // Firestore instead of recalculating them. This caused penalties to show as
+  // $0 in the UPC modal when they should be calculated based on the payment date.
+  // 
+  // WHY THIS IS NECESSARY:
+  // 1. Stored penalties may be $0 if never calculated (nightly scheduler not run)
+  // 2. Penalties must be recalculated for the PAYMENT DATE (effectiveDate)
+  // 3. The Statement of Account has its own penalty sources, but UPC preview
+  //    needs accurate penalties for payment calculation
+  // 
+  // DO NOT REMOVE THIS STEP - it has been added and removed multiple times
+  // causing the same bug to resurface. If you think this should be removed,
+  // consult the git history for commits around 2026-01-17 and 2026-02-02.
+  // ============================================================================
+  await recalculatePenaltiesForRawData(rawData, effectiveDate);
   
   // 2. COMPUTE: Per-bill remaining (UPC-specific)
   const bills = computePerBillRemaining(rawData, waivedPenalties, excludedBills);
@@ -133,6 +162,114 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
       penaltyDays: hoaConfig.penaltyDays
     }
   };
+}
+
+// ============================================================================
+// PENALTY RECALCULATION FOR UPC DATA
+// ============================================================================
+// 
+// CRITICAL: This function recalculates penalties for HOA and Water bills
+// based on the payment date (asOfDate). DO NOT REMOVE.
+// 
+// See documentation in generateUPCData() step 1.5 for full history.
+// ============================================================================
+
+/**
+ * Recalculate penalties for raw data based on the effective date.
+ * 
+ * This function updates the penaltyCentavos field in rawData.hoaDues and
+ * rawData.waterBills arrays IN PLACE. It uses the shared calculatePenaltyForBill
+ * function from PenaltyRecalculationService.js for consistent penalty logic.
+ * 
+ * FIELD MAPPING:
+ * - rawData uses: originalCentavos, paidCentavos, penaltyCentavos
+ * - calculatePenaltyForBill expects: currentCharge, paidAmount, penaltyAmount
+ * 
+ * @param {object} rawData - Raw data from gatherRawData()
+ * @param {Date} asOfDate - Date to calculate penalties as of (payment date)
+ * @returns {Promise<void>} - Modifies rawData in place
+ */
+async function recalculatePenaltiesForRawData(rawData, asOfDate) {
+  const config = rawData.config;
+  
+  // Validate penalty configuration
+  if (config.penaltyRate === undefined || config.penaltyRate === null ||
+      config.penaltyDays === undefined || config.penaltyDays === null) {
+    console.log(`   ⚠️ [PENALTY_RECALC] Missing penalty config - skipping recalculation`);
+    return;
+  }
+  
+  console.log(`   🔄 [PENALTY_RECALC] Recalculating penalties as of ${asOfDate.toISOString()}`);
+  
+  let hoaPenaltiesUpdated = 0;
+  let waterPenaltiesUpdated = 0;
+  let totalPenaltyAmount = 0;
+  
+  // Recalculate HOA penalties
+  for (const hoaBill of rawData.hoaDues) {
+    // Skip if already paid
+    if (hoaBill.paidCentavos >= hoaBill.originalCentavos && hoaBill.originalCentavos > 0) {
+      continue;
+    }
+    
+    // Map fields to what calculatePenaltyForBill expects
+    const billForCalc = {
+      currentCharge: hoaBill.originalCentavos || 0,
+      paidAmount: hoaBill.paidCentavos || 0,
+      penaltyAmount: hoaBill.penaltyCentavos || 0,
+      dueDate: hoaBill.dueDate
+    };
+    
+    const result = calculatePenaltyForBill({
+      bill: billForCalc,
+      asOfDate,
+      config: {
+        penaltyRate: config.penaltyRate,
+        penaltyDays: config.penaltyDays
+      }
+    });
+    
+    // Update the penalty in the original bill
+    if (result.penaltyAmount !== hoaBill.penaltyCentavos) {
+      hoaBill.penaltyCentavos = result.penaltyAmount;
+      hoaPenaltiesUpdated++;
+      totalPenaltyAmount += result.penaltyAmount;
+    }
+  }
+  
+  // Recalculate Water penalties
+  for (const waterBill of rawData.waterBills) {
+    // Skip if already paid
+    if (waterBill.paidCentavos >= waterBill.originalCentavos && waterBill.originalCentavos > 0) {
+      continue;
+    }
+    
+    // Map fields to what calculatePenaltyForBill expects
+    const billForCalc = {
+      currentCharge: waterBill.originalCentavos || 0,
+      paidAmount: waterBill.paidCentavos || 0,
+      penaltyAmount: waterBill.penaltyCentavos || 0,
+      dueDate: waterBill.dueDate
+    };
+    
+    const result = calculatePenaltyForBill({
+      bill: billForCalc,
+      asOfDate,
+      config: {
+        penaltyRate: config.penaltyRate,
+        penaltyDays: config.penaltyDays
+      }
+    });
+    
+    // Update the penalty in the original bill
+    if (result.penaltyAmount !== waterBill.penaltyCentavos) {
+      waterBill.penaltyCentavos = result.penaltyAmount;
+      waterPenaltiesUpdated++;
+      totalPenaltyAmount += result.penaltyAmount;
+    }
+  }
+  
+  console.log(`   ✅ [PENALTY_RECALC] Updated ${hoaPenaltiesUpdated} HOA + ${waterPenaltiesUpdated} Water penalties, Total: $${centavosToPesos(totalPenaltyAmount)}`);
 }
 
 /**
