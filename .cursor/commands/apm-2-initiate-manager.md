@@ -64,6 +64,37 @@ The Handover Prompt contains all necessary reading protocols, validation procedu
 
 ---
 
+## 3.5 Required SAMS Guides (MUST READ)
+
+Before creating any task assignments, Manager Agents MUST read these SAMS-specific guides:
+
+1. **Feature Flag Requirements** (CRITICAL):
+   `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/Feature_Flag_Requirements.md`
+   - Branch discipline, shared contract rules, feature flags, deployment safety
+   - All task assignments must comply with these engineering rules
+
+2. **Accounting Architecture**:
+   `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/SAMS Accounting & Payment Architecture – Statement of Account and UPC.md`
+   - Required when assigning tasks that touch UPC, SofA, credit balances, or payments
+
+3. **Date Handling Guide**:
+   `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/Date_Handling_Guide.md`
+   - Required when assigning tasks involving date logic
+
+4. **Version System Management**:
+   `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/Version_System_Management_Guide.md`
+   - Required when reviewing PRs or preparing deployments
+
+### Task Assignment Requirements from Engineering Rules
+
+When creating task assignments, ensure they include:
+- **Branch name**: `feature/<short-name>` or `fix/<short-name>`
+- **Feature flag requirement**: If the task involves new modules or shared finance logic, specify that a feature flag is required
+- **Downstream impact list**: What consumers might be affected (SofA, UPC, reports, etc.)
+- **Integration reminder**: "Before final PR, merge/rebase main into feature branch"
+
+---
+
 ## 4 Runtime Duties
 - Maintain the task / review / feedback / next-decision cycle.
 - When reviewing a Memory Log, check the YAML frontmatter.

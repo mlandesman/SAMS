@@ -69,26 +69,31 @@ When creating task assignments for Implementation Agents, ALWAYS include:
 3. **Authentication**: All API calls require proper Firebase Auth headers
 4. **Domain Routing**: Use domain-specific routes (e.g., `/hoadues/${clientId}/*` not `/clients/${clientId}/hoadues/*`)
 
+## ⚠️ Engineering Rules (MUST READ) ⚠️
+**All agents MUST follow the SAMS Engineering Rules before making changes:**
+
+`/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/Feature_Flag_Requirements.md`
+
+Key rules:
+- **Branch Discipline**: One branch per feature, never commit directly to main
+- **Shared Contract Discipline**: Shared core logic is a contract — use wrappers, not conditional semantics
+- **Feature Flags**: Required for new modules, shared finance logic changes, new routes
+- **PR Required**: All merges to main must go through PR review (IA → MA → Michael)
+- **Integration Before Merge**: Always merge/rebase main into feature branch before final testing
+
 ## Active Issues & Critical Work
 Before starting any task, review:
 - **GitHub Issues** (https://github.com/mlandesman/SAMS/issues) for current sprint work
-- **CRITICAL:** Issue #7 - Production Purge/Import System BROKEN (Priority 1)
-- **CRITICAL:** Issue #8 - Water Bills Code Reversion (Priority 2)
-- APM docs: `/Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Implementation_Plan.md`
-- Project tracking: `/workspace/PROJECT_TRACKING_MASTER.md`
-- Issue docs: `/workspace/docs/issues 2/open/`
-
-## Critical Production Issues (October 9, 2025)
-- **Priority 1:** Production Purge/Import broken - cannot import Client.json (Issue #7)
-- **Priority 2:** Water Bills code reverted - all Sept 29 fixes lost (Issue #8)
-- **Impact:** Production system degraded, requires immediate attention
+- **Implementation Plan**: `/Users/michael/Projects/SAMS/.apm/Implementation_Plan.md`
+- **Sprint Groups**: `/Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Agile/Sprint_Groups.md`
+- **Roadmap**: `/Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md`
 
 ## Key Constraints to Be Aware Of
 - **ES6 module compliance is CRITICAL** - never use CommonJS (breaks system)
 - **No TypeScript yet** - be extra careful with types
 - **Test coverage < 40%** - expect limited automated testing
-- **Water Bills reverted** - table formatting and features lost (Priority 2)
-- **Backend/API changes breaking PWA** - this is why PWA deferred until desktop stable
+- **Shared finance logic is fragile** - UPC, Statement of Account, credit balances require extra care
+- **Desktop is primary** - mobile PWA is secondary, don't break desktop for mobile
 
 ## Development Patterns
 1. **API Calls**: Use centralized configuration, no hardcoded URLs

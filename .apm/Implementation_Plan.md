@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.11.1 | **Build:** 260131  
-**Last Updated:** January 31, 2026 — Hotfix: Q1 Water Bills Data Correction (Issue #161)  
+**Version:** v1.11.2 | **Build:** 260203  
+**Last Updated:** February 4, 2026 — Sprint Polling-1 Complete (Voting System)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,59 +25,81 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint PM: Project Management & Special Assessments ✅ PHASES 1-4 COMPLETE
-**Started:** January 28, 2026  
-**Merged to Main:** January 29, 2026  
-**Branch:** `sprint/PM-projects-module` (merged)
+### Sprint Cleanup-1: UI Polish & Code Hygiene
+**Started:** February 4, 2026  
+**Branch:** TBD (per-issue branches)  
+**Risk:** LOW
 
-#### PM1: Projects View + API ✅ COMPLETE
-- Backend: `projectsController.js` with list/get handlers
-- Frontend: `ProjectsView.jsx` with SAMS UI patterns
-- Search: Cross-year search with GlobalSearch integration
-- UI: FA icons, YearNavigation, auto-select, empty states
+| # | Title | Status |
+|---|-------|--------|
+| **160** | SAMS UI inconsistent layouts across modules | ⏳ Pending |
+| **167** | ListManagement table headers not consistently sticky | ⏳ Pending |
+| **97** | Confirmation Modal aesthetics | ⏳ Pending |
+| **84** | Dashboard backdrop scroll fix | ⏳ Pending |
+| **154** | Reduce chattiness (console.log cleanup) | ⏳ Pending |
+| **164** | Relocate Budget vs Actual report to Budgets tab | ⏳ Pending |
 
-#### PM2: Project Detail + CRUD ✅ COMPLETE
-- ProjectDetailView with unit assessments and vendor payments tables
-- UnitAssessmentsTable and VendorPaymentsTable components
-- ProjectFormModal for create/edit with validation
-- Delete protection for projects with financial records
-- Currency formatting (US style, no currency prefix)
-
-#### PM3: Bids Management ✅ COMPLETE
-- BidsManagementModal with full bidding workflow
-- BidFormModal with vendor dropdown, contact auto-fill
-- Bid revisions, communications, and comparison view
-- Select/unselect bid updates project vendor and cost
-- Timezone-aware date handling with getMexicoDateString()
-
-#### PM4: Document Attachments ✅ COMPLETE
-- ProjectDocumentsList component with folder grouping
-- Document upload for both projects and bids
-- Folder selection with custom folder creation
-- Description/notes with inline editing
-- Multi-file upload support
-- Collapsed sections by default for better UX
-
-#### PM5: Assessment Allocation ⏸️ DEFERRED
-- Calculate unit assessments based on % ownership from selected bid
-- Option to exclude specific units from assessment calculation
-- Admin controls for allocation adjustments
-
-#### PM6: Statement of Account Integration ⏸️ DEFERRED
-- Add Special Assessment as billable line item on Statement of Account
-- Show assessment amount, paid, and balance per unit
-
-#### PM7: UPC Payment Integration ⏸️ DEFERRED
-- Add project assessments to unified payment center
-- Accept payments against assessment amounts
-- **Reason:** Core UPC functionality must remain stable
-- **Status:** PM5-7 will be scheduled in future sprint after PM1-4 production stabilizes
-
-**Commits:** `99585de` (PM1+PM2), `166cd39` (fixes), `71d86f1` (PM3), `b641ac7` (PM4)
+**Theme:** Visual consistency, reduced logging noise, no financial logic changes  
+**Goal:** Prepare codebase for bigger efforts while practicing new branch/PR discipline
 
 ---
 
 ## Recently Completed
+
+### Sprint Polling-1: Complete Voting System ✅ COMPLETE
+**Completed:** February 3, 2026  
+**Duration:** ~8-10 hours (as estimated)  
+**Branch:** `feature/voting-and-polling` → merged to `main`  
+**Commit:** `1df12e6`  
+**Quality:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+
+**Backend (V1):**
+- `pollsController.js` (1,237 lines) — Full poll CRUD, response handling, token generation, results calculation
+- `voteRoutes.js` — Public voting endpoints + authenticated admin endpoints
+- `voteTokenUtils.js` — HMAC-signed token generation and validation
+- `bidComparisonHtmlService.js` — Bid comparison PDF generation (bilingual)
+- `pollNotificationTemplate.js` — Email notification templates
+- `reportEmailUtils.js` — Email sending utilities
+
+**Admin UI (V2):**
+- `PollCreationWizard.jsx` (618 lines) — 4-step creation wizard with Translate button
+- `PollDetailView.jsx` (377 lines) — Poll details, progress tracking, results visualization
+- `ResponseEntryModal.jsx` (195 lines) — Admin vote entry for verbal/proxy votes
+- `PollsList.jsx` — List Management integration
+
+**Email Link Voting (V3):**
+- `PublicVotingPage.jsx` (282 lines) — Public voting page, no auth required, mobile-responsive
+
+**Integration (V4):**
+- Dashboard polls card with active poll status
+- Projects view with "Create Vote" button and PDF generation
+- Budget view with budget approval voting
+- Pre-population of poll context from projects (title, description, translations)
+
+**Technical Stats:**
+- 46 files changed
+- 6,902 insertions, 170 deletions
+- 15 new files created
+
+**Known Limitations (Phase 2):**
+- Email sending not yet implemented (token generation works, Dev bypass in use)
+- Scheduled auto-close not implemented (manual close only)
+- Public voting page is English-only UI (content is bilingual)
+
+---
+
+### Sprint PM: Project Management & Special Assessments ✅ PHASES 1-4 COMPLETE
+**Completed:** January 29, 2026  
+**Branch:** `sprint/PM-projects-module` (merged)
+
+- **PM1-PM4:** Projects CRUD, Bids Management, Document Attachments — all complete
+- **PM5-PM7:** Assessment Allocation, SoA Integration, UPC Integration — DEFERRED (waiting for SoA/UPC stability)
+
+**Commits:** `99585de` (PM1+PM2), `166cd39` (fixes), `71d86f1` (PM3), `b641ac7` (PM4)
+
+---
 
 ### Hotfix: Q1 Water Bills Data Correction ✅ COMPLETE
 **Completed:** January 31, 2026  

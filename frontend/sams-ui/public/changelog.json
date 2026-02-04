@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Complete Polling & Voting System: Backend API, Admin UI with 4-step wizard, Email link voting (no auth required), Dashboard integration, Project/Budget vote creation, Spanish translation support"
+        }
+      ]
+    },
+    {
       "version": "1.11.1",
       "date": "2026-01-31",
       "changes": [
