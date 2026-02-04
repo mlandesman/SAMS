@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -32,7 +32,13 @@ import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
 import { LoadingSpinner } from '../components/common';
 import ClientSwitcher from '../components/ClientSwitcher';
+import { getPolls, getPoll } from '../api/polls';
 import './DashboardView.css';
+
+const formatDateDisplay = (value) => {
+  if (!value) return '—';
+  return value.display || value.ISO_8601 || value.iso || '—';
+};
 
 function DashboardView() {
   const navigate = useNavigate();
@@ -60,6 +66,83 @@ function DashboardView() {
     loading: budgetLoading,
     error: budgetError,
   } = useBudgetStatus();
+
+  const [pollCard, setPollCard] = useState(null);
+  const [pollLoading, setPollLoading] = useState(false);
+  const [pollError, setPollError] = useState('');
+  
+  const formatDate = (value) => {
+    if (!value || typeof value !== 'string') return '—';
+    return value.split('T')[0];
+  };
+
+  const getNowMs = () => {
+    if (typeof performance !== 'undefined' && performance.timeOrigin) {
+      return performance.timeOrigin + performance.now();
+    }
+    return null;
+  };
+
+  const buildResultSummary = (summary) => {
+    if (!summary?.breakdown || summary.breakdown.length === 0) {
+      return null;
+    }
+    const sorted = [...summary.breakdown].sort((a, b) => (b.percentage || 0) - (a.percentage || 0));
+    const top = sorted[0];
+    if (!top) return null;
+    return `${top.label || top.optionId} ${Math.round(top.percentage || 0)}%`;
+  };
+
+  useEffect(() => {
+    const loadPolls = async () => {
+      if (!selectedClient?.id) {
+        setPollCard(null);
+        return;
+      }
+
+      setPollLoading(true);
+      setPollError('');
+      try {
+        const openResult = await getPolls(selectedClient.id, 'open');
+        const closedResult = await getPolls(selectedClient.id, 'closed');
+        const openPoll = (openResult.data || [])[0] || null;
+        const closedPolls = closedResult.data || [];
+        const nowMs = getNowMs();
+        const recentClosed = closedPolls.find((poll) => {
+          if (!nowMs) return true;
+          const closedAt = poll.closedAt || poll.closesAt;
+          if (!closedAt) return false;
+          const isoValue = closedAt.iso || closedAt.ISO_8601 || closedAt;
+          const diff = isoValue ? nowMs - Date.parse(isoValue) : Number.POSITIVE_INFINITY;
+          return diff <= 30 * 24 * 60 * 60 * 1000;
+        });
+
+        if (openPoll) {
+          const pollDetail = await getPoll(selectedClient.id, openPoll.pollId || openPoll.id);
+          setPollCard({
+            mode: 'open',
+            poll: pollDetail.data,
+            summary: pollDetail.data?.summary || null,
+          });
+        } else if (recentClosed) {
+          const pollDetail = await getPoll(selectedClient.id, recentClosed.pollId || recentClosed.id);
+          setPollCard({
+            mode: 'closed',
+            poll: pollDetail.data,
+            summary: pollDetail.data?.summary || pollDetail.data?.results || null,
+          });
+        } else {
+          setPollCard(null);
+        }
+      } catch (err) {
+        setPollError(err.message || 'Failed to load polls');
+      } finally {
+        setPollLoading(false);
+      }
+    };
+
+    loadPolls();
+  }, [selectedClient?.id]);
   
   // Currency calculator modal state
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -540,14 +623,13 @@ function DashboardView() {
           </Card>
         </Grid>
 
-        {/* Projects Card (Placeholder) */}
+        {/* Polls Dashboard Card */}
         <Grid item xs={12} sm={6} md={4}>
           <Card 
             sx={{ 
               height: '100%',
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(10px)',
-              opacity: 0.7,
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
               '&:hover': {
                 transform: 'translateY(-4px)',
@@ -557,15 +639,44 @@ function DashboardView() {
           >
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
-                <ProjectIcon sx={{ color: '#6b7280', mr: 1, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#6b7280' }}>Projects</Typography>
+                <ProjectIcon sx={{ color: '#2563eb', mr: 1, fontSize: 28 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>Polls</Typography>
               </Box>
-              <Typography variant="h4" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
-                Coming Soon
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Project tracking and budget management will be available in a future update.
-              </Typography>
+              {pollLoading ? (
+                <Box display="flex" justifyContent="center" py={2}>
+                  <LoadingSpinner size="small" />
+                </Box>
+              ) : pollError ? (
+                <Typography variant="body2" color="text.secondary">
+                  {pollError}
+                </Typography>
+              ) : pollCard ? (
+                <>
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                    {pollCard.poll?.title || 'Active Poll'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {pollCard.mode === 'open' ? 'Active Vote' : 'Recent Result'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {pollCard.summary?.totalUnits
+                      ? `${Math.round((pollCard.summary.totalResponses / pollCard.summary.totalUnits) * 100)}% returned`
+                      : 'No responses yet'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {pollCard.mode === 'open' ? 'Closes' : 'Closed'}: {formatDateDisplay(pollCard.poll?.closesAt || pollCard.poll?.closedAt)}
+                  </Typography>
+                  {pollCard.summary && (
+                    <Typography variant="body2" color="text.secondary">
+                      {buildResultSummary(pollCard.summary) || 'Results pending'}
+                    </Typography>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No active polls.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>

@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
-import { getDb } from '../firebase.js';
+import { getDb, getApp } from '../firebase.js';
 import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { DateTime } from 'luxon';
@@ -1320,6 +1320,109 @@ router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) =
     res.send(pdfBuffer);
   } catch (error) {
     console.error('Budget PDF error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Generate Budget Report PDF for Poll Attachment
+ * POST /api/clients/:clientId/reports/budget/:year/generate-for-poll
+ * Body: { language: 'english' | 'spanish' }
+ * Response: { success: true, document: { url, filename, language, fiscalYear } }
+ * 
+ * Generates a budget report PDF, stores it in Firebase Storage with a public URL,
+ * and returns the URL for attaching to a poll/vote.
+ */
+router.post('/budget/:year/generate-for-poll', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { language = 'english' } = req.body;
+    const user = req.user;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+    
+    // Validate propertyAccess
+    if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+    
+    // Determine fiscal year
+    let fiscalYear = req.params.year ? parseInt(req.params.year) : null;
+    if (!fiscalYear || isNaN(fiscalYear)) {
+      const { findAvailableBudgetYears } = await import('../services/budgetReportHtmlService.js');
+      const availableYears = await findAvailableBudgetYears(clientId);
+      if (availableYears.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No budget entries found for this client'
+        });
+      }
+      fiscalYear = availableYears[0];
+    }
+    
+    // Generate HTML
+    const { html } = await generateBudgetReportHtml(clientId, fiscalYear, language, user);
+    
+    // Generate PDF from HTML
+    const pdfBuffer = await generatePdf(html, {
+      format: 'Letter',
+      footerMeta: {
+        statementId: `BUDGET-${clientId}-${fiscalYear}`,
+        generatedAt: DateTime.now().setZone('America/Cancun').toFormat('dd-MMM-yy'),
+        language
+      }
+    });
+    
+    // Upload to Firebase Storage
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const langCode = language === 'spanish' ? 'es' : 'en';
+    const filename = `budget-${fiscalYear}-${langCode}.pdf`;
+    const storagePath = `clients/${clientId}/poll-documents/${filename}`;
+    
+    const file = bucket.file(storagePath);
+    await file.save(pdfBuffer, {
+      metadata: {
+        contentType: 'application/pdf',
+        metadata: {
+          clientId,
+          fiscalYear: String(fiscalYear),
+          language,
+          generatedBy: user?.email || 'system',
+          generatedAt: new Date().toISOString()
+        }
+      }
+    });
+    
+    // Make file publicly readable
+    await file.makePublic();
+    
+    // Generate public URL
+    const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+    
+    res.json({
+      success: true,
+      document: {
+        url,
+        filename,
+        language,
+        fiscalYear,
+        storagePath
+      }
+    });
+  } catch (error) {
+    console.error('Budget PDF for poll error:', error);
     res.status(500).json({
       success: false,
       error: error.message

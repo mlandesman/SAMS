@@ -16,6 +16,10 @@ import {
   selectBidHandler,
   unselectBidHandler
 } from '../controllers/projectsController.js';
+import { generateBidComparisonHtml } from '../services/bidComparisonHtmlService.js';
+import { generatePdf } from '../services/pdfService.js';
+import { getApp } from '../firebase.js';
+import { DateTime } from 'luxon';
 import {
   getProjectPeriod,
   updateProjectData,
@@ -97,6 +101,93 @@ router.delete('/:projectId/bids/:bidId', deleteBidHandler);
 // Select a bid
 // POST /api/clients/:clientId/projects/:projectId/bids/:bidId/select
 router.post('/:projectId/bids/:bidId/select', selectBidHandler);
+
+/**
+ * Generate Bid Comparison PDF for Poll Attachment
+ * POST /api/clients/:clientId/projects/:projectId/bids/comparison-pdf
+ * Body: { language: 'english' | 'spanish' }
+ * Response: { success: true, document: { url, filename, language, projectId } }
+ * 
+ * Generates a bid comparison PDF, stores it in Firebase Storage with a public URL,
+ * and returns the URL for attaching to a poll/vote.
+ */
+router.post('/:projectId/bids/comparison-pdf', async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { projectId } = req.params;
+    const { language = 'english' } = req.body;
+    const user = req.user;
+    
+    if (!clientId || !projectId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID and Project ID are required'
+      });
+    }
+    
+    // Generate HTML
+    const { html, meta } = await generateBidComparisonHtml(clientId, projectId, language);
+    
+    // Generate PDF from HTML
+    const pdfBuffer = await generatePdf(html, {
+      format: 'Letter',
+      landscape: meta.bidCount > 3, // Use landscape for many bids
+      footerMeta: {
+        statementId: meta.reportId,
+        generatedAt: DateTime.now().setZone('America/Cancun').toFormat('dd-MMM-yy'),
+        language
+      }
+    });
+    
+    // Upload to Firebase Storage
+    const app = await getApp();
+    const bucket = app.storage().bucket();
+    const langCode = language === 'spanish' ? 'es' : 'en';
+    const filename = `project-${projectId}-bids-${langCode}.pdf`;
+    const storagePath = `clients/${clientId}/poll-documents/${filename}`;
+    
+    const file = bucket.file(storagePath);
+    await file.save(pdfBuffer, {
+      metadata: {
+        contentType: 'application/pdf',
+        metadata: {
+          clientId,
+          projectId,
+          projectName: meta.projectName,
+          language,
+          bidCount: String(meta.bidCount),
+          generatedBy: user?.email || 'system',
+          generatedAt: new Date().toISOString()
+        }
+      }
+    });
+    
+    // Make file publicly readable
+    await file.makePublic();
+    
+    // Generate public URL
+    const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+    
+    res.json({
+      success: true,
+      document: {
+        url,
+        filename,
+        language,
+        projectId,
+        projectName: meta.projectName,
+        bidCount: meta.bidCount,
+        storagePath
+      }
+    });
+  } catch (error) {
+    console.error('Bid comparison PDF for poll error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 /**
  * Generic project TYPE routes

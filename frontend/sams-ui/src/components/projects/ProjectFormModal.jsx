@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faLanguage } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
+import { translateToSpanish } from '../../api/translate';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -44,32 +45,31 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
   
   const [formData, setFormData] = useState({
     name: '',
+    name_es: '',
     description: '',
+    description_es: '',
     status: 'proposed',
     startDate: '',
     completionDate: '',
-    vendorName: '',
-    vendorContact: '',
-    vendorNotes: '',
     totalCost: '',
     notes: ''
   });
   
   const [errors, setErrors] = useState({});
   const [projectId, setProjectId] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
 
   // When a project is provided for editing, populate the form
   useEffect(() => {
     if (project) {
       setFormData({
         name: project.name || '',
+        name_es: project.name_es || '',
         description: project.description || '',
+        description_es: project.description_es || '',
         status: project.status || 'proposed',
         startDate: project.startDate || '',
         completionDate: project.completionDate || '',
-        vendorName: project.vendor?.name || '',
-        vendorContact: project.vendor?.contact || '',
-        vendorNotes: project.vendor?.notes || '',
         totalCost: project.totalCost ? (project.totalCost / 100).toFixed(2) : '',
         notes: project.metadata?.notes || ''
       });
@@ -78,19 +78,19 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
       // Reset form for new project
       setFormData({
         name: '',
+        name_es: '',
         description: '',
+        description_es: '',
         status: 'proposed',
         startDate: new Date().toISOString().substring(0, 10),
         completionDate: '',
-        vendorName: '',
-        vendorContact: '',
-        vendorNotes: '',
         totalCost: '',
         notes: ''
       });
       setProjectId('');
     }
     setErrors({});
+    setIsTranslating(false);
   }, [project, isOpen]);
 
   // Update project ID when name or start date changes (only for new projects)
@@ -117,6 +117,31 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
       }));
     }
   };
+
+  // Handle translation of name and description to Spanish
+  const handleTranslate = useCallback(async () => {
+    if (!formData.name.trim() && !formData.description.trim()) {
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      // Only translate if Spanish field is empty
+      if (formData.name.trim() && !formData.name_es.trim()) {
+        const nameResult = await translateToSpanish(formData.name.trim());
+        if (nameResult.success) {
+          setFormData(prev => ({ ...prev, name_es: nameResult.translatedText }));
+        }
+      }
+      if (formData.description.trim() && !formData.description_es.trim()) {
+        const descResult = await translateToSpanish(formData.description.trim());
+        if (descResult.success) {
+          setFormData(prev => ({ ...prev, description_es: descResult.translatedText }));
+        }
+      }
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [formData.name, formData.description, formData.name_es, formData.description_es]);
 
   // Validate the form
   const validateForm = () => {
@@ -153,17 +178,13 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         const projectData = {
           projectId: projectId || generateProjectId(formData.name, formData.startDate),
           name: formData.name.trim(),
+          name_es: formData.name_es.trim(),
           description: formData.description.trim(),
+          description_es: formData.description_es.trim(),
           type: 'special-assessment',
           status: formData.status,
           startDate: formData.startDate,
           completionDate: formData.completionDate || null,
-          vendor: formData.vendorName ? {
-            name: formData.vendorName.trim(),
-            contact: formData.vendorContact.trim(),
-            notes: formData.vendorNotes.trim()
-          } : null,
-          vendors: formData.vendorName ? [formData.vendorName.trim()] : [],
           totalCost: formData.totalCost ? Math.round(parseFloat(formData.totalCost) * 100) : 0,
           metadata: {
             notes: formData.notes.trim(),
@@ -179,6 +200,9 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           projectData.unitAssessments = project.unitAssessments || {};
           projectData.collections = project.collections || [];
           projectData.payments = project.payments || [];
+          // Preserve vendor data if it exists from before
+          if (project.vendor) projectData.vendor = project.vendor;
+          if (project.vendors) projectData.vendors = project.vendors;
           projectData.metadata.createdAt = project.metadata?.createdAt;
           projectData.metadata.createdBy = project.metadata?.createdBy;
         } else {
@@ -233,9 +257,9 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           <div className="sandyland-form-section">
             <h3 className="sandyland-section-title">Project Information</h3>
             
-            <div className="sandyland-form-row">
+            <div className="sandyland-form-row sandyland-form-row-split">
               <label className="sandyland-form-label">
-                Project Name *
+                Project Name (English) *
                 <input
                   type="text"
                   name="name"
@@ -246,6 +270,18 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
                   required
                 />
                 {errors.name && <span className="sandyland-error-text">{errors.name}</span>}
+              </label>
+              
+              <label className="sandyland-form-label">
+                Project Name (Spanish)
+                <input
+                  type="text"
+                  name="name_es"
+                  value={formData.name_es}
+                  onChange={handleChange}
+                  className="sandyland-form-input"
+                  placeholder="e.g., Renovación del Elevador"
+                />
               </label>
             </div>
             
@@ -264,9 +300,9 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
               </div>
             )}
             
-            <div className="sandyland-form-row">
+            <div className="sandyland-form-row sandyland-form-row-split">
               <label className="sandyland-form-label">
-                Description
+                Description (English)
                 <textarea
                   name="description"
                   value={formData.description}
@@ -276,6 +312,31 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
                   rows="3"
                 />
               </label>
+              
+              <label className="sandyland-form-label">
+                Description (Spanish)
+                <textarea
+                  name="description_es"
+                  value={formData.description_es}
+                  onChange={handleChange}
+                  className="sandyland-form-textarea"
+                  placeholder="Describa el alcance y objetivos del proyecto..."
+                  rows="3"
+                />
+              </label>
+            </div>
+            
+            <div className="sandyland-form-row">
+              <button
+                type="button"
+                className="sandyland-btn sandyland-btn-secondary"
+                onClick={handleTranslate}
+                disabled={isTranslating || (!formData.name.trim() && !formData.description.trim())}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <FontAwesomeIcon icon={faLanguage} />
+                {isTranslating ? 'Translating...' : 'Translate to Spanish'}
+              </button>
             </div>
             
             <div className="sandyland-form-row sandyland-form-row-split">
@@ -334,51 +395,6 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
                   className={`sandyland-form-input ${errors.completionDate ? 'error' : ''}`}
                 />
                 {errors.completionDate && <span className="sandyland-error-text">{errors.completionDate}</span>}
-              </label>
-            </div>
-          </div>
-
-          {/* Vendor Information Section */}
-          <div className="sandyland-form-section">
-            <h3 className="sandyland-section-title">Primary Vendor</h3>
-            
-            <div className="sandyland-form-row">
-              <label className="sandyland-form-label">
-                Vendor Name
-                <input
-                  type="text"
-                  name="vendorName"
-                  value={formData.vendorName}
-                  onChange={handleChange}
-                  className="sandyland-form-input"
-                  placeholder="e.g., Jorge Juan Perez"
-                />
-              </label>
-            </div>
-            
-            <div className="sandyland-form-row sandyland-form-row-split">
-              <label className="sandyland-form-label">
-                Contact Info
-                <input
-                  type="text"
-                  name="vendorContact"
-                  value={formData.vendorContact}
-                  onChange={handleChange}
-                  className="sandyland-form-input"
-                  placeholder="Phone or email"
-                />
-              </label>
-              
-              <label className="sandyland-form-label">
-                Vendor Notes
-                <input
-                  type="text"
-                  name="vendorNotes"
-                  value={formData.vendorNotes}
-                  onChange={handleChange}
-                  className="sandyland-form-input"
-                  placeholder="Any notes about this vendor"
-                />
               </label>
             </div>
           </div>

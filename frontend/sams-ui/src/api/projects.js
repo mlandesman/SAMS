@@ -491,3 +491,44 @@ export async function unselectBid(clientId, projectId) {
     throw error;
   }
 }
+
+/**
+ * Generate Bid Comparison PDF for poll attachment
+ * Generates a PDF, stores it in Firebase Storage, and returns a public URL.
+ * 
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {string} language - 'english' or 'spanish'
+ * @returns {Promise<{ url: string, filename: string, language: string, projectId: string, projectName: string }>}
+ */
+export async function generateBidComparisonPdf(clientId, projectId, language = 'english') {
+  try {
+    console.log(`📄 Generating bid comparison PDF for project: ${projectId} (${language})`);
+    
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(
+      `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bids/comparison-pdf`,
+      {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ language })
+      }
+    );
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Bid comparison PDF generated: ${result.document?.url}`);
+      return result.document;
+    } else {
+      console.error('❌ Failed to generate bid comparison PDF:', result.error);
+      throw new Error(result.error);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error generating bid comparison PDF:', error);
+    throw error;
+  }
+}

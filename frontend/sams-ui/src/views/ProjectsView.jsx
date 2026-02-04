@@ -20,14 +20,19 @@ import {
   faEdit, 
   faTrash,
   faChevronLeft,
-  faChevronRight
+  faChevronRight,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
-import { getProjects, getProject, createProject, updateProject, deleteProject } from '../api/projects';
+import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf } from '../api/projects';
+import { getPolls, getPoll } from '../api/polls';
+import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import GlobalSearch from '../components/GlobalSearch';
 import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal, ProjectDocumentsList } from '../components/projects';
+import PollCreationWizard from '../components/polls/PollCreationWizard';
+import PollDetailView from '../components/polls/PollDetailView';
 import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
@@ -82,6 +87,11 @@ function formatStatus(status) {
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
+function formatPollDate(value) {
+  if (!value) return '—';
+  return value.display || value.ISO_8601 || value.iso || '—';
+}
+
 function ProjectsView() {
   const { selectedClient } = useClient();
   const { setCenterContent, clearCenterContent } = useStatusBar();
@@ -120,6 +130,19 @@ function ProjectsView() {
   
   // Bids modal state
   const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
+
+  // Poll linking state
+  const [linkedPoll, setLinkedPoll] = useState(null);
+  const [linkedPollSummary, setLinkedPollSummary] = useState(null);
+  const [pollLoading, setPollLoading] = useState(false);
+  const [pollError, setPollError] = useState('');
+  const [pollWizardOpen, setPollWizardOpen] = useState(false);
+  const [pollDetailOpen, setPollDetailOpen] = useState(false);
+  const [editingPoll, setEditingPoll] = useState(null);
+  const [generatedDocuments, setGeneratedDocuments] = useState([]);
+  const [generatingDocs, setGeneratingDocs] = useState(false);
+  // Pre-populated poll context (title/description with translations)
+  const [pollContext, setPollContext] = useState({});
   
   /**
    * Extract fiscal year from a project's startDate
@@ -305,6 +328,123 @@ function ProjectsView() {
       setSelectedProject(null);
     }
   }, [selectedProjectId, selectedClient]);
+
+  useEffect(() => {
+    const loadLinkedPoll = async () => {
+      if (!selectedClient?.id || !selectedProject?.projectId) {
+        setLinkedPoll(null);
+        setLinkedPollSummary(null);
+        return;
+      }
+
+      setPollLoading(true);
+      setPollError('');
+      try {
+        const pollsResult = await getPolls(selectedClient.id);
+        const polls = pollsResult.data || [];
+        const linked = polls.filter((poll) => poll.projectId === selectedProject.projectId);
+
+        if (linked.length === 0) {
+          setLinkedPoll(null);
+          setLinkedPollSummary(null);
+          return;
+        }
+
+        const openPoll = linked.find((poll) => poll.status === 'open');
+        const parseDateValue = (field) => {
+          if (!field) return 0;
+          const value = field.iso || field.ISO_8601 || field;
+          return value ? Date.parse(value) : 0;
+        };
+        const fallback = linked.sort((a, b) => parseDateValue(b.closesAt) - parseDateValue(a.closesAt))[0];
+        const target = openPoll || fallback;
+
+        const pollDetail = await getPoll(selectedClient.id, target.pollId || target.id);
+        setLinkedPoll(pollDetail.data);
+        setLinkedPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
+      } catch (err) {
+        setPollError(err.message || 'Failed to load linked poll');
+      } finally {
+        setPollLoading(false);
+      }
+    };
+
+    loadLinkedPoll();
+  }, [selectedClient?.id, selectedProject?.projectId]);
+
+  /**
+   * Handle Create Vote - generates bid comparison PDFs and pre-populates title/description before opening wizard
+   */
+  const handleCreateProjectVote = useCallback(async () => {
+    if (!selectedClient?.id || !selectedProject?.projectId) return;
+    
+    setEditingPoll(null);
+    setGeneratingDocs(true);
+    setPollError('');
+    
+    try {
+      // Build English title and description
+      const projectName = selectedProject.name || 'Project';
+      const titleEn = `Vote to investigate ${projectName} project`;
+      const descriptionEn = selectedProject.description || '';
+      
+      // Generate PDFs and translate title/description in parallel
+      const [enDoc, esDoc, titleTranslation, descTranslation] = await Promise.all([
+        generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'english'),
+        generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'spanish'),
+        translateToSpanish(titleEn),
+        descriptionEn ? translateToSpanish(descriptionEn) : Promise.resolve({ success: true, translatedText: '' })
+      ]);
+      
+      const docs = [
+        {
+          id: `project-${selectedProject.projectId}-bids-en`,
+          name: `Bid Comparison - ${enDoc.projectName || 'Project'} (English)`,
+          url: enDoc.url,
+          type: 'bid_comparison',
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'system'
+        },
+        {
+          id: `project-${selectedProject.projectId}-bids-es`,
+          name: `Comparacion de Ofertas - ${esDoc.projectName || 'Proyecto'} (Espanol)`,
+          url: esDoc.url,
+          type: 'bid_comparison',
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'system'
+        }
+      ];
+      
+      // Calculate fiscal year from project's startDate and closing date (today + 1 week)
+      const fiscalYear = getFiscalYearFromDate(selectedProject.startDate);
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      const closesAtDate = oneWeekFromNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Set poll context with translated title/description, fiscal year, and closing date
+      setPollContext({
+        title: titleEn,
+        title_es: titleTranslation.success ? titleTranslation.translatedText : titleEn,
+        description: descriptionEn,
+        description_es: descTranslation.success ? descTranslation.translatedText : descriptionEn,
+        fiscalYear: String(fiscalYear),
+        closesAtDate,
+        closesAtTime: '23:59',
+      });
+      
+      setGeneratedDocuments(docs);
+      setPollWizardOpen(true);
+    } catch (error) {
+      console.error('Failed to generate bid comparison PDFs:', error);
+      setPollError(`Failed to generate bid documents: ${error.message}`);
+      // Still open wizard without documents if generation fails
+      setGeneratedDocuments([]);
+      setPollContext({});
+      setPollWizardOpen(true);
+    } finally {
+      setGeneratingDocs(false);
+    }
+  }, [selectedClient?.id, selectedProject?.projectId, selectedProject?.name, selectedProject?.description]);
   
   /**
    * Load projects from API
@@ -843,6 +983,60 @@ function ProjectsView() {
                   showUploader={true}
                 />
               </Paper>
+
+              {/* Voting Status Section */}
+              <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">Voting Status</Typography>
+                  {!linkedPoll && ['proposed', 'bidding', 'approved'].includes(selectedProject.status) && (
+                    <button 
+                      className="action-item" 
+                      onClick={handleCreateProjectVote}
+                      disabled={generatingDocs}
+                    >
+                      <FontAwesomeIcon icon={generatingDocs ? faSpinner : faPlus} spin={generatingDocs} />
+                      <span>
+                        {generatingDocs ? 'Generating...' : (
+                          <>
+                            {selectedProject.status === 'proposed' && 'Create Vote (approve to receive bids)'}
+                            {selectedProject.status === 'bidding' && 'Create Vote (approve vendor)'}
+                            {selectedProject.status === 'approved' && 'Create Vote'}
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  )}
+                  {linkedPoll && (
+                    <button className="action-item" onClick={() => setPollDetailOpen(true)}>
+                      <FontAwesomeIcon icon={faFileAlt} />
+                      <span>View Poll</span>
+                    </button>
+                  )}
+                </Box>
+                {pollLoading ? (
+                  <Typography variant="body2" color="text.secondary">Loading poll status...</Typography>
+                ) : pollError ? (
+                  <Typography variant="body2" color="text.secondary">{pollError}</Typography>
+                ) : linkedPoll ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant="body1">
+                      {linkedPoll.title} • {linkedPoll.status}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Closes: {formatPollDate(linkedPoll.closesAt)}
+                    </Typography>
+                    {linkedPollSummary && (
+                      <Typography variant="body2" color="text.secondary">
+                        {linkedPollSummary.totalResponses || 0} of {linkedPollSummary.totalUnits || 0} responses
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No polls linked to this project.
+                  </Typography>
+                )}
+              </Paper>
               
               {/* Unit Assessments Section */}
               <Box sx={{ mt: 4 }}>
@@ -907,6 +1101,67 @@ function ProjectsView() {
         onClose={() => setIsBidsModalOpen(false)}
         project={selectedProject}
         onProjectUpdate={handleProjectUpdateFromBids}
+      />
+
+      <PollCreationWizard
+        isOpen={pollWizardOpen}
+        onClose={() => {
+          setPollWizardOpen(false);
+          setEditingPoll(null);
+          setGeneratedDocuments([]);
+          setPollContext({});
+        }}
+        onSave={async (payload) => {
+          if (!selectedClient?.id) return;
+          const { createPoll, updatePoll } = await import('../api/polls');
+          if (editingPoll?.pollId) {
+            await updatePoll(selectedClient.id, editingPoll.pollId, payload);
+          } else {
+            await createPoll(selectedClient.id, payload);
+          }
+          setPollWizardOpen(false);
+          setEditingPoll(null);
+          setGeneratedDocuments([]);
+          setPollContext({});
+          if (selectedProject?.projectId) {
+            const pollsResult = await getPolls(selectedClient.id);
+            const linked = (pollsResult.data || []).find((poll) => poll.projectId === selectedProject.projectId);
+            if (linked) {
+              const pollDetail = await getPoll(selectedClient.id, linked.pollId || linked.id);
+              setLinkedPoll(pollDetail.data);
+              setLinkedPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
+            }
+          }
+        }}
+        poll={editingPoll}
+        isEdit={Boolean(editingPoll)}
+        context={{
+          type: 'vote',
+          category: 'project_approval',
+          projectId: selectedProject?.projectId || '',
+          responseType: 'approve_deny',
+          documents: generatedDocuments,
+          // Pre-populated title and description with translations
+          title: pollContext.title || '',
+          title_es: pollContext.title_es || '',
+          description: pollContext.description || '',
+          description_es: pollContext.description_es || '',
+          // Pre-populated fiscal year and closing date
+          fiscalYear: pollContext.fiscalYear || '',
+          closesAtDate: pollContext.closesAtDate || '',
+          closesAtTime: pollContext.closesAtTime || '23:59',
+        }}
+      />
+
+      <PollDetailView
+        open={pollDetailOpen}
+        onClose={() => setPollDetailOpen(false)}
+        clientId={selectedClient?.id}
+        pollId={linkedPoll?.pollId}
+        onEdit={(poll) => {
+          setEditingPoll(poll);
+          setPollWizardOpen(true);
+        }}
       />
     </div>
   );

@@ -1,0 +1,132 @@
+/**
+ * Shared poll form styles - used by PollCreationWizard, ResponseEntryModal, etc.
+ * Ensures consistent typography, input sizing, and layout.
+ */
+
+/* Labels - consistent size and weight */
+.poll-field > span:first-child,
+.poll-field-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+}
+
+/* Input/select/textarea base - inherit from Sandyland where available */
+.poll-field input,
+.poll-field select,
+.poll-field textarea {
+  font-size: 0.9375rem;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2937;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.poll-field input:focus,
+.poll-field select:focus,
+.poll-field textarea:focus {
+  outline: none;
+  border-color: #0863bf;
+  box-shadow: 0 0 0 3px rgba(8, 99, 191, 0.12);
+}
+
+.poll-field textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* Fixed-width inputs - date, time, short numbers */
+.poll-input-narrow {
+  width: 160px !important;
+  max-width: 100%;
+}
+
+.poll-input-date {
+  width: 170px !important;
+  max-width: 100%;
+}
+
+.poll-input-time {
+  width: 120px !important;
+  max-width: 100%;
+}
+
+.poll-input-fiscal {
+  width: 100px !important;
+  max-width: 100%;
+}
+
+.poll-input-quorum {
+  width: 80px !important;
+  max-width: 100%;
+}
+
+.poll-input-medium {
+  width: 240px !important;
+  max-width: 100%;
+}
+
+/* Row layout - side-by-side fields */
+.poll-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.poll-field-row .poll-field {
+  flex: 0 0 auto;
+}
+
+/* Section grouping - bordered/shaded blocks */
+.poll-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.poll-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Checkbox group - vertical stack with spacing */
+.poll-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.poll-field.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.poll-field.checkbox span {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+/* Select - constrained width where appropriate */
+.poll-select-narrow {
+  width: 220px !important;
+  max-width: 100%;
+}
+
+.poll-select-medium {
+  width: 280px !important;
+  max-width: 100%;
+}

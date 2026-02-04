@@ -1,0 +1,120 @@
+/* Confirmation Modal Styles */
+.confirmation-modal {
+  width: 420px;
+  text-align: center;
+}
+
+.confirmation-icon {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.confirmation-icon svg {
+  animation: pulse-in 0.3s ease-out;
+}
+
+@keyframes pulse-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.confirmation-message {
+  color: #666;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 30px;
+}
+
+/* Variant-specific colors */
+.confirmation-modal--danger .confirmation-icon {
+  color: #dc3545;
+}
+
+.confirmation-modal--primary .confirmation-icon {
+  color: #4a7c59;
+}
+
+.confirmation-modal--warning .confirmation-icon {
+  color: #ffc107;
+}
+
+.confirmation-modal--success .confirmation-icon {
+  color: #28a745;
+}
+
+/* Button variants */
+.modal-buttons button.danger {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.modal-buttons button.danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.modal-buttons button.primary {
+  background-color: #4a7c59;
+  color: white;
+  border-color: #4a7c59;
+}
+
+.modal-buttons button.primary:hover {
+  background-color: #3d6a4a;
+  border-color: #3d6a4a;
+}
+
+.modal-buttons button.warning {
+  background-color: #ffc107;
+  color: #212529;
+  border-color: #ffc107;
+}
+
+.modal-buttons button.warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+.modal-buttons button.success {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.modal-buttons button.success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Inline spinner for loading state */
+.spinner-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Disabled state */
+.modal-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

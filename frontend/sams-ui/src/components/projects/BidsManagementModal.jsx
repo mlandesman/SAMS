@@ -343,6 +343,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                         }}
                       >
                         <ListItemText
+                          primaryTypographyProps={{ component: 'div' }}
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               {bid.status === 'selected' && (
@@ -353,6 +354,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                               </Typography>
                             </Box>
                           }
+                          secondaryTypographyProps={{ component: 'div' }}
                           secondary={
                             <Box sx={{ mt: 0.5 }}>
                               <Typography variant="body2" color="primary" fontWeight="medium">

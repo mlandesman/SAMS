@@ -14,6 +14,9 @@ import ModernPaymentMethodList from '../components/lists/ModernPaymentMethodList
 import UnitList from '../components/lists/ModernUnitList';
 import ExchangeRatesList from '../components/lists/ExchangeRatesList';
 import ExchangeRatesDisplay from '../components/ExchangeRatesDisplay';
+import PollsList from '../components/polls/PollsList';
+import PollCreationWizard from '../components/polls/PollCreationWizard';
+import PollDetailView from '../components/polls/PollDetailView';
 import UserManagement, { CreateUserModal, EditUserModal } from '../components/admin/UserManagement';
 import ClientManagement, { ClientFormModal } from '../components/admin/ClientManagement'; // CLIENT_MANAGEMENT addition
 import VendorFormModal from '../components/modals/VendorFormModal';
@@ -33,6 +36,7 @@ import { createVendor, updateVendor, deleteVendor } from '../api/vendors';
 import { createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../api/paymentMethods';
 import { createUnit, updateUnit, deleteUnit } from '../api/units';
+import { createPoll, updatePoll, deletePoll } from '../api/polls';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseClient';
 import ExportMenu from '../components/common/ExportMenu';
@@ -94,6 +98,11 @@ function ListManagementView() {
     fields: []
   });
 
+  const [pollDetail, setPollDetail] = useState({
+    isOpen: false,
+    pollId: null
+  });
+
   // Confirmation dialog state
   const [confirmationDialog, setConfirmationDialog] = useState({
     isOpen: false,
@@ -139,6 +148,13 @@ function ListManagementView() {
         component: ExchangeRatesDisplay,
         componentType: 'modern-list'
         // No modal needed for exchange rates - they're read-only
+      },
+      {
+        id: 'polls',
+        label: 'Polls',
+        component: PollsList,
+        componentType: 'modern-list',
+        modalComponent: PollCreationWizard
       }
     ];
 
@@ -152,6 +168,7 @@ function ListManagementView() {
         hasModal: true
       });
     }
+
 
     // CLIENT_MANAGEMENT addition: Add Client Management tab for SuperAdmin only
     if (samsUser && isSuperAdmin(samsUser)) {
@@ -211,20 +228,30 @@ function ListManagementView() {
             (list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients'))) && 
             !enabledLists.find(existing => existing.id === list.id)
           );
+
+          const shouldShowPolls = samsUser && (isAdmin(samsUser, selectedClient?.id) || isSuperAdmin(samsUser));
+          const pollsList = allListTypes.find(list => list.id === 'polls');
+          const pollsAlreadyIncluded = enabledLists.find(existing => existing.id === 'polls') || adminComponents.find(existing => existing.id === 'polls');
+          const extraPolls = shouldShowPolls && pollsList && !pollsAlreadyIncluded ? [pollsList] : [];
           
-          setAvailableLists([...enabledLists, ...adminComponents]);
+          setAvailableLists([...enabledLists, ...adminComponents, ...extraPolls]);
         } else {
           // If no configuration exists, fall back to default lists
           // (vendors, categories, payment methods, units, exchange rates) plus admin components
           const defaultLists = allListTypes.filter(list => 
-            list.id === 'vendor' || list.id === 'category' || list.id === 'method' || list.id === 'unit' || list.id === 'exchangerates'
+            list.id === 'vendor' || list.id === 'category' || list.id === 'method' || list.id === 'unit' || list.id === 'exchangerates' || list.id === 'polls'
           );
           
           const adminComponents = allListTypes.filter(list => 
             list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients'))
           );
+
+          const shouldShowPolls = samsUser && (isAdmin(samsUser, selectedClient?.id) || isSuperAdmin(samsUser));
+          const pollsList = allListTypes.find(list => list.id === 'polls');
+          const pollsAlreadyIncluded = defaultLists.find(existing => existing.id === 'polls') || adminComponents.find(existing => existing.id === 'polls');
+          const extraPolls = shouldShowPolls && pollsList && !pollsAlreadyIncluded ? [pollsList] : [];
           
-          setAvailableLists([...defaultLists, ...adminComponents]);
+          setAvailableLists([...defaultLists, ...adminComponents, ...extraPolls]);
         }
       } catch (err) {
         console.error('Error fetching client list configuration:', err);
@@ -232,14 +259,19 @@ function ListManagementView() {
         
         // Fall back to default lists on error
         const defaultLists = allListTypes.filter(list => 
-          list.id === 'vendor' || list.id === 'category' || list.id === 'method' || list.id === 'unit' || list.id === 'exchangerates'
+          list.id === 'vendor' || list.id === 'category' || list.id === 'method' || list.id === 'unit' || list.id === 'exchangerates' || list.id === 'polls'
         );
         
         const adminComponents = allListTypes.filter(list => 
           list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients'))
         );
+
+        const shouldShowPolls = samsUser && (isAdmin(samsUser, selectedClient?.id) || isSuperAdmin(samsUser));
+        const pollsList = allListTypes.find(list => list.id === 'polls');
+        const pollsAlreadyIncluded = defaultLists.find(existing => existing.id === 'polls') || adminComponents.find(existing => existing.id === 'polls');
+        const extraPolls = shouldShowPolls && pollsList && !pollsAlreadyIncluded ? [pollsList] : [];
         
-        setAvailableLists([...defaultLists, ...adminComponents]);
+        setAvailableLists([...defaultLists, ...adminComponents, ...extraPolls]);
       } finally {
         setLoading(false);
       }
@@ -616,6 +648,9 @@ function ListManagementView() {
           }
         ];
         break;
+      case 'polls':
+        setPollDetail({ isOpen: true, pollId: selectedItem?.pollId || selectedItem?.id });
+        return;
       default:
         title = 'Item Details';
         detailFields = Object.keys(selectedItem).map(key => ({
@@ -637,7 +672,8 @@ function ListManagementView() {
     if (!selectedItem || availableLists.length === 0 || tabIndex >= availableLists.length) return;
     
     const currentList = availableLists[tabIndex];
-    const itemName = selectedItem.name || selectedItem.unitId || selectedItem.id;
+    // Get item name - polls use 'title', units use 'unitId', others use 'name'
+    const itemName = selectedItem.name || selectedItem.title || selectedItem.unitId || selectedItem.id;
     
     // Show confirmation dialog
     setConfirmationDialog({
@@ -676,6 +712,9 @@ function ListManagementView() {
             break;
           case 'users':
             await secureApi.deleteUser(selectedItem.id);
+            break;
+          case 'polls':
+            await deletePoll(selectedClient.id, selectedItem.pollId || selectedItem.id);
             break;
           default:
             console.error('Unknown list type:', currentList.id);
@@ -1190,6 +1229,30 @@ function ListManagementView() {
       throw error;
     }
   };
+
+  const handleSavePoll = async (pollData) => {
+    if (!selectedClient?.id) {
+      alert('No client selected');
+      return;
+    }
+
+    try {
+      const saveOperation = async () => {
+        if (activeModal.action === 'edit' && activeModal.itemData?.pollId) {
+          await updatePoll(selectedClient.id, activeModal.itemData.pollId, pollData);
+        } else if (activeModal.action === 'edit' && activeModal.itemData?.id) {
+          await updatePoll(selectedClient.id, activeModal.itemData.id, pollData);
+        } else {
+          await createPoll(selectedClient.id, pollData);
+        }
+      };
+
+      await handleSaveWithRefresh(saveOperation, 'poll');
+    } catch (error) {
+      console.error('❌ Error saving poll:', error);
+      alert(`Failed to save poll: ${error.message}`);
+    }
+  };
   
   // Generate the proper modal based on activeModal state
   const renderModal = () => {
@@ -1264,6 +1327,16 @@ function ListManagementView() {
             mode={activeModal.action === 'add' ? 'create' : 'edit'}
             title={activeModal.action === 'add' ? 'Add New Client' : 'Edit Client'}
             initialData={activeModal.action === 'edit' ? activeModal.itemData : null}
+          />
+        );
+      case 'polls':
+        return (
+          <PollCreationWizard
+            isOpen={true}
+            onClose={handleCloseModal}
+            onSave={handleSavePoll}
+            poll={activeModal.action === 'edit' ? activeModal.itemData : null}
+            isEdit={activeModal.action === 'edit'}
           />
         );
       // TODO: Implement other modals as needed
@@ -1455,6 +1528,21 @@ function ListManagementView() {
         title={detailModal.title}
         fields={detailModal.fields}
         editable={true}
+      />
+
+      <PollDetailView
+        open={pollDetail.isOpen}
+        onClose={() => setPollDetail({ isOpen: false, pollId: null })}
+        clientId={selectedClient?.id}
+        pollId={pollDetail.pollId}
+        onEdit={(poll) => {
+          setActiveModal({
+            type: 'polls',
+            action: 'edit',
+            itemData: poll
+          });
+          setPollDetail({ isOpen: false, pollId: null });
+        }}
       />
     </div>
   );

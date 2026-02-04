@@ -111,6 +111,14 @@
           "function": "api"
         },
         {
+          "source": "/vote",
+          "function": "api"
+        },
+        {
+          "source": "/vote/**",
+          "function": "api"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -224,6 +232,14 @@
         },
         {
           "source": "/translate",
+          "function": "api"
+        },
+        {
+          "source": "/vote",
+          "function": "api"
+        },
+        {
+          "source": "/vote/**",
           "function": "api"
         },
         {

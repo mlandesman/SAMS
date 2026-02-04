@@ -607,6 +607,39 @@ class ReportService {
   }
 
   /**
+   * Generate Budget Report PDF for Poll Attachment
+   * POST /reports/:clientId/budget/:year/generate-for-poll
+   *
+   * Generates a PDF, stores it in Firebase Storage, and returns a public URL.
+   *
+   * @param {string} clientId
+   * @param {number|null} fiscalYear - Fiscal year (optional - uses highest available if not provided)
+   * @param {string} language - 'english' or 'spanish'
+   * @returns {Promise<{ url: string, filename: string, language: string, fiscalYear: number }>}
+   */
+  async generateBudgetPdfForPoll(clientId, fiscalYear = null, language = 'english') {
+    const headers = await this.getAuthHeaders();
+
+    const yearParam = fiscalYear || 0;
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/budget/${yearParam}/generate-for-poll`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ language })
+      }
+    );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to generate budget PDF for poll');
+    }
+
+    return json.document;
+  }
+
+  /**
    * Export Transactions PDF from pre-generated HTML
    * POST /reports/:clientId/transactions/export?format=pdf
    *

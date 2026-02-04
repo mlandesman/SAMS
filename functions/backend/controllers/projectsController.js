@@ -300,11 +300,27 @@ export async function updateProject(clientId, projectId, updates) {
   delete updates.projectId;
   delete updates._id;
   
-  // Update metadata
-  const updateData = {
-    ...updates,
-    'metadata.updatedAt': new Date().toISOString()
-  };
+  // Handle metadata separately to avoid Firestore conflict
+  // (can't set both 'metadata' object and 'metadata.updatedAt' in same update)
+  const { metadata: incomingMetadata, ...otherUpdates } = updates;
+  
+  let updateData;
+  if (incomingMetadata) {
+    // Merge incoming metadata with updatedAt
+    updateData = {
+      ...otherUpdates,
+      metadata: {
+        ...incomingMetadata,
+        updatedAt: new Date().toISOString()
+      }
+    };
+  } else {
+    // No metadata in updates, just set the timestamp via dot notation
+    updateData = {
+      ...otherUpdates,
+      'metadata.updatedAt': new Date().toISOString()
+    };
+  }
   
   await docRef.update(updateData);
   

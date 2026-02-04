@@ -603,6 +603,7 @@ function ProjectDocumentsList({
                             {doc.originalName || doc.originalFilename || doc.filename || 'Document'}
                           </Typography>
                         }
+                        secondaryTypographyProps={{ component: 'div' }}
                         secondary={
                           editingDocId === doc.id ? (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>

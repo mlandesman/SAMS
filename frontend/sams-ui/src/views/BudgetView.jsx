@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tab, Tabs, Box, Typography, Alert, CircularProgress } from '@mui/material';
+import { Tab, Tabs, Box, Typography, Alert, CircularProgress, Button } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCoins,
   faChartPie,
-  faFileAlt
+  faFileAlt,
+  faVoteYea,
+  faComments,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useStatusBar } from '../context/StatusBarContext';
 import BudgetEntryTab from '../components/budget/BudgetEntryTab';
 import BudgetReportTab from '../components/budget/BudgetReportTab';
+import { getPolls, getPoll, createPoll } from '../api/polls';
+import { getFiscalYear } from '../utils/fiscalYearUtils';
+import PollCreationWizard from '../components/polls/PollCreationWizard';
+import reportService from '../services/reportService';
 import './BudgetView.css';
 
 // TabPanel component to handle tab content
@@ -39,6 +46,13 @@ function BudgetView() {
   const [zoom, setZoom] = useState(1.0);
   const [zoomMode, setZoomMode] = useState('custom');
   const { setCenterContent, clearCenterContent } = useStatusBar();
+  const [budgetPoll, setBudgetPoll] = useState(null);
+  const [budgetPollSummary, setBudgetPollSummary] = useState(null);
+  const [pollError, setPollError] = useState('');
+  const [pollWizardOpen, setPollWizardOpen] = useState(false);
+  const [pollWizardIntent, setPollWizardIntent] = useState('vote'); // 'vote' | 'poll'
+  const [generatedDocuments, setGeneratedDocuments] = useState([]);
+  const [generatingDocs, setGeneratingDocs] = useState(false);
 
   const handleZoomChange = useCallback((event) => {
     const value = event.target.value;
@@ -93,6 +107,115 @@ function BudgetView() {
     };
   }, [zoom, zoomMode, tabIndex, setCenterContent, clearCenterContent, handleZoomChange]);
 
+  useEffect(() => {
+    const loadBudgetPoll = async () => {
+      if (!selectedClient?.id) {
+        setBudgetPoll(null);
+        setBudgetPollSummary(null);
+        return;
+      }
+      try {
+        const pollsResult = await getPolls(selectedClient.id);
+        const polls = (pollsResult.data || []).filter((poll) => poll.category === 'budget_approval');
+        if (polls.length === 0) {
+          setBudgetPoll(null);
+          setBudgetPollSummary(null);
+          return;
+        }
+        const openPoll = polls.find((poll) => poll.status === 'open');
+        const parseDateValue = (field) => {
+          if (!field) return 0;
+          const value = field.iso || field.ISO_8601 || field;
+          return value ? Date.parse(value) : 0;
+        };
+        const target = openPoll || polls.sort((a, b) => parseDateValue(b.closesAt) - parseDateValue(a.closesAt))[0];
+        const pollDetail = await getPoll(selectedClient.id, target.pollId || target.id);
+        setBudgetPoll(pollDetail.data);
+        setBudgetPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
+      } catch (error) {
+        setPollError(error.message || 'Failed to load budget vote');
+      }
+    };
+
+    loadBudgetPoll();
+  }, [selectedClient?.id]);
+
+  const currentFiscalYear = selectedClient?.configuration?.fiscalYearStartMonth != null
+    ? getFiscalYear(new Date(), selectedClient.configuration.fiscalYearStartMonth)
+    : new Date().getFullYear();
+
+  const handleBudgetPollCreated = useCallback(() => {
+    setPollWizardOpen(false);
+    setPollError('');
+    if (!selectedClient?.id) return;
+    const loadBudgetPoll = async () => {
+      try {
+        const pollsResult = await getPolls(selectedClient.id);
+        const polls = (pollsResult.data || []).filter((p) => p.category === 'budget_approval');
+        if (polls.length === 0) return;
+        const openPoll = polls.find((p) => p.status === 'open');
+        const parseDateValue = (field) => {
+          if (!field) return 0;
+          const value = field.iso || field.ISO_8601 || field;
+          return value ? Date.parse(value) : 0;
+        };
+        const target = openPoll || polls.sort((a, b) => parseDateValue(b.closesAt) - parseDateValue(a.closesAt))[0];
+        const pollDetail = await getPoll(selectedClient.id, target.pollId || target.id);
+        setBudgetPoll(pollDetail.data);
+        setBudgetPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
+      } catch (error) {
+        setPollError(error.message || 'Failed to load budget vote');
+      }
+    };
+    loadBudgetPoll();
+  }, [selectedClient?.id]);
+
+  const handleCreateVoteOrPoll = useCallback(async (intent) => {
+    if (!selectedClient?.id) return;
+    
+    setPollWizardIntent(intent);
+    setGeneratingDocs(true);
+    setPollError('');
+    
+    try {
+      // Generate both English and Spanish PDFs
+      const [enDoc, esDoc] = await Promise.all([
+        reportService.generateBudgetPdfForPoll(selectedClient.id, currentFiscalYear, 'english'),
+        reportService.generateBudgetPdfForPoll(selectedClient.id, currentFiscalYear, 'spanish')
+      ]);
+      
+      const docs = [
+        {
+          id: `budget-${currentFiscalYear}-en`,
+          name: `Budget Report FY${enDoc.fiscalYear} (English)`,
+          url: enDoc.url,
+          type: 'budget_report',
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'system'
+        },
+        {
+          id: `budget-${currentFiscalYear}-es`,
+          name: `Presupuesto FY${esDoc.fiscalYear} (Español)`,
+          url: esDoc.url,
+          type: 'budget_report',
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'system'
+        }
+      ];
+      
+      setGeneratedDocuments(docs);
+      setPollWizardOpen(true);
+    } catch (error) {
+      console.error('Failed to generate budget PDFs:', error);
+      setPollError(`Failed to generate budget documents: ${error.message}`);
+      // Still open wizard without documents if generation fails
+      setGeneratedDocuments([]);
+      setPollWizardOpen(true);
+    } finally {
+      setGeneratingDocs(false);
+    }
+  }, [selectedClient?.id, currentFiscalYear]);
+
   if (!selectedClient) {
     return (
       <div className="budget-view">
@@ -105,6 +228,38 @@ function BudgetView() {
 
   return (
     <div className="budget-view">
+      {pollError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {pollError}
+        </Alert>
+      )}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+        {budgetPoll && (
+          <Alert severity="info" sx={{ flex: 1, minWidth: 0 }}>
+            Budget Vote: {budgetPoll.title} • {budgetPoll.status} • {budgetPollSummary?.totalResponses || 0}/{budgetPollSummary?.totalUnits || 0} responses
+          </Alert>
+        )}
+        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+          <Button
+            variant="contained"
+            size="small"
+            disabled={generatingDocs}
+            startIcon={<FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />}
+            onClick={() => handleCreateVoteOrPoll('vote')}
+          >
+            {generatingDocs ? 'Generating...' : 'Create Vote'}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={generatingDocs}
+            startIcon={<FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />}
+            onClick={() => handleCreateVoteOrPoll('poll')}
+          >
+            {generatingDocs ? 'Generating...' : 'Create Poll'}
+          </Button>
+        </Box>
+      </Box>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs 
           value={tabIndex} 
@@ -132,6 +287,26 @@ function BudgetView() {
       <TabPanel value={tabIndex} index={1}>
         <BudgetReportTab zoom={zoom} zoomMode={zoomMode} />
       </TabPanel>
+
+      <PollCreationWizard
+        isOpen={pollWizardOpen}
+        onClose={() => { setPollWizardOpen(false); setGeneratedDocuments([]); }}
+        onSave={async (payload) => {
+          if (!selectedClient?.id) return;
+          await createPoll(selectedClient.id, payload);
+          setGeneratedDocuments([]);
+          handleBudgetPollCreated();
+        }}
+        poll={null}
+        isEdit={false}
+        context={{
+          type: pollWizardIntent,
+          category: 'budget_approval',
+          fiscalYear: String(currentFiscalYear),
+          responseType: 'approve_deny',
+          documents: generatedDocuments,
+        }}
+      />
     </div>
   );
 }

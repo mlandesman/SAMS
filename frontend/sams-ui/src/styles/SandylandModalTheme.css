@@ -1,7 +1,8 @@
 /* SandylandModalTheme.css - Professional Modal Styling with Sandyland Branding */
 
-/* Modal Overlay - Softer background */
-.sandyland-modal-overlay {
+/* Modal Overlay - Softer background (sandy-modal = alias for poll components) */
+.sandyland-modal-overlay,
+.sandy-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -22,7 +23,8 @@
 }
 
 /* Main Modal Container */
-.sandyland-modal {
+.sandyland-modal,
+.sandy-modal {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.95) 0%,
@@ -55,7 +57,8 @@
 }
 
 /* Modal Header */
-.sandyland-modal-header {
+.sandyland-modal-header,
+.sandy-modal-header {
   background: linear-gradient(
     135deg,
     #0863bf 0%,
@@ -94,11 +97,41 @@
   z-index: 1;
 }
 
-/* Modal Content */
-.sandyland-modal-content {
+/* Modal Content - scrollable body (header/footer stay fixed) */
+.sandyland-modal-content,
+.sandy-modal-body {
   padding: 32px;
   overflow-y: auto;
   max-height: calc(90vh - 160px);
+}
+
+/* Poll wizard: flex layout for fixed header/footer, scrollable body */
+.sandy-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+
+.sandy-modal .sandy-modal-header {
+  flex-shrink: 0;
+}
+
+.sandy-modal .sandy-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: none;
+  padding: 20px 24px;
+}
+
+.sandy-modal-footer {
+  flex-shrink: 0;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid rgba(8, 99, 191, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 /* Form Sections */

@@ -24,6 +24,7 @@ import reportsRoutes from './routes/reports.js'; // Import reports routes for St
 import budgetRoutes from './routes/budgets.js'; // Import budget routes
 import translateRoutes from './routes/translateRoutes.js'; // Import translation routes for DeepL
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
+import voteRoutes from './routes/voteRoutes.js'; // Import polling & vote routes
 
 // New comment for testing
 
@@ -196,6 +197,8 @@ console.log('Mounting water routes');
 app.use('/water', waterRoutes); // Domain-specific water billing
 console.log('Mounting propane routes');
 app.use('/propane', propaneRoutes); // Domain-specific propane tank readings
+console.log('Mounting vote routes');
+app.use('/vote', voteRoutes); // Polling and voting domain
 
 // AUTH & USER MANAGEMENT DOMAIN
 console.log('Mounting auth domain routes');
