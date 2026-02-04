@@ -20,8 +20,7 @@ import {
   faEdit, 
   faTrash,
   faChevronLeft,
-  faChevronRight,
-  faSpinner
+  faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf } from '../api/projects';
@@ -31,6 +30,7 @@ import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import GlobalSearch from '../components/GlobalSearch';
 import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal, ProjectDocumentsList } from '../components/projects';
+import { LoadingSpinner } from '../components/common';
 import PollCreationWizard from '../components/polls/PollCreationWizard';
 import PollDetailView from '../components/polls/PollDetailView';
 import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
@@ -1000,8 +1000,13 @@ function ProjectsView() {
                       className="action-item" 
                       onClick={handleCreateProjectVote}
                       disabled={generatingDocs}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
-                      <FontAwesomeIcon icon={generatingDocs ? faSpinner : faPlus} spin={generatingDocs} />
+                      {generatingDocs ? (
+                        <LoadingSpinner variant="logo" size="small" show={true} />
+                      ) : (
+                        <FontAwesomeIcon icon={faPlus} />
+                      )}
                       <span>
                         {generatingDocs ? 'Generating...' : (
                           <>
