@@ -589,7 +589,9 @@ function ProjectsView() {
     
     setIsSaving(true);
     try {
-      if (editingProject) {
+      const isUpdate = !!editingProject;
+      
+      if (isUpdate) {
         // Update existing project
         await updateProject(selectedClient.id, editingProject.projectId, projectData);
       } else {
@@ -602,12 +604,17 @@ function ProjectsView() {
         setSelectedYear(projectYear);
       }
       
-      // Reload projects
+      // Reload projects list
       await loadProjects();
       
       // Select the new/updated project
       if (projectData.projectId) {
         setSelectedProjectId(projectData.projectId);
+        // For updates, explicitly reload project details since ID didn't change
+        // and the effect won't re-trigger
+        if (isUpdate) {
+          await loadProjectDetails(projectData.projectId);
+        }
       }
       
       handleModalClose();
