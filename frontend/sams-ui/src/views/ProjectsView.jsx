@@ -23,7 +23,7 @@ import {
   faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
-import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf } from '../api/projects';
+import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf, getBids } from '../api/projects';
 import { getPolls, getPoll } from '../api/polls';
 import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
@@ -373,7 +373,7 @@ function ProjectsView() {
   }, [selectedClient?.id, selectedProject?.projectId]);
 
   /**
-   * Handle Create Vote - generates bid comparison PDFs and pre-populates title/description before opening wizard
+   * Handle Create Vote - generates bid comparison PDFs (if bids exist) and pre-populates title/description before opening wizard
    */
   const handleCreateProjectVote = useCallback(async () => {
     if (!selectedClient?.id || !selectedProject?.projectId) return;
@@ -388,56 +388,74 @@ function ProjectsView() {
       const titleEn = `Vote to investigate ${projectName} project`;
       const descriptionEn = selectedProject.description || '';
       
-      // Generate PDFs and translate title/description in parallel
-      const [enDoc, esDoc, titleTranslation, descTranslation] = await Promise.all([
-        generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'english'),
-        generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'spanish'),
-        translateToSpanish(titleEn),
-        descriptionEn ? translateToSpanish(descriptionEn) : Promise.resolve({ success: true, translatedText: '' })
-      ]);
+      // First check if there are any bids for this project
+      const bidsResult = await getBids(selectedClient.id, selectedProject.projectId);
+      const hasBids = bidsResult.data && bidsResult.data.length > 0;
       
-      const docs = [
-        {
-          id: `project-${selectedProject.projectId}-bids-en`,
-          name: `Bid Comparison - ${enDoc.projectName || 'Project'} (English)`,
-          url: enDoc.url,
-          type: 'bid_comparison',
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: 'system'
-        },
-        {
-          id: `project-${selectedProject.projectId}-bids-es`,
-          name: `Comparacion de Ofertas - ${esDoc.projectName || 'Proyecto'} (Espanol)`,
-          url: esDoc.url,
-          type: 'bid_comparison',
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: 'system'
-        }
-      ];
+      let docs = [];
       
-      // Calculate fiscal year from project's startDate and closing date (today + 1 week)
-      const fiscalYear = getFiscalYearFromDate(selectedProject.startDate);
-      const oneWeekFromNow = new Date();
-      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-      const closesAtDate = oneWeekFromNow.toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      // Set poll context with translated title/description, fiscal year, and closing date
-      setPollContext({
-        title: titleEn,
-        title_es: titleTranslation.success ? titleTranslation.translatedText : titleEn,
-        description: descriptionEn,
-        description_es: descTranslation.success ? descTranslation.translatedText : descriptionEn,
-        fiscalYear: String(fiscalYear),
-        closesAtDate,
-        closesAtTime: '23:59',
-      });
+      if (hasBids) {
+        // Generate PDFs and translate title/description in parallel
+        const [enDoc, esDoc, titleTranslation, descTranslation] = await Promise.all([
+          generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'english'),
+          generateBidComparisonPdf(selectedClient.id, selectedProject.projectId, 'spanish'),
+          translateToSpanish(titleEn),
+          descriptionEn ? translateToSpanish(descriptionEn) : Promise.resolve({ success: true, translatedText: '' })
+        ]);
+        
+        docs = [
+          {
+            id: `project-${selectedProject.projectId}-bids-en`,
+            name: `Bid Comparison - ${enDoc.projectName || 'Project'} (English)`,
+            url: enDoc.url,
+            type: 'bid_comparison',
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'system'
+          },
+          {
+            id: `project-${selectedProject.projectId}-bids-es`,
+            name: `Comparacion de Ofertas - ${esDoc.projectName || 'Proyecto'} (Espanol)`,
+            url: esDoc.url,
+            type: 'bid_comparison',
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: 'system'
+          }
+        ];
+        
+        // Set poll context with translated title/description
+        setPollContext({
+          title: titleEn,
+          title_es: titleTranslation.success ? titleTranslation.translatedText : titleEn,
+          description: descriptionEn,
+          description_es: descTranslation.success ? descTranslation.translatedText : descriptionEn,
+          fiscalYear: String(getFiscalYearFromDate(selectedProject.startDate)),
+          closesAtDate: getOneWeekFromNow(),
+          closesAtTime: '23:59',
+        });
+      } else {
+        // No bids - just translate title/description without generating PDFs
+        const [titleTranslation, descTranslation] = await Promise.all([
+          translateToSpanish(titleEn),
+          descriptionEn ? translateToSpanish(descriptionEn) : Promise.resolve({ success: true, translatedText: '' })
+        ]);
+        
+        setPollContext({
+          title: titleEn,
+          title_es: titleTranslation.success ? titleTranslation.translatedText : titleEn,
+          description: descriptionEn,
+          description_es: descTranslation.success ? descTranslation.translatedText : descriptionEn,
+          fiscalYear: String(getFiscalYearFromDate(selectedProject.startDate)),
+          closesAtDate: getOneWeekFromNow(),
+          closesAtTime: '23:59',
+        });
+      }
       
       setGeneratedDocuments(docs);
       setPollWizardOpen(true);
     } catch (error) {
-      console.error('Failed to generate bid comparison PDFs:', error);
-      setPollError(`Failed to generate bid documents: ${error.message}`);
-      // Still open wizard without documents if generation fails
+      console.error('Failed to prepare vote creation:', error);
+      setPollError(`Failed to prepare vote: ${error.message}`);
+      // Still open wizard without documents if something fails
       setGeneratedDocuments([]);
       setPollContext({});
       setPollWizardOpen(true);
@@ -445,6 +463,15 @@ function ProjectsView() {
       setGeneratingDocs(false);
     }
   }, [selectedClient?.id, selectedProject?.projectId, selectedProject?.name, selectedProject?.description]);
+  
+  /**
+   * Helper to get date one week from now in YYYY-MM-DD format
+   */
+  const getOneWeekFromNow = () => {
+    const oneWeekFromNow = new Date();
+    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+    return oneWeekFromNow.toISOString().split('T')[0];
+  };
   
   /**
    * Load projects from API
