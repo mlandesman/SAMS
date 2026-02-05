@@ -11,6 +11,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getMexicoDateString } from '../utils/timezone.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 // Documents to exclude from project listings (structural, not projects)
 const EXCLUDED_PROJECT_IDS = ['waterBills', 'propaneTanks'];
@@ -149,11 +150,11 @@ export async function listProjectsHandler(req, res) {
       });
     }
     
-    console.log(`📋 Fetching projects for client: ${clientId}${fiscalYear ? ` (year: ${fiscalYear})` : ''}`);
+    logDebug(`📋 Fetching projects for client: ${clientId}${fiscalYear ? ` (year: ${fiscalYear})` : ''}`);
     
     const projects = await listProjects(clientId, fiscalYear);
     
-    console.log(`✅ Found ${projects.length} projects`);
+    logDebug(`✅ Found ${projects.length} projects`);
     
     return res.json({
       success: true,
@@ -162,7 +163,7 @@ export async function listProjectsHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error listing projects:', error);
+    logError('❌ Error listing projects:', error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -197,11 +198,11 @@ export async function getProjectHandler(req, res, next) {
     
     // If this matches a known project type, let the next handler (projectsDataController) handle it
     if (KNOWN_PROJECT_TYPES.includes(projectId)) {
-      console.log(`ℹ️ Project type ${projectId} - forwarding to projectsDataController`);
+      logDebug(`ℹ️ Project type ${projectId} - forwarding to projectsDataController`);
       return next();
     }
     
-    console.log(`📋 Fetching project ${projectId} for client: ${clientId}`);
+    logDebug(`📋 Fetching project ${projectId} for client: ${clientId}`);
     
     const project = await getProject(clientId, projectId);
     
@@ -212,7 +213,7 @@ export async function getProjectHandler(req, res, next) {
       });
     }
     
-    console.log(`✅ Found project: ${project.name}`);
+    logDebug(`✅ Found project: ${project.name}`);
     
     return res.json({
       success: true,
@@ -220,7 +221,7 @@ export async function getProjectHandler(req, res, next) {
     });
     
   } catch (error) {
-    console.error('❌ Error getting project:', error);
+    logError('❌ Error getting project:', error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -395,7 +396,7 @@ export async function createProjectHandler(req, res) {
       });
     }
     
-    console.log(`📝 Creating project for client: ${clientId}`);
+    logDebug(`📝 Creating project for client: ${clientId}`);
     
     const project = await createProject(clientId, projectData);
     
@@ -410,7 +411,7 @@ export async function createProjectHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Created project: ${project.name}`);
+    logDebug(`✅ Created project: ${project.name}`);
     
     return res.status(201).json({
       success: true,
@@ -418,7 +419,7 @@ export async function createProjectHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error creating project:', error);
+    logError('❌ Error creating project:', error);
     return res.status(error.message.includes('already exists') ? 409 : 500).json({
       success: false,
       error: error.message
@@ -457,7 +458,7 @@ export async function updateProjectHandler(req, res) {
       });
     }
     
-    console.log(`📝 Updating project ${projectId} for client: ${clientId}`);
+    logDebug(`📝 Updating project ${projectId} for client: ${clientId}`);
     
     const project = await updateProject(clientId, projectId, updates);
     
@@ -472,7 +473,7 @@ export async function updateProjectHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Updated project: ${project.name}`);
+    logDebug(`✅ Updated project: ${project.name}`);
     
     return res.json({
       success: true,
@@ -480,7 +481,7 @@ export async function updateProjectHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error updating project:', error);
+    logError('❌ Error updating project:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
@@ -518,7 +519,7 @@ export async function deleteProjectHandler(req, res) {
       });
     }
     
-    console.log(`🗑️ Deleting project ${projectId} for client: ${clientId}`);
+    logDebug(`🗑️ Deleting project ${projectId} for client: ${clientId}`);
     
     await deleteProject(clientId, projectId);
     
@@ -533,7 +534,7 @@ export async function deleteProjectHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Deleted project: ${projectId}`);
+    logDebug(`✅ Deleted project: ${projectId}`);
     
     return res.json({
       success: true,
@@ -543,7 +544,7 @@ export async function deleteProjectHandler(req, res) {
   } catch (error) {
     // Check if this is a validation rejection (not a real error)
     if (error.message.includes('Cannot delete project with financial records')) {
-      console.log(`ℹ️ Delete blocked for ${req.params.projectId}: has financial records`);
+      logDebug(`ℹ️ Delete blocked for ${req.params.projectId}: has financial records`);
       return res.status(400).json({
         success: false,
         error: error.message
@@ -551,7 +552,7 @@ export async function deleteProjectHandler(req, res) {
     }
     
     // Actual errors
-    console.error('❌ Error deleting project:', error);
+    logError('❌ Error deleting project:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
@@ -886,11 +887,11 @@ export async function listBidsHandler(req, res) {
   try {
     const { clientId, projectId } = req.params;
     
-    console.log(`📋 Fetching bids for project ${projectId}`);
+    logDebug(`📋 Fetching bids for project ${projectId}`);
     
     const bids = await listBids(clientId, projectId);
     
-    console.log(`✅ Found ${bids.length} bids`);
+    logDebug(`✅ Found ${bids.length} bids`);
     
     return res.json({
       success: true,
@@ -899,7 +900,7 @@ export async function listBidsHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error listing bids:', error);
+    logError('❌ Error listing bids:', error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -930,7 +931,7 @@ export async function getBidHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error getting bid:', error);
+    logError('❌ Error getting bid:', error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -954,7 +955,7 @@ export async function createBidHandler(req, res) {
       });
     }
     
-    console.log(`📝 Creating bid for project ${projectId}`);
+    logDebug(`📝 Creating bid for project ${projectId}`);
     
     const bid = await createBid(clientId, projectId, bidData);
     
@@ -969,7 +970,7 @@ export async function createBidHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Created bid from ${bid.vendorName}`);
+    logDebug(`✅ Created bid from ${bid.vendorName}`);
     
     return res.status(201).json({
       success: true,
@@ -977,7 +978,7 @@ export async function createBidHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error creating bid:', error);
+    logError('❌ Error creating bid:', error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -994,11 +995,11 @@ export async function updateBidHandler(req, res) {
     const { clientId, projectId, bidId } = req.params;
     const updates = req.body;
     
-    console.log(`📝 Updating bid ${bidId}`);
+    logDebug(`📝 Updating bid ${bidId}`);
     
     const bid = await updateBid(clientId, projectId, bidId, updates);
     
-    console.log(`✅ Updated bid ${bidId}`);
+    logDebug(`✅ Updated bid ${bidId}`);
     
     return res.json({
       success: true,
@@ -1006,7 +1007,7 @@ export async function updateBidHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error updating bid:', error);
+    logError('❌ Error updating bid:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
@@ -1022,7 +1023,7 @@ export async function deleteBidHandler(req, res) {
   try {
     const { clientId, projectId, bidId } = req.params;
     
-    console.log(`🗑️ Deleting bid ${bidId}`);
+    logDebug(`🗑️ Deleting bid ${bidId}`);
     
     await deleteBid(clientId, projectId, bidId);
     
@@ -1037,7 +1038,7 @@ export async function deleteBidHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Deleted bid ${bidId}`);
+    logDebug(`✅ Deleted bid ${bidId}`);
     
     return res.json({
       success: true,
@@ -1053,7 +1054,7 @@ export async function deleteBidHandler(req, res) {
       });
     }
     
-    console.error('❌ Error deleting bid:', error);
+    logError('❌ Error deleting bid:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
@@ -1069,7 +1070,7 @@ export async function selectBidHandler(req, res) {
   try {
     const { clientId, projectId, bidId } = req.params;
     
-    console.log(`✅ Selecting bid ${bidId} for project ${projectId}`);
+    logDebug(`✅ Selecting bid ${bidId} for project ${projectId}`);
     
     const project = await selectBid(clientId, projectId, bidId);
     
@@ -1084,7 +1085,7 @@ export async function selectBidHandler(req, res) {
       clientId: clientId
     });
     
-    console.log(`✅ Bid selected, project updated`);
+    logDebug(`✅ Bid selected, project updated`);
     
     return res.json({
       success: true,
@@ -1092,7 +1093,7 @@ export async function selectBidHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error selecting bid:', error);
+    logError('❌ Error selecting bid:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
@@ -1108,11 +1109,11 @@ export async function unselectBidHandler(req, res) {
   try {
     const { clientId, projectId } = req.params;
     
-    console.log(`↩️ Unselecting bid for project ${projectId}`);
+    logDebug(`↩️ Unselecting bid for project ${projectId}`);
     
     const project = await unselectBid(clientId, projectId);
     
-    console.log(`✅ Bid unselected, project back to bidding`);
+    logDebug(`✅ Bid unselected, project back to bidding`);
     
     return res.json({
       success: true,
@@ -1120,7 +1121,7 @@ export async function unselectBidHandler(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Error unselecting bid:', error);
+    logError('❌ Error unselecting bid:', error);
     return res.status(500).json({
       success: false,
       error: error.message

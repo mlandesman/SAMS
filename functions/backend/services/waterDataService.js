@@ -9,6 +9,7 @@ import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 class WaterDataService {
   constructor() {
@@ -28,7 +29,7 @@ class WaterDataService {
    * @returns {object} Calculated year data with all fields UI expects
    */
   async buildYearDataForDisplay(clientId, year) {
-    console.log(`📊 Building calculated year data for ${clientId} FY${year} (no caching)`);
+    logDebug(`📊 Building calculated year data for ${clientId} FY${year} (no caching)`);
     
     const months = [];
     
@@ -38,7 +39,7 @@ class WaterDataService {
     
     // PERFORMANCE: Batch fetch all readings and bills for the year at once
     // This replaces multiple individual Firestore reads with 2 batch operations
-    console.log(`📚 [BATCH] Pre-fetching all readings and bills for year ${year}`);
+    logDebug(`📚 [BATCH] Pre-fetching all readings and bills for year ${year}`);
     const [allReadings, allBills] = await Promise.all([
       this.fetchAllReadingsForYear(clientId, year),
       this.fetchAllBillsForYear(clientId, year)
@@ -53,7 +54,7 @@ class WaterDataService {
       // Stop if no bills AND no readings for months after the first month
       // (Month 0 might not have bills yet in a new fiscal year)
       if (!hasBills && !hasReadings && month > 0) {
-        console.log(`📊 Stopping at month ${month} - no bills or readings found`);
+        logDebug(`📊 Stopping at month ${month} - no bills or readings found`);
         break;
       }
       
@@ -63,7 +64,7 @@ class WaterDataService {
         ? {} // First month has no prior months
         : await this._calculateUnpaidCarryover(clientId, year, month, config?.ratePerM3 || 5000);
       
-      console.log(`📊 Month ${month} carryover:`, Object.keys(unpaidCarryover).length > 0 
+      logDebug(`📊 Month ${month} carryover:`, Object.keys(unpaidCarryover).length > 0 
         ? `${Object.keys(unpaidCarryover).length} units with overdue` 
         : 'no overdue amounts');
       
@@ -74,7 +75,7 @@ class WaterDataService {
       months.push(monthData);
     }
     
-    console.log(`📊 Built ${months.length} months of data`);
+    logDebug(`📊 Built ${months.length} months of data`);
     
     // Calculate year summary
     const summary = this.calculateYearSummary(months);
@@ -96,7 +97,7 @@ class WaterDataService {
     if (year) {
       const cacheKey = `${clientId}-${year}`;
       this.cache.delete(cacheKey);
-      console.log(`🗑️ Cleared cache for ${clientId} FY${year}`);
+      logDebug(`🗑️ Cleared cache for ${clientId} FY${year}`);
     } else {
       // Clear all cache entries for this client
       for (const [key] of this.cache) {
@@ -104,7 +105,7 @@ class WaterDataService {
           this.cache.delete(key);
         }
       }
-      console.log(`🗑️ Cleared all cache for client ${clientId}`);
+      logDebug(`🗑️ Cleared all cache for client ${clientId}`);
     }
     
     // Also clear config cache
@@ -186,7 +187,7 @@ class WaterDataService {
    * @param {object} existingUnitData - Optional: Existing unit data from aggregatedData to avoid recalculation
    */
   async buildSingleUnitData(clientId, year, month, unitId, existingUnitData = null) {
-    console.log(`🔧 [SURGICAL] Building data for unit ${unitId} in month ${month}`);
+    logDebug(`🔧 [SURGICAL] Building data for unit ${unitId} in month ${month}`);
     
     try {
       // Get cached client config to avoid repeated fetches
@@ -195,12 +196,12 @@ class WaterDataService {
       // OPTIMIZATION: If we have existing unit data and only need to update payment status,
       // fetch only the bill document (not readings/carryover)
       if (existingUnitData) {
-        console.log(`⚡ [SURGICAL] Using existing unit data, fetching only updated bill`);
+        logDebug(`⚡ [SURGICAL] Using existing unit data, fetching only updated bill`);
         const bills = await this.fetchBills(clientId, year, month);
         const bill = bills?.bills?.units?.[unitId];
         
         if (!bill) {
-          console.warn(`⚠️  No bill found for unit ${unitId} in month ${month}`);
+          logWarn(`⚠️  No bill found for unit ${unitId} in month ${month}`);
           return existingUnitData; // Return unchanged if no bill
         }
         
@@ -276,11 +277,11 @@ class WaterDataService {
         month
       );
       
-      console.log(`✅ [SURGICAL] Unit ${unitId} data calculated successfully`);
+      logDebug(`✅ [SURGICAL] Unit ${unitId} data calculated successfully`);
       return unitData;
       
     } catch (error) {
-      console.error(`❌ [SURGICAL] Error calculating unit ${unitId} data:`, error);
+      logError(`❌ [SURGICAL] Error calculating unit ${unitId} data:`, error);
       throw error;
     }
   }
@@ -394,7 +395,7 @@ class WaterDataService {
         // Get dueDate from document level (bills.dueDate), not unit level (bill.dueDate doesn't exist)
         const dueDate = bills?.dueDate;
         if (!dueDate) {
-          console.log(`⚠️  No dueDate for unit ${unit.unitId}, falling back to stored penalty`);
+          logDebug(`⚠️  No dueDate for unit ${unit.unitId}, falling back to stored penalty`);
           return penaltyAmount; // Fallback to stored if no due date
         }
         
@@ -403,10 +404,10 @@ class WaterDataService {
         const gracePeriodDays = config?.penaltyDays || 10;
         const daysPastDue = Math.max(0, Math.floor((today - dueDateObj) / (1000 * 60 * 60 * 24)));
         
-        console.log(`💰 Penalty calc for unit ${unit.unitId}: dueDate=${dueDate}, daysPastDue=${daysPastDue}, gracePeriod=${gracePeriodDays}`);
+        logDebug(`💰 Penalty calc for unit ${unit.unitId}: dueDate=${dueDate}, daysPastDue=${daysPastDue}, gracePeriod=${gracePeriodDays}`);
         
         if (daysPastDue <= gracePeriodDays) {
-          console.log(`   Within grace period, returning 0`);
+          logDebug(`   Within grace period, returning 0`);
           return 0; // Within grace period
         }
         
@@ -430,7 +431,7 @@ class WaterDataService {
           penaltyRate
         );
         
-        console.log(`   monthsPastDue=${monthsPastDue}, unpaidBase=${unpaidBaseAmount}, rate=${penaltyRate}, penalty=${calculatedPenalty}`);
+        logDebug(`   monthsPastDue=${monthsPastDue}, unpaidBase=${unpaidBaseAmount}, rate=${penaltyRate}, penalty=${calculatedPenalty}`);
         
         return calculatedPenalty;
       })(),                                                                      // In centavos
@@ -448,15 +449,15 @@ class WaterDataService {
     const actualAmountPaidToThisBill = (bill?.basePaid || 0) + (bill?.penaltyPaid || 0);
     
     if (billStatus === 'paid' && unpaidAmount > 0) {
-      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-      console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+      logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+      logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
     }
     if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
-      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-      console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+      logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+      logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
     }
     if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
-      console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
+      logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
     }
     
     return unitData;
@@ -531,10 +532,10 @@ class WaterDataService {
     // This gives us Penalties column (all unpaid penalties) and Overdue column (all unpaid balances)
     let unpaidCarryover = {};
     if (month > 0) {
-      console.log(`🔍 Calculating carryover for month ${month} (${month > 0 ? 'eligible' : 'not eligible'})`);
+      logDebug(`🔍 Calculating carryover for month ${month} (${month > 0 ? 'eligible' : 'not eligible'})`);
       // Always calculate carryover for penalty and overdue amounts from previous months
       unpaidCarryover = await this._calculateUnpaidCarryover(clientId, year, month, ratePerM3);
-      console.log(`📊 Carryover results:`, unpaidCarryover);
+      logDebug(`📊 Carryover results:`, unpaidCarryover);
     }
     
     // Build unit data
@@ -603,14 +604,14 @@ class WaterDataService {
         const totalPaid = (bill.basePaid || 0) + (bill.penaltyPaid || 0);
         unpaidAmount = Math.max(0, totalDueAmount - totalPaid);
         
-        console.log(`💰 Unit ${unitId} bill data (centavos):`);
-        console.log(`  Monthly Amount: ${billAmount} (${centavosToPesos(billAmount)} pesos)`);
-        console.log(`  Previous Balance: ${bill.previousBalance || 0} (${centavosToPesos(bill.previousBalance || 0)} pesos)`);
-        console.log(`  Penalty Amount: ${penaltyAmount} (${centavosToPesos(penaltyAmount)} pesos)`);
-        console.log(`  Total Due: ${totalDueAmount} (${centavosToPesos(totalDueAmount)} pesos)`);
-        console.log(`  Total Paid: ${totalPaid} (${centavosToPesos(totalPaid)} pesos) [basePaid: ${bill.basePaid || 0}, penaltyPaid: ${bill.penaltyPaid || 0}]`);
-        console.log(`  Status: ${this.calculateStatus(bill)}`);
-        console.log(`  Unpaid Amount: ${unpaidAmount} (${centavosToPesos(unpaidAmount)} pesos)`);
+        logDebug(`💰 Unit ${unitId} bill data (centavos):`);
+        logDebug(`  Monthly Amount: ${billAmount} (${centavosToPesos(billAmount)} pesos)`);
+        logDebug(`  Previous Balance: ${bill.previousBalance || 0} (${centavosToPesos(bill.previousBalance || 0)} pesos)`);
+        logDebug(`  Penalty Amount: ${penaltyAmount} (${centavosToPesos(penaltyAmount)} pesos)`);
+        logDebug(`  Total Due: ${totalDueAmount} (${centavosToPesos(totalDueAmount)} pesos)`);
+        logDebug(`  Total Paid: ${totalPaid} (${centavosToPesos(totalPaid)} pesos) [basePaid: ${bill.basePaid || 0}, penaltyPaid: ${bill.penaltyPaid || 0}]`);
+        logDebug(`  Status: ${this.calculateStatus(bill)}`);
+        logDebug(`  Unpaid Amount: ${unpaidAmount} (${centavosToPesos(unpaidAmount)} pesos)`);
       } else {
         // No bill exists - use carryover data for display (all in centavos)
         totalDueAmount = billAmount + (carryover.previousBalance || 0) + (carryover.penaltyAmount || 0);
@@ -628,15 +629,15 @@ class WaterDataService {
       
       // Check for inconsistencies between status and amounts
       if (billStatus === 'paid' && unpaidAmount > 0) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+        logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+        logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
       }
       
       unitData[unitId] = {
@@ -751,8 +752,8 @@ class WaterDataService {
    * Optimized month builder that reuses cached config data
    */
   async _buildMonthDataOptimized(clientId, year, month, units, config, ratePerM3) {
-    console.log(`🔧 [OPTIMIZED] Building month ${month} data for ${clientId}`);
-    console.log(`🔧 [OPTIMIZED] About to start carryover logic for month ${month}`);
+    logDebug(`🔧 [OPTIMIZED] Building month ${month} data for ${clientId}`);
+    logDebug(`🔧 [OPTIMIZED] About to start carryover logic for month ${month}`);
     // Calculate prior month coordinates
     let priorMonth, priorYear;
     if (month === 0) {
@@ -777,16 +778,16 @@ class WaterDataService {
     const priorTimestamp = priorReadingsData.timestamp;
     
     // Calculate unpaid carryover from previous months for months > 0
-    console.log(`🔍 [CARRYOVER] Checking if month ${month} > 0 for carryover calculation`);
+    logDebug(`🔍 [CARRYOVER] Checking if month ${month} > 0 for carryover calculation`);
     let unpaidCarryover = {};
     if (month > 0) {
-      console.log(`🔍 [CARRYOVER] Calculating carryover for ${clientId} month ${month}`);
+      logDebug(`🔍 [CARRYOVER] Calculating carryover for ${clientId} month ${month}`);
       try {
         // Fetch all previous month bills to calculate carryover
         for (let prevMonth = 0; prevMonth < month; prevMonth++) {
           const prevBills = await this.fetchBills(clientId, year, prevMonth);
           if (prevBills?.bills?.units) {
-            console.log(`🔍 [CARRYOVER] Checking month ${prevMonth} bills for unpaid amounts`);
+            logDebug(`🔍 [CARRYOVER] Checking month ${prevMonth} bills for unpaid amounts`);
             for (const [unitId, unitBill] of Object.entries(prevBills.bills.units)) {
               if (unitBill.status !== 'paid') {
                 if (!unpaidCarryover[unitId]) {
@@ -800,7 +801,7 @@ class WaterDataService {
                 unpaidCarryover[unitId].totalPenalties += unpaidPenalty;  // Same as penaltyAmount for cumulative total
                 
                 if (unitId === '106' || unitId === '203') {
-                  console.log(`🔍 [CARRYOVER] Unit ${unitId} from month ${prevMonth}: +$${unpaidPenalty} penalty, +$${unpaidBalance} balance`);
+                  logDebug(`🔍 [CARRYOVER] Unit ${unitId} from month ${prevMonth}: +$${unpaidPenalty} penalty, +$${unpaidBalance} balance`);
                 }
               }
             }
@@ -810,11 +811,11 @@ class WaterDataService {
         // Log final carryover amounts
         Object.entries(unpaidCarryover).forEach(([unitId, carryover]) => {
           if (carryover.penaltyAmount > 0 || carryover.previousBalance > 0) {
-            console.log(`🔍 [CARRYOVER] Unit ${unitId} total carryover: $${carryover.penaltyAmount} penalty, $${carryover.previousBalance} balance`);
+            logDebug(`🔍 [CARRYOVER] Unit ${unitId} total carryover: $${carryover.penaltyAmount} penalty, $${carryover.previousBalance} balance`);
           }
         });
       } catch (error) {
-        console.error(`❌ [CARRYOVER] Error calculating carryover for month ${month}:`, error);
+        logError(`❌ [CARRYOVER] Error calculating carryover for month ${month}:`, error);
       }
     }
     
@@ -993,15 +994,15 @@ class WaterDataService {
       const actualAmountPaidToThisBill = (bill?.basePaid || 0) + (bill?.penaltyPaid || 0);
       
       if (billStatus === 'paid' && unpaidAmount > 0) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
-        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but unpaidAmount is $${unpaidAmount}`);
+        logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'unpaid' && unpaidAmount === 0 && totalDueAmount > 0) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
-        console.warn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'unpaid' but unpaidAmount is $0`);
+        logWarn(`   totalAmount: $${totalDueAmount}, actualPaid: $${actualAmountPaidToThisBill}`);
       }
       if (billStatus === 'paid' && actualAmountPaidToThisBill < totalDueAmount) {
-        console.warn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
+        logWarn(`⚠️  [DATA_INCONSISTENCY] Unit ${unitId} Month ${month}: Status is 'paid' but actualPaid ($${actualAmountPaidToThisBill}) < totalAmount ($${totalDueAmount})`);
       }
     }
     
@@ -1105,7 +1106,7 @@ class WaterDataService {
       }
       
       // Batch fetch all documents
-      console.log(`📚 [BATCH] Fetching ${docRefs.length} reading documents in one call`);
+      logDebug(`📚 [BATCH] Fetching ${docRefs.length} reading documents in one call`);
       const snapshots = await db.getAll(...docRefs);
       
       // Build results map
@@ -1127,10 +1128,10 @@ class WaterDataService {
         }
       });
       
-      console.log(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => Object.keys(results[k].readings).length > 0).length} months with readings`);
+      logDebug(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => Object.keys(results[k].readings).length > 0).length} months with readings`);
       return results;
     } catch (error) {
-      console.error('Error batch fetching readings:', error);
+      logError('Error batch fetching readings:', error);
       return {};
     }
   }
@@ -1160,7 +1161,7 @@ class WaterDataService {
       }
       
       // Batch fetch all documents
-      console.log(`📚 [BATCH] Fetching ${docRefs.length} bill documents in one call`);
+      logDebug(`📚 [BATCH] Fetching ${docRefs.length} bill documents in one call`);
       const snapshots = await db.getAll(...docRefs);
       
       // Build results map
@@ -1170,10 +1171,10 @@ class WaterDataService {
         results[key] = snapshot.exists ? snapshot.data() : null;
       });
       
-      console.log(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => results[k] !== null).length} months with bills`);
+      logDebug(`✅ [BATCH] Loaded ${Object.keys(results).filter(k => results[k] !== null).length} months with bills`);
       return results;
     } catch (error) {
-      console.error('Error batch fetching bills:', error);
+      logError('Error batch fetching bills:', error);
       return {};
     }
   }
@@ -1197,7 +1198,7 @@ class WaterDataService {
         timestamp: data.timestamp || null
       };
     } catch (error) {
-      console.log(`No readings for ${year}-${month}`);
+      logDebug(`No readings for ${year}-${month}`);
       return { readings: {}, timestamp: null };
     }
   }
@@ -1210,7 +1211,7 @@ class WaterDataService {
       const data = await waterBillsService.getBills(clientId, year, month);
       return data;
     } catch (error) {
-      console.log(`No bills for ${year}-${month}`);
+      logDebug(`No bills for ${year}-${month}`);
       return null;
     }
   }
@@ -1221,10 +1222,10 @@ class WaterDataService {
   async fetchUnits(clientId) {
     try {
       const units = await listUnits(clientId);
-      console.log(`📦 Fetched ${units.length} units for ${clientId}`);
+      logDebug(`📦 Fetched ${units.length} units for ${clientId}`);
       return units;
     } catch (error) {
-      console.error(`Error fetching units for ${clientId}:`, error.message);
+      logError(`Error fetching units for ${clientId}:`, error.message);
       return [];
     }
   }
@@ -1244,15 +1245,15 @@ class WaterDataService {
       
       if (configDoc.exists) {
         const config = configDoc.data();
-        console.log(`💧 Water billing config: ratePerM3 = ${config.ratePerM3} cents ($${(config.ratePerM3 || 5000) / 100})`);
+        logDebug(`💧 Water billing config: ratePerM3 = ${config.ratePerM3} cents ($${(config.ratePerM3 || 5000) / 100})`);
         return config;
       }
       
-      console.log('⚠️ No water billing config found, using defaults');
+      logDebug('⚠️ No water billing config found, using defaults');
       return { ratePerM3: 5000 }; // Default to 5000 cents ($50)
       
     } catch (error) {
-      console.error('Error fetching water billing config:', error);
+      logError('Error fetching water billing config:', error);
       return { ratePerM3: 5000 }; // Default fallback
     }
   }
@@ -1397,7 +1398,7 @@ class WaterDataService {
    * Invalidate cache for client/year (legacy method - use clearCache instead)
    */
   invalidate(clientId, year = null) {
-    console.log(`⚠️ Using legacy invalidate method - consider using clearCache instead`);
+    logDebug(`⚠️ Using legacy invalidate method - consider using clearCache instead`);
     this.clearCache(clientId, year);
   }
 
@@ -1407,9 +1408,9 @@ class WaterDataService {
    */
   async _calculateUnpaidCarryover(clientId, currentYear, currentMonth, ratePerM3, specificUnitId = null) {
     if (specificUnitId) {
-      console.log(`🔍 [CARRYOVER] SURGICAL: Calculating for unit ${specificUnitId} only`);
+      logDebug(`🔍 [CARRYOVER] SURGICAL: Calculating for unit ${specificUnitId} only`);
     } else {
-      console.log(`🔍 [CARRYOVER] Starting calculation for ${clientId} ${currentYear} month ${currentMonth}`);
+      logDebug(`🔍 [CARRYOVER] Starting calculation for ${clientId} ${currentYear} month ${currentMonth}`);
     }
     const { getDb } = await import('../firebase.js');
     const db = await getDb();
@@ -1417,7 +1418,7 @@ class WaterDataService {
     const unpaidByUnit = {};
     
     // Check all previous months in the fiscal year
-    console.log(`🔍 [CARRYOVER] Checking months 0 to ${currentMonth - 1}`);
+    logDebug(`🔍 [CARRYOVER] Checking months 0 to ${currentMonth - 1}`);
     for (let month = 0; month < currentMonth; month++) {
       const monthStr = String(month).padStart(2, '0');
       const billDoc = await db
@@ -1470,7 +1471,7 @@ class WaterDataService {
   clearCache() {
     const size = this.cache.size;
     this.cache.clear();
-    console.log(`🗑️ Cleared entire cache (${size} entries)`);
+    logDebug(`🗑️ Cleared entire cache (${size} entries)`);
   }
 }
 
