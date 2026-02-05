@@ -9,6 +9,7 @@ import {
   recalculatePenalties as recalculatePenaltiesShared,
   loadBillingConfig
 } from '../../shared/services/PenaltyRecalculationService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 class PenaltyRecalculationService {
   constructor() {
@@ -51,7 +52,7 @@ class PenaltyRecalculationService {
     try {
       const startTime = Date.now();
       const scopeDescription = unitIds ? `units: [${unitIds.join(', ')}]` : 'all units';
-      console.log(`🔄 [PENALTY_RECALC] Starting penalty recalculation for client ${clientId} (${scopeDescription})`);
+      logDebug(`🔄 [PENALTY_RECALC] Starting penalty recalculation for client ${clientId} (${scopeDescription})`);
       
       // Load and validate configuration first
       let config;
@@ -91,7 +92,7 @@ class PenaltyRecalculationService {
       const billsSnapshot = await billsCollectionRef.get();
 
       if (billsSnapshot.empty) {
-        console.warn(`⚠️  [PENALTY_RECALC] No water bills found for client: ${clientId}`);
+        logWarn(`⚠️  [PENALTY_RECALC] No water bills found for client: ${clientId}`);
         const elapsedTime = Date.now() - startTime;
         return {
           success: true,
@@ -99,7 +100,7 @@ class PenaltyRecalculationService {
         };
       }
 
-      console.log(`📊 [PENALTY_RECALC] Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
+      logDebug(`📊 [PENALTY_RECALC] Found ${billsSnapshot.size} bill documents to process for ${clientId}`);
 
       // Process each month's bills
       for (const billDoc of billsSnapshot.docs) {
@@ -107,12 +108,12 @@ class PenaltyRecalculationService {
         let hasUpdates = false;
 
         if (!billData.bills || !billData.bills.units) {
-          console.log(`⚠️  [PENALTY_RECALC] Skipping ${billDoc.id} - no bills.units structure`);
+          logDebug(`⚠️  [PENALTY_RECALC] Skipping ${billDoc.id} - no bills.units structure`);
           continue;
         }
 
         const unitCount = Object.keys(billData.bills.units).length;
-        console.log(`🏠 [PENALTY_RECALC] Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
+        logDebug(`🏠 [PENALTY_RECALC] Processing ${billDoc.id} with ${unitCount} units, due date: ${billData.dueDate}`);
 
         // Process each unit's bills in this month
         for (const [unitId, unitData] of Object.entries(billData.bills.units)) {
@@ -144,7 +145,7 @@ class PenaltyRecalculationService {
             results.totalPenaltiesUpdated += penaltyResult.penaltyAmount;
             hasUpdates = true;
 
-            console.log(`Updated penalty for ${clientId} Unit ${unitId} ${billDoc.id}: $${penaltyResult.penaltyAmount}`);
+            logDebug(`Updated penalty for ${clientId} Unit ${unitId} ${billDoc.id}: $${penaltyResult.penaltyAmount}`);
           }
         }
 
@@ -165,15 +166,15 @@ class PenaltyRecalculationService {
         efficiencyGain: unitIds ? `${results.skippedOutOfScopeBills + results.skippedPaidBills} bills skipped (surgical mode)` : `${results.skippedPaidBills} paid bills skipped`
       };
       
-      console.log(`✅ [PENALTY_RECALC] Penalty recalculation completed for client ${clientId}`);
-      console.log(`📊 [PENALTY_RECALC] Performance Metrics:`, performanceMetrics);
-      console.log(`   - Processing time: ${elapsedTime}ms`);
-      console.log(`   - Bills processed: ${results.processedBills}`);
-      console.log(`   - Bills updated: ${results.updatedBills}`);
-      console.log(`   - Paid bills skipped: ${results.skippedPaidBills}`);
+      logDebug(`✅ [PENALTY_RECALC] Penalty recalculation completed for client ${clientId}`);
+      logDebug(`📊 [PENALTY_RECALC] Performance Metrics:`, performanceMetrics);
+      logDebug(`   - Processing time: ${elapsedTime}ms`);
+      logDebug(`   - Bills processed: ${results.processedBills}`);
+      logDebug(`   - Bills updated: ${results.updatedBills}`);
+      logDebug(`   - Paid bills skipped: ${results.skippedPaidBills}`);
       if (unitIds) {
-        console.log(`   - Out-of-scope bills skipped: ${results.skippedOutOfScopeBills}`);
-        console.log(`   - Unit scope: [${unitIds.join(', ')}]`);
+        logDebug(`   - Out-of-scope bills skipped: ${results.skippedOutOfScopeBills}`);
+        logDebug(`   - Unit scope: [${unitIds.join(', ')}]`);
       }
       
       return {
@@ -182,7 +183,7 @@ class PenaltyRecalculationService {
       };
 
     } catch (error) {
-      console.error(`Error recalculating penalties for client ${clientId}:`, error);
+      logError(`Error recalculating penalties for client ${clientId}:`, error);
       return {
         success: false,
         error: {
@@ -226,7 +227,7 @@ class PenaltyRecalculationService {
     
     // If no due date, return early with no penalty update
     if (!billDueDate) {
-      console.log(`⚠️  [PENALTY_RECALC] Bill has no due date - skipping penalty calculation`);
+      logDebug(`⚠️  [PENALTY_RECALC] Bill has no due date - skipping penalty calculation`);
       return {
         penaltyAmount: billData.penaltyAmount || 0,
         updated: false,
@@ -269,7 +270,7 @@ class PenaltyRecalculationService {
     await this._initializeDb();
     
     try {
-      console.log('Starting monthly penalty recalculation for all clients');
+      logDebug('Starting monthly penalty recalculation for all clients');
       const currentDate = getNow();
       
       // Get all clients that have waterBills projects
@@ -290,7 +291,7 @@ class PenaltyRecalculationService {
             const clientResult = await this.recalculatePenaltiesForClient(clientId, currentDate);
             results.push(clientResult);
           } catch (error) {
-            console.error(`Failed to recalculate penalties for client ${clientId}:`, error);
+            logError(`Failed to recalculate penalties for client ${clientId}:`, error);
             results.push({
               clientId,
               error: error.message,
@@ -302,12 +303,12 @@ class PenaltyRecalculationService {
       }
 
       const totalUpdated = results.reduce((sum, result) => sum + (result.updatedBills || 0), 0);
-      console.log(`Monthly penalty recalculation completed. Updated ${totalUpdated} bills across ${results.length} clients.`);
+      logDebug(`Monthly penalty recalculation completed. Updated ${totalUpdated} bills across ${results.length} clients.`);
 
       return results;
 
     } catch (error) {
-      console.error('Error in monthly penalty recalculation:', error);
+      logError('Error in monthly penalty recalculation:', error);
       throw error;
     }
   }
@@ -320,14 +321,14 @@ class PenaltyRecalculationService {
   async manualPenaltyRecalc(clientId = null) {
     try {
       if (clientId) {
-        console.log(`Manual penalty recalculation requested for client: ${clientId}`);
+        logDebug(`Manual penalty recalculation requested for client: ${clientId}`);
         return await this.recalculatePenaltiesForClient(clientId);
       } else {
-        console.log('Manual penalty recalculation requested for all clients');
+        logDebug('Manual penalty recalculation requested for all clients');
         return await this.scheduleMonthlyPenaltyRecalc();
       }
     } catch (error) {
-      console.error('Manual penalty recalculation failed:', error);
+      logError('Manual penalty recalculation failed:', error);
       throw error;
     }
   }
@@ -344,7 +345,7 @@ class PenaltyRecalculationService {
       throw new Error('unitIds must be a non-empty array');
     }
     
-    console.log(`🎯 [PENALTY_RECALC] Surgical update: recalculating penalties for ${unitIds.length} unit(s)`);
+    logDebug(`🎯 [PENALTY_RECALC] Surgical update: recalculating penalties for ${unitIds.length} unit(s)`);
     return await this.recalculatePenaltiesForClient(clientId, currentDate, unitIds);
   }
 
@@ -393,7 +394,7 @@ class PenaltyRecalculationService {
       };
 
     } catch (error) {
-      console.error(`Error getting penalty summary for client ${clientId}:`, error);
+      logError(`Error getting penalty summary for client ${clientId}:`, error);
       throw error;
     }
   }

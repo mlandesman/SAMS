@@ -24,6 +24,7 @@
 import { unifiedPaymentWrapper } from '../services/unifiedPaymentWrapper.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Validate client ID
@@ -174,7 +175,7 @@ function validatePaymentMethod(paymentMethod) {
  */
 export const previewUnifiedPayment = async (req, res) => {
   try {
-    console.log('🌐 [UNIFIED PAYMENT CONTROLLER] Preview request received');
+    logDebug('🌐 [UNIFIED PAYMENT CONTROLLER] Preview request received');
     
     // Extract parameters from request body
     const { clientId, unitId, amount, paymentDate, waivedPenalties, excludedBills } = req.body;
@@ -224,7 +225,7 @@ export const previewUnifiedPayment = async (req, res) => {
     const amountInPesos = centavosToPesos(effectiveAmount);
     
     // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${effectiveAmount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
+    logDebug(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${effectiveAmount} centavos ($${amountInPesos}), Date: ${paymentDate}`);
     
     // Call UnifiedPaymentWrapper service (expects PESOS)
     // generateUPCData() provides all data (bills, credit, discrepancy) - no Statement call needed
@@ -239,14 +240,14 @@ export const previewUnifiedPayment = async (req, res) => {
     );
     
     // Return successful preview
-    console.log('✅ [UNIFIED PAYMENT CONTROLLER] Preview generated successfully');
+    logDebug('✅ [UNIFIED PAYMENT CONTROLLER] Preview generated successfully');
     return res.status(200).json({
       success: true,
       preview: preview
     });
     
   } catch (error) {
-    console.error('❌ [UNIFIED PAYMENT CONTROLLER] Preview error:', error);
+    logError('❌ [UNIFIED PAYMENT CONTROLLER] Preview error:', error);
     
     // Check for specific error types
     if (error.message && error.message.includes('not found')) {
@@ -282,7 +283,7 @@ export const previewUnifiedPayment = async (req, res) => {
  */
 export const recordUnifiedPayment = async (req, res) => {
   try {
-    console.log('🌐 [UNIFIED PAYMENT CONTROLLER] Record request received');
+    logDebug('🌐 [UNIFIED PAYMENT CONTROLLER] Record request received');
     
     // Extract parameters from request body
     const { 
@@ -359,10 +360,10 @@ export const recordUnifiedPayment = async (req, res) => {
     const amountInPesos = centavosToPesos(amount);
     
     // Log validated request
-    console.log(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Method: ${paymentMethod}`);
-    if (reference) console.log(`   ℹ️  Reference: ${reference}`);
-    if (notes) console.log(`   ℹ️  Notes: ${notes}`);
-    if (documents && documents.length > 0) console.log(`   ℹ️  Documents: ${documents.length} document(s) to link`);
+    logDebug(`   ℹ️  Client: ${clientId}, Unit: ${unitId}, Amount: ${amount} centavos ($${amountInPesos}), Method: ${paymentMethod}`);
+    if (reference) logDebug(`   ℹ️  Reference: ${reference}`);
+    if (notes) logDebug(`   ℹ️  Notes: ${notes}`);
+    if (documents && documents.length > 0) logDebug(`   ℹ️  Documents: ${documents.length} document(s) to link`);
     
     // Prepare payment data (include user ID from auth middleware)
     const paymentData = {
@@ -388,15 +389,15 @@ export const recordUnifiedPayment = async (req, res) => {
     );
     
     // Return successful recording
-    console.log('✅ [UNIFIED PAYMENT CONTROLLER] Payment recorded successfully');
-    console.log(`   Transaction ID: ${result.transactionId}`);
+    logDebug('✅ [UNIFIED PAYMENT CONTROLLER] Payment recorded successfully');
+    logDebug(`   Transaction ID: ${result.transactionId}`);
     return res.status(200).json({
       success: true,
       result: result
     });
     
   } catch (error) {
-    console.error('❌ [UNIFIED PAYMENT CONTROLLER] Record error:', error);
+    logError('❌ [UNIFIED PAYMENT CONTROLLER] Record error:', error);
     
     // Check for specific error types
     if (error.message && error.message.includes('changed since preview')) {
