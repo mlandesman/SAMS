@@ -59,13 +59,15 @@
 }
 
 .reports-content {
-  min-height: 400px;
   background-color: #fff;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
-  /* Allow inner content (like Statement preview) to grow and scroll */
+  /* Fill available space in view-container */
   flex: 1;
+  overflow: hidden;
+  /* Ensure content fills the full height available */
+  height: 100%;
 }
 
 .reports-tab-content {
@@ -74,6 +76,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  /* Ensure tab content fills full height */
+  height: 100%;
 }
 
 .reports-placeholder {

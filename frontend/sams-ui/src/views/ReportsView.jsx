@@ -114,52 +114,54 @@ function ReportsView() {
         {/* No actions needed for Reports view - client name is sufficient */}
       </ActivityActionBar>
       
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
-        <Tabs
-          value={tabIndex}
-          onChange={(_, newIndex) => setTabIndex(newIndex)}
-          aria-label="reports tabs"
-          className="reports-tabs"
-        >
-          <Tab
-            label="Statement of Account"
-            icon={<FontAwesomeIcon icon={faFileInvoice} />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Budget vs Actual"
-            icon={<FontAwesomeIcon icon={faChartPie} />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Activity"
-            icon={<FontAwesomeIcon icon={faChartLine} />}
-            iconPosition="start"
-            disabled
-          />
-          <Tab
-            label="History (Soon)"
-            icon={<FontAwesomeIcon icon={faHistory} />}
-            iconPosition="start"
-            disabled
-          />
-        </Tabs>
-      </Box>
+      <div className="scrollable-content" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
+          <Tabs
+            value={tabIndex}
+            onChange={(_, newIndex) => setTabIndex(newIndex)}
+            aria-label="reports tabs"
+            className="reports-tabs"
+          >
+            <Tab
+              label="Statement of Account"
+              icon={<FontAwesomeIcon icon={faFileInvoice} />}
+              iconPosition="start"
+            />
+            <Tab
+              label="Budget vs Actual"
+              icon={<FontAwesomeIcon icon={faChartPie} />}
+              iconPosition="start"
+            />
+            <Tab
+              label="Activity"
+              icon={<FontAwesomeIcon icon={faChartLine} />}
+              iconPosition="start"
+              disabled
+            />
+            <Tab
+              label="History (Soon)"
+              icon={<FontAwesomeIcon icon={faHistory} />}
+              iconPosition="start"
+              disabled
+            />
+          </Tabs>
+        </Box>
 
-      <div className="reports-content">
-        {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} zoomMode={zoomMode} />}
-        {tabIndex === 1 && <BudgetActualTab zoom={zoom} zoomMode={zoomMode} />}
-        {tabIndex === 2 && <ActivityTab />}
-        {tabIndex === 3 && (
-          <div className="reports-tab-content">
-            <div className="reports-placeholder">
-              <FontAwesomeIcon icon={faHistory} size="3x" className="placeholder-icon" />
-              <h2>Report History</h2>
-              <p>View previously generated reports.</p>
-              <p className="coming-soon">Coming soon</p>
+        <div className="reports-content">
+          {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} zoomMode={zoomMode} />}
+          {tabIndex === 1 && <BudgetActualTab zoom={zoom} zoomMode={zoomMode} />}
+          {tabIndex === 2 && <ActivityTab />}
+          {tabIndex === 3 && (
+            <div className="reports-tab-content">
+              <div className="reports-placeholder">
+                <FontAwesomeIcon icon={faHistory} size="3x" className="placeholder-icon" />
+                <h2>Report History</h2>
+                <p>View previously generated reports.</p>
+                <p className="coming-soon">Coming soon</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
