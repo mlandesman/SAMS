@@ -16,6 +16,7 @@ import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
+import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Get utility graph data for a unit
@@ -42,7 +43,7 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
     // AVII: Water consumption bars
     return await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth);
   } catch (error) {
-    console.error(`❌ [Utility Graph] Error fetching utility graph data for ${clientId}/${unitId}:`, error);
+    logError(`❌ [Utility Graph] Error fetching utility graph data for ${clientId}/${unitId}:`, error);
     return null;
   }
 }
@@ -102,7 +103,7 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
       readingDate: `${data.year}-${String(data.month).padStart(2, '0')}`
     };
   } catch (error) {
-    console.error(`❌ [Propane Gauge] Error fetching propane gauge data for ${clientId}/${unitId}:`, error);
+    logError(`❌ [Propane Gauge] Error fetching propane gauge data for ${clientId}/${unitId}:`, error);
     return null;
   }
 }
@@ -204,7 +205,7 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       latestConsumption: recentPeriods[recentPeriods.length - 1].consumption
     };
   } catch (error) {
-    console.error(`❌ [Water Bars] Error fetching water bars data for ${clientId}/${unitId}:`, error);
+    logError(`❌ [Water Bars] Error fetching water bars data for ${clientId}/${unitId}:`, error);
     return null;
   }
 }
@@ -1311,7 +1312,7 @@ async function getCreditBalanceAsOf(db, clientId, unitId, asOfDate, fiscalYear =
     // Negate positive credit balance for running balance (credit reduces debt)
     return -1 * balanceInPesos;
   } catch (error) {
-    console.warn(`Warning: Could not fetch credit balance for ${clientId}/${unitId} as of ${asOfDate.toISOString()}:`, error.message);
+    logWarn(`Warning: Could not fetch credit balance for ${clientId}/${unitId} as of ${asOfDate.toISOString()}:`, error.message);
     return 0; // Graceful degradation - return 0 on error
   }
 }
@@ -1521,7 +1522,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         }
       }
     } catch (error) {
-      console.warn('Warning: Could not fetch orphaned transactions:', error.message);
+      logWarn('Warning: Could not fetch orphaned transactions:', error.message);
     }
     
     // Step 7: Get all unpaid bills with penalties using unified preview API
@@ -2078,12 +2079,12 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
               creditEntryId: entry.id || null
             });
             
-            console.log(`   💳 [STATEMENT] Added standalone credit adjustment: ${entry.notes}, amount: ${amountPesos}, source: ${entry.source}`);
+            logInfo(`   💳 [STATEMENT] Added standalone credit adjustment: ${entry.notes}, amount: ${amountPesos}, source: ${entry.source}`);
           }
         }
       }
     } catch (error) {
-      console.warn(`Warning: Could not fetch credit adjustments for ${clientId}/${unitId}:`, error.message);
+      logWarn(`Warning: Could not fetch credit adjustments for ${clientId}/${unitId}:`, error.message);
     }
     
     // Step 7.11: Fetch ALL credit history entries for Credit Balance Activity section
@@ -2180,7 +2181,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         }
       }
     } catch (error) {
-      console.warn(`Warning: Could not fetch credit activity for ${clientId}/${unitId}:`, error.message);
+      logWarn(`Warning: Could not fetch credit activity for ${clientId}/${unitId}:`, error.message);
     }
     
     // Step 8: Create chronological transaction list
@@ -2235,7 +2236,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       if (txn.type !== 'charge' || txn.category !== 'hoa') return true;
       const txnDate = txn.date instanceof Date ? txn.date : new Date(txn.date);
       if (isNaN(txnDate.getTime())) {
-        console.log(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
+        logInfo(`   ⚠️  [STATEMENT FILTER] Invalid date for HOA charge: ${txn.description}, date: ${txn.date}`);
         return false;
       }
       const bufferDate = new Date(txnDate);
@@ -2316,7 +2317,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     // Log reconciliation info for debugging (warning only, no override)
     const currentCreditBalance = creditBalanceData.creditBalance || 0;
     if (process.env.DEBUG_STATEMENT === 'true' && Math.abs(finalBalance) > 0.01) {
-      console.log(`[Statement Reconciliation] ${clientId}/${unitId}: ` +
+      logInfo(`[Statement Reconciliation] ${clientId}/${unitId}: ` +
         `Running Balance=${finalBalance.toFixed(2)}, Current Credit=${currentCreditBalance.toFixed(2)}`);
     }
 
@@ -2458,7 +2459,7 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
       if (c.transactionId) {
         try {
           const txn = await fetchTransaction(api, clientId, c.transactionId);
-          console.log(`[Projects] Fetched transaction ${c.transactionId}:`, {
+          logInfo(`[Projects] Fetched transaction ${c.transactionId}:`, {
             hasNotes: !!txn?.notes,
             hasDescription: !!txn?.description,
             notes: txn?.notes,
@@ -2473,7 +2474,7 @@ async function getUnitProjectsForStatement(api, clientId, unitId, fiscalYearBoun
           };
         } catch (error) {
           // If transaction fetch fails, return collection as-is
-          console.log(`[Projects] Failed to fetch transaction ${c.transactionId}:`, error.message);
+          logInfo(`[Projects] Failed to fetch transaction ${c.transactionId}:`, error.message);
           return { ...c, notes: c.notes || '' };
         }
       }
@@ -2552,7 +2553,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     }
   } catch (error) {
     // Config document doesn't exist yet - that's okay, use empty config
-    console.log(`ℹ️  No accountStatements config found for ${clientId}, using defaults`);
+    logInfo(`ℹ️  No accountStatements config found for ${clientId}, using defaults`);
   }
   
   // Get utility graph data (propane gauge for MTC, water bars for AVII)
@@ -2565,7 +2566,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     utilityGraph = await getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth);
   } catch (error) {
     // Utility graph is optional - don't fail if it can't be loaded
-    console.error(`[Statement] Could not load utility graph for ${clientId}/${unitId}:`, error.message);
+    logError(`[Statement] Could not load utility graph for ${clientId}/${unitId}:`, error.message);
   }
   
   // Format address string
@@ -2606,7 +2607,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       if (error.response?.status === 404) {
         return null;
       }
-      console.warn(`Warning: Could not fetch user data for email ${email}:`, error.message);
+      logWarn(`Warning: Could not fetch user data for email ${email}:`, error.message);
       return null;
     }
   };
@@ -2661,7 +2662,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     }
   } catch (error) {
     // Unit data not critical - continue with empty arrays
-    console.warn(`Warning: Could not fetch unit data for ${clientId}/${unitId}:`, error.message);
+    logWarn(`Warning: Could not fetch unit data for ${clientId}/${unitId}:`, error.message);
   }
   
   // Format fiscal period string

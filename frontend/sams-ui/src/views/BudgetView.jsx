@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tab, Tabs, Box, Typography, Alert, CircularProgress, Button } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -7,16 +8,19 @@ import {
   faFileAlt,
   faVoteYea,
   faComments,
-  faSpinner
+  faSpinner,
+  faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useStatusBar } from '../context/StatusBarContext';
+import ActivityActionBar from '../components/common/ActivityActionBar';
 import BudgetEntryTab from '../components/budget/BudgetEntryTab';
 import BudgetReportTab from '../components/budget/BudgetReportTab';
 import { getPolls, getPoll, createPoll } from '../api/polls';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import PollCreationWizard from '../components/polls/PollCreationWizard';
 import reportService from '../services/reportService';
+import '../layout/ActionBar.css';
 import './BudgetView.css';
 
 // TabPanel component to handle tab content
@@ -41,6 +45,7 @@ function TabPanel({ children, value, index, ...other }) {
 
 // Main Budget View component
 function BudgetView() {
+  const navigate = useNavigate();
   const { selectedClient } = useClient();
   const [tabIndex, setTabIndex] = useState(0);
   const [zoom, setZoom] = useState(1.0);
@@ -218,8 +223,8 @@ function BudgetView() {
 
   if (!selectedClient) {
     return (
-      <div className="budget-view">
-        <Alert severity="info" sx={{ mt: 2 }}>
+      <div className="view-container">
+        <Alert severity="info" sx={{ mt: 2, mx: 2 }}>
           Please select a client to manage budgets
         </Alert>
       </div>
@@ -227,39 +232,47 @@ function BudgetView() {
   }
 
   return (
-    <div className="budget-view">
+    <div className="view-container">
+      {/* ACTION BAR */}
+      <ActivityActionBar>
+        <button 
+          className="action-item" 
+          onClick={() => navigate('/reports', { state: { activeTab: 'budget-actual' } })}
+          title="View Budget vs Actual report"
+        >
+          <FontAwesomeIcon icon={faChartLine} />
+          <span>Budget vs Actual</span>
+        </button>
+        <button 
+          className="action-item" 
+          onClick={() => handleCreateVoteOrPoll('vote')}
+          disabled={generatingDocs}
+          title="Create budget approval vote"
+        >
+          <FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />
+          <span>{generatingDocs ? 'Generating...' : 'Create Vote'}</span>
+        </button>
+        <button 
+          className="action-item" 
+          onClick={() => handleCreateVoteOrPoll('poll')}
+          disabled={generatingDocs}
+          title="Create budget discussion poll"
+        >
+          <FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />
+          <span>{generatingDocs ? 'Generating...' : 'Create Poll'}</span>
+        </button>
+      </ActivityActionBar>
+      
       {pollError && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Alert severity="warning" sx={{ mb: 2, mx: 2 }}>
           {pollError}
         </Alert>
       )}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-        {budgetPoll && (
-          <Alert severity="info" sx={{ flex: 1, minWidth: 0 }}>
-            Budget Vote: {budgetPoll.title} • {budgetPoll.status} • {budgetPollSummary?.totalResponses || 0}/{budgetPollSummary?.totalUnits || 0} responses
-          </Alert>
-        )}
-        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-          <Button
-            variant="contained"
-            size="small"
-            disabled={generatingDocs}
-            startIcon={<FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />}
-            onClick={() => handleCreateVoteOrPoll('vote')}
-          >
-            {generatingDocs ? 'Generating...' : 'Create Vote'}
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={generatingDocs}
-            startIcon={<FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />}
-            onClick={() => handleCreateVoteOrPoll('poll')}
-          >
-            {generatingDocs ? 'Generating...' : 'Create Poll'}
-          </Button>
-        </Box>
-      </Box>
+      {budgetPoll && (
+        <Alert severity="info" sx={{ mb: 2, mx: 2 }}>
+          Budget Vote: {budgetPoll.title} • {budgetPoll.status} • {budgetPollSummary?.totalResponses || 0}/{budgetPollSummary?.totalUnits || 0} responses
+        </Alert>
+      )}
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs 
           value={tabIndex} 

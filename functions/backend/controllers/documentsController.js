@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import { getNow } from '../services/DateService.js';
 import { randomUUID } from 'crypto';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
@@ -58,7 +59,7 @@ function generateStoragePathWithId(clientId, documentId, originalName) {
 
 // Upload document
 export const uploadDocument = async (req, res) => {
-  console.log('📤 Document upload request received:', {
+  logDebug('📤 Document upload request received:', {
     clientId: req.params.clientId,
     user: req.user?.email,
     file: req.file ? {
@@ -75,11 +76,11 @@ export const uploadDocument = async (req, res) => {
     const file = req.file;
     
     if (!file) {
-      console.error('❌ No file provided in upload request');
+      logError('❌ No file provided in upload request');
       return res.status(400).json({ error: 'No file provided' });
     }
 
-    console.log('✅ File validation passed, proceeding with upload');
+    logDebug('✅ File validation passed, proceeding with upload');
 
     const db = await getDb();
     // Use the properly initialized Firebase app
@@ -90,7 +91,7 @@ export const uploadDocument = async (req, res) => {
     const documentId = generateDocumentId();
     const storagePath = generateStoragePathWithId(clientId, documentId, file.originalname);
     
-    console.log('📁 Storage path generated:', storagePath);
+    logDebug('📁 Storage path generated:', storagePath);
 
     // Upload file to Firebase Storage
     const fileUpload = bucket.file(storagePath);
@@ -107,12 +108,12 @@ export const uploadDocument = async (req, res) => {
     });
 
     blobStream.on('error', (error) => {
-      console.error('❌ Storage upload error:', error);
+      logError('❌ Storage upload error:', error);
       res.status(500).json({ error: 'Failed to upload file to storage' });
     });
 
     blobStream.on('finish', async () => {
-      console.log('📦 File uploaded to storage, saving metadata...');
+      logDebug('📦 File uploaded to storage, saving metadata...');
       try {
         // Make file publicly readable (you may want to adjust this based on security requirements)
         await fileUpload.makePublic();
@@ -142,7 +143,7 @@ export const uploadDocument = async (req, res) => {
           try {
             return JSON.parse(value);
           } catch (error) {
-            console.warn('⚠️ Failed to parse JSON value, using default:', { value, error: error.message });
+            logWarn('⚠️ Failed to parse JSON value, using default:', { value, error: error.message });
             return defaultValue;
           }
         };
@@ -182,14 +183,14 @@ export const uploadDocument = async (req, res) => {
 
         await db.collection('clients').doc(clientId).collection('documents').doc(documentId).set(documentData);
         
-        console.log(`✅ Document uploaded successfully: ${documentId}`);
+        logDebug(`✅ Document uploaded successfully: ${documentId}`);
         res.status(201).json({
           success: true,
           document: documentData
         });
         
       } catch (firestoreError) {
-        console.error('❌ Firestore save error:', firestoreError);
+        logError('❌ Firestore save error:', firestoreError);
         res.status(500).json({ error: 'Failed to save document metadata' });
       }
     });
@@ -197,7 +198,7 @@ export const uploadDocument = async (req, res) => {
     blobStream.end(file.buffer);
     
   } catch (error) {
-    console.error('❌ Upload document error:', error);
+    logError('❌ Upload document error:', error);
     res.status(500).json({ error: 'Failed to upload document' });
   }
 };
@@ -208,7 +209,7 @@ export const getDocuments = async (req, res) => {
     const { clientId } = req.params;
     const { documentType, category, linkedToType, linkedToId, limit = 50 } = req.query;
     
-    console.log('📋 Get documents query:', {
+    logDebug('📋 Get documents query:', {
       clientId,
       documentType,
       category,
@@ -236,7 +237,7 @@ export const getDocuments = async (req, res) => {
       // When using linkedTo filters, cannot also filter by documentType/category
       // (would require a different composite index)
       if (documentType || category) {
-        console.warn('⚠️ Cannot combine linkedTo filters with documentType/category - ignoring documentType/category');
+        logWarn('⚠️ Cannot combine linkedTo filters with documentType/category - ignoring documentType/category');
       }
       query = query.where('linkedTo.id', '==', linkedToId)
                    .where('linkedTo.type', '==', linkedToType);
@@ -244,7 +245,7 @@ export const getDocuments = async (req, res) => {
       // Apply documentType or category filters (use separate indexes)
       // Note: Cannot combine documentType + category (would need another index)
       if (documentType && category) {
-        console.warn('⚠️ Cannot filter by both documentType and category - using documentType only');
+        logWarn('⚠️ Cannot filter by both documentType and category - using documentType only');
         query = query.where('documentType', '==', documentType);
       } else if (documentType) {
         query = query.where('documentType', '==', documentType);
@@ -257,7 +258,7 @@ export const getDocuments = async (req, res) => {
     query = query.orderBy('uploadedAt', 'desc')
                  .limit(parseInt(limit));
     
-    console.log('📋 Executing query with filters (index order):', {
+    logDebug('📋 Executing query with filters (index order):', {
       queryOrder: [
         'isArchived',
         ...(linkedToType && linkedToId ? ['linkedTo.id', 'linkedTo.type'] : []),
@@ -286,7 +287,7 @@ export const getDocuments = async (req, res) => {
     res.json({ documents });
     
   } catch (error) {
-    console.error('❌ Get documents error:', error);
+    logError('❌ Get documents error:', error);
     res.status(500).json({ error: 'Failed to retrieve documents' });
   }
 };
@@ -316,7 +317,7 @@ export const getDocument = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Get document error:', error);
+    logError('❌ Get document error:', error);
     res.status(500).json({ error: 'Failed to retrieve document' });
   }
 };
@@ -346,16 +347,16 @@ export const deleteDocument = async (req, res) => {
       if (docData.storageRef) {
         const file = bucket.file(docData.storageRef);
         await file.delete();
-        console.log(`🗑️ Deleted file from storage: ${docData.storageRef}`);
+        logDebug(`🗑️ Deleted file from storage: ${docData.storageRef}`);
       }
     } catch (storageError) {
-      console.warn('⚠️ Failed to delete file from storage (may not exist):', storageError.message);
+      logWarn('⚠️ Failed to delete file from storage (may not exist):', storageError.message);
       // Continue with metadata deletion even if storage deletion fails
     }
     
     // Delete document metadata
     await docRef.delete();
-    console.log(`🗑️ Deleted document metadata: ${documentId}`);
+    logDebug(`🗑️ Deleted document metadata: ${documentId}`);
     
     res.json({ 
       success: true, 
@@ -364,14 +365,14 @@ export const deleteDocument = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Delete document error:', error);
+    logError('❌ Delete document error:', error);
     res.status(500).json({ error: 'Failed to delete document' });
   }
 };
 
 // Update document metadata
 export const updateDocumentMetadata = async (req, res) => {
-  console.log('🔄 Document metadata update request:', {
+  logDebug('🔄 Document metadata update request:', {
     clientId: req.params.clientId,
     documentId: req.params.documentId,
     body: req.body,
@@ -388,11 +389,11 @@ export const updateDocumentMetadata = async (req, res) => {
     // Check if document exists
     const doc = await docRef.get();
     if (!doc.exists) {
-      console.error('❌ Document not found:', documentId);
+      logError('❌ Document not found:', documentId);
       return res.status(404).json({ error: 'Document not found' });
     }
     
-    console.log('📄 Document found, current data:', doc.data());
+    logDebug('📄 Document found, current data:', doc.data());
     
     // Prepare update data
     const updateData = {
@@ -407,25 +408,25 @@ export const updateDocumentMetadata = async (req, res) => {
     if (tags !== undefined) updateData.tags = tags;
     if (folder !== undefined) updateData.folder = folder;
     
-    console.log('🔄 About to update document with data:', updateData);
+    logDebug('🔄 About to update document with data:', updateData);
     
     // Update document
     await docRef.update(updateData);
-    console.log('✅ Firestore update() call completed');
+    logDebug('✅ Firestore update() call completed');
     
     // Verify the update succeeded by reading it back
     const updatedDoc = await docRef.get();
     const finalData = updatedDoc.data();
     
-    console.log('✅ Document update completed. Final data:', finalData);
+    logDebug('✅ Document update completed. Final data:', finalData);
     
     // Double-check that linkedTo field exists in the final data
     if (updateData.linkedTo && !finalData.linkedTo) {
-      console.error('🚨 CRITICAL: linkedTo field was not saved! Expected:', updateData.linkedTo, 'Got:', finalData.linkedTo);
+      logError('🚨 CRITICAL: linkedTo field was not saved! Expected:', updateData.linkedTo, 'Got:', finalData.linkedTo);
       throw new Error('Document update verification failed: linkedTo field not saved');
     }
     
-    console.log('✅ Document update verification successful');
+    logDebug('✅ Document update verification successful');
     
     res.json({
       success: true,
@@ -436,7 +437,7 @@ export const updateDocumentMetadata = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Update document metadata error:', error);
+    logError('❌ Update document metadata error:', error);
     res.status(500).json({ error: 'Failed to update document metadata' });
   }
 };
@@ -453,7 +454,7 @@ export const generateUploadUrl = async (req, res) => {
     const { clientId } = req.params;
     const { filename, contentType } = req.body;
     
-    console.log('📤 Generate upload URL request:', {
+    logDebug('📤 Generate upload URL request:', {
       clientId,
       filename,
       contentType,
@@ -491,15 +492,15 @@ export const generateUploadUrl = async (req, res) => {
     // Get Firebase Storage bucket (same pattern as Statement PDF uploads)
     const app = await getApp();
     const bucket = app.storage().bucket();
-    console.log('📤 Storage bucket:', bucket.name);
+    logDebug('📤 Storage bucket:', bucket.name);
     
     const file = bucket.file(objectPath);
-    console.log('📤 File reference created:', objectPath);
+    logDebug('📤 File reference created:', objectPath);
     
     // Generate v4 signed URL for PUT upload (15 minutes expiration)
     const expiresAtMs = Date.now() + 15 * 60 * 1000; // 15 minutes from now (timestamp in ms)
     
-    console.log('📤 Attempting to generate signed URL:', {
+    logDebug('📤 Attempting to generate signed URL:', {
       objectPath,
       expiresAt: new Date(expiresAtMs).toISOString(),
       contentType,
@@ -528,9 +529,9 @@ export const generateUploadUrl = async (req, res) => {
       }
       
       [uploadUrl] = await file.getSignedUrl(signUrlOptions);
-      console.log('✅ Signed URL generated successfully');
+      logDebug('✅ Signed URL generated successfully');
     } catch (urlError) {
-      console.error('❌ getSignedUrl failed:', {
+      logError('❌ getSignedUrl failed:', {
         message: urlError.message,
         code: urlError.code,
         name: urlError.name,
@@ -541,7 +542,7 @@ export const generateUploadUrl = async (req, res) => {
       throw new Error(`Failed to generate signed URL: ${urlError.message}. This may require "Service Account Token Creator" role on the service account used by Firebase Functions.`);
     }
     
-    console.log('✅ Upload URL generated successfully:', {
+    logDebug('✅ Upload URL generated successfully:', {
       objectPath,
       expiresAt: new Date(expiresAtMs).toISOString(),
       uploadUrlLength: uploadUrl?.length || 0
@@ -554,7 +555,7 @@ export const generateUploadUrl = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Generate upload URL error:', {
+    logError('❌ Generate upload URL error:', {
       message: error.message,
       stack: error.stack,
       code: error.code,
@@ -575,7 +576,7 @@ export const generateUploadUrl = async (req, res) => {
  * Output: { documentId, downloadUrl, ... }
  */
 export const finalizeUpload = async (req, res) => {
-  console.log('📤 Finalize upload route HIT:', {
+  logDebug('📤 Finalize upload route HIT:', {
     method: req.method,
     url: req.url,
     path: req.path,
@@ -596,7 +597,7 @@ export const finalizeUpload = async (req, res) => {
       tags
     } = req.body;
     
-    console.log('📤 Finalize upload request:', {
+    logDebug('📤 Finalize upload request:', {
       clientId,
       objectPath,
       originalFilename,
@@ -658,7 +659,7 @@ export const finalizeUpload = async (req, res) => {
       try {
         return JSON.parse(value);
       } catch (error) {
-        console.warn('⚠️ Failed to parse JSON value:', { value, error: error.message });
+        logWarn('⚠️ Failed to parse JSON value:', { value, error: error.message });
         return defaultValue;
       }
     };
@@ -699,7 +700,7 @@ export const finalizeUpload = async (req, res) => {
     
     await db.collection('clients').doc(clientId).collection('documents').doc(documentId).set(documentData);
     
-    console.log(`✅ Document finalized successfully: ${documentId}`);
+    logDebug(`✅ Document finalized successfully: ${documentId}`);
     
     res.status(201).json({
       success: true,
@@ -709,7 +710,7 @@ export const finalizeUpload = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Finalize upload error:', error);
+    logError('❌ Finalize upload error:', error);
     res.status(500).json({ error: 'Failed to finalize document upload' });
   }
 };

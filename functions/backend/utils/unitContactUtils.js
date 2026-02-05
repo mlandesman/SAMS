@@ -8,6 +8,8 @@
  * Date: December 16, 2025
  */
 
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+
 /**
  * Normalize owners array to new structure [{name, email}]
  * Assumes new format only - converts string format if found (should not happen after migration)
@@ -21,7 +23,7 @@ export function normalizeOwners(owners) {
   return owners.map(owner => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof owner === 'string') {
-      console.warn('⚠️  Found legacy string format owner - should be migrated:', owner);
+      logWarn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
     // New format: {name, email}
@@ -45,7 +47,7 @@ export function normalizeManagers(managers) {
   return managers.map(manager => {
     // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof manager === 'string') {
-      console.warn('⚠️  Found legacy string format manager - should be migrated:', manager);
+      logWarn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
     // New format: {name, email}

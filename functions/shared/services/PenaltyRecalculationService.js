@@ -23,6 +23,7 @@ import { getNow, parseDate, createDate, addDays } from './DateService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig as validatePenaltyConfigShared } from '../utils/configValidation.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Validate penalty configuration
@@ -147,14 +148,14 @@ export function calculateCompoundingPenalty(baseAmount, previousPenalty = 0, mon
   let runningTotal = baseAmount;
   let totalPenalty = 0;
   
-  console.log(`🧮 [COMPOUND_CALC] Starting: base=${baseAmount} centavos, months=${monthsOverdue}, rate=${penaltyRate}`);
+  logDebug(`🧮 [COMPOUND_CALC] Starting: base=${baseAmount} centavos, months=${monthsOverdue}, rate=${penaltyRate}`);
   
   for (let month = 1; month <= monthsOverdue; month++) {
     const monthlyPenalty = runningTotal * penaltyRate;
     totalPenalty += monthlyPenalty;
     runningTotal += monthlyPenalty;
     
-    console.log(`🧮 [COMPOUND_CALC] Month ${month}: ${Math.round(runningTotal)} centavos × ${penaltyRate} = ${Math.round(monthlyPenalty)} penalty (total: ${Math.round(totalPenalty)} centavos)`);
+    logDebug(`🧮 [COMPOUND_CALC] Month ${month}: ${Math.round(runningTotal)} centavos × ${penaltyRate} = ${Math.round(monthlyPenalty)} penalty (total: ${Math.round(totalPenalty)} centavos)`);
   }
   
   return Math.round(totalPenalty);
@@ -182,7 +183,7 @@ export function groupBillsByDueDate(bills) {
     } else if (bill.dueDate instanceof Date) {
       dueDateStr = bill.dueDate.toISOString().split('T')[0];
     } else {
-      console.warn(`⚠️  Bill ${bill.billId} has invalid dueDate:`, bill.dueDate);
+      logWarn(`⚠️  Bill ${bill.billId} has invalid dueDate:`, bill.dueDate);
       dueDateStr = 'unknown';
     }
     
@@ -193,9 +194,9 @@ export function groupBillsByDueDate(bills) {
     groups[dueDateStr].push(bill);
   });
   
-  console.log(`📦 [GROUPING] Grouped ${bills.length} bills into ${Object.keys(groups).length} due date group(s)`);
+  logDebug(`📦 [GROUPING] Grouped ${bills.length} bills into ${Object.keys(groups).length} due date group(s)`);
   Object.entries(groups).forEach(([date, groupBills]) => {
-    console.log(`   ${date}: ${groupBills.length} bill(s)`);
+    logDebug(`   ${date}: ${groupBills.length} bill(s)`);
   });
   
   return groups;
@@ -224,7 +225,7 @@ export function calculatePenaltyForBill(params) {
   // Skip auto-calculation if penalty was imported from Sheets
   // This preserves the exact penalty amounts from Google Sheets
   if (bill.penalty?.source === 'imported') {
-    console.log(`⏭️  [PENALTY_SKIP] Skipping auto-calculation for imported penalty: ${bill.penalty.amount} centavos`);
+    logDebug(`⏭️  [PENALTY_SKIP] Skipping auto-calculation for imported penalty: ${bill.penalty.amount} centavos`);
     return {
       penaltyAmount: bill.penalty.amount || bill.penaltyAmount || 0,
       updated: false,
@@ -264,18 +265,18 @@ export function calculatePenaltyForBill(params) {
   // This matches the logic in calculateMonthsOverdue() which uses <= for "not overdue"
   const pastGracePeriod = asOfDate >= gracePeriodEnd;
   
-  console.log(`📅 Date Check - Current: ${asOfDate.toISOString()}, Due: ${dueDate.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past: ${pastGracePeriod}`);
+  logDebug(`📅 Date Check - Current: ${asOfDate.toISOString()}, Due: ${dueDate.toISOString()}, Grace End: ${gracePeriodEnd.toISOString()}, Past: ${pastGracePeriod}`);
   
   // Calculate overdue amount (unpaid principal, excluding penalties)
   const overdueAmount = Math.max(0, (bill.currentCharge || 0) - (bill.paidAmount || 0));
   
-  console.log(`🔍 [PENALTY_DEBUG] Bill: charge=${bill.currentCharge}, paid=${bill.paidAmount}, currentPenalty=${bill.penaltyAmount}`);
-  console.log(`🔍 [PENALTY_DEBUG] Overdue: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
+  logDebug(`🔍 [PENALTY_DEBUG] Bill: charge=${bill.currentCharge}, paid=${bill.paidAmount}, currentPenalty=${bill.penaltyAmount}`);
+  logDebug(`🔍 [PENALTY_DEBUG] Overdue: ${overdueAmount} centavos ($${centavosToPesos(overdueAmount)})`);
   
   if (pastGracePeriod && overdueAmount > 0) {
     // Calculate months overdue
     const monthsOverdue = calculateMonthsOverdue(dueDate, asOfDate, validatedConfig.penaltyDays);
-    console.log(`🔢 Months overdue: ${monthsOverdue}`);
+    logDebug(`🔢 Months overdue: ${monthsOverdue}`);
     
     // Calculate compounding penalty
     const expectedPenalty = calculateCompoundingPenalty(
@@ -287,13 +288,13 @@ export function calculatePenaltyForBill(params) {
     
     // Update if penalty changed (allow 1 centavo tolerance for rounding)
     if (Math.abs(result.penaltyAmount - expectedPenalty) > 1) {
-      console.log(`💰 Updating penalty: ${result.penaltyAmount} → ${expectedPenalty} centavos`);
+      logDebug(`💰 Updating penalty: ${result.penaltyAmount} → ${expectedPenalty} centavos`);
       result.penaltyAmount = expectedPenalty;
       result.updated = true;
       result.details.lastUpdate = asOfDate.toISOString();
       result.details.monthsOverdue = monthsOverdue;
     } else {
-      console.log(`✅ Penalty up-to-date: ${result.penaltyAmount} centavos`);
+      logDebug(`✅ Penalty up-to-date: ${result.penaltyAmount} centavos`);
     }
   }
   
@@ -332,8 +333,8 @@ export async function recalculatePenalties(params) {
     config
   } = params;
   
-  console.log(`🔄 [PENALTY_RECALC] Starting for ${moduleType}: ${bills.length} bills`);
-  console.log(`📅 [PENALTY_RECALC] Calculation date: ${asOfDate.toISOString()}`);
+  logInfo(`🔄 [PENALTY_RECALC] Starting for ${moduleType}: ${bills.length} bills`);
+  logDebug(`📅 [PENALTY_RECALC] Calculation date: ${asOfDate.toISOString()}`);
   
   // Validate configuration
   const validatedConfig = validatePenaltyConfig(config);
@@ -356,16 +357,16 @@ export async function recalculatePenalties(params) {
   for (const [dueDate, groupBills] of Object.entries(billGroups)) {
     result.groupsProcessed++;
     
-    console.log(`\n💰 [GROUP ${result.groupsProcessed}] Processing due date: ${dueDate} (${groupBills.length} bills)`);
+    logDebug(`\n💰 [GROUP ${result.groupsProcessed}] Processing due date: ${dueDate} (${groupBills.length} bills)`);
     
     // Filter to unpaid bills only
     const unpaidBills = groupBills.filter(b => b.status !== 'paid');
     const paidBills = groupBills.filter(b => b.status === 'paid');
     
-    console.log(`   📊 Unpaid: ${unpaidBills.length}, Paid: ${paidBills.length}`);
+    logDebug(`   📊 Unpaid: ${unpaidBills.length}, Paid: ${paidBills.length}`);
     
     if (unpaidBills.length === 0) {
-      console.log(`   ✅ All bills paid - no penalties to calculate`);
+      logDebug(`   ✅ All bills paid - no penalties to calculate`);
       result.billsSkipped += groupBills.length;
       
       // Add paid bills to result with zero penalty
@@ -384,17 +385,17 @@ export async function recalculatePenalties(params) {
       return sum + Math.max(0, (bill.currentCharge || 0) - (bill.paidAmount || 0));
     }, 0);
     
-    console.log(`   💵 Total unpaid in group: ${totalUnpaid} centavos ($${centavosToPesos(totalUnpaid)})`);
+    logDebug(`   💵 Total unpaid in group: ${totalUnpaid} centavos ($${centavosToPesos(totalUnpaid)})`);
     
     // Calculate due date and grace period for group
     const dueDateObj = parseDate(dueDate);
     const gracePeriodEnd = addDays(dueDateObj, validatedConfig.penaltyDays);
     const pastGracePeriod = asOfDate >= gracePeriodEnd;
     
-    console.log(`   📅 Due: ${dueDate}, Grace End: ${gracePeriodEnd.toISOString().split('T')[0]}, Past Grace: ${pastGracePeriod}`);
+    logDebug(`   📅 Due: ${dueDate}, Grace End: ${gracePeriodEnd.toISOString().split('T')[0]}, Past Grace: ${pastGracePeriod}`);
     
     if (!pastGracePeriod || totalUnpaid === 0) {
-      console.log(`   ⏭️  No penalty (within grace period or fully paid)`);
+      logDebug(`   ⏭️  No penalty (within grace period or fully paid)`);
       result.billsSkipped += groupBills.length;
       
       // Add all bills with zero penalty
@@ -410,7 +411,7 @@ export async function recalculatePenalties(params) {
     
     // Calculate months overdue for the group
     const monthsOverdue = calculateMonthsOverdue(dueDateObj, asOfDate, validatedConfig.penaltyDays);
-    console.log(`   🔢 Months overdue: ${monthsOverdue}`);
+    logDebug(`   🔢 Months overdue: ${monthsOverdue}`);
     
     // Calculate compounding penalty on GROUP TOTAL
     const totalPenalty = calculateCompoundingPenalty(
@@ -420,11 +421,11 @@ export async function recalculatePenalties(params) {
       validatedConfig.penaltyRate
     );
 
-    console.log(`   💰 Group total penalty: ${totalPenalty} centavos ($${centavosToPesos(totalPenalty)})`);
+    logDebug(`   💰 Group total penalty: ${totalPenalty} centavos ($${centavosToPesos(totalPenalty)})`);
     
     // Distribute penalty equally across unpaid bills in group
     const penaltyPerBill = Math.round(totalPenalty / unpaidBills.length);
-    console.log(`   📤 Penalty per unpaid bill: ${penaltyPerBill} centavos ($${centavosToPesos(penaltyPerBill)})`);
+    logDebug(`   📤 Penalty per unpaid bill: ${penaltyPerBill} centavos ($${centavosToPesos(penaltyPerBill)})`);
     
     // Handle rounding: last bill gets adjustment
     let distributedSoFar = 0;
@@ -457,7 +458,7 @@ export async function recalculatePenalties(params) {
       if (Math.abs(oldPenalty - billPenalty) > 1) {
         result.billsUpdated++;
         result.totalPenaltiesAdded += (billPenalty - oldPenalty);
-        console.log(`   ✏️  Bill ${bill.billId}: ${oldPenalty} → ${billPenalty} centavos`);
+        logDebug(`   ✏️  Bill ${bill.billId}: ${oldPenalty} → ${billPenalty} centavos`);
       }
       
       result.updatedBills.push({
@@ -468,11 +469,11 @@ export async function recalculatePenalties(params) {
       });
     });
     
-    console.log(`   ✅ Group complete: ${unpaidBills.length} bills with penalties`);
+    logDebug(`   ✅ Group complete: ${unpaidBills.length} bills with penalties`);
   }
   
-  console.log(`\n✅ [PENALTY_RECALC] Complete: ${result.groupsProcessed} groups, ${result.billsUpdated} bills updated, ${result.billsSkipped} skipped`);
-  console.log(`   💰 Total penalties added: ${result.totalPenaltiesAdded} centavos ($${centavosToPesos(result.totalPenaltiesAdded)})`);
+  logInfo(`✅ [PENALTY_RECALC] Complete: ${result.groupsProcessed} groups, ${result.billsUpdated} bills updated, ${result.billsSkipped} skipped`);
+  logInfo(`   💰 Total penalties added: ${result.totalPenaltiesAdded} centavos ($${centavosToPesos(result.totalPenaltiesAdded)})`);
   
   return result;
 }

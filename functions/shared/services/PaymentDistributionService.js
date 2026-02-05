@@ -25,6 +25,7 @@
 
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { getTotalOwed, getBaseOwed, getPenaltyOwed, getTotalDue } from '../utils/billCalculations.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -79,20 +80,20 @@ export function calculatePaymentDistribution(params) {
     throw new Error('paymentAmount must be a non-negative number');
   }
   
-  console.log(`💰 [PAYMENT DIST] Calculating distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
-  console.log(`📋 [PAYMENT DIST] Processing ${bills.length} pre-loaded bills`);
+  logDebug(`💰 [PAYMENT DIST] Calculating distribution: Unit ${unitId}, Amount $${paymentAmount}, Credit $${currentCreditBalance}`);
+  logDebug(`📋 [PAYMENT DIST] Processing ${bills.length} pre-loaded bills`);
   
   // Calculate total available funds in PESOS and CENTAVOS
   const totalAvailableFundsPesos = roundCurrency(paymentAmount + currentCreditBalance);
   const totalAvailableFundsCentavos = pesosToCentavos(totalAvailableFundsPesos);
   
-  console.log(`💰 Available funds: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
+  logDebug(`💰 Available funds: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
   
   // Use pre-loaded bills (already filtered to unpaid by wrapper)
   // Wrappers are responsible for filtering to reduce overhead
   const unpaidBills = bills;
   
-  console.log(`📋 [PAYMENT DIST] Received ${unpaidBills.length} unpaid bills from wrapper`);
+  logDebug(`📋 [PAYMENT DIST] Received ${unpaidBills.length} unpaid bills from wrapper`);
   
   // Calculate total bills due in centavos
   // Use getTotalOwed() getter for fresh calculation from source fields
@@ -107,7 +108,7 @@ export function calculatePaymentDistribution(params) {
   // CRITICAL: Bills are already sorted by priority and due date by unifiedPaymentWrapper
   // This ensures payments are applied to oldest/highest priority bills first
   // Per Mexican Civil Code Articles 2281-2282: payments must be applied to oldest installments first
-  console.log(`📋 [PAYMENT DIST] Processing ${unpaidBills.length} bills individually (partial payments allowed)`);
+  logDebug(`📋 [PAYMENT DIST] Processing ${unpaidBills.length} bills individually (partial payments allowed)`);
   
   // Apply funds to bills one at a time (in CENTAVOS for precision)
   let remainingFundsCentavos = totalAvailableFundsCentavos;
@@ -139,7 +140,7 @@ export function calculatePaymentDistribution(params) {
     
     // Skip excluded bills (marked by unifiedPaymentWrapper)
     if (bill._metadata?.excluded) {
-      console.log(`  ⏭️  Bill ${bill.period} excluded - skipping`);
+      logDebug(`  ⏭️  Bill ${bill.period} excluded - skipping`);
       continue;
     }
     
@@ -150,7 +151,7 @@ export function calculatePaymentDistribution(params) {
     
     if (totalOwedCentavos <= 0) {
       // Bill already fully paid - skip
-      console.log(`  ℹ️  Bill ${bill.period} already paid - skipping`);
+      logDebug(`  ℹ️  Bill ${bill.period} already paid - skipping`);
       continue;
     }
     
@@ -173,10 +174,10 @@ export function calculatePaymentDistribution(params) {
     const remainingOwedAfterPayment = totalOwedCentavos - amountToApplyCentavos;
     if (remainingOwedAfterPayment <= 0) {
       billPayment.newStatus = 'paid';
-      console.log(`  ✅ Bill ${bill.period} paid in full: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)})`);
+      logDebug(`  ✅ Bill ${bill.period} paid in full: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)})`);
     } else {
       billPayment.newStatus = 'partial';
-      console.log(`  💰 Bill ${bill.period} partial payment: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)}) of ${totalOwedCentavos} centavos ($${centavosToPesos(totalOwedCentavos)})`);
+      logDebug(`  💰 Bill ${bill.period} partial payment: ${amountToApplyCentavos} centavos ($${centavosToPesos(amountToApplyCentavos)}) of ${totalOwedCentavos} centavos ($${centavosToPesos(totalOwedCentavos)})`);
     }
     
     // Update totals
@@ -210,9 +211,9 @@ export function calculatePaymentDistribution(params) {
   // New credit balance = current balance - credit used + overpayment
   const newCreditBalance = roundCurrency(currentCreditBalance - creditUsed + overpayment);
   
-  console.log(`💰 [PAYMENT DIST] Calculations: Bills paid $${totalBillsPaidPesos}, Remaining $${centavosToPesos(remainingFundsCentavos)}, Credit used $${creditUsed}, Overpayment $${overpayment}`);
+  logDebug(`💰 [PAYMENT DIST] Calculations: Bills paid $${totalBillsPaidPesos}, Remaining $${centavosToPesos(remainingFundsCentavos)}, Credit used $${creditUsed}, Overpayment $${overpayment}`);
   
-  console.log(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
+  logDebug(`💰 Distribution calculated: Credit used $${creditUsed}, Overpaid $${overpayment}, New balance $${newCreditBalance}`);
   
   // Convert billPayments to PESOS for return
   const billPaymentsForReturn = billPayments.map(bp => {

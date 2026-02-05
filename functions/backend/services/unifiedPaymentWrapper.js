@@ -46,6 +46,7 @@ import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
 import { generateUPCData } from './generateUPCData.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 // Import module-specific functions
 import { 
@@ -114,11 +115,11 @@ export class UnifiedPaymentWrapper {
   async previewUnifiedPayment(clientId, unitId, paymentAmount, paymentDate = null, _deprecated = false, waivedPenalties = [], excludedBills = []) {
     await this._initializeDb();
     
-    console.log(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
+    logInfo(`🌐 [UNIFIED WRAPPER] Preview payment: ${clientId}/${unitId}, Amount: $${paymentAmount}`);
     
     // Parse payment date
     const calculationDate = paymentDate ? new Date(paymentDate) : getNow();
-    console.log(`   📅 Calculation date: ${calculationDate.toISOString()}`);
+    logDebug(`   📅 Calculation date: ${calculationDate.toISOString()}`);
     
     // Step 1: Get UPC-specific projection from generateUPCData()
     // This is the SINGLE data source for bills, credit, and discrepancy
@@ -135,16 +136,16 @@ export class UnifiedPaymentWrapper {
     const currentCredit = upcData.creditAvailable || 0; // In pesos
     const discrepancy = upcData.discrepancy;
     
-    console.log(`   📋 UPC Data: ${allBills.length} bills, $${upcData.totalRemaining} remaining, $${currentCredit} credit`);
+    logDebug(`   📋 UPC Data: ${allBills.length} bills, $${upcData.totalRemaining} remaining, $${currentCredit} credit`);
     
     // Step 1.5: Mark excluded bills (for any that weren't already filtered by generateUPCData)
     if (excludedBills && excludedBills.length > 0) {
-      console.log(`   🚫 Marking ${excludedBills.length} bills as excluded`);
+      logDebug(`   🚫 Marking ${excludedBills.length} bills as excluded`);
       allBills.forEach(bill => {
         const billPeriod = `${bill._metadata.moduleType}:${bill.period}`;
         const isExcluded = excludedBills.includes(billPeriod) || excludedBills.includes(bill.period);
         if (isExcluded) {
-          console.log(`      ✗ Marking bill as excluded: ${billPeriod}`);
+          logDebug(`      ✗ Marking bill as excluded: ${billPeriod}`);
           bill._metadata.excluded = true;
         }
       });
@@ -154,7 +155,7 @@ export class UnifiedPaymentWrapper {
     const configs = await this._getMergedConfig(clientId);
     
     if (allBills.length === 0) {
-      console.log(`   ℹ️  No unpaid bills found for unit ${unitId}`);
+      logDebug(`   ℹ️  No unpaid bills found for unit ${unitId}`);
       
       return {
         totalAmount: paymentAmount,
@@ -192,12 +193,12 @@ export class UnifiedPaymentWrapper {
     }));
     
     // Credit balance already loaded from generateUPCData()
-    console.log(`   💰 Current credit balance: $${currentCredit}`);
+    logDebug(`   💰 Current credit balance: $${currentCredit}`);
     
     // Step 4: MULTI-PASS PRIORITY ALGORITHM
     // Simple approach: Pass payment and credit separately to distribution service
     // Let it handle the combination and track remaining funds
-    console.log(`   🔄 Starting multi-pass priority processing`);
+    logDebug(`   🔄 Starting multi-pass priority processing`);
     
     const allPaidBills = [];
     let remainingFunds = paymentAmount + currentCredit;  // Total available
@@ -214,7 +215,7 @@ export class UnifiedPaymentWrapper {
       
       if (billsAtThisLevel.length === 0) continue;
       
-      console.log(`   💸 Priority ${priorityLevel}: ${billsAtThisLevel.length} bills, $${remainingFunds.toFixed(2)} available`);
+      logDebug(`   💸 Priority ${priorityLevel}: ${billsAtThisLevel.length} bills, $${remainingFunds.toFixed(2)} available`);
       
       // Call PaymentDistributionService with payment and credit separate
       const levelDistribution = calculatePaymentDistribution({
@@ -240,7 +241,7 @@ export class UnifiedPaymentWrapper {
       paymentForNextLevel = remainingFunds;
       creditForNextLevel = 0;
       
-      console.log(`      ✓ Paid ${levelDistribution.billPayments.filter(b => b.amountPaid > 0).length} bills, $${remainingFunds.toFixed(2)} remaining`);
+      logDebug(`      ✓ Paid ${levelDistribution.billPayments.filter(b => b.amountPaid > 0).length} bills, $${remainingFunds.toFixed(2)} remaining`);
     }
     
     // Calculate final results
@@ -251,8 +252,8 @@ export class UnifiedPaymentWrapper {
     // New Credit Added = Remaining Total - Original Credit Balance
     const netCreditAdded = finalCreditBalance - currentCredit;
     
-    console.log(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid`);
-    console.log(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit change $${netCreditAdded.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
+    logDebug(`   ✅ Multi-pass complete: ${allPaidBills.length} bills paid`);
+    logDebug(`      💰 Final: Bills paid $${totalPaidAmount.toFixed(2)}, Credit change $${netCreditAdded.toFixed(2)}, Final balance $${finalCreditBalance.toFixed(2)}`);
     
     // Create a map of paid bills by period for quick lookup
     const paidBillsMap = new Map();
@@ -304,7 +305,7 @@ export class UnifiedPaymentWrapper {
       }
     });
     
-    console.log(`   📋 Including ${allEligibleBillPayments.length} bills in response (${allPaidBills.length} paid, ${allEligibleBillPayments.length - allPaidBills.length} unpaid)`);
+    logDebug(`   📋 Including ${allEligibleBillPayments.length} bills in response (${allPaidBills.length} paid, ${allEligibleBillPayments.length - allPaidBills.length} unpaid)`);
     
     // Reconstruct distribution object for splitting
     const distribution = {
@@ -331,22 +332,22 @@ export class UnifiedPaymentWrapper {
     splitResults.upcTotalRemainingCentavos = upcData.totalRemainingCentavos;
     
     // Log payment calculation details
-    console.log(`   💰 Payment calculation - Credit allocation:`);
-    console.log(`      Payment Amount: $${paymentAmount}`);
-    console.log(`      Bills Paid: $${splitResults.hoa.totalPaid + splitResults.water.totalPaid}`);
-    console.log(`      Current Credit: $${currentCredit}`);
-    console.log(`      Credit Used: $${splitResults.credit.used}`);
-    console.log(`      Credit Added: $${splitResults.credit.added}`);
-    console.log(`      Final Credit: $${splitResults.credit.final}`);
-    console.log(`      New Credit Balance: $${splitResults.newCreditBalance}`);
+    logDebug(`   💰 Payment calculation - Credit allocation:`);
+    logDebug(`      Payment Amount: $${paymentAmount}`);
+    logDebug(`      Bills Paid: $${splitResults.hoa.totalPaid + splitResults.water.totalPaid}`);
+    logDebug(`      Current Credit: $${currentCredit}`);
+    logDebug(`      Credit Used: $${splitResults.credit.used}`);
+    logDebug(`      Credit Added: $${splitResults.credit.added}`);
+    logDebug(`      Final Credit: $${splitResults.credit.final}`);
+    logDebug(`      New Credit Balance: $${splitResults.newCreditBalance}`);
     
-    console.log(`✅ [UNIFIED WRAPPER] Preview complete`);
-    console.log(`   HOA: ${splitResults.hoa.billsPaid.length} bills, $${splitResults.hoa.totalPaid}`);
-    console.log(`   Water: ${splitResults.water.billsPaid.length} bills, $${splitResults.water.totalPaid}`);
-    console.log(`   Credit: Used $${splitResults.credit.used}, Added $${splitResults.credit.added}, Final $${splitResults.credit.final}`);
+    logInfo(`✅ [UNIFIED WRAPPER] Preview complete`);
+    logDebug(`   HOA: ${splitResults.hoa.billsPaid.length} bills, $${splitResults.hoa.totalPaid}`);
+    logDebug(`   Water: ${splitResults.water.billsPaid.length} bills, $${splitResults.water.totalPaid}`);
+    logDebug(`   Credit: Used $${splitResults.credit.used}, Added $${splitResults.credit.added}, Final $${splitResults.credit.final}`);
     
     // Debug: Log first few HOA months
-    console.log(`   🔍 HOA Months Sample:`, splitResults.hoa.monthsAffected.slice(0, 3).map(m => ({
+    logDebug(`   🔍 HOA Months Sample:`, splitResults.hoa.monthsAffected.slice(0, 3).map(m => ({
       billPeriod: m.billPeriod,
       monthIndex: m.monthIndex,
       month: m.month
@@ -370,7 +371,7 @@ export class UnifiedPaymentWrapper {
   async recordUnifiedPayment(clientId, unitId, paymentData, transaction = null) {
     await this._initializeDb();
     
-    console.log(`🌐 [UNIFIED WRAPPER] Record payment: ${clientId}/${unitId}, Amount: $${paymentData.amount}`);
+    logDebug(`🌐 [UNIFIED WRAPPER] Record payment: ${clientId}/${unitId}, Amount: $${paymentData.amount}`);
     
     // Extract payment data
     const { 
@@ -399,20 +400,20 @@ export class UnifiedPaymentWrapper {
       throw new Error('Invalid amount: must be a non-negative number');
     }
     
-    console.log(`   📋 Payment details: Method=${paymentMethod}, Date=${paymentDate}, Reference=${reference || 'none'}`);
+    logDebug(`   📋 Payment details: Method=${paymentMethod}, Date=${paymentDate}, Reference=${reference || 'none'}`);
     
     // Step 1: Sanity check preview totals (do NOT recalculate)
-    console.log(`   🔍 Verifying preview totals match payment amount...`);
+    logDebug(`   🔍 Verifying preview totals match payment amount...`);
     const previewTotal = preview.summary?.totalAllocated || 0;
     const netCreditAdded = preview.netCreditAdded ?? ((preview.credit?.added || 0) - (preview.credit?.used || 0));
     const expectedPayment = roundCurrency(previewTotal + netCreditAdded);
 
     if (Math.abs(expectedPayment - amount) > 0.01) {
-      console.error(`   ❌ Preview mismatch: Expected payment $${expectedPayment}, Received $${amount}`);
+      logError(`   ❌ Preview mismatch: Expected payment $${expectedPayment}, Received $${amount}`);
       throw new Error('Preview total does not match payment amount. Please refresh and try again.');
     }
 
-    console.log(`   ✅ Preview verified: $${expectedPayment} matches payment amount`);
+    logDebug(`   ✅ Preview verified: $${expectedPayment} matches payment amount`);
     
     // Parse payment date
     const paymentDateObj = parseDate(paymentDate);
@@ -427,7 +428,7 @@ export class UnifiedPaymentWrapper {
     const usedFastPath = currentDuesDoc?.priorYearClosed === true;
     
     // Step 2: Generate consolidated transaction notes
-    console.log(`   📝 Generating consolidated transaction notes...`);
+    logDebug(`   📝 Generating consolidated transaction notes...`);
     
     // Generate clean, concise transaction notes
     // Format: "HOA: Oct - Dec 2025 (eTransfer)" - NOT verbose multi-line format
@@ -445,7 +446,7 @@ export class UnifiedPaymentWrapper {
       : notesWithMethod;
     
     // Step 3: Prepare atomic batch for all writes
-    console.log(`   💾 Preparing atomic batch (transaction + HOA + Water + Credit)...`);
+    logDebug(`   💾 Preparing atomic batch (transaction + HOA + Water + Credit)...`);
     const batch = this.db.batch();
     
     // Combine notes with user notes (sequence will be added after transaction creation)
@@ -621,7 +622,7 @@ export class UnifiedPaymentWrapper {
     const categoryId = hasBillAllocations ? '-split-' : 'account-credit';
     const categoryName = hasBillAllocations ? '-Split-' : 'Account Credit';
     
-    console.log(`   🏷️  Transaction category: ${categoryName} (${allocations.length} allocations)`);
+    logDebug(`   🏷️  Transaction category: ${categoryName} (${allocations.length} allocations)`);
     
     const transactionData = {
       date: paymentDate, // Use original date string (yyyy-MM-dd format)
@@ -650,18 +651,18 @@ export class UnifiedPaymentWrapper {
       }
     };
     
-    console.log(`   💾 Transaction Data for Batch:`);
-    console.log(`      Amount: ${transactionData.amount} pesos`);
-    console.log(`      Account: ${transactionData.accountId} (${transactionData.accountType})`);
-    console.log(`      Allocations: ${allocations.length}`);
-    console.log(`      AllocationSummary.totalAllocated: ${allocationSummary.totalAllocated}`);
+    logDebug(`   💾 Transaction Data for Batch:`);
+    logDebug(`      Amount: ${transactionData.amount} pesos`);
+    logDebug(`      Account: ${transactionData.accountId} (${transactionData.accountType})`);
+    logDebug(`      Allocations: ${allocations.length}`);
+    logDebug(`      AllocationSummary.totalAllocated: ${allocationSummary.totalAllocated}`);
     if (documents && documents.length > 0) {
-      console.log(`      Documents: ${documents.length} document(s) to link`);
+      logDebug(`      Documents: ${documents.length} document(s) to link`);
     }
     
     // Step 3a: Create transaction using batch mode (Option B)
     const transactionId = await createTransaction(clientId, transactionData, { batch });
-    console.log(`   ✅ Transaction added to batch: ${transactionId}`);
+    logDebug(`   ✅ Transaction added to batch: ${transactionId}`);
     
     // Note: Documents are included in transactionData.documents array, which will be stored in the transaction
     // Frontend's linkDocumentsToTransaction() will update document's linkedTo field for bidirectional linking
@@ -671,7 +672,7 @@ export class UnifiedPaymentWrapper {
     
     // Step 3b: Prepare HOA dues updates for batch (if HOA bills were paid)
     if (preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
-      console.log(`   🏠 Preparing ${preview.hoa.monthsAffected.length} HOA entries for batch...`);
+      logDebug(`   🏠 Preparing ${preview.hoa.monthsAffected.length} HOA entries for batch...`);
       
       // Prepare HOA batch updates
       await this._prepareHOABatchUpdates(
@@ -686,12 +687,12 @@ export class UnifiedPaymentWrapper {
         reference
       );
       
-      console.log(`      ✅ HOA updates prepared for batch`);
+      logDebug(`      ✅ HOA updates prepared for batch`);
     }
     
     // Step 3c: Prepare Water bills updates for batch (if Water bills were paid)
     if (preview.water && preview.water.billsAffected && preview.water.billsAffected.length > 0) {
-      console.log(`   💧 Preparing ${preview.water.billsAffected.length} Water bills for batch...`);
+      logDebug(`   💧 Preparing ${preview.water.billsAffected.length} Water bills for batch...`);
       
       // Prepare Water batch updates
       await this._prepareWaterBatchUpdates(
@@ -705,13 +706,13 @@ export class UnifiedPaymentWrapper {
         reference
       );
       
-      console.log(`      ✅ Water updates prepared for batch`);
+      logDebug(`      ✅ Water updates prepared for batch`);
     }
     
     // Step 3d: Prepare Credit balance update for batch (if credit changed)
     const creditChange = (preview.credit?.added || 0) - (preview.credit?.used || 0);
     if (Math.abs(creditChange) > 0.01) {
-      console.log(`   💰 Preparing credit balance update for batch...`);
+      logDebug(`   💰 Preparing credit balance update for batch...`);
       
       await this._prepareCreditBatchUpdate(
         batch,
@@ -721,7 +722,7 @@ export class UnifiedPaymentWrapper {
         transactionId
       );
       
-      console.log(`      ✅ Credit update prepared for batch`);
+      logDebug(`      ✅ Credit update prepared for batch`);
     }
     
     // Step 4: ATOMIC COMMIT - All or nothing
@@ -729,9 +730,9 @@ export class UnifiedPaymentWrapper {
     const waterCount = preview.water?.billsAffected?.length || 0;
     const creditStatus = Math.abs(creditChange) > 0.01 ? 'yes' : 'no';
     
-    console.log(`   💾 Committing atomic batch: transaction + ${hoaCount} HOA + ${waterCount} Water + credit(${creditStatus})`);
+    logDebug(`   💾 Committing atomic batch: transaction + ${hoaCount} HOA + ${waterCount} Water + credit(${creditStatus})`);
     await batch.commit();
-    console.log(`   ✅ Atomic batch committed successfully - ALL operations completed`);
+    logDebug(`   ✅ Atomic batch committed successfully - ALL operations completed`);
     
     // Step 5: Return result summary
     const result = {
@@ -761,23 +762,23 @@ export class UnifiedPaymentWrapper {
       timestamp: getNow().toISOString()
     };
     
-    console.log(`✅ [UNIFIED WRAPPER] Payment recorded successfully`);
-    console.log(`   Transaction ID: ${transactionId}`);
-    console.log(`   HOA Bills: ${result.summary.hoaBillsPaid}, Water Bills: ${result.summary.waterBillsPaid}`);
-    console.log(`   Credit Balance: $${result.summary.finalCreditBalance}`);
+    logDebug(`✅ [UNIFIED WRAPPER] Payment recorded successfully`);
+    logDebug(`   Transaction ID: ${transactionId}`);
+    logDebug(`   HOA Bills: ${result.summary.hoaBillsPaid}, Water Bills: ${result.summary.waterBillsPaid}`);
+    logDebug(`   Credit Balance: $${result.summary.finalCreditBalance}`);
     
     // Update priorYearClosed flag if we used slow path
     // If fast path was used, flag is already true and payment can't change it
     if (!usedFastPath && preview.hoa && preview.hoa.monthsAffected && preview.hoa.monthsAffected.length > 0) {
-      console.log(`   🏷️ [HOA] Updating priorYearClosed flag after slow path payment`);
+      logDebug(`   🏷️ [HOA] Updating priorYearClosed flag after slow path payment`);
       try {
         await updatePriorYearClosedFlag(clientId, unitId, fiscalYear);
       } catch (error) {
         // Log but don't fail the payment - flag update is optimization
-        console.error(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
+        logError(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
       }
     } else if (usedFastPath) {
-      console.log(`   🚀 [HOA] Fast path used - skipping priorYearClosed flag update (already true)`);
+      logDebug(`   🚀 [HOA] Fast path used - skipping priorYearClosed flag update (already true)`);
     }
     
     return result;
@@ -793,25 +794,25 @@ export class UnifiedPaymentWrapper {
    * @returns {object} Aggregated bills with metadata
    */
   async _aggregateBills(clientId, unitId, calculationDate) {
-    console.log(`📋 [UNIFIED WRAPPER] Aggregating bills from HOA and Water modules`);
+    logDebug(`📋 [UNIFIED WRAPPER] Aggregating bills from HOA and Water modules`);
     
     // Get configurations for both modules
     const configs = await this._getMergedConfig(clientId);
     
     // Aggregate HOA bills
     const hoaBills = await this._getHOABills(clientId, unitId, calculationDate, configs.hoa);
-    console.log(`   📋 HOA: ${hoaBills.length} bills loaded`);
+    logDebug(`   📋 HOA: ${hoaBills.length} bills loaded`);
     
     // Aggregate Water bills (only if client has water service)
     // Issue #60: Skip water bill fetch for clients without water service (e.g., MTC)
     const waterBills = configs.hasWaterService
       ? await this._getWaterBills(clientId, unitId, calculationDate, configs.water)
       : [];
-    console.log(`   📋 Water: ${waterBills.length} bills loaded${!configs.hasWaterService ? ' (no water service)' : ''}`);
+    logDebug(`   📋 Water: ${waterBills.length} bills loaded${!configs.hasWaterService ? ' (no water service)' : ''}`);
     
     // Combine all bills
     const allBills = [...hoaBills, ...waterBills];
-    console.log(`✅ [UNIFIED WRAPPER] Total bills aggregated: ${allBills.length} (HOA: ${hoaBills.length}, Water: ${waterBills.length})`);
+    logDebug(`✅ [UNIFIED WRAPPER] Total bills aggregated: ${allBills.length} (HOA: ${hoaBills.length}, Water: ${waterBills.length})`);
     
     return {
       allBills,
@@ -887,7 +888,7 @@ export class UnifiedPaymentWrapper {
     // Get current year unpaid bills first
     const currentDuesDoc = await this._loadDuesDocument(clientId, unitId, year);
     if (!currentDuesDoc) {
-      console.log(`   📭 [HOA] No dues document for year ${year}`);
+      logDebug(`   📭 [HOA] No dues document for year ${year}`);
       return [];
     }
     
@@ -910,11 +911,11 @@ export class UnifiedPaymentWrapper {
     
     // Only scan backward if month 0 is unpaid
     if (!month0Unpaid) {
-      console.log(`   🛑 [HOA] Month 0 is paid in year ${year}, no lookback needed`);
+      logDebug(`   🛑 [HOA] Month 0 is paid in year ${year}, no lookback needed`);
       return allUnpaidBills;
     }
     
-    console.log(`   📅 [HOA] Month 0 is unpaid, scanning prior years`);
+    logDebug(`   📅 [HOA] Month 0 is unpaid, scanning prior years`);
     
     // Scan backward through prior years
     year = startYear - 1;
@@ -922,13 +923,13 @@ export class UnifiedPaymentWrapper {
       const duesDoc = await this._loadDuesDocument(clientId, unitId, year);
       
       if (!duesDoc) {
-        console.log(`   📭 [HOA] No dues document for year ${year}, stopping`);
+        logDebug(`   📭 [HOA] No dues document for year ${year}, stopping`);
         break;
       }
       
       // Check if THIS year's prior year is closed
       if (duesDoc.priorYearClosed) {
-        console.log(`   🔒 [HOA] Year ${year-1} is closed, stopping lookback`);
+        logDebug(`   🔒 [HOA] Year ${year-1} is closed, stopping lookback`);
         // Get unpaid bills from THIS year and stop
         const yearBills = await this._getUnpaidBillsFromYear(duesDoc, clientId, unitId, year, config, calculationDate);
         
@@ -941,7 +942,7 @@ export class UnifiedPaymentWrapper {
           
           // Stop at first paid bill
           if (bill.status === 'paid' && bill.paidAmount > 0) {
-            console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
+            logDebug(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
             break;
           }
           
@@ -969,7 +970,7 @@ export class UnifiedPaymentWrapper {
         
         // Stop at first paid bill
         if (bill.status === 'paid' && bill.paidAmount > 0) {
-          console.log(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
+          logDebug(`   🛑 [HOA] Stopping at paid bill: Month ${monthIndex} (${bill.period})`);
           break;
         }
         
@@ -980,10 +981,10 @@ export class UnifiedPaymentWrapper {
       }
       
       if (priorUnpaidBills.length > 0) {
-        console.log(`   📊 [HOA] Found ${priorUnpaidBills.length} unpaid bills from year ${year}`);
+        logDebug(`   📊 [HOA] Found ${priorUnpaidBills.length} unpaid bills from year ${year}`);
         allUnpaidBills = [...priorUnpaidBills, ...allUnpaidBills];
       } else {
-        console.log(`   ℹ️  [HOA] No additional unpaid bills found in year ${year}`);
+        logDebug(`   ℹ️  [HOA] No additional unpaid bills found in year ${year}`);
         break; // No unpaid bills, stop scanning
       }
       
@@ -1011,7 +1012,7 @@ export class UnifiedPaymentWrapper {
    * @returns {Array} HOA bills with unified metadata
    */
   async _getHOABills(clientId, unitId, calculationDate, config) {
-    console.log(`   🏠 [HOA] Loading bills for unit ${unitId}`);
+    logDebug(`   🏠 [HOA] Loading bills for unit ${unitId}`);
     
     try {
       // Determine fiscal year from calculation date
@@ -1021,13 +1022,13 @@ export class UnifiedPaymentWrapper {
       const currentDuesDoc = await this._loadDuesDocument(clientId, unitId, fiscalYear);
       
       if (!currentDuesDoc) {
-        console.log(`   ⚠️  [HOA] No dues document found for ${unitId}/${fiscalYear}`);
+        logDebug(`   ⚠️  [HOA] No dues document found for ${unitId}/${fiscalYear}`);
         return [];
       }
       
       // FAST PATH: Prior year closed - only get current year bills
       if (currentDuesDoc.priorYearClosed) {
-        console.log(`   🚀 [HOA] Prior year closed - skipping lookback`);
+        logDebug(`   🚀 [HOA] Prior year closed - skipping lookback`);
         const unpaidBills = await this._getUnpaidBillsFromYear(
           currentDuesDoc, 
           clientId, 
@@ -1048,12 +1049,12 @@ export class UnifiedPaymentWrapper {
           }
         }));
         
-        console.log(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (fast path)`);
+        logDebug(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (fast path)`);
         return enhancedBills;
       }
       
       // SLOW PATH: Must run full lookback
-      console.log(`   🔍 [HOA] Prior year NOT closed - running lookback`);
+      logDebug(`   🔍 [HOA] Prior year NOT closed - running lookback`);
       const allUnpaidBills = await this._fullLookbackScan(
         clientId, 
         unitId, 
@@ -1073,11 +1074,11 @@ export class UnifiedPaymentWrapper {
         }
       }));
       
-      console.log(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (slow path)`);
+      logDebug(`   ✅ [HOA] ${enhancedBills.length} unpaid bills with metadata (slow path)`);
       return enhancedBills;
       
     } catch (error) {
-      console.error(`   ❌ [HOA] Error loading bills:`, error);
+      logError(`   ❌ [HOA] Error loading bills:`, error);
       // Return empty array on error - log but continue with Water bills
       return [];
     }
@@ -1160,7 +1161,7 @@ export class UnifiedPaymentWrapper {
     const paymentsArray = hoaDuesDoc.payments || [];
     const isQuarterly = config.duesFrequency === 'quarterly';
     
-    console.log(`      🔄 Converting HOA dues to bills: ${isQuarterly ? '4 quarters' : '12 fiscal months'}`);
+    logDebug(`      🔄 Converting HOA dues to bills: ${isQuarterly ? '4 quarters' : '12 fiscal months'}`);
     
     if (isQuarterly) {
       // Generate bills for 4 quarters (Q1-Q4)
@@ -1317,7 +1318,7 @@ export class UnifiedPaymentWrapper {
       }
     }
     
-    console.log(`      ✅ Converted ${bills.length} ${isQuarterly ? 'quarters' : 'months'} to bills`);
+    logDebug(`      ✅ Converted ${bills.length} ${isQuarterly ? 'quarters' : 'months'} to bills`);
     return bills;
   }
 
@@ -1328,7 +1329,7 @@ export class UnifiedPaymentWrapper {
    * @private
    */
   async _calculateHOAPenaltiesInMemory(bills, asOfDate, config) {
-    console.log(`      💰 Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
+    logDebug(`      💰 Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
     
     // Validate penalty configuration
     if (config.penaltyRate === undefined || config.penaltyRate === null || 
@@ -1353,7 +1354,7 @@ export class UnifiedPaymentWrapper {
     });
     
     const totalPenalties = result.totalPenaltiesAdded;
-    console.log(`      ✅ Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
+    logDebug(`      ✅ Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
     
     // NOTE: No need to recalculate *Owed fields - getter functions calculate them on-demand
     // from the updated penaltyAmount field. This eliminates stale data bugs.
@@ -1371,7 +1372,7 @@ export class UnifiedPaymentWrapper {
    * @returns {Array} Water bills with unified metadata
    */
   async _getWaterBills(clientId, unitId, calculationDate, config) {
-    console.log(`   💧 [WATER] Loading bills for unit ${unitId}`);
+    logDebug(`   💧 [WATER] Loading bills for unit ${unitId}`);
     
     try {
       // Load water bills (already unpaid only)
@@ -1397,11 +1398,11 @@ export class UnifiedPaymentWrapper {
         };
       });
       
-      console.log(`   ✅ [WATER] ${enhancedBills.length} unpaid bills with metadata`);
+      logDebug(`   ✅ [WATER] ${enhancedBills.length} unpaid bills with metadata`);
       return enhancedBills;
       
     } catch (error) {
-      console.error(`   ❌ [WATER] Error loading bills:`, error);
+      logError(`   ❌ [WATER] Error loading bills:`, error);
       // Return empty array on error - log but continue with HOA bills
       return [];
     }
@@ -1509,7 +1510,7 @@ export class UnifiedPaymentWrapper {
    * @returns {Array} Sorted bills with priority assigned
    */
   _prioritizeAndSortBills(bills, currentDate, fiscalYearStartMonth) {
-    console.log(`🔢 [UNIFIED WRAPPER] Calculating priorities for ${bills.length} bills`);
+    logDebug(`🔢 [UNIFIED WRAPPER] Calculating priorities for ${bills.length} bills`);
     
     // 15-day buffer for HOA bills (allows payment preview before quarter starts)
     const HOA_BUFFER_DAYS = 15;
@@ -1539,7 +1540,7 @@ export class UnifiedPaymentWrapper {
       return dueDate <= currentDate;
     });
     
-    console.log(`   ℹ️  Filtered to ${eligibleBills.length} eligible bills (HOA buffer: ${HOA_BUFFER_DAYS} days)`);
+    logDebug(`   ℹ️  Filtered to ${eligibleBills.length} eligible bills (HOA buffer: ${HOA_BUFFER_DAYS} days)`);
     
     // Calculate priority for each eligible bill
     const billsWithPriority = eligibleBills.map(bill => ({
@@ -1554,14 +1555,14 @@ export class UnifiedPaymentWrapper {
     // Note: Water bills no longer get priority 99; if a water bill exists, it's payable
     const payableBills = billsWithPriority.filter(b => b._metadata.priority < 99);
     if (billsWithPriority.length !== payableBills.length) {
-      console.log(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} bills with priority 99`);
+      logDebug(`   ℹ️  Filtered out ${billsWithPriority.length - payableBills.length} bills with priority 99`);
     }
     
     // Sort by priority (then by due date for same priority)
     const sortedBills = this._sortBillsByPriority(payableBills);
     
-    console.log(`✅ [UNIFIED WRAPPER] Bills prioritized and sorted: ${sortedBills.length} payable bills`);
-    console.log(`   Priority breakdown:`, {
+    logDebug(`✅ [UNIFIED WRAPPER] Bills prioritized and sorted: ${sortedBills.length} payable bills`);
+    logDebug(`   Priority breakdown:`, {
       priority1_pastHOA: sortedBills.filter(b => b._metadata.priority === 1).length,
       priority2_pastWater: sortedBills.filter(b => b._metadata.priority === 2).length,
       priority3_currentHOA: sortedBills.filter(b => b._metadata.priority === 3).length,
@@ -1605,7 +1606,7 @@ export class UnifiedPaymentWrapper {
    * @returns {object} Module-specific distribution results
    */
   _splitDistributionByModule(distribution, allBills) {
-    console.log(`🔄 [UNIFIED WRAPPER] Splitting distribution by module`);
+    logDebug(`🔄 [UNIFIED WRAPPER] Splitting distribution by module`);
     
     // Create a map using the period from bills (already has module prefix at this point)
     const billMap = new Map();
@@ -1654,7 +1655,7 @@ export class UnifiedPaymentWrapper {
       const originalBill = billMap.get(payment.billPeriod);
       
       if (!originalBill && !payment._metadata) {
-        console.warn(`   ⚠️  Could not find original bill for period: ${payment.billPeriod}`);
+        logWarn(`   ⚠️  Could not find original bill for period: ${payment.billPeriod}`);
         return;
       }
       
@@ -1718,7 +1719,7 @@ export class UnifiedPaymentWrapper {
           monthsInQuarter: billToUse._hoaMetadata?.monthsInQuarter
         };
         
-        console.log(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}, remaining=$${hoaMonth.remainingDue}, isPartial=${isPartial}`);
+        logDebug(`   🎯 [HOA ${isQuarterly ? 'Quarter' : 'Month'}] ${displayPeriod}: monthIndex=${hoaMonth.monthIndex}${isQuarterly ? `, Q${hoaMonth.quarterIndex + 1}` : `, month=${hoaMonth.month}`}, remaining=$${hoaMonth.remainingDue}, isPartial=${isPartial}`);
         result.hoa.monthsAffected.push(hoaMonth);
         
       } else if (moduleType === 'water') {
@@ -1765,9 +1766,9 @@ export class UnifiedPaymentWrapper {
       }
     });
     
-    console.log(`✅ [UNIFIED WRAPPER] Distribution split complete`);
-    console.log(`   HOA: ${result.hoa.billsPaid.length} bills, Total: $${result.hoa.totalPaid}`);
-    console.log(`   Water: ${result.water.billsPaid.length} bills, Total: $${result.water.totalPaid}`);
+    logInfo(`✅ [UNIFIED WRAPPER] Distribution split complete`);
+    logDebug(`   HOA: ${result.hoa.billsPaid.length} bills, Total: $${result.hoa.totalPaid}`);
+    logDebug(`   Water: ${result.water.billsPaid.length} bills, Total: $${result.water.totalPaid}`);
     
     return result;
   }
@@ -2020,7 +2021,7 @@ export class UnifiedPaymentWrapper {
       
       const duesDoc = await duesRef.get();
       if (!duesDoc.exists) {
-        console.warn(`HOA dues document not found for ${unitId}/${year} - skipping`);
+        logWarn(`HOA dues document not found for ${unitId}/${year} - skipping`);
         continue;
       }
       
@@ -2049,8 +2050,8 @@ export class UnifiedPaymentWrapper {
             totalOwed += owed;
           }
           
-          console.log(`      📊 Q${quarterNum} distribution: Total owed ${totalOwed} centavos, Payment ${paymentEntry.basePaid} centavos`);
-          console.log(`         Month details:`, monthOwed.map(m => `M${m.monthIndex}: owes ${m.owed}`).join(', '));
+          logDebug(`      📊 Q${quarterNum} distribution: Total owed ${totalOwed} centavos, Payment ${paymentEntry.basePaid} centavos`);
+          logDebug(`         Month details:`, monthOwed.map(m => `M${m.monthIndex}: owes ${m.owed}`).join(', '));
           
           // Distribute payment proportionally based on what each month owes
           let remainingBasePaid = paymentEntry.basePaid;
@@ -2063,7 +2064,7 @@ export class UnifiedPaymentWrapper {
             
             // Skip months that don't owe anything
             if (monthOwedAmount <= 0 && remainingBasePaid <= 0) {
-              console.log(`         M${monthIndex}: Already paid, skipping`);
+              logDebug(`         M${monthIndex}: Already paid, skipping`);
               return;
             }
             
@@ -2135,7 +2136,7 @@ export class UnifiedPaymentWrapper {
               notes: mergedNotes
             };
             
-            console.log(`         M${monthIndex}: Allocated base ${baseAllocation} + penalty ${penaltyAllocation} → status: ${status}`);
+            logDebug(`         M${monthIndex}: Allocated base ${baseAllocation} + penalty ${penaltyAllocation} → status: ${status}`);
           });
           
         } else {
@@ -2143,7 +2144,7 @@ export class UnifiedPaymentWrapper {
           const monthIndex = paymentEntry.month - 1; // Convert 1-based to 0-based
           
           if (monthIndex < 0 || monthIndex > 11) {
-            console.warn(`Invalid month index ${monthIndex}, skipping`);
+            logWarn(`Invalid month index ${monthIndex}, skipping`);
             return;
           }
           
@@ -2211,7 +2212,7 @@ export class UnifiedPaymentWrapper {
         updated: getNow().toISOString()
       });
       
-      console.log(`      📅 HOA batch update prepared for year ${year}: ${paymentsData.length} months`);
+      logDebug(`      📅 HOA batch update prepared for year ${year}: ${paymentsData.length} months`);
     }
   }
 
@@ -2228,13 +2229,13 @@ export class UnifiedPaymentWrapper {
       
       const billDoc = await billRef.get();
       if (!billDoc.exists) {
-        console.warn(`Water bill ${billId} not found - skipping`);
+        logWarn(`Water bill ${billId} not found - skipping`);
         continue;
       }
       
       const currentBill = billDoc.data()?.bills?.units?.[unitId];
       if (!currentBill) {
-        console.warn(`Unit ${unitId} not found in water bill ${billId} - skipping`);
+        logWarn(`Unit ${unitId} not found in water bill ${billId} - skipping`);
         continue;
       }
       
@@ -2280,7 +2281,7 @@ export class UnifiedPaymentWrapper {
         [`bills.units.${unitId}.payments`]: updatedPayments
       });
       
-      console.log(`      💧 Water batch update prepared for ${billId}: ${billData.totalPaid} pesos`);
+      logDebug(`      💧 Water batch update prepared for ${billId}: ${billData.totalPaid} pesos`);
     }
   }
 
@@ -2334,7 +2335,7 @@ export class UnifiedPaymentWrapper {
     
     batch.set(creditBalancesRef, allCreditBalances);
     
-    console.log(`      💰 Credit balance prepared: ${currentBalanceCentavos} → ${newBalanceCentavos} centavos ($${(creditChangeCentavos/100).toFixed(2)} change)`);
+    logDebug(`      💰 Credit balance prepared: ${currentBalanceCentavos} → ${newBalanceCentavos} centavos ($${(creditChangeCentavos/100).toFixed(2)} change)`);
   }
 }
 

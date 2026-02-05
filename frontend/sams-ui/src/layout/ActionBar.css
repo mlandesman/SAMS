@@ -3,21 +3,25 @@
   display: flex;
   align-items: center;
   padding: 10px 25px; /* Increased horizontal padding slightly */
+  margin: 0; /* Ensure no margin shifts between views */
   background-color: #ffffff; /* Changed to white */
   border-bottom: 1px solid #dee2e6; 
   height: 70px; /* Increased height from 60px to 70px */
   box-sizing: border-box;
+  flex-shrink: 0; /* Prevent ActionBar from shrinking */
 }
 
 .action-bar-title { /* Now applies to h2 */
   font-size: 1.4rem; /* Slightly adjusted font size for h2 if needed */
   font-weight: bold;
   color: #333; 
+  margin: 0; /* Reset margin for consistency */
   margin-right: auto; 
   padding-right: 20px; /* Increased padding for more space from buttons */
   white-space: nowrap; /* Prevent title from wrapping if too long */
   overflow: hidden; /* Hide overflow if title is too long */
   text-overflow: ellipsis; /* Add ellipsis if title is too long */
+  line-height: 1.2; /* Consistent line height */
 }
 
 .action-items {

@@ -26,6 +26,7 @@ import { recalculatePenalties, loadBillingConfig, calculatePenaltyForBill } from
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
 import { validateHOAConfig } from '../../shared/utils/configValidation.js';
 import creditService from '../services/creditService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
 const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
@@ -126,7 +127,7 @@ function formatDateField(dateValue) {
     // Use DateService's formatForFrontend method to create multi-format date object
     return dateService.formatForFrontend(dateValue);
   } catch (error) {
-    console.error('Error formatting date field:', error);
+    logError('Error formatting date field:', error);
     return null;
   }
 }
@@ -176,7 +177,7 @@ function convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config = {}) 
   // Ensure payments array exists (may be sparse or empty)
   const paymentsArray = hoaDuesDoc.payments || [];
   
-  console.log(`🔄 [HOA ADAPTER] Converting HOA dues to bills: 12 fiscal months (${paymentsArray.length} entries in payments array)`);
+  logDebug(`🔄 [HOA ADAPTER] Converting HOA dues to bills: 12 fiscal months (${paymentsArray.length} entries in payments array)`);
   
   // IMPORTANT: Generate bills for ALL 12 fiscal months (0-11)
   // Users pay IN ADVANCE - they should be able to pay any future month
@@ -200,7 +201,7 @@ function convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config = {}) 
     
     // DEBUG: Log due date calculation for first few months
     if (monthIndex < 4) {
-      console.log(`   📅 [DUE DATE] Month ${monthIndex}: ${dueDateISO} (frequency: ${config.duesFrequency})`);
+      logDebug(`   📅 [DUE DATE] Month ${monthIndex}: ${dueDateISO} (frequency: ${config.duesFrequency})`);
     }
     
     // Determine bill status based on amounts (not payment.paid boolean)
@@ -260,7 +261,7 @@ function convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config = {}) 
     });
   }
   
-  console.log(`✅ [HOA ADAPTER] Converted ${bills.length} months to bills, ${bills.filter(b => b.status === 'unpaid').length} unpaid`);
+  logDebug(`✅ [HOA ADAPTER] Converted ${bills.length} months to bills, ${bills.filter(b => b.status === 'unpaid').length} unpaid`);
   
   return bills;
 }
@@ -274,7 +275,7 @@ function convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config = {}) 
  * @returns {object} Updated HOA dues document
  */
 function applyBillPaymentsToHOADues(hoaDuesDoc, billPayments, paymentInfo = {}) {
-  console.log(`🔄 [HOA ADAPTER] Applying ${billPayments.length} bill payments to HOA dues array`);
+  logDebug(`🔄 [HOA ADAPTER] Applying ${billPayments.length} bill payments to HOA dues array`);
   
   const updatedPayments = [...hoaDuesDoc.payments];
   let totalPaidAdded = 0;
@@ -283,14 +284,14 @@ function applyBillPaymentsToHOADues(hoaDuesDoc, billPayments, paymentInfo = {}) 
     // Extract month index from bill period (e.g., "2026-00" -> 0)
     const periodMatch = billPayment.billPeriod?.match(/\d{4}-(\d{2})/);
     if (!periodMatch) {
-      console.warn(`⚠️  [HOA ADAPTER] Invalid bill period format: ${billPayment.billPeriod}`);
+      logWarn(`⚠️  [HOA ADAPTER] Invalid bill period format: ${billPayment.billPeriod}`);
       return;
     }
     
     const monthIndex = parseInt(periodMatch[1]);
     
     if (monthIndex < 0 || monthIndex >= updatedPayments.length) {
-      console.warn(`⚠️  [HOA ADAPTER] Month index out of bounds: ${monthIndex}`);
+      logWarn(`⚠️  [HOA ADAPTER] Month index out of bounds: ${monthIndex}`);
       return;
     }
     
@@ -314,13 +315,13 @@ function applyBillPaymentsToHOADues(hoaDuesDoc, billPayments, paymentInfo = {}) 
     
     totalPaidAdded += totalPaid;
     
-    console.log(`  ✓ Month ${monthIndex + 1}: +$${centavosToPesos(totalPaid)} (base: $${centavosToPesos(baseChargePaid)}, penalty: $${centavosToPesos(penaltyPaid)})`);
+    logDebug(`  ✓ Month ${monthIndex + 1}: +$${centavosToPesos(totalPaid)} (base: $${centavosToPesos(baseChargePaid)}, penalty: $${centavosToPesos(penaltyPaid)})`);
   });
   
   // Update total paid
   const updatedTotalPaid = (hoaDuesDoc.totalPaid || 0) + totalPaidAdded;
   
-  console.log(`✅ [HOA ADAPTER] Applied payments: Total added $${centavosToPesos(totalPaidAdded)}, New total: $${centavosToPesos(updatedTotalPaid)}`);
+  logDebug(`✅ [HOA ADAPTER] Applied payments: Total added $${centavosToPesos(totalPaidAdded)}, New total: $${centavosToPesos(updatedTotalPaid)}`);
   
   return {
     ...hoaDuesDoc,
@@ -372,7 +373,7 @@ async function getHOABillingConfig(clientId) {
       duesFrequency
     };
   } catch (error) {
-    console.error(`❌ Error loading HOA config for ${clientId}:`, error);
+    logError(`❌ Error loading HOA config for ${clientId}:`, error);
     throw error;
   }
 }
@@ -397,7 +398,7 @@ async function getHOABillingConfig(clientId) {
  * @returns {object} Recalculation result with updated HOA dues document
  */
 async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) {
-  console.log(`💰 [HOA PENALTIES] Recalculating penalties for ${clientId}/${unitId}/${year}`);
+  logDebug(`💰 [HOA PENALTIES] Recalculating penalties for ${clientId}/${unitId}/${year}`);
   
   const db = await getDb();
   const calculationDate = asOfDate || getNow();
@@ -410,7 +411,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
   const duesSnap = await duesRef.get();
   
   if (!duesSnap.exists) {
-    console.log(`⚠️  No HOA dues document found for ${unitId}/${year}`);
+    logDebug(`⚠️  No HOA dues document found for ${unitId}/${year}`);
     return { updated: false, message: 'No dues document found' };
   }
   
@@ -426,7 +427,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
   const unpaidBills = bills.filter(b => b.status !== 'paid');
   
   if (unpaidBills.length === 0) {
-    console.log(`✅ [HOA PENALTIES] No unpaid bills, no penalties to calculate`);
+    logDebug(`✅ [HOA PENALTIES] No unpaid bills, no penalties to calculate`);
     return { updated: false, message: 'No unpaid bills' };
   }
   
@@ -451,7 +452,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
     }
   });
   
-  console.log(`💰 [HOA PENALTIES] Recalculated ${penaltyResult.billsUpdated} bills, added $${centavosToPesos(penaltyResult.totalPenaltiesAdded)}`);
+  logDebug(`💰 [HOA PENALTIES] Recalculated ${penaltyResult.billsUpdated} bills, added $${centavosToPesos(penaltyResult.totalPenaltiesAdded)}`);
   
   // Apply penalty updates back to monthly array
   const updatedPayments = [...hoaDuesDoc.payments];
@@ -481,7 +482,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
   const cleanedPenaltyUpdates = cleanTimestamps(penaltyUpdates);
   await duesRef.update(cleanedPenaltyUpdates);
   
-  console.log(`✅ [HOA PENALTIES] Updated penalties: Total $${centavosToPesos(totalPenaltyAmount)}`);
+  logDebug(`✅ [HOA PENALTIES] Updated penalties: Total $${centavosToPesos(totalPenaltyAmount)}`);
   
   return {
     updated: true,
@@ -509,7 +510,7 @@ async function recalculateHOAPenalties(clientId, unitId, year, asOfDate = null) 
  * @returns {Array} Bills array with recalculated penalties (in-memory only)
  */
 async function calculatePenaltiesInMemory(bills, asOfDate, config) {
-  console.log(`💰 [IN-MEMORY CALC] Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
+  logDebug(`💰 [IN-MEMORY CALC] Calculating penalties for ${bills.length} bills as of ${asOfDate.toISOString()}`);
   
   // Validate penalty configuration exists (check for undefined/null, allow 0)
   if (config.penaltyRate === undefined || config.penaltyRate === null || 
@@ -532,7 +533,7 @@ async function calculatePenaltiesInMemory(bills, asOfDate, config) {
   });
   
   const totalPenalties = result.totalPenaltiesAdded;
-  console.log(`✅ [IN-MEMORY CALC] Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
+  logDebug(`✅ [IN-MEMORY CALC] Recalculated penalties (grouped): Total $${centavosToPesos(totalPenalties)}, ${result.billsUpdated} bills updated`);
   
   return result.updatedBills;
 }
@@ -654,7 +655,7 @@ function createAllocationSummary(distribution, totalAmountCents) {
   const totalAllocated = distribution.reduce((sum, item) => sum + item.amountToAdd, 0);
   
   // Debug logging to understand the units mismatch
-  console.log('🔍 [ALLOCATION DEBUG] Units comparison:', {
+  logDebug('🔍 [ALLOCATION DEBUG] Units comparison:', {
     totalAmountCents,
     totalAllocated,
     distributionItems: distribution.map(item => ({ 
@@ -713,7 +714,7 @@ async function initializeYearDocument(clientId, unitId, year) {
 async function recordDuesPayment(clientId, unitId, year, paymentData, distribution, transactionId = null) {
   try {
     // Log full payment data for debugging
-    console.log('Processing payment data in controller:', {
+    logDebug('Processing payment data in controller:', {
       clientId,
       unitId,
       year,
@@ -749,69 +750,69 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     
     // First, create a transaction record
     // Enhanced date handling with Mexico timezone utilities for proper timezone support
-    console.log('Payment date received by backend:', paymentData.date, 'Type:', typeof paymentData.date);
+    logDebug('Payment date received by backend:', paymentData.date, 'Type:', typeof paymentData.date);
     let paymentDate;
     let paymentTimestamp;
     
     try {
       // Determine type and convert appropriately using Mexico timezone utilities
       if (!paymentData.date) {
-        console.log('No date provided, using current Mexico date');
+        logDebug('No date provided, using current Mexico date');
         paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       } else if (paymentData.date instanceof Date) {
-        console.log('Date is already a Date object');
+        logDebug('Date is already a Date object');
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentData.date);
         paymentDate = paymentData.date;
       } else if (typeof paymentData.date === 'string') {
-        console.log('Date is a string, parsing with Mexico timezone handling');
+        logDebug('Date is a string, parsing with Mexico timezone handling');
         // Extract date part from ISO string if present (YYYY-MM-DD)
         const dateOnly = paymentData.date.split('T')[0];
-        console.log('Extracted date part:', dateOnly);
+        logDebug('Extracted date part:', dateOnly);
         
         // Use DateService for proper timezone handling
         paymentTimestamp = dateService.parseFromFrontend(dateOnly);
         paymentDate = paymentTimestamp.toDate();
       } else if (paymentData.date && typeof paymentData.date.toDate === 'function') {
-        console.log('Date is a Firestore Timestamp');
+        logDebug('Date is a Firestore Timestamp');
         paymentTimestamp = paymentData.date;
         paymentDate = paymentData.date.toDate();
       } else if (typeof paymentData.date === 'object') {
-        console.log('Date is an object, attempting to extract date information');
+        logDebug('Date is an object, attempting to extract date information');
         // Attempt to extract timestamp if available
         if ('seconds' in paymentData.date && 'nanoseconds' in paymentData.date) {
           paymentTimestamp = new admin.firestore.Timestamp(paymentData.date.seconds, paymentData.date.nanoseconds || 0);
           paymentDate = paymentTimestamp.toDate();
         } else {
           // Final fallback - use current Mexico date
-          console.error('Could not parse date object, using current Mexico date');
+          logError('Could not parse date object, using current Mexico date');
           paymentDate = getNow();
           paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
         }
       } else {
         // Final fallback
-        console.error('Unrecognized date format, using current Mexico date');
+        logError('Unrecognized date format, using current Mexico date');
         paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
       
-      console.log('Payment date after conversion:', paymentDate, 'Valid:', !isNaN(paymentDate.getTime()));
+      logDebug('Payment date after conversion:', paymentDate, 'Valid:', !isNaN(paymentDate.getTime()));
       
       // Final validation - if date is still invalid, use current Mexico date
       if (isNaN(paymentDate.getTime())) {
-        console.error('Date is invalid after conversion, using current Mexico date');
+        logError('Date is invalid after conversion, using current Mexico date');
         paymentDate = getNow();
         paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
       }
     } catch (dateError) {
-      console.error('Error converting date:', dateError);
+      logError('Error converting date:', dateError);
       paymentDate = getNow();
       paymentTimestamp = admin.firestore.Timestamp.fromDate(paymentDate);
     }
     
     // CRITICAL: Recalculate penalties based on payment date for accurate recording
     // This ensures backdated payments use correct penalties for that date
-    console.log(`💰 [HOA RECORD] Verifying penalties for payment date: ${paymentDate.toISOString()}`);
+    logDebug(`💰 [HOA RECORD] Verifying penalties for payment date: ${paymentDate.toISOString()}`);
     
     // Get the database instance if not already initialized
     if (!dbInstance) {
@@ -836,13 +837,13 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Calculate penalties in-memory for payment date
       const billsWithUpdatedPenalties = await calculatePenaltiesInMemory(bills, paymentDate, config);
       
-      console.log(`✅ [HOA RECORD] Penalties verified for ${billsWithUpdatedPenalties.length} bills`);
+      logDebug(`✅ [HOA RECORD] Penalties verified for ${billsWithUpdatedPenalties.length} bills`);
       
       // Note: The distribution parameter already contains payment breakdown from preview
       // We've verified penalties are correct for the payment date
       // The transaction will use the correct penalty amounts
     } else {
-      console.log(`⚠️  [HOA RECORD] No dues document found - will be created during payment processing`);
+      logDebug(`⚠️  [HOA RECORD] No dues document found - will be created during payment processing`);
     }
     
     // Format notes to match the existing schema format
@@ -879,7 +880,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // No transaction ID provided - create new transaction (standard flow)
       
       // Debug: Log the payment date being used
-      console.log(`🗓️ [HOA PAYMENT DEBUG] Creating transaction with date:`, {
+      logDebug(`🗓️ [HOA PAYMENT DEBUG] Creating transaction with date:`, {
         paymentDate: paymentDate.toISOString(),
         year: paymentDate.getFullYear(),
         month: paymentDate.getMonth() + 1,
@@ -941,10 +942,10 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         throw new Error('Failed to create transaction record');
       }
       
-      console.log(`Created transaction ${finalTransactionId} for HOA Dues payment`);
+      logDebug(`Created transaction ${finalTransactionId} for HOA Dues payment`);
     } else {
       // Transaction ID provided - skip transaction creation (unified payment flow)
-      console.log(`Using existing transaction ${finalTransactionId} for HOA Dues payment (unified payment)`);
+      logDebug(`Using existing transaction ${finalTransactionId} for HOA Dues payment (unified payment)`);
     }
     
     // Now update the unit's dues record
@@ -962,9 +963,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     
     if (duesDoc.exists) {
       duesData = duesDoc.data();
-      console.log('Found existing dues record:', duesData);
+      logDebug('Found existing dues record:', duesData);
     } else {
-      console.log('No existing dues record found, initializing new record');
+      logDebug('No existing dues record found, initializing new record');
       // Initialize with 12-element payment array
       const initialDoc = await initializeYearDocument(clientId, unitId, year);
       duesData = initialDoc;
@@ -972,7 +973,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     
     // Ensure payments is always a 12-element array - but PRESERVE existing data
     if (!Array.isArray(duesData.payments)) {
-      console.log('⚠️ payments is not an array, initializing');
+      logDebug('⚠️ payments is not an array, initializing');
       duesData.payments = Array(12).fill(null).map(() => ({
         paid: false,
         amount: 0,
@@ -980,7 +981,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         reference: null
       }));
     } else if (duesData.payments.length < 12) {
-      console.log(`⚠️ payments array has ${duesData.payments.length} elements, padding to 12`);
+      logDebug(`⚠️ payments array has ${duesData.payments.length} elements, padding to 12`);
       // Pad the array to 12 elements without losing existing data
       while (duesData.payments.length < 12) {
         duesData.payments.push({
@@ -991,15 +992,15 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         });
       }
     } else if (duesData.payments.length > 12) {
-      console.log(`⚠️ payments array has ${duesData.payments.length} elements, truncating to 12`);
+      logDebug(`⚠️ payments array has ${duesData.payments.length} elements, truncating to 12`);
       // Truncate to 12 elements
       duesData.payments = duesData.payments.slice(0, 12);
     }
     
-    console.log('Processing distribution:', distribution);
-    console.log('Current payments array before update:', duesData.payments);      // Handle case where distribution is empty (credit-only payment)
+    logDebug('Processing distribution:', distribution);
+    logDebug('Current payments array before update:', duesData.payments);      // Handle case where distribution is empty (credit-only payment)
     if (!distribution || distribution.length === 0) {
-      console.log(`No distribution provided - this appears to be a credit-only payment of ${paymentData.amount}`);
+      logDebug(`No distribution provided - this appears to be a credit-only payment of ${paymentData.amount}`);
     }
     
     // Load billing config to calculate due dates
@@ -1008,20 +1009,20 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     const fiscalYearStartMonth = config.fiscalYearStartMonth || 1;
     
     // Update payments array with distributed payments
-    console.log(`Processing ${distribution.length} distribution items`);
+    logDebug(`Processing ${distribution.length} distribution items`);
     
     if (distribution.length === 0) {
-      console.log('No distribution items to process - this may be a credit-only payment');
+      logDebug('No distribution items to process - this may be a credit-only payment');
     }
     
     for (const item of distribution) {
-      console.log(`Processing payment for month ${item.month}:`, item);
+      logDebug(`Processing payment for month ${item.month}:`, item);
       
       // Convert month to 0-based index (month 1 = index 0)
       const monthIndex = item.month - 1;
       
       if (monthIndex < 0 || monthIndex > 11) {
-        console.error(`Invalid month ${item.month}, skipping`);
+        logError(`Invalid month ${item.month}, skipping`);
         continue;
       }
       
@@ -1051,7 +1052,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         ? dollarsToCents(item.newAmount)  // newAmount is in dollars from frontend
         : currentAmount + dollarsToCents(item.amountToAdd || 0);  // amountToAdd is also in dollars
           
-      console.log(`Updating month ${item.month} (index ${monthIndex}): ${centsToDollars(amountInCents)} dollars`);
+      logDebug(`Updating month ${item.month} (index ${monthIndex}): ${centsToDollars(amountInCents)} dollars`);
       
       // Update the specific month in the 12-element array - PRESERVE existing data
       // Store date as ISO string (not Timestamp) to avoid Firestore serialization errors
@@ -1102,13 +1103,13 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         creditNote,
         'hoaDues'
       );
-      console.log(`💳 [CREDIT] Applied delta of ${creditDeltaCentavos} centavos via shared credit service`);
+      logDebug(`💳 [CREDIT] Applied delta of ${creditDeltaCentavos} centavos via shared credit service`);
     } else {
-      console.log('💳 [CREDIT] No credit delta detected for this payment');
+      logDebug('💳 [CREDIT] No credit delta detected for this payment');
     }
     
     // Debug the data before saving - more detailed logging
-    console.log('Attempting to save dues data:', {
+    logDebug('Attempting to save dues data:', {
       path: `clients/${clientId}/units/${unitId}/dues/${year}`,
       duesData: {
         scheduledAmount: duesData.scheduledAmount,
@@ -1125,17 +1126,17 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
     try {
       // Get the exact Firestore path for debugging
       const firestorePath = `clients/${clientId}/units/${unitId}/dues/${year.toString()}`;
-      console.log(`🔍 Attempting to update Firestore document at path: ${firestorePath}`);
+      logDebug(`🔍 Attempting to update Firestore document at path: ${firestorePath}`);
       
       // Log the duesRef details
-      console.log('Document reference details:', {
+      logDebug('Document reference details:', {
         path: duesRef.path,
         parent: duesRef.parent.path,
         id: duesRef.id
       });
       
       // Debug the current state of duesData before cleaning
-      console.log('Current duesData structure before cleaning:', {
+      logDebug('Current duesData structure before cleaning:', {
         scheduledAmount: duesData.scheduledAmount,
         paymentsCount: duesData.payments?.length || 0,
         paymentsArray: Array.isArray(duesData.payments),
@@ -1156,9 +1157,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         if (p.date && typeof p.date.toDate === 'function') {
           try {
             cleanedDate = p.date.toDate().toISOString();
-            console.log(`🔄 Converting Timestamp to ISO string for month ${p._hoaMetadata?.month || 'unknown'}`);
+            logDebug(`🔄 Converting Timestamp to ISO string for month ${p._hoaMetadata?.month || 'unknown'}`);
           } catch (err) {
-            console.warn(`⚠️ Failed to convert Timestamp, using as-is:`, err);
+            logWarn(`⚠️ Failed to convert Timestamp, using as-is:`, err);
             cleanedDate = p.date;
           }
         } else if (p.date && typeof p.date === 'object' && p.date._seconds !== undefined) {
@@ -1166,9 +1167,9 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           try {
             const ts = Timestamp.fromMillis(p.date._seconds * 1000 + (p.date._nanoseconds || 0) / 1000000);
             cleanedDate = ts.toDate().toISOString();
-            console.log(`🔄 Converting Timestamp object to ISO string`);
+            logDebug(`🔄 Converting Timestamp object to ISO string`);
           } catch (err) {
-            console.warn(`⚠️ Failed to convert Timestamp object, using ISO string if available:`, err);
+            logWarn(`⚠️ Failed to convert Timestamp object, using ISO string if available:`, err);
             cleanedDate = p.date?.toISOString?.() || p.date;
           }
         } else if (p.date && typeof p.date === 'string') {
@@ -1182,7 +1183,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         };
       });
       
-      console.log(`✅ Cleaned ${cleanedPayments.length} payment entries for Firestore update`);
+      logDebug(`✅ Cleaned ${cleanedPayments.length} payment entries for Firestore update`);
       
       // SURGICAL UPDATE: Only update specific fields that changed
       const updates = {
@@ -1208,7 +1209,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // - totalDue (static configuration)
       
       // Log the update for debugging
-      console.log('Surgical update fields:', {
+      logDebug('Surgical update fields:', {
         totalPaid: updates.totalPaid,
         paymentsCount: updates.payments.length,
         updatedFields: Object.keys(updates)
@@ -1217,23 +1218,23 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       // Use update() instead of set() for surgical updates
       const db = await getDb();
       try {
-        console.log(`🔄 Attempting surgical update for document: ${firestorePath}`);
+        logDebug(`🔄 Attempting surgical update for document: ${firestorePath}`);
         
         // Clean all Timestamp objects before update to prevent serialization errors
         const cleanedUpdates = cleanTimestamps(updates);
         
         // Use update() to only modify specific fields
         await duesRef.update(cleanedUpdates);
-        console.log(`✅ Surgical update completed successfully for document: ${firestorePath}`);
+        logDebug(`✅ Surgical update completed successfully for document: ${firestorePath}`);
       } catch (updateError) {
-        console.error(`❌ Update failed:`, updateError);
+        logError(`❌ Update failed:`, updateError);
         
         // If document doesn't exist, we need to create it with full structure
         if (updateError.code === 'not-found' || updateError.message?.includes('No document to update')) {
-          console.log(`Document doesn't exist, initializing new document`);
+          logDebug(`Document doesn't exist, initializing new document`);
           
           if (!duesData.scheduledAmount) {
-            console.warn(`⚠️ No scheduledAmount provided for unit ${unitId}, year ${year}.`);
+            logWarn(`⚠️ No scheduledAmount provided for unit ${unitId}, year ${year}.`);
           }
           
           // Initialize with full structure including static fields
@@ -1251,7 +1252,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
           // Clean all Timestamp objects before set
           const cleanedNewDuesDoc = cleanTimestamps(newDuesDoc);
           await duesRef.set(cleanedNewDuesDoc);
-          console.log(`✅ Created new document with full structure`);
+          logDebug(`✅ Created new document with full structure`);
         } else {
           throw new Error(`Failed to update dues data: ${updateError.message}`);
         }
@@ -1261,7 +1262,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       const verifyDoc = await duesRef.get();
       if (verifyDoc.exists) {
         const savedData = verifyDoc.data();
-        console.log(`✅ Verified dues record for Unit ${unitId} Year ${year}:`, {
+        logDebug(`✅ Verified dues record for Unit ${unitId} Year ${year}:`, {
           legacyCreditFieldsPresent: 'creditBalance' in savedData || 'creditBalanceHistory' in savedData,
           savedPaymentsCount: savedData.payments?.length || 0,
           path: firestorePath,
@@ -1270,31 +1271,31 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         
         // Check if the payment count matches what we expected
         if (savedData.payments?.length !== updates.payments?.length) {
-          console.warn(`⚠️ Warning: Saved payments count (${savedData.payments?.length}) doesn't match expected count (${updates.payments?.length})`);
+          logWarn(`⚠️ Warning: Saved payments count (${savedData.payments?.length}) doesn't match expected count (${updates.payments?.length})`);
           
           // Try to update just the payments array as a fallback
-          console.log(`🔄 Attempting to fix payments array with surgical update...`);
+          logDebug(`🔄 Attempting to fix payments array with surgical update...`);
           const cleanedPaymentsUpdate = cleanTimestamps({ payments: updates.payments });
           await duesRef.update(cleanedPaymentsUpdate);
-          console.log(`✅ Payments array update completed`);
+          logDebug(`✅ Payments array update completed`);
           
           // Final verification after payments update
           const finalCheck = await duesRef.get();
           if (finalCheck.exists) {
             const finalData = finalCheck.data();
             if (finalData.payments?.length !== updates.payments?.length) {
-              console.error(`❌ Still couldn't correct the payments array length after update!`);
+              logError(`❌ Still couldn't correct the payments array length after update!`);
             } else {
-              console.log(`✅ Successfully fixed payments array with update`);
+              logDebug(`✅ Successfully fixed payments array with update`);
             }
           }
         }
       } else {
-        console.error(`❌ Verification failed: Could not read back dues record for Unit ${unitId} Year ${year}`);
-        console.log(`🔄 Document doesn't exist, attempting to create it with full data...`);
+        logError(`❌ Verification failed: Could not read back dues record for Unit ${unitId} Year ${year}`);
+        logDebug(`🔄 Document doesn't exist, attempting to create it with full data...`);
         
         if (!duesData.scheduledAmount) {
-          console.warn(`⚠️ No scheduledAmount provided for unit ${unitId}, year ${year}.`);
+          logWarn(`⚠️ No scheduledAmount provided for unit ${unitId}, year ${year}.`);
         }
         
         // Create full document structure for new document
@@ -1313,15 +1314,15 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         // Clean all Timestamp objects before set
         const cleanedDoc = cleanTimestamps(newDuesDoc);
         await duesRef.set(cleanedDoc);
-        console.log(`✅ Created new document at ${firestorePath}`);
+        logDebug(`✅ Created new document at ${firestorePath}`);
       }
       
       // Final verification
       const finalVerify = await duesRef.get();
-      console.log(`🔍 Final verification - Document exists: ${finalVerify.exists}, Payment count: ${finalVerify.exists ? finalVerify.data().payments?.length : 'N/A'}`);
+      logDebug(`🔍 Final verification - Document exists: ${finalVerify.exists}, Payment count: ${finalVerify.exists ? finalVerify.data().payments?.length : 'N/A'}`);
     } catch (saveError) {
-      console.error('❌ Error saving dues data:', saveError);
-      console.error('Error details:', saveError);
+      logError('❌ Error saving dues data:', saveError);
+      logError('Error details:', saveError);
       throw new Error(`Failed to save dues data: ${saveError.message}`);
     }
     
@@ -1346,7 +1347,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       duesData
     };
   } catch (error) {
-    console.error('❌ Error recording dues payment:', error);
+    logError('❌ Error recording dues payment:', error);
     throw error;
   }
 }
@@ -1369,7 +1370,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
  */
 async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, transactionId, paymentDate, paymentMethod, reference, userId, creditData) {
   try {
-    console.log(`🏠 [HOA UPDATE] Updating ${monthsData.length} months for unit ${unitId}/${year}`);
+    logDebug(`🏠 [HOA UPDATE] Updating ${monthsData.length} months for unit ${unitId}/${year}`);
     
     if (!dbInstance) {
       dbInstance = await getDb();
@@ -1403,7 +1404,7 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
       const monthIndex = monthData.month - 1; // Convert to 0-based index (fiscal month index 0-11)
       
       if (monthIndex < 0 || monthIndex > 11) {
-        console.warn(`Invalid month ${monthData.month}, skipping`);
+        logWarn(`Invalid month ${monthData.month}, skipping`);
         return;
       }
       
@@ -1436,7 +1437,7 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
     // NOTE: Credit balance update is now handled by UnifiedPaymentWrapper
     // to ensure atomicity across all payment types (HOA + Water + Credit)
     // This prevents double credit updates and ensures all-or-nothing semantics
-    console.log(`💳 [HOA] Credit update delegated to UnifiedPaymentWrapper`);
+    logDebug(`💳 [HOA] Credit update delegated to UnifiedPaymentWrapper`);
 
     // Update Firestore (payments only)
     const updates = {
@@ -1450,12 +1451,12 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
     const cleanedUpdates = cleanTimestamps(updates);
     await duesRef.update(cleanedUpdates);
     
-    console.log(`✅ [HOA UPDATE] Updated ${monthsData.length} months, credit: $${creditData.final}`);
+    logDebug(`✅ [HOA UPDATE] Updated ${monthsData.length} months, credit: $${creditData.final}`);
     
     return { success: true, transactionId };
     
   } catch (error) {
-    console.error('❌ Error updating HOA dues:', error);
+    logError('❌ Error updating HOA dues:', error);
     throw error;
   }
 }
@@ -1478,7 +1479,7 @@ async function updateHOADuesWithPayment(clientId, unitId, year, monthsData, tran
  */
 async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsData, transactionId, paymentDate, paymentMethod, reference, userId, creditData) {
   try {
-    console.log(`🏠 [HOA UPDATE] Processing ${paymentsData.length} payment entries for unit ${unitId}/${year}`);
+    logDebug(`🏠 [HOA UPDATE] Processing ${paymentsData.length} payment entries for unit ${unitId}/${year}`);
     
     if (!dbInstance) {
       dbInstance = await getDb();
@@ -1504,7 +1505,7 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
     
     if (hasQuarters) {
       // QUARTERLY BILLING
-      console.log(`   📅 Detected quarterly billing structure`);
+      logDebug(`   📅 Detected quarterly billing structure`);
       const quartersArray = [...duesData.quarters];
       
       // Ensure 4-element array
@@ -1517,7 +1518,7 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
         const quarterIndex = paymentData.quarterIndex;
         
         if (quarterIndex < 0 || quarterIndex > 3) {
-          console.warn(`Invalid quarter ${quarterIndex}, skipping`);
+          logWarn(`Invalid quarter ${quarterIndex}, skipping`);
           return;
         }
         
@@ -1544,11 +1545,11 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
         updated: getNow().toISOString()
       };
       
-      console.log(`   ✅ Updated ${paymentsData.length} quarters`);
+      logDebug(`   ✅ Updated ${paymentsData.length} quarters`);
       
     } else if (hasPayments) {
       // MONTHLY BILLING (existing logic)
-      console.log(`   📅 Detected monthly billing structure`);
+      logDebug(`   📅 Detected monthly billing structure`);
       const paymentsArray = [...duesData.payments];
       
       // Ensure 12-element array
@@ -1561,7 +1562,7 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
         const monthIndex = paymentData.month - 1; // Convert to 0-based index
         
         if (monthIndex < 0 || monthIndex > 11) {
-          console.warn(`Invalid month ${paymentData.month}, skipping`);
+          logWarn(`Invalid month ${paymentData.month}, skipping`);
           return;
         }
         
@@ -1588,7 +1589,7 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
         updated: getNow().toISOString()
       };
       
-      console.log(`   ✅ Updated ${paymentsData.length} months`);
+      logDebug(`   ✅ Updated ${paymentsData.length} months`);
       
     } else {
       throw new Error(`No valid payment structure found in dues document for ${unitId}/${year}`);
@@ -1614,7 +1615,7 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
         creditNote,
         'hoaDues'
       );
-      console.log(`💳 [CREDIT] Unified payment adjusted credit by ${creditDeltaCentavos} centavos`);
+      logDebug(`💳 [CREDIT] Unified payment adjusted credit by ${creditDeltaCentavos} centavos`);
     }
 
     // Clean up legacy fields if present
@@ -1625,12 +1626,12 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
     const cleanedUpdates = cleanTimestamps(updates);
     await duesRef.update(cleanedUpdates);
     
-    console.log(`✅ [HOA UPDATE] Success, credit: $${creditData.final}`);
+    logDebug(`✅ [HOA UPDATE] Success, credit: $${creditData.final}`);
     
     return { success: true, transactionId };
     
   } catch (error) {
-    console.error('❌ Error updating HOA dues:', error);
+    logError('❌ Error updating HOA dues:', error);
     throw error;
   }
 }
@@ -1645,22 +1646,22 @@ async function updateHOADuesWithPaymentUnified(clientId, unitId, year, paymentsD
  */
 async function getUnitDuesData(clientId, unitId, year) {
   try {
-    console.log(`🔍 Getting dues data for client ${clientId}, unit ${unitId}, year ${year}`);
+    logDebug(`🔍 Getting dues data for client ${clientId}, unit ${unitId}, year ${year}`);
     
     // Get the database instance if not already initialized
     if (!dbInstance) {
-      console.log('Getting new database instance...');
+      logDebug('Getting new database instance...');
       dbInstance = await getDb();
     }
     
     // Create document reference using new structure
     const firestorePath = `clients/${clientId}/units/${unitId}/dues/${year.toString()}`;
-    console.log(`🔍 Fetching document from path: ${firestorePath}`);
+    logDebug(`🔍 Fetching document from path: ${firestorePath}`);
     
     const duesRef = dbInstance.collection('clients').doc(clientId)
                       .collection('units').doc(unitId).collection('dues').doc(year.toString());
     
-    console.log('Document reference created:', {
+    logDebug('Document reference created:', {
       path: duesRef.path,
       parent: duesRef.parent.path,
       id: duesRef.id
@@ -1668,11 +1669,11 @@ async function getUnitDuesData(clientId, unitId, year) {
     
     const duesDoc = await duesRef.get();
     
-    console.log(`Document exists: ${duesDoc.exists}`);
+    logDebug(`Document exists: ${duesDoc.exists}`);
     
     if (duesDoc.exists) {
       const data = duesDoc.data();
-      console.log(`✅ Found dues data with ${data.payments?.length || 0} payments`);
+      logDebug(`✅ Found dues data with ${data.payments?.length || 0} payments`);
       
       // Fetch credit balance data from the new centralized location
       let creditBalance = data.creditBalance || 0;
@@ -1694,7 +1695,7 @@ async function getUnitDuesData(clientId, unitId, year) {
           }
         }
       } catch (error) {
-        console.warn(`⚠️ Could not fetch credit balance from new location, using dues document data:`, error);
+        logWarn(`⚠️ Could not fetch credit balance from new location, using dues document data:`, error);
         // Fallback to dues document data
         creditBalance = data.creditBalance || 0;
         creditBalanceHistory = data.creditBalanceHistory || [];
@@ -1737,7 +1738,7 @@ async function getUnitDuesData(clientId, unitId, year) {
         updated: data.updated ? convertFromTimestamp(data.updated) : null
       };
       
-      console.log('[DEBUG] Final API Data (Raw Centavos):', {
+      logDebug('[DEBUG] Final API Data (Raw Centavos):', {
         creditBalance: apiData.creditBalance,
         totalPaid: apiData.totalPaid,
         firstPaymentAmount: apiData.payments[0]?.amount
@@ -1745,12 +1746,12 @@ async function getUnitDuesData(clientId, unitId, year) {
       
       return apiData;
     } else {
-      console.log(`ℹ️ No dues data found for this unit/year combination`);
+      logDebug(`ℹ️ No dues data found for this unit/year combination`);
       return null;
     }
   } catch (error) {
-    console.error(`❌ Error fetching dues data for unit ${unitId}:`, error);
-    console.error('Full error details:', error);
+    logError(`❌ Error fetching dues data for unit ${unitId}:`, error);
+    logError('Full error details:', error);
     throw error;
   }
 }
@@ -1786,7 +1787,7 @@ async function getAllDuesDataForYear(clientId, year) {
         allCreditBalances = creditBalancesDoc.data();
       }
     } catch (error) {
-      console.warn(`⚠️ Could not fetch credit balances from new location:`, error);
+      logWarn(`⚠️ Could not fetch credit balances from new location:`, error);
     }
     
     // For each unit, get their dues data for the specified year
@@ -1880,7 +1881,7 @@ async function getAllDuesDataForYear(clientId, year) {
           };
         }
       } catch (unitError) {
-        console.error(`Error fetching dues for unit ${unitId}:`, unitError);
+        logError(`Error fetching dues for unit ${unitId}:`, unitError);
         // Still include empty structure for this unit
         // Calculate totalDue from scheduledAmount × 12 (default to $250/month if not set)
         const defaultScheduledAmount = 250; // $250/month default
@@ -1905,7 +1906,7 @@ async function getAllDuesDataForYear(clientId, year) {
     
     return duesData;
   } catch (error) {
-    console.error(`❌ Error fetching all dues data for year ${year}:`, error);
+    logError(`❌ Error fetching all dues data for year ${year}:`, error);
     throw error;
   }
 }
@@ -1936,7 +1937,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     const changeAmountPesos = newBalancePesos - currentBalancePesos;
 
     if (Math.abs(changeAmountPesos) < 0.005) {
-      console.log('💳 [CREDIT] Manual update requested but no change detected');
+      logDebug('💳 [CREDIT] Manual update requested but no change detected');
       return true;
     }
     
@@ -1958,7 +1959,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       adjustmentNote,
       'admin'  // Use 'admin' source so Statement of Account shows these adjustments
     );
-    console.log(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos (${changeAmountPesos} pesos)`);
+    logDebug(`💳 [CREDIT] Manual adjustment applied: ${changeAmountCentavos} centavos (${changeAmountPesos} pesos)`);
 
     // Clean up legacy credit fields from dues documents (best-effort, non-blocking)
     // This is done asynchronously to avoid blocking the credit update
@@ -1982,7 +1983,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
       }
     } catch (legacyCleanupError) {
       // Non-critical - just log and continue
-      console.log(`ℹ️ [CREDIT] Legacy cleanup skipped (non-critical): ${legacyCleanupError.message}`);
+      logDebug(`ℹ️ [CREDIT] Legacy cleanup skipped (non-critical): ${legacyCleanupError.message}`);
     }
     
     // Log the action
@@ -2003,7 +2004,7 @@ async function updateCreditBalance(clientId, unitId, year, newCreditBalance, not
     
     return true;
   } catch (error) {
-    console.error(`❌ Error updating credit balance for unit ${unitId}:`, error);
+    logError(`❌ Error updating credit balance for unit ${unitId}:`, error);
     throw error;
   }
 }
@@ -2023,7 +2024,7 @@ async function getCreditBalanceForModule(req, res) {
     ]);
 
     // Log cross-module access for audit
-    console.log(`📊 Credit balance accessed by ${module} module: Unit ${unitId}, Balance: $${creditInfo.creditBalance || 0}`);
+    logDebug(`📊 Credit balance accessed by ${module} module: Unit ${unitId}, Balance: $${creditInfo.creditBalance || 0}`);
     
     res.json({
       success: true,
@@ -2033,7 +2034,7 @@ async function getCreditBalanceForModule(req, res) {
     });
     
   } catch (error) {
-    console.error('Error getting credit balance:', error);
+    logError('Error getting credit balance:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -2085,13 +2086,13 @@ async function updateCreditBalanceFromModule(req, res) {
       });
     } catch (legacyCleanupError) {
       if (legacyCleanupError.code !== 'not-found') {
-        console.warn('⚠️ Unable to remove legacy credit fields:', legacyCleanupError.message);
+        logWarn('⚠️ Unable to remove legacy credit fields:', legacyCleanupError.message);
       }
     }
 
     // Fetch updated balance for response
     const updatedCredit = await creditService.getCreditBalance(clientId, unitId);
-    console.log(`💰 Credit balance updated by ${module}: Unit ${unitId}, change ${changeAmount} (pesos)`);
+    logDebug(`💰 Credit balance updated by ${module}: Unit ${unitId}, change ${changeAmount} (pesos)`);
     
     res.json({
       success: true,
@@ -2102,7 +2103,7 @@ async function updateCreditBalanceFromModule(req, res) {
     });
     
   } catch (error) {
-    console.error('Error updating credit balance:', error);
+    logError('Error updating credit balance:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -2122,7 +2123,7 @@ async function updateCreditBalanceFromModule(req, res) {
  * @returns {object} Payment distribution preview
  */
 async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDate = null) {
-  console.log(`🔮 [HOA PREVIEW] Previewing payment: ${clientId}/${unitId}/${year}, Amount: $${paymentAmount}`);
+  logDebug(`🔮 [HOA PREVIEW] Previewing payment: ${clientId}/${unitId}/${year}, Amount: $${paymentAmount}`);
   
   try {
     const db = await getDb();
@@ -2155,17 +2156,17 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
         currentCredit = centavosToPesos(creditBalanceInCents);
       }
     } catch (error) {
-      console.warn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
+      logWarn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
       currentCredit = 0;
     }
     
     const config = await getHOABillingConfig(clientId);
     
-    console.log(`📋 [HOA WRAPPER] Loaded HOA dues for unit ${unitId}, year ${year}`);
+    logDebug(`📋 [HOA WRAPPER] Loaded HOA dues for unit ${unitId}, year ${year}`);
     
     // 2. Convert HOA native format to standardized bills array
     const allBills = convertHOADuesToBills(hoaDuesDoc, clientId, unitId, year, config);
-    console.log(`📋 [HOA WRAPPER] Converted to ${allBills.length} bills`);
+    logDebug(`📋 [HOA WRAPPER] Converted to ${allBills.length} bills`);
     
     // 3. Calculate penalties in-memory for payment date (does NOT write to Firestore)
     const calculationDate = payOnDate || getNow();
@@ -2173,7 +2174,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
     
     // 4. Filter to unpaid bills only (wrapper responsibility)
     const unpaidBills = billsWithUpdatedPenalties.filter(b => b.status !== 'paid');
-    console.log(`📋 [HOA WRAPPER] Filtered to ${unpaidBills.length} unpaid bills`);
+    logDebug(`📋 [HOA WRAPPER] Filtered to ${unpaidBills.length} unpaid bills`);
     
     // 5. Call shared PaymentDistributionService with prepared unpaid bills
     const distribution = calculatePaymentDistribution({
@@ -2183,7 +2184,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
       unitId
     });
     
-    console.log(`✅ [HOA WRAPPER] Distribution calculated:`, {
+    logDebug(`✅ [HOA WRAPPER] Distribution calculated:`, {
       billPayments: distribution.billPayments?.length || 0,
       creditUsed: distribution.creditUsed,
       overpayment: distribution.overpayment,
@@ -2214,7 +2215,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
       };
     });
     
-    console.log(`✅ [HOA WRAPPER] Complete: ${monthsAffected.length} months affected, credit used: $${distribution.creditUsed}, overpayment: $${distribution.overpayment}`);
+    logDebug(`✅ [HOA WRAPPER] Complete: ${monthsAffected.length} months affected, credit used: $${distribution.creditUsed}, overpayment: $${distribution.overpayment}`);
     
     // 7. Return in HOA-specific format
     return {
@@ -2233,7 +2234,7 @@ async function previewHOAPayment(clientId, unitId, year, paymentAmount, payOnDat
     };
     
   } catch (error) {
-    console.error(`❌ [HOA PREVIEW] Error:`, error);
+    logError(`❌ [HOA PREVIEW] Error:`, error);
     throw error;
   }
 }
@@ -2283,7 +2284,7 @@ async function forcedLookbackForYear(clientId, unitId, year) {
  * @returns {Promise<boolean>} - Whether prior year is now closed
  */
 async function updatePriorYearClosedFlag(clientId, unitId, fiscalYear) {
-  console.log(`   🏷️ [HOA] Checking priorYearClosed flag for ${unitId}/${fiscalYear}`);
+  logDebug(`   🏷️ [HOA] Checking priorYearClosed flag for ${unitId}/${fiscalYear}`);
   
   // Forced lookback for prior year - get ALL unpaid bills ignoring flag
   const unpaidBills = await forcedLookbackForYear(clientId, unitId, fiscalYear - 1);
@@ -2311,7 +2312,7 @@ async function updatePriorYearClosedFlag(clientId, unitId, fiscalYear) {
   const cleanedUpdate = cleanTimestamps(updateData);
   await duesRef.update(cleanedUpdate);
   
-  console.log(`   🏷️ [HOA] Set priorYearClosed=${priorYearClosed} on ${unitId}/${fiscalYear}`);
+  logDebug(`   🏷️ [HOA] Set priorYearClosed=${priorYearClosed} on ${unitId}/${fiscalYear}`);
   return priorYearClosed;
 }
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 const router = express.Router();
 import { 
   createTransaction, 
@@ -32,7 +33,7 @@ router.get('/',
   try {
     const clientId = req.authorizedClientId;
     
-    console.log('🔍 Transaction route - GET / (List/Query):', { 
+    logDebug('🔍 Transaction route - GET / (List/Query):', { 
       user: req.user.email,
       clientId,
       userRole: req.clientRole,
@@ -50,7 +51,7 @@ router.get('/',
       res.json(transactions);
     }
   } catch (error) {
-    console.error('Error listing transactions:', error);
+    logError('Error listing transactions:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
@@ -68,7 +69,7 @@ router.post('/',
     // Client ID is now guaranteed to be authorized via enforceClientAccess middleware
     const clientId = req.authorizedClientId;
     
-    console.log('🔍 Transaction route - POST / (Secured):', { 
+    logDebug('🔍 Transaction route - POST / (Secured):', { 
       user: req.user.email,
       clientId: clientId,
       userRole: req.clientRole,
@@ -91,13 +92,13 @@ router.post('/',
           clientId: clientId
         }
       };
-      console.log('📤 Returning transaction response with formatted dates');
+      logDebug('📤 Returning transaction response with formatted dates');
       res.status(201).json(responseData);
     } else {
       res.status(400).json({ error: 'Failed to create transaction' });
     }
   } catch (error) {
-    console.error('Error in transaction route:', error);
+    logError('Error in transaction route:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
@@ -115,7 +116,7 @@ router.get('/:txnId',
     const txnId = req.params.txnId;
     const clientId = req.authorizedClientId;
     
-    console.log('🔍 Transaction route - GET /:txnId (Secured):', { 
+    logDebug('🔍 Transaction route - GET /:txnId (Secured):', { 
       user: req.user.email,
       clientId,
       txnId,
@@ -127,11 +128,11 @@ router.get('/:txnId',
     if (transaction) {
       res.json(transaction);
     } else {
-      console.log(`Transaction not found: clientId=${clientId}, txnId=${txnId}`);
+      logDebug(`Transaction not found: clientId=${clientId}, txnId=${txnId}`);
       res.status(404).json({ error: 'Transaction not found' });
     }
   } catch (error) {
-    console.error('Error getting transaction:', error);
+    logError('Error getting transaction:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
@@ -149,7 +150,7 @@ router.put('/:txnId',
     const txnId = req.params.txnId;
     const clientId = req.authorizedClientId;
     
-    console.log('🔍 Transaction route - PUT /:txnId (Update):', { 
+    logDebug('🔍 Transaction route - PUT /:txnId (Update):', { 
       user: req.user.email,
       clientId,
       txnId,
@@ -172,7 +173,7 @@ router.put('/:txnId',
       res.status(400).json({ error: 'Failed to update transaction' });
     }
   } catch (error) {
-    console.error('Error updating transaction:', error);
+    logError('Error updating transaction:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
@@ -190,7 +191,7 @@ router.delete('/:txnId',
     const txnId = req.params.txnId;
     const clientId = req.authorizedClientId;
     
-    console.log(`🚀 [ROUTE] Delete transaction request received (Secured):`, {
+    logDebug(`🚀 [ROUTE] Delete transaction request received (Secured):`, {
       user: req.user.email,
       txnId,
       clientId,
@@ -198,23 +199,23 @@ router.delete('/:txnId',
       url: req.originalUrl
     });
     
-    console.log(`🎯 [ROUTE] Calling deleteTransactionWithDocuments for cascading cleanup: clientId=${clientId}, txnId=${txnId}`);
+    logDebug(`🎯 [ROUTE] Calling deleteTransactionWithDocuments for cascading cleanup: clientId=${clientId}, txnId=${txnId}`);
     const success = await deleteTransactionWithDocuments(clientId, txnId);
     
     if (success) {
-      console.log(`✅ [ROUTE] Successfully deleted transaction ${txnId}`);
+      logDebug(`✅ [ROUTE] Successfully deleted transaction ${txnId}`);
       res.json({ 
         success: true,
         message: 'Transaction deleted successfully' 
       });
     } else {
-      console.log(`❌ [ROUTE] Failed to delete transaction ${txnId}`);
+      logDebug(`❌ [ROUTE] Failed to delete transaction ${txnId}`);
       res.status(400).json({ 
         error: 'Failed to delete transaction' 
       });
     }
   } catch (error) {
-    console.error('❌ [ROUTE] Error in delete transaction route:', error);
+    logError('❌ [ROUTE] Error in delete transaction route:', error);
     res.status(500).json({ 
       error: error.message || 'Server error during transaction deletion' 
     });

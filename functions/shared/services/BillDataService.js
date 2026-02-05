@@ -13,6 +13,7 @@ import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig } from '../utils/configValidation.js';
 import { calculatePenaltyForBill } from './PenaltyRecalculationService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors
@@ -61,7 +62,7 @@ export async function getBillingConfig(db, clientId, moduleType = 'water') {
  * @returns {Array} Bills with recalculated penalties (in centavos)
  */
 export async function recalculatePenaltiesAsOfDate(clientId, bills, asOfDate, config) {
-  console.log(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
+  logDebug(`🔄 Recalculating penalties as of ${asOfDate.toISOString()}`);
   
   // Use shared validation utility
   const validatedConfig = validatePenaltyConfig(config, `${clientId} bill data service`);
@@ -90,7 +91,7 @@ export async function recalculatePenaltiesAsOfDate(clientId, bills, asOfDate, co
     });
   }
   
-  console.log(`✅ Recalculated penalties for ${recalculatedBills.length} bills as of ${asOfDate.toISOString()}`);
+  logDebug(`✅ Recalculated penalties for ${recalculatedBills.length} bills as of ${asOfDate.toISOString()}`);
   return recalculatedBills;
 }
 
@@ -113,7 +114,7 @@ export async function getUnpaidWaterBillsForUnit(db, clientId, unitId) {
     .orderBy('__name__') // Order by document name (YYYY-MM format - oldest first)
     .get();
   
-  console.log(`🔍 [WATER BILLS] Found ${billsSnapshot.size} bill documents`);
+  logDebug(`🔍 [WATER BILLS] Found ${billsSnapshot.size} bill documents`);
   
   billsSnapshot.forEach(doc => {
     const billData = doc.data();
@@ -157,7 +158,7 @@ export async function getUnpaidWaterBillsForUnit(db, clientId, unitId) {
     }
   });
   
-  console.log(`✅ [WATER BILLS] Loaded ${bills.length} unpaid bills for unit ${unitId}`);
+  logDebug(`✅ [WATER BILLS] Loaded ${bills.length} unpaid bills for unit ${unitId}`);
   return bills;
 }
 
@@ -168,7 +169,7 @@ export async function getUnpaidWaterBillsForUnit(db, clientId, unitId) {
  * @returns {Array} Filtered bills
  */
 export function filterBillsByMonth(bills, maxMonthIndex) {
-  console.log(`🔍 [FILTER] Filtering bills to include only months up to index ${maxMonthIndex}`);
+  logDebug(`🔍 [FILTER] Filtering bills to include only months up to index ${maxMonthIndex}`);
   
   const originalCount = bills.length;
   const filtered = bills.filter(bill => {
@@ -177,13 +178,13 @@ export function filterBillsByMonth(bills, maxMonthIndex) {
     if (billMonthMatch) {
       const billMonthIndex = parseInt(billMonthMatch[1]);
       const isIncluded = billMonthIndex <= maxMonthIndex;
-      console.log(`🔍 Bill ${billPeriod}: month ${billMonthIndex} vs max ${maxMonthIndex} -> ${isIncluded ? 'INCLUDED' : 'EXCLUDED'}`);
+      logDebug(`🔍 Bill ${billPeriod}: month ${billMonthIndex} vs max ${maxMonthIndex} -> ${isIncluded ? 'INCLUDED' : 'EXCLUDED'}`);
       return isIncluded;
     }
     return true; // Include bills without period format
   });
   
-  console.log(`🔍 [FILTER] Filtered from ${originalCount} to ${filtered.length} bills`);
+  logDebug(`🔍 [FILTER] Filtered from ${originalCount} to ${filtered.length} bills`);
   return filtered;
 }
 

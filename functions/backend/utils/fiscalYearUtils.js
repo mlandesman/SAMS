@@ -14,6 +14,7 @@
  */
 
 import { getNow } from '../services/DateService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 const MONTH_NAMES_FULL = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -61,7 +62,7 @@ function validateFiscalYearConfig(clientConfig) {
   try {
     validateMonth(fiscalYearStartMonth, 'fiscalYearStartMonth');
   } catch (error) {
-    console.error(`[FISCAL YEAR] Invalid fiscalYearStartMonth in client config: ${fiscalYearStartMonth}`);
+    logError(`[FISCAL YEAR] Invalid fiscalYearStartMonth in client config: ${fiscalYearStartMonth}`);
     throw new Error(`Invalid fiscalYearStartMonth configuration: ${fiscalYearStartMonth}. Must be between 1 and 12.`);
   }
   
@@ -87,7 +88,7 @@ function getFiscalYear(date, fiscalYearStartMonth) {
   const month = date.getMonth() + 1; // Convert to 1-based
   
   // DEBUG: Log fiscal year calculation
-  console.log('[FISCAL YEAR] Calculating fiscal year:', {
+  logDebug('[FISCAL YEAR] Calculating fiscal year:', {
     date: date.toISOString(),
     year,
     month,
@@ -96,7 +97,7 @@ function getFiscalYear(date, fiscalYearStartMonth) {
   
   // Special case: Calendar year (starts in January)
   if (fiscalYearStartMonth === 1) {
-    console.log('[FISCAL YEAR] Calendar year result:', year);
+    logDebug('[FISCAL YEAR] Calendar year result:', year);
     return year;
   }
   
@@ -104,12 +105,12 @@ function getFiscalYear(date, fiscalYearStartMonth) {
   // If we're in or after the fiscal year start month, we're in the NEXT fiscal year
   if (month >= fiscalYearStartMonth) {
     const fiscalYear = year + 1;
-    console.log('[FISCAL YEAR] In or after start month, fiscal year:', fiscalYear);
+    logDebug('[FISCAL YEAR] In or after start month, fiscal year:', fiscalYear);
     return fiscalYear;
   }
   
   // Otherwise we're still in the current fiscal year
-  console.log('[FISCAL YEAR] Before start month, fiscal year:', year);
+  logDebug('[FISCAL YEAR] Before start month, fiscal year:', year);
   return year;
 }
 
@@ -149,7 +150,7 @@ function getFiscalYearBounds(fiscalYear, fiscalYearStartMonth) {
   const endMonth = fiscalYearStartMonth === 1 ? 12 : fiscalYearStartMonth - 1;
   const endDate = new Date(endYear, endMonth, 0); // Day 0 gets last day of previous month
   
-  console.log('[FISCAL YEAR] Calculated bounds:', {
+  logDebug('[FISCAL YEAR] Calculated bounds:', {
     fiscalYear,
     fiscalYearStartMonth,
     startDate: startDate.toISOString(),
@@ -183,7 +184,7 @@ function getCurrentFiscalMonth(clientConfig, date = getNow()) {
     fiscalMonth += 12;
   }
   
-  console.log('[FISCAL YEAR] Current fiscal month:', {
+  logDebug('[FISCAL YEAR] Current fiscal month:', {
     date: date.toISOString(),
     calendarMonth,
     fiscalYearStartMonth,

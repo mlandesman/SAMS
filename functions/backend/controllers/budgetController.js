@@ -9,6 +9,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -23,12 +24,12 @@ export async function listBudgetsByYear(clientId, year, user) {
   try {
     // Validate propertyAccess
     if (!user) {
-      console.error('❌ No user provided for listBudgetsByYear');
+      logError('❌ No user provided for listBudgetsByYear');
       return [];
     }
 
     if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
-      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      logError(`❌ User ${user.email} lacks access to client ${clientId}`);
       return [];
     }
 
@@ -82,10 +83,10 @@ export async function listBudgetsByYear(clientId, year, user) {
       }
     }
     
-    console.log(`✅ User ${user.email} listed ${budgets.length} budgets for client ${clientId}, year ${year}`);
+    logDebug(`✅ User ${user.email} listed ${budgets.length} budgets for client ${clientId}, year ${year}`);
     return budgets;
   } catch (error) {
-    console.error('❌ Error listing budgets:', error);
+    logError('❌ Error listing budgets:', error);
     return [];
   }
 }
@@ -104,18 +105,18 @@ export async function upsertBudget(clientId, categoryId, year, amount, notes, us
   try {
     // Validate propertyAccess
     if (!user) {
-      console.error('❌ No user provided for upsertBudget');
+      logError('❌ No user provided for upsertBudget');
       return false;
     }
 
     if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
-      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      logError(`❌ User ${user.email} lacks access to client ${clientId}`);
       return false;
     }
 
     // Validate amount is integer (centavos)
     if (!Number.isInteger(amount) || amount < 0) {
-      console.error('❌ Invalid amount - must be non-negative integer (centavos)');
+      logError('❌ Invalid amount - must be non-negative integer (centavos)');
       return false;
     }
 
@@ -155,7 +156,7 @@ export async function upsertBudget(clientId, categoryId, year, amount, notes, us
       });
 
       if (!auditSuccess) {
-        console.error('❌ Failed to write audit log for upsertBudget.');
+        logError('❌ Failed to write audit log for upsertBudget.');
       }
     } else {
       // Create new budget
@@ -188,13 +189,13 @@ export async function upsertBudget(clientId, categoryId, year, amount, notes, us
       });
 
       if (!auditSuccess) {
-        console.error('❌ Failed to write audit log for upsertBudget.');
+        logError('❌ Failed to write audit log for upsertBudget.');
       }
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error upserting budget:', error);
+    logError('❌ Error upserting budget:', error);
     return false;
   }
 }
@@ -211,12 +212,12 @@ export async function deleteBudget(clientId, categoryId, year, user) {
   try {
     // Validate propertyAccess
     if (!user) {
-      console.error('❌ No user provided for deleteBudget');
+      logError('❌ No user provided for deleteBudget');
       return false;
     }
 
     if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
-      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      logError(`❌ User ${user.email} lacks access to client ${clientId}`);
       return false;
     }
 
@@ -241,12 +242,12 @@ export async function deleteBudget(clientId, categoryId, year, user) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for deleteBudget.');
+      logError('❌ Failed to write audit log for deleteBudget.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error deleting budget:', error);
+    logError('❌ Error deleting budget:', error);
     return false;
   }
 }
@@ -264,12 +265,12 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
   try {
     // Validate propertyAccess
     if (!user) {
-      console.error('❌ No user provided for getPriorYearData');
+      logError('❌ No user provided for getPriorYearData');
       throw new Error('User authentication required');
     }
 
     if (!user.isSuperAdmin() && !user.hasPropertyAccess(clientId)) {
-      console.error(`❌ User ${user.email} lacks access to client ${clientId}`);
+      logError(`❌ User ${user.email} lacks access to client ${clientId}`);
       throw new Error('Access denied');
     }
 
@@ -347,7 +348,7 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
     // But keep the signed value for proper accounting
     const actualAmountForDisplay = actualAmount < 0 ? Math.abs(actualAmount) : actualAmount;
     
-    console.log(`✅ Prior year data for client ${clientId}, category ${categoryId}, prior year ${priorYear}: budget=${budgetData?.amount || 0}, actual=${actualAmountForDisplay}, transactions=${transactionCount}`);
+    logDebug(`✅ Prior year data for client ${clientId}, category ${categoryId}, prior year ${priorYear}: budget=${budgetData?.amount || 0}, actual=${actualAmountForDisplay}, transactions=${transactionCount}`);
     
     return {
       priorYear: priorYear,
@@ -358,7 +359,7 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
       }
     };
   } catch (error) {
-    console.error('❌ Error getting prior year data:', error);
+    logError('❌ Error getting prior year data:', error);
     throw error;
   }
 }

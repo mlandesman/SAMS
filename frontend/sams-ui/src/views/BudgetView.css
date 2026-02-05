@@ -1,12 +1,6 @@
 /* BudgetView.css */
 
-.budget-view {
-  padding: 20px;
-  height: calc(100vh - 140px); /* Adjust based on header/footer height */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* Removed .budget-view - now using .view-container for consistency */
 
 .budget-tabs {
   background-color: #f8f9fa;
@@ -16,6 +10,7 @@
 .budget-tabpanel {
   flex: 1;
   overflow: auto;
+  padding: 20px;
 }
 
 /* Placeholder styling */

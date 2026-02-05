@@ -229,28 +229,6 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
   return (
     <div className="hoa-dues-view">
       <div className="hoa-dues-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px' }}>
-          <h3 style={{ margin: 0, color: '#333' }}>Water Meter History</h3>
-          <div className="year-navigation">
-            <button 
-              className="year-nav-button"
-              onClick={() => setSelectedYear(selectedYear - 1)}
-            >
-              <FontAwesomeIcon icon={faChevronLeft} />
-            </button>
-            <div className="year-display">
-              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#1ebbd7' }}>
-                {selectedYear}
-              </span>
-            </div>
-            <button 
-              className="year-nav-button"
-              onClick={() => setSelectedYear(selectedYear + 1)}
-            >
-              <FontAwesomeIcon icon={faChevronRight} />
-            </button>
-          </div>
-        </div>
         <div className="hoa-dues-table-container">
           <table className="hoa-dues-table">
             <thead>

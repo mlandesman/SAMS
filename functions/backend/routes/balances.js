@@ -1,4 +1,5 @@
 import express from 'express';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 const router = express.Router();
 import { 
   authenticateUserWithProfile, 
@@ -38,7 +39,7 @@ router.get('/current',
   try {
     const clientId = req.authorizedClientId;
     
-    console.log('🔍 Balance route - GET /current:', { 
+    logDebug('🔍 Balance route - GET /current:', { 
       user: req.user.email,
       clientId,
       userRole: req.clientRole
@@ -85,7 +86,7 @@ router.get('/current',
     });
     
   } catch (error) {
-    console.error('❌ Error getting current balances:', error);
+    logError('❌ Error getting current balances:', error);
     res.status(500).json({ 
       success: false,
       error: error.message || 'Server error' 
@@ -107,7 +108,7 @@ router.get('/year-end/:year',
     const clientId = req.authorizedClientId;
     const { year } = req.params;
     
-    console.log('🔍 Balance route - GET /year-end/:year:', { 
+    logDebug('🔍 Balance route - GET /year-end/:year:', { 
       user: req.user.email,
       clientId,
       userRole: req.clientRole,
@@ -146,7 +147,7 @@ router.get('/year-end/:year',
       snapshotDate = `${endYear}-${endMonth}-${endDay}`;
     }
     
-    console.log(`📅 Year-end snapshot date for ${year}:`, snapshotDate, 
+    logDebug(`📅 Year-end snapshot date for ${year}:`, snapshotDate, 
       `(Fiscal year start month: ${fiscalYearStartMonth})`);
     
     // Get year-end snapshot document
@@ -187,7 +188,7 @@ router.get('/year-end/:year',
     });
     
   } catch (error) {
-    console.error('❌ Error getting year-end balances:', error);
+    logError('❌ Error getting year-end balances:', error);
     res.status(500).json({ 
       success: false,
       error: error.message || 'Server error' 
@@ -247,10 +248,10 @@ router.post('/recalculate',
           startYear = (currentYear - 1).toString();
         }
       }
-      console.log(`📅 Auto-determined snapshot year: ${startYear} for ${clientId} (FY starts month ${fiscalYearStartMonth})`);
+      logDebug(`📅 Auto-determined snapshot year: ${startYear} for ${clientId} (FY starts month ${fiscalYearStartMonth})`);
     }
     
-    console.log('🔍 Balance route - POST /recalculate:', { 
+    logDebug('🔍 Balance route - POST /recalculate:', { 
       user: req.user.email,
       clientId,
       userRole: req.clientRole,
@@ -259,7 +260,7 @@ router.post('/recalculate',
       fiscalYearStartMonth
     });
     
-    console.log(`🔄 Backend: Recalculating balances for client ${clientId} from ${startYear} snapshot...`);
+    logDebug(`🔄 Backend: Recalculating balances for client ${clientId} from ${startYear} snapshot...`);
     
     // Get current account structure
     let accounts = clientData.accounts || [];
@@ -268,7 +269,7 @@ router.post('/recalculate',
       throw new Error(`No accounts found for client ${clientId}`);
     }
     
-    console.log(`Found ${accounts.length} accounts for client ${clientId}`);
+    logDebug(`Found ${accounts.length} accounts for client ${clientId}`);
     
     // Get year-end snapshot
     const snapshotRef = db.doc(`clients/${clientId}/yearEndBalances/${startYear}`);
@@ -278,7 +279,7 @@ router.post('/recalculate',
       throw new Error(`Year-end snapshot for ${startYear} not found`);
     }
     
-    console.log(`Found year-end snapshot for ${startYear}`);
+    logDebug(`Found year-end snapshot for ${startYear}`);
     
     // Get snapshot accounts
     const snapshotAccounts = snapshot.data().accounts || [];
@@ -287,14 +288,14 @@ router.post('/recalculate',
       throw new Error(`No accounts in year-end snapshot for ${startYear}`);
     }
     
-    console.log(`Found ${snapshotAccounts.length} accounts in snapshot`);
+    logDebug(`Found ${snapshotAccounts.length} accounts in snapshot`);
     
     // Calculate fiscal year end date for snapshot reference
     const { endDate: yearEndDate } = getFiscalYearBounds(parseInt(startYear), fiscalYearStartMonth);
     const snapshotDateStr = yearEndDate.toISOString().split('T')[0];
     
-    console.log(`📅 Balance Recalculation - Fiscal Year Config: Start month ${fiscalYearStartMonth}`);
-    console.log(`📅 Year ${startYear} ends on: ${snapshotDateStr}`);
+    logDebug(`📅 Balance Recalculation - Fiscal Year Config: Start month ${fiscalYearStartMonth}`);
+    logDebug(`📅 Year ${startYear} ends on: ${snapshotDateStr}`);
     
     // Map snapshot balances to current account structure
     accounts = accounts.map(account => {
@@ -318,8 +319,8 @@ router.post('/recalculate',
     const { endDate } = getFiscalYearBounds(parseInt(startYear), fiscalYearStartMonth);
     // Add one millisecond to get start of next period
     const startDate = new Date(endDate.getTime() + 1);
-    console.log(`📅 Processing transactions after: ${startDate.toISOString()}`);
-    console.log(`Fetching transactions after ${startDate.toISOString()}`);
+    logDebug(`📅 Processing transactions after: ${startDate.toISOString()}`);
+    logDebug(`Fetching transactions after ${startDate.toISOString()}`);
     
     const transactionsRef = db.collection(`clients/${clientId}/transactions`);
     const transactionQuery = transactionsRef
@@ -328,7 +329,7 @@ router.post('/recalculate',
     
     const transactionSnapshot = await transactionQuery.get();
     
-    console.log(`Found ${transactionSnapshot.size} transactions after the snapshot date`);
+    logDebug(`Found ${transactionSnapshot.size} transactions after the snapshot date`);
     
     // Apply each transaction to the account balances
     let processedCount = 0;
@@ -358,7 +359,7 @@ router.post('/recalculate',
           firstInvalidTransactionId = transactionDoc.id;
           hasInvalidTransaction = true;
         }
-        console.error(`❌ Transaction ${transactionDoc.id} missing valid accountType`);
+        logError(`❌ Transaction ${transactionDoc.id} missing valid accountType`);
         return; // Skip this transaction
       }
       
@@ -379,8 +380,8 @@ router.post('/recalculate',
           accounts[accountIndex].updated = transaction.date;
         }
       } else {
-        console.warn(`⚠️ No matching account found for transaction ${transactionDoc.id}`);
-        console.warn(`Account: ${transaction.account || transaction.accountType || 'Unknown'}`);
+        logWarn(`⚠️ No matching account found for transaction ${transactionDoc.id}`);
+        logWarn(`Account: ${transaction.account || transaction.accountType || 'Unknown'}`);
       }
     });
     
@@ -410,13 +411,13 @@ router.post('/recalculate',
       lastBalanceRebuildSource: `${startYear} year-end snapshot`
     });
     
-    console.log(`✅ Backend: Successfully rebuilt account balances from ${startYear} snapshot`);
-    console.log(`Processed ${processedCount} transactions`);
+    logDebug(`✅ Backend: Successfully rebuilt account balances from ${startYear} snapshot`);
+    logDebug(`Processed ${processedCount} transactions`);
     
     // Display the updated balances
-    console.log('Updated account balances:');
+    logDebug('Updated account balances:');
     accounts.forEach(account => {
-      console.log(`${account.name} (${account.id}): ${account.balance}`);
+      logDebug(`${account.name} (${account.id}): ${account.balance}`);
     });
     
     // Calculate totals for return
@@ -450,7 +451,7 @@ router.post('/recalculate',
     });
     
   } catch (error) {
-    console.error(`❌ Backend: Error rebuilding balances:`, error);
+    logError(`❌ Backend: Error rebuilding balances:`, error);
     res.status(500).json({ 
       success: false,
       error: error.message || 'Server error' 
@@ -473,7 +474,7 @@ router.post('/year-end-close/:year',
     const { year } = req.params;
     const { accounts } = req.body;
     
-    console.log('🔍 Balance route - POST /year-end-close/:year:', { 
+    logDebug('🔍 Balance route - POST /year-end-close/:year:', { 
       user: req.user.email,
       clientId,
       userRole: req.clientRole,
@@ -509,8 +510,8 @@ router.post('/year-end-close/:year',
     const { endDate } = getFiscalYearBounds(parseInt(year), fiscalYearStartMonth);
     const snapshotDateStr = endDate.toISOString().split('T')[0];
     
-    console.log(`📅 Year-End Close - Fiscal Year Config: Start month ${fiscalYearStartMonth}`);
-    console.log(`📅 Year ${year} ends on: ${snapshotDateStr}`);
+    logDebug(`📅 Year-End Close - Fiscal Year Config: Start month ${fiscalYearStartMonth}`);
+    logDebug(`📅 Year ${year} ends on: ${snapshotDateStr}`);
     
     // Check if snapshot already exists
     const snapshotRef = db.doc(`clients/${clientId}/yearEndBalances/${year}`);
@@ -533,7 +534,7 @@ router.post('/year-end-close/:year',
     
     await snapshotRef.set(snapshotData);
     
-    console.log(`✅ Created year-end snapshot for ${clientId} year ${year} (${snapshotDateStr}`);
+    logDebug(`✅ Created year-end snapshot for ${clientId} year ${year} (${snapshotDateStr}`);
     
     res.json({
       success: true,
@@ -544,7 +545,7 @@ router.post('/year-end-close/:year',
     });
     
   } catch (error) {
-    console.error('❌ Error creating year-end snapshot:', error);
+    logError('❌ Error creating year-end snapshot:', error);
     res.status(500).json({ 
       success: false,
       error: error.message || 'Server error' 

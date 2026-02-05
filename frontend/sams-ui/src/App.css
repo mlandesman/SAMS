@@ -51,11 +51,11 @@ html, body, #root {
 .view-container {
   display: flex;
   flex-direction: column;
-  height: auto; /* Changed from 100% to auto */
-  margin-bottom: 0;
-  padding-bottom: 0;
+  height: calc(100vh - 50px); /* Fixed height to enable flex children to grow */
+  margin: 0; /* Ensure no margin shifts */
+  padding: 0; /* Ensure no padding shifts */
   position: relative;
-  max-height: calc(100vh - 50px); /* Constrain max height */
+  overflow: hidden; /* Prevent container scroll, let children handle it */
 }
 
 .balance-warning {

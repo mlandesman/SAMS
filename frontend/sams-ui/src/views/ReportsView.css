@@ -59,21 +59,24 @@
 }
 
 .reports-content {
-  min-height: 400px;
   background-color: #fff;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
-  /* Allow inner content (like Statement preview) to grow and scroll */
+  /* Fill all available space */
   flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .reports-tab-content {
-  padding: 24px 0;
-  /* Let tab content (like StatementOfAccountTab) fill the available height */
+  padding: 0;
+  /* Fill all available height */
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .reports-placeholder {

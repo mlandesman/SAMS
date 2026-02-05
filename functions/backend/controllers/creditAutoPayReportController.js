@@ -13,6 +13,7 @@ import {
   getCreditAutoPayEmailRecipients 
 } from '../services/creditAutoPayReportService.js';
 import nodemailer from 'nodemailer';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Create Gmail transporter for sending emails
@@ -22,9 +23,9 @@ function createGmailTransporter() {
   const gmailUser = process.env.GMAIL_USER || 'michael@landesman.com';
   const gmailPass = process.env.GMAIL_APP_PASSWORD;
   
-  console.log('🔧 Gmail transporter config:');
-  console.log('   User:', gmailUser);
-  console.log('   Password set:', gmailPass ? `Yes (${gmailPass.length} chars)` : 'No');
+  logDebug('🔧 Gmail transporter config:');
+  logDebug('   User:', gmailUser);
+  logDebug('   Password set:', gmailPass ? `Yes (${gmailPass.length} chars)` : 'No');
   
   if (!gmailPass) {
     throw new Error('GMAIL_APP_PASSWORD environment variable not set');
@@ -46,18 +47,18 @@ function createGmailTransporter() {
  * @returns {Promise<Object>} Result object with success status
  */
 export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`📧 CREDIT AUTO-PAY REPORT - ${clientId}`);
-  console.log(`${'='.repeat(80)}\n`);
+  logDebug(`\n${'='.repeat(80)}`);
+  logDebug(`📧 CREDIT AUTO-PAY REPORT - ${clientId}`);
+  logDebug(`${'='.repeat(80)}\n`);
   
   try {
     // Generate report data
-    console.log(`📊 Generating report data for ${clientId}...`);
+    logDebug(`📊 Generating report data for ${clientId}...`);
     const reportData = await generateCreditAutoPayReportData(clientId);
     
     // Check if there are any units to report
     if (reportData.totals.unitCount === 0) {
-      console.log(`ℹ️ No units with payable bills for ${clientId}, skipping email`);
+      logDebug(`ℹ️ No units with payable bills for ${clientId}, skipping email`);
       return {
         success: true,
         skipped: true,
@@ -67,18 +68,18 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
       };
     }
     
-    console.log(`✅ Report data generated: ${reportData.totals.unitCount} units, $${reportData.totals.totalWouldPay.toFixed(2)} would be paid`);
+    logDebug(`✅ Report data generated: ${reportData.totals.unitCount} units, $${reportData.totals.totalWouldPay.toFixed(2)} would be paid`);
     
     // Generate HTML email
-    console.log(`🎨 Generating HTML email...`);
+    logDebug(`🎨 Generating HTML email...`);
     const htmlContent = generateCreditAutoPayEmailHTML(reportData);
-    console.log(`✅ HTML generated (${htmlContent.length} characters)`);
+    logDebug(`✅ HTML generated (${htmlContent.length} characters)`);
     
     // Get recipients
     const recipients = await getCreditAutoPayEmailRecipients(clientId);
     
     if (recipients.length === 0) {
-      console.warn(`⚠️ No email recipients found for ${clientId}`);
+      logWarn(`⚠️ No email recipients found for ${clientId}`);
       return {
         success: false,
         error: 'No email recipients configured',
@@ -87,15 +88,15 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
       };
     }
     
-    console.log(`📬 Recipients: ${recipients.join(', ')}`);
+    logDebug(`📬 Recipients: ${recipients.join(', ')}`);
     
     // Dry run mode - don't actually send
     if (isDryRun) {
-      console.log(`\n🔍 DRY RUN MODE - Email not sent`);
-      console.log(`   Would send to: ${recipients.join(', ')}`);
-      console.log(`   Subject: Credit Auto-Pay Report - ${reportData.date}`);
-      console.log(`   Units: ${reportData.totals.unitCount}`);
-      console.log(`   Total Would Pay: $${reportData.totals.totalWouldPay.toFixed(2)}`);
+      logDebug(`\n🔍 DRY RUN MODE - Email not sent`);
+      logDebug(`   Would send to: ${recipients.join(', ')}`);
+      logDebug(`   Subject: Credit Auto-Pay Report - ${reportData.date}`);
+      logDebug(`   Units: ${reportData.totals.unitCount}`);
+      logDebug(`   Total Would Pay: $${reportData.totals.totalWouldPay.toFixed(2)}`);
       
       return {
         success: true,
@@ -109,7 +110,7 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
     }
     
     // Send email
-    console.log(`📤 Sending email...`);
+    logDebug(`📤 Sending email...`);
     const transporter = createGmailTransporter();
     
     // Get client name from report data
@@ -128,9 +129,9 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
     
     const info = await transporter.sendMail(mailOptions);
     
-    console.log(`✅ Email sent successfully!`);
-    console.log(`   Message ID: ${info.messageId}`);
-    console.log(`   Recipients: ${recipients.join(', ')}`);
+    logDebug(`✅ Email sent successfully!`);
+    logDebug(`   Message ID: ${info.messageId}`);
+    logDebug(`   Recipients: ${recipients.join(', ')}`);
     
     // Log to Firestore
     const db = await getDb();
@@ -156,7 +157,7 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
     };
     
   } catch (error) {
-    console.error(`❌ Error sending credit auto-pay report for ${clientId}:`, error);
+    logError(`❌ Error sending credit auto-pay report for ${clientId}:`, error);
     return {
       success: false,
       error: error.message,
@@ -171,10 +172,10 @@ export async function sendCreditAutoPayReport(clientId, isDryRun = false) {
  * @returns {Promise<Object>} Results for all clients
  */
 export async function sendAllCreditAutoPayReports(isDryRun = false) {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`📧 CREDIT AUTO-PAY REPORTS - ALL CLIENTS`);
-  console.log(`   Mode: ${isDryRun ? 'DRY RUN' : 'LIVE'}`);
-  console.log(`${'='.repeat(80)}\n`);
+  logDebug(`\n${'='.repeat(80)}`);
+  logDebug(`📧 CREDIT AUTO-PAY REPORTS - ALL CLIENTS`);
+  logDebug(`   Mode: ${isDryRun ? 'DRY RUN' : 'LIVE'}`);
+  logDebug(`${'='.repeat(80)}\n`);
   
   const clients = ['MTC', 'AVII'];
   const results = {
@@ -203,14 +204,14 @@ export async function sendAllCreditAutoPayReports(isDryRun = false) {
     }
   }
   
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`📊 SUMMARY`);
-  console.log(`${'='.repeat(80)}`);
-  console.log(`   Total Clients: ${results.summary.total}`);
-  console.log(`   Sent: ${results.summary.sent}`);
-  console.log(`   Skipped: ${results.summary.skipped}`);
-  console.log(`   Failed: ${results.summary.failed}`);
-  console.log(`${'='.repeat(80)}\n`);
+  logDebug(`\n${'='.repeat(80)}`);
+  logDebug(`📊 SUMMARY`);
+  logDebug(`${'='.repeat(80)}`);
+  logDebug(`   Total Clients: ${results.summary.total}`);
+  logDebug(`   Sent: ${results.summary.sent}`);
+  logDebug(`   Skipped: ${results.summary.skipped}`);
+  logDebug(`   Failed: ${results.summary.failed}`);
+  logDebug(`${'='.repeat(80)}\n`);
   
   return results;
 }
@@ -224,9 +225,9 @@ export async function handleManualTrigger(req, res) {
     const { client, dryRun } = req.query;
     const isDryRun = dryRun === 'true';
     
-    console.log(`\n🎯 Manual trigger received:`);
-    console.log(`   Client: ${client || 'ALL'}`);
-    console.log(`   Dry Run: ${isDryRun}`);
+    logDebug(`\n🎯 Manual trigger received:`);
+    logDebug(`   Client: ${client || 'ALL'}`);
+    logDebug(`   Dry Run: ${isDryRun}`);
     
     let result;
     
@@ -245,7 +246,7 @@ export async function handleManualTrigger(req, res) {
     });
     
   } catch (error) {
-    console.error('❌ Manual trigger error:', error);
+    logError('❌ Manual trigger error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -258,10 +259,10 @@ export async function handleManualTrigger(req, res) {
  * @returns {Promise<Object>} Results for all clients
  */
 export async function runScheduledCreditAutoPayReports() {
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`🌙 SCHEDULED CREDIT AUTO-PAY REPORTS`);
-  console.log(`   Time: ${DateTime.now().setZone('America/Cancun').toFormat('yyyy-MM-dd HH:mm:ss ZZZZ')}`);
-  console.log(`${'='.repeat(80)}\n`);
+  logDebug(`\n${'='.repeat(80)}`);
+  logDebug(`🌙 SCHEDULED CREDIT AUTO-PAY REPORTS`);
+  logDebug(`   Time: ${DateTime.now().setZone('America/Cancun').toFormat('yyyy-MM-dd HH:mm:ss ZZZZ')}`);
+  logDebug(`${'='.repeat(80)}\n`);
   
   const results = await sendAllCreditAutoPayReports(false); // Live mode
   

@@ -4,6 +4,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -70,7 +71,7 @@ async function createUnit(clientId, unitData, docId = null) {
 
     return unitRef.id;
   } catch (error) {
-    console.error('❌ Error creating unit:', error);
+    logError('❌ Error creating unit:', error);
     throw error;
   }
 }
@@ -108,12 +109,12 @@ async function updateUnit(clientId, unitId, newData) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for updateUnit.');
+      logError('❌ Failed to write audit log for updateUnit.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error updating unit:', error);
+    logError('❌ Error updating unit:', error);
     return false;
   }
 }
@@ -135,12 +136,12 @@ async function deleteUnit(clientId, unitId) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for deleteUnit.');
+      logError('❌ Failed to write audit log for deleteUnit.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error deleting unit:', error);
+    logError('❌ Error deleting unit:', error);
     return false;
   }
 }
@@ -156,7 +157,7 @@ async function listUnits(clientId) {
       // CRITICAL FIX: Exclude creditBalances* documents from units list
       // This includes 'creditBalances' and yearly archives like 'creditBalances_2025'
       if (doc.id.startsWith('creditBalances')) {
-        console.log(`⚠️ Skipping ${doc.id} document from units list`);
+        logDebug(`⚠️ Skipping ${doc.id} document from units list`);
         return;
       }
       
@@ -179,7 +180,7 @@ async function listUnits(clientId) {
 
     return units;
   } catch (error) {
-    console.error('❌ Error listing units:', error);
+    logError('❌ Error listing units:', error);
     return [];
   }
 }
@@ -206,7 +207,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
     
     return true;
   } catch (error) {
-    console.error('❌ Error updating unit managers:', error);
+    logError('❌ Error updating unit managers:', error);
     return false;
   }
 }
@@ -215,7 +216,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
 // This function is deprecated - emails should be added via owner objects in UnitFormModal
 // Keeping for backward compatibility but it will no longer work (emails field removed)
 async function addUnitEmail(clientId, unitId, email) {
-  console.warn('⚠️  addUnitEmail is deprecated - emails should be added via owner objects');
+  logWarn('⚠️  addUnitEmail is deprecated - emails should be added via owner objects');
   // This function is no longer functional - emails field has been removed
   // Use UnitFormModal to add emails to owner objects instead
   return false;

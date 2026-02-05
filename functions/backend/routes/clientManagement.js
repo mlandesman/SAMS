@@ -18,6 +18,7 @@ import {
   LOGO_UPLOAD_CONFIG 
 } from '../templates/clientTemplates.js';
 import { getDb } from '../firebase.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 
@@ -44,13 +45,13 @@ router.use(authenticateUserWithProfile);
 // Middleware to enforce SuperAdmin access for all client management routes
 const requireSuperAdmin = (req, res, next) => {
   if (!req.user.isSuperAdmin()) {
-    console.warn(`🚫 Non-SuperAdmin ${req.user.email} attempted to access client management`);
+    logWarn(`🚫 Non-SuperAdmin ${req.user.email} attempted to access client management`);
     return res.status(403).json({ 
       error: 'Access denied. SuperAdmin privileges required.',
       code: 'SUPERADMIN_REQUIRED'
     });
   }
-  console.log(`✅ SuperAdmin ${req.user.email} accessing client management`);
+  logDebug(`✅ SuperAdmin ${req.user.email} accessing client management`);
   next();
 };
 
@@ -82,7 +83,7 @@ router.get('/check-client-id/:clientId', async (req, res) => {
       clientId: clientId 
     });
   } catch (error) {
-    console.error('Error checking client ID availability:', error);
+    logError('Error checking client ID availability:', error);
     res.status(500).json({ error: 'Failed to check client ID availability' });
   }
 });
@@ -93,22 +94,22 @@ router.get('/check-client-id/:clientId', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    console.log(`🔍 SuperAdmin ${req.user.email} fetching all clients`);
+    logDebug(`🔍 SuperAdmin ${req.user.email} fetching all clients`);
     
     const db = await getDb();
     const snapshot = await db.collection('clients').get();
     
-    console.log(`🔍 [CLIENT-MGMT] Found ${snapshot.size} documents in clients collection`);
+    logDebug(`🔍 [CLIENT-MGMT] Found ${snapshot.size} documents in clients collection`);
     
     const clients = [];
     snapshot.forEach(doc => {
       // Skip backup documents
       if (doc.id.includes('_backup_')) {
-        console.log(`⏭️ [CLIENT-MGMT] Skipping backup document: ${doc.id}`);
+        logDebug(`⏭️ [CLIENT-MGMT] Skipping backup document: ${doc.id}`);
         return;
       }
       
-      console.log(`🔍 [CLIENT-MGMT] Processing client: ${doc.id}`, Object.keys(doc.data()));
+      logDebug(`🔍 [CLIENT-MGMT] Processing client: ${doc.id}`, Object.keys(doc.data()));
       const clientData = doc.data();
       
       // Use standard template structure (after migration)
@@ -129,7 +130,7 @@ router.get('/', async (req, res) => {
         summary
       });
       
-      console.log(`✅ [CLIENT-MGMT] Added client: ${doc.id} with summary:`, summary);
+      logDebug(`✅ [CLIENT-MGMT] Added client: ${doc.id} with summary:`, summary);
     });
     
     // Sort clients by full name
@@ -145,8 +146,8 @@ router.get('/', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} fetched ${clients.length} clients`);
-    console.log(`🔍 [CLIENT-MGMT] Final client list:`, clients.map(c => ({id: c.id, fullName: c.summary?.fullName})));
+    logDebug(`✅ SuperAdmin ${req.user.email} fetched ${clients.length} clients`);
+    logDebug(`🔍 [CLIENT-MGMT] Final client list:`, clients.map(c => ({id: c.id, fullName: c.summary?.fullName})));
     
     res.json({
       success: true,
@@ -155,7 +156,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error listing clients:', error);
+    logError('❌ Error listing clients:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to list clients',
@@ -171,7 +172,7 @@ router.get('/', async (req, res) => {
 router.get('/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
-    console.log(`🔍 SuperAdmin ${req.user.email} fetching client: ${clientId}`);
+    logDebug(`🔍 SuperAdmin ${req.user.email} fetching client: ${clientId}`);
     
     const db = await getDb();
     const clientDoc = await db.collection('clients').doc(clientId).get();
@@ -199,14 +200,14 @@ router.get('/:clientId', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} fetched client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} fetched client: ${clientId}`);
     res.json({
       success: true,
       data: clientData
     });
     
   } catch (error) {
-    console.error('❌ Error fetching client:', error);
+    logError('❌ Error fetching client:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to fetch client',
@@ -222,7 +223,7 @@ router.get('/:clientId', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const clientData = req.body;
-    console.log(`🔨 SuperAdmin ${req.user.email} creating new client:`, clientData.basicInfo?.fullName);
+    logDebug(`🔨 SuperAdmin ${req.user.email} creating new client:`, clientData.basicInfo?.fullName);
     
     // Validate client data
     const validation = validateClientData(clientData);
@@ -279,7 +280,7 @@ router.post('/', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} created client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} created client: ${clientId}`);
     res.status(201).json({
       success: true,
       data: {
@@ -290,7 +291,7 @@ router.post('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error creating client:', error);
+    logError('❌ Error creating client:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to create client',
@@ -307,15 +308,15 @@ router.put('/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
     const updates = req.body;
-    console.log(`🔧 SuperAdmin ${req.user.email} updating client: ${clientId}`);
+    logDebug(`🔧 SuperAdmin ${req.user.email} updating client: ${clientId}`);
     
     // Validate updates
-    console.log('🔍 Validating client data:', JSON.stringify(updates, null, 2));
+    logDebug('🔍 Validating client data:', JSON.stringify(updates, null, 2));
     const validation = validateClientData(updates);
-    console.log('📋 Validation result:', JSON.stringify(validation, null, 2));
+    logDebug('📋 Validation result:', JSON.stringify(validation, null, 2));
     
     if (!validation.isValid) {
-      console.error('❌ Validation failed with errors:', validation.errors);
+      logError('❌ Validation failed with errors:', validation.errors);
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
@@ -351,7 +352,7 @@ router.put('/:clientId', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} updated client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} updated client: ${clientId}`);
     res.json({
       success: true,
       data: {
@@ -362,7 +363,7 @@ router.put('/:clientId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error updating client:', error);
+    logError('❌ Error updating client:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to update client',
@@ -378,7 +379,7 @@ router.put('/:clientId', async (req, res) => {
 router.delete('/:clientId', async (req, res) => {
   const { clientId } = req.params;
   
-  console.log(`🚫 SuperAdmin ${req.user.email} attempted to delete client: ${clientId} - Feature not implemented`);
+  logDebug(`🚫 SuperAdmin ${req.user.email} attempted to delete client: ${clientId} - Feature not implemented`);
   
   await writeAuditLog({
     module: 'client_management',
@@ -415,7 +416,7 @@ router.post('/:clientId/logo', upload.single('logo'), async (req, res) => {
       });
     }
     
-    console.log(`📤 SuperAdmin ${req.user.email} uploading logo for client: ${clientId}`);
+    logDebug(`📤 SuperAdmin ${req.user.email} uploading logo for client: ${clientId}`);
     
     // Verify client exists
     const db = await getDb();
@@ -472,7 +473,7 @@ router.post('/:clientId/logo', upload.single('logo'), async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} uploaded logo for client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} uploaded logo for client: ${clientId}`);
     res.json({
       success: true,
       data: {
@@ -485,7 +486,7 @@ router.post('/:clientId/logo', upload.single('logo'), async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error uploading logo:', error);
+    logError('❌ Error uploading logo:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to upload logo',
@@ -510,7 +511,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
       });
     }
     
-    console.log(`📤 SuperAdmin ${req.user.email} uploading icon for client: ${clientId}`);
+    logDebug(`📤 SuperAdmin ${req.user.email} uploading icon for client: ${clientId}`);
     
     // Verify client exists
     const db = await getDb();
@@ -568,7 +569,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} uploaded icon for client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} uploaded icon for client: ${clientId}`);
     res.json({
       success: true,
       data: {
@@ -581,7 +582,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error uploading icon:', error);
+    logError('❌ Error uploading icon:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to upload icon',
@@ -597,7 +598,7 @@ router.post('/:clientId/icon', upload.single('icon'), async (req, res) => {
 router.delete('/:clientId/icon', async (req, res) => {
   try {
     const { clientId } = req.params;
-    console.log(`🗑️ SuperAdmin ${req.user.email} removing icon for client: ${clientId}`);
+    logDebug(`🗑️ SuperAdmin ${req.user.email} removing icon for client: ${clientId}`);
     
     const db = await getDb();
     const clientDoc = await db.collection('clients').doc(clientId).get();
@@ -642,14 +643,14 @@ router.delete('/:clientId/icon', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} removed icon for client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} removed icon for client: ${clientId}`);
     res.json({
       success: true,
       message: 'Icon removed successfully'
     });
     
   } catch (error) {
-    console.error('❌ Error removing icon:', error);
+    logError('❌ Error removing icon:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to remove icon',
@@ -665,7 +666,7 @@ router.delete('/:clientId/icon', async (req, res) => {
 router.delete('/:clientId/logo', async (req, res) => {
   try {
     const { clientId } = req.params;
-    console.log(`🗑️ SuperAdmin ${req.user.email} removing logo for client: ${clientId}`);
+    logDebug(`🗑️ SuperAdmin ${req.user.email} removing logo for client: ${clientId}`);
     
     const db = await getDb();
     const clientDoc = await db.collection('clients').doc(clientId).get();
@@ -710,14 +711,14 @@ router.delete('/:clientId/logo', async (req, res) => {
       userId: req.user.uid
     });
     
-    console.log(`✅ SuperAdmin ${req.user.email} removed logo for client: ${clientId}`);
+    logDebug(`✅ SuperAdmin ${req.user.email} removed logo for client: ${clientId}`);
     res.json({
       success: true,
       message: 'Logo removed successfully'
     });
     
   } catch (error) {
-    console.error('❌ Error removing logo:', error);
+    logError('❌ Error removing logo:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to remove logo',

@@ -865,6 +865,9 @@ function HOADuesView() {
           <button className="year-nav-button" onClick={() => setSelectedYear(prev => prev - 1)}>
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
+          <div className="year-display">
+            <span className="year-text">FY {selectedYear}</span>
+          </div>
           <button className="year-nav-button" onClick={() => setSelectedYear(prev => prev + 1)}>
             <FontAwesomeIcon icon={faChevronRight} />
           </button>

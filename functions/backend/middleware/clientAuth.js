@@ -10,6 +10,7 @@ import { getDb, getApp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
 import { getNow } from '../services/DateService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 const require = createRequire(import.meta.url);
 
 // Load service account to get expected project ID
@@ -52,7 +53,7 @@ export const authenticateUserWithProfile = async (req, res, next) => {
     // Check if token is from correct Firebase project
     const expectedProjectId = getExpectedProjectId();
     if (decodedToken.aud !== expectedProjectId) {
-      console.error(`Token from wrong project. Expected: ${expectedProjectId}, Got: ${decodedToken.aud}`);
+      logError(`Token from wrong project. Expected: ${expectedProjectId}, Got: ${decodedToken.aud}`);
       return res.status(401).json({ error: "Token is from incorrect Firebase project" });
     }
     
@@ -95,13 +96,13 @@ export const authenticateUserWithProfile = async (req, res, next) => {
       }
     };
     
-    console.log(`🔐 User authenticated: ${req.user.email} - SuperAdmin: ${req.user.isSuperAdmin()}`);
+    logDebug(`🔐 User authenticated: ${req.user.email} - SuperAdmin: ${req.user.isSuperAdmin()}`);
     
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
+    logError('Authentication error:', error);
+    logError('Error code:', error.code);
+    logError('Error message:', error.message);
     
     // Provide specific error messages based on Firebase error codes
     let errorMessage = 'Invalid token format - not a valid Firebase token'; // Default for truly invalid tokens
@@ -137,7 +138,7 @@ export const enforceClientAccess = async (req, res, next) => {
     const { user } = req;
     
     // Reduced CLIENT AUTH logging for cleaner backend logs (only errors)
-    // console.log('🔍 [CLIENT AUTH] Request details:', {
+    // logDebug('🔍 [CLIENT AUTH] Request details:', {
     //   url: req.originalUrl,
     //   method: req.method,
     //   params: req.params,
@@ -161,10 +162,10 @@ export const enforceClientAccess = async (req, res, next) => {
       requestedClientId = req.params.clientId || req.originalParams?.clientId || req.body?.clientId || req.query.clientId;
     }
     
-    // console.log('🔍 [CLIENT AUTH] Client ID extraction result:', requestedClientId);
+    // logDebug('🔍 [CLIENT AUTH] Client ID extraction result:', requestedClientId);
     
     if (!requestedClientId) {
-      console.error('❌ [CLIENT AUTH] No client ID found in any location');
+      logError('❌ [CLIENT AUTH] No client ID found in any location');
       // Don't access req.body in error response for multipart requests
       const debugInfo = {
         params: req.params,
@@ -184,14 +185,14 @@ export const enforceClientAccess = async (req, res, next) => {
     // SuperAdmin can access all clients
     if (user.isSuperAdmin()) {
       // Reduced SuperAdmin access logging
-      // console.log(`✅ SuperAdmin ${user.email} accessing client ${requestedClientId}`);
+      // logDebug(`✅ SuperAdmin ${user.email} accessing client ${requestedClientId}`);
       req.authorizedClientId = requestedClientId;
       return next();
     }
     
     // Check if user has access to this client
     if (!user.hasPropertyAccess(requestedClientId)) {
-      console.warn(`🚫 Access denied: ${user.email} attempted to access client ${requestedClientId}`);
+      logWarn(`🚫 Access denied: ${user.email} attempted to access client ${requestedClientId}`);
       return res.status(403).json({ 
         error: 'Access denied to this client',
         code: 'CLIENT_ACCESS_DENIED',
@@ -200,7 +201,7 @@ export const enforceClientAccess = async (req, res, next) => {
     }
     
     const propertyAccess = user.getPropertyAccess(requestedClientId);
-    console.log(`✅ User ${user.email} accessing client ${requestedClientId} with role ${propertyAccess.role}`);
+    logDebug(`✅ User ${user.email} accessing client ${requestedClientId} with role ${propertyAccess.role}`);
     
     // Add client context to request
     req.authorizedClientId = requestedClientId;
@@ -209,7 +210,7 @@ export const enforceClientAccess = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('Client access enforcement error:', error);
+    logError('Client access enforcement error:', error);
     res.status(500).json({ error: 'Internal server error during authorization' });
   }
 };
@@ -225,7 +226,7 @@ export const requirePermission = (permission) => {
       
       // Enhanced SuperAdmin bypass with detailed logging
       const isSuperAdmin = user.isSuperAdmin();
-      console.log(`🔐 Permission check for ${user.email}: ${permission}`, {
+      logDebug(`🔐 Permission check for ${user.email}: ${permission}`, {
         isSuperAdmin,
         email: user.email,
         globalRole: user.samsProfile?.globalRole,
@@ -234,13 +235,13 @@ export const requirePermission = (permission) => {
       });
       
       if (isSuperAdmin) {
-        console.log(`✅ SuperAdmin ${user.email} bypassing permission check for ${permission}`);
+        logDebug(`✅ SuperAdmin ${user.email} bypassing permission check for ${permission}`);
         return next();
       }
       
       // Explicit check for transaction.delete permission - SuperAdmin always allowed
       if (permission === 'transactions.delete' && user.samsProfile?.globalRole === 'superAdmin') {
-        console.log(`✅ SuperAdmin ${user.email} explicitly allowed transaction deletion`);
+        logDebug(`✅ SuperAdmin ${user.email} explicitly allowed transaction deletion`);
         return next();
       }
       
@@ -250,7 +251,7 @@ export const requirePermission = (permission) => {
       const hasPermission = checkUserPermission(roleToCheck, permission, assignedUnitId, req);
       
       if (!hasPermission) {
-        console.warn(`🚫 Permission denied: ${user.email} lacks permission ${permission} for role ${clientRole}`);
+        logWarn(`🚫 Permission denied: ${user.email} lacks permission ${permission} for role ${clientRole}`);
         return res.status(403).json({ 
           error: 'Failed to delete transaction. Please ensure you have the necessary permissions and try again.',
           code: 'PERMISSION_DENIED',
@@ -259,10 +260,10 @@ export const requirePermission = (permission) => {
         });
       }
       
-      console.log(`✅ Permission granted: ${user.email} has ${permission} access`);
+      logDebug(`✅ Permission granted: ${user.email} has ${permission} access`);
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      logError('Permission check error:', error);
       res.status(500).json({ error: 'Internal server error during permission check' });
     }
   };
@@ -311,7 +312,7 @@ function checkUserPermission(role, permission, unitId, req) {
   
   const permissions = rolePermissions[role] || [];
   
-  console.log(`🔍 Checking permission for role ${role}: ${permission}`, {
+  logDebug(`🔍 Checking permission for role ${role}: ${permission}`, {
     userPermissions: permissions,
     hasExactMatch: permissions.includes(permission),
     isAdmin: role === 'admin'
@@ -319,19 +320,19 @@ function checkUserPermission(role, permission, unitId, req) {
   
   // Check for exact permission match
   if (permissions.includes(permission)) {
-    console.log(`✅ Permission found in role permissions for ${role}`);
+    logDebug(`✅ Permission found in role permissions for ${role}`);
     return true;
   }
   
   // Check for wildcard permissions (admin gets everything)
   if (role === 'admin') {
-    console.log(`✅ Admin role has wildcard access to ${permission}`);
+    logDebug(`✅ Admin role has wildcard access to ${permission}`);
     return true;
   }
   
   // Explicit check for admin + transactions.delete (defensive programming)
   if (role === 'admin' && permission === 'transactions.delete') {
-    console.log(`✅ Admin explicitly granted transaction deletion access`);
+    logDebug(`✅ Admin explicitly granted transaction deletion access`);
     return true;
   }
   
@@ -342,7 +343,7 @@ function checkUserPermission(role, permission, unitId, req) {
     return checkUnitOwnership(req, unitId);
   }
   
-  console.log(`❌ Permission denied for role ${role}: ${permission}`);
+  logDebug(`❌ Permission denied for role ${role}: ${permission}`);
   return false;
 }
 
@@ -358,6 +359,8 @@ function checkUnitOwnership(req, userUnitId) {
 
 /**
  * Middleware to log security events for audit purposes
+ * Note: Only logs successful access at DEBUG level (normal operation)
+ * Failed authorization attempts are logged as WARN/ERROR by auth middleware
  */
 export const logSecurityEvent = (eventType) => {
   return (req, res, next) => {
@@ -366,7 +369,8 @@ export const logSecurityEvent = (eventType) => {
     // Get clientId from params, query, or authorizedClientId
     const clientId = req.params?.clientId || req.query?.clientId || authorizedClientId;
     
-    console.log(`🔍 Security Event: ${eventType}`, {
+    // Successful access is normal operation, not a security event - use DEBUG level
+    logDebug(`🔍 Access: ${eventType}`, {
       user: user.email,
       clientId: clientId,
       timestamp: getNow().toISOString(),
@@ -374,7 +378,7 @@ export const logSecurityEvent = (eventType) => {
       ip: req.ip
     });
     
-    // TODO: Implement proper audit logging to database
+    // TODO: Implement proper audit logging to database for actual security events (failures)
     next();
   };
 };

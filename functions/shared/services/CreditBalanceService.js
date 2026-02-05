@@ -16,6 +16,7 @@
 import { getNow } from './DateService.js';
 import { CreditAPI } from '../../backend/api/creditAPI.js';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 
@@ -45,7 +46,7 @@ const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 export function calculateCreditUsage(params) {
   const { paymentAmount, currentCreditBalance, totalBillsDue } = params;
   
-  console.log(`💰 Calculating credit usage: Payment $${paymentAmount}, Credit $${currentCreditBalance}, Bills $${totalBillsDue}`);
+  logDebug(`💰 Calculating credit usage: Payment $${paymentAmount}, Credit $${currentCreditBalance}, Bills $${totalBillsDue}`);
   
   let creditUsed = 0;
   let newOverpayment = 0;
@@ -59,7 +60,7 @@ export function calculateCreditUsage(params) {
     newOverpayment = Math.round(excessPayment * 100) / 100; // Round to 2 decimals
     changeType = 'overpayment';
     
-    console.log(`   ✅ Payment covers bills. Excess $${newOverpayment} becomes overpayment`);
+    logDebug(`   ✅ Payment covers bills. Excess $${newOverpayment} becomes overpayment`);
   } else {
     // Payment doesn't cover bills - use credit to make up difference
     const shortfall = totalBillsDue - paymentAmount;
@@ -68,12 +69,12 @@ export function calculateCreditUsage(params) {
     newOverpayment = 0;
     changeType = creditUsed > 0 ? 'credit_used' : 'no_change';
     
-    console.log(`   📊 Shortfall $${shortfall}. Using $${creditUsed} credit`);
+    logDebug(`   📊 Shortfall $${shortfall}. Using $${creditUsed} credit`);
   }
   
   const finalCreditBalance = Math.round((currentCreditBalance - creditUsed + newOverpayment) * 100) / 100;
   
-  console.log(`   💰 Final credit balance: $${finalCreditBalance} (was $${currentCreditBalance})`);
+  logDebug(`   💰 Final credit balance: $${finalCreditBalance} (was $${currentCreditBalance})`);
   
   return {
     creditUsed,
@@ -102,7 +103,7 @@ export async function getCreditBalance(clientId, unitId) {
     };
     
   } catch (error) {
-    console.error(`Error getting credit balance for ${clientId}/${unitId}:`, error);
+    logError(`Error getting credit balance for ${clientId}/${unitId}:`, error);
     // Return zero balance if credit endpoint unavailable (graceful degradation)
     return { creditBalance: 0, creditBalanceHistory: [] };
   }
@@ -134,7 +135,7 @@ export async function updateCreditBalance(clientId, unitId, updateData) {
       throw new Error('moduleType is required for credit balance updates');
     }
     
-    console.log(`💰 Updating credit balance: Unit ${unitId}, New balance: $${newBalance}, Module: ${moduleType}`);
+    logDebug(`💰 Updating credit balance: Unit ${unitId}, New balance: $${newBalance}, Module: ${moduleType}`);
     
     // Calculate amount change in cents for CreditAPI
     const amountChangeInCents = dollarsToCents(changeAmount);
@@ -156,7 +157,7 @@ export async function updateCreditBalance(clientId, unitId, updateData) {
       source: source
     });
     
-    console.log(`✅ Credit balance updated: $${newBalance}`);
+    logDebug(`✅ Credit balance updated: $${newBalance}`);
     
     return {
       success: true,
@@ -165,7 +166,7 @@ export async function updateCreditBalance(clientId, unitId, updateData) {
     };
     
   } catch (error) {
-    console.error('Error updating credit balance:', error);
+    logError('Error updating credit balance:', error);
     throw new Error('Failed to update credit balance');
   }
 }

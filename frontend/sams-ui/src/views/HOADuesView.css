@@ -7,14 +7,7 @@
   background-color: white;
 }
 
-/* Override the default action bar style to use white background */
-.hoa-dues-view .action-bar {
-  background-color: white !important;
-  border-bottom: none !important;
-  margin-bottom: 0 !important;
-  padding-left: 20px !important;
-  padding-right: 20px !important;
-}
+/* Removed ActionBar overrides for consistency across all views */
 
 /* Action bar alignment */
 
@@ -57,6 +50,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Year display in ActionBar navigation */
+.year-display {
+  padding: 8px 16px;
+  background-color: white;
+  font-weight: 600;
+  color: #333;
+  min-width: 100px;
+  text-align: center;
+}
+
+.year-text {
+  font-size: 20px;
+  letter-spacing: 0.5px;
 }
 
 .fiscal-year-indicator {

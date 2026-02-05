@@ -5,6 +5,7 @@ import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/
 import waterBillsService from '../services/waterBillsService.js';
 import waterReadingsService from '../services/waterReadingsService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 import { 
   recordWaterPayment, 
@@ -23,7 +24,7 @@ const router = express.Router();
 
 // Request logging (can be enabled for debugging)
 // router.use((req, res, next) => {
-//   console.log(`🌊 [waterRoutes] ${req.method} ${req.path}`);
+//   logDebug(`🌊 [waterRoutes] ${req.method} ${req.path}`);
 //   next();
 // });
 
@@ -112,13 +113,13 @@ function convertYearDataToPesos(data) {
 router.get('/clients/:clientId/readings/:year', enforceClientAccess, async (req, res) => {
   try {
     const { clientId, year } = req.params;
-    console.log('🔍 [Backend] getReadingsForYear called:', { clientId, year });
+    logDebug('🔍 [Backend] getReadingsForYear called:', { clientId, year });
     
     const readings = await waterReadingsService.getYearReadings(
       clientId, parseInt(year)
     );
     
-    console.log('📊 [Backend] getYearReadings result:', readings ? 'data found' : 'no data');
+    logDebug('📊 [Backend] getYearReadings result:', readings ? 'data found' : 'no data');
     
     // Create 12-month array for display
     const months = [];
@@ -147,7 +148,7 @@ router.get('/clients/:clientId/readings/:year', enforceClientAccess, async (req,
       detailedData: readings
     });
   } catch (error) {
-    console.error('Error getting year readings:', error);
+    logError('Error getting year readings:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -166,7 +167,7 @@ router.get('/clients/:clientId/readings/exists/:year', enforceClientAccess, asyn
       data: existenceMap // { 0: true, 1: false, 2: true, ... }
     });
   } catch (error) {
-    console.error('Error checking readings existence:', error);
+    logError('Error checking readings existence:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -189,7 +190,7 @@ router.get('/clients/:clientId/readings/:year/:month', enforceClientAccess, asyn
       data: data || { readings: {} }
     });
   } catch (error) {
-    console.error('Error fetching water readings:', error);
+    logError('Error fetching water readings:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -202,8 +203,8 @@ router.post('/clients/:clientId/readings/:year/:month', enforceClientAccess, asy
   try {
     const { clientId, year, month } = req.params;
     
-    console.log(`💾 Saving water readings: clientId=${clientId}, year=${year}, month=${month}`);
-    console.log('📦 Request payload:', JSON.stringify(req.body, null, 2));
+    logDebug(`💾 Saving water readings: clientId=${clientId}, year=${year}, month=${month}`);
+    logDebug('📦 Request payload:', JSON.stringify(req.body, null, 2));
     
     const data = await waterReadingsService.saveReadings(
       clientId,
@@ -217,7 +218,7 @@ router.post('/clients/:clientId/readings/:year/:month', enforceClientAccess, asy
       data
     });
   } catch (error) {
-    console.error('Error saving water readings:', error);
+    logError('Error saving water readings:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -264,8 +265,8 @@ router.post('/clients/:clientId/payments/preview', enforceClientAccess, async (r
     const creditData = await CreditAPI.getCreditBalance(clientId, unitId);
     const currentCreditBalance = creditData.creditBalance || 0;
     
-    console.log(`💰 Preview: Credit balance for unit ${unitId}: $${currentCreditBalance}`);
-    console.log(`🔍 [ROUTE] Received parameters: unitId=${unitId}, amount=${amount}, payOnDate=${payOnDate}, selectedMonth=${selectedMonth}`);
+    logDebug(`💰 Preview: Credit balance for unit ${unitId}: $${currentCreditBalance}`);
+    logDebug(`🔍 [ROUTE] Received parameters: unitId=${unitId}, amount=${amount}, payOnDate=${payOnDate}, selectedMonth=${selectedMonth}`);
     
     // Calculate distribution with optional payment date for backdated payments
     const distribution = await waterPaymentsService.calculatePaymentDistribution(
@@ -284,7 +285,7 @@ router.post('/clients/:clientId/payments/preview', enforceClientAccess, async (r
     });
     
   } catch (error) {
-    console.error('Error previewing payment distribution:', error);
+    logError('Error previewing payment distribution:', error);
     next(error);
   }
 });
@@ -310,7 +311,7 @@ router.get('/clients/:clientId/bills/exists/:year', enforceClientAccess, async (
       data: existenceMap // { 0: true, 1: false, 2: true, ... }
     });
   } catch (error) {
-    console.error('Error checking bills existence:', error);
+    logError('Error checking bills existence:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -334,7 +335,7 @@ router.get('/clients/:clientId/bills/exists/:year/:month', enforceClientAccess, 
       exists
     });
   } catch (error) {
-    console.error('Error checking if bill exists:', error);
+    logError('Error checking if bill exists:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -364,7 +365,7 @@ router.get('/clients/:clientId/bills/:year/:month', enforceClientAccess, async (
       data: bills
     });
   } catch (error) {
-    console.error('Error fetching water bills:', error);
+    logError('Error fetching water bills:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -386,14 +387,14 @@ router.get('/clients/:clientId/bills/:year', enforceClientAccess, async (req, re
     // Convert from centavos to pesos for frontend
     const convertedData = convertYearDataToPesos(calculatedData);
     
-    console.log(`✅ Built and converted year data: ${calculatedData.months.length} months`);
+    logDebug(`✅ Built and converted year data: ${calculatedData.months.length} months`);
     
     res.json({
       success: true,
       data: convertedData
     });
   } catch (error) {
-    console.error('Error building year data:', error);
+    logError('Error building year data:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -415,7 +416,7 @@ router.get('/clients/:clientId/consumption-analysis/:year', enforceClientAccess,
       data: analysisData
     });
   } catch (error) {
-    console.error('Error calculating consumption analysis:', error);
+    logError('Error calculating consumption analysis:', error);
     res.status(500).json({
       success: false,
       error: error.message

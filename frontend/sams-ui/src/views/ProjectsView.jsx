@@ -36,7 +36,7 @@ import PollDetailView from '../components/polls/PollDetailView';
 import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
-import './HOADuesView.css'; // Reuse HOADuesView styling
+import './ProjectsView.css';
 
 /**
  * Format centavos to currency display (US style, no currency code)
@@ -753,7 +753,7 @@ function ProjectsView() {
   }
   
   return (
-    <div className="hoa-dues-view">
+    <div className="view-container">
       {/* SEARCH RESULTS POPPER */}
       <Popper
         open={Boolean(searchAnchorEl) && searchResults.length > 0}
@@ -829,7 +829,7 @@ function ProjectsView() {
           className="action-item" 
           onClick={handleDeleteClick} 
           disabled={!selectedProject}
-          title={selectedProject ? "Delete project" : "Select a project to delete"}
+          title={selectedProject ? "Delete a project" : "Select a project to delete"}
         >
           <FontAwesomeIcon icon={faTrash} />
           <span>Delete</span>
@@ -839,7 +839,7 @@ function ProjectsView() {
         <YearNavigation />
       </ActivityActionBar>
       
-      <div className="hoa-dues-content">
+      <div className="scrollable-content">
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         
         {/* PROJECT DETAILS */}

@@ -1,4 +1,5 @@
 // backend/routes/units.js
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 import express from 'express';
 import { createUnit, updateUnit, deleteUnit, listUnits, updateUnitManagers, addUnitEmail } from '../controllers/unitsController.js';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
@@ -18,7 +19,7 @@ router.get('/', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
-    console.log(`📋 Fetching units for client: ${clientId}`);
+    logDebug(`📋 Fetching units for client: ${clientId}`);
     const units = await listUnits(clientId);
     
     res.json({
@@ -27,7 +28,7 @@ router.get('/', authenticateUserWithProfile, async (req, res) => {
       count: units.length
     });
   } catch (error) {
-    console.error('❌ Error fetching units:', error);
+    logError('❌ Error fetching units:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch units' 
@@ -55,7 +56,7 @@ router.post('/', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
-    console.log(`➕ Creating unit for client: ${clientId}`, unitData);
+    logDebug(`➕ Creating unit for client: ${clientId}`, unitData);
     
     // Use unitId as document ID for consistent referencing
     const unitId = await createUnit(clientId, unitData, unitData.unitId);
@@ -66,7 +67,7 @@ router.post('/', authenticateUserWithProfile, async (req, res) => {
       message: 'Unit created successfully'
     });
   } catch (error) {
-    console.error('❌ Error creating unit:', error);
+    logError('❌ Error creating unit:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to create unit' 
@@ -95,7 +96,7 @@ router.put('/:unitId', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
-    console.log(`✏️ Updating unit ${unitId} for client: ${clientId}`, unitData);
+    logDebug(`✏️ Updating unit ${unitId} for client: ${clientId}`, unitData);
     
     const success = await updateUnit(clientId, unitId, unitData);
     
@@ -111,7 +112,7 @@ router.put('/:unitId', authenticateUserWithProfile, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('❌ Error updating unit:', error);
+    logError('❌ Error updating unit:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to update unit' 
@@ -139,7 +140,7 @@ router.delete('/:unitId', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
-    console.log(`🗑️ Deleting unit ${unitId} for client: ${clientId}`);
+    logDebug(`🗑️ Deleting unit ${unitId} for client: ${clientId}`);
     
     const success = await deleteUnit(clientId, unitId);
     
@@ -155,7 +156,7 @@ router.delete('/:unitId', authenticateUserWithProfile, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('❌ Error deleting unit:', error);
+    logError('❌ Error deleting unit:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete unit' 
@@ -191,7 +192,7 @@ router.put('/:unitId/managers', authenticateUserWithProfile, async (req, res) =>
       });
     }
 
-    console.log(`👥 Updating managers for unit ${unitId} in client: ${clientId}`, managers);
+    logDebug(`👥 Updating managers for unit ${unitId} in client: ${clientId}`, managers);
     
     const success = await updateUnitManagers(clientId, unitId, managers);
     
@@ -207,7 +208,7 @@ router.put('/:unitId/managers', authenticateUserWithProfile, async (req, res) =>
       });
     }
   } catch (error) {
-    console.error('❌ Error updating unit managers:', error);
+    logError('❌ Error updating unit managers:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to update unit managers' 
@@ -243,7 +244,7 @@ router.post('/:unitId/emails', authenticateUserWithProfile, async (req, res) => 
       });
     }
 
-    console.log(`📧 Adding email to unit ${unitId} in client: ${clientId}`, email);
+    logDebug(`📧 Adding email to unit ${unitId} in client: ${clientId}`, email);
     
     const success = await addUnitEmail(clientId, unitId, email);
     
@@ -259,7 +260,7 @@ router.post('/:unitId/emails', authenticateUserWithProfile, async (req, res) => 
       });
     }
   } catch (error) {
-    console.error('❌ Error adding email to unit:', error);
+    logError('❌ Error adding email to unit:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to add email to unit' 
@@ -280,10 +281,10 @@ router.get('/user-access', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
-    console.log(`🔑 Fetching user accessible units for client: ${clientId}`);
-    console.log(`🔑 User samsProfile:`, JSON.stringify(user.samsProfile, null, 2));
-    console.log(`🔑 User email:`, user.email);
-    console.log(`🔑 User globalRole:`, user.samsProfile?.globalRole);
+    logDebug(`🔑 Fetching user accessible units for client: ${clientId}`);
+    logDebug(`🔑 User samsProfile:`, JSON.stringify(user.samsProfile, null, 2));
+    logDebug(`🔑 User email:`, user.email);
+    logDebug(`🔑 User globalRole:`, user.samsProfile?.globalRole);
     
     const db = await getDb();
     const unitsRef = db.collection('clients').doc(clientId).collection('units');
@@ -322,7 +323,7 @@ router.get('/user-access', authenticateUserWithProfile, async (req, res) => {
       // Check for additional unitAssignments within the propertyAccess
       const additionalAssignments = propertyAccess.unitAssignments || [];
       
-      console.log(`🔑 Additional unit assignments:`, JSON.stringify(additionalAssignments, null, 2));
+      logDebug(`🔑 Additional unit assignments:`, JSON.stringify(additionalAssignments, null, 2));
       
       // Add additional units the user manages
       for (const assignment of additionalAssignments) {
@@ -340,13 +341,13 @@ router.get('/user-access', authenticateUserWithProfile, async (req, res) => {
       }
     }
     
-    console.log(`✅ Found ${units.length} accessible units for user`);
-    console.log(`✅ Units:`, units.map(u => ({ unitId: u.unitId, address: u.address })));
+    logDebug(`✅ Found ${units.length} accessible units for user`);
+    logDebug(`✅ Units:`, units.map(u => ({ unitId: u.unitId, address: u.address })));
     
     res.json(units);
     
   } catch (error) {
-    console.error('❌ Error fetching user accessible units:', error);
+    logError('❌ Error fetching user accessible units:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch user accessible units' 

@@ -1,9 +1,11 @@
 /* Dashboard View - Preserving Sandyland Ocean-to-Sand Gradient */
 .dashboard {
   padding: 2rem;
-  min-height: 100%;
-  /* Proper Sandyland ocean-to-sand gradient */
+  min-height: 100vh;
+  /* Proper Sandyland ocean-to-sand gradient - fixed attachment keeps it stationary */
   background: linear-gradient(180deg, rgba(8, 99, 191, 1) 0%, rgba(131, 196, 242, 1) 72%, rgba(247, 228, 194, 1) 100%);
+  background-attachment: fixed;
+  background-size: 100% 100vh;
 }
 
 /* Responsive adjustments */
