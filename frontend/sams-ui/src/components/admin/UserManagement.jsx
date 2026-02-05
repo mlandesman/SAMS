@@ -211,13 +211,6 @@ const UserManagement = ({
           </div>
         )}
 
-        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <ExportMenu
-            onExportCSV={handleExportCSV}
-            disabled={!users?.length}
-          />
-        </div>
-
         <div className="users-list">
           {users.length === 0 ? (
             <div className="no-users">
