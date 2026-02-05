@@ -359,6 +359,8 @@ function checkUnitOwnership(req, userUnitId) {
 
 /**
  * Middleware to log security events for audit purposes
+ * Note: Only logs successful access at DEBUG level (normal operation)
+ * Failed authorization attempts are logged as WARN/ERROR by auth middleware
  */
 export const logSecurityEvent = (eventType) => {
   return (req, res, next) => {
@@ -367,7 +369,8 @@ export const logSecurityEvent = (eventType) => {
     // Get clientId from params, query, or authorizedClientId
     const clientId = req.params?.clientId || req.query?.clientId || authorizedClientId;
     
-    logInfo(`🔍 Security Event: ${eventType}`, {
+    // Successful access is normal operation, not a security event - use DEBUG level
+    logDebug(`🔍 Access: ${eventType}`, {
       user: user.email,
       clientId: clientId,
       timestamp: getNow().toISOString(),
@@ -375,7 +378,7 @@ export const logSecurityEvent = (eventType) => {
       ip: req.ip
     });
     
-    // TODO: Implement proper audit logging to database
+    // TODO: Implement proper audit logging to database for actual security events (failures)
     next();
   };
 };

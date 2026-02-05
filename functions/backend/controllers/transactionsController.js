@@ -28,6 +28,7 @@ import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 import { getNotesArray } from '../../shared/utils/formatUtils.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { updatePriorYearClosedFlag } from './hoaDuesController.js';
@@ -83,7 +84,7 @@ function formatDateField(dateValue) {
     // Use DateService's formatForFrontend method to create multi-format date object
     return dateService.formatForFrontend(dateValue);
   } catch (error) {
-    console.error('Error formatting date field:', error);
+    logError('Error formatting date field:', error);
     return null;
   }
 }
@@ -103,10 +104,10 @@ async function resolveVendorId(clientId, vendorName) {
       return vendorsSnapshot.docs[0].id;
     }
     
-    console.log(`ℹ️ Vendor "${vendorName}" not found, storing name only`);
+    logDebug(`ℹ️ Vendor "${vendorName}" not found, storing name only`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving vendor ID:', error);
+    logError('❌ Error resolving vendor ID:', error);
     return null;
   }
 }
@@ -126,10 +127,10 @@ async function resolveCategoryId(clientId, categoryName) {
       return categoriesSnapshot.docs[0].id;
     }
     
-    console.log(`ℹ️ Category "${categoryName}" not found, storing name only`);
+    logDebug(`ℹ️ Category "${categoryName}" not found, storing name only`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving category ID:', error);
+    logError('❌ Error resolving category ID:', error);
     return null;
   }
 }
@@ -153,10 +154,10 @@ async function resolveCategoryName(clientId, categoryId) {
       return categoryDoc.data().name;
     }
     
-    console.log(`ℹ️ Category ID "${categoryId}" not found`);
+    logDebug(`ℹ️ Category ID "${categoryId}" not found`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving category name:', error);
+    logError('❌ Error resolving category name:', error);
     return null;
   }
 }
@@ -175,10 +176,10 @@ async function resolveVendorName(clientId, vendorId) {
       return vendorDoc.data().name;
     }
     
-    console.log(`ℹ️ Vendor ID "${vendorId}" not found`);
+    logDebug(`ℹ️ Vendor ID "${vendorId}" not found`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving vendor name:', error);
+    logError('❌ Error resolving vendor name:', error);
     return null;
   }
 }
@@ -200,10 +201,10 @@ async function resolveAccountName(clientId, accountId) {
       }
     }
     
-    console.log(`ℹ️ Account ID "${accountId}" not found`);
+    logDebug(`ℹ️ Account ID "${accountId}" not found`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving account name:', error);
+    logError('❌ Error resolving account name:', error);
     return null;
   }
 }
@@ -215,25 +216,25 @@ async function resolvePaymentMethodName(clientId, paymentMethodId) {
   try {
     const db = await getDb();
     
-    console.log(`🔍 DEBUG: Attempting to resolve payment method - clientId: "${clientId}", paymentMethodId: "${paymentMethodId}"`);
-    console.log(`🔍 DEBUG: Full path: clients/${clientId}/paymentMethods/${paymentMethodId}`);
+    logDebug(`🔍 DEBUG: Attempting to resolve payment method - clientId: "${clientId}", paymentMethodId: "${paymentMethodId}"`);
+    logDebug(`🔍 DEBUG: Full path: clients/${clientId}/paymentMethods/${paymentMethodId}`);
     
     const paymentMethodDoc = await db.collection(`clients/${clientId}/paymentMethods`)
       .doc(paymentMethodId)
       .get();
     
-    console.log(`🔍 DEBUG: Document exists: ${paymentMethodDoc.exists}`);
+    logDebug(`🔍 DEBUG: Document exists: ${paymentMethodDoc.exists}`);
     
     if (paymentMethodDoc.exists) {
       const data = paymentMethodDoc.data();
-      console.log(`💳 Found payment method data:`, data);
+      logDebug(`💳 Found payment method data:`, data);
       return data.name;
     }
     
-    console.log(`ℹ️ Payment Method ID "${paymentMethodId}" not found in clients/${clientId}/paymentMethods`);
+    logDebug(`ℹ️ Payment Method ID "${paymentMethodId}" not found in clients/${clientId}/paymentMethods`);
     return null;
   } catch (error) {
-    console.error('❌ Error resolving payment method name:', error);
+    logError('❌ Error resolving payment method name:', error);
     return null;
   }
 }
@@ -267,7 +268,7 @@ async function getCategoryType(clientId, categoryId, categoryName) {
     
     return null;
   } catch (error) {
-    console.error('❌ Error getting category type:', error);
+    logError('❌ Error getting category type:', error);
     return null;
   }
 }
@@ -290,7 +291,7 @@ async function createTransaction(clientId, data, options = {}) {
     // VALIDATION: Check data against schema - REJECT any legacy fields
     const validation = validateDocument('transactions', preparedData, 'create');
     if (!validation.isValid) {
-      console.error('❌ Transaction validation failed:', validation.errors);
+      logError('❌ Transaction validation failed:', validation.errors);
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
     
@@ -315,7 +316,7 @@ async function createTransaction(clientId, data, options = {}) {
     
     // Debug: Log date normalization for HOA Dues
     if (normalizedData.categoryName === 'HOA Dues') {
-      console.log(`🗓️ [TRANSACTION CREATE DEBUG] HOA Dues transaction dates:`, {
+      logDebug(`🗓️ [TRANSACTION CREATE DEBUG] HOA Dues transaction dates:`, {
         originalDate: validation.data.date,
         normalizedDate: normalizedData.date,
         normalizedYear: normalizedData.date ? new Date(normalizedData.date._seconds * 1000).getFullYear() : 'no date',
@@ -340,36 +341,36 @@ async function createTransaction(clientId, data, options = {}) {
     let finalPaymentMethodId = normalizedData.paymentMethodId;
     let finalPaymentMethodName = normalizedData.paymentMethod;
     
-    console.log('🔄 Resolving transaction field relationships (ID→name priority)');
+    logDebug('🔄 Resolving transaction field relationships (ID→name priority)');
     
     // Vendor resolution: ID→name first, then name→ID fallback
     if (finalVendorId && !finalVendorName) {
       finalVendorName = await resolveVendorName(clientId, finalVendorId);
-      console.log(`🏢 Resolved vendor ID ${finalVendorId} → "${finalVendorName}"`);
+      logDebug(`🏢 Resolved vendor ID ${finalVendorId} → "${finalVendorName}"`);
     } else if (finalVendorName && !finalVendorId) {
       finalVendorId = await resolveVendorId(clientId, finalVendorName);
-      console.log(`🏢 Resolved vendor name "${finalVendorName}" → ${finalVendorId}`);
+      logDebug(`🏢 Resolved vendor name "${finalVendorName}" → ${finalVendorId}`);
     }
     
     // Category resolution: ID→name first, then name→ID fallback  
     if (finalCategoryId && !finalCategoryName) {
       finalCategoryName = await resolveCategoryName(clientId, finalCategoryId);
-      console.log(`📊 Resolved category ID ${finalCategoryId} → "${finalCategoryName}"`);
+      logDebug(`📊 Resolved category ID ${finalCategoryId} → "${finalCategoryName}"`);
     } else if (finalCategoryName && !finalCategoryId) {
       finalCategoryId = await resolveCategoryId(clientId, finalCategoryName);
-      console.log(`📊 Resolved category name "${finalCategoryName}" → ${finalCategoryId}`);
+      logDebug(`📊 Resolved category name "${finalCategoryName}" → ${finalCategoryId}`);
     }
     
     // Account resolution: ID→name first, then use account mapping fallback
     if (finalAccountId && !finalAccountName) {
       finalAccountName = await resolveAccountName(clientId, finalAccountId);
-      console.log(`💳 Resolved account ID ${finalAccountId} → "${finalAccountName}"`);
+      logDebug(`💳 Resolved account ID ${finalAccountId} → "${finalAccountName}"`);
     }
     
     // Payment method resolution: ID→name first
     if (finalPaymentMethodId && !finalPaymentMethodName) {
       finalPaymentMethodName = await resolvePaymentMethodName(clientId, finalPaymentMethodId);
-      console.log(`💳 Resolved payment method ID ${finalPaymentMethodId} → "${finalPaymentMethodName}"`);
+      logDebug(`💳 Resolved payment method ID ${finalPaymentMethodId} → "${finalPaymentMethodName}"`);
     }
     
     // Store both ID and name in the normalized data
@@ -382,7 +383,7 @@ async function createTransaction(clientId, data, options = {}) {
     normalizedData.paymentMethodId = finalPaymentMethodId || null;
     normalizedData.paymentMethod = finalPaymentMethodName || '';
     
-    console.log('✅ Field resolution complete:', {
+    logDebug('✅ Field resolution complete:', {
       vendor: `${finalVendorId} | "${finalVendorName}"`,
       category: `${finalCategoryId} | "${finalCategoryName}"`,
       account: `${finalAccountId} | "${finalAccountName}"`,
@@ -391,7 +392,7 @@ async function createTransaction(clientId, data, options = {}) {
     
     // Step 2.1: Handle split transaction allocations
     if (normalizedData.allocations && Array.isArray(normalizedData.allocations) && normalizedData.allocations.length > 0) {
-      console.log('🔄 Processing split transaction allocations:', normalizedData.allocations);
+      logDebug('🔄 Processing split transaction allocations:', normalizedData.allocations);
       
       // Validate allocations structure and convert amounts to cents
       for (let i = 0; i < normalizedData.allocations.length; i++) {
@@ -411,7 +412,7 @@ async function createTransaction(clientId, data, options = {}) {
       const allocationsTotal = normalizedData.allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
       const tolerance = 100; // Allow 1 peso tolerance for rounding
       if (Math.abs(allocationsTotal - normalizedData.amount) > tolerance) {
-        console.error(`❌ Allocation mismatch:`, {
+        logError(`❌ Allocation mismatch:`, {
           allocations: normalizedData.allocations.map(a => ({ category: a.categoryName, amount: a.amount })),
           allocationsTotal,
           transactionAmount: normalizedData.amount,
@@ -424,10 +425,10 @@ async function createTransaction(clientId, data, options = {}) {
       for (let allocation of normalizedData.allocations) {
         if (allocation.categoryId && !allocation.categoryName) {
           allocation.categoryName = await resolveCategoryName(clientId, allocation.categoryId);
-          console.log(`🔄 Allocation resolved category ID ${allocation.categoryId} → "${allocation.categoryName}"`);
+          logDebug(`🔄 Allocation resolved category ID ${allocation.categoryId} → "${allocation.categoryName}"`);
         } else if (allocation.categoryName && !allocation.categoryId) {
           allocation.categoryId = await resolveCategoryId(clientId, allocation.categoryName);
-          console.log(`🔄 Allocation resolved category name "${allocation.categoryName}" → ${allocation.categoryId}`);
+          logDebug(`🔄 Allocation resolved category name "${allocation.categoryName}" → ${allocation.categoryId}`);
         }
       }
       
@@ -443,12 +444,12 @@ async function createTransaction(clientId, data, options = {}) {
         // Frontend requires BOTH categoryName === "-Split-" AND allocations.length > 0 to show split UI
         // So this will display as a regular transaction in the list
         
-        console.log(`✅ Single allocation transaction: ${normalizedData.categoryName} (allocations preserved for delete/reversal)`);
+        logDebug(`✅ Single allocation transaction: ${normalizedData.categoryName} (allocations preserved for delete/reversal)`);
       } else {
         // Multiple allocations - keep as split transaction
         normalizedData.categoryName = "-Split-";
         normalizedData.categoryId = null; // Clear single category ID since this is split
-        console.log(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
+        logDebug(`✅ Split transaction validated: ${normalizedData.allocations.length} allocations totaling ${allocationsTotal} cents`);
       }
     }
     
@@ -463,22 +464,22 @@ async function createTransaction(clientId, data, options = {}) {
       // Expenses should be negative
       normalizedData.amount = -Math.abs(normalizedData.amount);
       normalizedData.transactionType = 'expense';
-      console.log(`💸 Applied expense sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+      logDebug(`💸 Applied expense sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
     } else if (categoryType === 'income') {
       // Income should be positive
       normalizedData.amount = Math.abs(normalizedData.amount);
       normalizedData.transactionType = 'income';
-      console.log(`💰 Applied income sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+      logDebug(`💰 Applied income sign convention: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
     } else {
       // Default to expense if category type unknown
       normalizedData.amount = -Math.abs(normalizedData.amount);
       normalizedData.transactionType = 'expense';
-      console.log(`⚠️ Unknown category type, defaulting to expense: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+      logDebug(`⚠️ Unknown category type, defaulting to expense: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
     }
     */
     
     // Using the sign from the source data as-is
-    console.log(`📊 Using amount as provided: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
+    logDebug(`📊 Using amount as provided: ${normalizedData.categoryName} → ${normalizedData.amount} cents`);
     
     // Note: transactionType is deprecated - using 'type' field only
     // normalizedData.transactionType = normalizedData.amount >= 0 ? 'income' : 'expense';
@@ -489,11 +490,11 @@ async function createTransaction(clientId, data, options = {}) {
     // Step 4: Validate account fields
     const accountValidation = validateAccountFields(mappedData);
     if (!accountValidation.isValid) {
-      console.error('❌ Account validation failed:', accountValidation.errors);
+      logError('❌ Account validation failed:', accountValidation.errors);
       throw new Error(`Account validation failed: ${accountValidation.errors.join(', ')}`);
     }
     
-    console.log('✅ Account mapping applied:', {
+    logDebug('✅ Account mapping applied:', {
       accountType: mappedData.accountType,
       accountId: mappedData.accountId,
       accountName: mappedData.accountName
@@ -514,18 +515,18 @@ async function createTransaction(clientId, data, options = {}) {
         month: "2-digit",
         day: "2-digit"
       });
-      console.log('🕐 [DEBUG] Invalid date format, using current date:', dateString);
+      logDebug('🕐 [DEBUG] Invalid date format, using current date:', dateString);
     }
     
-    console.log('🕐 [DEBUG] Generating transaction ID with date:', dateString);
+    logDebug('🕐 [DEBUG] Generating transaction ID with date:', dateString);
     
     const txnId = await generateTransactionId(dateString);
-    console.log('🕐 [DEBUG] Generated transaction ID:', txnId);
+    logDebug('🕐 [DEBUG] Generated transaction ID:', txnId);
     
     // OPTION B: Support batch mode for atomic operations
     if (options.batch) {
       // BATCH MODE: Add to existing batch without committing
-      console.log('💾 [BATCH MODE] Adding transaction to batch:', txnId);
+      logDebug('💾 [BATCH MODE] Adding transaction to batch:', txnId);
       
       const txnRef = db.collection(`clients/${clientId}/transactions`).doc(txnId);
       const transactionData = {
@@ -552,13 +553,13 @@ async function createTransaction(clientId, data, options = {}) {
               balance: admin.firestore.FieldValue.increment(mappedData.amount),
               updated: getNow().toISOString()
             });
-            console.log(`💾 [BATCH MODE] Account balance update queued for ${mappedData.accountId}: ${mappedData.amount}`);
+            logDebug(`💾 [BATCH MODE] Account balance update queued for ${mappedData.accountId}: ${mappedData.amount}`);
           } else {
-            console.log(`⚠️  [BATCH MODE] Account ${mappedData.accountId} does not exist - skipping balance update`);
+            logDebug(`⚠️  [BATCH MODE] Account ${mappedData.accountId} does not exist - skipping balance update`);
           }
         } catch (error) {
-          console.error(`❌ [BATCH MODE] Error checking account ${mappedData.accountId}:`, error.message);
-          console.log(`⚠️  [BATCH MODE] Skipping account balance update for ${mappedData.accountId}`);
+          logError(`❌ [BATCH MODE] Error checking account ${mappedData.accountId}:`, error.message);
+          logDebug(`⚠️  [BATCH MODE] Skipping account balance update for ${mappedData.accountId}`);
         }
       }
       
@@ -575,7 +576,7 @@ async function createTransaction(clientId, data, options = {}) {
         documents: mappedData.documents || [] // Use actual documents array from data
       };
       
-      console.log('💾 About to save transaction data:', transactionData);
+      logDebug('💾 About to save transaction data:', transactionData);
       // Note: Do NOT clean transaction dates - frontend expects Timestamp objects
       // Only nested structures (like creditBalanceHistory) need cleaning
       transaction.set(txnRef, transactionData);
@@ -584,9 +585,9 @@ async function createTransaction(clientId, data, options = {}) {
       if (mappedData.accountId && typeof mappedData.amount === 'number') {
         try {
           await updateAccountBalance(clientId, mappedData.accountId, mappedData.amount);
-          console.log(`✅ Updated account balance for ${mappedData.accountId}: ${mappedData.amount}`);
+          logDebug(`✅ Updated account balance for ${mappedData.accountId}: ${mappedData.amount}`);
         } catch (balanceError) {
-          console.error('❌ Error updating account balance:', balanceError);
+          logError('❌ Error updating account balance:', balanceError);
           // Log the error but don't fail the transaction
           // Account might not exist yet if this is an old transaction being imported
         }
@@ -596,7 +597,7 @@ async function createTransaction(clientId, data, options = {}) {
         try {
           await updateAccountBalance(clientId, mappedData.account, mappedData.amount);
         } catch (balanceError) {
-          console.error('❌ Error updating account balance using legacy account name:', balanceError);
+          logError('❌ Error updating account balance using legacy account name:', balanceError);
         }
       }
       
@@ -614,15 +615,15 @@ async function createTransaction(clientId, data, options = {}) {
       });
 
       if (!auditSuccess) {
-        console.error('❌ Failed to write audit log for createTransaction.');
+        logError('❌ Failed to write audit log for createTransaction.');
       }
     } else {
-      console.log('💾 [BATCH MODE] Audit log deferred to batch commit');
+      logDebug('💾 [BATCH MODE] Audit log deferred to batch commit');
     }
 
     return txnId;
   } catch (error) {
-    console.error('❌ Error creating transaction:', error);
+    logError('❌ Error creating transaction:', error);
     throw error; // CRITICAL FIX: Throw error to trigger atomic rollback, don't return null
   }
 }
@@ -633,7 +634,7 @@ async function updateTransaction(clientId, txnId, newData) {
     // VALIDATION: Check update data against schema - REJECT any legacy fields
     const validation = validateDocument('transactions', newData, 'update');
     if (!validation.isValid) {
-      console.error('❌ Transaction update validation failed:', validation.errors);
+      logError('❌ Transaction update validation failed:', validation.errors);
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
     
@@ -668,14 +669,14 @@ async function updateTransaction(clientId, txnId, newData) {
         validation.data.categoryId !== undefined || validation.data.categoryName !== undefined ||
         validation.data.accountId !== undefined || validation.data.paymentMethodId !== undefined) {
       
-      console.log('🔄 Resolving updated field relationships (ID→name priority)');
+      logDebug('🔄 Resolving updated field relationships (ID→name priority)');
       
       // Vendor resolution: ID→name first, then name→ID fallback
       if (validation.data.vendorId !== undefined) {
         if (validation.data.vendorId) {
           normalizedData.vendorId = validation.data.vendorId;
           normalizedData.vendorName = await resolveVendorName(clientId, validation.data.vendorId) || '';
-          console.log(`🏢 Updated vendor ID ${validation.data.vendorId} → "${normalizedData.vendorName}"`);
+          logDebug(`🏢 Updated vendor ID ${validation.data.vendorId} → "${normalizedData.vendorName}"`);
         } else {
           normalizedData.vendorId = null;
           normalizedData.vendorName = '';
@@ -684,7 +685,7 @@ async function updateTransaction(clientId, txnId, newData) {
         normalizedData.vendorName = validation.data.vendorName;
         if (validation.data.vendorName) {
           normalizedData.vendorId = await resolveVendorId(clientId, validation.data.vendorName);
-          console.log(`🏢 Updated vendor name "${validation.data.vendorName}" → ${normalizedData.vendorId}`);
+          logDebug(`🏢 Updated vendor name "${validation.data.vendorName}" → ${normalizedData.vendorId}`);
         } else {
           normalizedData.vendorId = null;
         }
@@ -695,7 +696,7 @@ async function updateTransaction(clientId, txnId, newData) {
         if (validation.data.categoryId) {
           normalizedData.categoryId = validation.data.categoryId;
           normalizedData.categoryName = await resolveCategoryName(clientId, validation.data.categoryId) || '';
-          console.log(`📊 Updated category ID ${validation.data.categoryId} → "${normalizedData.categoryName}"`);
+          logDebug(`📊 Updated category ID ${validation.data.categoryId} → "${normalizedData.categoryName}"`);
         } else {
           normalizedData.categoryId = null;
           normalizedData.categoryName = '';
@@ -704,7 +705,7 @@ async function updateTransaction(clientId, txnId, newData) {
         normalizedData.categoryName = validation.data.categoryName;
         if (validation.data.categoryName) {
           normalizedData.categoryId = await resolveCategoryId(clientId, validation.data.categoryName);
-          console.log(`📊 Updated category name "${validation.data.categoryName}" → ${normalizedData.categoryId}`);
+          logDebug(`📊 Updated category name "${validation.data.categoryName}" → ${normalizedData.categoryId}`);
         } else {
           normalizedData.categoryId = null;
         }
@@ -715,7 +716,7 @@ async function updateTransaction(clientId, txnId, newData) {
         if (validation.data.accountId) {
           normalizedData.accountId = validation.data.accountId;
           normalizedData.accountName = await resolveAccountName(clientId, validation.data.accountId) || '';
-          console.log(`💳 Updated account ID ${validation.data.accountId} → "${normalizedData.accountName}"`);
+          logDebug(`💳 Updated account ID ${validation.data.accountId} → "${normalizedData.accountName}"`);
         } else {
           normalizedData.accountId = null;
           normalizedData.accountName = '';
@@ -727,7 +728,7 @@ async function updateTransaction(clientId, txnId, newData) {
         if (validation.data.paymentMethodId) {
           normalizedData.paymentMethodId = validation.data.paymentMethodId;
           normalizedData.paymentMethod = await resolvePaymentMethodName(clientId, validation.data.paymentMethodId) || '';
-          console.log(`💳 Updated payment method ID ${validation.data.paymentMethodId} → "${normalizedData.paymentMethod}"`);
+          logDebug(`💳 Updated payment method ID ${validation.data.paymentMethodId} → "${normalizedData.paymentMethod}"`);
         } else {
           normalizedData.paymentMethodId = null;
           normalizedData.paymentMethod = '';
@@ -760,9 +761,9 @@ async function updateTransaction(clientId, txnId, newData) {
           try {
             // Note: updateAccountBalance expects cents now
             await updateAccountBalance(clientId, newAccountId, amountDifference);
-            console.log(`Updated ${newAccountId} balance by ${amountDifference} cents`);
+            logDebug(`Updated ${newAccountId} balance by ${amountDifference} cents`);
           } catch (balanceError) {
-            console.error('❌ Error updating account balance:', balanceError);
+            logError('❌ Error updating account balance:', balanceError);
           }
         }
       } 
@@ -772,9 +773,9 @@ async function updateTransaction(clientId, txnId, newData) {
         if (originalAccountId) {
           try {
             await updateAccountBalance(clientId, originalAccountId, -originalData.amount);
-            console.log(`Removed ${originalData.amount} from ${originalAccountId}`);
+            logDebug(`Removed ${originalData.amount} from ${originalAccountId}`);
           } catch (balanceError) {
-            console.error(`❌ Error updating old account (${originalAccountId}) balance:`, balanceError);
+            logError(`❌ Error updating old account (${originalAccountId}) balance:`, balanceError);
           }
         }
         
@@ -783,9 +784,9 @@ async function updateTransaction(clientId, txnId, newData) {
           try {
             const amountToAdd = normalizedData.amount !== undefined ? normalizedData.amount : originalData.amount;
             await updateAccountBalance(clientId, newAccountId, amountToAdd);
-            console.log(`Added ${amountToAdd} cents to ${newAccountId}`);
+            logDebug(`Added ${amountToAdd} cents to ${newAccountId}`);
           } catch (balanceError) {
-            console.error(`❌ Error updating new account (${newAccountId}) balance:`, balanceError);
+            logError(`❌ Error updating new account (${newAccountId}) balance:`, balanceError);
           }
         }
       }
@@ -801,22 +802,22 @@ async function updateTransaction(clientId, txnId, newData) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for updateTransaction.');
+      logError('❌ Failed to write audit log for updateTransaction.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error updating transaction:', error);
+    logError('❌ Error updating transaction:', error);
     return false;
   }
 }
 
 // Delete a transaction with conditional HOA Dues cleanup
 async function deleteTransaction(clientId, txnId) {
-  console.log(`🚀 [BACKEND] deleteTransaction called: clientId=${clientId}, txnId=${txnId}`);
+  logDebug(`🚀 [BACKEND] deleteTransaction called: clientId=${clientId}, txnId=${txnId}`);
   
   // 🔍 BACKEND DELETE: Entry point logging
-  console.log('🔍 BACKEND DELETE: Starting transaction deletion:', {
+  logDebug('🔍 BACKEND DELETE: Starting transaction deletion:', {
     clientId,
     transactionId: txnId,
     timestamp: getNow().toISOString()
@@ -829,12 +830,12 @@ async function deleteTransaction(clientId, txnId) {
     // Get the original transaction before deleting
     const originalDoc = await txnRef.get();
     if (!originalDoc.exists) {
-      console.log(`❌ [BACKEND] Transaction ${txnId} not found`);
+      logDebug(`❌ [BACKEND] Transaction ${txnId} not found`);
       throw new Error(`Transaction ${txnId} not found`);
     }
     const originalData = originalDoc.data();
     
-    console.log(`📄 [BACKEND] Transaction data:`, {
+    logDebug(`📄 [BACKEND] Transaction data:`, {
       id: txnId,
       category: originalData.category,
       metadata: originalData.metadata,
@@ -916,7 +917,7 @@ async function deleteTransaction(clientId, txnId) {
                                      (originalData.metadata?.creditAdded > 0 || originalData.metadata?.creditUsed > 0);
     
     // 🔍 BACKEND DELETE: Enhanced transaction detection analysis
-    console.log('🔍 [BACKEND] Enhanced Transaction Type Detection:', {
+    logDebug('🔍 [BACKEND] Enhanced Transaction Type Detection:', {
       transactionId: txnId,
       category: originalData?.category,
       categoryId: originalData?.categoryId,
@@ -941,14 +942,14 @@ async function deleteTransaction(clientId, txnId) {
     const isHOATransaction = hasHOAData;
     const isWaterTransaction = hasWaterData || isCreditOnlyTransaction;
                             
-    console.log(`🏠 [BACKEND] HOA Data Present: ${isHOATransaction}`);
-    console.log(`💧 [BACKEND] Water Data Present: ${isWaterTransaction}`);
-    console.log(`🔄 [BACKEND] Unified Transaction: ${isUnifiedTransaction}`);
+    logDebug(`🏠 [BACKEND] HOA Data Present: ${isHOATransaction}`);
+    logDebug(`💧 [BACKEND] Water Data Present: ${isWaterTransaction}`);
+    logDebug(`🔄 [BACKEND] Unified Transaction: ${isUnifiedTransaction}`);
     if (isHOATransaction) {
-      console.log(`🏠 [BACKEND] HOA metadata:`, originalData.metadata);
+      logDebug(`🏠 [BACKEND] HOA metadata:`, originalData.metadata);
     }
     if (isWaterTransaction) {
-      console.log(`💧 [BACKEND] Water transaction data:`, {
+      logDebug(`💧 [BACKEND] Water transaction data:`, {
         unitId: originalData.unitId,
         amount: originalData.amount,
         description: originalData.description
@@ -972,14 +973,14 @@ async function deleteTransaction(clientId, txnId) {
     // ══════════════════════════════════════════════════════════════════════
     
     try {
-      console.log(`🔄 [BACKEND] Starting ATOMIC transaction reversal (all operations in one transaction)`);
+      logDebug(`🔄 [BACKEND] Starting ATOMIC transaction reversal (all operations in one transaction)`);
       
       if (isUnifiedTransaction) {
-        console.log(`🔄 [BACKEND] Processing UNIFIED transaction reversal (HOA + Water + Credit)`);
+        logDebug(`🔄 [BACKEND] Processing UNIFIED transaction reversal (HOA + Water + Credit)`);
       } else if (isHOAOnlyTransaction) {
-        console.log(`🏠 [BACKEND] Processing HOA-ONLY transaction reversal`);
+        logDebug(`🏠 [BACKEND] Processing HOA-ONLY transaction reversal`);
       } else if (isWaterOnlyTransaction) {
-        console.log(`💧 [BACKEND] Processing WATER-ONLY transaction reversal`);
+        logDebug(`💧 [BACKEND] Processing WATER-ONLY transaction reversal`);
       }
       
       // Use a transaction to ensure consistency
@@ -994,7 +995,7 @@ async function deleteTransaction(clientId, txnId) {
       
       // If no metadata year, try to get from HOA allocations (unified transactions)
       if (!cleanupYear && originalData.allocations) {
-        console.log(`🔍 [BACKEND] Looking for year in allocations:`, {
+        logDebug(`🔍 [BACKEND] Looking for year in allocations:`, {
           allocationsCount: originalData.allocations.length,
           sample: originalData.allocations[0]
         });
@@ -1004,11 +1005,11 @@ async function deleteTransaction(clientId, txnId) {
           a.categoryName === 'HOA Dues' || a.categoryName === 'HOA Penalties'
         );
         
-        console.log(`🔍 [BACKEND] HOA allocation found:`, hoaAlloc);
+        logDebug(`🔍 [BACKEND] HOA allocation found:`, hoaAlloc);
         cleanupYear = hoaAlloc?.data?.year;
       }
       
-      console.log(`🔍 [BACKEND] Cleanup parameters determined:`, {
+      logDebug(`🔍 [BACKEND] Cleanup parameters determined:`, {
         unitId: cleanupUnitId,
         year: cleanupYear,
         unitIdSource: originalData.unitId ? 'root' : (originalData.metadata?.unitId ? 'metadata' : 'unknown'),
@@ -1023,7 +1024,7 @@ async function deleteTransaction(clientId, txnId) {
         const creditBalancesRef = db.collection('clients').doc(clientId)
           .collection('units').doc('creditBalances');
         
-        console.log(`💳 [BACKEND] Reading credit balance for unit ${originalData.unitId}`);
+        logDebug(`💳 [BACKEND] Reading credit balance for unit ${originalData.unitId}`);
         creditDoc = await transaction.get(creditBalancesRef);
         
         if (creditDoc.exists) {
@@ -1031,12 +1032,12 @@ async function deleteTransaction(clientId, txnId) {
           unitCreditData = creditData[originalData.unitId];
           if (unitCreditData) {
             const currentBalance = getCreditBalance(unitCreditData);
-            console.log(`📊 [BACKEND] Current credit balance: ${currentBalance} centavos (calculated from ${unitCreditData.history?.length || 0} history entries)`);
+            logDebug(`📊 [BACKEND] Current credit balance: ${currentBalance} centavos (calculated from ${unitCreditData.history?.length || 0} history entries)`);
           } else {
-            console.warn(`⚠️ [BACKEND] No credit data found for unit ${originalData.unitId}`);
+            logWarn(`⚠️ [BACKEND] No credit data found for unit ${originalData.unitId}`);
           }
         } else {
-          console.warn(`⚠️ [BACKEND] Credit balances document not found`);
+          logWarn(`⚠️ [BACKEND] Credit balances document not found`);
         }
       }
       
@@ -1047,20 +1048,20 @@ async function deleteTransaction(clientId, txnId) {
         const duesPath = `clients/${clientId}/units/${cleanupUnitId}/dues/${cleanupYear}`;
         const duesRef = db.doc(duesPath);
         
-        console.log(`🔍 [BACKEND] Reading dues document: ${duesPath}`);
+        logDebug(`🔍 [BACKEND] Reading dues document: ${duesPath}`);
         duesDoc = await transaction.get(duesRef);
         
         if (duesDoc.exists) {
           duesData = duesDoc.data();
-          console.log(`📊 [BACKEND] Current dues data:`, {
+          logDebug(`📊 [BACKEND] Current dues data:`, {
             creditBalance: duesData.creditBalance,
             paymentsCount: duesData.payments?.length || 0
           });
         } else {
-          console.warn(`⚠️ [BACKEND] Dues document not found at ${duesPath} - HOA cleanup will be skipped`);
+          logWarn(`⚠️ [BACKEND] Dues document not found at ${duesPath} - HOA cleanup will be skipped`);
         }
       } else if (isHOATransaction) {
-        console.warn(`⚠️ [BACKEND] HOA transaction but missing required data:`, {
+        logWarn(`⚠️ [BACKEND] HOA transaction but missing required data:`, {
           cleanupUnitId,
           cleanupYear,
           hasAllocations: !!originalData.allocations,
@@ -1071,7 +1072,7 @@ async function deleteTransaction(clientId, txnId) {
       // Read water bill documents if this is a Water Bills transaction requiring cleanup
       let waterBillDocs = [];
       if (isWaterTransaction && originalData.unitId) {
-        console.log(`🔍 [BACKEND] Searching for water bills paid by transaction ${txnId} for unit ${originalData.unitId}`);
+        logDebug(`🔍 [BACKEND] Searching for water bills paid by transaction ${txnId} for unit ${originalData.unitId}`);
         
         // Query all water bill documents to find those with payments from this transaction
         const billsSnapshot = await db.collection('clients').doc(clientId)
@@ -1092,7 +1093,7 @@ async function deleteTransaction(clientId, txnId) {
             );
             
             if (hasPaymentFromTransaction) {
-              console.log(`💧 [BACKEND] Found water bill ${billDoc.id} paid by transaction ${txnId}`);
+              logDebug(`💧 [BACKEND] Found water bill ${billDoc.id} paid by transaction ${txnId}`);
               waterBillDocs.push({
                 ref: billDoc.ref,
                 id: billDoc.id,
@@ -1103,7 +1104,7 @@ async function deleteTransaction(clientId, txnId) {
           }
         }
         
-        console.log(`💧 [BACKEND] Found ${waterBillDocs.length} water bills to reverse for transaction ${txnId}`);
+        logDebug(`💧 [BACKEND] Found ${waterBillDocs.length} water bills to reverse for transaction ${txnId}`);
       }
       
       // PHASE 2: ALL WRITES SECOND
@@ -1116,9 +1117,9 @@ async function deleteTransaction(clientId, txnId) {
       if (accountId && typeof originalData.amount === 'number') {
         try {
           await updateAccountBalance(clientId, accountId, -originalData.amount);
-          console.log(`💰 [BACKEND] Reversed balance effect on ${accountId} by ${-originalData.amount}`);
+          logDebug(`💰 [BACKEND] Reversed balance effect on ${accountId} by ${-originalData.amount}`);
         } catch (balanceError) {
-          console.error('❌ [BACKEND] Error updating account balance on delete:', balanceError);
+          logError('❌ [BACKEND] Error updating account balance on delete:', balanceError);
         }
       }
       
@@ -1131,7 +1132,7 @@ async function deleteTransaction(clientId, txnId) {
         const entriesDeleted = entriesToDelete.length;
         
         if (entriesDeleted > 0) {
-          console.log(`💳 [BACKEND] Reversing ${entriesDeleted} credit history entries for transaction ${txnId}`);
+          logDebug(`💳 [BACKEND] Reversing ${entriesDeleted} credit history entries for transaction ${txnId}`);
           
           // Simply remove the history entry for this transaction
           const newHistory = currentHistory.filter(entry => entry.transactionId !== txnId);
@@ -1144,7 +1145,7 @@ async function deleteTransaction(clientId, txnId) {
           creditBalanceBefore = currentBalance;
           creditReversalAmount = newBalance - currentBalance;
           
-          console.log(`💳 [BACKEND] Credit balance: ${currentBalance} → ${newBalance} centavos (change: ${creditReversalAmount})`);
+          logDebug(`💳 [BACKEND] Credit balance: ${currentBalance} → ${newBalance} centavos (change: ${creditReversalAmount})`);
           
           // Update credit data in-place (this will be written atomically)
           // DO NOT write creditBalance field - it becomes stale
@@ -1166,19 +1167,19 @@ async function deleteTransaction(clientId, txnId) {
           transaction.set(creditBalancesRef, creditData);
           
           creditReversalExecuted = true;
-          console.log(`✅ [BACKEND] Credit reversal prepared (will commit atomically)`);
-          console.log(`✅ Credit balance after delete: ${newBalance / 100} (calculated from ${newHistory.length} history entries)`);
+          logDebug(`✅ [BACKEND] Credit reversal prepared (will commit atomically)`);
+          logDebug(`✅ Credit balance after delete: ${newBalance / 100} (calculated from ${newHistory.length} history entries)`);
         } else {
-          console.log(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
+          logDebug(`ℹ️ [BACKEND] No credit history entries found for transaction ${txnId}`);
         }
       }
       
       // Execute HOA Dues cleanup if applicable
       if (isHOATransaction && duesDoc && duesData && cleanupUnitId && cleanupYear) {
-        console.log(`🧹 [BACKEND] Starting HOA cleanup for Unit: ${cleanupUnitId}, Year: ${cleanupYear}`);
+        logDebug(`🧹 [BACKEND] Starting HOA cleanup for Unit: ${cleanupUnitId}, Year: ${cleanupYear}`);
         
         // 🧹 BACKEND CLEANUP: HOA cleanup function entry
-        console.log('🧹 BACKEND CLEANUP: HOA cleanup function called:', {
+        logDebug('🧹 BACKEND CLEANUP: HOA cleanup function called:', {
           clientId,
           transactionId: txnId,
           functionExecuting: 'executeHOADuesCleanupWrite',
@@ -1197,9 +1198,9 @@ async function deleteTransaction(clientId, txnId) {
           cleanupUnitId
         );
         hoaCleanupExecuted = true;
-        console.log(`✅ [BACKEND] HOA Dues cleanup prepared for transaction ${txnId}`, hoaCleanupDetails);
+        logDebug(`✅ [BACKEND] HOA Dues cleanup prepared for transaction ${txnId}`, hoaCleanupDetails);
       } else if (isHOATransaction) {
-        console.log(`⚠️ [BACKEND] HOA transaction detected but cleanup skipped:`, {
+        logDebug(`⚠️ [BACKEND] HOA transaction detected but cleanup skipped:`, {
           hasUnitId: !!cleanupUnitId,
           hasYear: !!cleanupYear,
           duesDocExists: !!duesDoc?.exists,
@@ -1211,7 +1212,7 @@ async function deleteTransaction(clientId, txnId) {
       
       // Execute Water Bills cleanup if applicable
       if (isWaterTransaction && waterBillDocs.length > 0 && originalData.unitId) {
-        console.log(`🧹 [BACKEND] Starting Water Bills cleanup for Unit: ${originalData.unitId}`);
+        logDebug(`🧹 [BACKEND] Starting Water Bills cleanup for Unit: ${originalData.unitId}`);
         
         waterCleanupDetails = await executeWaterBillsCleanupWrite(
           transaction, 
@@ -1221,9 +1222,9 @@ async function deleteTransaction(clientId, txnId) {
           clientId
         );
         waterCleanupExecuted = true;
-        console.log(`✅ [BACKEND] Water Bills cleanup prepared for transaction ${txnId}`, waterCleanupDetails);
+        logDebug(`✅ [BACKEND] Water Bills cleanup prepared for transaction ${txnId}`, waterCleanupDetails);
       } else if (isWaterTransaction) {
-        console.log(`⚠️ [BACKEND] Water transaction detected but cleanup skipped:`, {
+        logDebug(`⚠️ [BACKEND] Water transaction detected but cleanup skipped:`, {
           hasUnitId: !!originalData.unitId,
           billDocsFound: waterBillDocs.length,
           transactionId: txnId
@@ -1231,8 +1232,8 @@ async function deleteTransaction(clientId, txnId) {
       }
       });
       
-      console.log(`✅ [BACKEND] Atomic transaction reversal completed successfully`);
-      console.log(`✅ [BACKEND] All operations committed atomically:`, {
+      logDebug(`✅ [BACKEND] Atomic transaction reversal completed successfully`);
+      logDebug(`✅ [BACKEND] All operations committed atomically:`, {
         transactionDeleted: true,
         creditReversed: creditReversalExecuted,
         hoaReversed: hoaCleanupExecuted,
@@ -1248,8 +1249,8 @@ async function deleteTransaction(clientId, txnId) {
       // All changes (Credit + HOA + Water + Transaction) are reverted.
       // ══════════════════════════════════════════════════════════════════════
       
-      console.error(`❌ [BACKEND] Atomic transaction failed - ALL operations automatically rolled back:`, transactionError);
-      console.error(`❌ [BACKEND] Nothing was changed - database remains in consistent state`);
+      logError(`❌ [BACKEND] Atomic transaction failed - ALL operations automatically rolled back:`, transactionError);
+      logError(`❌ [BACKEND] Nothing was changed - database remains in consistent state`);
       
       throw transactionError; // Re-throw the original error
     }
@@ -1258,7 +1259,7 @@ async function deleteTransaction(clientId, txnId) {
     // This ensures aggregatedData (including lastPenaltyUpdate) is updated after delete
     if (waterCleanupExecuted && waterCleanupDetails?.affectedUnits?.length > 0) {
       try {
-        console.log(`🔄 [BACKEND] Starting surgical update for ${waterCleanupDetails.affectedUnits.length} unit(s) after payment reversal`);
+        logDebug(`🔄 [BACKEND] Starting surgical update for ${waterCleanupDetails.affectedUnits.length} unit(s) after payment reversal`);
         
         // Dynamic import of waterDataService (singleton instance)
         const { waterDataService } = await import('../services/waterDataService.js');
@@ -1275,13 +1276,13 @@ async function deleteTransaction(clientId, txnId) {
           });
         }
         
-        console.log(`✅ [BACKEND] Water bills payment reversal completed successfully`);
-        console.log(`   Bills returned to unpaid status - frontend will fetch fresh data`);
+        logDebug(`✅ [BACKEND] Water bills payment reversal completed successfully`);
+        logDebug(`   Bills returned to unpaid status - frontend will fetch fresh data`);
         
       } catch (recalcError) {
-        console.error('❌ [BACKEND] Error during water bills cleanup:', recalcError);
-        console.error('   Error details:', recalcError.message);
-        console.error('   Stack trace:', recalcError.stack);
+        logError('❌ [BACKEND] Error during water bills cleanup:', recalcError);
+        logError('   Error details:', recalcError.message);
+        logError('   Stack trace:', recalcError.stack);
       }
     }
 
@@ -1331,30 +1332,30 @@ async function deleteTransaction(clientId, txnId) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for deleteTransaction.');
+      logError('❌ Failed to write audit log for deleteTransaction.');
     }
 
     // Trigger balance rebuild for HOA transactions to ensure account balances are accurate
     if (hoaCleanupExecuted) {
-      console.log(`🔄 [BACKEND] Triggering balance rebuild after HOA transaction deletion`);
+      logDebug(`🔄 [BACKEND] Triggering balance rebuild after HOA transaction deletion`);
       try {
         await rebuildBalances(clientId);
-        console.log(`✅ [BACKEND] Balance rebuild completed after HOA transaction deletion`);
+        logDebug(`✅ [BACKEND] Balance rebuild completed after HOA transaction deletion`);
       } catch (rebuildError) {
-        console.error(`❌ [BACKEND] Error during balance rebuild after HOA transaction deletion:`, rebuildError);
+        logError(`❌ [BACKEND] Error during balance rebuild after HOA transaction deletion:`, rebuildError);
         // Don't fail the deletion if balance rebuild fails, just log the error
       }
     }
     
     // Water bills updated - frontend will fetch fresh data on next read
     if (waterCleanupExecuted) {
-      console.log(`✅ [BACKEND] Water bills updated - frontend will refresh automatically`);
+      logDebug(`✅ [BACKEND] Water bills updated - frontend will refresh automatically`);
     }
     
     // Update priorYearClosed flag if HOA transaction was deleted
     // Deletion might have re-opened a previously closed year
     if (hasHOAData) {
-      console.log(`   🏷️ [HOA] Updating priorYearClosed flag after transaction deletion`);
+      logDebug(`   🏷️ [HOA] Updating priorYearClosed flag after transaction deletion`);
       try {
         // Get affected fiscal years from transaction's allocations
         const affectedYears = new Set();
@@ -1381,17 +1382,17 @@ async function deleteTransaction(clientId, txnId) {
             await updatePriorYearClosedFlag(clientId, cleanupUnitId, year + 1);
           }
         } else {
-          console.log(`   ℹ️  [HOA] No affected fiscal years found or missing unitId`);
+          logDebug(`   ℹ️  [HOA] No affected fiscal years found or missing unitId`);
         }
       } catch (error) {
         // Log but don't fail the deletion - flag update is optimization
-        console.error(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
+        logError(`   ⚠️ [HOA] Failed to update priorYearClosed flag:`, error.message);
       }
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error deleting transaction:', error);
+    logError('❌ Error deleting transaction:', error);
     return false;
   }
 }
@@ -1487,7 +1488,7 @@ function getHOAMonthsFromTransaction(transactionData) {
 
 // HOA Dues cleanup logic for transaction deletion (write-only operations)
 function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, originalData, txnId, unitId) {
-  console.log('🧹 CLEANUP: Starting HOA dues cleanup write:', {
+  logDebug('🧹 CLEANUP: Starting HOA dues cleanup write:', {
     transactionId: txnId,
     transactionData: {
       category: originalData.category,
@@ -1505,7 +1506,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   let currentPayments = duesData.payments || [];
 
   if (!Array.isArray(currentPayments) && typeof currentPayments === 'object') {
-    console.log(`🔄 [BACKEND] Converting payments object to array`);
+    logDebug(`🔄 [BACKEND] Converting payments object to array`);
     const paymentsArray = [];
     for (let i = 0; i < 12; i++) {
       paymentsArray[i] = currentPayments[i] || null;
@@ -1513,7 +1514,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     currentPayments = paymentsArray;
   }
 
-  console.log(`🧹 [BACKEND] Processing HOA cleanup write operations for transaction ${txnId}`);
+  logDebug(`🧹 [BACKEND] Processing HOA cleanup write operations for transaction ${txnId}`);
 
   // Reverse payment entries for this transaction (support partial payments)
   let monthsCleared = 0;
@@ -1522,7 +1523,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
   
   // Get the months this transaction paid for - check allocations first, fallback to duesDistribution
   const monthsData = getHOAMonthsFromTransaction(originalData);
-  console.log(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months:`, monthsData);
+  logDebug(`📅 [BACKEND] Transaction ${txnId} paid for ${monthsData.length} months:`, monthsData);
   
   // Reverse each month that was paid by this transaction
   monthsData.forEach(monthData => {
@@ -1530,13 +1531,13 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     const monthIndex = monthData.month; // Already 0-based fiscal month index
     
     if (monthIndex < 0 || monthIndex > 11) {
-      console.warn(`⚠️ [BACKEND] Invalid month index ${monthIndex}, skipping`);
+      logWarn(`⚠️ [BACKEND] Invalid month index ${monthIndex}, skipping`);
       return;
     }
     
     const payment = updatedPayments[monthIndex];
     
-    console.log(`🔍 [BACKEND] Checking month ${monthIndex}:`, {
+    logDebug(`🔍 [BACKEND] Checking month ${monthIndex}:`, {
       hasPayment: !!payment,
       paymentReference: payment?.reference,
       targetTxnId: txnId,
@@ -1549,7 +1550,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     const isLegacyMatch = payment?.reference === txnId && !noteEntry;
     
     if (noteEntry || isLegacyMatch) {
-      console.log(`🔄 [BACKEND] Reversing payment for fiscal month ${monthIndex} (year ${monthData.year})`);
+      logDebug(`🔄 [BACKEND] Reversing payment for fiscal month ${monthIndex} (year ${monthData.year})`);
       monthsCleared++;
       
       if (noteEntry) {
@@ -1586,7 +1587,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
           notes: newNotes
         };
         
-        console.log(`✅ [BACKEND] Reversed partial payment: amount ${noteEntry.amount} → remaining ${newAmount}, status: ${status}`);
+        logDebug(`✅ [BACKEND] Reversed partial payment: amount ${noteEntry.amount} → remaining ${newAmount}, status: ${status}`);
       } else {
         // Legacy format: Clear completely (old behavior for backwards compatibility)
         updatedPayments[monthIndex] = {
@@ -1600,10 +1601,10 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
           reference: null
         };
         
-        console.log(`🗑️ [BACKEND] Cleared legacy payment completely`);
+        logDebug(`🗑️ [BACKEND] Cleared legacy payment completely`);
       }
     } else {
-      console.log(`⚠️ [BACKEND] Month ${monthData.month} payment doesn't contain transaction ${txnId}`);
+      logDebug(`⚠️ [BACKEND] Month ${monthData.month} payment doesn't contain transaction ${txnId}`);
     }
   });
   
@@ -1616,13 +1617,13 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
     creditBalanceHistory: admin.firestore.FieldValue.delete()
   };
   
-  console.log(`💾 [BACKEND] Updating dues document: cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
+  logDebug(`💾 [BACKEND] Updating dues document: cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
   // Clean all Timestamp objects before update
   const cleanedDuesUpdateData = cleanTimestamps(updateData);
   firestoreTransaction.update(duesRef, cleanedDuesUpdateData);
   
   // 🎯 BACKEND CLEANUP COMPLETE: Final summary
-  console.log('🎯 BACKEND CLEANUP COMPLETE: HOA cleanup summary:', {
+  logDebug('🎯 BACKEND CLEANUP COMPLETE: HOA cleanup summary:', {
     transactionId: txnId,
     unitId: unitId,
     year: originalData.metadata?.year,
@@ -1637,7 +1638,7 @@ function executeHOADuesCleanupWrite(firestoreTransaction, duesRef, duesData, ori
 
 // Water Bills cleanup logic for transaction deletion (bill reversal only - credit handled separately)
 async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs, originalData, txnId, clientId) {
-  console.log(`🧹 [BACKEND] Processing Water Bills cleanup write operations for transaction ${txnId}`);
+  logDebug(`🧹 [BACKEND] Processing Water Bills cleanup write operations for transaction ${txnId}`);
   
   let billsReversed = 0;
   const affectedUnits = []; // Track for surgical update
@@ -1648,14 +1649,14 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
   for (const billDoc of waterBillDocs) {
     const { ref: billRef, id: billId, data: billData, unitBill } = billDoc;
     
-    console.log(`💧 [BACKEND] Reversing payment for water bill ${billId} Unit ${unitId}`);
+    logDebug(`💧 [BACKEND] Reversing payment for water bill ${billId} Unit ${unitId}`);
     
     // Find the payment in the payments array that matches our transaction
     const payments = unitBill.payments || [];
     const paymentToReverse = payments.find(p => p.transactionId === txnId);
     
     if (!paymentToReverse) {
-      console.warn(`⚠️ [BACKEND] Skipping bill ${billId} - no payment found with transaction ID ${txnId}`);
+      logWarn(`⚠️ [BACKEND] Skipping bill ${billId} - no payment found with transaction ID ${txnId}`);
       continue;
     }
     
@@ -1681,7 +1682,7 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
       newStatus = 'partial';
     }
     
-    console.log(`💧 [BACKEND] Bill ${billId} reversal: paid ${unitBill.paidAmount} → ${newPaidAmount}, status ${unitBill.status} → ${newStatus}`);
+    logDebug(`💧 [BACKEND] Bill ${billId} reversal: paid ${unitBill.paidAmount} → ${newPaidAmount}, status ${unitBill.status} → ${newStatus}`);
     
     // Update the water bill document
     const waterBillUpdateData = {
@@ -1711,7 +1712,7 @@ async function executeWaterBillsCleanupWrite(firestoreTransaction, waterBillDocs
   // Return details for surgical update trigger
   // ══════════════════════════════════════════════════════════════════════
   
-  console.log(`✅ [BACKEND] Water Bills cleanup complete: ${billsReversed} bills reversed`);
+  logDebug(`✅ [BACKEND] Water Bills cleanup complete: ${billsReversed} bills reversed`);
   
   return {
     billsReversed: billsReversed,
@@ -1726,12 +1727,12 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
   const duesPath = `clients/${clientId}/units/${unitId}/dues/${year}`;
   const duesRef = db.doc(duesPath);
   
-  console.log(`Executing HOA cleanup for transaction ${txnId} - Unit: ${unitId}, Year: ${year}`);
+  logDebug(`Executing HOA cleanup for transaction ${txnId} - Unit: ${unitId}, Year: ${year}`);
   
   // Get current dues document
   const duesDoc = await firestoreTransaction.get(duesRef);
   if (!duesDoc.exists) {
-    console.warn(`Dues document not found at ${duesPath} - skipping HOA cleanup`);
+    logWarn(`Dues document not found at ${duesPath} - skipping HOA cleanup`);
     return { monthsCleared: 0 };
   }
   
@@ -1743,7 +1744,7 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
   const updatedPayments = currentPayments.map(payment => {
     if (payment && payment.transactionId === txnId) {
       monthsCleared++;
-      console.log(`Clearing payment for month ${payment.month}`);
+      logDebug(`Clearing payment for month ${payment.month}`);
       // Clear the payment entry but preserve the array structure
       return {
         month: payment.month,
@@ -1765,7 +1766,7 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
     creditBalanceHistory: admin.firestore.FieldValue.delete()
   };
   
-  console.log(`Updating dues document (legacy fallback): cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
+  logDebug(`Updating dues document (legacy fallback): cleared ${monthsCleared} payments, recalculated totalPaid ${updatedTotalPaid}`);
   // Clean all Timestamp objects before update
   const cleanedDuesData = cleanTimestamps(updateData);
   firestoreTransaction.update(duesRef, cleanedDuesData);
@@ -1818,7 +1819,7 @@ async function listTransactions(clientId) {
 
     return transactions;
   } catch (error) {
-    console.error('❌ Error listing transactions:', error);
+    logError('❌ Error listing transactions:', error);
     return [];
   }
 }
@@ -1862,7 +1863,7 @@ async function getTransaction(clientId, txnId) {
       documents: data.documents || []
     };
   } catch (error) {
-    console.error('❌ Error getting transaction:', error);
+    logError('❌ Error getting transaction:', error);
     return null;
   }
 }
@@ -1888,10 +1889,10 @@ async function addDocumentToTransaction(clientId, transactionId, documentId, doc
     // Note: uploadedAt is a Date object from getNow(), not a Firestore Timestamp, so no cleaning needed
     await txnRef.update(docUpdateData);
     
-    console.log(`✅ Added document ${documentId} to transaction ${transactionId}`);
+    logDebug(`✅ Added document ${documentId} to transaction ${transactionId}`);
     return true;
   } catch (error) {
-    console.error('❌ Error adding document to transaction:', error);
+    logError('❌ Error adding document to transaction:', error);
     return false;
   }
 }
@@ -1907,7 +1908,7 @@ async function removeDocumentFromTransaction(clientId, transactionId, documentId
     // Get current transaction to find the document reference
     const txnDoc = await txnRef.get();
     if (!txnDoc.exists) {
-      console.warn(`Transaction ${transactionId} not found`);
+      logWarn(`Transaction ${transactionId} not found`);
       return false;
     }
     
@@ -1924,10 +1925,10 @@ async function removeDocumentFromTransaction(clientId, transactionId, documentId
     // Note: Document data doesn't contain Firestore Timestamps, so no cleaning needed
     await txnRef.update(docRemoveUpdateData);
     
-    console.log(`✅ Removed document ${documentId} from transaction ${transactionId}`);
+    logDebug(`✅ Removed document ${documentId} from transaction ${transactionId}`);
     return true;
   } catch (error) {
-    console.error('❌ Error removing document from transaction:', error);
+    logError('❌ Error removing document from transaction:', error);
     return false;
   }
 }
@@ -1948,7 +1949,7 @@ async function getTransactionDocuments(clientId, transactionId) {
     const txnData = txnDoc.data();
     return txnData.documents || [];
   } catch (error) {
-    console.error('❌ Error getting transaction documents:', error);
+    logError('❌ Error getting transaction documents:', error);
     return [];
   }
 }
@@ -1965,7 +1966,7 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
     const txnDoc = await txnRef.get();
 
     if (!txnDoc.exists) {
-      console.warn(`Transaction ${transactionId} not found`);
+      logWarn(`Transaction ${transactionId} not found`);
       return false;
     }
     
@@ -1977,29 +1978,29 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
       documentsFromTxn = Object.values(documentsFromTxn).filter(Boolean);
     }
     
-    console.log(`🔍 [DELETE] Transaction documents array:`, documentsFromTxn);
+    logDebug(`🔍 [DELETE] Transaction documents array:`, documentsFromTxn);
     
     // Also find documents that link to this transaction (in case bidirectional linking is broken)
-    console.log(`🔍 [DELETE] Finding documents linked to transaction ${transactionId}...`);
+    logDebug(`🔍 [DELETE] Finding documents linked to transaction ${transactionId}...`);
     const linkedDocsSnapshot = await db.collection(`clients/${clientId}/documents`)
       .where('linkedTo.type', '==', 'transaction')
       .where('linkedTo.id', '==', transactionId)
       .get();
     
     const documentsFromQuery = linkedDocsSnapshot.docs.map(doc => doc.id);
-    console.log(`🔍 [DELETE] Documents found via linkedTo query:`, documentsFromQuery);
+    logDebug(`🔍 [DELETE] Documents found via linkedTo query:`, documentsFromQuery);
     
     // Combine both sources and remove duplicates
     const allDocuments = [...new Set([...documentsFromTxn, ...documentsFromQuery])];
-    console.log(`🔍 [DELETE] All documents to delete:`, allDocuments);
+    logDebug(`🔍 [DELETE] All documents to delete:`, allDocuments);
     
     // Delete all associated documents
     if (allDocuments.length > 0) {
-      console.log(`🗑️ [DELETE] Deleting ${allDocuments.length} documents associated with transaction ${transactionId}`);
+      logDebug(`🗑️ [DELETE] Deleting ${allDocuments.length} documents associated with transaction ${transactionId}`);
       
       const documentDeletionPromises = allDocuments.map(async (documentId) => {
         try {
-          console.log(`🗑️ Processing document deletion: ${documentId}`);
+          logDebug(`🗑️ Processing document deletion: ${documentId}`);
           
           // First, get the document to retrieve storage reference
           const docRef = db.doc(`clients/${clientId}/documents/${documentId}`);
@@ -2009,12 +2010,12 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
           if (docSnapshot.exists) {
             const docData = docSnapshot.data();
             storageRef = docData.storageRef;
-            console.log(`📄 Document ${documentId} found with storage ref: ${storageRef}`);
+            logDebug(`📄 Document ${documentId} found with storage ref: ${storageRef}`);
           }
           
           // Delete from Firestore
           await docRef.delete();
-          console.log(`✅ Deleted document from Firestore: ${documentId}`);
+          logDebug(`✅ Deleted document from Firestore: ${documentId}`);
           
           // Delete from Storage (if storageRef exists)
           if (storageRef) {
@@ -2023,15 +2024,15 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
               const app = await getApp();
               const bucket = app.storage().bucket();
               await bucket.file(storageRef).delete();
-              console.log(`🗑️ Deleted file from storage: ${storageRef}`);
+              logDebug(`🗑️ Deleted file from storage: ${storageRef}`);
             } catch (storageError) {
-              console.warn(`⚠️ Could not delete storage file ${storageRef}:`, storageError.message);
+              logWarn(`⚠️ Could not delete storage file ${storageRef}:`, storageError.message);
             }
           }
           
-          console.log(`✅ Deleted document ${documentId} completely`);
+          logDebug(`✅ Deleted document ${documentId} completely`);
         } catch (docError) {
-          console.error(`❌ Failed to delete document ${documentId}:`, docError);
+          logError(`❌ Failed to delete document ${documentId}:`, docError);
         }
       });
       
@@ -2042,7 +2043,7 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
     return await deleteTransaction(clientId, transactionId);
     
   } catch (error) {
-    console.error('❌ Error deleting transaction with documents:', error);
+    logError('❌ Error deleting transaction with documents:', error);
     return false;
   }
 }
@@ -2099,7 +2100,7 @@ async function queryTransactions(clientId, filters = {}) {
       allDocs.push(doc);
     });
     
-    console.log(`[TRANSACTION QUERY] Query for unitId='${filters.unitId || 'all'}' found ${allDocs.length} transactions`);
+    logDebug(`[TRANSACTION QUERY] Query for unitId='${filters.unitId || 'all'}' found ${allDocs.length} transactions`);
     
     const transactions = [];
     
@@ -2139,7 +2140,7 @@ async function queryTransactions(clientId, filters = {}) {
     
     return transactions;
   } catch (error) {
-    console.error('❌ Error querying transactions:', error);
+    logError('❌ Error querying transactions:', error);
     return [];
   }
 }

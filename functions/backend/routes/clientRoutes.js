@@ -1,4 +1,5 @@
 // backend/routes/clientRoutes.js
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 import express from 'express';
 const router = express.Router();
 import { getClient, listAuthorizedClients } from '../controllers/clientsController.js';
@@ -36,15 +37,15 @@ router.get('/:id', authenticateUserWithProfile, getClient);
 router.use('/:clientId/transactions', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('🚀 [CLIENT ROUTER] Transactions route - passing clientId:', clientId);
-  console.log('🚀 [CLIENT ROUTER] Full URL:', req.originalUrl);
-  console.log('🚀 [CLIENT ROUTER] All params:', req.params);
+  logDebug('🚀 [CLIENT ROUTER] Transactions route - passing clientId:', clientId);
+  logDebug('🚀 [CLIENT ROUTER] Full URL:', req.originalUrl);
+  logDebug('🚀 [CLIENT ROUTER] All params:', req.params);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
   req.originalParams.clientId = clientId;
   
-  console.log('🚀 [CLIENT ROUTER] originalParams after setting:', req.originalParams);
+  logDebug('🚀 [CLIENT ROUTER] originalParams after setting:', req.originalParams);
   
   next();
 }, transactionsRoutes);
@@ -53,7 +54,7 @@ router.use('/:clientId/transactions', (req, res, next) => {
 router.use('/:clientId/accounts', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for accounts:', clientId);
+  logDebug('Client router passing clientId for accounts:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -66,7 +67,7 @@ router.use('/:clientId/accounts', (req, res, next) => {
 router.use('/:clientId/balances', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for balances:', clientId);
+  logDebug('Client router passing clientId for balances:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -79,7 +80,7 @@ router.use('/:clientId/balances', (req, res, next) => {
 router.use('/:clientId/vendors', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for vendors:', clientId);
+  logDebug('Client router passing clientId for vendors:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -92,7 +93,7 @@ router.use('/:clientId/vendors', (req, res, next) => {
 router.use('/:clientId/categories', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for categories:', clientId);
+  logDebug('Client router passing clientId for categories:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -105,7 +106,7 @@ router.use('/:clientId/categories', (req, res, next) => {
 router.use('/:clientId/paymentMethods', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for payment methods:', clientId);
+  logDebug('Client router passing clientId for payment methods:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -118,7 +119,7 @@ router.use('/:clientId/paymentMethods', (req, res, next) => {
 router.use('/:clientId/units', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for units:', clientId);
+  logDebug('Client router passing clientId for units:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -131,7 +132,7 @@ router.use('/:clientId/units', (req, res, next) => {
 router.use('/:clientId/email', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for email:', clientId);
+  logDebug('Client router passing clientId for email:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -144,7 +145,7 @@ router.use('/:clientId/email', (req, res, next) => {
 router.use('/:clientId/reports', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for reports:', clientId);
+  logDebug('Client router passing clientId for reports:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -158,7 +159,7 @@ router.use('/:clientId/reports', (req, res, next) => {
 router.use('/:clientId/projects', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for projects:', clientId);
+  logDebug('Client router passing clientId for projects:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -175,7 +176,7 @@ router.use('/:clientId/projects', (req, res, next) => {
 router.use('/:clientId/config', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for config:', clientId);
+  logDebug('Client router passing clientId for config:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
@@ -188,7 +189,7 @@ router.use('/:clientId/config', (req, res, next) => {
 router.use('/:clientId/year-end', (req, res, next) => {
   // Make sure clientId from the parent router is available to the child router
   const clientId = req.params.clientId;
-  console.log('Client router passing clientId for year-end:', clientId);
+  logDebug('Client router passing clientId for year-end:', clientId);
   
   // Store original URL parameters before they get overwritten
   req.originalParams = req.originalParams || {};
