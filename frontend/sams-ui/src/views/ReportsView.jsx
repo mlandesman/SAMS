@@ -107,12 +107,7 @@ function ReportsView() {
 
   return (
     <div className="reports-view">
-      <div className="reports-header">
-        <h1>Reports</h1>
-        <p className="reports-subtitle">Generate and manage financial reports</p>
-      </div>
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 2 }}>
         <Tabs
           value={tabIndex}
           onChange={(_, newIndex) => setTabIndex(newIndex)}
