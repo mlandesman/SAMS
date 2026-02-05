@@ -10,8 +10,10 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { Box, Tabs, Tab } from '@mui/material';
 import { useStatusBar } from '../context/StatusBarContext';
+import ActivityActionBar from '../components/common/ActivityActionBar';
 import StatementOfAccountTab from '../components/reports/StatementOfAccountTab';
 import BudgetActualTab from '../components/reports/BudgetActualTab';
+import '../layout/ActionBar.css';
 import './ReportsView.css';
 
 function ActivityTab() {
@@ -106,8 +108,13 @@ function ReportsView() {
   }
 
   return (
-    <div className="reports-view">
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 2 }}>
+    <div className="view-container">
+      {/* ACTION BAR */}
+      <ActivityActionBar>
+        {/* No actions needed for Reports view - client name is sufficient */}
+      </ActivityActionBar>
+      
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
         <Tabs
           value={tabIndex}
           onChange={(_, newIndex) => setTabIndex(newIndex)}

@@ -6,9 +6,11 @@ import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../a
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { SuperAdminGuard } from '../components/security/PermissionGuard';
+import ActivityActionBar from '../components/common/ActivityActionBar';
 import ImportManagement from '../components/Settings/ImportManagement';
 import YearEndProcessing from './settings/YearEndProcessing';
 import BackupSettings from './settings/BackupSettings';
+import '../layout/ActionBar.css';
 
 function SettingsView() {
   const { samsUser } = useAuth();
@@ -153,9 +155,14 @@ function SettingsView() {
   };
 
   return (
-    <div className="settings-view" style={{ padding: '20px', maxWidth: '1200px' }}>
+    <div className="view-container">
+      {/* ACTION BAR */}
+      <ActivityActionBar>
+        {/* No actions needed for Settings view - client name is sufficient */}
+      </ActivityActionBar>
+      
       {/* Navigation Tabs - using Material-UI Tabs for consistency */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, mb: 3 }}>
         <Tabs
           value={sectionToIndex[activeSection]}
           onChange={handleTabChange}

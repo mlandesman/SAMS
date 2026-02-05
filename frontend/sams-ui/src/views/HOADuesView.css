@@ -59,6 +59,21 @@
   justify-content: center;
 }
 
+/* Year display in ActionBar navigation */
+.year-display {
+  padding: 8px 16px;
+  background-color: white;
+  font-weight: 600;
+  color: #333;
+  min-width: 100px;
+  text-align: center;
+}
+
+.year-text {
+  font-size: 20px;
+  letter-spacing: 0.5px;
+}
+
 .fiscal-year-indicator {
   position: absolute;
   top: 5px;
