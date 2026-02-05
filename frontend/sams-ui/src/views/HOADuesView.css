@@ -7,14 +7,7 @@
   background-color: white;
 }
 
-/* Override the default action bar style to use white background */
-.hoa-dues-view .action-bar {
-  background-color: white !important;
-  border-bottom: none !important;
-  margin-bottom: 0 !important;
-  padding-left: 20px !important;
-  padding-right: 20px !important;
-}
+/* Removed ActionBar overrides for consistency across all views */
 
 /* Action bar alignment */
 
