@@ -63,22 +63,20 @@
   border-radius: 4px;
   display: flex;
   flex-direction: column;
-  /* Fill available space in view-container */
+  /* Fill all available space */
   flex: 1;
   overflow: hidden;
-  /* Ensure content fills the full height available */
-  height: 100%;
+  min-height: 0;
 }
 
 .reports-tab-content {
-  padding: 24px 0;
-  /* Let tab content (like StatementOfAccountTab) fill the available height */
+  padding: 0;
+  /* Fill all available height */
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Ensure tab content fills full height */
-  height: 100%;
+  min-height: 0;
 }
 
 .reports-placeholder {
