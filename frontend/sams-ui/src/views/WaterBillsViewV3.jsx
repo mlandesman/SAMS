@@ -265,7 +265,6 @@ function WaterBillsViewV3() {
         )}
         
         <ActivityActionBar>
-        <YearNavigation />
         <button 
           className="action-item" 
           onClick={handleRefresh}
@@ -285,6 +284,8 @@ function WaterBillsViewV3() {
           <FontAwesomeIcon icon={faExchangeAlt} />
           <span>View Trnx</span>
         </button>
+        {/* Year Navigation (rightmost) */}
+        <YearNavigation />
       </ActivityActionBar>
       
       <div className="water-bills-content">
