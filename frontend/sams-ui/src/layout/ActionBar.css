@@ -3,10 +3,12 @@
   display: flex;
   align-items: center;
   padding: 10px 25px; /* Increased horizontal padding slightly */
+  margin: 0; /* Ensure no margin shifts between views */
   background-color: #ffffff; /* Changed to white */
   border-bottom: 1px solid #dee2e6; 
   height: 70px; /* Increased height from 60px to 70px */
   box-sizing: border-box;
+  flex-shrink: 0; /* Prevent ActionBar from shrinking */
 }
 
 .action-bar-title { /* Now applies to h2 */

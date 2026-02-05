@@ -223,8 +223,8 @@ function BudgetView() {
 
   if (!selectedClient) {
     return (
-      <div className="budget-view">
-        <Alert severity="info" sx={{ mt: 2 }}>
+      <div className="view-container">
+        <Alert severity="info" sx={{ mt: 2, mx: 2 }}>
           Please select a client to manage budgets
         </Alert>
       </div>
@@ -232,7 +232,7 @@ function BudgetView() {
   }
 
   return (
-    <div className="budget-view">
+    <div className="view-container">
       {/* ACTION BAR */}
       <ActivityActionBar>
         <button 

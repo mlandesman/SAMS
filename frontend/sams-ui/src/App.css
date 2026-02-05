@@ -52,8 +52,8 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   height: auto; /* Changed from 100% to auto */
-  margin-bottom: 0;
-  padding-bottom: 0;
+  margin: 0; /* Ensure no margin shifts */
+  padding: 0; /* Ensure no padding shifts */
   position: relative;
   max-height: calc(100vh - 50px); /* Constrain max height */
 }
