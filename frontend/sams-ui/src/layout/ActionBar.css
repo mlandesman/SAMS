@@ -13,11 +13,13 @@
   font-size: 1.4rem; /* Slightly adjusted font size for h2 if needed */
   font-weight: bold;
   color: #333; 
+  margin: 0; /* Reset margin for consistency */
   margin-right: auto; 
   padding-right: 20px; /* Increased padding for more space from buttons */
   white-space: nowrap; /* Prevent title from wrapping if too long */
   overflow: hidden; /* Hide overflow if title is too long */
   text-overflow: ellipsis; /* Add ellipsis if title is too long */
+  line-height: 1.2; /* Consistent line height */
 }
 
 .action-items {
