@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Box, Tabs, Tab } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCog, faChartLine, faDatabase, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../api/exchangeRates';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
@@ -134,89 +137,59 @@ function SettingsView() {
   // Check if user is SuperAdmin
   const isSuperAdmin = samsUser?.email === 'michael@landesman.com' || samsUser?.globalRole === 'superAdmin';
 
+  // Map activeSection to tab index
+  const sectionToIndex = {
+    'exchange-rates': 0,
+    'data-management': 1,
+    'year-end': 2,
+    'system': 3,
+    'backup': 4
+  };
+  
+  const indexToSection = ['exchange-rates', 'data-management', 'year-end', 'system', 'backup'];
+  
+  const handleTabChange = (event, newValue) => {
+    setActiveSection(indexToSection[newValue]);
+  };
+
   return (
     <div className="settings-view" style={{ padding: '20px', maxWidth: '1200px' }}>
-      <h1>Settings & Administration</h1>
-      
-      {/* Navigation Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '2px solid #ddd', 
-        marginBottom: '20px',
-        gap: '10px'
-      }}>
-        <button
-          onClick={() => setActiveSection('exchange-rates')}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderBottom: activeSection === 'exchange-rates' ? '3px solid #007bff' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeSection === 'exchange-rates' ? 'bold' : 'normal'
-          }}
+      {/* Navigation Tabs - using Material-UI Tabs for consistency */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs
+          value={sectionToIndex[activeSection]}
+          onChange={handleTabChange}
+          aria-label="settings tabs"
         >
-          📈 Exchange Rates
-        </button>
-        
-        <button
-          onClick={() => setActiveSection('data-management')}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderBottom: activeSection === 'data-management' ? '3px solid #007bff' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeSection === 'data-management' ? 'bold' : 'normal'
-          }}
-        >
-          📊 Data Management
-        </button>
-        
-        <button
-          onClick={() => setActiveSection('year-end')}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderBottom: activeSection === 'year-end' ? '3px solid #007bff' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeSection === 'year-end' ? 'bold' : 'normal'
-          }}
-        >
-          📅 Year-End Processing
-        </button>
-        
-        <button
-          onClick={() => setActiveSection('system')}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderBottom: activeSection === 'system' ? '3px solid #007bff' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeSection === 'system' ? 'bold' : 'normal'
-          }}
-        >
-          🔧 System Settings
-        </button>
-        
-        {isSuperAdmin && (
-          <button
-            onClick={() => setActiveSection('backup')}
-            style={{
-              padding: '10px 20px',
-              border: 'none',
-              borderBottom: activeSection === 'backup' ? '3px solid #007bff' : '3px solid transparent',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeSection === 'backup' ? 'bold' : 'normal'
-            }}
-          >
-            💾 Backup & Recovery
-          </button>
-        )}
-      </div>
+          <Tab
+            label="Exchange Rates"
+            icon={<FontAwesomeIcon icon={faChartLine} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Data Management"
+            icon={<FontAwesomeIcon icon={faDatabase} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Year-End Processing"
+            icon={<FontAwesomeIcon icon={faCalendarAlt} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="System Settings"
+            icon={<FontAwesomeIcon icon={faCog} />}
+            iconPosition="start"
+          />
+          {isSuperAdmin && (
+            <Tab
+              label="Backup & Recovery"
+              icon={<FontAwesomeIcon icon={faDatabase} />}
+              iconPosition="start"
+            />
+          )}
+        </Tabs>
+      </Box>
 
       {/* Exchange Rates Management Section */}
       {activeSection === 'exchange-rates' && (
