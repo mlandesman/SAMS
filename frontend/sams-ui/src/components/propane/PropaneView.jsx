@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Tabs, Tab } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import PropTypes from 'prop-types';
 import PropaneHistoryTable from './PropaneHistoryTable';
+import ActivityActionBar from '../common/ActivityActionBar';
 import { useParams } from 'react-router-dom';
+import '../../layout/ActionBar.css';
+import './PropaneView.css';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -39,15 +44,36 @@ const PropaneView = () => {
     setTabValue(newValue);
   };
 
+  const handleYearChange = (delta) => {
+    const newYear = selectedYear + delta;
+    setSelectedYear(newYear);
+  };
+
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Typography variant="h4" sx={{ mb: 1, fontWeight: 700 }}>
-          Propane Tank Levels
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-          MTC - Marina Turquesa Condominiums
-        </Typography>
+    <div className="view-container">
+      {/* ACTION BAR with Year Navigation */}
+      <ActivityActionBar>
+        {/* Year Navigation (rightmost) */}
+        <div className="year-navigation" style={{ marginLeft: 'auto' }}>
+          <button 
+            className="year-nav-button"
+            onClick={() => handleYearChange(-1)}
+          >
+            <FontAwesomeIcon icon={faChevronLeft} />
+          </button>
+          <div className="year-display">
+            <span className="year-text">{selectedYear}</span>
+          </div>
+          <button 
+            className="year-nav-button"
+            onClick={() => handleYearChange(1)}
+          >
+            <FontAwesomeIcon icon={faChevronRight} />
+          </button>
+        </div>
+      </ActivityActionBar>
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
         <Tabs value={tabValue} onChange={handleTabChange}>
           <Tab label="History" />
           {/* Future: <Tab label="Current Month" /> */}
@@ -59,9 +85,10 @@ const PropaneView = () => {
           clientId={clientId || 'MTC'} 
           year={selectedYear}
           onYearChange={setSelectedYear}
+          hideYearNavigation={true}
         />
       </TabPanel>
-    </Box>
+    </div>
   );
 };
 

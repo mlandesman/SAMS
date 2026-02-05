@@ -68,7 +68,7 @@ const getLocalizedText = (language) => {
   };
 };
 
-const PropaneHistoryTable = ({ clientId, year, onYearChange }) => {
+const PropaneHistoryTable = ({ clientId, year, onYearChange, hideYearNavigation = false }) => {
   const { samsUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [yearData, setYearData] = useState(null);
@@ -143,19 +143,21 @@ const PropaneHistoryTable = ({ clientId, year, onYearChange }) => {
   };
 
   return (
-    <Box>
-      {/* Year Navigation */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3, gap: 2 }}>
-        <IconButton onClick={() => handleYearChange(-1)}>
-          <ChevronLeftIcon />
-        </IconButton>
-        <Typography variant="h5" sx={{ fontWeight: 700, minWidth: '100px', textAlign: 'center' }}>
-          {selectedYear}
-        </Typography>
-        <IconButton onClick={() => handleYearChange(1)}>
-          <ChevronRightIcon />
-        </IconButton>
-      </Box>
+    <Box sx={{ p: 2 }}>
+      {/* Year Navigation - only show if not hidden (now in ActionBar) */}
+      {!hideYearNavigation && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3, gap: 2 }}>
+          <IconButton onClick={() => handleYearChange(-1)}>
+            <ChevronLeftIcon />
+          </IconButton>
+          <Typography variant="h5" sx={{ fontWeight: 700, minWidth: '100px', textAlign: 'center' }}>
+            {selectedYear}
+          </Typography>
+          <IconButton onClick={() => handleYearChange(1)}>
+            <ChevronRightIcon />
+          </IconButton>
+        </Box>
+      )}
 
       {/* History Table */}
       <TableContainer component={Paper} sx={{ maxHeight: '80vh', overflow: 'auto' }}>
