@@ -31,6 +31,7 @@ import { queryTransactions } from '../controllers/transactionsController.js';
 import { getHOABillingConfig } from '../controllers/hoaDuesController.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
+import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Generate UPC-specific projection from raw data.
@@ -56,7 +57,7 @@ export async function generateUPCData({
   const db = await getDb();
   const effectiveDate = asOfDate || getNow();
   
-  console.log(`📊 [generateUPCData] Starting for ${clientId}/${unitId} as of ${effectiveDate.toISOString()}`);
+  logInfo(`📊 [generateUPCData] Starting for ${clientId}/${unitId} as of ${effectiveDate.toISOString()}`);
   
   // 1. GATHER: Collect raw data (same sources as Statement)
   const rawData = await gatherRawData(db, clientId, unitId, effectiveDate);
@@ -102,7 +103,7 @@ export async function generateUPCData({
   // 6. Calculate total remaining
   const totalRemainingCentavos = bills.reduce((sum, b) => sum + (b.totalRemainingCentavos || 0), 0);
   
-  console.log(`✅ [generateUPCData] Complete: ${bills.length} bills, total remaining ${centavosToPesos(totalRemainingCentavos)} pesos`);
+  logInfo(`✅ [generateUPCData] Complete: ${bills.length} bills, total remaining ${centavosToPesos(totalRemainingCentavos)} pesos`);
   
   // 7. RETURN: UPC projection
   return {
@@ -127,7 +128,7 @@ export async function generateUPCData({
  * @returns {object} Raw data object
  */
 async function gatherRawData(db, clientId, unitId, asOfDate) {
-  console.log(`   📂 Gathering raw data...`);
+  logDebug(`   📂 Gathering raw data...`);
   
   // Get client config for fiscal year
   const hoaConfig = await getHOABillingConfig(clientId);
@@ -135,7 +136,7 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
   const duesFrequency = hoaConfig.duesFrequency || 'monthly';
   const fiscalYear = getFiscalYear(asOfDate, fiscalYearStartMonth);
   
-  console.log(`   📅 Fiscal year: ${fiscalYear}, Start month: ${fiscalYearStartMonth}, Frequency: ${duesFrequency}`);
+  logDebug(`   📅 Fiscal year: ${fiscalYear}, Start month: ${fiscalYearStartMonth}, Frequency: ${duesFrequency}`);
   
   // Issue #60/#161: Check if client has water service via activities menu
   // AVII has WaterBills activity enabled, MTC does not
@@ -148,7 +149,7 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
     getTransactionsForUnit(db, clientId, unitId, fiscalYear)
   ]);
   
-  console.log(`   ✅ Gathered: ${hoaDues.length} HOA dues, ${waterBills.length} water bills, ${transactions.length} transactions`);
+  logDebug(`   ✅ Gathered: ${hoaDues.length} HOA dues, ${waterBills.length} water bills, ${transactions.length} transactions`);
   
   return {
     hoaDues,
@@ -195,11 +196,11 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
   // Validate penalty configuration
   if (config.penaltyRate === undefined || config.penaltyRate === null ||
       config.penaltyDays === undefined || config.penaltyDays === null) {
-    console.log(`   ⚠️ [PENALTY_RECALC] Missing penalty config - skipping recalculation`);
+    logDebug(`   ⚠️ [PENALTY_RECALC] Missing penalty config - skipping recalculation`);
     return;
   }
   
-  console.log(`   🔄 [PENALTY_RECALC] Recalculating penalties as of ${asOfDate.toISOString()}`);
+  logDebug(`   🔄 [PENALTY_RECALC] Recalculating penalties as of ${asOfDate.toISOString()}`);
   
   let hoaPenaltiesUpdated = 0;
   let waterPenaltiesUpdated = 0;
@@ -269,7 +270,7 @@ async function recalculatePenaltiesForRawData(rawData, asOfDate) {
     }
   }
   
-  console.log(`   ✅ [PENALTY_RECALC] Updated ${hoaPenaltiesUpdated} HOA + ${waterPenaltiesUpdated} Water penalties, Total: $${centavosToPesos(totalPenaltyAmount)}`);
+  logDebug(`   ✅ [PENALTY_RECALC] Updated ${hoaPenaltiesUpdated} HOA + ${waterPenaltiesUpdated} Water penalties, Total: $${centavosToPesos(totalPenaltyAmount)}`);
 }
 
 /**
@@ -444,7 +445,7 @@ async function getTransactionsForUnit(db, clientId, unitId, fiscalYear) {
     
     return unitTxns;
   } catch (error) {
-    console.error(`   ❌ Error fetching transactions: ${error.message}`);
+    logError(`   ❌ Error fetching transactions: ${error.message}`);
     return [];
   }
 }
@@ -470,7 +471,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
   // Process HOA Bills
   for (const hoaBill of rawData.hoaDues) {
     if (excludedBills.includes(hoaBill.billId)) {
-      console.log(`   ⏭️ Excluding HOA bill: ${hoaBill.billId}`);
+      logDebug(`   ⏭️ Excluding HOA bill: ${hoaBill.billId}`);
       continue;
     }
     
@@ -483,7 +484,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     if (waiver) {
       const waiverCentavos = pesosToCentavos(waiver.amount);
       penaltyCentavos = Math.max(0, penaltyCentavos - waiverCentavos);
-      console.log(`   🚫 Waived penalty for ${hoaBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
+      logDebug(`   🚫 Waived penalty for ${hoaBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
     }
     
     // Calculate total due and remaining
@@ -579,7 +580,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
   // Process Water Bills
   for (const waterBill of rawData.waterBills) {
     if (excludedBills.includes(waterBill.billId)) {
-      console.log(`   ⏭️ Excluding water bill: ${waterBill.billId}`);
+      logDebug(`   ⏭️ Excluding water bill: ${waterBill.billId}`);
       continue;
     }
     
@@ -592,7 +593,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
     if (waiver) {
       const waiverCentavos = pesosToCentavos(waiver.amount);
       penaltyCentavos = Math.max(0, penaltyCentavos - waiverCentavos);
-      console.log(`   🚫 Waived penalty for ${waterBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
+      logDebug(`   🚫 Waived penalty for ${waterBill.billId}: ${centavosToPesos(waiverCentavos)} pesos`);
     }
     
     // Calculate total due and remaining
@@ -673,7 +674,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
   // Filter to only unpaid/partial bills (those with remaining amounts)
   const unpaidBills = bills.filter(b => b.totalRemainingCentavos > 0);
   
-  console.log(`   📋 Computed ${unpaidBills.length} unpaid/partial bills (from ${bills.length} total)`);
+  logDebug(`   📋 Computed ${unpaidBills.length} unpaid/partial bills (from ${bills.length} total)`);
   
   return unpaidBills;
 }
@@ -687,7 +688,7 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
  * @returns {Object} Discrepancy info with per-bill details
  */
 function computeBillDiscrepancies(bills, transactions) {
-  console.log(`   🔍 Computing per-bill discrepancies (bill docs vs transaction allocations)...`);
+  logDebug(`   🔍 Computing per-bill discrepancies (bill docs vs transaction allocations)...`);
   
   // Build map of allocated amounts per bill from transactions, with related txn IDs
   const allocatedMap = new Map(); // billId -> { totalCentavos, transactionIds }
@@ -740,7 +741,7 @@ function computeBillDiscrepancies(bills, transactions) {
         suspectedCause = 'no transaction allocations found for bill';
       }
       
-      console.warn(`   ⚠️ Mismatch: ${bill.billId} (${bill.billType}) ` +
+      logWarn(`   ⚠️ Mismatch: ${bill.billId} (${bill.billType}) ` +
         `delta=${centavosToPesos(deltaCentavos)} pesos ` +
         `[billDoc=${centavosToPesos(billDocRemainingCentavos)}, txns=${centavosToPesos(transactionDerivedRemainingCentavos)}]`);
       
@@ -757,11 +758,11 @@ function computeBillDiscrepancies(bills, transactions) {
   }
   
   if (mismatches.length === 0) {
-    console.log(`   ✅ No discrepancies detected - bill documents match transaction allocations`);
+    logDebug(`   ✅ No discrepancies detected - bill documents match transaction allocations`);
     return { detected: false };
   }
   
-  console.log(`   ⚠️ ${mismatches.length} bill(s) have discrepancies`);
+  logWarn(`   ⚠️ ${mismatches.length} bill(s) have discrepancies`);
   
   // Return first mismatch as primary (most actionable), include all in array
   const primary = mismatches[0];
