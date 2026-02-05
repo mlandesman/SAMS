@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tab, Tabs, Box, Typography, Alert, CircularProgress, Button } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -7,7 +8,8 @@ import {
   faFileAlt,
   faVoteYea,
   faComments,
-  faSpinner
+  faSpinner,
+  faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useStatusBar } from '../context/StatusBarContext';
@@ -41,6 +43,7 @@ function TabPanel({ children, value, index, ...other }) {
 
 // Main Budget View component
 function BudgetView() {
+  const navigate = useNavigate();
   const { selectedClient } = useClient();
   const [tabIndex, setTabIndex] = useState(0);
   const [zoom, setZoom] = useState(1.0);
@@ -240,6 +243,16 @@ function BudgetView() {
           </Alert>
         )}
         <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            color="primary"
+            startIcon={<FontAwesomeIcon icon={faChartLine} />}
+            onClick={() => navigate('/reports', { state: { activeTab: 'budget-actual' } })}
+            sx={{ mr: 1 }}
+          >
+            Budget vs Actual
+          </Button>
           <Button
             variant="contained"
             size="small"
