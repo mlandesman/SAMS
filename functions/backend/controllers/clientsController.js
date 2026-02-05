@@ -1,6 +1,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 const db = await getDb();
 const clientsCollection = db.collection('clients');
@@ -24,12 +25,12 @@ async function createClient(data) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for createClient.');
+      logError('❌ Failed to write audit log for createClient.');
     }
 
     return docRef.id;
   } catch (error) {
-    console.error('❌ Error creating client:', error);
+    logError('❌ Error creating client:', error);
     return null;
   }
 }
@@ -53,12 +54,12 @@ async function updateClient(clientId, newData) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for updateClient.');
+      logError('❌ Failed to write audit log for updateClient.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error updating client:', error);
+    logError('❌ Error updating client:', error);
     return false;
   }
 }
@@ -79,12 +80,12 @@ async function deleteClient(clientId) {
     });
 
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for deleteClient.');
+      logError('❌ Failed to write audit log for deleteClient.');
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error deleting client:', error);
+    logError('❌ Error deleting client:', error);
     return false;
   }
 }
@@ -104,7 +105,7 @@ async function listClients() {
 
     return clients;
   } catch (error) {
-    console.error('❌ Error listing clients:', error);
+    logError('❌ Error listing clients:', error);
     return [];
   }
 }
@@ -126,7 +127,7 @@ async function listAuthorizedClients(req, res) {
         });
       });
       
-      console.log(`✅ SuperAdmin ${user.email} fetched ${clients.length} clients`);
+      logDebug(`✅ SuperAdmin ${user.email} fetched ${clients.length} clients`);
       return res.json(clients);
     }
     
@@ -145,15 +146,15 @@ async function listAuthorizedClients(req, res) {
           });
         }
       } catch (error) {
-        console.error(`Error fetching client ${clientId}:`, error);
+        logError(`Error fetching client ${clientId}:`, error);
       }
     }
     
-    console.log(`✅ User ${user.email} fetched ${authorizedClients.length} authorized clients`);
+    logDebug(`✅ User ${user.email} fetched ${authorizedClients.length} authorized clients`);
     return res.json(authorizedClients);
     
   } catch (error) {
-    console.error('❌ Error listing authorized clients:', error);
+    logError('❌ Error listing authorized clients:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -164,12 +165,12 @@ async function getClient(req, res) {
     const clientId = req.params.id;
     const { user } = req;
     
-    console.log(`🔍 Attempting to retrieve client: ${clientId} for user: ${user?.email}`);
+    logDebug(`🔍 Attempting to retrieve client: ${clientId} for user: ${user?.email}`);
 
     // Validate client access (unless SuperAdmin)
     // Note: Middleware uses hasPropertyAccess/getPropertyAccess (not hasClientAccess)
     if (!user?.isSuperAdmin() && !user?.hasPropertyAccess?.(clientId)) {
-      console.warn(`🚫 Access denied: ${user?.email} attempted to access client ${clientId}`);
+      logWarn(`🚫 Access denied: ${user?.email} attempted to access client ${clientId}`);
       return res.status(404).json({ error: 'Not found' }); // Generic error - don't reveal if client exists
     }
 
@@ -177,7 +178,7 @@ async function getClient(req, res) {
     const doc = await clientRef.get();
 
     if (!doc.exists) {
-      console.log(`Client with ID: ${clientId} not found`);
+      logDebug(`Client with ID: ${clientId} not found`);
       return res.status(404).json({ error: 'Not found' });
     }
 
@@ -188,13 +189,13 @@ async function getClient(req, res) {
     };
     
     // DEBUG: Log what we're sending
-    console.log(`✅ Client data retrieved successfully for ${user?.email}: ${clientId}`);
-    console.log('🔍 Client configuration being sent:', client.configuration);
-    console.log('🔍 Fiscal year start month:', client.configuration?.fiscalYearStartMonth);
+    logDebug(`✅ Client data retrieved successfully for ${user?.email}: ${clientId}`);
+    logDebug('🔍 Client configuration being sent:', client.configuration);
+    logDebug('🔍 Fiscal year start month:', client.configuration?.fiscalYearStartMonth);
     
     res.status(200).json(client);
   } catch (error) {
-    console.error('❌ Error getting client:', error);
+    logError('❌ Error getting client:', error);
     return res.status(404).json({ error: 'Not found' }); // Generic error
   }
 }
@@ -245,7 +246,7 @@ async function createClientWithTemplate(clientData, creatorUserId) {
     });
     
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for createClientWithTemplate.');
+      logError('❌ Failed to write audit log for createClientWithTemplate.');
     }
     
     return {
@@ -254,7 +255,7 @@ async function createClientWithTemplate(clientData, creatorUserId) {
       data: newClient
     };
   } catch (error) {
-    console.error('❌ Error creating client from template:', error);
+    logError('❌ Error creating client from template:', error);
     return {
       success: false,
       error: error.message
@@ -294,7 +295,7 @@ async function updateClientWithTemplate(clientId, updates, updaterUserId) {
     });
     
     if (!auditSuccess) {
-      console.error('❌ Failed to write audit log for updateClientWithTemplate.');
+      logError('❌ Failed to write audit log for updateClientWithTemplate.');
     }
     
     return {
@@ -302,7 +303,7 @@ async function updateClientWithTemplate(clientId, updates, updaterUserId) {
       data: updatedClient
     };
   } catch (error) {
-    console.error('❌ Error updating client with template:', error);
+    logError('❌ Error updating client with template:', error);
     return {
       success: false,
       error: error.message

@@ -14,6 +14,7 @@ import { getStatementData } from './statementDataService.js';
 import { DateTime } from 'luxon';
 import { getNow } from '../../shared/services/DateService.js';
 import { joinOwnerNames } from '../utils/unitContactUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Format currency (pesos)
@@ -958,9 +959,9 @@ async function generateBothLanguageStatements(data, reportCommonCss, options = {
   let resultEn;
   try {
     resultEn = await buildStatementHtml(data, reportCommonCss, 'english', options, tEn, clientId, unitId);
-    console.log(`✅ English HTML generated: ${resultEn.html?.length || 0} chars`);
+    logDebug(`✅ English HTML generated: ${resultEn.html?.length || 0} chars`);
   } catch (error) {
-    console.error(`❌ Error generating English HTML:`, error);
+    logError(`❌ Error generating English HTML:`, error);
     throw error;
   }
   
@@ -969,12 +970,12 @@ async function generateBothLanguageStatements(data, reportCommonCss, options = {
   let resultEs;
   try {
     resultEs = await buildStatementHtml(data, reportCommonCss, 'spanish', options, tEs, clientId, unitId);
-    console.log(`✅ Spanish HTML generated: ${resultEs.html?.length || 0} chars`);
+    logDebug(`✅ Spanish HTML generated: ${resultEs.html?.length || 0} chars`);
     if (!resultEs.html || resultEs.html.length === 0) {
-      console.error(`❌ Spanish HTML is empty! resultEs keys:`, Object.keys(resultEs || {}));
+      logError(`❌ Spanish HTML is empty! resultEs keys:`, Object.keys(resultEs || {}));
     }
   } catch (error) {
-    console.error(`❌ Error generating Spanish HTML:`, error);
+    logError(`❌ Error generating Spanish HTML:`, error);
     throw error;
   }
   

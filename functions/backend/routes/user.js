@@ -8,6 +8,7 @@ import {
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
 import { DateService, getNow } from '../services/DateService.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -29,21 +30,21 @@ const router = express.Router();
  */
 router.get('/profile', authenticateUserWithProfile, async (req, res) => {
   try {
-    console.log('GET /api/user/profile - Request received');
+    logDebug('GET /api/user/profile - Request received');
     
     if (!req.user) {
-      console.log('No authenticated user found');
+      logDebug('No authenticated user found');
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { uid, email, name } = req.user;
-    console.log(`Fetching profile for user: ${email} (UID: ${uid})`);
+    logDebug(`Fetching profile for user: ${email} (UID: ${uid})`);
 
     const db = await getDb();
     let userDoc = await db.collection('users').doc(uid).get();
     
     if (!userDoc.exists) {
-      console.log('User document not found, creating new user...');
+      logDebug('User document not found, creating new user...');
       
       // Create new user document with UID as document ID
       const newUserData = {
@@ -60,7 +61,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
         accountState: "active"
       };
       
-      console.log('Creating new user document:', newUserData);
+      logDebug('Creating new user document:', newUserData);
       await db.collection('users').doc(uid).set(newUserData);
       
       // Re-fetch the created document
@@ -73,7 +74,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     });
     
     const userData = userDoc.data();
-    console.log('User data retrieved:', {
+    logDebug('User data retrieved:', {
       ...userData,
       propertyAccess: userData.propertyAccess ? Object.keys(userData.propertyAccess) : []
     });
@@ -96,7 +97,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     // Use sanitizeUserData properly by passing req.user as requesting user
     const sanitizedData = sanitizeUserData(completeUserData, req.user);
     
-    console.log('Returning user profile with client access:', {
+    logDebug('Returning user profile with client access:', {
       email: sanitizedData.email,
       globalRole: sanitizedData.globalRole,
       propertyAccessKeys: Object.keys(sanitizedData.propertyAccess || {})
@@ -105,7 +106,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     res.json({ user: sanitizedData });
     
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    logError('Error fetching user profile:', error);
     logSecurityEvent(req, 'PROFILE_FETCH_ERROR', false, { error: error.message });
     res.status(500).json({ error: 'Failed to fetch user profile' });
   }
@@ -134,11 +135,11 @@ router.get('/list',
         });
       });
       
-      console.log(`Returning ${users.length} users`);
+      logDebug(`Returning ${users.length} users`);
       res.json(users);
       
     } catch (error) {
-      console.error('Error listing users:', error);
+      logError('Error listing users:', error);
       res.status(500).json({ error: 'Failed to list users' });
     }
   }
@@ -150,7 +151,7 @@ router.get('/list',
  */
 router.get('/clients', authenticateUserWithProfile, async (req, res) => {
   try {
-    console.log('GET /api/user/clients - Request received');
+    logDebug('GET /api/user/clients - Request received');
     
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -161,14 +162,14 @@ router.get('/clients', authenticateUserWithProfile, async (req, res) => {
     const userDoc = await db.collection('users').doc(uid).get();
     
     if (!userDoc.exists) {
-      console.log('User profile not found');
+      logDebug('User profile not found');
       return res.status(404).json({ error: 'User profile not found' });
     }
 
     const userData = userDoc.data();
     const propertyAccess = userData.propertyAccess || {};
     
-    console.log(`User has access to clients: ${Object.keys(propertyAccess).join(', ')}`);
+    logDebug(`User has access to clients: ${Object.keys(propertyAccess).join(', ')}`);
 
     // Get client details with role information
     const clients = await Promise.all(
@@ -185,7 +186,7 @@ router.get('/clients', authenticateUserWithProfile, async (req, res) => {
             unitId: accessInfo.unitId
           };
         } catch (error) {
-          console.error(`Error fetching client ${clientId}:`, error);
+          logError(`Error fetching client ${clientId}:`, error);
           return {
             id: clientId,
             name: clientId, // Fallback to clientId
@@ -201,7 +202,7 @@ router.get('/clients', authenticateUserWithProfile, async (req, res) => {
     res.json({ clients });
 
   } catch (error) {
-    console.error('Error in GET /api/user/clients:', error);
+    logError('Error in GET /api/user/clients:', error);
     res.status(500).json({ 
       error: 'Failed to fetch user clients',
       details: error.message 
@@ -218,7 +219,7 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
     const { clientId } = req.body;
     const userId = req.user.uid;
     
-    console.log(`User ${userId} selecting client: ${clientId}`);
+    logDebug(`User ${userId} selecting client: ${clientId}`);
     
     // Verify user has access to this client
     if (!req.user.samsProfile?.propertyAccess || !req.user.samsProfile.propertyAccess[clientId]) {
@@ -251,7 +252,7 @@ router.post('/select-client', authenticateUserWithProfile, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error selecting client:', error);
+    logError('Error selecting client:', error);
     res.status(500).json({ 
       error: 'Failed to select client' 
     });
@@ -308,7 +309,7 @@ router.get('/by-email/:email', authenticateUserWithProfile, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('Error fetching user by email:', error);
+    logError('Error fetching user by email:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch user',
