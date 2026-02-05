@@ -27,6 +27,7 @@ import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
 import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
+import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -131,7 +132,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
           creditBalance = getCreditBalance(unitCreditData);
         }
       } catch (error) {
-        console.warn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
+        logWarn(`⚠️ Could not fetch credit balance, defaulting to 0:`, error);
         creditBalance = 0;
       }
 
@@ -161,13 +162,13 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         monthsToInclude = 12;
       }
       
-      console.log(`📅 [UNIT REPORT] Calculating dues: currentMonth=${currentMonth}, futureMonth=${futureMonth}, monthsToInclude=${monthsToInclude}`);
+      logInfo(`📅 [UNIT REPORT] Calculating dues: currentMonth=${currentMonth}, futureMonth=${futureMonth}, monthsToInclude=${monthsToInclude}`);
       
       // Calculate total scheduled through the appropriate month
       let totalScheduledThroughTarget = scheduledAmount * monthsToInclude;
       amountDue = Math.max(0, totalScheduledThroughTarget - ytdPaid);
       
-      console.log(`💰 [UNIT REPORT] Amount due calculation: scheduled=${totalScheduledThroughTarget}, paid=${ytdPaid}, due=${amountDue}`);
+      logInfo(`💰 [UNIT REPORT] Amount due calculation: scheduled=${totalScheduledThroughTarget}, paid=${ytdPaid}, due=${amountDue}`);
 
       // Determine "Paid Through" month if amount due is 0
       if (amountDue <= 0) {
@@ -189,9 +190,9 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
           paidThrough = `${monthNames[latestPaidMonth - 1]} ${currentYear}`;
         }
         
-        console.log(`✅ [UNIT REPORT] No amount due - Paid through: ${paidThrough}`);
+        logInfo(`✅ [UNIT REPORT] No amount due - Paid through: ${paidThrough}`);
       } else {
-        console.log(`🚨 [UNIT REPORT] Amount due detected: ${amountDue}`);
+        logInfo(`🚨 [UNIT REPORT] Amount due detected: ${amountDue}`);
       }
     }
 
@@ -214,7 +215,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         allDocs.push(doc);
       }
     });
-    console.log(`[UNIT REPORT] Query for unitId='${unitId}' found ${unitIdSnapshot.size} transactions`);
+    logInfo(`[UNIT REPORT] Query for unitId='${unitId}' found ${unitIdSnapshot.size} transactions`);
     
     // Query 2: unit field (legacy format for backwards compatibility)
     const unitSnapshot = await db.collection('clients').doc(clientId)
@@ -228,7 +229,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         allDocs.push(doc);
       }
     });
-    console.log(`[UNIT REPORT] Query for unit='${unitId}' found ${unitSnapshot.size} transactions`);
+    logInfo(`[UNIT REPORT] Query for unit='${unitId}' found ${unitSnapshot.size} transactions`);
     
     // Create combined snapshot-like object
     const transactionsSnapshot = {
@@ -236,7 +237,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       size: allDocs.length
     };
     
-    console.log(`[UNIT REPORT] Total unique transactions found: ${transactionsSnapshot.size}`);
+    logInfo(`[UNIT REPORT] Total unique transactions found: ${transactionsSnapshot.size}`);
 
     const allTransactions = transactionsSnapshot.docs.map(doc => {
       const data = doc.data();
@@ -244,7 +245,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       
       // Debug: Log the raw date and converted date for HOA transactions
       if (data.category === 'HOA Dues' && unitId === '1C') {
-        console.log(`[UNIT REPORT] HOA Transaction ${doc.id}:`, {
+        logInfo(`[UNIT REPORT] HOA Transaction ${doc.id}:`, {
           rawDate: data.date,
           convertedDate: formatDateField(txDate),
           year: txDate.getFullYear(),
@@ -337,7 +338,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    console.error('Error fetching unit report:', error);
+    logError('Error fetching unit report:', error);
     res.status(500).json({ 
       error: 'Failed to fetch unit report',
       details: error.message 
@@ -429,7 +430,7 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     
     res.json({ success: true, data: statement });
   } catch (error) {
-    console.error('Error fetching statement data:', error);
+    logError('Error fetching statement data:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -479,7 +480,7 @@ router.get('/statement/raw', authenticateUserWithProfile, async (req, res) => {
     
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('Error fetching raw statement data:', error);
+    logError('Error fetching raw statement data:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -534,7 +535,7 @@ router.get('/statement/html', authenticateUserWithProfile, async (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(htmlOutput);
   } catch (error) {
-    console.error('Error generating statement HTML:', error);
+    logError('Error generating statement HTML:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -600,7 +601,7 @@ router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error generating statement PDF:', error);
+    logError('Error generating statement PDF:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -684,7 +685,7 @@ function verifyDownloadToken(token, clientId, unitId, fiscalYear, language) {
     
     return signature === expectedSignature;
   } catch (error) {
-    console.error('Token verification error:', error);
+    logError('Token verification error:', error);
     return false;
   }
 }
@@ -740,7 +741,7 @@ router.get('/statement/pdf-download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error generating PDF download:', error);
+    logError('Error generating PDF download:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to generate PDF',
@@ -866,7 +867,7 @@ router.get('/statement/pdf-download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error exporting statement from HTML:', error);
+    logError('Error exporting statement from HTML:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -911,7 +912,7 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
     
     res.json({ success: true, data });
   } catch (error) {
-    console.error('Error fetching budget vs actual data:', error);
+    logError('Error fetching budget vs actual data:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -962,7 +963,7 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(htmlOutput);
   } catch (error) {
-    console.error('Error generating budget vs actual HTML:', error);
+    logError('Error generating budget vs actual HTML:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
@@ -1153,7 +1154,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error exporting budget vs actual report:', error);
+    logError('Error exporting budget vs actual report:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -1196,7 +1197,7 @@ router.get('/budget/years', authenticateUserWithProfile, async (req, res) => {
       years
     });
   } catch (error) {
-    console.error('Budget years error:', error);
+    logError('Budget years error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -1244,7 +1245,7 @@ router.get('/budget/:year', authenticateUserWithProfile, async (req, res) => {
       meta
     });
   } catch (error) {
-    console.error('Budget report error:', error);
+    logError('Budget report error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -1319,7 +1320,7 @@ router.post('/budget/:year/pdf', authenticateUserWithProfile, async (req, res) =
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Budget PDF error:', error);
+    logError('Budget PDF error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -1422,7 +1423,7 @@ router.post('/budget/:year/generate-for-poll', authenticateUserWithProfile, asyn
       }
     });
   } catch (error) {
-    console.error('Budget PDF for poll error:', error);
+    logError('Budget PDF for poll error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -1500,7 +1501,7 @@ router.post('/transactions/export', authenticateUserWithProfile, async (req, res
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error exporting transactions PDF:', error);
+    logError('Error exporting transactions PDF:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -1587,7 +1588,7 @@ router.get('/water/all', authenticateUserWithProfile, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error generating all units water report:', error);
+    logError('Error generating all units water report:', error);
     return res.status(500).json({ 
       error: 'Failed to generate reports',
       message: error.message 
@@ -1682,7 +1683,7 @@ router.get('/water/:unitId', authenticateUserWithProfile, async (req, res) => {
     }
     
   } catch (error) {
-    console.error('Error generating water consumption report:', error);
+    logError('Error generating water consumption report:', error);
     return res.status(500).json({ 
       error: 'Failed to generate report',
       message: error.message 
@@ -1769,7 +1770,7 @@ router.get('/water/:unitId/pdf', authenticateUserWithProfile, async (req, res) =
     return res.send(pdfBuffer);
     
   } catch (error) {
-    console.error('Error generating water consumption PDF:', error);
+    logError('Error generating water consumption PDF:', error);
     return res.status(500).json({ 
       error: 'Failed to generate PDF',
       message: error.message 
