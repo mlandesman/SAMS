@@ -762,6 +762,9 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
   const hasSinglePreGenerated = preGeneratedHtml && typeof preGeneratedHtml === 'string' && preGeneratedHtml.trim().length > 100 && preGeneratedMeta;
   const singleLanguage = hasSinglePreGenerated ? preGeneratedMeta.language : null;
   
+  // Track any generated statement to avoid duplicate data fetches (Issue #146)
+  let generatedStatement = null;
+
   // Generate and upload English PDF
   let pdfBufferEn;
   if (hasPreGeneratedEn) {
@@ -783,15 +786,14 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
       }
     });
   } else {
-    console.log(`🔄 Generating English HTML for PDF (no pre-generated HTML available)`);
-    const statementEn = await generateStatementData(api, clientId, unitId, {
-      fiscalYear,
-      language: 'english'
+    console.log(`🔄 Generating HTML for PDF (no pre-generated HTML available, fetching both languages)`);
+    generatedStatement = await generateStatementData(api, clientId, unitId, {
+      fiscalYear
     });
-    pdfBufferEn = await generatePdf(statementEn.html, {
+    pdfBufferEn = await generatePdf(generatedStatement.htmlEn, {
       footerMeta: {
-        statementId: statementEn.meta?.statementId,
-        generatedAt: statementEn.meta?.generatedAt,
+        statementId: generatedStatement.metaEn?.statementId,
+        generatedAt: generatedStatement.metaEn?.generatedAt,
         language: 'english'
       }
     });
@@ -834,19 +836,28 @@ export async function generateAndUploadPdfsOptimized(clientId, unitId, fiscalYea
         language: 'spanish'
       }
     });
-  } else {
-    console.log(`🔄 Generating Spanish HTML for PDF (no pre-generated HTML available)`);
-    const statementEs = await generateStatementData(api, clientId, unitId, {
-      fiscalYear,
-      language: 'spanish'
-    });
-    if (!statementEs.html || statementEs.html.trim().length < 100) {
-      throw new Error(`Spanish HTML generation failed: HTML is empty or too short (${statementEs.html?.length || 0} chars)`);
-    }
-    pdfBufferEs = await generatePdf(statementEs.html, {
+  } else if (generatedStatement) {
+    // Reuse already-generated Spanish HTML from prior dual-language call (Issue #146)
+    console.log(`⚡ Reusing pre-generated Spanish HTML from dual-language call`);
+    pdfBufferEs = await generatePdf(generatedStatement.htmlEs, {
       footerMeta: {
-        statementId: statementEs.meta?.statementId || 'unknown',
-        generatedAt: statementEs.meta?.generatedAt || new Date().toLocaleString(),
+        statementId: generatedStatement.metaEs?.statementId,
+        generatedAt: generatedStatement.metaEs?.generatedAt,
+        language: 'spanish'
+      }
+    });
+  } else {
+    console.log(`🔄 Generating HTML for PDF (no pre-generated HTML available, fetching both languages)`);
+    generatedStatement = await generateStatementData(api, clientId, unitId, {
+      fiscalYear
+    });
+    if (!generatedStatement.htmlEs || generatedStatement.htmlEs.trim().length < 100) {
+      throw new Error(`Spanish HTML generation failed: HTML is empty or too short (${generatedStatement.htmlEs?.length || 0} chars)`);
+    }
+    pdfBufferEs = await generatePdf(generatedStatement.htmlEs, {
+      footerMeta: {
+        statementId: generatedStatement.metaEs?.statementId || 'unknown',
+        generatedAt: generatedStatement.metaEs?.generatedAt || new Date().toLocaleString(),
         language: 'spanish'
       }
     });
@@ -904,12 +915,20 @@ export async function generateAndUploadPdfs(clientId, unitId, fiscalYear, authTo
   const bucketName = getStorageBucketName();
   const bucket = app.storage().bucket(bucketName);
   
-  // Generate and upload English PDF
-  const statementEn = await generateStatementData(api, clientId, unitId, {
+  // Generate statement data ONCE (produces both English and Spanish HTML - Issue #146)
+  const statement = await generateStatementData(api, clientId, unitId, {
     fiscalYear,
     language: 'english'
   });
-  const pdfBufferEn = await generatePdf(statementEn.html);
+
+  // Generate English PDF
+  const pdfBufferEn = await generatePdf(statement.htmlEn, {
+    footerMeta: {
+      statementId: statement.metaEn?.statementId,
+      generatedAt: statement.metaEn?.generatedAt,
+      language: 'english'
+    }
+  });
   
   const fileEn = bucket.file(storagePathEn);
   await fileEn.save(pdfBufferEn, {
@@ -925,12 +944,14 @@ export async function generateAndUploadPdfs(clientId, unitId, fiscalYear, authTo
     }
   });
   
-  // Generate and upload Spanish PDF
-  const statementEs = await generateStatementData(api, clientId, unitId, {
-    fiscalYear,
-    language: 'spanish'
+  // Generate Spanish PDF from same data (no additional fetch - Issue #146)
+  const pdfBufferEs = await generatePdf(statement.htmlEs, {
+    footerMeta: {
+      statementId: statement.metaEs?.statementId,
+      generatedAt: statement.metaEs?.generatedAt,
+      language: 'spanish'
+    }
   });
-  const pdfBufferEs = await generatePdf(statementEs.html);
   
   const fileEs = bucket.file(storagePathEs);
   await fileEs.save(pdfBufferEs, {
@@ -1176,8 +1197,14 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
         }
       });
       
-      // Generate and upload PDFs to storage for download links (backup)
-      pdfUrls = await generateAndUploadPdfs(clientId, unitId, fiscalYear, authToken);
+      // Generate and upload PDFs to storage for download links
+      // Use pre-generated dual-language HTML from statementResult (no additional fetch - Issue #146)
+      pdfUrls = await generateAndUploadPdfsOptimized(
+        clientId, unitId, fiscalYear, authToken,
+        null, null,
+        statementResult.htmlEn, statementResult.metaEn,
+        statementResult.htmlEs, statementResult.metaEs
+      );
     }
     
     // Extract emailContent data (either from provided emailContent or from statementResult)

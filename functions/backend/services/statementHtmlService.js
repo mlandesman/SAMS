@@ -834,113 +834,31 @@ export async function generateStatementData(api, clientId, unitId, options = {})
   const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
   const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
 
-  
-  // Determine language and output format
+  // Determine requested language for backwards-compatible `html` field
   const language = options.language || 'english';
-  const outputFormat = options.outputFormat || 'default';
-  const generateBothLanguages = options.generateBothLanguages === true;
-  
-  // If generating both languages, build both HTMLs from the same data (data fetched once)
-  if (generateBothLanguages) {
-    return await generateBothLanguageStatements(data, reportCommonCss, options, clientId, unitId);
-  }
-  
-  // Single language generation (uses same extracted HTML building function)
-  const t = getTranslations(language);
-  
-  // Filter out future items for display
-  const currentItems = data.lineItems.filter(item => item.isFuture !== true);
-  
-  // Get the actual closing balance from the last displayed transaction
-  const actualClosingBalance = currentItems.length > 0 
-    ? currentItems[currentItems.length - 1].balance 
-    : data.summary.openingBalance;
-  
-  // Get account credit balance (separately tracked credits)
-  const accountCreditBalance = data.creditInfo?.currentBalance || 0;
-  
-  // Calculate expiration date (30 days from statement date) using Luxon
-  const statementDate = DateTime.fromISO(data.statementInfo.statementDate, { zone: 'America/Cancun' });
-  const expirationDate = statementDate.plus({ days: 30 });
-  
-  // ============================================
-  // NEXT PAYMENT DATE - Using pre-calculated value from UPC (Issue #144b)
-  // ============================================
-  // Rule 1: If balance > 0 TODAY → "NOW"
-  // Rule 2: If balance <= 0 → use pre-calculated nextPaymentDueDate from UPC billsPaid
-  // Rule 3: If no date available → "N/A"
-  
-  const closingBalance = data.summary?.closingBalance || 0;
-  let nextPaymentDue = 'N/A';
-  
-  if (closingBalance > 0) {
-    // Rule 1: Balance due > 0 TODAY → payment needed NOW
-    nextPaymentDue = 'NOW';
-  } else if (data.nextPaymentDueDate) {
-    // Rule 2: Use pre-calculated date from UPC (first unpaid bill or next billing cycle)
-    nextPaymentDue = formatDate(data.nextPaymentDueDate);
-  }
-  // Rule 3: If no nextPaymentDueDate, stays 'N/A'
-  
-  // Generate statement ID (clientId-unitId-fiscalYear-statementDate)
-  const statementId = `${clientId}-${unitId}-${data.statementInfo.fiscalYear}-${data.statementInfo.statementDate.replace(/-/g, '')}`;
-  
-  // Get contact info from client governance
-  const contactEmail = data.clientInfo.governance?.managementCompany?.email || 'admin@sandyland.com.mx';
-  const contactPhone = data.clientInfo.governance?.managementCompany?.phone || '+52 984 206 4791';
-  
-  // Get current timestamp in Cancun timezone
-  const generatedNow = getNow();
-  const generatedTimestamp = DateTime.fromJSDate(generatedNow).setZone('America/Cancun');
-  
-  // Build HTML using extracted function (same as dual-language path)
-  const html = buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, currentItems, actualClosingBalance, accountCreditBalance, expirationDate, nextPaymentDue, statementId, contactEmail, contactPhone, generatedTimestamp, outputFormat);
-  
-  // HTML is now built using buildHtmlContent() function (extracted and reusable)
-  // The old ~1000 lines of inline HTML template have been removed - see buildHtmlContent() function below
-  
-  // Prepare email content metadata (all data needed for email generation)
-  // This allows email endpoint to skip recalculation when data is already available
-  const emailContent = {
-    // Financial data
-    balanceDue: actualClosingBalance,
-    creditBalance: accountCreditBalance,
-    netAmount: actualClosingBalance - accountCreditBalance,
-    // Unit info
-    unitNumber: unitId,
-    ownerNames: data.unitInfo.owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner',
-    fiscalYear: data.statementInfo.fiscalYear,
-    statementDate: data.statementInfo.statementDate,
-    // Bank payment info
-    bankName: data.clientInfo.bankAccountInfo?.bankName || '',
-    bankAccount: data.clientInfo.bankAccountInfo?.accountNumber || data.clientInfo.bankAccountInfo?.account || '',
-    bankClabe: data.clientInfo.bankAccountInfo?.clabe || '',
-    beneficiary: data.clientInfo.bankAccountInfo?.beneficiary || data.clientInfo.bankAccountInfo?.accountName || '',
-    reference: data.clientInfo.bankAccountInfo?.reference || '',
-    // Client branding
-    clientName: data.clientInfo.name,
-    logoUrl: data.clientInfo.logoUrl || '',
-    brandColor: data.clientInfo.branding?.primaryColor || data.clientInfo.branding?.brandColors?.primary || '#1a365d',
-    contactEmail: contactEmail
-  };
+
+  // Always generate both languages from the same data (Issue #146)
+  // This eliminates the single-language code path that previously caused
+  // callers (e.g., emailService) to fetch data twice
+  const result = await generateBothLanguageStatements(data, reportCommonCss, options, clientId, unitId);
+
+  // Determine which language to use for backwards-compatible `html` and `meta` fields
+  const isSpanish = language === 'spanish' || language === 'es';
 
   return {
-    html,
-    meta: {
-      statementId,
-      generatedAt: generatedTimestamp.toFormat('dd-MMM-yy HH:mm'),
-      language
-    },
-    summary: data.summary,
-    // Expose the cleaned-up line items used for the statement table.
-    // We return the same shape as statementData.lineItems but restricted
-    // to the rows actually displayed (non-future items). This will be
-    // useful for future exports and row-level drill-down without needing
-    // to re-run the aggregation pipeline.
-    lineItems: currentItems,
-    // Email content metadata - all data needed for email generation
-    // Allows email endpoint to skip recalculation when this data is available
-    emailContent: emailContent
+    // Backwards-compatible single-language fields
+    // Returns the requested language's HTML (defaulting to English)
+    html: isSpanish ? result.htmlEs : result.htmlEn,
+    meta: isSpanish ? result.metaEs : result.metaEn,
+    // Dual-language HTML (always available)
+    htmlEn: result.htmlEn,
+    htmlEs: result.htmlEs,
+    metaEn: result.metaEn,
+    metaEs: result.metaEs,
+    // Shared data (same for both languages)
+    summary: result.summary,
+    lineItems: result.lineItems,
+    emailContent: result.emailContent
   };
 }
 
