@@ -24,31 +24,37 @@ export function useBudgetStatus() {
       // Fetch budget vs actual data (uses current fiscal year by default)
       const budgetData = await reportService.getBudgetActualData(selectedClient.id);
 
+      // Backend response shape:
+      //   reportInfo: { fiscalYear, percentOfYearElapsed, ... }
+      //   income:     { categories: [...], totals: { totalAnnualBudget, totalYtdBudget, totalYtdActual, totalVariance } }
+      //   expenses:   { categories: [...], totals: { totalAnnualBudget, totalYtdBudget, totalYtdActual, totalVariance } }
+      const incomeTotals = budgetData.income?.totals || {};
+      const expenseTotals = budgetData.expenses?.totals || {};
+
       // Calculate summary metrics
-      const totalBudget = (budgetData.income?.totalBudget || 0) + 
-                          (budgetData.expenses?.totalBudget || 0);
-      const totalActual = (budgetData.income?.totalActual || 0) + 
-                          (budgetData.expenses?.totalActual || 0);
-      const totalVariance = (budgetData.income?.totalVariance || 0) + 
-                            (budgetData.expenses?.totalVariance || 0);
+      const totalBudget = (incomeTotals.totalAnnualBudget || 0) + 
+                          (expenseTotals.totalAnnualBudget || 0);
+      const totalActual = (incomeTotals.totalYtdActual || 0) + 
+                          (expenseTotals.totalYtdActual || 0);
+      const totalVariance = (incomeTotals.totalVariance || 0) + 
+                            (expenseTotals.totalVariance || 0);
 
       // Calculate YTD budget based on % of year elapsed
-      const percentElapsed = budgetData.percentOfYearElapsed || 0;
+      const percentElapsed = budgetData.reportInfo?.percentOfYearElapsed || 0;
       const ytdBudget = totalBudget * (percentElapsed / 100);
 
       // Determine status (favorable = actual < budget for expenses, actual > budget for income)
       // For combined, we look at net position
-      const netBudgetYTD = (budgetData.income?.totalBudgetYTD || 0) - 
-                           (budgetData.expenses?.totalBudgetYTD || 0);
-      const netActual = (budgetData.income?.totalActual || 0) - 
-                        Math.abs(budgetData.expenses?.totalActual || 0);
+      const netBudgetYTD = (incomeTotals.totalYtdBudget || 0) - 
+                           (expenseTotals.totalYtdBudget || 0);
+      const netActual = (incomeTotals.totalYtdActual || 0) - 
+                        Math.abs(expenseTotals.totalYtdActual || 0);
       const netVariance = netActual - netBudgetYTD;
 
       // Find top variance items (positive and negative)
       const allItems = [
-        ...(budgetData.income?.items || []),
-        ...(budgetData.expenses?.items || []),
-        ...(budgetData.specialAssessments?.items || []),
+        ...(budgetData.income?.categories || []),
+        ...(budgetData.expenses?.categories || []),
       ];
 
       // Sort by absolute variance to find biggest misses
@@ -64,18 +70,18 @@ export function useBudgetStatus() {
         }));
 
       setData({
-        fiscalYear: budgetData.fiscalYear,
+        fiscalYear: budgetData.reportInfo?.fiscalYear,
         percentElapsed: Math.round(percentElapsed),
         
         // Income summary
-        incomeBudget: budgetData.income?.totalBudget || 0,
-        incomeActual: budgetData.income?.totalActual || 0,
-        incomeVariance: budgetData.income?.totalVariance || 0,
+        incomeBudget: incomeTotals.totalAnnualBudget || 0,
+        incomeActual: incomeTotals.totalYtdActual || 0,
+        incomeVariance: incomeTotals.totalVariance || 0,
         
         // Expense summary  
-        expenseBudget: budgetData.expenses?.totalBudget || 0,
-        expenseActual: Math.abs(budgetData.expenses?.totalActual || 0),
-        expenseVariance: budgetData.expenses?.totalVariance || 0,
+        expenseBudget: expenseTotals.totalAnnualBudget || 0,
+        expenseActual: Math.abs(expenseTotals.totalYtdActual || 0),
+        expenseVariance: expenseTotals.totalVariance || 0,
         
         // Net position
         netBudgetYTD,
