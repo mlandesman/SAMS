@@ -307,7 +307,7 @@ export async function executeYearEnd(req, res) {
             .map(acc => ({
               id: acc.id,
               name: acc.name,
-              balance: pesosToCentavos(acc.balance || 0)
+              balance: acc.balance || 0  // Already in centavos, no conversion needed
             }));
           
           // Create snapshot

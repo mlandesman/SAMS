@@ -4,7 +4,7 @@
  */
 import admin from 'firebase-admin';
 import { getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
-import { pesosToCentavos } from '../../shared/utils/currencyUtils.js';
+
 
 const clientId = 'MTC';
 const closingYear = 2025;
@@ -44,7 +44,7 @@ async function main() {
     .map(acc => ({
       id: acc.id,
       name: acc.name,
-      balance: pesosToCentavos(acc.balance || 0)
+      balance: acc.balance || 0  // Already in centavos, no conversion needed
     }));
 
   const payload = {
