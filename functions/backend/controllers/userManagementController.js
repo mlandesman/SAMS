@@ -653,8 +653,22 @@ export async function getUsers(req, res) {
     }
 
     // Enhance users with Firebase Auth metadata (including lastSignInTime)
-    // Note: Users without Firebase Auth records are still returned (orphaned Firestore docs)
+    // Note: Contact-only users (canLogin=false) don't have Firebase Auth records - this is expected
     const enhancedUsers = await Promise.all(users.map(async (user) => {
+      // Only fetch Firebase Auth data for users who can login
+      if (user.canLogin === false) {
+        // Contact-only user - no Auth record expected, skip fetch
+        return {
+          ...user,
+          firebaseMetadata: {
+            lastSignInTime: null,
+            creationTime: null,
+            lastRefreshTime: null
+          }
+        };
+      }
+      
+      // User should have Auth record - fetch it
       try {
         const authUser = await admin.auth().getUser(user.id);
         return {
@@ -666,9 +680,8 @@ export async function getUsers(req, res) {
           }
         };
       } catch (authError) {
-        // If Firebase Auth user doesn't exist, return user without metadata
-        // This is OK - user exists in Firestore but Auth record was deleted (orphaned user)
-        logDebug(`Firebase Auth user not found for user ID ${user.id} (${user.email || 'no email'}):`, authError.message);
+        // User has canLogin=true but no Auth record - this IS a problem
+        logWarn(`User ${user.email} has canLogin=true but missing Firebase Auth record:`, authError.message);
         return {
           ...user,
           firebaseMetadata: {
