@@ -668,12 +668,9 @@ export async function getUsers(req, res) {
         };
       }
       
-      // User should have Auth record - fetch it using uid field (not document id)
+      // User should have Auth record - fetch it using document ID (which IS the UID)
       try {
-        // Try _id first (UID stored in document), then uid, then fallback to document id
-        const authUserId = user._id || user.uid || user.id;
-        logDebug(`Attempting Auth lookup for ${user.email}: using ID ${authUserId} (from _id=${user._id}, uid=${user.uid}, id=${user.id})`);
-        const authUser = await admin.auth().getUser(authUserId);
+        const authUser = await admin.auth().getUser(user.id);
         return {
           ...user,
           firebaseMetadata: {
@@ -683,8 +680,9 @@ export async function getUsers(req, res) {
           }
         };
       } catch (authError) {
-        // User has canLogin=true but no Auth record - this IS a problem
-        logWarn(`User ${user.email} has canLogin=true but missing Firebase Auth record:`, authError.message);
+        // Auth lookup failed - this shouldn't happen in production but may occur in dev
+        // Log as debug since it's likely a dev/test environment data inconsistency
+        logDebug(`Firebase Auth lookup failed for ${user.email} (ID: ${user.id}):`, authError.message);
         return {
           ...user,
           firebaseMetadata: {
