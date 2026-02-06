@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.11.2 | **Build:** 260205  
-**Last Updated:** February 5, 2026 — Sprint Cleanup-1 Complete (UI Polish & Logging)  
+**Version:** v1.11.2 | **Build:** 260206  
+**Last Updated:** February 6, 2026 — Sprint F Complete (Infrastructure & Tech Debt)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -32,6 +32,28 @@ See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md)
 ---
 
 ## Recently Completed
+
+### Sprint F: Infrastructure & Tech Debt ✅ COMPLETE
+**Completed:** February 6, 2026  
+**PRs:** #172, #173, #174, #175, #177  
+**Quality:** ⭐⭐⭐⭐
+
+| # | Title | Status |
+|---|-------|--------|
+| **124** | Year-End Centavos 100x bug | ✅ CLOSED |
+| **52** | Budget Dashboard Card no data | ✅ CLOSED |
+| **146** | Eliminate single-language statement path | ✅ CLOSED |
+| **63** | Upgrade firebase-admin v11→v13 | ✅ CLOSED |
+| **155** | Local mobile testing via network | ✅ CLOSED |
+
+**Additional outcomes:**
+- #122 Gmail OAuth researched and deferred (no deprecation date)
+- #171 System Error Monitor issue created
+- #176 Budget Card redesign issue created
+- Restore script enhanced with purge + storage sync
+- Prod/Dev logo cross-bucket reference bug discovered and fixed
+
+---
 
 ### Sprint Cleanup-1: UI Polish & Code Hygiene ✅ COMPLETE
 **Completed:** February 5, 2026  
