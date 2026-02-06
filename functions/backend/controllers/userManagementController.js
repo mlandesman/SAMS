@@ -672,6 +672,7 @@ export async function getUsers(req, res) {
       try {
         // Try _id first (UID stored in document), then uid, then fallback to document id
         const authUserId = user._id || user.uid || user.id;
+        logDebug(`Attempting Auth lookup for ${user.email}: using ID ${authUserId} (from _id=${user._id}, uid=${user.uid}, id=${user.id})`);
         const authUser = await admin.auth().getUser(authUserId);
         return {
           ...user,
