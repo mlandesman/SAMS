@@ -105,7 +105,6 @@ export default defineConfig({
       host: 'localhost',
       port: 5174,
       clientPort: 5174,
-      // Temporarily disable HMR to debug refresh issues
       overlay: false,
     },
   },

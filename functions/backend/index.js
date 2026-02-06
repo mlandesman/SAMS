@@ -67,9 +67,10 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // In development, allow any localhost origin
-    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
-      logDebug('🌐 CORS: Allowing localhost origin in development:', origin);
+    // In development, allow localhost and local network origins (for phone testing)
+    const isLocalDev = origin.includes('localhost') || origin.match(/^https?:\/\/192\.168\.\d+\.\d+/);
+    if (isLocalDev) {
+      logDebug('🌐 CORS: Allowing local dev origin:', origin);
       return callback(null, true);
     }
     
