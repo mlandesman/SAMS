@@ -87,8 +87,8 @@ start_pwa() {
     rm -rf node_modules/.vite
   fi
   
-  echo "🚀 Starting PWA mobile app on port 5174"
-  npm run dev &
+  echo "🚀 Starting PWA mobile app on port 5174 (network accessible)"
+  npm run dev:mobile &
   PWA_PID=$!
   echo "✅ PWA mobile app started with PID: $PWA_PID"
   echo "📝 PWA mobile app logs will appear in this terminal"
@@ -144,6 +144,7 @@ echo "🌐 Services Status:"
 echo "   Backend: http://localhost:5001"
 echo "   Frontend: http://localhost:5173"
 echo "   PWA Mobile App: http://localhost:5174"
+echo "   PWA Mobile (phone): http://$(ipconfig getifaddr en0 2>/dev/null || echo 'YOUR_IP'):5174"
 echo "======================================================"
 echo ""
 echo "💡 Press Ctrl+C to stop all services"
