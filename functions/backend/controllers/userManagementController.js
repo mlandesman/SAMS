@@ -13,6 +13,7 @@ import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.j
 import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
 
 /**
  * Generate secure random password
@@ -217,7 +218,7 @@ function getAllUnitAssignmentsFromAccess(propertyAccess) {
  * @param {string} oldUserName - Previous user name (for name changes)
  */
 async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName = null) {
-  console.log(`🔄 [SYNC] Syncing unit assignments for user ${userId}`);
+  logDebug(`🔄 [SYNC] Syncing unit assignments for user ${userId}`);
   
   const db = await getDb();
   const batch = db.batch();
@@ -271,7 +272,7 @@ async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, use
   // Commit all changes atomically
   if (operationCount > 0) {
     await batch.commit();
-    console.log(`✅ [SYNC] Unit synchronization completed for user ${userId}`);
+    logDebug(`✅ [SYNC] Unit synchronization completed for user ${userId}`);
   }
 }
 
@@ -285,7 +286,7 @@ async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, use
  * @param {Object} propertyAccess - User's client access data
  */
 async function updateUserNameInUnits(userId, oldName, newName, userEmail, propertyAccess) {
-  console.log(`🔄 [NAME_UPDATE] Updating name from ${oldName} to ${newName} for user ${userId}`);
+  logDebug(`🔄 [NAME_UPDATE] Updating name from ${oldName} to ${newName} for user ${userId}`);
   
   const db = await getDb();
   const batch = db.batch();
@@ -294,11 +295,11 @@ async function updateUserNameInUnits(userId, oldName, newName, userEmail, proper
   // Get all unit assignments for this user
   const unitAssignments = getUnitAssignmentsFromAccess(propertyAccess);
   
-  console.log(`📋 [NAME_UPDATE] Unit assignments to update:`, unitAssignments);
+  logDebug(`📋 [NAME_UPDATE] Unit assignments to update:`, unitAssignments);
   
   // Update name in all assigned units
   for (const assignment of unitAssignments) {
-    console.log(`🔄 [NAME_UPDATE] Updating ${assignment.role} name in ${assignment.clientId}/${assignment.unitId}`);
+    logDebug(`🔄 [NAME_UPDATE] Updating ${assignment.role} name in ${assignment.clientId}/${assignment.unitId}`);
     await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldName, userEmail, assignment.role);
     await addPersonToUnit(batch, assignment.clientId, assignment.unitId, newName, userEmail, assignment.role);
     operationCount += 2;
@@ -306,11 +307,11 @@ async function updateUserNameInUnits(userId, oldName, newName, userEmail, proper
   
   // Commit all changes atomically
   if (operationCount > 0) {
-    console.log(`💾 [NAME_UPDATE] Committing ${operationCount} name update operations...`);
+    logDebug(`💾 [NAME_UPDATE] Committing ${operationCount} name update operations...`);
     await batch.commit();
-    console.log(`✅ [NAME_UPDATE] Name updated successfully in all units for user ${userId}`);
+    logDebug(`✅ [NAME_UPDATE] Name updated successfully in all units for user ${userId}`);
   } else {
-    console.log(`ℹ️ [NAME_UPDATE] No name updates needed for user ${userId}`);
+    logDebug(`ℹ️ [NAME_UPDATE] No name updates needed for user ${userId}`);
   }
 }
 
@@ -504,7 +505,7 @@ export async function createUser(req, res) {
 
       // Sync unit assignments for newly created user (both unitOwner and unitManager)
       if ((role === 'unitOwner' || role === 'unitManager') && clientId && unitId) {
-        console.log(`🔄 [CREATE] Syncing ${role} assignment for new user: ${name} → ${clientId}/${unitId}`);
+        logDebug(`🔄 [CREATE] Syncing ${role} assignment for new user: ${name} → ${clientId}/${unitId}`);
         // For new users, oldClientAccess is empty
         // Use contactName/contactEmail if provided, otherwise use user name/email
         const unitContactName = contactName || name;
@@ -573,7 +574,7 @@ export async function createUser(req, res) {
       res.status(201).json(response);
 
     } catch (firebaseError) {
-      console.error('Firebase user creation failed:', firebaseError);
+      logError('Firebase user creation failed:', firebaseError);
       
       if (firebaseError.code === 'auth/email-already-exists') {
         return res.status(400).json({ 
@@ -585,7 +586,7 @@ export async function createUser(req, res) {
     }
 
   } catch (error) {
-    console.error('Error creating user:', error);
+    logError('Error creating user:', error);
     res.status(500).json({ 
       error: 'Failed to create user',
       details: error.message 
@@ -603,7 +604,7 @@ export async function getUsers(req, res) {
     const { clientId } = req.query; // Support optional clientId filter
     // admin is already imported at the top of the file
 
-    console.log(`🔍 getUsers called - clientId: ${clientId}, user: ${requestingUser.email}, isSuperAdmin: ${requestingUser.isSuperAdmin()}`);
+    logDebug(`🔍 getUsers called - clientId: ${clientId}, user: ${requestingUser.email}, isSuperAdmin: ${requestingUser.isSuperAdmin()}`);
 
     let usersQuery = db.collection('users');
     let users = [];
@@ -612,18 +613,18 @@ export async function getUsers(req, res) {
       // SuperAdmin can see all users
       const snapshot = await usersQuery.get();
       const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log(`📊 Total users in Firestore: ${allUsers.length}`);
+      logDebug(`📊 Total users in Firestore: ${allUsers.length}`);
       
       if (clientId) {
         // Filter by clientId if provided
         users = allUsers.filter(user => {
           const hasAccess = user.propertyAccess?.[clientId] != null;
           if (!hasAccess && user.email) {
-            console.log(`  ⚠️  User ${user.email} (${user.id}) does not have propertyAccess for ${clientId}`);
+            logDebug(`  ⚠️  User ${user.email} (${user.id}) does not have propertyAccess for ${clientId}`);
           }
           return hasAccess;
         });
-        console.log(`✅ Users with propertyAccess to ${clientId}: ${users.length}`);
+        logDebug(`✅ Users with propertyAccess to ${clientId}: ${users.length}`);
       } else {
         users = allUsers;
       }
@@ -652,8 +653,22 @@ export async function getUsers(req, res) {
     }
 
     // Enhance users with Firebase Auth metadata (including lastSignInTime)
-    // Note: Users without Firebase Auth records are still returned (orphaned Firestore docs)
+    // Note: Contact-only users (canLogin=false) don't have Firebase Auth records - this is expected
     const enhancedUsers = await Promise.all(users.map(async (user) => {
+      // Only fetch Firebase Auth data for users who can login
+      if (user.canLogin === false) {
+        // Contact-only user - no Auth record expected, skip fetch
+        return {
+          ...user,
+          firebaseMetadata: {
+            lastSignInTime: null,
+            creationTime: null,
+            lastRefreshTime: null
+          }
+        };
+      }
+      
+      // User should have Auth record - fetch it using document ID (which IS the UID)
       try {
         const authUser = await admin.auth().getUser(user.id);
         return {
@@ -665,9 +680,9 @@ export async function getUsers(req, res) {
           }
         };
       } catch (authError) {
-        // If Firebase Auth user doesn't exist, return user without metadata
-        // This is OK - user exists in Firestore but Auth record was deleted
-        console.warn(`Firebase Auth user not found for user ID ${user.id} (${user.email || 'no email'}):`, authError.message);
+        // Auth lookup failed - this shouldn't happen in production but may occur in dev
+        // Log as debug since it's likely a dev/test environment data inconsistency
+        logDebug(`Firebase Auth lookup failed for ${user.email} (ID: ${user.id}):`, authError.message);
         return {
           ...user,
           firebaseMetadata: {
@@ -682,10 +697,10 @@ export async function getUsers(req, res) {
     // Sanitize user data based on requesting user's permissions
     const sanitizedUsers = enhancedUsers.map(user => sanitizeUserData(user, requestingUser));
 
-    console.log(`✅ Returning ${sanitizedUsers.length} users (clientId filter: ${clientId || 'none'})`);
+    logDebug(`✅ Returning ${sanitizedUsers.length} users (clientId filter: ${clientId || 'none'})`);
     if (clientId && sanitizedUsers.length === 0) {
-      console.warn(`⚠️  No users found with propertyAccess for clientId: ${clientId}`);
-      console.warn(`   This might mean users exist but don't have propertyAccess[${clientId}] set up`);
+      logWarn(`⚠️  No users found with propertyAccess for clientId: ${clientId}`);
+      logWarn(`   This might mean users exist but don't have propertyAccess[${clientId}] set up`);
     }
 
     res.json({
@@ -695,7 +710,7 @@ export async function getUsers(req, res) {
     });
 
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logError('Error fetching users:', error);
     res.status(500).json({ 
       error: 'Failed to fetch users',
       details: error.message 
@@ -791,7 +806,7 @@ export async function updateUser(req, res) {
           });
           return;
         } catch (passwordError) {
-          console.error('Failed to reset password:', passwordError);
+          logError('Failed to reset password:', passwordError);
           res.json({
             success: true,
             message: 'Profile updated but password reset failed',
@@ -842,8 +857,8 @@ export async function updateUser(req, res) {
     
     // Handle client access updates and sync manager assignments
     if (propertyAccess) {
-      console.log(`🔄 [UPDATE] Processing propertyAccess update for user ${userId}`);
-      console.log(`👤 [UPDATE] Updating user: ${updatingUser.email}, isSuperAdmin: ${updatingUser.isSuperAdmin()}`);
+      logDebug(`🔄 [UPDATE] Processing propertyAccess update for user ${userId}`);
+      logDebug(`👤 [UPDATE] Updating user: ${updatingUser.email}, isSuperAdmin: ${updatingUser.isSuperAdmin()}`);
       
       // Only SuperAdmin can update propertyAccess, but we also sync manager assignments
       if (updatingUser.isSuperAdmin()) {
@@ -853,16 +868,16 @@ export async function updateUser(req, res) {
         const userName = updateData.name || currentUserData.name;
         const oldUserName = nameChanged ? currentUserData.name : null;
         
-        console.log(`🔄 [UPDATE] Calling syncUnitAssignments...`);
+        logDebug(`🔄 [UPDATE] Calling syncUnitAssignments...`);
         
         // Sync manager assignments between user roles and unit records
         const userEmail = currentUserData.email || 'unknown@example.com';
         await syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName);
         
         updateData.propertyAccess = propertyAccess;
-        console.log(`✅ [UPDATE] ClientAccess updated and synchronized`);
+        logDebug(`✅ [UPDATE] ClientAccess updated and synchronized`);
       } else {
-        console.log(`❌ [UPDATE] Non-SuperAdmin attempted to update propertyAccess`);
+        logDebug(`❌ [UPDATE] Non-SuperAdmin attempted to update propertyAccess`);
         return res.status(403).json({ 
           error: 'Only SuperAdmin can update client access' 
         });
@@ -986,7 +1001,7 @@ export async function updateUser(req, res) {
         await db.collection('users').doc(userId).update(profileUpdate);
         
         // Send email notification for password reset
-        console.log('🔄 Attempting to send password reset notification to:', currentUserData.email);
+        logDebug('🔄 Attempting to send password reset notification to:', currentUserData.email);
         try {
           const emailResult = await sendPasswordNotification({
             email: currentUserData.email,
@@ -996,12 +1011,12 @@ export async function updateUser(req, res) {
             role: currentUserData.globalRole || 'user',
             createdBy: updatingUser.email
           });
-          console.log('✅ Password reset notification result:', emailResult);
-          console.log('✅ Password reset notification sent to:', currentUserData.email);
+          logDebug('✅ Password reset notification result:', emailResult);
+          logDebug('✅ Password reset notification sent to:', currentUserData.email);
         } catch (emailError) {
-          console.error('❌ Failed to send password reset notification:', emailError);
-          console.error('❌ Email error details:', emailError.message);
-          console.error('❌ Email error stack:', emailError.stack);
+          logError('❌ Failed to send password reset notification:', emailError);
+          logError('❌ Email error details:', emailError.message);
+          logError('❌ Email error stack:', emailError.stack);
           // Don't fail the password reset if email fails
         }
 
@@ -1023,7 +1038,7 @@ export async function updateUser(req, res) {
         });
         return;
       } catch (passwordError) {
-        console.error('Failed to reset password:', passwordError);
+        logError('Failed to reset password:', passwordError);
         // Continue with regular update response even if password failed
         updateData.passwordResetFailed = true;
       }
@@ -1045,9 +1060,9 @@ export async function updateUser(req, res) {
     });
 
   } catch (error) {
-    console.error('Error updating user:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error details:', {
+    logError('Error updating user:', error);
+    logError('Error stack:', error.stack);
+    logError('Error details:', {
       userId: req.params.userId,
       updateDataKeys: Object.keys(req.body || {}),
       errorName: error.name,
@@ -1132,7 +1147,7 @@ export async function addClientAccess(req, res) {
     });
 
   } catch (error) {
-    console.error('Error adding client access:', error);
+    logError('Error adding client access:', error);
     res.status(500).json({ 
       error: 'Failed to add client access',
       details: error.message 
@@ -1196,7 +1211,7 @@ export async function removeClientAccess(req, res) {
     });
 
   } catch (error) {
-    console.error('Error removing client access:', error);
+    logError('Error removing client access:', error);
     res.status(500).json({ 
       error: 'Failed to remove client access',
       details: error.message 
@@ -1297,7 +1312,7 @@ export async function updateUserPropertyAccess(req, res) {
     });
 
   } catch (error) {
-    console.error('Error updating property access:', error);
+    logError('Error updating property access:', error);
     res.status(500).json({ 
       error: 'Failed to update property access',
       details: error.message 
@@ -1411,7 +1426,7 @@ export async function addUnitRoleAssignment(req, res) {
     });
 
   } catch (error) {
-    console.error('Error adding unit role assignment:', error);
+    logError('Error adding unit role assignment:', error);
     res.status(500).json({ 
       error: 'Failed to add unit role assignment',
       details: error.message 
@@ -1516,7 +1531,7 @@ export async function removeUnitRoleAssignment(req, res) {
     });
 
   } catch (error) {
-    console.error('Error removing unit role assignment:', error);
+    logError('Error removing unit role assignment:', error);
     res.status(500).json({ 
       error: 'Failed to remove unit role assignment',
       details: error.message 
@@ -1587,7 +1602,7 @@ export async function deleteUser(req, res) {
     });
 
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logError('Error deleting user:', error);
     res.status(500).json({ 
       error: 'Failed to delete user',
       details: error.message 
