@@ -87,8 +87,11 @@ start_pwa() {
     rm -rf node_modules/.vite
   fi
   
+  # Detect Mac's network IP for phone testing
+  LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || echo "localhost")
+  
   echo "🚀 Starting PWA mobile app on port 5174 (network accessible)"
-  npm run dev:mobile &
+  VITE_API_BASE_URL="http://${LOCAL_IP}:5001" npm run dev:mobile &
   PWA_PID=$!
   echo "✅ PWA mobile app started with PID: $PWA_PID"
   echo "📝 PWA mobile app logs will appear in this terminal"
