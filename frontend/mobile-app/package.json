@@ -16,6 +16,7 @@
     "build:production": "REACT_APP_ENVIRONMENT=production NODE_ENV=production npm run build",
     "predev": "npm run version:stamp",
     "dev": "vite",
+    "dev:mobile": "vite --host",
     "dev:clean": "npm run version:stamp && vite --force",
     "deploy:staging": "npm run build:staging",
     "deploy:production": "npm run build:production",

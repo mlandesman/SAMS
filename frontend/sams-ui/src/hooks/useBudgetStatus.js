@@ -63,9 +63,9 @@ export function useBudgetStatus() {
         .sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))
         .slice(0, 5)
         .map(item => ({
-          category: item.category,
+          category: item.name,
           variance: item.variance,
-          variancePercent: item.budgetYTD ? ((item.variance / item.budgetYTD) * 100).toFixed(0) : 0,
+          variancePercent: item.ytdBudget ? ((item.variance / item.ytdBudget) * 100).toFixed(0) : 0,
           favorable: item.variance > 0, // positive variance is favorable
         }));
 
