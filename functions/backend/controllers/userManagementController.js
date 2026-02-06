@@ -667,8 +667,8 @@ export async function getUsers(req, res) {
         };
       } catch (authError) {
         // If Firebase Auth user doesn't exist, return user without metadata
-        // This is OK - user exists in Firestore but Auth record was deleted
-        logWarn(`Firebase Auth user not found for user ID ${user.id} (${user.email || 'no email'}):`, authError.message);
+        // This is OK - user exists in Firestore but Auth record was deleted (orphaned user)
+        logDebug(`Firebase Auth user not found for user ID ${user.id} (${user.email || 'no email'}):`, authError.message);
         return {
           ...user,
           firebaseMetadata: {
