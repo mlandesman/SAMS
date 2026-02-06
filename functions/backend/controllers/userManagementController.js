@@ -670,7 +670,8 @@ export async function getUsers(req, res) {
       
       // User should have Auth record - fetch it using uid field (not document id)
       try {
-        const authUserId = user.uid || user.id; // Try uid field first, fallback to document id
+        // Try _id first (UID stored in document), then uid, then fallback to document id
+        const authUserId = user._id || user.uid || user.id;
         const authUser = await admin.auth().getUser(authUserId);
         return {
           ...user,
