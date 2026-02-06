@@ -141,8 +141,25 @@ echo "   Dev users will be preserved and NOT overwritten"
 echo "   (Only Firestore data excluding users collection will be restored)"
 echo ""
 
-# Step 5: Import Firestore (excluding users)
-echo "📦 Step 4: Importing Firestore (excluding users)..."
+# Step 5: Purge Dev client data and auditLog before import
+echo "🗑️  Step 4: Purging Dev data before import..."
+echo "   This ensures deleted Prod documents don't persist in Dev"
+echo ""
+
+# Purge client data and auditLog
+# Using firebase CLI recursive delete — handles subcollections automatically
+# NOTE: Leave exchangeRates (auto-synced) and system (environment-specific)
+for COLLECTION in "clients" "auditLog"; do
+    echo "   Deleting $COLLECTION..."
+    firebase firestore:delete "$COLLECTION" -r --project "$DEV_PROJECT_ID" --force 2>/dev/null || \
+        echo "   ⚠️  $COLLECTION may not exist (OK if first restore)"
+done
+
+echo "   ✅ Dev data purged"
+echo ""
+
+# Step 6: Import Firestore (excluding users)
+echo "📦 Step 5: Importing Firestore (excluding users)..."
 echo "   Importing from: $FIRESTORE_PATH"
 echo "   Target project: $DEV_PROJECT_ID"
 
@@ -155,21 +172,29 @@ echo "   💡 This may take several minutes. Check status with:"
 echo "      gcloud firestore operations list --project=$DEV_PROJECT_ID"
 echo ""
 
-# Step 6: Sync Storage
-echo "📁 Step 5: Syncing Storage files..."
+# Step 7: Sync Storage
+echo "📁 Step 6: Syncing Storage files..."
 DEV_STORAGE_BUCKET="sandyland-management-system.firebasestorage.app"
 
 echo "   Source: $STORAGE_PATH"
 echo "   Destination: gs://${DEV_STORAGE_BUCKET}/"
 
-# Sync storage
-gsutil -m rsync -r "$STORAGE_PATH/" "gs://${DEV_STORAGE_BUCKET}/"
+# Sync storage with -d flag to delete stale files in Dev
+# Dev is also staging — must mirror Prod exactly
+for FOLDER in clients icons logos; do
+    echo "   Syncing $FOLDER/ (with delete of stale files)..."
+    gsutil -m rsync -r -d "$STORAGE_PATH/$FOLDER/" "gs://${DEV_STORAGE_BUCKET}/$FOLDER/" 2>/dev/null || true
+done
+
+# Imports folder is additive only (may contain Dev-specific test imports)
+echo "   Syncing imports/ (additive only)..."
+gsutil -m rsync -r "$STORAGE_PATH/imports/" "gs://${DEV_STORAGE_BUCKET}/imports/" 2>/dev/null || true
 
 echo "   ✅ Storage sync complete"
 echo ""
 
-# Step 7: Wait for Firestore import
-echo "⏳ Step 6: Waiting for Firestore import to complete..."
+# Step 8: Wait for Firestore import
+echo "⏳ Step 7: Waiting for Firestore import to complete..."
 echo "   (This may take 5-10 minutes for large databases)"
 echo ""
 echo "   You can check status manually with:"
