@@ -422,7 +422,7 @@ export const updateDocumentMetadata = async (req, res) => {
     
     // Double-check that linkedTo field exists in the final data
     if (updateData.linkedTo && !finalData.linkedTo) {
-      logError('🚨 CRITICAL: linkedTo field was not saved! Expected:', updateData.linkedTo, 'Got:', finalData.linkedTo);
+      logError(`🚨 CRITICAL: linkedTo field was not saved! Expected: ${JSON.stringify(updateData.linkedTo)}, Got: ${JSON.stringify(finalData.linkedTo)}`);
       throw new Error('Document update verification failed: linkedTo field not saved');
     }
     

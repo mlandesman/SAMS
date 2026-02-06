@@ -198,8 +198,10 @@ function SettingsView() {
         </Tabs>
       </Box>
 
-      {/* Exchange Rates Management Section */}
-      {activeSection === 'exchange-rates' && (
+      {/* Scrollable content area for settings sections */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+        {/* Exchange Rates Management Section */}
+        {activeSection === 'exchange-rates' && (
         <div style={{ 
           border: '1px solid #ddd', 
           borderRadius: '8px', 
@@ -424,6 +426,7 @@ function SettingsView() {
           <BackupSettings />
         </SuperAdminGuard>
       )}
+      </div>
     </div>
   );
 }
