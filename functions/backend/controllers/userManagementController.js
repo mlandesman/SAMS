@@ -668,9 +668,10 @@ export async function getUsers(req, res) {
         };
       }
       
-      // User should have Auth record - fetch it
+      // User should have Auth record - fetch it using uid field (not document id)
       try {
-        const authUser = await admin.auth().getUser(user.id);
+        const authUserId = user.uid || user.id; // Try uid field first, fallback to document id
+        const authUser = await admin.auth().getUser(authUserId);
         return {
           ...user,
           firebaseMetadata: {
