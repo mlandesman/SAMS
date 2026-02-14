@@ -188,8 +188,9 @@ test-results/
 # Old backup archives
 backend.OLD.zip
 
-# Firebase public folder (dev artifacts)
-public/
+# Firebase public folder (dev artifacts) — but NOT sams-ui/public which has changelog.json
+/public/
+!frontend/sams-ui/public/
 
 # Test harness examples
 functions/backend/testing/testHarness examples/

@@ -204,7 +204,8 @@ if [ "$DEPLOY_TYPE" = "full" ] || [ "$DEPLOY_TYPE" = "bump-only" ]; then
         print_success "Version bumped to v$NEW_VERSION"
         
         # Commit version changes
-        git add shared/version.json frontend/sams-ui/package.json frontend/sams-ui/version.json frontend/mobile-app/package.json frontend/mobile-app/version.json 2>/dev/null || true
+        git add shared/version.json frontend/sams-ui/package.json frontend/sams-ui/version.json frontend/mobile-app/package.json frontend/mobile-app/version.json functions/shared/version.json 2>/dev/null || true
+        git add -f frontend/sams-ui/public/version.json 2>/dev/null || true
         
         if git commit -m "chore: bump version to $NEW_VERSION"; then
             print_success "Version changes committed"
@@ -226,7 +227,7 @@ if [ "$DEPLOY_TYPE" = "full" ] || [ "$DEPLOY_TYPE" = "bump-only" ]; then
             if git diff --quiet frontend/sams-ui/public/changelog.json 2>/dev/null; then
                 print_info "No pending changelog entries to finalize"
             else
-                git add frontend/sams-ui/public/changelog.json
+                git add -f frontend/sams-ui/public/changelog.json frontend/sams-ui/public/version.json
                 git commit --amend --no-edit
                 print_success "Changelog finalized and included in version commit"
             fi
