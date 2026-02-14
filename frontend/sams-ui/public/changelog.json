@@ -8,6 +8,54 @@
           "type": "feat",
           "issues": [],
           "text": "Complete Polling & Voting System: Backend API, Admin UI with 4-step wizard, Email link voting (no auth required), Dashboard integration, Project/Budget vote creation, Spanish translation support"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "160",
+            "167",
+            "97",
+            "84",
+            "154",
+            "164",
+            "168"
+          ],
+          "text": "Sprint Cleanup-1: UI consistency across all 9 views, centralized logger utility, 850+ console statements converted to log levels, ActionBar positioning standardized, sticky headers, modal aesthetics, dashboard backdrop fix"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "124"
+          ],
+          "text": "Year-end close no longer double-converts centavos (100x inflation bug fixed before AVII June 2026 deadline)"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "52"
+          ],
+          "text": "Budget Dashboard Card now displays real data — fixed field path mismatch between frontend hook and backend API response"
+        },
+        {
+          "type": "perf",
+          "issues": [
+            "146"
+          ],
+          "text": "Statement generation always uses dual-language path — data fetched once instead of twice, 74 lines of duplicate code removed"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "63"
+          ],
+          "text": "Upgraded firebase-admin from v11.11.1 to v13.6.1 (latest)"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "155"
+          ],
+          "text": "Mobile app testable from phone via local network — CORS allows 192.168.* origins, start_sams.sh auto-detects network IP"
         }
       ]
     },
