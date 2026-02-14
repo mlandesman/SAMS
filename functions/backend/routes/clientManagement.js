@@ -18,7 +18,7 @@ import {
   LOGO_UPLOAD_CONFIG 
 } from '../templates/clientTemplates.js';
 import { getDb } from '../firebase.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 

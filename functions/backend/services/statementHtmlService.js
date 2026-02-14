@@ -14,7 +14,7 @@ import { getStatementData } from './statementDataService.js';
 import { DateTime } from 'luxon';
 import { getNow } from '../../shared/services/DateService.js';
 import { joinOwnerNames } from '../utils/unitContactUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Format currency (pesos)

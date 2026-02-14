@@ -9,7 +9,7 @@ import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 class WaterDataService {
   constructor() {

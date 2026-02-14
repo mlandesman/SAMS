@@ -3,7 +3,7 @@ import { getDb, initializeFirebase } from './firebase.js'; // Import initializeF
 import express from 'express';
 import cors from 'cors';
 import { getNow } from './services/DateService.js';
-import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../shared/logger.js';
 // Transactions routes only available via client domain - see clientRoutes.js:49
 import clientRoutes from './routes/clientRoutes.js'; // Import client routes
 import exchangeRatesRoutes from './routes/exchangeRates.js'; // Import exchange rates routes

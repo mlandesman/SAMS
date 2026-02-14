@@ -14,7 +14,7 @@
  */
 
 import { getNow } from '../services/DateService.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 const MONTH_NAMES_FULL = [
   'January', 'February', 'March', 'April', 'May', 'June',

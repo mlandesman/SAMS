@@ -8,7 +8,7 @@
  * Date: December 16, 2025
  */
 
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Normalize owners array to new structure [{name, email}]

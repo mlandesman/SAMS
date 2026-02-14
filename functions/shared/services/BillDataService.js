@@ -13,7 +13,7 @@ import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig } from '../utils/configValidation.js';
 import { calculatePenaltyForBill } from './PenaltyRecalculationService.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../logger.js';
 
 /**
  * Round currency amounts to prevent floating point precision errors

@@ -1,5 +1,5 @@
 import express from 'express';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 const router = express.Router();
 import { 
   authenticateUserWithProfile, 

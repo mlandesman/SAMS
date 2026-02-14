@@ -28,7 +28,7 @@ import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { getNotesArray } from '../../shared/utils/formatUtils.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { updatePriorYearClosedFlag } from './hoaDuesController.js';

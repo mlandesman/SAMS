@@ -11,7 +11,7 @@
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getMexicoDateString } from '../utils/timezone.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Documents to exclude from project listings (structural, not projects)
 const EXCLUDED_PROJECT_IDS = ['waterBills', 'propaneTanks'];

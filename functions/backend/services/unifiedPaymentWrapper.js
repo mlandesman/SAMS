@@ -46,7 +46,7 @@ import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
 import { generateUPCData } from './generateUPCData.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Import module-specific functions
 import { 

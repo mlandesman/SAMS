@@ -24,7 +24,7 @@
 import { unifiedPaymentWrapper } from '../services/unifiedPaymentWrapper.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Validate client ID

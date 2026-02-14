@@ -1,5 +1,5 @@
 // backend/routes/clientRoutes.js
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import express from 'express';
 const router = express.Router();
 import { getClient, listAuthorizedClients } from '../controllers/clientsController.js';

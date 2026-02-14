@@ -10,7 +10,7 @@ import { getDb, getApp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
 import { getNow } from '../services/DateService.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 const require = createRequire(import.meta.url);
 
 // Load service account to get expected project ID

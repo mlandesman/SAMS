@@ -16,7 +16,7 @@ import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
-import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
+import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Get utility graph data for a unit

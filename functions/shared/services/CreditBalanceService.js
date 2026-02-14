@@ -16,7 +16,7 @@
 import { getNow } from './DateService.js';
 import { CreditAPI } from '../../backend/api/creditAPI.js';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../logger.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
 

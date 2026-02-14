@@ -23,7 +23,7 @@ import { getNow, parseDate, createDate, addDays } from './DateService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig as validatePenaltyConfigShared } from '../utils/configValidation.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../logger.js';
 
 /**
  * Validate penalty configuration

@@ -13,7 +13,7 @@ import {
   getCreditAutoPayEmailRecipients 
 } from '../services/creditAutoPayReportService.js';
 import nodemailer from 'nodemailer';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Create Gmail transporter for sending emails

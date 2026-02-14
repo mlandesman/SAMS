@@ -5,7 +5,7 @@ import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/
 import waterBillsService from '../services/waterBillsService.js';
 import waterReadingsService from '../services/waterReadingsService.js';
 import { centavosToPesos } from '../utils/currencyUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 import { 
   recordWaterPayment, 

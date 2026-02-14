@@ -1,5 +1,5 @@
 // backend/routes/units.js
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import express from 'express';
 import { createUnit, updateUnit, deleteUnit, listUnits, updateUnitManagers, addUnitEmail } from '../controllers/unitsController.js';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';

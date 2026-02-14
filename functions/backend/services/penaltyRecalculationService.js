@@ -9,7 +9,7 @@ import {
   recalculatePenalties as recalculatePenaltiesShared,
   loadBillingConfig
 } from '../../shared/services/PenaltyRecalculationService.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 class PenaltyRecalculationService {
   constructor() {

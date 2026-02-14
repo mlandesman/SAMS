@@ -31,7 +31,7 @@ import { queryTransactions } from '../controllers/transactionsController.js';
 import { getHOABillingConfig } from '../controllers/hoaDuesController.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
-import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
+import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Generate UPC-specific projection from raw data.

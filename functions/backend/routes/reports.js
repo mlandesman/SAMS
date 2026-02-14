@@ -27,7 +27,7 @@ import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
 import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
-import { logInfo, logDebug, logWarn, logError } from '../../../shared/logger.js';
+import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });

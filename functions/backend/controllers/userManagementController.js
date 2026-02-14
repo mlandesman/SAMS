@@ -13,7 +13,7 @@ import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.j
 import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
  * Generate secure random password

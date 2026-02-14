@@ -9,7 +9,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 

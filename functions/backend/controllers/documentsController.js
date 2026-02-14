@@ -4,7 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import { getNow } from '../services/DateService.js';
 import { randomUUID } from 'crypto';
-import { logDebug, logInfo, logWarn, logError } from '../../../shared/logger.js';
+import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage(); // Store files in memory for Firebase upload
