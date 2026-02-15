@@ -318,7 +318,6 @@ const UnifiedExpenseEntry = ({
           const originalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(originalAmountDollars));
           const commissionAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(commissionAmountDollars));
           const ivaAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(ivaAmountDollars));
-          const totalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(totalAmountDollars));
           
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
