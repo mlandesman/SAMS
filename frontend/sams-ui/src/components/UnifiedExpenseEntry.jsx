@@ -284,19 +284,27 @@ const UnifiedExpenseEntry = ({
         }
 
         // Handle split vs regular transactions differently
-        if (splitAllocations.length > 0) {
+        if (splitAllocations.length > 1) {
           // Split transaction: use hardcoded categoryId and allocations
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          // CRITICAL: Allocations from handleSplitSave are already in centavos (cents) as integers
-          // Do NOT convert them - send them as-is to the backend
+          // Backend createTransaction expects allocation.amount in PESOS (converts with dollarsToCents)
+          // splitAllocations stores amounts in centavos - convert to pesos for API
           transactionData.allocations = splitAllocations.map(allocation => ({
             categoryId: allocation.categoryId,
             categoryName: allocation.categoryName,
-            // allocation.amount is already in centavos (cents) as an integer - send as-is
-            amount: Math.round(allocation.amount || 0), // Ensure integer
+            amount: databaseFieldMappings.centsToDollars(allocation.amount || 0),
             notes: allocation.notes || ''
           }));
+        } else if (splitAllocations.length === 1) {
+          // Single allocation remaining: collapse back to non-split transaction
+          const sole = splitAllocations[0];
+          transactionData.categoryId = sole.categoryId || clientData.categories.find(c => c.name === sole.categoryName)?.id || formData.categoryId;
+          transactionData.categoryName = sole.categoryName || selectedCategory?.name || '';
+          // Amount in pesos - allocation.amount is centavos
+          transactionData.amount = databaseFieldMappings.centsToDollars(sole.amount || 0);
+          // Explicitly clear allocations so backend removes split designation
+          transactionData.allocations = [];
         } else if (addBankFees) {
           // Auto-create split allocations for bank fees
           // CRITICAL: Convert dollar amounts to centavos (integers)
@@ -305,30 +313,25 @@ const UnifiedExpenseEntry = ({
           const ivaAmountDollars = 0.80;
           const totalAmountDollars = originalAmountDollars + commissionAmountDollars + ivaAmountDollars;
           
-          // Convert to centavos (integers)
-          const originalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(originalAmountDollars));
-          const commissionAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(commissionAmountDollars));
-          const ivaAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(ivaAmountDollars));
-          const totalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(totalAmountDollars));
-          
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          transactionData.amount = -Math.abs(totalAmountCentavos); // Update total to include fees (in centavos)
+          // CRITICAL: Send amount and allocations in PESOS - backend createTransaction converts to centavos (fix #180)
+          transactionData.amount = -Math.abs(totalAmountDollars);
           transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionData.allocations = [
             {
               categoryName: selectedCategory?.name || '',
-              amount: -Math.abs(originalAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(originalAmountDollars),
               notes: 'Main expense'
             },
             {
               categoryName: 'Bank: Transfer Fees',
-              amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(commissionAmountDollars),
               notes: 'Bank transfer fee'
             },
             {
               categoryName: 'Bank: IVA',
-              amount: -Math.abs(ivaAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(ivaAmountDollars),
               notes: 'Bank transfer IVA'
             }
           ];
@@ -402,40 +405,34 @@ const UnifiedExpenseEntry = ({
         
         // Handle bank fees if checkbox is checked
         if (addBankFees) {
-          // CRITICAL: Convert dollar amounts to centavos (integers) for allocations
+          // Backend expects amount and allocation.amount in PESOS (converts to centavos)
           const originalAmountDollars = parseFloat(formData.amount);
           const commissionAmountDollars = 5.00;
           const ivaAmountDollars = 0.80;
           const totalAmountDollars = originalAmountDollars + commissionAmountDollars + ivaAmountDollars;
           
-          // Transaction amount stays in dollars (backend converts to centavos)
           transactionAmount = -Math.abs(totalAmountDollars);
           transactionNotes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionCategoryId = '-split-';
           
-          // Allocations must be in centavos (integers) - convert from dollars
-          const originalAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(originalAmountDollars));
-          const commissionAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(commissionAmountDollars));
-          const ivaAmountCentavos = Math.round(databaseFieldMappings.dollarsToCents(ivaAmountDollars));
-          
           transactionAllocations = [
             {
               categoryName: selectedCategory?.name || '',
-              amount: -Math.abs(originalAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(originalAmountDollars),
               notes: 'Main expense'
             },
             {
               categoryName: 'Bank: Transfer Fees',
-              amount: -Math.abs(commissionAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(commissionAmountDollars),
               notes: 'Bank transfer fee'
             },
             {
               categoryName: 'Bank: IVA',
-              amount: -Math.abs(ivaAmountCentavos), // INTEGER in centavos
+              amount: -Math.abs(ivaAmountDollars),
               notes: 'Bank transfer IVA'
             }
           ];
-          console.log('💰 Auto-created bank fee allocations (direct API, centavos, integers):', transactionAllocations);
+          console.log('💰 Auto-created bank fee allocations (pesos for API):', transactionAllocations);
         }
         
         const transactionData = {

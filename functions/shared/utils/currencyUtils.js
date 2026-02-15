@@ -62,6 +62,7 @@ export function formatCurrency(centavos, currency = 'MXN', showCents = true) {
  * centavosToPesos(100);    // 1
  */
 export function centavosToPesos(centavos) {
+  if (centavos == null || (typeof centavos === 'number' && isNaN(centavos))) return 0;
   return centavos / 100;
 }
 
@@ -81,5 +82,39 @@ export function centavosToPesos(centavos) {
  */
 export function pesosToCentavos(pesos) {
   return Math.round(pesos * 100);
+}
+
+/**
+ * Round a centavos value to the nearest integer
+ * Use this when accumulating centavos calculations that may produce fractional results
+ * (e.g., percentage calculations, penalty distributions)
+ *
+ * @param {number} centavos - Amount in centavos (may have fractional part from calculations)
+ * @returns {number} Rounded centavos (integer)
+ *
+ * @example
+ * roundCentavos(10050.4);  // 10050
+ * roundCentavos(10050.5);  // 10051
+ * roundCentavos(10050.9);  // 10051
+ */
+export function roundCentavos(centavos) {
+  return Math.round(centavos);
+}
+
+/**
+ * Round a pesos value to 2 decimal places
+ * Use this ONLY for display rounding when centavosToPesos() precision is insufficient.
+ * Prefer working in centavos integers to avoid this.
+ *
+ * @param {number} pesos - Amount in pesos (may have floating point artifacts)
+ * @returns {number} Pesos rounded to 2 decimal places
+ *
+ * @example
+ * roundPesos(100.505);   // 100.51
+ * roundPesos(100.494);   // 100.49
+ */
+export function roundPesos(pesos) {
+  if (pesos == null || (typeof pesos === 'number' && isNaN(pesos))) return 0;
+  return Math.round(pesos * 100) / 100;
 }
 

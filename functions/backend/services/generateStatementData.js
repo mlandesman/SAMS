@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { getNow, parseDate as parseDateFromService } from '../../shared/services/DateService.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 const DEFAULT_TIMEZONE = 'America/Cancun';
 
@@ -47,8 +48,6 @@ const toCentavos = (amount, amountsInCentavos) => {
 
   return amountsInCentavos ? Math.round(amount) : Math.round(amount * 100);
 };
-
-const centavosToPesos = (centavos) => Number((centavos / 100).toFixed(2));
 
 const buildRows = ({
   rows,

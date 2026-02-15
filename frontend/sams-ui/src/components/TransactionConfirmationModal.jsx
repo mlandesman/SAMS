@@ -252,14 +252,14 @@ const TransactionConfirmationModal = ({
                     >
                       <div className="document-icon">
                         <FontAwesomeIcon 
-                          icon={file.type.includes('image/') ? faFileAlt : faFileAlt} 
-                          className={file.type.includes('image/') ? 'image-file' : 'document-file'}
+                          icon={faFileAlt} 
+                          className={(file.type || '').includes('image/') ? 'image-file' : 'document-file'}
                         />
                       </div>
                       <div className="document-info">
                         <div className="document-name">{file.name}</div>
                         <div className="document-size">
-                          {(file.size / 1024).toFixed(1)} KB
+                          {file.size ? (file.size / 1024).toFixed(1) : '0'} KB
                         </div>
                       </div>
                       <div className="document-action">

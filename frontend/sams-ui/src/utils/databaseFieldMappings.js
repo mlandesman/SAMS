@@ -1,7 +1,10 @@
 /**
  * Frontend database field mappings and conversion utilities
  * Mirrors backend functionality for consistent data handling
+ * Currency conversions delegate to currencyUtils (single source of truth)
  */
+
+import { centavosToPesos, pesosToCentavos } from './currencyUtils';
 
 // Timezone configuration - America/Cancun (no DST)
 const CANCUN_TIMEZONE = 'America/Cancun';
@@ -91,27 +94,20 @@ export const databaseFieldMappings = {
     return `${month}/${day}/${year}`;
   },
 
-  // ===== AMOUNT CONVERSIONS =====
+  // ===== AMOUNT CONVERSIONS (delegate to currencyUtils) =====
   /**
    * Convert dollar amount to cents (for storage)
    * @param {number|string} dollars 
    * @returns {number} Amount in cents
    */
-  dollarsToCents: (dollars) => {
-    if (!dollars && dollars !== 0) return 0;
-    const amount = parseFloat(dollars);
-    return Math.round(amount * 100);
-  },
+  dollarsToCents: (dollars) => pesosToCentavos(parseFloat(dollars) || 0),
 
   /**
    * Convert cents to dollars (for display)
    * @param {number} cents 
    * @returns {number} Amount in dollars
    */
-  centsToDollars: (cents) => {
-    if (!cents && cents !== 0) return 0;
-    return cents / 100;
-  },
+  centsToDollars: (cents) => centavosToPesos(cents || 0),
 
   /**
    * Format currency for display

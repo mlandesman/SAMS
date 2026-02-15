@@ -20,6 +20,7 @@
 import admin from 'firebase-admin';
 import { getNow } from '../services/DateService.js';
 import { DateTime } from 'luxon';
+import { centavosToPesos, pesosToCentavos } from './currencyUtils.js';
 
 // Timezone configuration - America/Cancun (no DST)
 const CANCUN_TIMEZONE = 'America/Cancun';
@@ -173,15 +174,11 @@ export const databaseFieldMappings = {
    * @example
    * dollarsToCents(100.50);  // 10050
    */
-  dollarsToCents: (dollars) => {
-    if (!dollars && dollars !== 0) return 0;
-    const amount = parseFloat(dollars);
-    return Math.round(amount * 100);
-  },
+  dollarsToCents: (dollars) => pesosToCentavos(parseFloat(dollars) || 0),
 
   /**
    * Convert cents to dollars (for display)
-   * Legacy function - prefer centavosToPesos from currencyUtils
+   * Legacy function - delegates to centavosToPesos from currencyUtils
    * 
    * @param {number} cents 
    * @returns {number} Amount in dollars
@@ -189,10 +186,7 @@ export const databaseFieldMappings = {
    * @example
    * centsToDollars(10050);  // 100.5
    */
-  centsToDollars: (cents) => {
-    if (!cents && cents !== 0) return 0;
-    return cents / 100;
-  },
+  centsToDollars: (cents) => centavosToPesos(cents || 0),
 
   // ===== DOCUMENT ID GENERATORS =====
   /**

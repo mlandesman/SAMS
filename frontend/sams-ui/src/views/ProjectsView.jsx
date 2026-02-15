@@ -37,6 +37,7 @@ import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './ProjectsView.css';
+import { centavosToPesos } from '../utils/currencyUtils';
 
 /**
  * Format centavos to currency display (US style, no currency code)
@@ -45,7 +46,7 @@ import './ProjectsView.css';
  */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
+  const amount = centavosToPesos(centavos);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

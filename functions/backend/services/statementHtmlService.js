@@ -15,6 +15,7 @@ import { DateTime } from 'luxon';
 import { getNow } from '../../shared/services/DateService.js';
 import { joinOwnerNames } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Format currency (pesos)
@@ -72,16 +73,6 @@ function formatDate(dateValue) {
   
   // Format as dd-MMM-yy (e.g., "22-Jan-26") - unambiguous for international clients
   return dt.toFormat('dd-MMM-yy');
-}
-
-/**
- * Format centavos to pesos
- * @param {number} centavos - Amount in centavos
- * @returns {number} Amount in pesos
- */
-function centavosToPesos(centavos) {
-  if (!centavos && centavos !== 0) return 0;
-  return centavos / 100;
 }
 
 /**

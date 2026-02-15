@@ -16,6 +16,7 @@
 import { getNow } from './DateService.js';
 import { CreditAPI } from '../../backend/api/creditAPI.js';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings.js';
+import { roundPesos } from '../utils/currencyUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../logger.js';
 
 const { dollarsToCents, centsToDollars } = databaseFieldMappings;
@@ -36,7 +37,7 @@ const { dollarsToCents, centsToDollars } = databaseFieldMappings;
  * @param {number} params.paymentAmount - Payment amount in PESOS
  * @param {number} params.currentCreditBalance - Current credit balance in PESOS
  * @param {number} params.totalBillsDue - Total bills due in PESOS
- * 
+ *
  * @returns {object} Credit calculation result (all amounts in PESOS)
  * @returns {number} result.creditUsed - Credit applied to bills
  * @returns {number} result.newOverpayment - New credit created from excess payment
@@ -57,7 +58,7 @@ export function calculateCreditUsage(params) {
     creditUsed = 0;
     // Excess payment goes to credit balance
     const excessPayment = paymentAmount - totalBillsDue;
-    newOverpayment = Math.round(excessPayment * 100) / 100; // Round to 2 decimals
+    newOverpayment = roundPesos(excessPayment);
     changeType = 'overpayment';
     
     logDebug(`   ✅ Payment covers bills. Excess $${newOverpayment} becomes overpayment`);
@@ -65,14 +66,14 @@ export function calculateCreditUsage(params) {
     // Payment doesn't cover bills - use credit to make up difference
     const shortfall = totalBillsDue - paymentAmount;
     const creditNeeded = Math.min(shortfall, currentCreditBalance);
-    creditUsed = Math.round(creditNeeded * 100) / 100; // Round to 2 decimals
+    creditUsed = roundPesos(creditNeeded);
     newOverpayment = 0;
     changeType = creditUsed > 0 ? 'credit_used' : 'no_change';
     
     logDebug(`   📊 Shortfall $${shortfall}. Using $${creditUsed} credit`);
   }
   
-  const finalCreditBalance = Math.round((currentCreditBalance - creditUsed + newOverpayment) * 100) / 100;
+  const finalCreditBalance = roundPesos(currentCreditBalance - creditUsed + newOverpayment);
   
   logDebug(`   💰 Final credit balance: $${finalCreditBalance} (was $${currentCreditBalance})`);
   
