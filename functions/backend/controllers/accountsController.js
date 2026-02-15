@@ -7,6 +7,7 @@ import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import admin from 'firebase-admin';
+import { centavosToPesos, pesosToCentavos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Fetch accounts for a client
@@ -793,7 +794,7 @@ async function getAccountsForReconciliation(clientId) {
         id: acc.id,
         name: acc.name,
         type: acc.type,
-        samsBalance: (acc.balance || 0) / 100 // Convert centavos to pesos
+        samsBalance: centavosToPesos(acc.balance || 0)
       }));
     
     return reconciliationAccounts;
@@ -865,7 +866,7 @@ async function createReconciliationAdjustments(clientId, adjustments, user) {
       }
       
       // Convert difference from pesos to centavos for storage
-      const differenceCentavos = Math.round(adj.difference * 100);
+      const differenceCentavos = pesosToCentavos(adj.difference);
       
       // Build transaction object
       // Use account.vendorId (from accounts array) and resolved vendor name
@@ -881,11 +882,11 @@ async function createReconciliationAdjustments(clientId, adjustments, user) {
         vendorId: account.vendorId, // Use vendorId from account (e.g., "bbva", "petty-cash")
         vendorName: vendorNameMap[account.id] || account.name, // Resolved vendor name
         description: `Reconciliation adjustment for ${adj.accountName}`,
-        notes: `SAMS balance: ${formatCurrency(Math.round(adj.samsBalance * 100))}, Actual: ${formatCurrency(Math.round(adj.actualBalance * 100))}, Difference: ${formatCurrency(Math.round(adj.difference * 100))}`,
+        notes: `SAMS balance: ${formatCurrency(pesosToCentavos(adj.samsBalance))}, Actual: ${formatCurrency(pesosToCentavos(adj.actualBalance))}, Difference: ${formatCurrency(pesosToCentavos(adj.difference))}`,
         metadata: {
           source: 'reconciliation',
-          samsBalance: Math.round(adj.samsBalance * 100), // Store in centavos
-          actualBalance: Math.round(adj.actualBalance * 100), // Store in centavos
+          samsBalance: pesosToCentavos(adj.samsBalance),
+          actualBalance: pesosToCentavos(adj.actualBalance),
           reconciledBy: user.email,
           reconciledAt: getNow().toISOString()
         }

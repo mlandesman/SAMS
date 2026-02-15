@@ -4,6 +4,7 @@ import { useWaterBills } from '../../context/WaterBillsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faTint } from '@fortawesome/free-solid-svg-icons';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
+import { centavosToPesos } from '../../utils/currencyUtils';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
@@ -41,7 +42,7 @@ function transformQuarterlyToMonths(bills) {
           const waterCharge = monthData.waterCharge ?? 0;
           months[fiscalIndex].units[unitId] = {
             consumption: monthData.consumption ?? 0,
-            billAmount: waterCharge / 100,
+            billAmount: centavosToPesos(waterCharge),
             ownerLastName: unitBill.ownerLastName ?? unitBill.ownerName ?? ''
           };
         }

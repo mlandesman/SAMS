@@ -17,6 +17,7 @@ import { generateStatementData as generateLedgerData } from './generateStatement
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Get utility graph data for a unit
@@ -208,14 +209,6 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
     logError(`❌ [Water Bars] Error fetching water bars data for ${clientId}/${unitId}:`, error);
     return null;
   }
-}
-
-/**
- * Format centavos to pesos
- */
-function centavosToPesos(centavos) {
-  if (!centavos || isNaN(centavos)) return 0;
-  return centavos / 100;
 }
 
 /**
@@ -1987,7 +1980,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
           const firstEntry = unitCreditData.history[0];
           if (firstEntry.type === 'starting_balance' && typeof firstEntry.amount === 'number') {
             // Amount is in centavos, convert to pesos (negative = credit on account)
-            openingBalance = -(firstEntry.amount / 100);
+            openingBalance = -centavosToPesos(firstEntry.amount);
           }
           hasCreditStartingBalance = firstEntry.type === 'starting_balance';
         }
@@ -2062,7 +2055,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             
             // Create line item for standalone credit adjustment
             const amountCentavos = typeof entry.amount === 'number' ? entry.amount : 0;
-            const amountPesos = amountCentavos / 100;
+            const amountPesos = centavosToPesos(amountCentavos);
             
             creditAdjustments.push({
               type: 'credit_adjustment',

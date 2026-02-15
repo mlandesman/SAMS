@@ -28,6 +28,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -1003,10 +1004,10 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
         rows.push([
           cat.name,
           'Income',
-          (cat.annualBudget / 100).toFixed(2),
-          (cat.ytdBudget / 100).toFixed(2),
-          (cat.ytdActual / 100).toFixed(2),
-          (cat.variance / 100).toFixed(2),
+          centavosToPesos(cat.annualBudget).toFixed(2),
+          centavosToPesos(cat.ytdBudget).toFixed(2),
+          centavosToPesos(cat.ytdActual).toFixed(2),
+          centavosToPesos(cat.variance).toFixed(2),
           cat.variancePercent.toFixed(2)
         ]);
       });
@@ -1016,10 +1017,10 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
         rows.push([
           cat.name,
           'Expense',
-          (cat.annualBudget / 100).toFixed(2),
-          (cat.ytdBudget / 100).toFixed(2),
-          (cat.ytdActual / 100).toFixed(2),
-          (cat.variance / 100).toFixed(2),
+          centavosToPesos(cat.annualBudget).toFixed(2),
+          centavosToPesos(cat.ytdBudget).toFixed(2),
+          centavosToPesos(cat.ytdActual).toFixed(2),
+          centavosToPesos(cat.variance).toFixed(2),
           cat.variancePercent.toFixed(2)
         ]);
       });
@@ -1031,7 +1032,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           'Special Assessments - Collections',
           '0.00',
           '0.00',
-          (data.specialAssessments.collections.amount / 100).toFixed(2),
+          centavosToPesos(data.specialAssessments.collections.amount).toFixed(2),
           '0.00',
           '0.00'
         ]);
@@ -1043,7 +1044,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           'Special Assessments - Expenditure',
           '0.00',
           '0.00',
-          (exp.amount / 100).toFixed(2),
+          centavosToPesos(exp.amount).toFixed(2),
           '0.00',
           '0.00'
         ]);
@@ -1056,7 +1057,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           'Unit Credit Accounts - Added',
           '0.00',
           '0.00',
-          (data.unitCreditAccounts.added / 100).toFixed(2),
+          centavosToPesos(data.unitCreditAccounts.added).toFixed(2),
           '0.00',
           '0.00'
         ]);
@@ -1065,7 +1066,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           'Unit Credit Accounts - Used',
           '0.00',
           '0.00',
-          (data.unitCreditAccounts.used / 100).toFixed(2),
+          centavosToPesos(data.unitCreditAccounts.used).toFixed(2),
           '0.00',
           '0.00'
         ]);
@@ -1074,7 +1075,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           'Unit Credit Accounts - Balance',
           '0.00',
           '0.00',
-          (data.unitCreditAccounts.balance / 100).toFixed(2),
+          centavosToPesos(data.unitCreditAccounts.balance).toFixed(2),
           '0.00',
           '0.00'
         ]);

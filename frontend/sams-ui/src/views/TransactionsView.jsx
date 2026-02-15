@@ -47,6 +47,7 @@ import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToCSV } from '../utils/csvExport';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { centavosToPesos } from '../utils/currencyUtils';
 import { generateTransactionsPdfHtml } from '../utils/transactionPdfTemplate';
 import reportService from '../services/reportService';
 
@@ -1560,11 +1561,11 @@ function TransactionsView() {
           </div>
         ) : (
           <>
-            🏦 Cash: ${Math.round((startingBalance?.cashBalance || 0) / 100).toLocaleString('en-US')}
+            🏦 Cash: ${centavosToPesos(startingBalance?.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
-            🏛️ Bank: ${Math.round((startingBalance?.bankBalance || 0) / 100).toLocaleString('en-US')}
+            🏛️ Bank: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
-            💰 Total: ${Math.round((balance || 0) / 100).toLocaleString('en-US')}
+            💰 Total: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             <div className="refresh-hint">↻</div>
           </>
         )}
@@ -1611,9 +1612,9 @@ function TransactionsView() {
               // For expenses, we use Math.abs because form shows positive values
               // For adjustments, we preserve the sign for proper handling
               if (amountField.integerValue !== undefined) {
-                return preserveSign ? amountField.integerValue / 100 : Math.abs(amountField.integerValue / 100);
+                return preserveSign ? centavosToPesos(amountField.integerValue) : Math.abs(centavosToPesos(amountField.integerValue));
               }
-              return preserveSign ? (amountField || 0) / 100 : Math.abs((amountField || 0) / 100);
+              return preserveSign ? centavosToPesos(amountField || 0) : Math.abs(centavosToPesos(amountField || 0));
             };
             
             // Determine transaction type first to know if we need to preserve sign

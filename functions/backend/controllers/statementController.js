@@ -7,6 +7,7 @@ import axios from 'axios';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getNow } from '../../shared/services/DateService.js';
 import { getDb } from '../firebase.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Format pesos amount with commas
@@ -16,16 +17,6 @@ import { getDb } from '../firebase.js';
 function formatPesos(amount) {
   if (!amount || isNaN(amount)) return '0.00';
   return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-/**
- * Format centavos to pesos
- * @param {number} centavos - Amount in centavos
- * @returns {number} Amount in pesos
- */
-function centavosToPesos(centavos) {
-  if (!centavos || isNaN(centavos)) return 0;
-  return centavos / 100;
 }
 
 /**
