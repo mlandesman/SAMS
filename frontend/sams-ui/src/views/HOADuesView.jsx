@@ -778,12 +778,8 @@ function HOADuesView() {
             .join(' ');
         }
         
-        // Handle amount formatting (convert from centavos if needed)
-        let displayAmount = entry.amount || 0;
-        // If amount appears to be in centavos (large integer), convert to pesos
-        if (Number.isInteger(displayAmount) && Math.abs(displayAmount) > 100) {
-          displayAmount = displayAmount / 100;
-        }
+        // Handle amount formatting - creditBalanceHistory from API is already in pesos (fix #3: remove heuristic)
+        const displayAmount = entry.amount ?? 0;
         const amount = formatAsMXN(displayAmount);
         
         // Build the history line

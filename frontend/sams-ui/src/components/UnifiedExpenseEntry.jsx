@@ -313,7 +313,8 @@ const UnifiedExpenseEntry = ({
           
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          transactionData.amount = -Math.abs(totalAmountCentavos); // Update total to include fees (in centavos)
+          // CRITICAL: Send amount in PESOS - backend createTransaction converts to centavos (fix #180)
+          transactionData.amount = -Math.abs(totalAmountDollars);
           transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionData.allocations = [
             {
