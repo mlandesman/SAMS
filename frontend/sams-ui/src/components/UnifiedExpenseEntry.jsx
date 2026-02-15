@@ -284,7 +284,7 @@ const UnifiedExpenseEntry = ({
         }
 
         // Handle split vs regular transactions differently
-        if (splitAllocations.length > 0) {
+        if (splitAllocations.length > 1) {
           // Split transaction: use hardcoded categoryId and allocations
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
@@ -297,6 +297,15 @@ const UnifiedExpenseEntry = ({
             amount: Math.round(allocation.amount || 0), // Ensure integer
             notes: allocation.notes || ''
           }));
+        } else if (splitAllocations.length === 1) {
+          // Single allocation remaining: collapse back to non-split transaction
+          const sole = splitAllocations[0];
+          transactionData.categoryId = sole.categoryId || clientData.categories.find(c => c.name === sole.categoryName)?.id || formData.categoryId;
+          transactionData.categoryName = sole.categoryName || selectedCategory?.name || '';
+          // Amount in pesos - allocation.amount is centavos
+          transactionData.amount = databaseFieldMappings.centsToDollars(sole.amount || 0);
+          // Explicitly clear allocations so backend removes split designation
+          transactionData.allocations = [];
         } else if (addBankFees) {
           // Auto-create split allocations for bank fees
           // CRITICAL: Convert dollar amounts to centavos (integers)
