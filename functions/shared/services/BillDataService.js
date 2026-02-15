@@ -9,20 +9,11 @@
  */
 
 import { getNow, parseDate, createDate, addDays } from './DateService.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos, roundPesos } from '../utils/currencyUtils.js';
 import { getDb } from '../../backend/firebase.js';
 import { validatePenaltyConfig } from '../utils/configValidation.js';
 import { calculatePenaltyForBill } from './PenaltyRecalculationService.js';
 import { logDebug, logInfo, logWarn, logError } from '../logger.js';
-
-/**
- * Round currency amounts to prevent floating point precision errors
- * @param {number} amount - Amount to round
- * @returns {number} Rounded amount
- */
-export function roundCurrency(amount) {
-  return Math.round(amount * 100) / 100;
-}
 
 /**
  * Get billing configuration for a client and module

@@ -706,8 +706,9 @@ async function initializeYearDocument(clientId, unitId, year) {
  * @param {string} clientId - ID of the client
  * @param {string} unitId - ID of the unit making payment
  * @param {number} year - Year for the payment
- * @param {object} paymentData - Payment data containing amount, date, etc.
- * @param {Array} distribution - How payment should be distributed across months
+ * @param {object} paymentData - Payment data
+ * @param {number} paymentData.amount - Payment amount in PESOS
+ * @param {Array} distribution - Allocation per month; each item.amountToAdd in PESOS
  * @param {string|null} transactionId - Optional: Pre-created transaction ID (for unified payments)
  * @returns {object} Result containing status and payment details
  */

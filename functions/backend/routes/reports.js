@@ -28,7 +28,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
-import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -316,11 +316,11 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         managers: managers
       },
       currentStatus: {
-        amountDue: Math.round(amountDue * 100) / 100, // Round to 2 decimal places
+        amountDue: roundPesos(amountDue),
         paidThrough: paidThrough,
-        creditBalance: Math.round(creditBalance * 100) / 100,
+        creditBalance: roundPesos(creditBalance),
         ytdPaid: {
-          hoaDues: Math.round(ytdPaid * 100) / 100,
+          hoaDues: roundPesos(ytdPaid),
           projects: 0 // Placeholder for future Projects module
         }
       },

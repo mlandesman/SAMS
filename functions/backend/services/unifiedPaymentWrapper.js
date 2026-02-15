@@ -38,7 +38,7 @@
 
 import { getNow, createDate, toISOString } from '../../shared/services/DateService.js';
 import { calculatePaymentDistribution } from '../../shared/services/PaymentDistributionService.js';
-import { pesosToCentavos, centavosToPesos, formatCurrency } from '../../shared/utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos, formatCurrency, roundPesos } from '../../shared/utils/currencyUtils.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
 import { getDb } from '../firebase.js';
 import { createTransaction } from '../controllers/transactionsController.js';
@@ -67,15 +67,6 @@ import { getFiscalYearBounds, getFiscalYear } from '../utils/fiscalYearUtils.js'
 import { parseDate } from '../../shared/services/DateService.js';
 import { calculatePenaltyForBill } from '../../shared/services/PenaltyRecalculationService.js';
 import { hasActivity } from '../utils/clientFeatures.js';
-
-/**
- * Round currency amounts to prevent floating point precision errors
- * @param {number} amount - Amount to round
- * @returns {number} Rounded amount
- */
-function roundCurrency(amount) {
-  return Math.round(amount * 100) / 100;
-}
 
 /**
  * UnifiedPaymentWrapper Class
@@ -160,13 +151,13 @@ export class UnifiedPaymentWrapper {
       return {
         totalAmount: paymentAmount,
         currentCreditBalance: currentCredit,
-        newCreditBalance: roundCurrency(currentCredit + paymentAmount),
+        newCreditBalance: roundPesos(currentCredit + paymentAmount),
         hoa: { billsPaid: [], totalPaid: 0, monthsAffected: [] },
         water: { billsPaid: [], totalPaid: 0, billsAffected: [] },
         credit: {
           used: 0,
           added: paymentAmount,
-          final: roundCurrency(currentCredit + paymentAmount)
+          final: roundPesos(currentCredit + paymentAmount)
         },
         summary: {
           totalBills: 0,
@@ -311,11 +302,11 @@ export class UnifiedPaymentWrapper {
     const distribution = {
       totalAvailableFunds: paymentAmount + currentCredit,
       currentCreditBalance: currentCredit,
-      newCreditBalance: roundCurrency(finalCreditBalance),
-      creditUsed: netCreditAdded < 0 ? roundCurrency(-netCreditAdded) : 0,  // If negative, credit was used
-      overpayment: netCreditAdded > 0 ? roundCurrency(netCreditAdded) : 0,  // If positive, credit was added
-      netCreditAdded: roundCurrency(netCreditAdded),  // Can be positive or negative
-      totalApplied: roundCurrency(totalPaidAmount),
+      newCreditBalance: roundPesos(finalCreditBalance),
+      creditUsed: netCreditAdded < 0 ? roundPesos(-netCreditAdded) : 0,  // If negative, credit was used
+      overpayment: netCreditAdded > 0 ? roundPesos(netCreditAdded) : 0,  // If positive, credit was added
+      netCreditAdded: roundPesos(netCreditAdded),  // Can be positive or negative
+      totalApplied: roundPesos(totalPaidAmount),
       billPayments: allEligibleBillPayments  // Now includes all eligible bills, not just paid ones
     };
     
@@ -406,7 +397,7 @@ export class UnifiedPaymentWrapper {
     logDebug(`   🔍 Verifying preview totals match payment amount...`);
     const previewTotal = preview.summary?.totalAllocated || 0;
     const netCreditAdded = preview.netCreditAdded ?? ((preview.credit?.added || 0) - (preview.credit?.used || 0));
-    const expectedPayment = roundCurrency(previewTotal + netCreditAdded);
+    const expectedPayment = roundPesos(previewTotal + netCreditAdded);
 
     if (Math.abs(expectedPayment - amount) > 0.01) {
       logError(`   ❌ Preview mismatch: Expected payment $${expectedPayment}, Received $${amount}`);
@@ -1673,7 +1664,7 @@ export class UnifiedPaymentWrapper {
       if (moduleType === 'hoa') {
         // Add to HOA results
         result.hoa.billsPaid.push(payment);
-        result.hoa.totalPaid = roundCurrency(result.hoa.totalPaid + (payment.amountPaid || 0));
+        result.hoa.totalPaid = roundPesos(result.hoa.totalPaid + (payment.amountPaid || 0));
         
         // Format for HOA-specific response (use original period without module prefix)
         const isQuarterly = billToUse._hoaMetadata?.isQuarterly;
@@ -1725,7 +1716,7 @@ export class UnifiedPaymentWrapper {
       } else if (moduleType === 'water') {
         // Add to Water results
         result.water.billsPaid.push(payment);
-        result.water.totalPaid = roundCurrency(result.water.totalPaid + (payment.amountPaid || 0));
+        result.water.totalPaid = roundPesos(result.water.totalPaid + (payment.amountPaid || 0));
         
         // Format for Water-specific response (use original period without module prefix)
         // Always include both due amounts and paid amounts for proper frontend display

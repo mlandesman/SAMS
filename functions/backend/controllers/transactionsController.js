@@ -277,7 +277,14 @@ async function getCategoryType(clientId, categoryId, categoryName) {
  * CRUD operations for transactions under a client
  */
 
-// Create a transaction
+/**
+ * Create a transaction
+ * @param {string} clientId - Client ID
+ * @param {Object} data - Transaction data
+ * @param {number} data.amount - Amount in PESOS (will be converted to centavos for Firestore storage)
+ * @param {Object} [options] - Optional settings
+ * @returns {Promise<Object>} Created transaction with id
+ */
 async function createTransaction(clientId, data, options = {}) {
   try {
     // Step 0: Prepare data for validation

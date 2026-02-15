@@ -17,7 +17,7 @@ import { generateStatementData as generateLedgerData } from './generateStatement
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
-import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Get utility graph data for a unit
@@ -2673,12 +2673,6 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   const endYear = endDate.getFullYear();
   const periodCovered = `${startMonthName} ${startDate.getDate()}, ${startYear} - ${endMonthName} ${endDate.getDate()}, ${endYear}`;
   
-  // Helper function to round to 2 decimal places
-  const roundTo2Decimals = (value) => {
-    if (value === null || value === undefined || isNaN(value)) return 0;
-    return Math.round(value * 100) / 100;
-  };
-  
   // Transform chronological transactions to lineItems
   const lineItems = rawData.chronologicalTransactions.map(txn => {
     const txnDate = txn.date instanceof Date ? txn.date : parseDate(txn.date);
@@ -2712,9 +2706,9 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     return {
       date: dateStr,
       description: txn.description || '',
-      charge: roundTo2Decimals(txn.charge || 0),
-      payment: roundTo2Decimals(txn.payment || 0),
-      balance: roundTo2Decimals(txn.balance || 0),
+      charge: roundPesos(txn.charge || 0),
+      payment: roundPesos(txn.payment || 0),
+      balance: roundPesos(txn.balance || 0),
       type: txn.type || 'charge', // 'charge', 'payment', 'penalty'
       category: txn.category || null,
       transactionId: txn.transactionId || null,
@@ -2749,7 +2743,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     return {
       date: dateStr,
       description: `Credit used for ${transaction.description || 'Payment'}`,
-      amount: roundTo2Decimals(totalAmount)
+      amount: roundPesos(totalAmount)
     };
   });
   
@@ -2974,15 +2968,15 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     })
     .map(([name, data]) => ({
       name: name,
-      charges: roundTo2Decimals(data.charges),
-      penalties: roundTo2Decimals(data.penalties),
-      paid: roundTo2Decimals(data.paid)
+      charges: roundPesos(data.charges),
+      penalties: roundPesos(data.penalties),
+      paid: roundPesos(data.paid)
     }));
   
   const allocationTotals = {
-    charges: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.charges, 0)),
-    penalties: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.penalties, 0)),
-    paid: roundTo2Decimals(categories.reduce((sum, cat) => sum + cat.paid, 0))
+    charges: roundPesos(categories.reduce((sum, cat) => sum + cat.charges, 0)),
+    penalties: roundPesos(categories.reduce((sum, cat) => sum + cat.penalties, 0)),
+    paid: roundPesos(categories.reduce((sum, cat) => sum + cat.paid, 0))
   };
   
   // Build optimized return structure
@@ -3015,20 +3009,20 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       generatedAt: getNow().toISOString()
     },
     summary: (() => {
-      const closingBalance = roundTo2Decimals(rawData.summary.finalBalance);
-      const creditBalance = roundTo2Decimals(rawData.creditBalance?.creditBalance || 0);
-      const amountDue = roundTo2Decimals(rawData.summary.amountDue || 0);
+      const closingBalance = roundPesos(rawData.summary.finalBalance);
+      const creditBalance = roundPesos(rawData.creditBalance?.creditBalance || 0);
+      const amountDue = roundPesos(rawData.summary.amountDue || 0);
       // The closing balance IS the final answer (like a bank statement)
       // Positive = amount owed, Negative = credit balance (no payment needed)
       // Credit is consumed IMPLICITLY through the running balance - no separate subtraction
       return {
-        totalDue: roundTo2Decimals(rawData.summary.totalDue),
-        totalPaid: roundTo2Decimals(rawData.summary.totalPaid),
-        totalOutstanding: roundTo2Decimals(rawData.summary.totalOutstanding),
-        openingBalance: roundTo2Decimals(rawData.summary.openingBalance || 0),
+        totalDue: roundPesos(rawData.summary.totalDue),
+        totalPaid: roundPesos(rawData.summary.totalPaid),
+        totalOutstanding: roundPesos(rawData.summary.totalOutstanding),
+        openingBalance: roundPesos(rawData.summary.openingBalance || 0),
         closingBalance: closingBalance,
-        totalCharges: roundTo2Decimals(rawData.summary.totalCharges || 0),
-        totalPayments: roundTo2Decimals(rawData.summary.totalPayments || 0),
+        totalCharges: roundPesos(rawData.summary.totalCharges || 0),
+        totalPayments: roundPesos(rawData.summary.totalPayments || 0),
         creditBalance: creditBalance,
         amountDue: amountDue,
         netAmountDue: amountDue
@@ -3041,7 +3035,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     nextPaymentDueDate: rawData.nextPaymentDueDate || null,
     creditInfo: {
       // Use credit balance from API response (already calculated by getter in creditService)
-      currentBalance: roundTo2Decimals(rawData.creditBalance?.creditBalance || 0),
+      currentBalance: roundPesos(rawData.creditBalance?.creditBalance || 0),
       allocations: creditAllocations
     },
     allocationSummary: {

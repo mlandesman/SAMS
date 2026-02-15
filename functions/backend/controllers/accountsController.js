@@ -807,7 +807,10 @@ async function getAccountsForReconciliation(clientId) {
 /**
  * Create reconciliation adjustment transactions
  * @param {string} clientId - Client ID
- * @param {Array} adjustments - Array of adjustment objects { accountId, accountName, samsBalance, actualBalance, difference }
+ * @param {Array} adjustments - Adjustment objects
+ * @param {number} adjustments[].samsBalance - SAMS balance in PESOS
+ * @param {number} adjustments[].actualBalance - Actual balance in PESOS
+ * @param {number} adjustments[].difference - Difference in PESOS (positive = add, negative = deduct)
  * @param {Object} user - User object from req.user
  * @returns {Array} - Results array with transaction IDs
  */

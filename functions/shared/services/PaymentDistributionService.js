@@ -23,18 +23,9 @@
  * Returns amounts in PESOS for frontend display
  */
 
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos, roundPesos } from '../utils/currencyUtils.js';
 import { getTotalOwed, getBaseOwed, getPenaltyOwed, getTotalDue } from '../utils/billCalculations.js';
 import { logDebug, logInfo, logWarn, logError } from '../logger.js';
-
-/**
- * Round currency amounts to prevent floating point precision errors
- * @param {number} amount - Amount to round
- * @returns {number} Rounded amount
- */
-function roundCurrency(amount) {
-  return Math.round(amount * 100) / 100;
-}
 
 // Helper functions for data loading moved to BillDataService.js (Phase 4 Task 4.5 refactor)
 
@@ -84,7 +75,7 @@ export function calculatePaymentDistribution(params) {
   logDebug(`📋 [PAYMENT DIST] Processing ${bills.length} pre-loaded bills`);
   
   // Calculate total available funds in PESOS and CENTAVOS
-  const totalAvailableFundsPesos = roundCurrency(paymentAmount + currentCreditBalance);
+  const totalAvailableFundsPesos = roundPesos(paymentAmount + currentCreditBalance);
   const totalAvailableFundsCentavos = pesosToCentavos(totalAvailableFundsPesos);
   
   logDebug(`💰 Available funds: Payment $${paymentAmount} + Credit $${currentCreditBalance} = Total $${totalAvailableFundsPesos} (${totalAvailableFundsCentavos} centavos)`);
@@ -189,7 +180,7 @@ export function calculatePaymentDistribution(params) {
   // Calculate credit usage vs overpayment
   // Calculate total amount actually applied to bills
   const totalBillsPaidCentavos = totalBaseChargesPaidCentavos + totalPenaltiesPaidCentavos;
-  const totalBillsPaidPesos = roundCurrency(centavosToPesos(totalBillsPaidCentavos));
+  const totalBillsPaidPesos = roundPesos(centavosToPesos(totalBillsPaidCentavos));
   
   // Key distinction: overpayment is ONLY from payment amount, not from existing credit
   // If payment > bills paid: overpayment = payment - bills (credit not used)
@@ -200,16 +191,16 @@ export function calculatePaymentDistribution(params) {
   if (paymentAmountCentavos >= totalBillsPaidCentavos) {
     // Payment covered all bills - no credit needed
     creditUsed = 0;
-    overpayment = roundCurrency(centavosToPesos(paymentAmountCentavos - totalBillsPaidCentavos));
+    overpayment = roundPesos(centavosToPesos(paymentAmountCentavos - totalBillsPaidCentavos));
   } else {
     // Payment didn't cover all bills - used credit to make up difference
     const creditNeededCentavos = totalBillsPaidCentavos - paymentAmountCentavos;
-    creditUsed = roundCurrency(centavosToPesos(creditNeededCentavos));
+    creditUsed = roundPesos(centavosToPesos(creditNeededCentavos));
     overpayment = 0;
   }
   
   // New credit balance = current balance - credit used + overpayment
-  const newCreditBalance = roundCurrency(currentCreditBalance - creditUsed + overpayment);
+  const newCreditBalance = roundPesos(currentCreditBalance - creditUsed + overpayment);
   
   logDebug(`💰 [PAYMENT DIST] Calculations: Bills paid $${totalBillsPaidPesos}, Remaining $${centavosToPesos(remainingFundsCentavos)}, Credit used $${creditUsed}, Overpayment $${overpayment}`);
   
@@ -268,6 +259,6 @@ export function calculatePaymentDistribution(params) {
  * Export helper functions for testing
  */
 export const __testing = {
-  roundCurrency
+  roundPesos
 };
 
