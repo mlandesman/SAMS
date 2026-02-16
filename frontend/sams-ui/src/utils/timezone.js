@@ -266,4 +266,34 @@ export function logMexicoTime() {
   // console.log(`📅 Mexico date string: ${getMexicoDateString()}`);
 }
 
+/**
+ * Format a timestamp for display in America/Cancun timezone
+ * @param {Date|number|{seconds: number}|{toDate: function}} ts - Timestamp (Date, ms, Firestore format, or serialized)
+ * @returns {string} Formatted date/time string
+ */
+export function formatTimestampMexico(ts) {
+  if (!ts) return '—';
+  let date;
+  try {
+    if (ts instanceof Date) {
+      date = ts;
+    } else if (typeof ts?.toDate === 'function') {
+      date = ts.toDate();
+    } else if (ts.seconds != null) {
+      date = new Date(ts.seconds * 1000);
+    } else if (typeof ts === 'string' || typeof ts === 'number') {
+      date = new Date(ts);
+    } else {
+      return '—';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: MEXICO_TIMEZONE,
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(date);
+  } catch {
+    return '—';
+  }
+}
+
 export { MEXICO_TIMEZONE };

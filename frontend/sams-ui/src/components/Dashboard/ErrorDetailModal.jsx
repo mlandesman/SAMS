@@ -20,6 +20,7 @@ import {
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { acknowledgeError, acknowledgeAllErrors } from '../../api/systemErrors';
+import { formatTimestampMexico } from '../../utils/timezone';
 
 const MODULE_COLORS = {
   email: 'warning',
@@ -30,18 +31,6 @@ const MODULE_COLORS = {
   budget: 'warning',
   general: 'default',
 };
-
-function formatTimestamp(ts) {
-  if (!ts) return '—';
-  try {
-    if (typeof ts?.toDate === 'function') return ts.toDate().toLocaleString();
-    if (ts.seconds != null) return new Date(ts.seconds * 1000).toLocaleString();
-    if (typeof ts === 'string' || typeof ts === 'number') return new Date(ts).toLocaleString();
-    return String(ts);
-  } catch {
-    return String(ts);
-  }
-}
 
 function ErrorDetailModal({ open, onClose, errors, count, onAcknowledge, onAcknowledgeAll, loading }) {
   const [expandedId, setExpandedId] = useState(null);
@@ -141,7 +130,7 @@ function ErrorDetailModal({ open, onClose, errors, count, onAcknowledge, onAckno
                     <Box flex={1} minWidth={0}>
                       <Box display="flex" flexWrap="wrap" gap={0.5} mb={0.5}>
                         <Typography variant="caption" color="text.secondary">
-                          {formatTimestamp(err.timestamp)}
+                          {formatTimestampMexico(err.timestamp)}
                         </Typography>
                         <Chip
                           label={err.source === 'backend' ? 'Backend' : 'Frontend'}
