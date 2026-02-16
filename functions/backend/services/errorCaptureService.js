@@ -120,16 +120,23 @@ export async function acknowledgeAllErrors(db, userId) {
     .where('acknowledged', '==', false)
     .get();
 
-  const batch = db.batch();
   const now = getNow();
-  snapshot.docs.forEach(doc => {
-    batch.update(doc.ref, {
-      acknowledged: true,
-      acknowledgedBy: userId,
-      acknowledgedAt: now
+  const BATCH_LIMIT = 500;
+  const docs = snapshot.docs;
+
+  for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + BATCH_LIMIT);
+    chunk.forEach(doc => {
+      batch.update(doc.ref, {
+        acknowledged: true,
+        acknowledgedBy: userId,
+        acknowledgedAt: now
+      });
     });
-  });
-  await batch.commit();
+    await batch.commit();
+  }
+
   return snapshot.size;
 }
 
