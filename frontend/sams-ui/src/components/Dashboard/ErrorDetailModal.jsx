@@ -65,7 +65,8 @@ function ErrorDetailModal({ open, onClose, errors, count, onAcknowledge, onAckno
     const getMs = (ts) => {
       if (!ts) return 0;
       if (typeof ts?.toMillis === 'function') return ts.toMillis();
-      if (ts.seconds != null) return ts.seconds * 1000;
+      const sec = ts.seconds ?? ts._seconds;
+      if (sec != null) return sec * 1000;
       return 0;
     };
     return getMs(b.timestamp) - getMs(a.timestamp);
