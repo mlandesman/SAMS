@@ -65,7 +65,11 @@ export function createErrorSinkForFirestore(db) {
         details: formatDetails(meta),
         acknowledged: false,
         acknowledgedBy: null,
-        acknowledgedAt: null
+        acknowledgedAt: null,
+        version: process.env.SAMS_VERSION || null,
+        environment: process.env.NODE_ENV || 'unknown',
+        userAgent: null,
+        url: null,
       };
       const ref = await db.collection('systemErrors').add(doc);
       logInfo('📥 Backend error captured', { id: ref.id, module: doc.module });

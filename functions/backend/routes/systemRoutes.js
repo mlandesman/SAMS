@@ -54,7 +54,12 @@ router.post('/logError', authenticateUserWithProfile, async (req, res) => {
       details: details ? String(details).substring(0, 2000) : '',
       acknowledged: false,
       acknowledgedBy: null,
-      acknowledgedAt: null
+      acknowledgedAt: null,
+      // Schema expansion — store if provided
+      userAgent: req.body.userAgent ? String(req.body.userAgent).substring(0, 300) : null,
+      url: req.body.url ? String(req.body.url).substring(0, 500) : null,
+      version: req.body.version ? String(req.body.version).substring(0, 50) : null,
+      environment: req.body.environment ? String(req.body.environment).substring(0, 20) : null,
     };
 
     const ref = await db.collection('systemErrors').add(doc);

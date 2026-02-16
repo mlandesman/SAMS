@@ -15,6 +15,9 @@ const loadVersionConfig = async () => {
       .then(data => {
         versionConfig = data;
         cachedVersionConfig = data;
+        if (typeof window !== 'undefined') {
+          window.__SAMS_VERSION__ = data?.version || 'unknown';
+        }
         // Notify all listeners
         versionListeners.forEach(listener => listener(data));
         return data;

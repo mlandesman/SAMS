@@ -101,6 +101,11 @@ export async function logFrontendError({ module, message, details }) {
       module: module || 'general',
       message: String(message),
       details: details ? String(details) : '',
+      // Schema expansion — enriched context
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      url: typeof window !== 'undefined' ? window.location.href : null,
+      version: (typeof window !== 'undefined' && window.__SAMS_VERSION__) ? window.__SAMS_VERSION__ : 'unknown',
+      environment: (typeof window !== 'undefined' && window.location.hostname.includes('localhost')) ? 'development' : 'production',
     }),
   });
 
