@@ -8,6 +8,18 @@ import admin from 'firebase-admin';
 import nodemailer from 'nodemailer';
 
 /**
+ * Get Gmail transporter for health checks. Returns null if not configured.
+ * @returns {object|null} Nodemailer transporter or null
+ */
+export function getTransporter() {
+  try {
+    return createGmailTransporter();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Create Gmail transporter using existing Sandyland configuration
  * @returns {object} Nodemailer transporter
  */
