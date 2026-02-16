@@ -55,6 +55,10 @@
           "function": "api"
         },
         {
+          "source": "/error-reporting",
+          "function": "api"
+        },
+        {
           "source": "/error-reporting/**",
           "function": "api"
         },
@@ -180,6 +184,10 @@
         },
         {
           "source": "/system/**",
+          "function": "api"
+        },
+        {
+          "source": "/error-reporting",
           "function": "api"
         },
         {
