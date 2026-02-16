@@ -134,6 +134,21 @@ export async function acknowledgeAllErrors(db, userId) {
 }
 
 /**
+ * Get ALL errors (acknowledged + unacknowledged), ordered by timestamp desc
+ * @param {FirebaseFirestore.Firestore} db
+ * @param {number} limit
+ * @returns {Promise<Array<{id: string, ...}>>}
+ */
+export async function getAllErrors(db, limit = 100) {
+  const snapshot = await db.collection('systemErrors')
+    .orderBy('timestamp', 'desc')
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
  * Get count of unacknowledged errors
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<number>}

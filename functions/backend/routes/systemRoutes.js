@@ -12,6 +12,7 @@ import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { logInfo } from '../../shared/logger.js';
 import {
   getUnacknowledgedErrors,
+  getAllErrors,
   getUnacknowledgedErrorCount,
   acknowledgeError,
   acknowledgeAllErrors
@@ -70,12 +71,22 @@ router.post('/logError', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
-// GET /api/system/errors — Fetch unacknowledged errors (SuperAdmin only)
+// GET /api/system/errors — Fetch errors (SuperAdmin only)
+// ?all=true  → return ALL errors (acknowledged + unacknowledged)
+// ?all=false → return only unacknowledged (default)
+// ?limit=50  → max results (default 50, max 200)
 router.get('/errors', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const includeAll = req.query.all === 'true';
     const db = await getDb();
-    const errors = await getUnacknowledgedErrors(db, limit);
+
+    let errors;
+    if (includeAll) {
+      errors = await getAllErrors(db, limit);
+    } else {
+      errors = await getUnacknowledgedErrors(db, limit);
+    }
     const count = await getUnacknowledgedErrorCount(db);
     return res.json({ errors, count });
   } catch (err) {
