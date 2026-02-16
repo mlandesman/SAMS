@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "171"
+          ],
+          "text": "System Error Monitor: centralized error capture with Firestore persistence, SuperAdmin dashboard card with StatusBar integration, React ErrorBoundary and global error handlers, System Errors admin tab in Settings"
+        }
+      ]
+    },
+    {
       "version": "1.12.1",
       "date": "2026-02-16",
       "changes": [
