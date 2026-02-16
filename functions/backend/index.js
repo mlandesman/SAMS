@@ -211,8 +211,8 @@ logDebug('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
 app.use('/system/version', versionRoutes); // Clean architecture (public)
 
-// System error monitor API (authenticated)
-app.use('/api/system', systemErrorRoutes);
+// System error monitor API (authenticated, domain-specific route)
+app.use('/error-reporting', systemErrorRoutes);
 
 // COMMUNICATION ROUTES (domain-specific email functionality)
 logDebug('Mounting communication email routes');

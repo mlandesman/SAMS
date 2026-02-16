@@ -31,7 +31,7 @@ async function getAuthHeaders() {
 export async function getAllSystemErrors(limit = 100) {
   const headers = await getAuthHeaders();
   const query = `?all=true&limit=${encodeURIComponent(limit)}`;
-  const response = await fetch(`${API_BASE_URL}/api/system/errors${query}`, {
+  const response = await fetch(`${API_BASE_URL}/error-reporting${query}`, {
     method: 'GET',
     headers,
     credentials: 'include',
@@ -53,7 +53,7 @@ export async function getAllSystemErrors(limit = 100) {
 export async function getSystemErrors(limit = 50) {
   const headers = await getAuthHeaders();
   const query = `?limit=${encodeURIComponent(limit)}`;
-  const response = await fetch(`${API_BASE_URL}/api/system/errors${query}`, {
+  const response = await fetch(`${API_BASE_URL}/error-reporting${query}`, {
     method: 'GET',
     headers,
     credentials: 'include',
@@ -73,7 +73,7 @@ export async function getSystemErrors(limit = 50) {
  */
 export async function acknowledgeError(errorId) {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/system/errors/${errorId}/acknowledge`, {
+  const response = await fetch(`${API_BASE_URL}/error-reporting/${errorId}/acknowledge`, {
     method: 'PUT',
     headers,
     credentials: 'include',
@@ -91,7 +91,7 @@ export async function acknowledgeError(errorId) {
  */
 export async function acknowledgeAllErrors() {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/system/errors/acknowledge-all`, {
+  const response = await fetch(`${API_BASE_URL}/error-reporting/acknowledge-all`, {
     method: 'PUT',
     headers,
     credentials: 'include',
@@ -114,7 +114,7 @@ export async function acknowledgeAllErrors() {
  */
 export async function logFrontendError({ module, message, details }) {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/system/logError`, {
+  const response = await fetch(`${API_BASE_URL}/error-reporting/log`, {
     method: 'POST',
     headers,
     credentials: 'include',

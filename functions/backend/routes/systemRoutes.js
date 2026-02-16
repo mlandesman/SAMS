@@ -1,9 +1,9 @@
 /**
- * System Error Monitor API routes
- * POST /logError — Frontend error capture (any authenticated user)
- * GET /errors — Fetch unacknowledged errors (SuperAdmin only)
- * PUT /errors/:errorId/acknowledge — Acknowledge single error (SuperAdmin only)
- * PUT /errors/acknowledge-all — Acknowledge all errors (SuperAdmin only)
+ * System Error Monitor API routes — mounted at /error-reporting
+ * POST /log — Frontend error capture (any authenticated user)
+ * GET / — Fetch errors (SuperAdmin only, ?all=true for full history)
+ * PUT /acknowledge-all — Acknowledge all errors (SuperAdmin only)
+ * PUT /:errorId/acknowledge — Acknowledge single error (SuperAdmin only)
  */
 
 import express from 'express';
@@ -37,8 +37,8 @@ function requireSuperAdmin(req, res, next) {
   next();
 }
 
-// POST /api/system/logError — Frontend error capture (any authenticated user)
-router.post('/logError', authenticateUserWithProfile, async (req, res) => {
+// POST /error-reporting/log — Frontend error capture (any authenticated user)
+router.post('/log', authenticateUserWithProfile, async (req, res) => {
   try {
     const { source = 'frontend', module: mod, message, details } = req.body;
     if (!message || typeof message !== 'string') {
@@ -71,11 +71,11 @@ router.post('/logError', authenticateUserWithProfile, async (req, res) => {
   }
 });
 
-// GET /api/system/errors — Fetch errors (SuperAdmin only)
+// GET /error-reporting — Fetch errors (SuperAdmin only)
 // ?all=true  → return ALL errors (acknowledged + unacknowledged)
 // ?all=false → return only unacknowledged (default)
 // ?limit=50  → max results (default 50, max 200)
-router.get('/errors', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
+router.get('/', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
     const includeAll = req.query.all === 'true';
@@ -94,8 +94,8 @@ router.get('/errors', authenticateUserWithProfile, requireSuperAdmin, async (req
   }
 });
 
-// PUT /api/system/errors/acknowledge-all — Must be before :errorId route
-router.put('/errors/acknowledge-all', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
+// PUT /error-reporting/acknowledge-all — Must be before :errorId route
+router.put('/acknowledge-all', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
   try {
     const db = await getDb();
     const userId = req.user?.uid || req.user?.samsProfile?.id || 'unknown';
@@ -106,8 +106,8 @@ router.put('/errors/acknowledge-all', authenticateUserWithProfile, requireSuperA
   }
 });
 
-// PUT /api/system/errors/:errorId/acknowledge — Acknowledge single error (SuperAdmin only)
-router.put('/errors/:errorId/acknowledge', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
+// PUT /error-reporting/:errorId/acknowledge — Acknowledge single error (SuperAdmin only)
+router.put('/:errorId/acknowledge', authenticateUserWithProfile, requireSuperAdmin, async (req, res) => {
   try {
     const { errorId } = req.params;
     const db = await getDb();

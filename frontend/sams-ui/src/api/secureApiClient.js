@@ -95,11 +95,11 @@ function validatePropertyAccess(samsUser, clientId) {
 
 /**
  * Report API errors to system error monitor (fire-and-forget).
- * Excludes /api/system/logError to prevent infinite loops.
+ * Excludes /error-reporting/log to prevent infinite loops.
  * Only reports 403 and 5xx — not 401 (normal re-auth) or network/abort errors.
  */
 function reportApiError(url, method, status, errorMessage) {
-  if (url.includes('/api/system/logError')) return;
+  if (url.includes('/error-reporting/log')) return;
   if (status === 401) return;
   if (status !== 403 && status < 500) return; // Report 403 and 5xx only
   logFrontendError({
