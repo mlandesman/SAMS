@@ -26,6 +26,7 @@ import budgetRoutes from './routes/budgets.js'; // Import budget routes
 import translateRoutes from './routes/translateRoutes.js'; // Import translation routes for DeepL
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 import voteRoutes from './routes/voteRoutes.js'; // Import polling & vote routes
+import systemErrorRoutes from './routes/systemRoutes.js';
 
 // New comment for testing
 
@@ -176,6 +177,26 @@ const initializeApp = async () => {
   try {
     await initializeFirebase();
     logInfo('✅ Firebase initialized successfully');
+
+    const db = await getDb();
+    const { registerErrorSink } = await import('../shared/logger.js');
+    const { createErrorSinkForFirestore } = await import('./services/errorCaptureService.js');
+    const errorSink = createErrorSinkForFirestore(db);
+    registerErrorSink(errorSink);
+    logInfo('✅ Error capture sink registered');
+
+    // Email health check (non-blocking)
+    try {
+      const { getTransporter } = await import('./services/emailService.js');
+      const transporter = getTransporter();
+      if (transporter && typeof transporter.verify === 'function') {
+        transporter.verify()
+          .then(() => logInfo('✅ Email transporter verified'))
+          .catch((emailErr) => logError('❌ Email transporter verification failed — emails will not send', emailErr));
+      }
+    } catch (healthErr) {
+      logError('❌ Email health check failed to initialize', healthErr);
+    }
   } catch (error) {
     logError('❌ Firebase initialization failed:', error);
     // Don't throw - let server start anyway for debugging
@@ -189,6 +210,9 @@ initializeApp().catch(console.error);
 logDebug('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
 app.use('/system/version', versionRoutes); // Clean architecture (public)
+
+// System error monitor API (authenticated)
+app.use('/api/system', systemErrorRoutes);
 
 // COMMUNICATION ROUTES (domain-specific email functionality)
 logDebug('Mounting communication email routes');

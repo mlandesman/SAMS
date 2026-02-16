@@ -19,6 +19,7 @@ import DigitalReceiptDemo from './views/DigitalReceiptDemo';
 import TestRoute from './components/TestRoute';
 import UnitReportView from './views/UnitReportView';
 import MaintenanceGuard from './components/MaintenanceGuard';
+import ErrorBoundary from './components/ErrorBoundary';
 import PasswordSetupView from './views/PasswordSetupView';
 import ClientProtectedRoute from './components/security/ClientProtectedRoute';
 import AuthGuard from './components/guards/AuthGuard';
@@ -311,7 +312,8 @@ function AppContent() {
 function App() {
   return (
     <MaintenanceGuard>
-      <Router>
+      <ErrorBoundary>
+        <Router>
         <Routes>
           {/* Public routes that don't require authentication */}
           <Route path="/setup-password" element={<PasswordSetupView />} />
@@ -330,9 +332,10 @@ function App() {
                 </ClientProvider>
               </ExchangeRateProvider>
             </AuthProvider>
-          } />
+          }           />
         </Routes>
       </Router>
+      </ErrorBoundary>
     </MaintenanceGuard>
   );
 }

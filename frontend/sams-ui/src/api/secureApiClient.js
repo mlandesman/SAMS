@@ -10,6 +10,7 @@ import { getCurrentUser } from '../firebaseClient';
 import { useAuth } from '../context/AuthContext';
 import { config } from '../config';
 import React from 'react';
+import { logFrontendError } from './systemErrors.js';
 
 /**
  * Base API configuration
@@ -93,6 +94,22 @@ function validatePropertyAccess(samsUser, clientId) {
 }
 
 /**
+ * Report API errors to system error monitor (fire-and-forget).
+ * Excludes /api/system/logError to prevent infinite loops.
+ * Only reports 403 and 5xx — not 401 (normal re-auth) or network/abort errors.
+ */
+function reportApiError(url, method, status, errorMessage) {
+  if (url.includes('/api/system/logError')) return;
+  if (status === 401) return;
+  if (status !== 403 && status < 500) return; // Report 403 and 5xx only
+  logFrontendError({
+    module: 'api',
+    message: `API ${method} ${url} failed: ${status} - ${errorMessage}`,
+    details: JSON.stringify({ url, method, status })
+  }).catch(() => {});
+}
+
+/**
  * Enhanced fetch wrapper with security validation
  */
 async function secureApiCall(url, options = {}, clientId = null, samsUser = null) {
@@ -120,7 +137,12 @@ async function secureApiCall(url, options = {}, clientId = null, samsUser = null
     // Handle HTTP errors
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+      const errorMsg = errorData.error || 'Unknown error';
+      const method = (options.method || 'GET').toUpperCase();
+
+      // Report 403 and 5xx to system error monitor (fire-and-forget)
+      reportApiError(url, method, response.status, errorMsg);
+
       switch (response.status) {
         case 401:
           throw new SecurityError(
@@ -128,8 +150,8 @@ async function secureApiCall(url, options = {}, clientId = null, samsUser = null
             SECURITY_ERRORS.UNAUTHORIZED
           );
         case 403:
-          const errorCode = errorData.code === 'CLIENT_ACCESS_DENIED' 
-            ? SECURITY_ERRORS.CLIENT_ACCESS_DENIED 
+          const errorCode = errorData.code === 'CLIENT_ACCESS_DENIED'
+            ? SECURITY_ERRORS.CLIENT_ACCESS_DENIED
             : SECURITY_ERRORS.PERMISSION_DENIED;
           throw new SecurityError(
             errorData.error || 'Access denied',
@@ -137,7 +159,7 @@ async function secureApiCall(url, options = {}, clientId = null, samsUser = null
             errorData
           );
         default:
-          throw new Error(`API Error ${response.status}: ${errorData.error || 'Unknown error'}`);
+          throw new Error(`API Error ${response.status}: ${errorMsg}`);
       }
     }
 

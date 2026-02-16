@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.11.2 | **Build:** 260206  
-**Last Updated:** February 6, 2026 — Sprint F Complete (Infrastructure & Tech Debt)  
+**Version:** v1.12.1 | **Build:** 260214.1507  
+**Last Updated:** February 16, 2026 — Sprint EM STARTED (System Error Monitor #171)  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,13 +25,46 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-No active sprint. Ready to select next sprint from backlog.
+### Sprint EM: System Error Monitor — IN PROGRESS
+**Started:** February 16, 2026  
+**Branch:** `feature/system-error-monitor`  
+**Issue:** #171  
+**Estimated:** 4-6 hours  
+**No feature flag** (SuperAdmin-only, no financial logic)
 
-See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for upcoming sprint options.
+| Task | Title | Est | Status |
+|------|-------|-----|--------|
+| EM-1 | Backend Infrastructure (logger, service, routes, rules) | 2h | ✅ Complete (5 commits) |
+| EM-2 | Frontend Dashboard Card & Error Detail Modal | 1.5h | ✅ Complete (6 commits) |
+| EM-3 | Frontend Error Capture + Schema Expansion, Mobile (stretch) | 1.5h | ✅ Complete (1 commit) |
+| EM-4 | Admin System Errors Tab in List Management | 1.5h | Pending |
+
+**Deliverables:**
+- Enhanced `logError()` writes to Firestore `systemErrors` collection (fire-and-forget)
+- API endpoints: POST logError, GET errors, PUT acknowledge
+- RED Dashboard card (SuperAdmin only) with error count and detail modal
+- StatusBar integration (error count when card hidden)
+- React Error Boundary and global error handlers
+- Schema expansion (version, build, environment, userAgent, url)
+- Email transporter health check at startup
+- System Errors tab in List Management (full history, SuperAdmin)
+- Mobile dashboard card (stretch goal)
 
 ---
 
 ## Recently Completed
+
+### Sprint CX: Currency Conversion Discipline ✅ COMPLETE
+**Completed:** February 15, 2026  
+**PR:** #183 (merged to main)  
+**Issues:** #181 CLOSED, #180 CLOSED, #179 CLOSED  
+**Quality:** ⭐⭐⭐⭐⭐
+
+24 files changed, +464/-195 lines. Eliminated all systemic centavos/pesos conversion bugs. Fixed bank fee data corruption (#180), modal crash (#179), heuristic detection. Standardized all conversions to shared utilities. Added roundPesos/roundCentavos, JSDoc annotations, verification script.
+
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_CX_Currency_Discipline_2026-02-15/`
+
+---
 
 ### Sprint F: Infrastructure & Tech Debt ✅ COMPLETE
 **Completed:** February 6, 2026  
