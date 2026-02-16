@@ -32,6 +32,7 @@ import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
 import { LoadingSpinner } from '../components/common';
 import ClientSwitcher from '../components/ClientSwitcher';
+import ErrorMonitorCard from '../components/Dashboard/ErrorMonitorCard';
 import { getPolls, getPoll } from '../api/polls';
 import './DashboardView.css';
 
@@ -183,6 +184,7 @@ function DashboardView() {
   
   const userRole = getUserRole();
   const isAdmin = userRole === 'Administrator' || userRole === 'Super Admin';
+  const isSuperAdmin = userRole === 'Super Admin';
 
   return (
     <>
@@ -224,7 +226,13 @@ function DashboardView() {
 
       {/* Data Cards */}
       <Grid container spacing={3}>
-        
+        {/* System Error Monitor Card — SuperAdmin only, first for visibility */}
+        {isSuperAdmin && (
+          <Grid item xs={12} sm={6} md={4}>
+            <ErrorMonitorCard />
+          </Grid>
+        )}
+
         {/* Account Balance Card */}
         <Grid item xs={12} sm={6} md={4}>
           <Card 
