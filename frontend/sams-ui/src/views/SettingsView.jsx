@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Tabs, Tab } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faChartLine, faDatabase, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
+import { faCog, faChartLine, faDatabase, faCalendarAlt, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../api/exchangeRates';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
@@ -10,6 +10,7 @@ import ActivityActionBar from '../components/common/ActivityActionBar';
 import ImportManagement from '../components/Settings/ImportManagement';
 import YearEndProcessing from './settings/YearEndProcessing';
 import BackupSettings from './settings/BackupSettings';
+import SystemErrorsSection from '../components/Settings/SystemErrorsSection';
 import '../layout/ActionBar.css';
 
 function SettingsView() {
@@ -145,10 +146,11 @@ function SettingsView() {
     'data-management': 1,
     'year-end': 2,
     'system': 3,
-    'backup': 4
+    'system-errors': 4,
+    'backup': 5
   };
-  
-  const indexToSection = ['exchange-rates', 'data-management', 'year-end', 'system', 'backup'];
+
+  const indexToSection = ['exchange-rates', 'data-management', 'year-end', 'system', 'system-errors', 'backup'];
   
   const handleTabChange = (event, newValue) => {
     setActiveSection(indexToSection[newValue]);
@@ -188,6 +190,13 @@ function SettingsView() {
             icon={<FontAwesomeIcon icon={faCog} />}
             iconPosition="start"
           />
+          {isSuperAdmin && (
+            <Tab
+              label="System Errors"
+              icon={<FontAwesomeIcon icon={faExclamationTriangle} />}
+              iconPosition="start"
+            />
+          )}
           {isSuperAdmin && (
             <Tab
               label="Backup & Recovery"
@@ -418,6 +427,21 @@ function SettingsView() {
             <p><strong>Client Access:</strong> {samsUser?.propertyAccess && Array.isArray(samsUser.propertyAccess) ? samsUser.propertyAccess.join(', ') : 'None'}</p>
           </div>
         </div>
+      )}
+
+      {/* System Errors Section — SuperAdmin only */}
+      {activeSection === 'system-errors' && isSuperAdmin && (
+        <SuperAdminGuard>
+          <div style={{
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '20px',
+            backgroundColor: '#f9f9f9'
+          }}>
+            <h2>⚠️ System Errors</h2>
+            <SystemErrorsSection />
+          </div>
+        </SuperAdminGuard>
       )}
 
       {/* Backup & Recovery Section */}

@@ -19,7 +19,6 @@ import PollCreationWizard from '../components/polls/PollCreationWizard';
 import PollDetailView from '../components/polls/PollDetailView';
 import UserManagement, { CreateUserModal, EditUserModal } from '../components/admin/UserManagement';
 import ClientManagement, { ClientFormModal } from '../components/admin/ClientManagement'; // CLIENT_MANAGEMENT addition
-import SystemErrorsList from '../components/lists/SystemErrorsList';
 import VendorFormModal from '../components/modals/VendorFormModal';
 import CategoryFormModal from '../components/modals/CategoryFormModal';
 import PaymentMethodFormModal from '../components/modals/PaymentMethodFormModal';
@@ -33,7 +32,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils';
-import { formatTimestampMexico } from '../utils/timezone';
 import { createVendor, updateVendor, deleteVendor } from '../api/vendors';
 import { createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../api/paymentMethods';
@@ -182,14 +180,6 @@ function ListManagementView() {
         modalComponent: ClientFormModal,
         hasModal: true
       });
-      // System Errors tab (SuperAdmin only, read-only)
-      lists.push({
-        id: 'systemErrors',
-        label: 'System Errors',
-        component: SystemErrorsList,
-        componentType: 'list-component',
-        hasModal: false
-      });
     }
 
     return lists;
@@ -235,7 +225,7 @@ function ListManagementView() {
           
           // Always add admin components if user has appropriate permissions
           const adminComponents = allListTypes.filter(list => 
-            (list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients' || list.id === 'systemErrors'))) && 
+            (list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients'))) && 
             !enabledLists.find(existing => existing.id === list.id)
           );
 
@@ -253,7 +243,7 @@ function ListManagementView() {
           );
           
           const adminComponents = allListTypes.filter(list => 
-            list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients' || list.id === 'systemErrors'))
+            list.componentType === 'admin-component' || (list.componentType === 'list-component' && (list.id === 'users' || list.id === 'clients'))
           );
 
           const shouldShowPolls = samsUser && (isAdmin(samsUser, selectedClient?.id) || isSuperAdmin(samsUser));
@@ -656,41 +646,6 @@ function ListManagementView() {
             label: 'Last Modified',
             render: (value) => value ? new Date(value._seconds ? value._seconds * 1000 : value).toLocaleDateString() : 'Unknown'
           }
-        ];
-        break;
-      case 'systemErrors':
-        title = 'System Error Details';
-        detailFields = [
-          { key: 'id', label: 'ID' },
-          {
-            key: 'timestamp',
-            label: 'Timestamp',
-            render: (value, item) => formatTimestampMexico(item.timestamp)
-          },
-          { key: 'source', label: 'Source' },
-          { key: 'module', label: 'Module' },
-          { key: 'level', label: 'Level' },
-          { key: 'message', label: 'Message' },
-          {
-            key: 'acknowledged',
-            label: 'Status',
-            render: (value) => value ? 'Acknowledged' : 'Active'
-          },
-          { key: 'environment', label: 'Environment' },
-          { key: 'version', label: 'Version' },
-          { key: 'url', label: 'URL' },
-          { key: 'userAgent', label: 'User Agent' },
-          {
-            key: 'details',
-            label: 'Details',
-            render: (value) => value || 'No details'
-          },
-          { key: 'acknowledgedBy', label: 'Acknowledged By' },
-          {
-            key: 'acknowledgedAt',
-            label: 'Acknowledged At',
-            render: (value, item) => formatTimestampMexico(item.acknowledgedAt)
-          },
         ];
         break;
       case 'polls':
@@ -1436,7 +1391,7 @@ function ListManagementView() {
   // Check if current tab is admin component type or read-only
   const currentList = availableLists[tabIndex];
   const isAdminComponent = currentList?.componentType === 'admin-component';
-  const isReadOnlyTab = currentList?.id === 'exchangerates' || currentList?.id === 'systemErrors';
+  const isReadOnlyTab = currentList?.id === 'exchangerates';
 
   return (
     <div className="view-container">
@@ -1495,9 +1450,7 @@ function ListManagementView() {
         {isReadOnlyTab && (
           <>
             <div style={{ padding: '10px', color: '#666', fontStyle: 'italic' }}>
-              {currentList?.id === 'systemErrors'
-                ? 'System errors are read-only. Acknowledge/dismiss from the Dashboard card.'
-                : 'Exchange rates are read-only. Use Settings → Exchange Rates for management functions.'}
+              Exchange rates are read-only. Use Settings → Exchange Rates for management functions.
             </div>
             {getCurrentExportHandler() && (
               <ExportMenu
