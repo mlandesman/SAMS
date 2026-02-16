@@ -48,6 +48,14 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
     
+    // System error logs (SuperAdmin only for read/update/delete; create by any authenticated user)
+    match /systemErrors/{errorId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+    
     // Default deny for anything else
     match /{document=**} {
       allow read, write: if false;
