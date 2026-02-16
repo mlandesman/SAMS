@@ -1,8 +1,8 @@
-// shared/logger.js
+// functions/shared/logger.js
 // Centralized logging utility with configurable log levels
 // Allows debug logs to be enabled/disabled via LOG_LEVEL environment variable
 // Supports optional error sink for Firestore persistence (registered at startup)
-// NOTE: When copied to functions/shared/, change import path to '../backend/services/DateService.js'
+// SOURCE OF TRUTH: This file lives in functions/shared/ — do NOT duplicate to root shared/
 
 import { getNow } from '../backend/services/DateService.js';
 
