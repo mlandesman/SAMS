@@ -2,7 +2,7 @@
 // Centralized logging utility with configurable log levels
 // Allows debug logs to be enabled/disabled via LOG_LEVEL environment variable
 // Supports optional error sink for Firestore persistence (registered at startup)
-// Deployed copy: import path for functions context
+// NOTE: When copied to functions/shared/, change import path to '../backend/services/DateService.js'
 
 import { getNow } from '../backend/services/DateService.js';
 
