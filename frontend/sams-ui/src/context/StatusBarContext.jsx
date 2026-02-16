@@ -9,7 +9,10 @@ export const useStatusBar = () => {
     return {
       statusInfo: null,
       setStatusInfo: () => {},
-      clearStatusInfo: () => {}
+      clearStatusInfo: () => {},
+      errorMonitorStatus: null,
+      setErrorMonitorStatus: () => {},
+      clearErrorMonitorStatus: () => {},
     };
   }
   return context;
@@ -18,6 +21,7 @@ export const useStatusBar = () => {
 export const StatusBarProvider = ({ children }) => {
   const [statusInfo, setStatusInfoState] = useState(null);
   const [centerContent, setCenterContentState] = useState(null);
+  const [errorMonitorStatus, setErrorMonitorStatusState] = useState(null);
 
   const setStatusInfo = useCallback((info) => {
     // Only update if the info has actually changed
@@ -41,14 +45,25 @@ export const StatusBarProvider = ({ children }) => {
     setCenterContentState(null);
   }, []);
 
+  const setErrorMonitorStatus = useCallback((status) => {
+    setErrorMonitorStatusState(status);
+  }, []);
+
+  const clearErrorMonitorStatus = useCallback(() => {
+    setErrorMonitorStatusState(null);
+  }, []);
+
   const value = useMemo(() => ({
     statusInfo,
     setStatusInfo,
     clearStatusInfo,
     centerContent,
     setCenterContent,
-    clearCenterContent
-  }), [statusInfo, centerContent, setStatusInfo, clearStatusInfo, setCenterContent, clearCenterContent]);
+    clearCenterContent,
+    errorMonitorStatus,
+    setErrorMonitorStatus,
+    clearErrorMonitorStatus,
+  }), [statusInfo, centerContent, errorMonitorStatus, setStatusInfo, clearStatusInfo, setCenterContent, clearCenterContent, setErrorMonitorStatus, clearErrorMonitorStatus]);
 
   return (
     <StatusBarContext.Provider value={value}>

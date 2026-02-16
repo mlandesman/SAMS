@@ -1,51 +1,80 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, Box, Typography } from '@mui/material';
+import { Card, CardContent, Box, Typography, Grid } from '@mui/material';
 import { ErrorOutline as ErrorIcon, CheckCircle as CheckIcon } from '@mui/icons-material';
 import { LoadingSpinner } from '../common';
-import { getSystemErrors } from '../../api/systemErrors';
+import { useErrorMonitor } from '../../hooks/useErrorMonitor';
+import { useStatusBar } from '../../context/StatusBarContext';
 import ErrorDetailModal from './ErrorDetailModal';
 
-const POLL_INTERVAL_MS = 60000;
-
-function ErrorMonitorCard() {
-  const [errors, setErrors] = useState([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
+/**
+ * ErrorMonitorSection: conditionally renders Grid item only when card should show.
+ * When no errors: no card, no grid slot — status in StatusBar. Modal available via StatusBar click.
+ * When errors/loading/fetchError: Grid item + Card + Modal.
+ */
+export function ErrorMonitorSection() {
+  const monitor = useErrorMonitor();
   const [modalOpen, setModalOpen] = useState(false);
-
-  const fetchErrors = useCallback(async () => {
-    try {
-      setFetchError(null);
-      const data = await getSystemErrors(50);
-      setErrors(data.errors || []);
-      setCount(data.count ?? (data.errors?.length ?? 0));
-    } catch (err) {
-      setFetchError(err.message || 'Unable to check');
-      setErrors([]);
-      setCount(0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const openModal = useCallback(() => setModalOpen(true), []);
+  const { setErrorMonitorStatus, clearErrorMonitorStatus } = useStatusBar();
 
   useEffect(() => {
-    fetchErrors();
-    const interval = setInterval(fetchErrors, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchErrors]);
+    if (monitor.loading) {
+      setErrorMonitorStatus({ count: 0, loading: true });
+      return clearErrorMonitorStatus;
+    }
+    if (monitor.fetchError) {
+      setErrorMonitorStatus({ count: 0, loading: false, error: monitor.fetchError, openModal });
+      return clearErrorMonitorStatus;
+    }
+    setErrorMonitorStatus({ count: monitor.count, loading: false, openModal });
+    return clearErrorMonitorStatus;
+  }, [monitor.loading, monitor.fetchError, monitor.count, openModal, setErrorMonitorStatus, clearErrorMonitorStatus]);
 
-  const handleAcknowledge = (errorId) => {
-    setErrors((prev) => prev.filter((e) => e.id !== errorId));
-    setCount((prev) => Math.max(0, prev - 1));
-  };
+  const content = (
+    <ErrorMonitorCardInner
+      {...monitor}
+      modalOpen={modalOpen}
+      setModalOpen={setModalOpen}
+    />
+  );
 
-  const handleAcknowledgeAll = () => {
-    setErrors([]);
-    setCount(0);
-  };
+  if (!monitor.showCard) {
+    return content;
+  }
+  return (
+    <Grid item xs={12} sm={6} md={4}>
+      {content}
+    </Grid>
+  );
+}
 
-  const hasErrors = count > 0;
+function ErrorMonitorCardInner({
+  errors,
+  count,
+  loading,
+  fetchError,
+  hasErrors,
+  showCard,
+  acknowledgeError,
+  acknowledgeAll,
+  modalOpen,
+  setModalOpen,
+}) {
+  const modal = (
+    <ErrorDetailModal
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      errors={errors}
+      count={count}
+      loading={loading}
+      onAcknowledge={acknowledgeError}
+      onAcknowledgeAll={acknowledgeAll}
+    />
+  );
+
+  if (!showCard) {
+    return modal;
+  }
 
   return (
     <>
@@ -113,17 +142,9 @@ function ErrorMonitorCard() {
           )}
         </CardContent>
       </Card>
-      <ErrorDetailModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        errors={errors}
-        count={count}
-        loading={loading}
-        onAcknowledge={handleAcknowledge}
-        onAcknowledgeAll={handleAcknowledgeAll}
-      />
+      {modal}
     </>
   );
 }
 
-export default ErrorMonitorCard;
+export default ErrorMonitorSection;

@@ -28,7 +28,7 @@ const StatusBar = ({ children }) => {
   } = useTransactionFilters();
   
   // Generic status bar context
-  const { statusInfo, centerContent } = useStatusBar();
+  const { statusInfo, centerContent, errorMonitorStatus } = useStatusBar();
   
   const handleStatusClick = () => {
     setAboutOpen(true);
@@ -82,6 +82,27 @@ const StatusBar = ({ children }) => {
         >
           <span className="connection-indicator">●</span>
           <span className="connection-text">Connected — {versionInfo.appName}</span>
+          {errorMonitorStatus && !errorMonitorStatus.loading && (
+            <span
+              className="error-monitor-status"
+              onClick={(e) => {
+                e.stopPropagation();
+                errorMonitorStatus.openModal?.();
+              }}
+              style={{
+                marginLeft: 8,
+                cursor: errorMonitorStatus.openModal ? 'pointer' : 'default',
+                opacity: 0.9,
+                fontSize: '0.85em',
+              }}
+            >
+              {errorMonitorStatus.error
+                ? '• Unable to check errors'
+                : errorMonitorStatus.count === 0
+                  ? '• No system errors'
+                  : `• ${errorMonitorStatus.count} system error${errorMonitorStatus.count !== 1 ? 's' : ''}`}
+            </span>
+          )}
           <span 
             className="version-badge"
             style={{
