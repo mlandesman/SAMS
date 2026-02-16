@@ -24,6 +24,28 @@ async function getAuthHeaders() {
 }
 
 /**
+ * Get all system errors (including acknowledged) for Admin tab
+ * @param {number} limit - Max errors to return (default 100)
+ * @returns {Promise<{ errors: Array, count: number }>}
+ */
+export async function getAllSystemErrors(limit = 100) {
+  const headers = await getAuthHeaders();
+  const query = `?all=true&limit=${encodeURIComponent(limit)}`;
+  const response = await fetch(`${API_BASE_URL}/api/system/errors${query}`, {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result?.error || `API Error: ${response.status}`);
+  }
+  return result;
+}
+
+/**
  * Get unacknowledged system errors
  * @param {number} limit - Max errors to return (default 50)
  * @returns {Promise<{ errors: Array, count: number }>}
