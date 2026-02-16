@@ -1,6 +1,27 @@
 {
   "releases": [
     {
+      "version": "1.12.1",
+      "date": "2026-02-16",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "180",
+            "179"
+          ],
+          "text": "Fix bank fee data corruption (100x inflation on amount and allocations), fix transaction edit confirmation modal crash, remove heuristic centavos detection"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "181"
+          ],
+          "text": "Standardize all currency conversions to use shared currencyUtils — eliminate duplicate definitions, replace manual /100 and *100, add roundPesos/roundCentavos utilities, JSDoc monetary unit annotations"
+        }
+      ]
+    },
+    {
       "version": "1.12.0",
       "date": "2026-02-14",
       "changes": [
