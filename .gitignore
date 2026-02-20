@@ -125,6 +125,7 @@ firebase-admin-*.json
 # Editor backup files
 * 2.js
 *.backup-*
+<<<<<<< HEAD
 
 # APM Documentation (belongs in SAMS-Docs on Google Drive)
 # See: SAMS-Docs/DOC_CREATION_RULES.md for correct locations
@@ -194,3 +195,7 @@ backend.OLD.zip
 
 # Test harness examples
 functions/backend/testing/testHarness examples/
+
+# Workspace full (not used now that SAMS-Docs is below SAMS)
+SAMS-Full.code-workspace
+
