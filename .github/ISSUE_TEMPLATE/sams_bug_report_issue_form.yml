@@ -1,0 +1,66 @@
+name: Bug Report
+description: Report a defect or unexpected behavior
+title: "[Bug] "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug Summary
+      description: Brief description of the issue.
+      placeholder: What is broken?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide exact steps to replicate the issue.
+      placeholder: 1. Go to...
+2. Click...
+3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Production
+        - Staging
+        - Local Dev
+        - Emulator
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: affected_area
+    attributes:
+      label: Affected Area
+      options:
+        - label: Frontend
+        - label: Backend
+        - label: Firestore
+        - label: Auth
+        - label: Reporting
+        - label: Infrastructure

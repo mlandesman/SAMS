@@ -1,0 +1,54 @@
+name: Enhancement
+description: Improve or refine existing functionality
+title: "[Enhancement] "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Clearly describe the enhancement and its objective.
+      placeholder: What is being improved and why?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / Background
+      description: Provide architectural, business, or workflow context.
+      placeholder: Why is this needed? What triggered it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the intended technical or UX approach.
+      placeholder: High-level architecture or implementation direction.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact_area
+    attributes:
+      label: Impact Area
+      options:
+        - label: Frontend (React / Vite)
+        - label: Backend (Cloud Functions / Node)
+        - label: Firestore Data Model
+        - label: Authentication / Security
+        - label: Reporting / PDF
+        - label: Infrastructure / DevOps
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define measurable completion conditions.
+      placeholder: What must be true for this to be considered complete?
+    validations:
+      required: true

@@ -1,0 +1,54 @@
+name: New Feature
+description: Introduce new system capability
+title: "[Feature] "
+labels: ["feature"]
+assignees: []
+
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: Describe the new capability being introduced.
+      placeholder: What will this feature enable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: business_value
+    attributes:
+      label: Business Value
+      description: Explain the value to owners, admins, or operations.
+      placeholder: Revenue impact, efficiency gain, risk reduction, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_design
+    attributes:
+      label: High-Level Technical Design
+      description: Outline the architectural direction.
+      placeholder: Collections, services, UI components, integrations.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: modules_affected
+    attributes:
+      label: Modules Affected
+      options:
+        - label: Authentication
+        - label: Transactions
+        - label: Voting / Governance
+        - label: Notifications (Email / WhatsApp)
+        - label: Reporting / Statements
+        - label: Admin Tools
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Define completion criteria.
+      placeholder: What must work before deployment?
+    validations:
+      required: true
