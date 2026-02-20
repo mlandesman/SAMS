@@ -2,15 +2,14 @@ name: Bug Report
 description: Report a defect or unexpected behavior
 title: "[Bug] "
 labels: ["bug"]
-assignees: []
 
 body:
   - type: textarea
     id: summary
     attributes:
       label: Bug Summary
-      description: Brief description of the issue.
-      placeholder: What is broken?
+      description: What is broken?
+      placeholder: Briefly describe the issue.
     validations:
       required: true
 
@@ -19,9 +18,10 @@ body:
     attributes:
       label: Steps to Reproduce
       description: Provide exact steps to replicate the issue.
-      placeholder: 1. Go to...
-2. Click...
-3. Observe...
+      placeholder: |
+        1. Go to...
+        2. Click...
+        3. Observe...
     validations:
       required: true
 
@@ -52,15 +52,3 @@ body:
         - Emulator
     validations:
       required: true
-
-  - type: checkboxes
-    id: affected_area
-    attributes:
-      label: Affected Area
-      options:
-        - label: Frontend
-        - label: Backend
-        - label: Firestore
-        - label: Auth
-        - label: Reporting
-        - label: Infrastructure
