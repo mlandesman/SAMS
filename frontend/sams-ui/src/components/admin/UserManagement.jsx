@@ -269,16 +269,13 @@ const getUserDisplayRole = (user) => {
     return 'Admin';
   }
   
-  if (user.globalRole === 'unitOwner') {
-    return 'Unit Owner';
-  }
-  
-  if (user.globalRole === 'unitManager') {
-    return 'Unit Manager';
-  }
-  
   if (user.globalRole === 'maintenance') {
     return 'Maintenance';
+  }
+  
+  // Legacy: unitOwner/unitManager should be in propertyAccess, not globalRole
+  if (user.globalRole === 'unitOwner' || user.globalRole === 'unitManager') {
+    return 'User';
   }
   
   // Default to 'User' for regular users
@@ -1419,8 +1416,6 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
-                  <option value="unitOwner">Unit Owner</option>
-                  <option value="unitManager">Unit Manager</option>
                   <option value="maintenance">Maintenance</option>
                   <option value="superAdmin">Super Admin</option>
                 </select>
