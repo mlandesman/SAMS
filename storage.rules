@@ -19,14 +19,17 @@ service firebase.storage {
     
     // Helper function to check if user has access to a client
     function hasClientAccess(clientId) {
+      let data = getUserDoc().data;
       return isSuperAdmin() || 
-             (getUserDoc().data.clientAccess != null && 
-              clientId in getUserDoc().data.clientAccess);
+             (data.propertyAccess != null && clientId in data.propertyAccess) ||
+             (data.clientAccess != null && clientId in data.clientAccess);
     }
     
     // Helper function to get user's role for a specific client
     function getClientRole(clientId) {
-      return getUserDoc().data.clientAccess[clientId].role;
+      let data = getUserDoc().data;
+      let access = data.propertyAccess != null ? data.propertyAccess : data.clientAccess;
+      return access[clientId].role;
     }
     
     // ============================================================================

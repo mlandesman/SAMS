@@ -13,9 +13,11 @@ service cloud.firestore {
     }
     
     function hasClientAccess(clientId) {
+      let userData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
       return isAuthenticated() && 
         (isSuperAdmin() ||
-         clientId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clientAccess);
+         clientId in userData.propertyAccess ||
+         clientId in userData.clientAccess);
     }
     
     // User profiles
