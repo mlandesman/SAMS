@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.12.1 | **Build:** 260214.1507  
-**Last Updated:** February 16, 2026 — Sprint EM STARTED (System Error Monitor #171)  
+**Version:** v1.13.0 | **Deployed:** February 16, 2026  
+**Last Updated:** February 21, 2026 — Sprint B3-Fix merged (PR #192). 5 bugs closed (#191, #190, #186, #187, #43).  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,34 +25,41 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint EM: System Error Monitor — IN PROGRESS
-**Started:** February 16, 2026  
-**Branch:** `feature/system-error-monitor`  
-**Issue:** #171  
-**Estimated:** 4-6 hours  
-**No feature flag** (SuperAdmin-only, no financial logic)
+No active sprint. Ready to select next sprint from backlog.
 
-| Task | Title | Est | Status |
-|------|-------|-----|--------|
-| EM-1 | Backend Infrastructure (logger, service, routes, rules) | 2h | ✅ Complete (5 commits) |
-| EM-2 | Frontend Dashboard Card & Error Detail Modal | 1.5h | ✅ Complete (6 commits) |
-| EM-3 | Frontend Error Capture + Schema Expansion, Mobile (stretch) | 1.5h | ✅ Complete (1 commit) |
-| EM-4 | Admin System Errors Tab in List Management | 1.5h | Pending |
-
-**Deliverables:**
-- Enhanced `logError()` writes to Firestore `systemErrors` collection (fire-and-forget)
-- API endpoints: POST logError, GET errors, PUT acknowledge
-- RED Dashboard card (SuperAdmin only) with error count and detail modal
-- StatusBar integration (error count when card hidden)
-- React Error Boundary and global error handlers
-- Schema expansion (version, build, environment, userAgent, url)
-- Email transporter health check at startup
-- System Errors tab in List Management (full history, SuperAdmin)
-- Mobile dashboard card (stretch goal)
+See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for upcoming sprint options.
 
 ---
 
 ## Recently Completed
+
+### Sprint B3-Fix: Production Stabilization ✅ COMPLETE
+**Completed:** February 21, 2026  
+**PR:** #192 (merged to main)  
+**Issues:** #191 CLOSED, #190 CLOSED, #186 CLOSED, #187 CLOSED, #43 CLOSED
+
+9 files changed, +665/-130 lines. Fixed Firestore/Storage security rules (`clientAccess` → `propertyAccess`). Fixed `updateTransaction` missing allocation centavos conversion. Bank fee checkbox now works with manual splits. Client Management API path corrected. Auth reconciliation script created and run in prod. Edit User Global Role dropdown cleaned up. Role case fix (`'Admin'` → `'admin'`) in reports and email routes.
+
+---
+
+### Sprint EM: System Error Monitor ✅ COMPLETE
+**Completed:** February 16, 2026  
+**PR:** #185 (merged to main)  
+**Issue:** #171 CLOSED  
+**Quality:** ⭐⭐⭐⭐⭐
+
+25 files changed, +1,376/-61 lines. 4 tasks across backend/frontend. Enhanced `logError()` with fire-and-forget Firestore persistence. RED Dashboard card (SuperAdmin) with StatusBar integration. Frontend error capture (API interceptor, ErrorBoundary, window handlers). Schema enrichment (version, environment, userAgent, url). System Errors admin tab in Settings. Email health check at startup. Batch-safe acknowledge (500-write chunking).
+
+**Post-Merge Deployment Fixes** (committed directly to main after PR #185):
+- Eliminated duplicate `shared/logger.js` — root copy deleted, `functions/shared/logger.js` is now single source of truth, predeploy `cp` removed from `firebase.json`
+- Migrated API routes from `/api/system` to `/error-reporting` domain route — `/api/` prefix had no Firebase Hosting rewrite, causing HTML returns in production
+- Added exact-match + wildcard rewrites in `firebase.json` for both desktop and mobile hosting targets
+- Created `Firebase_Hosting_Route_Requirements.md` engineering guide to prevent recurrence
+- **Lesson Learned**: Dev environment bypasses Firebase Hosting rewrites entirely. New routes MUST be added to `firebase.json` or they silently fail in production.
+
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_EM_System_Error_Monitor_2026-02-16/`
+
+---
 
 ### Sprint CX: Currency Conversion Discipline ✅ COMPLETE
 **Completed:** February 15, 2026  
