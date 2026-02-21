@@ -1525,7 +1525,7 @@ router.get('/water/all', authenticateUserWithProfile, async (req, res) => {
     }
     
     // Only admins can generate all units report
-    if (propertyAccess.role !== 'Admin' && user.samsProfile?.globalRole !== 'superAdmin') {
+    if (propertyAccess.role !== 'admin' && user.samsProfile?.globalRole !== 'superAdmin') {
       return res.status(403).json({ 
         error: 'Admin access required for bulk report generation' 
       });

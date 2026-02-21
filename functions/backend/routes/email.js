@@ -452,7 +452,7 @@ router.post('/send-water-report', async (req, res) => {
       });
     }
     
-    if (propertyAccess.role !== 'Admin' && user.samsProfile?.globalRole !== 'superAdmin') {
+    if (propertyAccess.role !== 'admin' && user.samsProfile?.globalRole !== 'superAdmin') {
       return res.status(403).json({ 
         success: false, 
         error: 'Admin access required to send emails' 

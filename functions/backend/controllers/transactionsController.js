@@ -666,6 +666,17 @@ async function updateTransaction(clientId, txnId, newData) {
       normalizedData.amount = validateCentavos(dollarsToCents(validation.data.amount), 'amount');
     }
     
+    // Convert allocation amounts from pesos to centavos (same as createTransaction)
+    if (normalizedData.allocations && Array.isArray(normalizedData.allocations) && normalizedData.allocations.length > 0) {
+      for (let i = 0; i < normalizedData.allocations.length; i++) {
+        const allocation = normalizedData.allocations[i];
+        if (typeof allocation.amount === 'number' && allocation.amount !== 0) {
+          allocation.amount = validateCentavos(dollarsToCents(allocation.amount), `allocation[${i}].amount`);
+        }
+      }
+      logDebug(`✅ Converted ${normalizedData.allocations.length} allocation amounts to centavos for update`);
+    }
+    
     // Convert dates to timestamps
     if (validation.data.date) {
       normalizedData.date = convertToTimestamp(validation.data.date);

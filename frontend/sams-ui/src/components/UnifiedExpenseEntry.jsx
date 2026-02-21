@@ -288,14 +288,27 @@ const UnifiedExpenseEntry = ({
           // Split transaction: use hardcoded categoryId and allocations
           transactionData.categoryId = "-split-";
           transactionData.categoryName = "-Split-";
-          // Backend createTransaction expects allocation.amount in PESOS (converts with dollarsToCents)
+          // Backend expects allocation.amount in PESOS (converts with dollarsToCents)
           // splitAllocations stores amounts in centavos - convert to pesos for API
-          transactionData.allocations = splitAllocations.map(allocation => ({
+          const apiAllocations = splitAllocations.map(allocation => ({
             categoryId: allocation.categoryId,
             categoryName: allocation.categoryName,
             amount: databaseFieldMappings.centsToDollars(allocation.amount || 0),
             notes: allocation.notes || ''
           }));
+          
+          if (addBankFees) {
+            const commissionAmountDollars = 5.00;
+            const ivaAmountDollars = 0.80;
+            apiAllocations.push(
+              { categoryName: 'Bank: Transfer Fees', amount: -Math.abs(commissionAmountDollars), notes: 'Bank transfer fee' },
+              { categoryName: 'Bank: IVA', amount: -Math.abs(ivaAmountDollars), notes: 'Bank transfer IVA' }
+            );
+            transactionData.amount = transactionAmount - commissionAmountDollars - ivaAmountDollars;
+            transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
+          }
+          
+          transactionData.allocations = apiAllocations;
         } else if (splitAllocations.length === 1) {
           // Single allocation remaining: collapse back to non-split transaction
           const sole = splitAllocations[0];

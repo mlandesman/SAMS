@@ -10,7 +10,7 @@ import { getIdToken } from 'firebase/auth';
 import { auth } from '../firebaseClient';
 import { config } from '../config';
 
-const API_BASE_URL = `${config.api.baseUrl}/client-management`;
+const API_BASE_URL = `${config.api.baseUrl}/admin/client-management`;
 
 /**
  * Get authorization headers with Firebase ID token
