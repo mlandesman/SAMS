@@ -42,7 +42,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../layout/ActionBar.css';
 import './TransactionsDetail.css';
-import { isSuperAdmin } from '../utils/userRoles';
+import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToCSV } from '../utils/csvExport';
@@ -116,7 +116,7 @@ function TransactionsView() {
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
-  const { selectedClient } = useClient();
+  const { selectedClient, selectedUnitId } = useClient();
   const location = useLocation();
   const navigate = useNavigate();
   const { 
@@ -887,10 +887,15 @@ function TransactionsView() {
       }
       const { startDate, endDate } = getFilterDates(currentFilter); // Use current filter
       
+      // For unit owners/managers: filter by selected unit
+      const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[clientId] ?? samsUser?.propertyAccess?.[clientId];
+      const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
+      const unitIdForFetch = isUnitOwnerOrManager && selectedUnitId ? selectedUnitId : undefined;
+      
       // Always fetch filtered transactions based on the current filter
       console.log(`Fetching transactions for filter: ${currentFilter}`);
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      const txnList = await fetchTransactions({ clientId, startDate, endDate });
+      const txnList = await fetchTransactions({ clientId, startDate, endDate, unitId: unitIdForFetch });
       
       // Debug: Log transaction dates to see what we're getting
       console.log(`Loaded ${txnList.length} transactions with current filter`);
@@ -986,7 +991,7 @@ function TransactionsView() {
       isMounted = false;
       console.log('Data fetching effect cleanup - component unmounted');
     };
-  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
+  }, [selectedClient, selectedUnitId, samsUser, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
   
   // Effect for handling transaction finding after filter change
   useEffect(() => {
@@ -1157,10 +1162,14 @@ function TransactionsView() {
         try {
           console.log('🔍 Fetching ALL transactions for Advanced Filter...');
           // Fetch with very wide date range to get ALL transactions
+          const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient.id] ?? samsUser?.propertyAccess?.[selectedClient.id];
+          const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
+          const unitIdForFetch = isUnitOwnerOrManager && selectedUnitId ? selectedUnitId : undefined;
           const allTxns = await fetchTransactions({ 
             clientId: selectedClient.id,
             startDate: new Date('2020-01-01'), // Start from 2020
-            endDate: new Date('2099-12-31')   // End in far future
+            endDate: new Date('2099-12-31'),   // End in far future
+            unitId: unitIdForFetch
           });
           console.log(`✅ Loaded ${allTxns.length} total transactions for Advanced Filter`);
           setAllTransactionsUnfiltered(allTxns);
@@ -1171,7 +1180,7 @@ function TransactionsView() {
     };
     
     fetchAllTransactions();
-  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length]);
+  }, [showAdvancedFilterModal, selectedClient?.id, selectedUnitId, samsUser, allTransactionsUnfiltered.length]);
 
   // Clear unfiltered transactions when client changes
   useEffect(() => {
@@ -1435,10 +1444,12 @@ function TransactionsView() {
           onExportPDF={handleExportPDF}
           disabled={!filteredTransactions?.length}
         />
-        <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
-          <FontAwesomeIcon icon={faCheckDouble} />
-          <span>Reconcile Accounts</span>
-        </button>
+        {isAdmin(samsUser, selectedClient?.id) && (
+          <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
+            <FontAwesomeIcon icon={faCheckDouble} />
+            <span>Reconcile Accounts</span>
+          </button>
+        )}
         <button 
           className={`action-item ${!selectedTransaction || !selectedTransaction.unit ? 'disabled' : ''}`}
           onClick={handleGenerateReceipt}

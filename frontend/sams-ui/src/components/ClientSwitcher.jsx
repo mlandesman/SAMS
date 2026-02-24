@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchClients } from '../utils/fetchClients';
 
 const ClientSwitcher = () => {
-  const { selectedClient, setSelectedClient } = useClient();
+  const { selectedClient, setClient } = useClient();
   const { samsUser } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const [availableClients, setAvailableClients] = useState([]);
@@ -51,7 +51,7 @@ const ClientSwitcher = () => {
   };
 
   const handleClientChange = (client) => {
-    setSelectedClient(client);
+    setClient(client);
     handleClose();
   };
 

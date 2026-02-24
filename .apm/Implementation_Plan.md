@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 21, 2026 — Sprint B3-Fix merged (PR #192). 5 bugs closed (#191, #190, #186, #187, #43).  
+**Last Updated:** February 21, 2026 — Sprint B4 + Recon queued. Bootstrap Prompt created for autonomous execution.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,9 +25,16 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-No active sprint. Ready to select next sprint from backlog.
+### Sprint B4 + Sprint Recon (Sequential)
+**Status:** Ready for Manager Agent  
+**Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_B4_Recon_Bootstrap_Prompt.md`
 
-See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for upcoming sprint options.
+| Sprint | Issue | Theme | Est |
+|--------|-------|-------|-----|
+| **B4** | #195 | Fix Desktop UI for non-admin users | 4-6h |
+| **Recon** | #188 | Historical balance lookup (Option B — Status Bar right-click) | 4-6h |
+
+To start: Initiate a Manager Agent and paste the Bootstrap Prompt above.
 
 ---
 

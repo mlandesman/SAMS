@@ -11,6 +11,8 @@ import {
   IconButton,
   Tooltip,
   Paper,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   AccountBalance as BalanceIcon,
@@ -21,6 +23,7 @@ import {
   Assignment as ProjectIcon,
   Calculate as CalculateIcon,
   Water as WaterIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
@@ -44,7 +47,7 @@ const formatDateDisplay = (value) => {
 function DashboardView() {
   const navigate = useNavigate();
   const { currentUser, samsUser } = useAuth();
-  const { selectedClient, menuConfig } = useClient();
+  const { selectedClient, selectedUnitId, setSelectedUnitId, menuConfig } = useClient();
   const { 
     accountBalances, 
     hoaDuesStatus, 
@@ -71,6 +74,7 @@ function DashboardView() {
   const [pollCard, setPollCard] = useState(null);
   const [pollLoading, setPollLoading] = useState(false);
   const [pollError, setPollError] = useState('');
+  const [unitMenuAnchor, setUnitMenuAnchor] = useState(null);
   
   const formatDate = (value) => {
     if (!value || typeof value !== 'string') return '—';
@@ -186,6 +190,68 @@ function DashboardView() {
   const isAdmin = userRole === 'Administrator' || userRole === 'Super Admin';
   const isSuperAdmin = userRole === 'Super Admin';
 
+  // For non-admin: get authorized units and property role (unitOwner = green, unitManager = purple)
+  const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
+  const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
+  const unitChipColor = propertyAccess?.role === 'unitOwner' ? 'success' : 'secondary'; // green for Owner, purple for Manager
+  const authorizedUnits = [];
+  if (isUnitOwnerOrManager && propertyAccess) {
+    if (propertyAccess.unitId) {
+      authorizedUnits.push({ id: propertyAccess.unitId, name: `Unit ${propertyAccess.unitId}` });
+    }
+    if (propertyAccess.units && Array.isArray(propertyAccess.units)) {
+      propertyAccess.units.forEach((unit) => {
+        if (!authorizedUnits.find((u) => u.id === unit.id)) {
+          authorizedUnits.push({ id: unit.id, name: unit.name || `Unit ${unit.id}` });
+        }
+      });
+    }
+    // Profile may use unitAssignments (array of { unitId, role }) instead of units
+    if (propertyAccess.unitAssignments && Array.isArray(propertyAccess.unitAssignments)) {
+      propertyAccess.unitAssignments.forEach((a) => {
+        const id = a.unitId || a.id;
+        if (id && !authorizedUnits.find((u) => u.id === id)) {
+          authorizedUnits.push({ id, name: a.name || `Unit ${id}` });
+        }
+      });
+    }
+  }
+  const hasMultipleUnits = authorizedUnits.length > 1;
+  const currentUnitLabel = authorizedUnits.find((u) => u.id === selectedUnitId)?.name ?? (authorizedUnits[0] ? authorizedUnits[0].name : null);
+  const unitMenuOpen = Boolean(unitMenuAnchor);
+
+  const handleUnitMenuClose = () => {
+    setUnitMenuAnchor(null);
+  };
+  const handleUnitSelect = (unitId) => {
+    setSelectedUnitId(unitId);
+    handleUnitMenuClose();
+  };
+
+  // Sync selectedUnitId to first authorized unit when none set or selection invalid
+  useEffect(() => {
+    const access = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
+    if (!access || (access.role !== 'unitOwner' && access.role !== 'unitManager')) return;
+    const units = [];
+    if (access.unitId) units.push({ id: access.unitId, name: `Unit ${access.unitId}` });
+    if (access.units && Array.isArray(access.units)) {
+      access.units.forEach((u) => {
+        if (!units.find((x) => x.id === u.id)) units.push({ id: u.id, name: u.name || `Unit ${u.id}` });
+      });
+    }
+    if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
+      access.unitAssignments.forEach((a) => {
+        const id = a.unitId || a.id;
+        if (id && !units.find((x) => x.id === id)) units.push({ id, name: a.name || `Unit ${id}` });
+      });
+    }
+    if (units.length === 0) return;
+    const validIds = units.map((u) => u.id);
+    if (!selectedUnitId || !validIds.includes(selectedUnitId)) {
+      setSelectedUnitId(units[0].id);
+    }
+  }, [samsUser, selectedClient?.id, selectedUnitId, setSelectedUnitId]);
+
   return (
     <>
       <ActivityActionBar>
@@ -199,11 +265,74 @@ function DashboardView() {
           Dashboard
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-          <Chip 
-            label={userRole} 
-            color={isAdmin ? 'primary' : 'secondary'} 
-            size="small" 
-          />
+          {isAdmin ? (
+            <Chip label={userRole} color="primary" size="small" />
+          ) : isUnitOwnerOrManager && currentUnitLabel ? (
+            <>
+              {/* Unit label: display-only (not a button, avoids 1Password) */}
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 24,
+                  px: 1,
+                  borderRadius: 1,
+                  typography: 'caption',
+                  fontWeight: 500,
+                  color: unitChipColor === 'success' ? 'success.contrastText' : 'secondary.contrastText',
+                  bgcolor: unitChipColor === 'success' ? 'success.main' : 'secondary.main',
+                }}
+              >
+                {currentUnitLabel}
+              </Box>
+              {/* Separate control to switch unit: only when more than one unit */}
+              {hasMultipleUnits && (
+                <>
+                  <Tooltip title="Switch unit">
+                    <IconButton
+                      type="button"
+                      size="small"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setUnitMenuAnchor(e.currentTarget);
+                      }}
+                      sx={{
+                        color: 'white',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                      }}
+                      aria-label="Switch unit"
+                    >
+                      <ArrowDropDownIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Menu
+                    anchorEl={unitMenuAnchor}
+                    open={unitMenuOpen}
+                    onClose={handleUnitMenuClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    PaperProps={{
+                      sx: { mt: 1.5, minWidth: 140 },
+                    }}
+                  >
+                    {authorizedUnits.map((u) => (
+                      <MenuItem
+                        key={u.id}
+                        onClick={() => handleUnitSelect(u.id)}
+                        selected={u.id === selectedUnitId}
+                      >
+                        {u.name}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </>
+              )}
+            </>
+          ) : (
+            <Chip label={userRole} color="secondary" size="small" />
+          )}
           {selectedClient && <ClientSwitcher />}
         </Box>
       </Box>
