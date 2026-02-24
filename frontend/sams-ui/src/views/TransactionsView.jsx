@@ -116,8 +116,9 @@ function TransactionsView() {
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
-  const { selectedClient, selectedUnitId } = useClient();
+  const { selectedClient } = useClient();
   const location = useLocation();
+  const canRecalcBalances = isAdmin(samsUser, selectedClient?.id);
   const navigate = useNavigate();
   const { 
     showFilterModal,
@@ -887,15 +888,10 @@ function TransactionsView() {
       }
       const { startDate, endDate } = getFilterDates(currentFilter); // Use current filter
       
-      // For unit owners/managers: filter by selected unit
-      const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[clientId] ?? samsUser?.propertyAccess?.[clientId];
-      const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
-      const unitIdForFetch = isUnitOwnerOrManager && selectedUnitId ? selectedUnitId : undefined;
-      
-      // Always fetch filtered transactions based on the current filter
+      // Books are open: all users (including owners/managers) see all transactions; CRUD gated separately
       console.log(`Fetching transactions for filter: ${currentFilter}`);
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      const txnList = await fetchTransactions({ clientId, startDate, endDate, unitId: unitIdForFetch });
+      const txnList = await fetchTransactions({ clientId, startDate, endDate });
       
       // Debug: Log transaction dates to see what we're getting
       console.log(`Loaded ${txnList.length} transactions with current filter`);
@@ -991,7 +987,7 @@ function TransactionsView() {
       isMounted = false;
       console.log('Data fetching effect cleanup - component unmounted');
     };
-  }, [selectedClient, selectedUnitId, samsUser, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
+  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
   
   // Effect for handling transaction finding after filter change
   useEffect(() => {
@@ -1048,18 +1044,19 @@ function TransactionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, selectedClient?.id]);
 
-  // Effect to recalculate balance when triggered by context
+  // Effect to recalculate balance when triggered by context (admin only - recalc requires write/delete permissions)
   useEffect(() => {
     // Skip on initial render (when balanceUpdateTrigger is 0)
     if (balanceUpdateTrigger === 0) return;
-    
+    if (!canRecalcBalances) return;
+
     console.log('Balance update triggered by transaction operation');
-    
+
     // Force immediate balance recalculation with cache clear
     recalculateBalances(true);
-    
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [balanceUpdateTrigger]); // Trigger when balance update is requested
+  }, [balanceUpdateTrigger, canRecalcBalances]); // Trigger when balance update is requested
 
   // Fetch units data for receipt generation
   useEffect(() => {
@@ -1162,14 +1159,10 @@ function TransactionsView() {
         try {
           console.log('🔍 Fetching ALL transactions for Advanced Filter...');
           // Fetch with very wide date range to get ALL transactions
-          const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient.id] ?? samsUser?.propertyAccess?.[selectedClient.id];
-          const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
-          const unitIdForFetch = isUnitOwnerOrManager && selectedUnitId ? selectedUnitId : undefined;
           const allTxns = await fetchTransactions({ 
             clientId: selectedClient.id,
             startDate: new Date('2020-01-01'), // Start from 2020
-            endDate: new Date('2099-12-31'),   // End in far future
-            unitId: unitIdForFetch
+            endDate: new Date('2099-12-31')   // End in far future
           });
           console.log(`✅ Loaded ${allTxns.length} total transactions for Advanced Filter`);
           setAllTransactionsUnfiltered(allTxns);
@@ -1180,7 +1173,7 @@ function TransactionsView() {
     };
     
     fetchAllTransactions();
-  }, [showAdvancedFilterModal, selectedClient?.id, selectedUnitId, samsUser, allTransactionsUnfiltered.length]);
+  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length]);
 
   // Clear unfiltered transactions when client changes
   useEffect(() => {
@@ -1506,9 +1499,9 @@ function TransactionsView() {
       </div>
         
       <div 
-        className="balance-bar sticky-footer clickable" 
+        className={`balance-bar sticky-footer ${canRecalcBalances ? 'clickable' : ''}`}
         ref={balanceBarRef}
-        onClick={async () => {
+        onClick={canRecalcBalances ? async () => {
           const clientId = selectedClient?.id;
           if (!clientId) {
             console.error('No client selected - cannot recalculate balance');
@@ -1558,11 +1551,11 @@ function TransactionsView() {
           } finally {
             setIsRecalculatingBalance(false);
           }
-        }}
-        title="Click to recalculate balances from year-end snapshot and update master record"
+        } : undefined}
+        title={canRecalcBalances ? 'Click to recalculate balances from year-end snapshot and update master record' : undefined}
         style={{ 
           opacity: isRecalculatingBalance ? 0.7 : 1,
-          cursor: isRecalculatingBalance ? 'wait' : 'pointer'
+          cursor: canRecalcBalances ? (isRecalculatingBalance ? 'wait' : 'pointer') : 'default'
         }}
       >
         {isRecalculatingBalance ? (
@@ -1577,7 +1570,7 @@ function TransactionsView() {
             🏛️ Bank: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
             💰 Total: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <div className="refresh-hint">↻</div>
+            {canRecalcBalances && <div className="refresh-hint">↻</div>}
           </>
         )}
       </div>
