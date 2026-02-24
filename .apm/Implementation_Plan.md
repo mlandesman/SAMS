@@ -25,20 +25,28 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint B4 + Sprint Recon (Sequential)
+### Sprint Recon (Next)
 **Status:** Ready for Manager Agent  
 **Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_B4_Recon_Bootstrap_Prompt.md`
 
 | Sprint | Issue | Theme | Est |
 |--------|-------|-------|-----|
-| **B4** | #195 | Fix Desktop UI for non-admin users | 4-6h |
 | **Recon** | #188 | Historical balance lookup (Option B — Status Bar right-click) | 4-6h |
 
-To start: Initiate a Manager Agent and paste the Bootstrap Prompt above.
+Sprint B4 (#195) complete — PR pending. To start Recon: Initiate a Manager Agent and paste the Bootstrap Prompt.
 
 ---
 
 ## Recently Completed
+
+### Sprint B4: User-Level UI Fix ✅ COMPLETE (PR Pending)
+**Completed:** February 21, 2026  
+**Branch:** `fix/sprint-b4-user-level-ui` (pushed to GitHub)  
+**Issue:** #195 — Desktop UI for non-admin users
+
+Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only for non-admin, Reports unit filter, CRUD gating, balance bar recalc hidden for non-admin. Memory log: `SAMS-Docs/apm_session/Memory/Task_Completion_Logs/Sprint_B4_User_Level_UI_2026-02-22.md`
+
+---
 
 ### Sprint B3-Fix: Production Stabilization ✅ COMPLETE
 **Completed:** February 21, 2026  
