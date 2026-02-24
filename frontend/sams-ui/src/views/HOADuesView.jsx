@@ -158,15 +158,21 @@ function HOADuesView() {
         alert('No Matching Transaction Record');
       }
     } else {
-      // Not paid - navigate to Transactions and open unified payment modal
-      console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
-      navigate('/transactions', { 
-        state: { 
-          openUnifiedPayment: true, 
-          unitId,
-          monthIndex: fiscalMonth
-        }
-      });
+      // Not paid - only admin can open payment modal; non-admin view-only (navigate without opening)
+      const canRecordPayment = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
+      if (canRecordPayment) {
+        console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
+        navigate('/transactions', { 
+          state: { 
+            openUnifiedPayment: true, 
+            unitId,
+            monthIndex: fiscalMonth
+          }
+        });
+      } else {
+        // View-only: navigate to transactions without opening payment modal
+        navigate('/transactions');
+      }
       
       // Update sidebar activity
       try {
@@ -850,8 +856,8 @@ function HOADuesView() {
   return (
     <div className="hoa-dues-view">
       <ActivityActionBar>
-        {/* Only SuperAdmin can add HOA dues payments */}
-        {isSuperAdmin(samsUser) && (
+        {/* Only admin can add HOA dues payments (non-admin view-only) */}
+        {(isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id)) && (
           <button className="action-item" onClick={handleAddPaymentClick}>
             <FontAwesomeIcon icon={faPlus} />
             <span>Add Payment</span>

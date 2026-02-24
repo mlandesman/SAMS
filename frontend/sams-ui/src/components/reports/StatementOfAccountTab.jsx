@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
+import { isAdmin } from '../../utils/userRoles';
 import { getUnits } from '../../api/units';
 import { getOwnerInfo, sortUnitsByUnitId } from '../../utils/unitUtils';
 import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
@@ -177,13 +178,29 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
     loadUnits();
   }, [selectedClient]);
 
+  // For non-admin: restrict to authorized units only
+  const authorizedUnitIds = useMemo(() => {
+    if (isAdmin(samsUser, selectedClient?.id)) return null; // null = no restriction
+    const pa = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
+    if (!pa || (pa.role !== 'unitOwner' && pa.role !== 'unitManager')) return null;
+    const ids = new Set();
+    if (pa.unitId) ids.add(pa.unitId);
+    if (pa.units && Array.isArray(pa.units)) pa.units.forEach(u => ids.add(u.id || u.unitId));
+    if (pa.unitAssignments && Array.isArray(pa.unitAssignments)) pa.unitAssignments.forEach(a => ids.add(a.unitId || a.id));
+    return ids;
+  }, [samsUser, selectedClient?.id]);
+
   const filteredUnits = useMemo(() => {
+    let list = units;
+    if (authorizedUnitIds && authorizedUnitIds.size > 0) {
+      list = list.filter(u => authorizedUnitIds.has(u.unitId || u.id));
+    }
     if (!unitFilter) {
-      return units;
+      return list;
     }
 
     const filterLower = unitFilter.toLowerCase();
-    return units.filter(unit => {
+    return list.filter(unit => {
       const ownerInfo = getOwnerInfo(unit || {});
       const parts = [
         unit.unitId || '',
@@ -195,7 +212,7 @@ function StatementOfAccountTab({ zoom = 1.0 }) {
 
       return parts.includes(filterLower);
     });
-  }, [units, unitFilter]);
+  }, [units, unitFilter, authorizedUnitIds]);
 
   const unitOptions = useMemo(
     () =>
