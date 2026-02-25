@@ -2381,6 +2381,94 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 }
 
 /**
+ * Build dashboard summary from raw consolidated data (lightweight, no HTML).
+ * Single source of truth: reads from getConsolidatedUnitData output only.
+ * Used by GET /statement/dashboard-summary to skip HTML/projects/utility graph.
+ *
+ * @param {Object} rawData - Output from getConsolidatedUnitData
+ * @param {string} ownerNames - Owner name(s) from units API (e.g. "Fletcher" or "A & B")
+ * @returns {Object} Dashboard card data matching useUnitAccountStatus shape
+ */
+export function buildDashboardSummary(rawData, ownerNames = '') {
+  const owners = ownerNames ? ownerNames.split(/\s*&\s*/).map(s => s.trim()).filter(Boolean) : [];
+  const finalBalance = rawData?.summary?.finalBalance ?? 0;
+  const amountDue = finalBalance > 0 ? roundPesos(finalBalance) : 0;
+  const creditBalance = finalBalance < 0 ? roundPesos(Math.abs(finalBalance)) : 0;
+
+  // Next payment from UPC (pre-calculated in getConsolidatedUnitData)
+  let nextPaymentDueDate = null;
+  let nextPaymentAmount = null;
+  const np = rawData?.nextPaymentDueDate;
+  if (np) {
+    nextPaymentDueDate = typeof np === 'string' ? np : (np?.toISOString?.()?.split('T')[0] ?? null);
+    nextPaymentAmount = typeof rawData?.nextPaymentAmount === 'number' ? rawData.nextPaymentAmount : null;
+  }
+
+  // Last payment: most recent non-future payment from chronologicalTransactions
+  const cutoffDate = new Date(getNow());
+  cutoffDate.setHours(23, 59, 59, 999);
+  const chrono = rawData?.chronologicalTransactions || [];
+  const payments = chrono.filter(txn => {
+    const txnDate = txn.date instanceof Date ? txn.date : parseDate(txn.date);
+    if (!txnDate) return false;
+    const isPayment = txn.type === 'payment' || (txn.payment && txn.payment > 0);
+    if (!isPayment) return false;
+    let isFuture = false;
+    if (txn.type === 'charge' && txn.category === 'hoa') {
+      const HOA_BUFFER_DAYS = 15;
+      const bufferDate = new Date(txnDate);
+      bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
+      isFuture = cutoffDate < bufferDate;
+    } else if (txn.type !== 'charge' || txn.category !== 'water') {
+      isFuture = txnDate > cutoffDate;
+    }
+    return !isFuture;
+  });
+  const lastPayment = payments.length > 0
+    ? payments.reduce((a, b) => {
+        const dateA = a.date instanceof Date ? a.date : parseDate(a.date);
+        const dateB = b.date instanceof Date ? b.date : parseDate(b.date);
+        return (dateB?.getTime() ?? 0) > (dateA?.getTime() ?? 0) ? b : a;
+      })
+    : null;
+
+  // YTD: from dues payments (same source as HOA Dues table)
+  const duesData = rawData?.hoaDuesRaw || {};
+  const paymentsArray = duesData.payments || [];
+  const scheduledAmount = duesData.scheduledAmount || 0;
+  let ytdMonthsPaid = 0;
+  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    const payment = Array.isArray(paymentsArray) ? paymentsArray[monthIndex] : null;
+    const amount = payment?.amount ?? 0;
+    if (amount >= scheduledAmount) ytdMonthsPaid += 1;
+  }
+
+  return {
+    amountDue,
+    creditBalance,
+    nextPaymentDueDate,
+    nextPaymentAmount,
+    lastPayment: lastPayment
+      ? {
+          date: lastPayment.date instanceof Date
+            ? lastPayment.date.toISOString().split('T')[0]
+            : (typeof lastPayment.date === 'string' ? lastPayment.date : null),
+          amount: roundPesos(lastPayment.payment || 0)
+        }
+      : null,
+    owners,
+    ownerNames: ownerNames || (owners.length ? owners.join(' & ') : ''),
+    ytdMonthsPaid,
+    ytdTotal: 12,
+    summary: rawData?.summary ? {
+      totalDue: roundPesos(rawData.summary.totalDue || 0),
+      totalPaid: roundPesos(rawData.summary.totalPaid || 0),
+      closingBalance: roundPesos(rawData.summary.finalBalance || 0)
+    } : {}
+  };
+}
+
+/**
  * Get projects/special assessments for a unit during fiscal year
  * @param {Object} api - API client (not used but kept for consistency)
  * @param {string} clientId - Client ID
