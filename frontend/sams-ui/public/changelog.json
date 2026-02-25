@@ -10,6 +10,20 @@
             "195"
           ],
           "text": "Non-admin user UI: unit selector with multi-unit dropdown, view-only Transactions/HOA Dues/Budgets, Reports unit filter, CRUD gating, balance bar recalc hidden"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "195"
+          ],
+          "text": "Unit Account Status dashboard card for non-admin users — SoA-backed balance, dues-based next payment, owner names in title bar, reusable useUnitAccountStatus hook"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "195"
+          ],
+          "text": "Dashboard: fix client-level admin detection (was missing both HOA Dues and Unit Account cards), fix unitId fallback in authorized units extraction"
         }
       ]
     },

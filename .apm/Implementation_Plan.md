@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 24, 2026 — Sprint B4 reviewed and approved (PR #199). Sprint Recon next.  
+**Last Updated:** February 25, 2026 — Sprint B4 stretch (Unit Account Status card) reviewed and approved. PR #199 includes core + stretch. Sprint Recon next.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -39,13 +39,14 @@ Sprint B4 (#195) complete — PR pending. To start Recon: Initiate a Manager Age
 
 ## Recently Completed
 
-### Sprint B4: User-Level UI Fix ✅ COMPLETE
-**Completed:** February 24, 2026  
+### Sprint B4: User-Level UI Fix + Stretch ✅ COMPLETE
+**Completed:** February 24–25, 2026  
 **PR:** #199 (`fix/sprint-b4-user-level-ui` → `main`)  
 **Issue:** #195 — Desktop UI for non-admin users  
 **Quality Rating:** ⭐⭐⭐⭐⭐
 
-Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only for non-admin, Reports unit filter, CRUD gating, balance bar recalc hidden for non-admin. Backend middleware updated for unitOwner/unitManager permissions. System error lookup tools added.  
+**Core:** Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only for non-admin, Reports unit filter, CRUD gating, balance bar recalc hidden for non-admin. Backend middleware updated for unitOwner/unitManager permissions. System error lookup tools added.  
+**Stretch:** Unit Account Status dashboard card (SoA-backed balance, dues-based next payment, owner names in title bar). Lightweight `dashboard-summary` endpoint. Reusable `useUnitAccountStatus` hook for Sprint D mobile PWA. DateService compliance and UTC fix.  
 **Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_B4_User_Level_UI_2026-02-24/`
 
 ---

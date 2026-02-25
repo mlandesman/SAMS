@@ -32,6 +32,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
+import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin } from '../utils/userRoles';
 import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDateTime } from '../utils/timezone';
 import ActivityActionBar from '../components/common/ActivityActionBar';
@@ -163,35 +164,20 @@ function DashboardView() {
     );
   }
 
-  // Get user role with proper SuperAdmin detection
+  const isAdmin = checkIsAdmin(samsUser, selectedClient?.id);
+  const isSuperAdmin = checkIsSuperAdmin(samsUser);
+
+  // Display label for the role chip (client-level admin shows "Administrator" too)
   const getUserRole = () => {
     if (!samsUser) return 'Unit Owner';
-    
-    // Check if SuperAdmin by email first
-    if (samsUser.email === 'michael@landesman.com') {
-      return 'Super Admin';
-    }
-    
-    // Check globalRole
-    if (samsUser.globalRole === 'superAdmin') {
-      return 'Super Admin';
-    }
-    
-    if (samsUser.globalRole === 'admin') {
-      return 'Administrator';
-    }
-    
-    if (samsUser.globalRole === 'unitManager') {
-      return 'Unit Manager';
-    }
-    
-    // Default to Unit Owner
+    if (isSuperAdmin) return 'Super Admin';
+    if (isAdmin) return 'Administrator';
+    if (samsUser.globalRole === 'unitManager') return 'Unit Manager';
+    const pa = samsUser?.propertyAccess?.[selectedClient?.id];
+    if (pa?.role === 'unitManager') return 'Unit Manager';
     return 'Unit Owner';
   };
-  
   const userRole = getUserRole();
-  const isAdmin = userRole === 'Administrator' || userRole === 'Super Admin';
-  const isSuperAdmin = userRole === 'Super Admin';
 
   // For non-admin: get authorized units and property role (unitOwner = green, unitManager = purple)
   const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
@@ -204,8 +190,9 @@ function DashboardView() {
     }
     if (propertyAccess.units && Array.isArray(propertyAccess.units)) {
       propertyAccess.units.forEach((unit) => {
-        if (!authorizedUnits.find((u) => u.id === unit.id)) {
-          authorizedUnits.push({ id: unit.id, name: unit.name || `Unit ${unit.id}` });
+        const uid = unit.id || unit.unitId;
+        if (uid && !authorizedUnits.find((u) => u.id === uid)) {
+          authorizedUnits.push({ id: uid, name: unit.name || `Unit ${uid}` });
         }
       });
     }
@@ -253,7 +240,8 @@ function DashboardView() {
     if (access.unitId) units.push({ id: access.unitId, name: `Unit ${access.unitId}` });
     if (access.units && Array.isArray(access.units)) {
       access.units.forEach((u) => {
-        if (!units.find((x) => x.id === u.id)) units.push({ id: u.id, name: u.name || `Unit ${u.id}` });
+        const uid = u.id || u.unitId;
+        if (uid && !units.find((x) => x.id === uid)) units.push({ id: uid, name: u.name || `Unit ${uid}` });
       });
     }
     if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
