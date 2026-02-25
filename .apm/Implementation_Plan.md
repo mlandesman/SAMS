@@ -299,6 +299,14 @@ Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only 
 
 ---
 
+## Tech Debt (Future Sprints)
+
+| Item | Notes |
+|------|-------|
+| **Dashboard content cache** | Lightweight `dashboard-summary` endpoint exists; consider adding a cache layer for Dashboard content in a future sprint to improve load time. |
+
+---
+
 ## Hard Deadlines
 
 | Deadline | Issue | Description |

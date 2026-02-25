@@ -33,6 +33,7 @@ import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { hasWaterBills } from '../utils/clientFeatures';
+import { getMexicoDateTime } from '../utils/timezone';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
 import { LoadingSpinner } from '../components/common';
@@ -416,7 +417,7 @@ function DashboardView() {
                     </Box>
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       {unitAccountData.nextPaymentDueDate && unitAccountData.nextPaymentAmount != null
-                        ? `${new Date(unitAccountData.nextPaymentDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — $${unitAccountData.nextPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+                        ? `${getMexicoDateTime(unitAccountData.nextPaymentDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — $${unitAccountData.nextPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
                         : unitAccountData.amountDue <= 0
                           ? 'Paid through period'
                           : '—'}
@@ -428,7 +429,7 @@ function DashboardView() {
                     )}
                     {unitAccountData.lastPayment && (
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Last: {unitAccountData.lastPayment.date ? new Date(unitAccountData.lastPayment.date).toLocaleDateString('en-US') : '—'} — ${(unitAccountData.lastPayment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Last: {unitAccountData.lastPayment.date ? getMexicoDateTime(unitAccountData.lastPayment.date).toLocaleDateString('en-US') : '—'} — ${(unitAccountData.lastPayment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Typography>
                     )}
                     <Box sx={{ mt: 1.5 }}>

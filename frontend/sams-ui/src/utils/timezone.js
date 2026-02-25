@@ -97,11 +97,15 @@ export function getMexicoDateTime(dateInput) {
     return new Date();
   }
   
-  // Handle string date input (e.g., "2025-07-31")
+  // Handle string date input (e.g., "2025-07-31" or "2025-07-31T00:00:00.000-05:00")
   if (typeof dateInput === 'string') {
-    // CRITICAL: For date-only strings, we must avoid UTC midnight interpretation
+    // If already has time/timezone (contains "T"), parse as-is
+    if (dateInput.includes('T')) {
+      return new Date(dateInput);
+    }
+    // CRITICAL: For date-only strings, avoid UTC midnight interpretation
     // "2025-07-31" as UTC midnight would display as July 30 in Cancun (UTC-5)
-    // Using noon ensures the date stays correct when displayed in any timezone
+    // Using noon UTC ensures the date stays correct when displayed in any timezone
     return new Date(dateInput + 'T12:00:00');
   }
   

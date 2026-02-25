@@ -9,7 +9,10 @@
  */
 
 import axios from 'axios';
-import { getNow, parseDate as parseDateFromService } from '../../shared/services/DateService.js';
+import { getNow, parseDate as parseDateFromService, createDate, DateService } from '../../shared/services/DateService.js';
+
+// DateService instance for America/Cancun (used when serializing dates for API to avoid UTC shift)
+const dashboardDateService = new DateService({ timezone: 'America/Cancun' });
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getDb } from '../firebase.js';
 import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
@@ -496,6 +499,22 @@ function getCalendarMonthName(fiscalMonth, fiscalYearStartMonth, fiscalYear) {
   ];
   
   return `${monthNames[calendarMonth]} ${calendarYear}`;
+}
+
+/**
+ * Convert fiscal period (year + month index) to calendar Date in America/Cancun.
+ * Uses same formula as getCalendarMonthName; correct for both July-start (AVII) and Jan-start (MTC) fiscal years.
+ * Uses DateService.createDate to avoid UTC timezone shift when serialized.
+ * @param {number} fiscalYear - Fiscal year (e.g. 2026)
+ * @param {number} fiscalMonthIndex - Month index within fiscal year (0-11)
+ * @param {number} fiscalYearStartMonth - Fiscal year start month 1-12 (1=Jan, 7=Jul)
+ * @returns {Date} First day of the calendar month (Cancun timezone)
+ */
+function fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStartMonth) {
+  const monthsFromStart = (fiscalYearStartMonth - 1) + fiscalMonthIndex;
+  const calendarMonth = monthsFromStart % 12; // 0-11
+  const calendarYear = fiscalYear + Math.floor(monthsFromStart / 12) - (fiscalYearStartMonth > 1 ? 1 : 0);
+  return createDate(calendarYear, calendarMonth + 1, 1); // createDate uses month 1-12
 }
 
 /**
@@ -1623,17 +1642,13 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const fiscalYear = parseInt(yearStr);
             const quarter = parseInt(quarterStr);
             const fiscalMonthIndex = (quarter - 1) * 3;
-            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
-            nextPaymentDueDate = new Date(calendarYear, calendarMonth, 1);
+            nextPaymentDueDate = fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStartMonth);
           } else if (cleanPeriod.includes('-')) {
             // Monthly: "2026-7" format
             const [yearStr, monthStr] = cleanPeriod.split('-');
             const fiscalYear = parseInt(yearStr);
             const fiscalMonthIndex = parseInt(monthStr);
-            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
-            nextPaymentDueDate = new Date(calendarYear, calendarMonth, 1);
+            nextPaymentDueDate = fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStartMonth);
           }
         } else {
           // All HOA bills paid - calculate next billing cycle and amount
@@ -1647,12 +1662,12 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const quarterStarts = [0, 3, 6, 9]; // Jan, Apr, Jul, Oct
             const nextQuarterStart = quarterStarts.find(m => m > currentMonth) ?? quarterStarts[0];
             const nextYear = nextQuarterStart <= currentMonth ? today.getFullYear() + 1 : today.getFullYear();
-            nextPaymentDueDate = new Date(nextYear, nextQuarterStart, 1);
+            nextPaymentDueDate = createDate(nextYear, nextQuarterStart + 1, 1); // createDate uses month 1-12
           } else {
             // Monthly: next month 1st
             const nextMonth = today.getMonth() + 1;
             const nextYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
-            nextPaymentDueDate = new Date(nextYear, nextMonth % 12, 1);
+            nextPaymentDueDate = createDate(nextYear, (nextMonth % 12) || 12, 1); // 0 -> 12 for Dec
           }
         }
         
@@ -1668,9 +1683,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const quarter = parseInt(quarterStr);
             // Water bills due at start of NEXT quarter (in arrears)
             const fiscalMonthIndex = (quarter) * 3;
-            const calendarMonth = ((fiscalYearStartMonth - 1) + fiscalMonthIndex) % 12;
-            const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
-            const waterDueDate = new Date(calendarYear, calendarMonth, 1);
+            const waterDueDate = fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStartMonth);
             
             // Use earlier of HOA or water due date; if water is earlier, use water amount
             if (!nextPaymentDueDate || waterDueDate < nextPaymentDueDate) {
@@ -2381,9 +2394,61 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
 }
 
 /**
+ * Compute next payment due from dues payments array (same source as HOA Dues table).
+ * Uses "last fully paid period + 1" — not UPC lead-time dates. Dashboard-only; does not affect SoA.
+ *
+ * @param {Object} duesData - hoaDuesRaw from getConsolidatedUnitData
+ * @param {number} fiscalYearStartMonth - 1-12 (1=Jan, 7=Jul)
+ * @param {number} currentFiscalYear - Fiscal year (e.g. 2026)
+ * @param {string} duesFrequency - 'monthly' | 'quarterly'
+ * @returns {{ nextPaymentDueDate: Date|null, nextPaymentAmount: number|null }|null}
+ */
+function computeNextPaymentFromDues(duesData, fiscalYearStartMonth, currentFiscalYear, duesFrequency) {
+  const paymentsArray = duesData?.payments || [];
+  const scheduledAmount = duesData?.scheduledAmount ?? 0;
+  if (!Array.isArray(paymentsArray) || scheduledAmount <= 0) return null;
+
+  // Find last fully paid period (month index 0-11)
+  let lastFullyPaidIndex = -1;
+  for (let i = 0; i < 12; i++) {
+    const payment = paymentsArray[i];
+    const amount = payment?.amount ?? 0;
+    if (amount >= scheduledAmount) lastFullyPaidIndex = i;
+  }
+
+  const nextPeriodIndex = lastFullyPaidIndex + 1;
+  let nextPaymentDueDate;
+  let nextPaymentAmount;
+
+  if (duesFrequency === 'quarterly') {
+    // Next quarter start: month index 0,3,6,9
+    const quarterStarts = [0, 3, 6, 9];
+    const nextQuarterStart = quarterStarts.find(q => q > lastFullyPaidIndex) ?? quarterStarts[0];
+    const nextYear = nextQuarterStart <= lastFullyPaidIndex ? currentFiscalYear + 1 : currentFiscalYear;
+    const fiscalMonthIndex = nextQuarterStart <= lastFullyPaidIndex ? 0 : nextQuarterStart;
+    const fiscalYear = nextQuarterStart <= lastFullyPaidIndex ? currentFiscalYear + 1 : currentFiscalYear;
+    nextPaymentDueDate = fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStartMonth);
+    nextPaymentAmount = roundPesos(scheduledAmount * 3);
+  } else {
+    // Monthly
+    if (nextPeriodIndex < 12) {
+      nextPaymentDueDate = fiscalPeriodToCalendarDate(currentFiscalYear, nextPeriodIndex, fiscalYearStartMonth);
+    } else {
+      nextPaymentDueDate = fiscalPeriodToCalendarDate(currentFiscalYear + 1, 0, fiscalYearStartMonth);
+    }
+    nextPaymentAmount = roundPesos(scheduledAmount);
+  }
+
+  return { nextPaymentDueDate, nextPaymentAmount };
+}
+
+/**
  * Build dashboard summary from raw consolidated data (lightweight, no HTML).
  * Single source of truth: reads from getConsolidatedUnitData output only.
  * Used by GET /statement/dashboard-summary to skip HTML/projects/utility graph.
+ *
+ * Next payment: prefers dues-based (last fully paid + 1) over UPC lead-time dates.
+ * SoA pipeline unchanged; this override is dashboard-only.
  *
  * @param {Object} rawData - Output from getConsolidatedUnitData
  * @param {string} ownerNames - Owner name(s) from units API (e.g. "Fletcher" or "A & B")
@@ -2395,13 +2460,32 @@ export function buildDashboardSummary(rawData, ownerNames = '') {
   const amountDue = finalBalance > 0 ? roundPesos(finalBalance) : 0;
   const creditBalance = finalBalance < 0 ? roundPesos(Math.abs(finalBalance)) : 0;
 
-  // Next payment from UPC (pre-calculated in getConsolidatedUnitData)
+  // Next payment: prefer dues-based (last fully paid period + 1) over UPC lead-time
   let nextPaymentDueDate = null;
   let nextPaymentAmount = null;
-  const np = rawData?.nextPaymentDueDate;
-  if (np) {
-    nextPaymentDueDate = typeof np === 'string' ? np : (np?.toISOString?.()?.split('T')[0] ?? null);
-    nextPaymentAmount = typeof rawData?.nextPaymentAmount === 'number' ? rawData.nextPaymentAmount : null;
+  const clientConfig = rawData?.clientConfig || {};
+  const duesFromDues = computeNextPaymentFromDues(
+    rawData?.hoaDuesRaw || {},
+    clientConfig.fiscalYearStartMonth ?? 7,
+    clientConfig.fiscalYear ?? getNow().getFullYear(),
+    clientConfig.duesFrequency || 'monthly'
+  );
+  if (duesFromDues?.nextPaymentDueDate) {
+    const d = duesFromDues.nextPaymentDueDate;
+    nextPaymentDueDate = d instanceof Date
+      ? dashboardDateService.formatForFrontend(d).iso
+      : null;
+    nextPaymentAmount = duesFromDues.nextPaymentAmount ?? null;
+  }
+  if (!nextPaymentDueDate) {
+    const np = rawData?.nextPaymentDueDate;
+    if (np) {
+      const dateVal = typeof np === 'string' ? np : (np instanceof Date ? np : null);
+      nextPaymentDueDate = dateVal
+        ? (dateVal instanceof Date ? dashboardDateService.formatForFrontend(dateVal).iso : dateVal)
+        : null;
+      nextPaymentAmount = typeof rawData?.nextPaymentAmount === 'number' ? rawData.nextPaymentAmount : null;
+    }
   }
 
   // Last payment: most recent non-future payment from chronologicalTransactions
@@ -2451,7 +2535,7 @@ export function buildDashboardSummary(rawData, ownerNames = '') {
     lastPayment: lastPayment
       ? {
           date: lastPayment.date instanceof Date
-            ? lastPayment.date.toISOString().split('T')[0]
+            ? dashboardDateService.formatForFrontend(lastPayment.date).iso
             : (typeof lastPayment.date === 'string' ? lastPayment.date : null),
           amount: roundPesos(lastPayment.payment || 0)
         }
