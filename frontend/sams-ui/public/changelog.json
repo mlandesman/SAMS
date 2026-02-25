@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "195"
+          ],
+          "text": "Non-admin user UI: unit selector with multi-unit dropdown, view-only Transactions/HOA Dues/Budgets, Reports unit filter, CRUD gating, balance bar recalc hidden"
+        }
+      ]
+    },
+    {
       "version": "1.13.0",
       "date": "2026-02-16",
       "changes": [

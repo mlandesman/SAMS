@@ -21,6 +21,8 @@ export const ClientProvider = ({ children }) => {
   const [selectedClient, setSelectedClient] = useState(null);
   // For non-admin users: currently selected unit (persisted per client)
   const [selectedUnitId, setSelectedUnitIdState] = useState(null);
+  // Owner name(s) for selected unit (from SoA, set when useUnitAccountStatus loads)
+  const [unitOwnerNames, setUnitOwnerNamesState] = useState(null);
 
   // Add state for client menu configuration
   const [menuConfig, setMenuConfig] = useState([]);
@@ -56,6 +58,7 @@ export const ClientProvider = ({ children }) => {
   useEffect(() => {
     if (!selectedClient?.id) {
       setSelectedUnitIdState(null);
+      setUnitOwnerNamesState(null);
       return;
     }
     const key = `sams_selectedUnit_${selectedClient.id}`;
@@ -168,6 +171,7 @@ export const ClientProvider = ({ children }) => {
 
   const setSelectedUnitId = (unitId) => {
     setSelectedUnitIdState(unitId);
+    setUnitOwnerNamesState(null); // Clear until SoA loads for new unit
     if (selectedClient?.id) {
       const key = `sams_selectedUnit_${selectedClient.id}`;
       if (unitId) {
@@ -178,12 +182,18 @@ export const ClientProvider = ({ children }) => {
     }
   };
 
+  const setUnitOwnerNames = (names) => {
+    setUnitOwnerNamesState(names);
+  };
+
   return (
     <ClientContext.Provider value={{ 
       selectedClient, 
       setClient, 
       selectedUnitId,
       setSelectedUnitId,
+      unitOwnerNames,
+      setUnitOwnerNames,
       validatePropertyAccess,
       menuConfig, 
       isLoadingMenu, 

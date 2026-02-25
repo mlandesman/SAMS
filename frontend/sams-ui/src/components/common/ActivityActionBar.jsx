@@ -6,15 +6,18 @@ import { useAuth } from '../../context/AuthContext';
 
 function ActivityActionBar({ children }) {
   const { samsUser } = useAuth();
-  const { selectedClient, selectedUnitId } = useClient();
+  const { selectedClient, selectedUnitId, unitOwnerNames } = useClient();
   const clientName = selectedClient ? (selectedClient.basicInfo?.fullName || selectedClient.name || selectedClient.id) : "Client Name";
   const propertyAccess = selectedClient?.id
     ? (samsUser?.samsProfile?.propertyAccess?.[selectedClient.id] ?? samsUser?.propertyAccess?.[selectedClient.id])
     : null;
   const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
-  const title = isUnitOwnerOrManager && selectedUnitId
+  const baseTitle = isUnitOwnerOrManager && selectedUnitId
     ? `${clientName} • Unit ${selectedUnitId}`
     : clientName;
+  const title = isUnitOwnerOrManager && selectedUnitId && unitOwnerNames
+    ? `${baseTitle} — ${unitOwnerNames}`
+    : baseTitle;
 
   return (
     <div className="action-bar">

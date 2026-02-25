@@ -1524,6 +1524,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     let hoaPenalties = [];
     let waterPenalties = [];
     let nextPaymentDueDate = null; // Issue #144b: Pre-calculated next payment date from UPC
+    let nextPaymentAmount = null; // Amount for next payment (pesos)
     try {
       const payOnDateStr = today.toISOString().split('T')[0];
       const unifiedPreviewResponse = await api.post(`/payments/unified/preview`, {
@@ -1610,6 +1611,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         const firstUnpaidHoaBill = hoaBillsPaid.find(bill => (bill.totalBaseDue || 0) > 0 || (bill.totalPenaltyDue || 0) > 0);
         
         if (firstUnpaidHoaBill) {
+          // Amount: base + penalty (UPC amounts are in pesos)
+          nextPaymentAmount = (firstUnpaidHoaBill.totalBaseDue || 0) + (firstUnpaidHoaBill.totalPenaltyDue || 0);
           // Calculate due date from billPeriod
           const billPeriod = firstUnpaidHoaBill.billPeriod || '';
           const cleanPeriod = billPeriod.replace('hoa:', '');
@@ -1633,9 +1636,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             nextPaymentDueDate = new Date(calendarYear, calendarMonth, 1);
           }
         } else {
-          // All HOA bills paid - calculate next billing cycle
-          // Determine if monthly or quarterly from billsPaid structure
+          // All HOA bills paid - calculate next billing cycle and amount
           const isQuarterly = hoaBillsPaid.some(b => (b.billPeriod || '').includes('-Q'));
+          const scheduledPesos = centavosToPesos(scheduledAmount || 0);
+          nextPaymentAmount = isQuarterly ? scheduledPesos * 3 : scheduledPesos;
           
           if (isQuarterly) {
             // Next quarter start: Jan 1, Apr 1, Jul 1, Oct 1
@@ -1668,9 +1672,10 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             const calendarYear = fiscalYear - 1 + Math.floor(((fiscalYearStartMonth - 1) + fiscalMonthIndex) / 12);
             const waterDueDate = new Date(calendarYear, calendarMonth, 1);
             
-            // Use earlier of HOA or water due date
+            // Use earlier of HOA or water due date; if water is earlier, use water amount
             if (!nextPaymentDueDate || waterDueDate < nextPaymentDueDate) {
               nextPaymentDueDate = waterDueDate;
+              nextPaymentAmount = (firstUnpaidWaterBill.totalBaseDue || 0) + (firstUnpaidWaterBill.totalPenaltyDue || 0);
             }
           }
         }
@@ -2353,6 +2358,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       chronologicalTransactions: chronologicalTransactions,
       allTransactions: allTransactions, // Issue #144b: Include unfiltered list for Next Payment calculation
       nextPaymentDueDate: nextPaymentDueDate, // Issue #144b: Pre-calculated from UPC billsPaid
+      nextPaymentAmount: nextPaymentAmount, // Amount for next payment (pesos)
       
       // Calculated summaries
       summary: {
@@ -3002,12 +3008,29 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       emails: emails, // Array of enriched email objects with displayName, preferredCurrency, preferredLanguage, notifications, role
       managers: managers
     },
-    statementInfo: {
-      statementDate: getNow().toISOString().split('T')[0],
-      fiscalYear: rawData.clientConfig.fiscalYear,
-      periodCovered: periodCovered,
-      generatedAt: getNow().toISOString()
-    },
+    statementInfo: (() => {
+      // YTD months paid: from dues/{year} payments array (same source as HOA Dues table)
+      const duesData = rawData.hoaDuesRaw || {};
+      const paymentsArray = duesData.payments || [];
+      const scheduledAmount = duesData.scheduledAmount || 0;
+      let ytdMonthsPaid = 0;
+      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+        const payment = Array.isArray(paymentsArray) ? paymentsArray[monthIndex] : null;
+        const amount = payment?.amount ?? 0;
+        if (amount >= scheduledAmount) {
+          ytdMonthsPaid += 1;
+        }
+      }
+      return {
+        statementDate: getNow().toISOString().split('T')[0],
+        fiscalYear: rawData.clientConfig.fiscalYear,
+        periodCovered: periodCovered,
+        generatedAt: getNow().toISOString(),
+        duesFrequency: rawData.clientConfig?.duesFrequency || 'monthly',
+        ytdMonthsPaid,
+        ytdTotal: 12
+      };
+    })(),
     summary: (() => {
       const closingBalance = roundPesos(rawData.summary.finalBalance);
       const creditBalance = roundPesos(rawData.creditBalance?.creditBalance || 0);
@@ -3031,8 +3054,9 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     lineItems: lineItems,
     // Issue #144b: Include unfiltered transactions for Next Payment calculation
     allTransactions: rawData.allTransactions || [],
-    // Issue #144b: Pre-calculated next payment date from UPC billsPaid
+    // Issue #144b: Pre-calculated next payment date and amount from UPC billsPaid
     nextPaymentDueDate: rawData.nextPaymentDueDate || null,
+    nextPaymentAmount: rawData.nextPaymentAmount ?? null,
     creditInfo: {
       // Use credit balance from API response (already calculated by getter in creditService)
       currentBalance: roundPesos(rawData.creditBalance?.creditBalance || 0),
