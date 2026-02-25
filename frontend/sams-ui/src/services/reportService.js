@@ -165,6 +165,33 @@ class ReportService {
     return json.data;
   }
 
+  /**
+   * Get dashboard-only unit account summary (lightweight, no HTML)
+   * GET /api/clients/:clientId/reports/statement/dashboard-summary
+   * Returns minimal data for Unit Account Status card. Skips HTML, projects, utility graph.
+   *
+   * @param {string} clientId
+   * @param {string} unitId
+   * @param {number|null} fiscalYear - Optional fiscal year
+   */
+  async getDashboardSummary(clientId, unitId, fiscalYear = null) {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams();
+    params.append('unitId', unitId);
+    if (fiscalYear) params.append('fiscalYear', String(fiscalYear));
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/${clientId}/statement/dashboard-summary?${params.toString()}`,
+      { method: 'GET', headers }
+    );
+
+    const json = await response.json();
+    if (!response.ok || json.success === false) {
+      throw new Error(json.error || 'Failed to fetch dashboard summary');
+    }
+    return json.data;
+  }
+
   // NOTE: getStatementHtml is deprecated in favor of getStatementData,
   // which returns { html, meta, summary, lineItems } in a single call.
 

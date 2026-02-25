@@ -19,7 +19,11 @@ export const ClientProvider = ({ children }) => {
   
   // Initialize with null - we'll validate stored client when user loads
   const [selectedClient, setSelectedClient] = useState(null);
-  
+  // For non-admin users: currently selected unit (persisted per client)
+  const [selectedUnitId, setSelectedUnitIdState] = useState(null);
+  // Owner name(s) for selected unit (from SoA, set when useUnitAccountStatus loads)
+  const [unitOwnerNames, setUnitOwnerNamesState] = useState(null);
+
   // Add state for client menu configuration
   const [menuConfig, setMenuConfig] = useState([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
@@ -49,6 +53,26 @@ export const ClientProvider = ({ children }) => {
       setSelectedClient(null);
     }
   }, [samsUser]); // Only depend on samsUser changes
+
+  // When client changes, restore selectedUnitId from localStorage for this client
+  useEffect(() => {
+    if (!selectedClient?.id) {
+      setSelectedUnitIdState(null);
+      setUnitOwnerNamesState(null);
+      return;
+    }
+    const key = `sams_selectedUnit_${selectedClient.id}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setSelectedUnitIdState(stored);
+      } else {
+        setSelectedUnitIdState(null);
+      }
+    } catch (e) {
+      setSelectedUnitIdState(null);
+    }
+  }, [selectedClient?.id]);
 
   // Log when client changes and update document title
   useEffect(() => {
@@ -145,10 +169,31 @@ export const ClientProvider = ({ children }) => {
     return true; // Success
   };
 
+  const setSelectedUnitId = (unitId) => {
+    setSelectedUnitIdState(unitId);
+    setUnitOwnerNamesState(null); // Clear until SoA loads for new unit
+    if (selectedClient?.id) {
+      const key = `sams_selectedUnit_${selectedClient.id}`;
+      if (unitId) {
+        localStorage.setItem(key, unitId);
+      } else {
+        localStorage.removeItem(key);
+      }
+    }
+  };
+
+  const setUnitOwnerNames = (names) => {
+    setUnitOwnerNamesState(names);
+  };
+
   return (
     <ClientContext.Provider value={{ 
       selectedClient, 
       setClient, 
+      selectedUnitId,
+      setSelectedUnitId,
+      unitOwnerNames,
+      setUnitOwnerNames,
       validatePropertyAccess,
       menuConfig, 
       isLoadingMenu, 

@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 21, 2026 — Sprint B3-Fix merged (PR #192). 5 bugs closed (#191, #190, #186, #187, #43).  
+**Last Updated:** February 25, 2026 — Sprint B4 stretch (Unit Account Status card) reviewed and approved. PR #199 includes core + stretch. Sprint Recon next.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,13 +25,31 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-No active sprint. Ready to select next sprint from backlog.
+### Sprint Recon (Next)
+**Status:** Ready for Manager Agent  
+**Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_B4_Recon_Bootstrap_Prompt.md`
 
-See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for upcoming sprint options.
+| Sprint | Issue | Theme | Est |
+|--------|-------|-------|-----|
+| **Recon** | #188 | Historical balance lookup (Option B — Status Bar right-click) | 4-6h |
+
+Sprint B4 (#195) complete — PR pending. To start Recon: Initiate a Manager Agent and paste the Bootstrap Prompt.
 
 ---
 
 ## Recently Completed
+
+### Sprint B4: User-Level UI Fix + Stretch ✅ COMPLETE
+**Completed:** February 24–25, 2026  
+**PR:** #199 (`fix/sprint-b4-user-level-ui` → `main`)  
+**Issue:** #195 — Desktop UI for non-admin users  
+**Quality Rating:** ⭐⭐⭐⭐⭐
+
+**Core:** Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only for non-admin, Reports unit filter, CRUD gating, balance bar recalc hidden for non-admin. Backend middleware updated for unitOwner/unitManager permissions. System error lookup tools added.  
+**Stretch:** Unit Account Status dashboard card (SoA-backed balance, dues-based next payment, owner names in title bar). Lightweight `dashboard-summary` endpoint. Reusable `useUnitAccountStatus` hook for Sprint D mobile PWA. DateService compliance and UTC fix.  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_B4_User_Level_UI_2026-02-24/`
+
+---
 
 ### Sprint B3-Fix: Production Stabilization ✅ COMPLETE
 **Completed:** February 21, 2026  
@@ -279,6 +297,14 @@ See [Roadmap & Timeline](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md)
 ## Known Blockers
 
 *None currently*
+
+---
+
+## Tech Debt (Future Sprints)
+
+| Item | Notes |
+|------|-------|
+| **Dashboard content cache** | Lightweight `dashboard-summary` endpoint exists; consider adding a cache layer for Dashboard content in a future sprint to improve load time. |
 
 ---
 

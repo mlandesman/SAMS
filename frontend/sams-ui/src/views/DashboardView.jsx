@@ -11,6 +11,9 @@ import {
   IconButton,
   Tooltip,
   Paper,
+  Menu,
+  MenuItem,
+  LinearProgress,
 } from '@mui/material';
 import {
   AccountBalance as BalanceIcon,
@@ -21,13 +24,17 @@ import {
   Assignment as ProjectIcon,
   Calculate as CalculateIcon,
   Water as WaterIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
+import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
+import { isAdmin as checkIsAdmin, isSuperAdmin as checkIsSuperAdmin } from '../utils/userRoles';
 import { hasWaterBills } from '../utils/clientFeatures';
+import { getMexicoDateTime } from '../utils/timezone';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import CurrencyCalculatorModal from '../components/CurrencyCalculatorModal';
 import { LoadingSpinner } from '../components/common';
@@ -44,7 +51,7 @@ const formatDateDisplay = (value) => {
 function DashboardView() {
   const navigate = useNavigate();
   const { currentUser, samsUser } = useAuth();
-  const { selectedClient, menuConfig } = useClient();
+  const { selectedClient, selectedUnitId, setSelectedUnitId, setUnitOwnerNames, menuConfig } = useClient();
   const { 
     accountBalances, 
     hoaDuesStatus, 
@@ -71,6 +78,7 @@ function DashboardView() {
   const [pollCard, setPollCard] = useState(null);
   const [pollLoading, setPollLoading] = useState(false);
   const [pollError, setPollError] = useState('');
+  const [unitMenuAnchor, setUnitMenuAnchor] = useState(null);
   
   const formatDate = (value) => {
     if (!value || typeof value !== 'string') return '—';
@@ -156,35 +164,98 @@ function DashboardView() {
     );
   }
 
-  // Get user role with proper SuperAdmin detection
+  const isAdmin = checkIsAdmin(samsUser, selectedClient?.id);
+  const isSuperAdmin = checkIsSuperAdmin(samsUser);
+
+  // Display label for the role chip (client-level admin shows "Administrator" too)
   const getUserRole = () => {
     if (!samsUser) return 'Unit Owner';
-    
-    // Check if SuperAdmin by email first
-    if (samsUser.email === 'michael@landesman.com') {
-      return 'Super Admin';
-    }
-    
-    // Check globalRole
-    if (samsUser.globalRole === 'superAdmin') {
-      return 'Super Admin';
-    }
-    
-    if (samsUser.globalRole === 'admin') {
-      return 'Administrator';
-    }
-    
-    if (samsUser.globalRole === 'unitManager') {
-      return 'Unit Manager';
-    }
-    
-    // Default to Unit Owner
+    if (isSuperAdmin) return 'Super Admin';
+    if (isAdmin) return 'Administrator';
+    if (samsUser.globalRole === 'unitManager') return 'Unit Manager';
+    const pa = samsUser?.propertyAccess?.[selectedClient?.id];
+    if (pa?.role === 'unitManager') return 'Unit Manager';
     return 'Unit Owner';
   };
-  
   const userRole = getUserRole();
-  const isAdmin = userRole === 'Administrator' || userRole === 'Super Admin';
-  const isSuperAdmin = userRole === 'Super Admin';
+
+  // For non-admin: get authorized units and property role (unitOwner = green, unitManager = purple)
+  const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
+  const isUnitOwnerOrManager = propertyAccess && (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager');
+  const unitChipColor = propertyAccess?.role === 'unitOwner' ? 'success' : 'secondary'; // green for Owner, purple for Manager
+  const authorizedUnits = [];
+  if (isUnitOwnerOrManager && propertyAccess) {
+    if (propertyAccess.unitId) {
+      authorizedUnits.push({ id: propertyAccess.unitId, name: `Unit ${propertyAccess.unitId}` });
+    }
+    if (propertyAccess.units && Array.isArray(propertyAccess.units)) {
+      propertyAccess.units.forEach((unit) => {
+        const uid = unit.id || unit.unitId;
+        if (uid && !authorizedUnits.find((u) => u.id === uid)) {
+          authorizedUnits.push({ id: uid, name: unit.name || `Unit ${uid}` });
+        }
+      });
+    }
+    // Profile may use unitAssignments (array of { unitId, role }) instead of units
+    if (propertyAccess.unitAssignments && Array.isArray(propertyAccess.unitAssignments)) {
+      propertyAccess.unitAssignments.forEach((a) => {
+        const id = a.unitId || a.id;
+        if (id && !authorizedUnits.find((u) => u.id === id)) {
+          authorizedUnits.push({ id, name: a.name || `Unit ${id}` });
+        }
+      });
+    }
+  }
+  const hasMultipleUnits = authorizedUnits.length > 1;
+  const currentUnitLabel = authorizedUnits.find((u) => u.id === selectedUnitId)?.name ?? (authorizedUnits[0] ? authorizedUnits[0].name : null);
+  const unitMenuOpen = Boolean(unitMenuAnchor);
+
+  const handleUnitMenuClose = () => {
+    setUnitMenuAnchor(null);
+  };
+  const handleUnitSelect = (unitId) => {
+    setSelectedUnitId(unitId);
+    handleUnitMenuClose();
+  };
+
+  // Unit Account Status (SoA data) — non-admin only, re-fetches when selectedUnitId changes
+  const unitAccountClientId = selectedClient?.id;
+  const unitAccountUnitId = isUnitOwnerOrManager ? selectedUnitId : null;
+  const { data: unitAccountData, loading: unitAccountLoading, error: unitAccountError } = useUnitAccountStatus(unitAccountClientId, unitAccountUnitId);
+
+  // Sync owner names to context for ActivityActionBar
+  useEffect(() => {
+    if (unitAccountData?.ownerNames) {
+      setUnitOwnerNames(unitAccountData.ownerNames);
+    } else if (!unitAccountLoading && !unitAccountUnitId) {
+      setUnitOwnerNames(null);
+    }
+  }, [unitAccountData?.ownerNames, unitAccountLoading, unitAccountUnitId, setUnitOwnerNames]);
+
+  // Sync selectedUnitId to first authorized unit when none set or selection invalid
+  useEffect(() => {
+    const access = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
+    if (!access || (access.role !== 'unitOwner' && access.role !== 'unitManager')) return;
+    const units = [];
+    if (access.unitId) units.push({ id: access.unitId, name: `Unit ${access.unitId}` });
+    if (access.units && Array.isArray(access.units)) {
+      access.units.forEach((u) => {
+        const uid = u.id || u.unitId;
+        if (uid && !units.find((x) => x.id === uid)) units.push({ id: uid, name: u.name || `Unit ${uid}` });
+      });
+    }
+    if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
+      access.unitAssignments.forEach((a) => {
+        const id = a.unitId || a.id;
+        if (id && !units.find((x) => x.id === id)) units.push({ id, name: a.name || `Unit ${id}` });
+      });
+    }
+    if (units.length === 0) return;
+    const validIds = units.map((u) => u.id);
+    if (!selectedUnitId || !validIds.includes(selectedUnitId)) {
+      setSelectedUnitId(units[0].id);
+    }
+  }, [samsUser, selectedClient?.id, selectedUnitId, setSelectedUnitId]);
 
   return (
     <>
@@ -199,11 +270,74 @@ function DashboardView() {
           Dashboard
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-          <Chip 
-            label={userRole} 
-            color={isAdmin ? 'primary' : 'secondary'} 
-            size="small" 
-          />
+          {isAdmin ? (
+            <Chip label={userRole} color="primary" size="small" />
+          ) : isUnitOwnerOrManager && currentUnitLabel ? (
+            <>
+              {/* Unit label: display-only (not a button, avoids 1Password) */}
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 24,
+                  px: 1,
+                  borderRadius: 1,
+                  typography: 'caption',
+                  fontWeight: 500,
+                  color: unitChipColor === 'success' ? 'success.contrastText' : 'secondary.contrastText',
+                  bgcolor: unitChipColor === 'success' ? 'success.main' : 'secondary.main',
+                }}
+              >
+                {currentUnitLabel}
+              </Box>
+              {/* Separate control to switch unit: only when more than one unit */}
+              {hasMultipleUnits && (
+                <>
+                  <Tooltip title="Switch unit">
+                    <IconButton
+                      type="button"
+                      size="small"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setUnitMenuAnchor(e.currentTarget);
+                      }}
+                      sx={{
+                        color: 'white',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
+                      }}
+                      aria-label="Switch unit"
+                    >
+                      <ArrowDropDownIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Menu
+                    anchorEl={unitMenuAnchor}
+                    open={unitMenuOpen}
+                    onClose={handleUnitMenuClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    PaperProps={{
+                      sx: { mt: 1.5, minWidth: 140 },
+                    }}
+                  >
+                    {authorizedUnits.map((u) => (
+                      <MenuItem
+                        key={u.id}
+                        onClick={() => handleUnitSelect(u.id)}
+                        selected={u.id === selectedUnitId}
+                      >
+                        {u.name}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </>
+              )}
+            </>
+          ) : (
+            <Chip label={userRole} color="secondary" size="small" />
+          )}
           {selectedClient && <ClientSwitcher />}
         </Box>
       </Box>
@@ -228,6 +362,80 @@ function DashboardView() {
       <Grid container spacing={3}>
         {/* System Error Monitor — SuperAdmin only. Card hidden when no errors; status in StatusBar */}
         {isSuperAdmin && <ErrorMonitorSection />}
+
+        {/* Unit Account Status Card — non-admin only (replaces HOA Dues Status position) */}
+        {isUnitOwnerOrManager && selectedUnitId && (
+          <Grid item xs={12} sm={6} md={4}>
+            <Card
+              sx={{
+                height: '100%',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(10px)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 25px rgba(8, 99, 191, 0.15)'
+                }
+              }}
+              onClick={() => navigate('/reports')}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <ReceiptIcon sx={{ color: '#059669', mr: 1, fontSize: 28 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Unit Account Status</Typography>
+                </Box>
+                {unitAccountLoading ? (
+                  <Box display="flex" flexDirection="column" gap={1} py={2}>
+                    <LoadingSpinner size="small" />
+                    <Typography variant="body2" color="text.secondary">Loading...</Typography>
+                  </Box>
+                ) : unitAccountError ? (
+                  <Alert severity="warning" sx={{ py: 1 }}>
+                    {unitAccountError}
+                  </Alert>
+                ) : unitAccountData ? (
+                  <>
+                    <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                      <Chip
+                        label={unitAccountData.amountDue <= 0 ? 'Current' : `Balance Due: $${unitAccountData.amountDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        color={unitAccountData.amountDue <= 0 ? 'success' : 'error'}
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {unitAccountData.nextPaymentDueDate && unitAccountData.nextPaymentAmount != null
+                        ? `${getMexicoDateTime(unitAccountData.nextPaymentDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — $${unitAccountData.nextPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+                        : unitAccountData.amountDue <= 0
+                          ? 'Paid through period'
+                          : '—'}
+                    </Typography>
+                    {unitAccountData.creditBalance > 0 && (
+                      <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
+                        ${unitAccountData.creditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                      </Typography>
+                    )}
+                    {unitAccountData.lastPayment && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Last: {unitAccountData.lastPayment.date ? getMexicoDateTime(unitAccountData.lastPayment.date).toLocaleDateString('en-US') : '—'} — ${(unitAccountData.lastPayment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    )}
+                    <Box sx={{ mt: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        YTD: {unitAccountData.ytdMonthsPaid}/{unitAccountData.ytdTotal} months
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={unitAccountData.ytdTotal > 0 ? Math.min(100, (unitAccountData.ytdMonthsPaid / unitAccountData.ytdTotal) * 100) : 0}
+                        sx={{ height: 6, borderRadius: 1 }}
+                      />
+                    </Box>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* Account Balance Card */}
         <Grid item xs={12} sm={6} md={4}>
@@ -276,7 +484,8 @@ function DashboardView() {
           </Card>
         </Grid>
 
-        {/* HOA Dues Status Card */}
+        {/* HOA Dues Status Card — admin only (non-admin sees Unit Account Status instead) */}
+        {isAdmin && (
         <Grid item xs={12} sm={6} md={4}>
           <Tooltip
             title="Click to receive payment"
@@ -353,6 +562,7 @@ function DashboardView() {
           </Card>
           </Tooltip>
         </Grid>
+        )}
 
         {/* HOA Dues Past Due Card */}
         {isAdmin && (

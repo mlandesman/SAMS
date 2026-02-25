@@ -42,7 +42,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '../layout/ActionBar.css';
 import './TransactionsDetail.css';
-import { isSuperAdmin } from '../utils/userRoles';
+import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToCSV } from '../utils/csvExport';
@@ -118,6 +118,7 @@ function TransactionsView() {
   const balanceBarRef = useRef(null);
   const { selectedClient } = useClient();
   const location = useLocation();
+  const canRecalcBalances = isAdmin(samsUser, selectedClient?.id);
   const navigate = useNavigate();
   const { 
     showFilterModal,
@@ -887,7 +888,7 @@ function TransactionsView() {
       }
       const { startDate, endDate } = getFilterDates(currentFilter); // Use current filter
       
-      // Always fetch filtered transactions based on the current filter
+      // Books are open: all users (including owners/managers) see all transactions; CRUD gated separately
       console.log(`Fetching transactions for filter: ${currentFilter}`);
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       const txnList = await fetchTransactions({ clientId, startDate, endDate });
@@ -1043,18 +1044,19 @@ function TransactionsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, selectedClient?.id]);
 
-  // Effect to recalculate balance when triggered by context
+  // Effect to recalculate balance when triggered by context (admin only - recalc requires write/delete permissions)
   useEffect(() => {
     // Skip on initial render (when balanceUpdateTrigger is 0)
     if (balanceUpdateTrigger === 0) return;
-    
+    if (!canRecalcBalances) return;
+
     console.log('Balance update triggered by transaction operation');
-    
+
     // Force immediate balance recalculation with cache clear
     recalculateBalances(true);
-    
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [balanceUpdateTrigger]); // Trigger when balance update is requested
+  }, [balanceUpdateTrigger, canRecalcBalances]); // Trigger when balance update is requested
 
   // Fetch units data for receipt generation
   useEffect(() => {
@@ -1435,10 +1437,12 @@ function TransactionsView() {
           onExportPDF={handleExportPDF}
           disabled={!filteredTransactions?.length}
         />
-        <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
-          <FontAwesomeIcon icon={faCheckDouble} />
-          <span>Reconcile Accounts</span>
-        </button>
+        {isAdmin(samsUser, selectedClient?.id) && (
+          <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
+            <FontAwesomeIcon icon={faCheckDouble} />
+            <span>Reconcile Accounts</span>
+          </button>
+        )}
         <button 
           className={`action-item ${!selectedTransaction || !selectedTransaction.unit ? 'disabled' : ''}`}
           onClick={handleGenerateReceipt}
@@ -1495,9 +1499,9 @@ function TransactionsView() {
       </div>
         
       <div 
-        className="balance-bar sticky-footer clickable" 
+        className={`balance-bar sticky-footer ${canRecalcBalances ? 'clickable' : ''}`}
         ref={balanceBarRef}
-        onClick={async () => {
+        onClick={canRecalcBalances ? async () => {
           const clientId = selectedClient?.id;
           if (!clientId) {
             console.error('No client selected - cannot recalculate balance');
@@ -1547,11 +1551,11 @@ function TransactionsView() {
           } finally {
             setIsRecalculatingBalance(false);
           }
-        }}
-        title="Click to recalculate balances from year-end snapshot and update master record"
+        } : undefined}
+        title={canRecalcBalances ? 'Click to recalculate balances from year-end snapshot and update master record' : undefined}
         style={{ 
           opacity: isRecalculatingBalance ? 0.7 : 1,
-          cursor: isRecalculatingBalance ? 'wait' : 'pointer'
+          cursor: canRecalcBalances ? (isRecalculatingBalance ? 'wait' : 'pointer') : 'default'
         }}
       >
         {isRecalculatingBalance ? (
@@ -1566,7 +1570,7 @@ function TransactionsView() {
             🏛️ Bank: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
             💰 Total: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <div className="refresh-hint">↻</div>
+            {canRecalcBalances && <div className="refresh-hint">↻</div>}
           </>
         )}
       </div>

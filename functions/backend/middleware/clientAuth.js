@@ -295,6 +295,8 @@ function checkUserPermission(role, permission, unitId, req) {
       'expenses.create', 'expenses.view', 'expenses.edit'
     ],
     unitOwner: [
+      'accounts.view',
+      'transactions.view',
       'own.transactions.view',
       'own.receipts.view', 
       'own.documents.view',
@@ -302,6 +304,8 @@ function checkUserPermission(role, permission, unitId, req) {
       'own.reports.view'
     ],
     unitManager: [
+      'accounts.view',
+      'transactions.view',
       'assigned.transactions.view',
       'assigned.receipts.generate',
       'assigned.documents.view',

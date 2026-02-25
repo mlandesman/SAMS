@@ -112,8 +112,8 @@ function list_markdown_issues() {
     echo -e "${GREEN}Open Issues from Markdown Files:${NC}"
     echo ""
     
-    if [ -d "$PROJECT_ROOT/docs/issues 2/open" ]; then
-        cd "$PROJECT_ROOT/docs/issues 2/open"
+    if [ -d "$PROJECT_ROOT/docs/issues/open" ]; then
+        cd "$PROJECT_ROOT/docs/issues/open"
         for file in *.md; do
             if [ -f "$file" ]; then
                 # Extract priority and title from file
@@ -340,14 +340,14 @@ function promote_markdown_to_github() {
     echo -e "${GREEN}Promote Markdown Issue to GitHub${NC}"
     echo ""
     
-    if [ ! -d "$PROJECT_ROOT/docs/issues 2/open" ]; then
+    if [ ! -d "$PROJECT_ROOT/docs/issues/open" ]; then
         echo -e "${RED}No markdown issues directory found${NC}"
         read -p "Press enter to continue..."
         show_menu
         return
     fi
     
-    cd "$PROJECT_ROOT/docs/issues 2/open"
+    cd "$PROJECT_ROOT/docs/issues/open"
     echo "Available markdown issues:"
     echo ""
     select file in *.md; do

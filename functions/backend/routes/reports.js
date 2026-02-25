@@ -10,7 +10,7 @@ import { hasUnitAccess } from '../middleware/unitAuthorization.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { DateTime } from 'luxon';
 import statementController from '../controllers/statementController.js';
-import { getStatementData, getConsolidatedUnitData } from '../services/statementDataService.js';
+import { getStatementData, getConsolidatedUnitData, buildDashboardSummary } from '../services/statementDataService.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
@@ -417,6 +417,67 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
       success: false, 
       error: error.message,
       details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get dashboard-only unit account summary (lightweight, no HTML)
+ * GET /api/clients/:clientId/reports/statement/dashboard-summary
+ * Query params:
+ *   - unitId: Unit ID (e.g., '101', '1A')
+ *   - fiscalYear (optional): Fiscal year (defaults to current)
+ *
+ * Returns minimal data for Unit Account Status card. Skips HTML, projects, utility graph.
+ * Uses same getConsolidatedUnitData + buildDashboardSummary — matches SoA last row.
+ */
+router.get('/statement/dashboard-summary', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const unitId = req.query.unitId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+
+    if (!unitId) {
+      return res.status(400).json({
+        success: false,
+        error: 'unitId query parameter is required'
+      });
+    }
+
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    const api = axios.create({
+      baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    const rawData = await getConsolidatedUnitData(api, clientId, unitId, fiscalYear, false);
+
+    let ownerNames = '';
+    try {
+      const unitsRes = await api.get(`/clients/${clientId}/units`);
+      const units = unitsRes?.data?.data || unitsRes?.data || [];
+      const unit = Array.isArray(units) ? units.find(u => (u.unitId || u._id) === unitId) : null;
+      if (unit?.owners) {
+        const { getOwnerNames } = await import('../utils/unitContactUtils.js');
+        const names = getOwnerNames(unit.owners);
+        ownerNames = Array.isArray(names) ? names.join(' & ') : (names || '');
+      }
+    } catch (err) {
+      logWarn(`Dashboard summary: could not fetch owner names for ${clientId}/${unitId}:`, err?.message);
+    }
+
+    const summary = buildDashboardSummary(rawData, ownerNames);
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    logError('Error fetching dashboard summary:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.stack
     });
   }
 });

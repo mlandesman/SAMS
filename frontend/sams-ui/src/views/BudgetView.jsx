@@ -12,6 +12,8 @@ import {
   faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { isAdmin } from '../utils/userRoles';
 import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import BudgetEntryTab from '../components/budget/BudgetEntryTab';
@@ -47,6 +49,9 @@ function TabPanel({ children, value, index, ...other }) {
 function BudgetView() {
   const navigate = useNavigate();
   const { selectedClient } = useClient();
+  const { samsUser } = useAuth();
+  const canManageBudget = isAdmin(samsUser, selectedClient?.id);
+  // Non-admin: only Budget vs Actual (tab 1); admin: both tabs, default to 0
   const [tabIndex, setTabIndex] = useState(0);
   const [zoom, setZoom] = useState(1.0);
   const [zoomMode, setZoomMode] = useState('custom');
@@ -77,7 +82,8 @@ function BudgetView() {
 
   // Register zoom control in the StatusBar center when on Budget Report tab
   useEffect(() => {
-    if (tabIndex !== 1) {
+    const onBudgetReportTab = !canManageBudget || tabIndex === 1;
+    if (!onBudgetReportTab) {
       clearCenterContent();
       return;
     }
@@ -110,7 +116,7 @@ function BudgetView() {
     return () => {
       clearCenterContent();
     };
-  }, [zoom, zoomMode, tabIndex, setCenterContent, clearCenterContent, handleZoomChange]);
+  }, [zoom, zoomMode, tabIndex, canManageBudget, setCenterContent, clearCenterContent, handleZoomChange]);
 
   useEffect(() => {
     const loadBudgetPoll = async () => {
@@ -243,24 +249,28 @@ function BudgetView() {
           <FontAwesomeIcon icon={faChartLine} />
           <span>Budget vs Actual</span>
         </button>
-        <button 
-          className="action-item" 
-          onClick={() => handleCreateVoteOrPoll('vote')}
-          disabled={generatingDocs}
-          title="Create budget approval vote"
-        >
-          <FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />
-          <span>{generatingDocs ? 'Generating...' : 'Create Vote'}</span>
-        </button>
-        <button 
-          className="action-item" 
-          onClick={() => handleCreateVoteOrPoll('poll')}
-          disabled={generatingDocs}
-          title="Create budget discussion poll"
-        >
-          <FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />
-          <span>{generatingDocs ? 'Generating...' : 'Create Poll'}</span>
-        </button>
+        {canManageBudget && (
+          <>
+            <button 
+              className="action-item" 
+              onClick={() => handleCreateVoteOrPoll('vote')}
+              disabled={generatingDocs}
+              title="Create budget approval vote"
+            >
+              <FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />
+              <span>{generatingDocs ? 'Generating...' : 'Create Vote'}</span>
+            </button>
+            <button 
+              className="action-item" 
+              onClick={() => handleCreateVoteOrPoll('poll')}
+              disabled={generatingDocs}
+              title="Create budget discussion poll"
+            >
+              <FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />
+              <span>{generatingDocs ? 'Generating...' : 'Create Poll'}</span>
+            </button>
+          </>
+        )}
       </ActivityActionBar>
       
       {pollError && (
@@ -273,33 +283,39 @@ function BudgetView() {
           Budget Vote: {budgetPoll.title} • {budgetPoll.status} • {budgetPollSummary?.totalResponses || 0}/{budgetPollSummary?.totalUnits || 0} responses
         </Alert>
       )}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs 
-          value={tabIndex} 
-          onChange={(_, newValue) => setTabIndex(newValue)} 
-          aria-label="budget tabs"
-          className="budget-tabs"
-        >
-          <Tab 
-            label="Budget Entry" 
-            icon={<FontAwesomeIcon icon={faCoins} />}
-            iconPosition="start"
-          />
-          <Tab 
-            label="Budget Report" 
-            icon={<FontAwesomeIcon icon={faFileAlt} />}
-            iconPosition="start"
-          />
-        </Tabs>
-      </Box>
-      
-      <TabPanel value={tabIndex} index={0}>
-        <BudgetEntryTab />
-      </TabPanel>
-      
-      <TabPanel value={tabIndex} index={1}>
-        <BudgetReportTab zoom={zoom} zoomMode={zoomMode} />
-      </TabPanel>
+      {canManageBudget ? (
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs 
+              value={tabIndex} 
+              onChange={(_, newValue) => setTabIndex(newValue)} 
+              aria-label="budget tabs"
+              className="budget-tabs"
+            >
+              <Tab 
+                label="Budget Entry" 
+                icon={<FontAwesomeIcon icon={faCoins} />}
+                iconPosition="start"
+              />
+              <Tab 
+                label="Budget Report" 
+                icon={<FontAwesomeIcon icon={faFileAlt} />}
+                iconPosition="start"
+              />
+            </Tabs>
+          </Box>
+          <TabPanel value={tabIndex} index={0}>
+            <BudgetEntryTab />
+          </TabPanel>
+          <TabPanel value={tabIndex} index={1}>
+            <BudgetReportTab zoom={zoom} zoomMode={zoomMode} />
+          </TabPanel>
+        </>
+      ) : (
+        <TabPanel value={0} index={0}>
+          <BudgetReportTab zoom={zoom} zoomMode={zoomMode} />
+        </TabPanel>
+      )}
 
       <PollCreationWizard
         isOpen={pollWizardOpen}

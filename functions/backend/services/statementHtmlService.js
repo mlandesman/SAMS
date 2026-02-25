@@ -849,7 +849,12 @@ export async function generateStatementData(api, clientId, unitId, options = {})
     // Shared data (same for both languages)
     summary: result.summary,
     lineItems: result.lineItems,
-    emailContent: result.emailContent
+    emailContent: result.emailContent,
+    duesFrequency: data.statementInfo?.duesFrequency || 'monthly',
+    ytdMonthsPaid: data.statementInfo?.ytdMonthsPaid ?? 0,
+    ytdTotal: data.statementInfo?.ytdTotal ?? 12,
+    nextPaymentDueDate: data.nextPaymentDueDate || null,
+    nextPaymentAmount: data.nextPaymentAmount ?? null
   };
 }
 
@@ -963,7 +968,7 @@ async function buildStatementHtml(data, reportCommonCss, language, options, t, c
     netAmount: actualClosingBalance - accountCreditBalance,
     // Unit info
     unitNumber: unitId,
-    ownerNames: data.unitInfo.owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner',
+    ownerNames: (data.unitInfo?.owners || []).map(o => typeof o === 'string' ? o : (o?.name || '')).filter(Boolean).join(', ') || 'Owner',
     fiscalYear: data.statementInfo.fiscalYear,
     statementDate: data.statementInfo.statementDate,
     // Bank payment info

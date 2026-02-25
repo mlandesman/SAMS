@@ -348,6 +348,9 @@ export async function fetchTransactions(clientId, filters = {}) {
     if (filters.endDate) {
       queryParams.append('endDate', filters.endDate.toISOString());
     }
+    if (filters.unitId) {
+      queryParams.append('unitId', filters.unitId);
+    }
 
     const API_BASE_URL = config.api.baseUrl;
     const url = `${API_BASE_URL}/clients/${clientId}/transactions${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
