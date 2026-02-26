@@ -1653,8 +1653,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
         } else {
           // All HOA bills paid - calculate next billing cycle and amount
           const isQuarterly = hoaBillsPaid.some(b => (b.billPeriod || '').includes('-Q'));
-          const scheduledPesos = centavosToPesos(scheduledAmount || 0);
-          nextPaymentAmount = isQuarterly ? scheduledPesos * 3 : scheduledPesos;
+          nextPaymentAmount = isQuarterly ? scheduledAmount * 3 : scheduledAmount;
           
           if (isQuarterly) {
             // Next quarter start: Jan 1, Apr 1, Jul 1, Oct 1
@@ -1667,7 +1666,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
             // Monthly: next month 1st
             const nextMonth = today.getMonth() + 1;
             const nextYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
-            nextPaymentDueDate = createDate(nextYear, (nextMonth % 12) || 12, 1); // 0 -> 12 for Dec
+            nextPaymentDueDate = createDate(nextYear, (nextMonth % 12) + 1, 1);
           }
         }
         
