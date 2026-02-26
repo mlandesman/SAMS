@@ -13,7 +13,7 @@ import { clientAPI } from '../api/client';
 import { fetchTransactions } from '../utils/fetchTransactions';
 import { getClientAccountBalances, clearAccountsCache } from '../utils/clientAccounts';
 import { recalculateClientBalances } from '../utils/balanceRecalculation';
-import { getDateRangeForFilter } from '../utils/timezone';
+import { getDateRangeForFilter, getMexicoDateString } from '../utils/timezone';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import FilterSwitchModal from '../components/FilterSwitchModal';
 import { useClient } from '../context/ClientContext';
@@ -113,6 +113,11 @@ function TransactionsView() {
   
   // Account reconciliation modal state
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [showHistoricalBalanceModal, setShowHistoricalBalanceModal] = useState(false);
+  const [historicalBalanceDate, setHistoricalBalanceDate] = useState(getMexicoDateString());
+  const [historicalBalanceResult, setHistoricalBalanceResult] = useState(null);
+  const [historicalBalanceError, setHistoricalBalanceError] = useState('');
+  const [historicalBalanceLoading, setHistoricalBalanceLoading] = useState(false);
   
   const tableContainerRef = useRef(null);
   const balanceBarRef = useRef(null);
@@ -1249,6 +1254,51 @@ function TransactionsView() {
     }
   };
 
+  const handleOpenHistoricalBalanceLookup = useCallback((event) => {
+    event.preventDefault();
+    setHistoricalBalanceDate(getMexicoDateString());
+    setHistoricalBalanceResult(null);
+    setHistoricalBalanceError('');
+    setShowHistoricalBalanceModal(true);
+  }, []);
+
+  const handleCloseHistoricalBalanceLookup = useCallback(() => {
+    setShowHistoricalBalanceModal(false);
+    setHistoricalBalanceLoading(false);
+  }, []);
+
+  const handleHistoricalBalanceLookup = useCallback(async () => {
+    const clientId = selectedClient?.id;
+    if (!clientId) {
+      setHistoricalBalanceError('No client selected.');
+      return;
+    }
+
+    if (!historicalBalanceDate) {
+      setHistoricalBalanceError('Please select a date.');
+      return;
+    }
+
+    try {
+      setHistoricalBalanceLoading(true);
+      setHistoricalBalanceError('');
+      const historicalData = await getClientAccountBalances(clientId, true, {
+        asOfDate: historicalBalanceDate
+      });
+
+      if (!historicalData) {
+        setHistoricalBalanceError('No balance data available for the selected date.');
+        return;
+      }
+
+      setHistoricalBalanceResult(historicalData);
+    } catch (error) {
+      setHistoricalBalanceError(error.message || 'Failed to load historical balances.');
+    } finally {
+      setHistoricalBalanceLoading(false);
+    }
+  }, [historicalBalanceDate, selectedClient?.id]);
+
   // CSV Export handler
   const handleExportCSV = useCallback(() => {
     if (!filteredTransactions || filteredTransactions.length === 0) {
@@ -1501,6 +1551,7 @@ function TransactionsView() {
       <div 
         className={`balance-bar sticky-footer ${canRecalcBalances ? 'clickable' : ''}`}
         ref={balanceBarRef}
+        onContextMenu={handleOpenHistoricalBalanceLookup}
         onClick={canRecalcBalances ? async () => {
           const clientId = selectedClient?.id;
           if (!clientId) {
@@ -1552,7 +1603,7 @@ function TransactionsView() {
             setIsRecalculatingBalance(false);
           }
         } : undefined}
-        title={canRecalcBalances ? 'Click to recalculate balances from year-end snapshot and update master record' : undefined}
+        title={canRecalcBalances ? 'Click to recalculate balances. Right-click for historical lookup.' : 'Right-click for historical lookup.'}
         style={{ 
           opacity: isRecalculatingBalance ? 0.7 : 1,
           cursor: canRecalcBalances ? (isRecalculatingBalance ? 'wait' : 'pointer') : 'default'
@@ -1574,6 +1625,64 @@ function TransactionsView() {
           </>
         )}
       </div>
+
+      {showHistoricalBalanceModal && (
+        <div className="modal-overlay" onClick={handleCloseHistoricalBalanceLookup}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Historical Account Balances</h2>
+              <button className="close-button" onClick={handleCloseHistoricalBalanceLookup}>×</button>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem' }}>
+              <input
+                type="date"
+                value={historicalBalanceDate}
+                onChange={(event) => setHistoricalBalanceDate(event.target.value)}
+              />
+              <button
+                className="action-item"
+                onClick={handleHistoricalBalanceLookup}
+                disabled={historicalBalanceLoading}
+              >
+                {historicalBalanceLoading ? 'Looking up...' : 'Lookup'}
+              </button>
+            </div>
+            {historicalBalanceError && (
+              <div className="balance-warning">
+                <strong>Error:</strong> {historicalBalanceError}
+              </div>
+            )}
+            {historicalBalanceResult && (
+              <div>
+                <p>
+                  <strong>As of:</strong> {historicalBalanceDate}
+                </p>
+                {historicalBalanceResult.historicalLookup?.latestKnownTransactionDate?.display && (
+                  <p>
+                    <strong>Last known transaction:</strong> {historicalBalanceResult.historicalLookup.latestKnownTransactionDate.display}
+                  </p>
+                )}
+                <p>
+                  <strong>Cash:</strong> ${centavosToPesos(historicalBalanceResult.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  &nbsp;&nbsp;
+                  <strong>Bank:</strong> ${centavosToPesos(historicalBalanceResult.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p>
+                  <strong>Total:</strong> ${centavosToPesos((historicalBalanceResult.cashBalance || 0) + (historicalBalanceResult.bankBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <div style={{ maxHeight: '260px', overflowY: 'auto', borderTop: '1px solid #ddd', paddingTop: '0.75rem' }}>
+                  {(historicalBalanceResult.accounts || []).map((account) => (
+                    <div key={account.id || account.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0' }}>
+                      <span>{account.name} ({account.type})</span>
+                      <span>${centavosToPesos(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {showFilterModal && (
         <FilterSwitchModal
