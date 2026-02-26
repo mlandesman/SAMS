@@ -156,14 +156,6 @@ function DashboardView() {
   // Currency calculator modal state
   const [calculatorOpen, setCalculatorOpen] = useState(false);
 
-  if (!currentUser) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <LoadingSpinner message="Loading..." />
-      </Box>
-    );
-  }
-
   const isAdmin = checkIsAdmin(samsUser, selectedClient?.id);
   const isSuperAdmin = checkIsSuperAdmin(samsUser);
 
@@ -256,6 +248,14 @@ function DashboardView() {
       setSelectedUnitId(units[0].id);
     }
   }, [samsUser, selectedClient?.id, selectedUnitId, setSelectedUnitId]);
+
+  if (!currentUser) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <LoadingSpinner message="Loading..." />
+      </Box>
+    );
+  }
 
   return (
     <>
