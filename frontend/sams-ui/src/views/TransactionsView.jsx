@@ -1255,12 +1255,15 @@ function TransactionsView() {
   };
 
   const handleOpenHistoricalBalanceLookup = useCallback((event) => {
+    if (!canRecalcBalances) {
+      return;
+    }
     event.preventDefault();
     setHistoricalBalanceDate(getMexicoDateString());
     setHistoricalBalanceResult(null);
     setHistoricalBalanceError('');
     setShowHistoricalBalanceModal(true);
-  }, []);
+  }, [canRecalcBalances]);
 
   const handleCloseHistoricalBalanceLookup = useCallback(() => {
     setShowHistoricalBalanceModal(false);
@@ -1274,6 +1277,11 @@ function TransactionsView() {
       return;
     }
 
+    if (!canRecalcBalances) {
+      setHistoricalBalanceError('Historical lookup requires admin permissions.');
+      return;
+    }
+
     if (!historicalBalanceDate) {
       setHistoricalBalanceError('Please select a date.');
       return;
@@ -1282,6 +1290,21 @@ function TransactionsView() {
     try {
       setHistoricalBalanceLoading(true);
       setHistoricalBalanceError('');
+
+      // Deterministic admin flow: rebuild current balances before historical rollback lookup.
+      const refreshedBalances = await recalculateClientBalances(clientId);
+      if (!refreshedBalances || typeof refreshedBalances.totalBalance !== 'number') {
+        throw new Error('Balance refresh failed. Historical lookup was not executed.');
+      }
+
+      setStartingBalance({
+        cashBalance: refreshedBalances.cashBalance || 0,
+        bankBalance: refreshedBalances.bankBalance || 0
+      });
+      setBalance(refreshedBalances.totalBalance || 0);
+      setNoBalanceFound(false);
+      clearAccountsCache(clientId);
+
       const historicalData = await getClientAccountBalances(clientId, true, {
         asOfDate: historicalBalanceDate
       });
@@ -1297,7 +1320,7 @@ function TransactionsView() {
     } finally {
       setHistoricalBalanceLoading(false);
     }
-  }, [historicalBalanceDate, selectedClient?.id]);
+  }, [canRecalcBalances, historicalBalanceDate, selectedClient?.id]);
 
   // CSV Export handler
   const handleExportCSV = useCallback(() => {
@@ -1551,7 +1574,7 @@ function TransactionsView() {
       <div 
         className={`balance-bar sticky-footer ${canRecalcBalances ? 'clickable' : ''}`}
         ref={balanceBarRef}
-        onContextMenu={handleOpenHistoricalBalanceLookup}
+        onContextMenu={canRecalcBalances ? handleOpenHistoricalBalanceLookup : undefined}
         onClick={canRecalcBalances ? async () => {
           const clientId = selectedClient?.id;
           if (!clientId) {
@@ -1633,6 +1656,9 @@ function TransactionsView() {
               <h2>Historical Account Balances</h2>
               <button className="close-button" onClick={handleCloseHistoricalBalanceLookup}>×</button>
             </div>
+            <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.92rem' }}>
+              This admin lookup first refreshes current balances, then reconstructs balances as of the selected date.
+            </p>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem' }}>
               <input
                 type="date"
@@ -1644,7 +1670,7 @@ function TransactionsView() {
                 onClick={handleHistoricalBalanceLookup}
                 disabled={historicalBalanceLoading}
               >
-                {historicalBalanceLoading ? 'Looking up...' : 'Lookup'}
+                {historicalBalanceLoading ? 'Refreshing + Looking up...' : 'Refresh + Lookup'}
               </button>
             </div>
             {historicalBalanceError && (
