@@ -8,21 +8,26 @@ const accountsCache = {};
  * Fetches the current account balances for a client
  * @param {string} clientId - The client ID
  * @param {boolean} [skipCache=false] - If true, bypasses cache and forces fresh data
+ * @param {Object} [options={}] - Optional query options
+ * @param {string} [options.asOfDate] - Optional YYYY-MM-DD for historical balances
  * @returns {Promise<Object>} Object with cash and bank totals
  */
-export async function getClientAccountBalances(clientId, skipCache = false) {
+export async function getClientAccountBalances(clientId, skipCache = false, options = {}) {
   if (!clientId) {
     console.error('No client ID provided to getClientAccountBalances');
     return null;
   }
 
+  const { asOfDate } = options;
+  const cacheKey = asOfDate ? `${clientId}::${asOfDate}` : clientId;
+
   // Use cached result if available and not skipping cache
-  if (!skipCache && accountsCache[clientId]) {
-    console.log(`Using cached account balances for client: ${clientId}`);
-    return accountsCache[clientId];
+  if (!skipCache && accountsCache[cacheKey]) {
+    console.log(`Using cached account balances for key: ${cacheKey}`);
+    return accountsCache[cacheKey];
   }
 
-  console.log(`Fetching account balances for client: ${clientId}`);
+  console.log(`Fetching account balances for key: ${cacheKey}`);
   
   try {
     // Get authentication token
@@ -37,8 +42,8 @@ export async function getClientAccountBalances(clientId, skipCache = false) {
       throw new Error('Failed to get authentication token');
     }
 
-    // Call the new API endpoint
-    const response = await fetch(`${config.api.baseUrl}/clients/${clientId}/balances/current`, {
+    const query = asOfDate ? `?asOfDate=${encodeURIComponent(asOfDate)}` : '';
+    const response = await fetch(`${config.api.baseUrl}/clients/${clientId}/balances/current${query}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -61,11 +66,12 @@ export async function getClientAccountBalances(clientId, skipCache = false) {
       cashBalance: data.data.cashBalance,
       bankBalance: data.data.bankBalance,
       accounts: data.data.accounts,
-      lastUpdated: new Date(data.data.lastUpdated)
+      lastUpdated: data.data.lastUpdated,
+      historicalLookup: data.data.historicalLookup || null
     };
     
     // Cache the result
-    accountsCache[clientId] = result;
+    accountsCache[cacheKey] = result;
     
     return result;
   } catch (error) {
@@ -81,7 +87,11 @@ export async function getClientAccountBalances(clientId, skipCache = false) {
 export function clearAccountsCache(clientId = null) {
   if (clientId) {
     console.log(`Clearing accounts cache for client: ${clientId}`);
-    delete accountsCache[clientId];
+    Object.keys(accountsCache).forEach((key) => {
+      if (key === clientId || key.startsWith(`${clientId}::`)) {
+        delete accountsCache[key];
+      }
+    });
   } else {
     console.log('Clearing all accounts cache');
     Object.keys(accountsCache).forEach(key => {

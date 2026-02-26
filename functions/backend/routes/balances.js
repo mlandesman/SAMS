@@ -21,6 +21,27 @@ function formatDateField(dateValue) {
   return dateService.formatForFrontend(dateValue);
 }
 
+function cloneAccounts(accounts = []) {
+  return accounts.map((account) => ({ ...account }));
+}
+
+function applyReverseTransaction(accounts, transaction) {
+  const amount = Number(transaction.amount || 0);
+  if (!amount) {
+    return;
+  }
+
+  // Mirror POST /recalculate semantics:
+  // route by normalized accountType and pick first matching account of that type.
+  const accountType = String(transaction.accountType || '').toLowerCase();
+  if (accountType === 'cash' || accountType === 'bank') {
+    const accountIndex = accounts.findIndex((acc) => acc.type === accountType);
+    if (accountIndex !== -1) {
+      accounts[accountIndex].balance = (accounts[accountIndex].balance || 0) - amount;
+    }
+  }
+}
+
 // Apply security middleware to all balance routes
 router.use(authenticateUserWithProfile);
 router.use(enforceClientAccess);
@@ -38,6 +59,7 @@ router.get('/current',
   async (req, res) => {
   try {
     const clientId = req.authorizedClientId;
+    const { asOfDate } = req.query;
     
     logDebug('🔍 Balance route - GET /current:', { 
       user: req.user.email,
@@ -59,7 +81,45 @@ router.get('/current',
     }
     
     const clientData = clientDoc.data();
-    const accounts = clientData.accounts || [];
+    let accounts = cloneAccounts(clientData.accounts || []);
+    let lookupMeta = null;
+
+    if (asOfDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid asOfDate format. Use YYYY-MM-DD'
+        });
+      }
+
+      const asOfEndTimestamp = dateService.getEndOfDay(asOfDate);
+      const transactionsRef = db.collection(`clients/${clientId}/transactions`);
+
+      const rollbackSnapshot = await transactionsRef
+        .where('date', '>', asOfEndTimestamp)
+        .orderBy('date', 'asc')
+        .get();
+
+      rollbackSnapshot.forEach((doc) => {
+        applyReverseTransaction(accounts, doc.data());
+      });
+
+      const latestKnownSnapshot = await transactionsRef
+        .where('date', '<=', asOfEndTimestamp)
+        .orderBy('date', 'desc')
+        .limit(1)
+        .get();
+
+      const latestKnownDate = latestKnownSnapshot.empty
+        ? null
+        : formatDateField(latestKnownSnapshot.docs[0].data()?.date || null);
+
+      lookupMeta = {
+        asOfDate,
+        latestKnownTransactionDate: latestKnownDate,
+        rolledBackTransactionCount: rollbackSnapshot.size
+      };
+    }
     
     // Calculate totals (skip inactive accounts)
     let cashBalance = 0;
@@ -81,7 +141,8 @@ router.get('/current',
         cashBalance,
         bankBalance,
         accounts,
-        lastUpdated: formatDateField(admin.firestore.Timestamp.now())
+        lastUpdated: formatDateField(admin.firestore.Timestamp.now()),
+        ...(lookupMeta ? { historicalLookup: lookupMeta } : {})
       }
     });
     
