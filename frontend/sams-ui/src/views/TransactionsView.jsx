@@ -1290,6 +1290,7 @@ function TransactionsView() {
     try {
       setHistoricalBalanceLoading(true);
       setHistoricalBalanceError('');
+      setHistoricalBalanceResult(null);
 
       // Deterministic admin flow: rebuild current balances before historical rollback lookup.
       const refreshedBalances = await recalculateClientBalances(clientId);
@@ -1626,7 +1627,7 @@ function TransactionsView() {
             setIsRecalculatingBalance(false);
           }
         } : undefined}
-        title={canRecalcBalances ? 'Click to recalculate balances. Right-click for historical lookup.' : 'Right-click for historical lookup.'}
+        title={canRecalcBalances ? 'Click to recalculate balances. Right-click for historical lookup.' : undefined}
         style={{ 
           opacity: isRecalculatingBalance ? 0.7 : 1,
           cursor: canRecalcBalances ? (isRecalculatingBalance ? 'wait' : 'pointer') : 'default'

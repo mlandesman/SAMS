@@ -31,24 +31,13 @@ function applyReverseTransaction(accounts, transaction) {
     return;
   }
 
-  const accountId = transaction.accountId || transaction.account;
-  if (accountId) {
-    const accountIndex = accounts.findIndex(
-      (acc) => acc.id === accountId || acc.name === accountId
-    );
-    if (accountIndex !== -1) {
-      accounts[accountIndex].balance = (accounts[accountIndex].balance || 0) - amount;
-      return;
-    }
-  }
-
+  // Mirror POST /recalculate semantics:
+  // route by normalized accountType and pick first matching account of that type.
   const accountType = String(transaction.accountType || '').toLowerCase();
   if (accountType === 'cash' || accountType === 'bank') {
-    const fallbackIndex = accounts.findIndex(
-      (acc) => acc.type === accountType && acc.active !== false
-    );
-    if (fallbackIndex !== -1) {
-      accounts[fallbackIndex].balance = (accounts[fallbackIndex].balance || 0) - amount;
+    const accountIndex = accounts.findIndex((acc) => acc.type === accountType);
+    if (accountIndex !== -1) {
+      accounts[accountIndex].balance = (accounts[accountIndex].balance || 0) - amount;
     }
   }
 }
