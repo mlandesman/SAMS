@@ -97,15 +97,34 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  // Group stored statements for the dropdown: "February 2026 (EN)" 
-  const storedOptions = storedStatements.map((s) => {
-    const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-    const monthName = MONTH_NAMES[s.calendarMonth] || `Month ${s.calendarMonth}`;
-    return {
-      ...s,
-      label: `${monthName} ${s.calendarYear} (${langLabel})`,
-    };
-  });
+  // Deduplicate by year+month+language, keeping most recent generation
+  const storedOptions = (() => {
+    const deduped = new Map();
+    for (const s of storedStatements) {
+      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
+      const key = `${s.calendarYear}-${s.calendarMonth}-${langLabel}`;
+
+      const existing = deduped.get(key);
+      if (!existing) {
+        deduped.set(key, s);
+      } else {
+        const existingTime = existing.reportGenerated?._seconds || 0;
+        const currentTime = s.reportGenerated?._seconds || 0;
+        if (currentTime > existingTime) {
+          deduped.set(key, s);
+        }
+      }
+    }
+
+    return Array.from(deduped.values()).map((s) => {
+      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
+      const monthName = MONTH_NAMES[s.calendarMonth] || `Month ${s.calendarMonth}`;
+      return {
+        ...s,
+        label: `${monthName} ${s.calendarYear} (${langLabel})`,
+      };
+    });
+  })();
 
   const handleOpenStored = () => {
     if (!selectedStored) return;
