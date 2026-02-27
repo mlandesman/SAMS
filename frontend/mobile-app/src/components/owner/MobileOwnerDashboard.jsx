@@ -1,9 +1,12 @@
 import React from 'react';
-import { Box, Typography, CircularProgress, Alert, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
+import {
+  Construction as ProjectsIcon,
+  AccountBalance as BudgetIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
-import UnitSwitcher from './UnitSwitcher';
 import AccountStatusCard from './AccountStatusCard';
 import CreditBanner from './CreditBanner';
 import LastPaymentCard from './LastPaymentCard';
@@ -52,8 +55,6 @@ const MobileOwnerDashboard = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <UnitSwitcher />
-
       {data?.ownerNames && (
         <Typography variant="body2" sx={{ color: '#6c757d', mb: 2, textAlign: 'center' }}>
           {data.ownerNames}
@@ -64,8 +65,24 @@ const MobileOwnerDashboard = () => {
       <CreditBanner creditBalance={data?.creditBalance} />
       <LastPaymentCard lastPayment={data?.lastPayment} />
       <RecentTransactionsPreview lineItems={data?.lineItems} />
+
+      {/* Placeholder cards for upcoming modules */}
+      <PlaceholderCard icon={<ProjectsIcon />} title="Projects" subtitle="Coming soon" />
+      <PlaceholderCard icon={<BudgetIcon />} title="Budget" subtitle="Coming soon" />
     </Box>
   );
 };
+
+const PlaceholderCard = ({ icon, title, subtitle }) => (
+  <Card sx={{ mb: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', opacity: 0.6 }}>
+    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2, '&:last-child': { pb: 2 } }}>
+      <Box sx={{ color: '#9e9e9e' }}>{icon}</Box>
+      <Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#666' }}>{title}</Typography>
+        <Typography variant="caption" sx={{ color: '#999' }}>{subtitle}</Typography>
+      </Box>
+    </CardContent>
+  </Card>
+);
 
 export default MobileOwnerDashboard;

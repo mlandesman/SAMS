@@ -14,15 +14,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   CircularProgress,
   Alert,
   Button,
-  Chip,
-  Select,
-  MenuItem,
-  FormControl,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -60,7 +54,7 @@ const formatDate = (dateValue) => {
 
 const UnitReport = ({ unitId: propUnitId }) => {
   const { currentClient, firebaseUser } = useAuth();
-  const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
+  const { selectedUnitId } = useSelectedUnit();
   const currentUnitId = propUnitId || selectedUnitId;
 
   const [loading, setLoading] = useState(true);
@@ -195,23 +189,6 @@ const UnitReport = ({ unitId: propUnitId }) => {
           ))}
         </div>
       </div>
-
-      {/* Unit switcher via context */}
-      {availableUnits.length > 1 && (
-        <Box sx={{ mx: 2, mb: 1 }}>
-          <FormControl size="small" fullWidth>
-            <Select
-              value={currentUnitId || ''}
-              onChange={(e) => setSelectedUnitId(e.target.value)}
-              sx={{ fontWeight: 600 }}
-            >
-              {availableUnits.map((u) => (
-                <MenuItem key={u.unitId} value={u.unitId}>Unit {u.unitId}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-      )}
 
       {/* Clean summary header */}
       <div className="status-card enhanced">

@@ -11,6 +11,10 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -24,9 +28,11 @@ import {
   Info as AboutIcon,
   Add as AddIcon,
   PictureAsPdf as PdfIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 
@@ -34,6 +40,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAdmin } = useAuth();
+  const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -141,17 +148,32 @@ const Layout = ({ children }) => {
             </IconButton>
           )}
           
-          <Typography
-            variant="h6"
-            component="h1"
-            sx={{ 
-              flexGrow: 1, 
-              fontSize: '18px',
-              fontWeight: 500,
-            }}
-          >
-            {getPageTitle()}
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+            <Typography
+              variant="h6"
+              component="h1"
+              sx={{ 
+                fontSize: '18px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {getPageTitle()}
+            </Typography>
+            {!isAdmin && selectedUnitId && (
+              <Chip
+                label={`Unit ${selectedUnitId}`}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  color: 'inherit',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  height: 24,
+                }}
+              />
+            )}
+          </Box>
 
           {showLogoutButton() && (
             <IconButton
@@ -178,6 +200,40 @@ const Layout = ({ children }) => {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>SAMS Mobile</Typography>
         </Box>
         <Divider />
+
+        {/* Unit selector for non-admin users */}
+        {!isAdmin && availableUnits.length > 0 && (
+          <>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              {availableUnits.length === 1 ? (
+                <Chip
+                  icon={<HomeIcon />}
+                  label={`Unit ${availableUnits[0].unitId}`}
+                  color="primary"
+                  sx={{ fontWeight: 600, fontSize: '0.85rem' }}
+                />
+              ) : (
+                <FormControl size="small" fullWidth>
+                  <Select
+                    value={selectedUnitId || ''}
+                    onChange={(e) => setSelectedUnitId(e.target.value)}
+                    displayEmpty
+                    sx={{ fontWeight: 600, fontSize: '0.9rem' }}
+                    renderValue={(val) => val ? `Unit ${val}` : 'Select Unit'}
+                  >
+                    {availableUnits.map((u) => (
+                      <MenuItem key={u.unitId} value={u.unitId}>
+                        Unit {u.unitId}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+            <Divider />
+          </>
+        )}
+
         <List>
           {(isAdmin
             ? [

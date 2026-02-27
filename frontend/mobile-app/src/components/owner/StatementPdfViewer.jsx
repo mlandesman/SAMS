@@ -10,7 +10,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -26,7 +25,7 @@ const API_BASE_URL = config.api.baseUrl;
 
 const StatementPdfViewer = () => {
   const { currentClient, firebaseUser } = useAuth();
-  const { selectedUnitId, availableUnits, setSelectedUnitId } = useSelectedUnit();
+  const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const currentYear = getMexicoDate().getFullYear();
@@ -115,22 +114,6 @@ const StatementPdfViewer = () => {
     <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)' }}>
       {/* Controls */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-        {/* Unit switcher (if multiple units) */}
-        {availableUnits.length > 1 && (
-          <FormControl size="small" fullWidth>
-            <InputLabel>Unit</InputLabel>
-            <Select
-              value={selectedUnitId || ''}
-              label="Unit"
-              onChange={(e) => setSelectedUnitId(e.target.value)}
-            >
-              {availableUnits.map((u) => (
-                <MenuItem key={u.unitId} value={u.unitId}>Unit {u.unitId}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           {/* Fiscal year */}
           <FormControl size="small" sx={{ minWidth: 100 }}>
