@@ -20,6 +20,7 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
+import { getMexicoDate } from '../../utils/timezone.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -28,7 +29,7 @@ const StatementPdfViewer = () => {
   const { selectedUnitId, availableUnits, setSelectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = new Date().getFullYear();
+  const currentYear = getMexicoDate().getFullYear();
 
   const [language, setLanguage] = useState('english');
   const [fiscalYear, setFiscalYear] = useState(currentYear);

@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
+import { getMexicoDateTime } from '../utils/timezone.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -77,8 +78,8 @@ function deriveFromFullStatement(raw) {
   );
   const lastPayment = payments.length > 0
     ? payments.reduce((a, b) => {
-      const dateA = a.date ? new Date(a.date).getTime() : 0;
-      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      const dateA = a.date ? getMexicoDateTime(a.date).getTime() : 0;
+      const dateB = b.date ? getMexicoDateTime(b.date).getTime() : 0;
       return dateB > dateA ? b : a;
     })
     : null;

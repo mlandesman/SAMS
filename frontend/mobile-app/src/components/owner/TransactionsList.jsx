@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
+import { getMexicoDate } from '../../utils/timezone.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -34,9 +35,7 @@ const formatDate = (dateValue) => {
   if (typeof dateValue === 'object' && dateValue !== null) {
     return dateValue.unambiguous_long_date || dateValue.display || dateValue.ISO_8601 || '—';
   }
-  const d = new Date(dateValue);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return String(dateValue);
 };
 
 const TransactionsList = () => {
@@ -47,7 +46,7 @@ const TransactionsList = () => {
   const [expandedId, setExpandedId] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = new Date().getFullYear();
+  const currentYear = getMexicoDate().getFullYear();
 
   useEffect(() => {
     if (clientId) fetchTransactions();

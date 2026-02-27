@@ -36,6 +36,7 @@ import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
+import { getMexicoDate } from '../utils/timezone.js';
 import './UnitReport.css';
 
 const API_BASE_URL = config.api.baseUrl;
@@ -54,9 +55,7 @@ const formatDate = (dateValue) => {
   if (typeof dateValue === 'object' && dateValue !== null) {
     return dateValue.unambiguous_long_date || dateValue.display || dateValue.ISO_8601 || '—';
   }
-  const d = new Date(dateValue);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return String(dateValue);
 };
 
 const UnitReport = ({ unitId: propUnitId }) => {
@@ -167,7 +166,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
 
   // Payment calendar
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const currentMonth = new Date().getMonth();
+  const currentMonth = getMexicoDate().getMonth();
   const paymentData = reportData?.paymentCalendar || reportData?.payments;
   const paymentCalendar = months.map((month, index) => {
     let status = 'not-due';
