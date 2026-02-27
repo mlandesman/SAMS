@@ -24,6 +24,13 @@
             "195"
           ],
           "text": "Dashboard: fix client-level admin detection (was missing both HOA Dues and Unit Account cards), fix unitId fallback in authorized units extraction"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "195"
+          ],
+          "text": "Statement dashboard: fix next-payment amount conversion and monthly due-date month mapping in Unit Account Status summary logic."
         }
       ]
     },
