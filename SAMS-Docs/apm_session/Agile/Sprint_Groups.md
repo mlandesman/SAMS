@@ -27,18 +27,19 @@
 
 | # | Title | Priority | Est |
 |---|-------|----------|-----|
-| **193** | Finish Mobile/PWA SoA and Current Account Status | enhancement | 4h |
+| **176** | Budget Dashboard Card redesign — live budget data for mobile | enhancement | 2h |
+| NEW | Projects card — live project status data for mobile dashboard | enhancement | 2h |
+| NEW | Vote Needed card — show open polls requiring user action on mobile dashboard | enhancement | 3h |
 | **184** | Consolidate duplicate databaseFieldMappings.js and currencyUtils | tech-debt | 2h |
-| **147** | PWA show recent transactions | backlog | 2h |
 | **133** | PWA unit information dashboard | enhancement | 3h |
-| **132** | PWA add hamburger menu | enhancement | 2h |
 | **109** | PWA Mobile Install Flow (iOS + Android) | enhancement | 2h |
 | **51** | PWA Balance Card expandable | enhancement | 1h |
 | **47** | Refactor PWA Dashboard layout cards | medium | 2h |
 
 **Theme**: Mobile experience improvements  
 **Risk**: Medium (mobile-specific testing required)  
-**Dependencies**: Should stabilize desktop first. #184 should be done before other mobile work (code cleanup prerequisite). #193 can use existing public token URLs from SoA email links — no auth dependency.  
+**Dependencies**: MOBILE-OWNER-V1 complete. #184 should be done before other mobile work (code cleanup prerequisite).  
+**Note**: #132, #147, #193 closed in Sprint MOBILE-OWNER-V1. Budget card (#176), Projects card, and Vote Needed card carried forward from MOBILE-OWNER-V1 as future enhancements.  
 
 ---
 
@@ -60,6 +61,44 @@
 
 ---
 
+### 📱 Sprint MOBILE-OWNER-V1: Mobile Owner PWA (6-8 hours) — ✅ COMPLETE
+*Read-only mobile PWA for non-admin unit owners*
+
+| # | Title | Priority | Status |
+|---|-------|----------|--------|
+| **132** | PWA add hamburger menu | enhancement | ✅ CLOSED |
+| **147** | PWA show recent transactions | backlog | ✅ CLOSED |
+| **193** | Finish Mobile/PWA SoA and Current Account Status | enhancement | ✅ CLOSED |
+
+**Theme**: Mobile owner experience — read-only dashboard, transactions, SoA for unit owners  
+**Risk**: Low (mobile-only changes, no backend modifications, no financial logic)  
+**Dependencies**: Sprint B4 artifacts (dashboard-summary endpoint, useUnitAccountStatus pattern)  
+**Status**: ✅ Sprint Complete (Feb 27, 2026)  
+**PR**: Pending  
+**Branch**: `feature/mobile-owner-v1` (18 commits)
+
+**Deliverables**:
+- SelectedUnitContext with localStorage persistence and multi-unit support
+- useUnitAccountStatus hook (port of desktop hook, same dashboard-summary endpoint)
+- Hamburger menu with role-based navigation, unit selector in drawer, unitId chip in AppBar
+- Original card-grid Dashboard restored for all users (Balance, HOA Dues, Exchange Rates, Budget, My Account, Payment Due, Projects, About)
+- Payment Due card uses unit-specific amountDue (not HOA-wide aggregate), dollar amount prominent
+- Balance card shows Bank + Cash rows
+- Current Status tab (renamed from SoA): unit summary, YTD total, payment calendar, unit-specific transactions
+- Transactions tab: fiscal year transactions from /transactions endpoint with date/vendor/amount, tap-to-expand
+- Statement of Account tab: stored PDF browser (Firestore metadata, deduplicated) + on-demand PDF generation with English/Spanish toggle
+- Centavos-to-pesos fix, date object formatting fix, timezone compliance (no new Date())
+- propertyAccess fallback fix in SelectedUnitContext and RoleProtectedRoute
+
+**Future Enhancements** (for Sprint D or Sprint G):
+- **Budget card**: Replace "On Track" placeholder with live budget data (#176)
+- **Projects card**: Replace "Coming soon" with live project status data
+- **Vote Needed card**: New card when there is an open poll requiring user action
+
+**Files Changed**: ~20 files, +2,000/-800 lines (all in `frontend/mobile-app/src/`)
+
+---
+
 ### 📱 Sprint WA: WhatsApp Business Notifications (6-8 hours)
 *Payment confirmations, poll alerts, task reminders via WhatsApp Business Cloud API*
 
@@ -70,7 +109,7 @@
 **Theme**: Communication channel — replaces digital receipts requirement with WhatsApp payment confirmations  
 **Risk**: Medium (external dependency on Meta template approval)  
 **Dependencies**: Meta/WhatsApp account setup complete (done outside SAMS in ChatGPT). No SAMS code yet.  
-**Status**: Current sprint focus — ready for Manager Agent kickoff
+**Status**: Planned — deferred in favor of MOBILE-OWNER-V1
 
 **Why WhatsApp**:
 - Replaces the entire digital receipts feature requirement — payment confirmations sent via WhatsApp
@@ -617,5 +656,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: February 27, 2026 - Sprint WA set as current focus. Confirmed Sprint UC tracks Issue #54 expansion to non-HOA client types (SingleUnit + Portfolio) with child issues #200-#206.*  
-*Last Review: February 25, 2026*
+*Updated: February 27, 2026 - Sprint MOBILE-OWNER-V1 (#132, #147, #193) ✅ COMPLETE. Future enhancements noted: Budget card (#176), Projects card, Vote Needed card. Sprint WA deferred. Sprint UC tracks Issue #54 expansion to non-HOA client types (SingleUnit + Portfolio) with child issues #200-#206.*  
+*Last Review: February 27, 2026*

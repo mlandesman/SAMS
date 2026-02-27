@@ -5,6 +5,51 @@
       "date": null,
       "changes": [
         {
+          "type": "feat",
+          "issues": ["132", "147", "193"],
+          "text": "Mobile Owner PWA: hamburger menu with role-based navigation, unit selector in drawer, unitId chip in AppBar"
+        },
+        {
+          "type": "feat",
+          "issues": ["147"],
+          "text": "Mobile Transactions tab: fiscal year transactions from /transactions endpoint with date/vendor/amount, tap-to-expand details"
+        },
+        {
+          "type": "feat",
+          "issues": ["193"],
+          "text": "Mobile Current Status tab: unit summary with YTD total, payment calendar, unit-specific transactions (renamed from Statement of Account)"
+        },
+        {
+          "type": "feat",
+          "issues": ["193"],
+          "text": "Mobile Statement of Account tab: stored PDF browser (Firestore metadata) + on-demand PDF generation with English/Spanish toggle"
+        },
+        {
+          "type": "fix",
+          "issues": ["132"],
+          "text": "Fix propertyAccess vs clientAccess fallback in SelectedUnitContext and RoleProtectedRoute (backend returns propertyAccess)"
+        },
+        {
+          "type": "fix",
+          "issues": ["193"],
+          "text": "Fix centavos-to-pesos conversion in UnitReport (YTD and transaction amounts), fix date object formatting (Invalid Date)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Replace all new Date() calls in mobile components with timezone-aware getMexicoDate/getMexicoDateTime"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Dashboard Payment Due card: use unit-specific amountDue instead of HOA-wide aggregate, show dollar amount prominently"
+        },
+        {
+          "type": "enhancement",
+          "issues": [],
+          "text": "Dashboard: Balance card shows Bank + Cash rows, Exchange Rate card date on subtitle line, restored original card grid for all users"
+        },
+        {
           "type": "fix",
           "issues": [
             "195"
