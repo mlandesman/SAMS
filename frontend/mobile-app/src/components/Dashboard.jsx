@@ -37,6 +37,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useClients } from '../hooks/useClients.jsx';
+import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
+import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
 import { VERSION } from '../utils/versionUtils.js';
@@ -47,6 +49,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { samsUser, currentClient, isAuthenticated } = useAuth();
   const { selectedClient, selectClient } = useClients();
+  const { selectedUnitId } = useSelectedUnit();
+  const { data: unitAccountData } = useUnitAccountStatus(currentClient, selectedUnitId);
   const { 
     accountBalances, 
     hoaDuesStatus, 
@@ -208,18 +212,18 @@ const Dashboard = () => {
                 onClick={() => navigate('/statement')}
               />
 
-              {/* Payment Due Card */}
+              {/* Payment Due Card — uses unit-specific data */}
               <CompactCard
                 icon={PaymentIcon}
                 title="Payment Due"
-                value={hoaDuesStatus.outstanding > 0 ? 'Due' : 'Current'}
-                subtitle={hoaDuesStatus.outstanding > 0 
-                  ? `$${hoaDuesStatus.outstanding?.toLocaleString()}` 
+                value={(unitAccountData?.amountDue > 0) ? 'Due' : 'Current'}
+                subtitle={(unitAccountData?.amountDue > 0) 
+                  ? `$${unitAccountData.amountDue?.toLocaleString()}` 
                   : 'All paid up'
                 }
-                color={hoaDuesStatus.outstanding > 0 ? '#dc2626' : '#059669'}
-                badge={hoaDuesStatus.outstanding > 0 ? { text: 'Action', color: '#dc2626' } : null}
-                onClick={() => navigate('/transactions', { state: { openUnifiedPayment: true } })}
+                color={(unitAccountData?.amountDue > 0) ? '#dc2626' : '#059669'}
+                badge={(unitAccountData?.amountDue > 0) ? { text: 'Action', color: '#dc2626' } : null}
+                onClick={() => navigate('/my-report')}
               />
             </>
           )}
