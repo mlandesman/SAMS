@@ -179,9 +179,9 @@ const Dashboard = () => {
           {/* Exchange Rates Card */}
           <CompactCard
             icon={CurrencyIcon}
-            title={`USD Rate${exchangeRates?.lastUpdated ? ` (${exchangeRates.lastUpdated})` : ''}`}
+            title="USD Rate"
             value={exchangeRates?.rates?.USD?.toFixed(2) || '—'}
-            subtitle="MXN per USD"
+            subtitle={exchangeRates?.lastUpdated ? `MXN · ${exchangeRates.lastUpdated}` : 'MXN per USD'}
             color="#7c3aed"
             loading={loading.rates}
             onClick={() => setRatesModalOpen(true)}
