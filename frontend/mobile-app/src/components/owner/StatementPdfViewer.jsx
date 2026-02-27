@@ -91,6 +91,17 @@ const StatementPdfViewer = () => {
     fetchStoredStatements();
   }, [fetchStoredStatements]);
 
+  // Reset viewer state when unit changes
+  useEffect(() => {
+    setPdfUrl((prev) => {
+      if (prev && pdfSource === 'generated') URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPdfSource(null);
+    setSelectedStored('');
+    setError(null);
+  }, [selectedUnitId]);
+
   useEffect(() => {
     return () => {
       if (pdfUrl && pdfSource === 'generated') URL.revokeObjectURL(pdfUrl);

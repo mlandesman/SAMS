@@ -13,7 +13,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import AuthTest from './components/AuthTest'; // Temporary test component
 import Dashboard from './components/Dashboard';
-import MobileOwnerDashboard from './components/owner/MobileOwnerDashboard';
 import TransactionsList from './components/owner/TransactionsList';
 import StatementPdfViewer from './components/owner/StatementPdfViewer';
 import ExchangeRateTools from './components/ExchangeRateTools';
@@ -101,10 +100,6 @@ const theme = createTheme({
   },
 });
 
-const DashboardRouter = () => {
-  return <Dashboard />;
-};
-
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -123,12 +118,12 @@ function App() {
               <Route path="/auth-debug" element={<AuthDebugScreen />} />
               <Route path="/user-debug" element={<UserDebugger />} />
               
-              {/* Protected Routes — role-based dashboard */}
+              {/* Protected Routes */}
               <Route 
                 path="/" 
                 element={
                   <ProtectedRoute>
-                    <DashboardRouter />
+                    <Dashboard />
                   </ProtectedRoute>
                 } 
               />
@@ -137,7 +132,7 @@ function App() {
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <DashboardRouter />
+                    <Dashboard />
                   </ProtectedRoute>
                 } 
               />

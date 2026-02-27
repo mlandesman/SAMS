@@ -161,7 +161,7 @@ const Dashboard = () => {
             loading={loading.accounts}
             secondaryLabel="Bank"
             secondaryValue={`$${accountBalances.bank?.toLocaleString() || '0'}`}
-            onClick={() => navigate('/transactions')}
+            onClick={() => navigate(isAdminOrSuperAdmin ? '/expense-entry' : '/transactions')}
           >
             <Typography
               variant="caption"
@@ -187,7 +187,7 @@ const Dashboard = () => {
             color="#059669"
             loading={loading.dues}
             progress={hoaDuesStatus.collectionRate || 0}
-            onClick={() => navigate('/my-report')}
+            onClick={() => navigate(isAdminOrSuperAdmin ? '/dashboard' : '/my-report')}
           />
 
           {/* Exchange Rates Card */}

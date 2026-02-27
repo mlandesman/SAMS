@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
+import { getMexicoDate } from '../../utils/timezone.js';
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-US', {
@@ -61,7 +62,7 @@ const AccountStatusCard = ({ data, unitId }) => {
           )}
         </Box>
         <Typography variant="caption" sx={{ color: '#999', mt: 1, display: 'block' }}>
-          As of {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          As of {getMexicoDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </Typography>
       </CardContent>
     </Card>

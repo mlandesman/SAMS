@@ -143,9 +143,9 @@ const UnitReport = ({ unitId: propUnitId }) => {
 
   const { unit, currentStatus, transactions } = reportData;
 
-  // Determine display status from accountStatus hook (same endpoint as desktop)
-  const amountDue = accountStatus?.amountDue ?? currentStatus?.amountDue ?? 0;
-  const creditBalance = accountStatus?.creditBalance ?? currentStatus?.creditBalance ?? 0;
+  // accountStatus (dashboard-summary) returns pesos; currentStatus (unit report) returns centavos
+  const amountDue = accountStatus?.amountDue ?? centavosToPesos(currentStatus?.amountDue) ?? 0;
+  const creditBalance = accountStatus?.creditBalance ?? centavosToPesos(currentStatus?.creditBalance) ?? 0;
   let statusLabel, statusColor;
   if (amountDue > 0) {
     statusLabel = `Balance Due: ${formatCurrency(amountDue)}`;
