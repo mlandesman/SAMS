@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './hooks/useAuthStable.jsx';
+import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
 import AuthScreen from './components/AuthScreen';
 import ClientSelect from './components/ClientSelect';
 import ExpenseForm from './components/ExpenseForm';
@@ -103,6 +104,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <SelectedUnitProvider>
           <Layout>
             <Routes>
               <Route path="/auth" element={<AuthScreen />} />
@@ -278,6 +280,7 @@ function App() {
               <Route path="*" element={<Navigate to="/auth" replace />} />
             </Routes>
           </Layout>
+          </SelectedUnitProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>
