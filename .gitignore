@@ -181,6 +181,17 @@ functions/backend/testing/test*.js
 
 # SAMS-Docs copied for agent access (original at /Users/michael/Projects/SAMS-Docs)
 SAMS-Docs/
+# Keep only core planning docs versioned in GitHub
+!SAMS-Docs/
+SAMS-Docs/*
+!SAMS-Docs/apm_session/
+SAMS-Docs/apm_session/*
+!SAMS-Docs/apm_session/Agile/
+SAMS-Docs/apm_session/Agile/*
+!SAMS-Docs/apm_session/Agile/Sprint_Groups.md
+!SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md
+# Keep implementation plan versioned
+!.apm/Implementation_Plan.md
 backend.OLD/
 
 # Test results and artifacts (entire directory)

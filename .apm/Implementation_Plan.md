@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 25, 2026 — Sprint B4 stretch (Unit Account Status card) reviewed and approved. PR #199 includes core + stretch. Sprint Recon next.  
+**Last Updated:** February 27, 2026 — Sprint Recon merged (PR #208) with post-merge BugBot follow-up merged (PR #209). Sprint WA is next.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,28 +25,40 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint Recon (Next)
+### Sprint WA (Next)
 **Status:** Ready for Manager Agent  
-**Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_B4_Recon_Bootstrap_Prompt.md`
+**Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_WA_Manager_Turnover_Prompt_2026-02-27.md`
 
 | Sprint | Issue | Theme | Est |
 |--------|-------|-------|-----|
-| **Recon** | #188 | Historical balance lookup (Option B — Status Bar right-click) | 4-6h |
+| **WA** | #178 | WhatsApp notifications (payment confirmations, poll alerts, task notices) | 6-8h |
 
-Sprint B4 (#195) complete — PR pending. To start Recon: Initiate a Manager Agent and paste the Bootstrap Prompt.
+Sprint Recon (#188) is complete and merged to main. Next up: Sprint WA.
 
 ---
 
 ## Recently Completed
 
+### Sprint Recon: Historical Balance Lookup ✅ COMPLETE
+**Completed:** February 26, 2026  
+**PR:** #208 (merged to main) + #209 (BugBot follow-up)  
+**Issue:** #188 — Historical balance lookup via Status Bar right-click  
+**Quality Rating:** ⭐⭐⭐⭐⭐
+
+**Deliverables:** Admin-only right-click historical lookup in Transactions status bar, pre-lookup refresh flow to mitigate stale-balance risk, `asOfDate` support in balances endpoint with rollback metadata, and follow-up fixes for next-payment amount/date logic in statement dashboard summary.  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_Recon_Historical_Balance_2026-02-26/`
+
+---
+
 ### Sprint B4: User-Level UI Fix + Stretch ✅ COMPLETE
 **Completed:** February 24–25, 2026  
-**PR:** #199 (`fix/sprint-b4-user-level-ui` → `main`)  
+**PR:** #199 (merged to main)  
 **Issue:** #195 — Desktop UI for non-admin users  
 **Quality Rating:** ⭐⭐⭐⭐⭐
 
 **Core:** Unit selector with multi-unit dropdown, Transactions/HOA Dues/Budgets view-only for non-admin, Reports unit filter, CRUD gating, balance bar recalc hidden for non-admin. Backend middleware updated for unitOwner/unitManager permissions. System error lookup tools added.  
 **Stretch:** Unit Account Status dashboard card (SoA-backed balance, dues-based next payment, owner names in title bar). Lightweight `dashboard-summary` endpoint. Reusable `useUnitAccountStatus` hook for Sprint D mobile PWA. DateService compliance and UTC fix.  
+**BugBot fixes:** Client-level admin detection using `userRoles.isAdmin()`, unitId fallback in authorized units extraction.  
 **Archive:** `SAMS-Docs/apm_session/Memory/Archive/Sprint_B4_User_Level_UI_2026-02-24/`
 
 ---
