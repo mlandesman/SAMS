@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider } from './hooks/useAuthStable.jsx';
+import { AuthProvider, useAuth } from './hooks/useAuthStable.jsx';
 import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
 import AuthScreen from './components/AuthScreen';
 import ClientSelect from './components/ClientSelect';
@@ -13,6 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import AuthTest from './components/AuthTest'; // Temporary test component
 import Dashboard from './components/Dashboard';
+import MobileOwnerDashboard from './components/owner/MobileOwnerDashboard';
 import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
@@ -98,6 +99,11 @@ const theme = createTheme({
   },
 });
 
+const DashboardRouter = () => {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <Dashboard /> : <MobileOwnerDashboard />;
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -116,12 +122,12 @@ function App() {
               <Route path="/auth-debug" element={<AuthDebugScreen />} />
               <Route path="/user-debug" element={<UserDebugger />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes — role-based dashboard */}
               <Route 
                 path="/" 
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <DashboardRouter />
                   </ProtectedRoute>
                 } 
               />
@@ -130,7 +136,7 @@ function App() {
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <DashboardRouter />
                   </ProtectedRoute>
                 } 
               />
