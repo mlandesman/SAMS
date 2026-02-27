@@ -15,44 +15,27 @@ const RoleProtectedRoute = ({ children, requiredRole, fallbackPath = '/' }) => {
   }
 
   const userRole = samsUser?.globalRole;
+  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess;
   const hasRequiredRole = () => {
-    console.log('RoleProtectedRoute Debug:', {
-      requiredRole,
-      userRole,
-      samsUser: samsUser,
-      clientAccess: samsUser?.clientAccess
-    });
-    
     switch (requiredRole) {
       case 'admin':
         return userRole === 'admin' || userRole === 'superAdmin';
       case 'maintenance':
-        // For MVP, allow maintenance role or admin/superAdmin
         return userRole === 'maintenance' || userRole === 'admin' || userRole === 'superAdmin';
-      case 'unitOwner':
-        // Check both globalRole and clientAccess for flexibility
-        const hasUnitOwnerRole = userRole === 'unitOwner' || 
-          (samsUser?.clientAccess && 
-           Object.values(samsUser.clientAccess).some(access => {
-             // Check if user has unitOwner or unitManager in unitAssignments
-             if (access.unitAssignments) {
-               return Object.values(access.unitAssignments).some(unit => 
-                 unit.role === 'unitOwner' || unit.role === 'unitManager'
-               );
-             }
-             // Also check direct role (backward compatibility)
-             return access.role === 'unitOwner' || access.role === 'unitManager';
-           }));
-        console.log('Unit Owner Check Result:', {
-          hasUnitOwnerRole,
-          userRole,
-          clientAccess: samsUser?.clientAccess,
-          accessRoles: samsUser?.clientAccess ? 
-            Object.values(samsUser.clientAccess).map(a => a.role) : []
+      case 'unitOwner': {
+        if (userRole === 'unitOwner') return true;
+        if (!clientAccess) return false;
+        return Object.values(clientAccess).some(access => {
+          if (access.unitAssignments) {
+            return Object.values(access.unitAssignments).some(unit => 
+              unit.role === 'unitOwner' || unit.role === 'unitManager'
+            );
+          }
+          return access.role === 'unitOwner' || access.role === 'unitManager';
         });
-        return hasUnitOwnerRole;
+      }
       default:
-        return true; // No specific role required
+        return true;
     }
   };
 

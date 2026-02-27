@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider } from './hooks/useAuthStable.jsx';
+import { AuthProvider, useAuth } from './hooks/useAuthStable.jsx';
+import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
 import AuthScreen from './components/AuthScreen';
 import ClientSelect from './components/ClientSelect';
 import ExpenseForm from './components/ExpenseForm';
@@ -12,6 +13,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import AuthTest from './components/AuthTest'; // Temporary test component
 import Dashboard from './components/Dashboard';
+import TransactionsList from './components/owner/TransactionsList';
+import StatementPdfViewer from './components/owner/StatementPdfViewer';
 import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
@@ -103,6 +106,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <SelectedUnitProvider>
           <Layout>
             <Routes>
               <Route path="/auth" element={<AuthScreen />} />
@@ -232,11 +236,33 @@ function App() {
               
               {/* Unit Owner Routes */}
               <Route 
+                path="/transactions" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <TransactionsList />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
                 path="/my-report" 
                 element={
                   <ProtectedRoute>
                     <RoleProtectedRoute requiredRole="unitOwner">
                       <MyUnitReport />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/statement" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <StatementPdfViewer />
                     </RoleProtectedRoute>
                   </ProtectedRoute>
                 } 
@@ -278,6 +304,7 @@ function App() {
               <Route path="*" element={<Navigate to="/auth" replace />} />
             </Routes>
           </Layout>
+          </SelectedUnitProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>

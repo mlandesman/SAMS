@@ -1,122 +1,102 @@
 /**
  * Unit Report Component for Mobile PWA
  * Mobile-first financial report for unit owners
- * 
+ *
  * Features:
- * - Touch-optimized interface
+ * - Touch-optimized interface (48px min touch targets)
  * - Real API integration
  * - Transaction detail modal
  * - Responsive design
+ * - Integrates SelectedUnitContext for unit switching
  */
 
 import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+} from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
+import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { config } from '../config/index.js';
+import { auth } from '../services/firebase';
+import { getMexicoDate } from '../utils/timezone.js';
 import './UnitReport.css';
 
-const UnitReport = ({ unitId, onClose }) => {
-  const { samsUser, currentClient, firebaseUser } = useAuth();
+const API_BASE_URL = config.api.baseUrl;
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }).format(amount || 0);
+
+const centavosToPesos = (centavos) => (centavos || 0) / 100;
+
+const formatDate = (dateValue) => {
+  if (!dateValue) return '—';
+  if (typeof dateValue === 'object' && dateValue !== null) {
+    return dateValue.unambiguous_long_date || dateValue.display || dateValue.ISO_8601 || '—';
+  }
+  return String(dateValue);
+};
+
+const UnitReport = ({ unitId: propUnitId }) => {
+  const { currentClient, firebaseUser } = useAuth();
+  const { selectedUnitId } = useSelectedUnit();
+  const currentUnitId = propUnitId || selectedUnitId;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [currentUnitId, setCurrentUnitId] = useState(unitId);
-  const [availableUnits, setAvailableUnits] = useState([]);
-  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+
+  // Fetch account status for the summary header
+  const { data: accountStatus } = useUnitAccountStatus(
+    typeof currentClient === 'string' ? currentClient : currentClient?.id,
+    currentUnitId
+  );
 
   useEffect(() => {
-    console.log('UnitReport: Effect triggered with:', { currentClient, currentUnitId });
-    
-    // Handle both string clientId and object with id property
     const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-    
     if (clientId && currentUnitId) {
-      console.log('UnitReport: Fetching report for client:', clientId, 'unit:', currentUnitId);
-      fetchUnitReport();
-    } else {
-      console.log('UnitReport: Missing required data:', { clientId, currentUnitId });
+      fetchUnitReport(clientId, currentUnitId);
     }
   }, [currentClient, currentUnitId]);
 
-  // Fetch available units for the current user and client
-  useEffect(() => {
-    const fetchAvailableUnits = async () => {
-      const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-      if (!clientId || !firebaseUser) return;
-
-      try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-        const token = await firebaseUser.getIdToken();
-        const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units/user-access`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const units = await response.json();
-          console.log('Frontend: Available units received:', units);
-          setAvailableUnits(units);
-        }
-      } catch (err) {
-        console.error('Error fetching user units:', err);
-      }
-    };
-
-    fetchAvailableUnits();
-  }, [currentClient, firebaseUser]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showUnitDropdown && !event.target.closest('.unit-selector-container')) {
-        setShowUnitDropdown(false);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [showUnitDropdown]);
-
-  const fetchUnitReport = async () => {
+  const fetchUnitReport = async (clientId, unitId) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Handle both string clientId and object with id property
-      const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-      
-      if (!clientId) {
-        throw new Error('No client selected');
-      }
-      
-      if (!firebaseUser) {
-        throw new Error('No authenticated user');
-      }
-      
-      console.log('UnitReport: Fetching from:', `/clients/${clientId}/reports/unit/${currentUnitId}`);
-      console.log('UnitReport: Firebase user:', firebaseUser ? 'Yes' : 'No');
+      if (!firebaseUser) throw new Error('No authenticated user');
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
       const token = await firebaseUser.getIdToken();
-      console.log('UnitReport: Got token:', token ? 'Yes' : 'No', token?.length || 0, 'chars');
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/reports/unit/${currentUnitId}`, {
+      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/reports/unit/${unitId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      // Normalize owners/managers to ensure consistent structure
       if (data.unit) {
         data.unit.owners = normalizeOwners(data.unit.owners);
         data.unit.managers = normalizeManagers(data.unit.managers);
@@ -130,239 +110,117 @@ const UnitReport = ({ unitId, onClose }) => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount || 0);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const handleTransactionClick = (transaction) => {
-    setSelectedTransaction(transaction);
-  };
-
-  const closeTransactionDetail = () => {
-    setSelectedTransaction(null);
-  };
-
-  const handleUnitChange = (newUnitId) => {
-    // TODO: Fix backend security check in /backend/routes/reports.js line 37
-    // Currently it only allows unitOwners to access their primary unit
-    // Need to also check clientAccess.unitAssignments array for units they manage
-    setCurrentUnitId(newUnitId);
-    setShowUnitDropdown(false);
-  };
-
   if (loading) {
     return (
-      <div className="unit-report-mobile">
-        <div className="loading-container">
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-          </div>
-          <p>Loading your financial report...</p>
-        </div>
-      </div>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <CircularProgress size={40} sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">Loading your financial report...</Typography>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="unit-report-mobile">
-        <div className="error-container">
-          <div className="error-message">
-            <h3>Unable to Load Report</h3>
-            <p>{error}</p>
-            <button className="retry-button" onClick={fetchUnitReport}>
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
+      <Box sx={{ p: 3, mt: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button variant="outlined" fullWidth onClick={() => {
+          const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+          if (clientId && currentUnitId) fetchUnitReport(clientId, currentUnitId);
+        }}>
+          Try Again
+        </Button>
+      </Box>
     );
   }
 
   if (!reportData) {
     return (
-      <div className="unit-report-mobile">
-        <div className="error-container">
-          <p>No report data available for this unit.</p>
-        </div>
-      </div>
+      <Box sx={{ p: 3, textAlign: 'center', mt: 4 }}>
+        <Typography variant="body1" color="text.secondary">No report data available for this unit.</Typography>
+      </Box>
     );
   }
 
   const { unit, currentStatus, transactions } = reportData;
 
-  // Generate payment calendar data
-  const generatePaymentCalendar = () => {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    
-    // Check if we have payment data from the report
-    const paymentData = reportData?.paymentCalendar || reportData?.payments;
-    
-    return months.map((month, index) => {
-      let status = 'not-due'; // Default: future months
-      
-      // Check payment data if available
-      if (paymentData && paymentData[index + 1]) {
-        const payment = paymentData[index + 1];
-        if (payment.paid > 0) {
-          status = 'paid';
-        } else if (index < currentMonth) {
-          status = 'past-due';
-        } else if (index === currentMonth) {
-          // Current month - check if due
-          const today = new Date().getDate();
-          if (today >= 1) {
-            status = 'due-soon';
-          }
-        }
-      } else {
-        // No payment data - use simple logic
-        if (index < currentMonth) {
-          status = 'past-due';
-        } else if (index === currentMonth) {
-          const today = new Date().getDate();
-          if (today >= 1) {
-            status = 'due-soon';
-          }
-        }
-      }
-      
-      return { month, status };
-    });
-  };
+  // accountStatus (dashboard-summary) returns pesos; currentStatus (unit report) returns centavos
+  const amountDue = accountStatus?.amountDue ?? centavosToPesos(currentStatus?.amountDue) ?? 0;
+  const creditBalance = accountStatus?.creditBalance ?? centavosToPesos(currentStatus?.creditBalance) ?? 0;
+  let statusLabel, statusColor;
+  if (amountDue > 0) {
+    statusLabel = `Balance Due: ${formatCurrency(amountDue)}`;
+    statusColor = '#d32f2f';
+  } else if (creditBalance > 0) {
+    statusLabel = `Credit: ${formatCurrency(creditBalance)}`;
+    statusColor = '#1565c0';
+  } else {
+    statusLabel = 'Current';
+    statusColor = '#2e7d32';
+  }
 
-  const paymentCalendar = generatePaymentCalendar();
+  // Payment calendar
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonth = getMexicoDate().getMonth();
+  const paymentData = reportData?.paymentCalendar || reportData?.payments;
+  const paymentCalendar = months.map((month, index) => {
+    let status = 'not-due';
+    if (paymentData && paymentData[index + 1]) {
+      if (paymentData[index + 1].paid > 0) status = 'paid';
+      else if (index < currentMonth) status = 'past-due';
+      else if (index === currentMonth) status = 'due-soon';
+    } else {
+      if (index < currentMonth) status = 'past-due';
+      else if (index === currentMonth) status = 'due-soon';
+    }
+    return { month, status };
+  });
 
   return (
     <div className="unit-report-mobile">
-
-      {/* Unit Information */}
+      {/* Unit info */}
       <div className="unit-info-section">
         <div className="unit-number-display">Unit {unit.unitId}</div>
-        
         <div className="people-list">
-          {unit.owners.map((owner, index) => (
-            <div key={`owner-${index}`} className="person-item">
-              {owner.name}
-            </div>
+          {unit.owners.map((owner, i) => (
+            <div key={`owner-${i}`} className="person-item">{owner.name}</div>
           ))}
-          
-          {unit.managers.map((manager, index) => (
-            <div key={`manager-${index}`} className="person-item manager">
-              {manager.name} (Mgr)
-            </div>
+          {unit.managers.map((manager, i) => (
+            <div key={`mgr-${i}`} className="person-item manager">{manager.name} (Mgr)</div>
           ))}
         </div>
       </div>
 
-      {/* Unit Selector Container */}
-      <div className="unit-selector-container">
-        <div 
-          className={`unit-selector ${availableUnits.length > 1 ? 'clickable' : ''} ${showUnitDropdown ? 'dropdown-open' : ''}`} 
-          onClick={() => {
-            console.log('Unit selector clicked, available units:', availableUnits.length);
-            if (availableUnits.length > 1) {
-              setShowUnitDropdown(!showUnitDropdown);
-            }
-          }}
-        >
-          <span>Unit: {unit.unitId}</span>
-          {availableUnits.length > 1 && <span className="dropdown-indicator">{showUnitDropdown ? '▲' : '▼'}</span>}
-        </div>
-        
-        {/* Unit Dropdown Menu */}
-        {showUnitDropdown && availableUnits.length > 1 && (
-          <div className="unit-dropdown">
-            {availableUnits.map((availUnit) => (
-              <div 
-                key={availUnit.unitId}
-                className={`unit-dropdown-item ${availUnit.unitId === currentUnitId ? 'selected' : ''}`}
-                onClick={() => handleUnitChange(availUnit.unitId)}
-              >
-                Unit {availUnit.unitId}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Enhanced Status Card with Payment Calendar */}
+      {/* Clean summary header */}
       <div className="status-card enhanced">
-        
-        {/* Financial Summary */}
         <div className="financial-summary">
           <div className="summary-row">
-            <span className="label">YTD Total:</span>
-            <span className="value">{formatCurrency(currentStatus.ytdPaid.hoaDues + currentStatus.ytdPaid.projects)}</span>
-          </div>
-          <div className="summary-row">
-            <span className="label">Credit Balance:</span>
-            <span className="value">{formatCurrency(currentStatus.creditBalance || 0)}</span>
-          </div>
-          <div className="summary-row">
             <span className="label">Status:</span>
-            <span className="value">
-              {(() => {
-                const today = new Date();
-                const currentMonth = today.getMonth();
-                const currentDay = today.getDate();
-                
-                // Check if payment is due in the next 30 days
-                const isDueSoon = currentDay >= 1 && currentStatus.amountDue > 0 && currentStatus.amountDue <= (currentStatus.ytdPaid.hoaDues / currentMonth || 0);
-                
-                if (currentStatus.amountDue > 0) {
-                  // Determine if past due or just due
-                  const monthlyAmount = currentStatus.ytdPaid.hoaDues / (currentMonth || 1);
-                  const pastDueAmount = currentStatus.amountDue - monthlyAmount;
-                  
-                  if (pastDueAmount > 0) {
-                    // Past due - show past due amount plus current month
-                    return <span className="status-due">Past Due {formatCurrency(currentStatus.amountDue)}</span>;
-                  } else {
-                    // Due within 30 days but otherwise current
-                    return <span className="status-due">Due {formatCurrency(currentStatus.amountDue)}</span>;
-                  }
-                } else {
-                  // All paid up
-                  return <span className="status-paid">Current</span>;
-                }
-              })()}
-            </span>
+            <span className="value" style={{ color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
           </div>
+          {currentStatus?.ytdPaid && (
+            <div className="summary-row">
+              <span className="label">YTD Total:</span>
+              <span className="value">{formatCurrency(centavosToPesos((currentStatus.ytdPaid.hoaDues || 0) + (currentStatus.ytdPaid.projects || 0)))}</span>
+            </div>
+          )}
+          {accountStatus?.lastPayment && (
+            <div className="summary-row">
+              <span className="label">Last Payment:</span>
+              <span className="value">{formatDate(accountStatus.lastPayment.date)} — {formatCurrency(accountStatus.lastPayment.amount)}</span>
+            </div>
+          )}
         </div>
-        
-        {/* Payment Calendar Grid */}
+
+        {/* Payment calendar grid — 4 cols on very small screens, 6 on larger */}
         <div className="payment-calendar">
           <div className="calendar-row">
-            {paymentCalendar.slice(0, 6).map((item, index) => (
-              <div key={index} className={`calendar-cell ${item.status}`}>
-                {item.month}
-              </div>
+            {paymentCalendar.slice(0, 6).map((item, i) => (
+              <div key={i} className={`calendar-cell ${item.status}`}>{item.month}</div>
             ))}
           </div>
           <div className="calendar-row">
-            {paymentCalendar.slice(6, 12).map((item, index) => (
-              <div key={index + 6} className={`calendar-cell ${item.status}`}>
-                {item.month}
-              </div>
+            {paymentCalendar.slice(6, 12).map((item, i) => (
+              <div key={i + 6} className={`calendar-cell ${item.status}`}>{item.month}</div>
             ))}
           </div>
         </div>
@@ -372,102 +230,71 @@ const UnitReport = ({ unitId, onClose }) => {
       <div className="transactions-section">
         <h3>Recent Transactions</h3>
         {transactions.length === 0 ? (
-          <div className="no-transactions">
-            <p>No transactions found for this unit.</p>
-          </div>
+          <div className="no-transactions"><p>No transactions found for this unit.</p></div>
         ) : (
           <div className="transactions-list">
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="transaction-item"
-                onClick={() => handleTransactionClick(transaction)}
-              >
-                <div className="transaction-date">
-                  {formatDate(transaction.date)}
+            {transactions.map((tx) => {
+              const amount = centavosToPesos(tx.amount);
+
+              return (
+                <div
+                  key={tx.id || `${formatDate(tx.date)}-${tx.description}`}
+                  className="transaction-item"
+                  onClick={() => setSelectedTransaction(tx)}
+                >
+                  <div className="transaction-date">{formatDate(tx.date)}</div>
+                  <div className="transaction-desc">{tx.vendor || tx.description || '—'}</div>
+                  <div className="transaction-amount">
+                    {formatCurrency(amount)}
+                  </div>
                 </div>
-                <div className="transaction-amount">
-                  {formatCurrency(transaction.amount)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Transaction Detail Modal */}
-      {selectedTransaction && (
-        <div className="transaction-modal-overlay" onClick={closeTransactionDetail}>
-          <div 
-            className="transaction-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="transaction-modal-header">
-              <h3>Transaction Details</h3>
-              <button 
-                className="modal-close-button"
-                onClick={closeTransactionDetail}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="transaction-modal-content">
-              <div className="detail-item">
-                <span className="detail-label">Date</span>
-                <span className="detail-value">
-                  {formatDate(selectedTransaction.date)}
-                </span>
-              </div>
-              
-              <div className="detail-item">
-                <span className="detail-label">Amount</span>
-                <span className="detail-value amount">
-                  {formatCurrency(selectedTransaction.amount)}
-                </span>
-              </div>
-              
+      {/* Transaction detail dialog (MUI) */}
+      <Dialog open={!!selectedTransaction} onClose={() => setSelectedTransaction(null)} fullWidth maxWidth="xs">
+        {selectedTransaction && (
+          <>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+              Transaction Details
+              <IconButton size="small" onClick={() => setSelectedTransaction(null)} aria-label="close">
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers>
+              <DetailRow label="Date" value={formatDate(selectedTransaction.date)} />
+              <DetailRow label="Amount" value={formatCurrency(centavosToPesos(selectedTransaction.amount))} />
+              {selectedTransaction.vendor && (
+                <DetailRow label="Vendor" value={selectedTransaction.vendor} />
+              )}
               {selectedTransaction.description && (
-                <div className="detail-item">
-                  <span className="detail-label">Description</span>
-                  <span className="detail-value description">
-                    {selectedTransaction.description}
-                  </span>
-                </div>
+                <DetailRow label="Description" value={selectedTransaction.description} />
               )}
-              
               {selectedTransaction.category && (
-                <div className="detail-item">
-                  <span className="detail-label">Category</span>
-                  <span className="detail-value">
-                    {selectedTransaction.category}
-                  </span>
-                </div>
+                <DetailRow label="Category" value={selectedTransaction.category} />
               )}
-              
               {selectedTransaction.paymentMethod && (
-                <div className="detail-item">
-                  <span className="detail-label">Payment Method</span>
-                  <span className="detail-value">
-                    {selectedTransaction.paymentMethod}
-                  </span>
-                </div>
+                <DetailRow label="Payment Method" value={selectedTransaction.paymentMethod} />
               )}
-            </div>
-            
-            <div className="transaction-modal-footer">
-              <button 
-                className="modal-close-button-full"
-                onClick={closeTransactionDetail}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setSelectedTransaction(null)} fullWidth variant="contained">Close</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </div>
   );
 };
+
+const DetailRow = ({ label, value }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5, gap: 2 }}>
+    <Typography variant="body2" sx={{ color: '#6c757d', fontWeight: 600, flexShrink: 0 }}>{label}</Typography>
+    <Typography variant="body2" sx={{ fontWeight: 500, color: '#333', textAlign: 'right', wordBreak: 'break-word' }}>{value}</Typography>
+  </Box>
+);
 
 export default UnitReport;

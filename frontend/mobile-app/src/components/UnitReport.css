@@ -637,6 +637,13 @@
   background: #5a6fd8;
 }
 
+/* Narrow screen: 4-column calendar grid */
+@media (max-width: 360px) {
+  .calendar-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 /* Responsive Design for Larger Screens */
 @media (min-width: 768px) {
   .unit-report-mobile {

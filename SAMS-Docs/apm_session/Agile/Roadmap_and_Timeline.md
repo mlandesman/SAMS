@@ -40,15 +40,21 @@
 
 | Order | Sprint | Theme | Est | Key Issues/Tasks |
 |-------|--------|-------|-----|------------------|
-| 1 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 2 | **D** | PWA/Mobile Enhancements | 12-16h | #193, #184, #147, #133, #132, #109, #51, #47 |
-| 3 | **PM-Finance** | Project Financial Integration | ~12h | PM5, PM6, PM7 — Assessment allocation, SoA integration, UPC payment |
-| 4 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 5 | **E** | Admin & Settings | 7-9h | #194, #182, #106, #102, #50, #159 |
-| 6 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| ~~1~~ | ~~**MOBILE-OWNER-V1**~~ | ~~Mobile Owner PWA~~ | ~~6-8h~~ | ~~#132, #147, #193~~ ✅ COMPLETE (Feb 27, 2026) |
+| 2 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
+| 3 | **D** | PWA/Mobile Enhancements | 12-16h | #184, #133, #109, #51, #47 — Remaining mobile issues |
+| 4 | **PM-Finance** | Project Financial Integration | ~12h | PM5, PM6, PM7 — Assessment allocation, SoA integration, UPC payment |
+| 5 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 6 | **E** | Admin & Settings | 7-9h | #194, #182, #106, #102, #50, #159 |
+| 7 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
 | 7 | **G** | Future Features | TBD | #189, #157, #138, #148, #121, #96, #53, #68, #165, #176 |
 
-**Current Focus**: Sprint WA — WhatsApp Notifications (Sprint Recon merged, PR #208; BugBot follow-up merged via PR #209)
+**Current Focus**: Sprint MOBILE-OWNER-V1 complete. Next up: Sprint WA (WhatsApp Notifications) or Sprint D (PWA Enhancements).
+
+**Mobile PWA Future Enhancements** (carry to Sprint D or G):
+- Budget card: live budget data integration (#176)
+- Projects card: live project status data
+- Vote Needed card: new card for open polls requiring user action
 
 **Schedule Note (Feb 25, 2026)**: Sprint B4 merged to main. Added Epic #54 (Unified Client Architecture) with 7 child issues (#200-#206) as Sprint UC. Scope is explicit expansion beyond HOA to include non-HOA client types (SingleUnit and Portfolio). Placed after WA, D, PM-Finance, and Polling enhancements per PO decision — system needs stable Projects, Budgets, and Statements before onboarding portfolio clients. PM-Finance moved ahead of Polling-2 per priority alignment.
 
@@ -81,6 +87,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| MOBILE-OWNER-V1 (Mobile Owner PWA) | Feb 27, 2026 | #132, #147, #193 |
 | Recon (Bank Reconciliation Tools) | Feb 26, 2026 | #188 — PR #208 |
 | B4 (User-Level UI Fix) | Feb 24, 2026 | #195 — PR #199 |
 | B3-Fix (Production Stabilization) | Feb 21, 2026 | #191, #190, #186, #187, #43 — PR #192 |
@@ -121,4 +128,4 @@
 
 ---
 
-*Last Updated: February 27, 2026 — Sprint Recon and BugBot follow-up merged (PRs #208 and #209). Current focus remains Sprint WA. Sprint UC confirms Issue #54 expansion beyond HOA to non-HOA client types.*
+*Last Updated: February 27, 2026 — Sprint MOBILE-OWNER-V1 (#132, #147, #193) ✅ COMPLETE on feature/mobile-owner-v1 (18 commits). Future enhancements: Budget card, Projects card, Vote Needed card. Sprint WA deferred. Sprint Recon and BugBot follow-up merged (PRs #208 and #209).*

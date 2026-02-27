@@ -5,24 +5,45 @@ import {
   Typography,
   IconButton,
   Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
 } from '@mui/material';
 import {
   ArrowBack,
-  Logout,
+  Logout as LogoutIcon,
   Menu as MenuIcon,
   AccountCircle,
+  Dashboard as DashboardIcon,
+  Receipt as TransactionsIcon,
+  Description as StatementIcon,
+  Assessment as StatusIcon,
+  Info as AboutIcon,
+  Add as AddIcon,
+  PictureAsPdf as PdfIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
+  const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Monitor network status
   useEffect(() => {
@@ -54,9 +75,13 @@ const Layout = ({ children }) => {
       case '/exchange-rates':
         return 'Exchange Rates';
       case '/my-report':
-        return 'Unit Report';
+        return 'Current Status';
+      case '/statement':
+        return 'Statement of Account';
       case '/about':
         return 'About';
+      case '/transactions':
+        return 'Transactions';
       case '/tareas':
         return 'Tareas';
       case '/propane-reading':
@@ -111,52 +136,143 @@ const Layout = ({ children }) => {
         }}
       >
         <Toolbar sx={{ minHeight: '64px !important' }}>
-          {canGoBack() && (
+          {user && location.pathname !== '/auth' && (
             <IconButton
               edge="start"
               color="inherit"
-              onClick={handleBack}
+              onClick={() => setDrawerOpen(true)}
               sx={{ mr: 1 }}
-              aria-label="go back"
+              aria-label="open menu"
             >
-              <ArrowBack />
+              <MenuIcon />
             </IconButton>
           )}
           
-          <Typography
-            variant="h6"
-            component="h1"
-            sx={{ 
-              flexGrow: 1, 
-              fontSize: '18px',
-              fontWeight: 500,
-            }}
-          >
-            {getPageTitle()}
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+            <Typography
+              variant="h6"
+              component="h1"
+              sx={{ 
+                fontSize: '18px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {getPageTitle()}
+            </Typography>
+            {!isAdmin && selectedUnitId && (
+              <Chip
+                label={`Unit ${selectedUnitId}`}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  color: 'inherit',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  height: 24,
+                }}
+              />
+            )}
+          </Box>
 
           {showLogoutButton() && (
-            <>
-              <IconButton
-                color="inherit"
-                onClick={() => setProfileOpen(true)}
-                aria-label="profile"
-                sx={{ mr: 1 }}
-              >
-                <AccountCircle />
-              </IconButton>
-              
-              <IconButton
-                color="inherit"
-                onClick={handleLogout}
-                aria-label="logout"
-              >
-                <Logout />
-              </IconButton>
-            </>
+            <IconButton
+              color="inherit"
+              onClick={() => setProfileOpen(true)}
+              aria-label="profile"
+            >
+              <AccountCircle />
+            </IconButton>
           )}
         </Toolbar>
       </AppBar>
+
+      {/* Hamburger menu drawer */}
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        variant="temporary"
+        ModalProps={{ keepMounted: true }}
+        PaperProps={{ sx: { width: 260, paddingTop: 'env(safe-area-inset-top)' } }}
+      >
+        <Box sx={{ pt: 2, pb: 1, px: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>SAMS Mobile</Typography>
+        </Box>
+        <Divider />
+
+        {/* Unit selector for non-admin users */}
+        {!isAdmin && availableUnits.length > 0 && (
+          <>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              {availableUnits.length === 1 ? (
+                <Chip
+                  icon={<HomeIcon />}
+                  label={`Unit ${availableUnits[0].unitId}`}
+                  color="primary"
+                  sx={{ fontWeight: 600, fontSize: '0.85rem' }}
+                />
+              ) : (
+                <FormControl size="small" fullWidth>
+                  <Select
+                    value={selectedUnitId || ''}
+                    onChange={(e) => setSelectedUnitId(e.target.value)}
+                    displayEmpty
+                    sx={{ fontWeight: 600, fontSize: '0.9rem' }}
+                    renderValue={(val) => val ? `Unit ${val}` : 'Select Unit'}
+                  >
+                    {availableUnits.map((u) => (
+                      <MenuItem key={u.unitId} value={u.unitId}>
+                        Unit {u.unitId}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+            <Divider />
+          </>
+        )}
+
+        <List>
+          {(isAdmin
+            ? [
+                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+                { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
+                { label: 'About', icon: <AboutIcon />, path: '/about' },
+              ]
+            : [
+                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+                { label: 'Current Status', icon: <StatusIcon />, path: '/my-report' },
+                { label: 'Transactions', icon: <TransactionsIcon />, path: '/transactions' },
+                { label: 'Statement of Account', icon: <PdfIcon />, path: '/statement' },
+                { label: 'About', icon: <AboutIcon />, path: '/about' },
+              ]
+          ).map((item) => (
+            <ListItem
+              button
+              key={item.path}
+              selected={location.pathname === item.path}
+              onClick={() => { navigate(item.path); setDrawerOpen(false); }}
+              sx={{ minHeight: 48 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItem>
+          ))}
+        </List>
+        <Divider />
+        <List>
+          <ListItem
+            button
+            onClick={() => { setDrawerOpen(false); handleLogout(); }}
+            sx={{ minHeight: 48 }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItem>
+        </List>
+      </Drawer>
 
       {/* Offline indicator */}
       <div className={`offline-indicator ${!isOnline ? 'show' : ''}`}>

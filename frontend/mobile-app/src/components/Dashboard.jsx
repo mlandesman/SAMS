@@ -37,6 +37,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useClients } from '../hooks/useClients.jsx';
+import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
+import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
 import { VERSION } from '../utils/versionUtils.js';
@@ -47,6 +49,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { samsUser, currentClient, isAuthenticated } = useAuth();
   const { selectedClient, selectClient } = useClients();
+  const { selectedUnitId } = useSelectedUnit();
+  const { data: unitAccountData } = useUnitAccountStatus(currentClient, selectedUnitId);
   const { 
     accountBalances, 
     hoaDuesStatus, 
@@ -157,7 +161,22 @@ const Dashboard = () => {
             loading={loading.accounts}
             secondaryLabel="Bank"
             secondaryValue={`$${accountBalances.bank?.toLocaleString() || '0'}`}
-          />
+            onClick={() => navigate(isAdminOrSuperAdmin ? '/expense-entry' : '/transactions')}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                color: '#6b7280',
+                fontSize: '0.7rem',
+                mt: 0.5,
+              }}
+            >
+              <span>Cash</span>
+              <strong style={{ color: '#374151' }}>${accountBalances.cash?.toLocaleString() || '0'}</strong>
+            </Typography>
+          </CompactCard>
 
           {/* HOA Dues Card */}
           <CompactCard
@@ -168,15 +187,15 @@ const Dashboard = () => {
             color="#059669"
             loading={loading.dues}
             progress={hoaDuesStatus.collectionRate || 0}
-            onClick={() => navigate('/transactions', { state: { openUnifiedPayment: true } })}
+            onClick={() => navigate(isAdminOrSuperAdmin ? '/dashboard' : '/my-report')}
           />
 
           {/* Exchange Rates Card */}
           <CompactCard
             icon={CurrencyIcon}
-            title={`USD Rate${exchangeRates?.lastUpdated ? ` (${new Date(exchangeRates.lastUpdated).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })})` : ''}`}
+            title="USD Rate"
             value={exchangeRates?.rates?.USD?.toFixed(2) || '—'}
-            subtitle="MXN per USD"
+            subtitle={exchangeRates?.lastUpdated ? `MXN · ${exchangeRates.lastUpdated}` : 'MXN per USD'}
             color="#7c3aed"
             loading={loading.rates}
             onClick={() => setRatesModalOpen(true)}
@@ -204,21 +223,21 @@ const Dashboard = () => {
                 value="View"
                 subtitle="Statement of Account"
                 color="#3b82f6"
-                onClick={() => navigate('/unit-report')}
+                onClick={() => navigate('/statement')}
               />
 
-              {/* Payment Status Card */}
+              {/* Payment Due Card — uses unit-specific data */}
               <CompactCard
                 icon={PaymentIcon}
-                title="Payment"
-                value={hoaDuesStatus.outstanding > 0 ? 'Due' : 'Current'}
-                subtitle={hoaDuesStatus.outstanding > 0 
-                  ? `$${hoaDuesStatus.outstanding?.toLocaleString()}` 
-                  : 'All paid up'
+                title="Payment Due"
+                value={(unitAccountData?.amountDue > 0) 
+                  ? `$${unitAccountData.amountDue?.toLocaleString()}`
+                  : 'Current'
                 }
-                color={hoaDuesStatus.outstanding > 0 ? '#dc2626' : '#059669'}
-                badge={hoaDuesStatus.outstanding > 0 ? { text: 'Action', color: '#dc2626' } : null}
-                onClick={() => navigate('/transactions', { state: { openUnifiedPayment: true } })}
+                subtitle={(unitAccountData?.amountDue > 0) ? 'Balance Due' : 'All paid up'}
+                color={(unitAccountData?.amountDue > 0) ? '#dc2626' : '#059669'}
+                badge={(unitAccountData?.amountDue > 0) ? { text: 'Action', color: '#dc2626' } : null}
+                onClick={() => navigate('/my-report')}
               />
             </>
           )}

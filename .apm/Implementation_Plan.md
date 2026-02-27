@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 27, 2026 — Sprint Recon merged (PR #208) with post-merge BugBot follow-up merged (PR #209). Sprint WA is next.  
+**Last Updated:** February 27, 2026 — Sprint MOBILE-OWNER-V1 ✅ COMPLETE (#132, #147, #193). Future enhancements: Budget card, Projects card, Vote Needed card. Sprint WA next.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -26,18 +26,39 @@ All planning and backlog management is maintained in the Agile documentation:
 ## Current Sprint
 
 ### Sprint WA (Next)
-**Status:** Ready for Manager Agent  
+**Status:** Deferred — Sprint MOBILE-OWNER-V1 took priority  
 **Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_WA_Manager_Turnover_Prompt_2026-02-27.md`
 
 | Sprint | Issue | Theme | Est |
 |--------|-------|-------|-----|
 | **WA** | #178 | WhatsApp notifications (payment confirmations, poll alerts, task notices) | 6-8h |
 
-Sprint Recon (#188) is complete and merged to main. Next up: Sprint WA.
-
 ---
 
 ## Recently Completed
+
+### Sprint MOBILE-OWNER-V1: Mobile Owner PWA ✅ COMPLETE
+**Completed:** February 27, 2026  
+**Branch:** `feature/mobile-owner-v1` (18 commits)  
+**Issues:** #132, #147, #193  
+**Quality Rating:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- Hamburger menu with role-based navigation, unit selector in drawer, unitId chip in AppBar
+- Original card-grid Dashboard restored with live linkages (Balance→Transactions, HOA Dues→Current Status, My Account→Statement, Payment Due→Current Status)
+- Payment Due card: unit-specific amountDue (not HOA aggregate), dollar amount prominent
+- Balance card: Bank + Cash rows
+- Exchange Rate card: date on subtitle to prevent wrapping
+- Current Status tab (renamed from SoA): unit summary, YTD, payment calendar, unit-specific fiscal year transactions
+- Transactions tab: all fiscal year transactions from /transactions endpoint with date/vendor/amount, tap-to-expand details
+- Statement of Account tab: stored PDF browser (Firestore metadata, deduplicated by year/month/language) + on-demand generation with English/Spanish toggle
+- Centavos-to-pesos fix, date object formatting, timezone compliance (zero new Date() calls)
+- propertyAccess fallback in SelectedUnitContext and RoleProtectedRoute
+
+**Future Enhancements** (carry to Sprint D):
+- Budget card: live budget data (#176)
+- Projects card: live project status data
+- Vote Needed card: open polls requiring user action
 
 ### Sprint Recon: Historical Balance Lookup ✅ COMPLETE
 **Completed:** February 26, 2026  
