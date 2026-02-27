@@ -162,7 +162,21 @@ const Dashboard = () => {
             secondaryLabel="Bank"
             secondaryValue={`$${accountBalances.bank?.toLocaleString() || '0'}`}
             onClick={() => navigate('/transactions')}
-          />
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                color: '#6b7280',
+                fontSize: '0.7rem',
+                mt: 0.5,
+              }}
+            >
+              <span>Cash</span>
+              <strong style={{ color: '#374151' }}>${accountBalances.cash?.toLocaleString() || '0'}</strong>
+            </Typography>
+          </CompactCard>
 
           {/* HOA Dues Card */}
           <CompactCard
@@ -216,11 +230,11 @@ const Dashboard = () => {
               <CompactCard
                 icon={PaymentIcon}
                 title="Payment Due"
-                value={(unitAccountData?.amountDue > 0) ? 'Due' : 'Current'}
-                subtitle={(unitAccountData?.amountDue > 0) 
-                  ? `$${unitAccountData.amountDue?.toLocaleString()}` 
-                  : 'All paid up'
+                value={(unitAccountData?.amountDue > 0) 
+                  ? `$${unitAccountData.amountDue?.toLocaleString()}`
+                  : 'Current'
                 }
+                subtitle={(unitAccountData?.amountDue > 0) ? 'Balance Due' : 'All paid up'}
                 color={(unitAccountData?.amountDue > 0) ? '#dc2626' : '#059669'}
                 badge={(unitAccountData?.amountDue > 0) ? { text: 'Action', color: '#dc2626' } : null}
                 onClick={() => navigate('/my-report')}
