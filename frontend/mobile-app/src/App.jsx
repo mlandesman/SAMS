@@ -102,8 +102,7 @@ const theme = createTheme({
 });
 
 const DashboardRouter = () => {
-  const { isAdmin } = useAuth();
-  return isAdmin ? <Dashboard /> : <MobileOwnerDashboard />;
+  return <Dashboard />;
 };
 
 function App() {
