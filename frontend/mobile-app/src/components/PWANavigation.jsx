@@ -48,6 +48,11 @@ const PWANavigation = () => {
     return null;
   }
 
+  // Non-admin users use the hamburger menu instead of bottom navigation
+  if (!isAdmin) {
+    return null;
+  }
+
   const getValue = () => {
     const path = location.pathname;
     const navItems = getNavItems();

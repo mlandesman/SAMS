@@ -5,12 +5,23 @@ import {
   Typography,
   IconButton,
   Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   ArrowBack,
-  Logout,
+  Logout as LogoutIcon,
   Menu as MenuIcon,
   AccountCircle,
+  Dashboard as DashboardIcon,
+  Receipt as TransactionsIcon,
+  Description as StatementIcon,
+  Info as AboutIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -20,9 +31,10 @@ import UserProfileManager from './UserProfileManager.jsx';
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Monitor network status
   useEffect(() => {
@@ -57,6 +69,8 @@ const Layout = ({ children }) => {
         return 'Unit Report';
       case '/about':
         return 'About';
+      case '/transactions':
+        return 'Transactions';
       case '/tareas':
         return 'Tareas';
       case '/propane-reading':
@@ -111,15 +125,15 @@ const Layout = ({ children }) => {
         }}
       >
         <Toolbar sx={{ minHeight: '64px !important' }}>
-          {canGoBack() && (
+          {user && location.pathname !== '/auth' && (
             <IconButton
               edge="start"
               color="inherit"
-              onClick={handleBack}
+              onClick={() => setDrawerOpen(true)}
               sx={{ mr: 1 }}
-              aria-label="go back"
+              aria-label="open menu"
             >
-              <ArrowBack />
+              <MenuIcon />
             </IconButton>
           )}
           
@@ -136,27 +150,68 @@ const Layout = ({ children }) => {
           </Typography>
 
           {showLogoutButton() && (
-            <>
-              <IconButton
-                color="inherit"
-                onClick={() => setProfileOpen(true)}
-                aria-label="profile"
-                sx={{ mr: 1 }}
-              >
-                <AccountCircle />
-              </IconButton>
-              
-              <IconButton
-                color="inherit"
-                onClick={handleLogout}
-                aria-label="logout"
-              >
-                <Logout />
-              </IconButton>
-            </>
+            <IconButton
+              color="inherit"
+              onClick={() => setProfileOpen(true)}
+              aria-label="profile"
+            >
+              <AccountCircle />
+            </IconButton>
           )}
         </Toolbar>
       </AppBar>
+
+      {/* Hamburger menu drawer */}
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        variant="temporary"
+        ModalProps={{ keepMounted: true }}
+        PaperProps={{ sx: { width: 260, paddingTop: 'env(safe-area-inset-top)' } }}
+      >
+        <Box sx={{ pt: 2, pb: 1, px: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>SAMS Mobile</Typography>
+        </Box>
+        <Divider />
+        <List>
+          {(isAdmin
+            ? [
+                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+                { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
+                { label: 'About', icon: <AboutIcon />, path: '/about' },
+              ]
+            : [
+                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+                { label: 'Transactions', icon: <TransactionsIcon />, path: '/transactions' },
+                { label: 'Statement of Account', icon: <StatementIcon />, path: '/my-report' },
+                { label: 'About', icon: <AboutIcon />, path: '/about' },
+              ]
+          ).map((item) => (
+            <ListItem
+              button
+              key={item.path}
+              selected={location.pathname === item.path}
+              onClick={() => { navigate(item.path); setDrawerOpen(false); }}
+              sx={{ minHeight: 48 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItem>
+          ))}
+        </List>
+        <Divider />
+        <List>
+          <ListItem
+            button
+            onClick={() => { setDrawerOpen(false); handleLogout(); }}
+            sx={{ minHeight: 48 }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItem>
+        </List>
+      </Drawer>
 
       {/* Offline indicator */}
       <div className={`offline-indicator ${!isOnline ? 'show' : ''}`}>
