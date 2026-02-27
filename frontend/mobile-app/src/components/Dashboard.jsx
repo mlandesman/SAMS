@@ -157,6 +157,7 @@ const Dashboard = () => {
             loading={loading.accounts}
             secondaryLabel="Bank"
             secondaryValue={`$${accountBalances.bank?.toLocaleString() || '0'}`}
+            onClick={() => navigate('/transactions')}
           />
 
           {/* HOA Dues Card */}
@@ -168,13 +169,13 @@ const Dashboard = () => {
             color="#059669"
             loading={loading.dues}
             progress={hoaDuesStatus.collectionRate || 0}
-            onClick={() => navigate('/transactions', { state: { openUnifiedPayment: true } })}
+            onClick={() => navigate('/my-report')}
           />
 
           {/* Exchange Rates Card */}
           <CompactCard
             icon={CurrencyIcon}
-            title={`USD Rate${exchangeRates?.lastUpdated ? ` (${new Date(exchangeRates.lastUpdated).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })})` : ''}`}
+            title={`USD Rate${exchangeRates?.lastUpdated ? ` (${exchangeRates.lastUpdated})` : ''}`}
             value={exchangeRates?.rates?.USD?.toFixed(2) || '—'}
             subtitle="MXN per USD"
             color="#7c3aed"
@@ -204,13 +205,13 @@ const Dashboard = () => {
                 value="View"
                 subtitle="Statement of Account"
                 color="#3b82f6"
-                onClick={() => navigate('/unit-report')}
+                onClick={() => navigate('/statement')}
               />
 
-              {/* Payment Status Card */}
+              {/* Payment Due Card */}
               <CompactCard
                 icon={PaymentIcon}
-                title="Payment"
+                title="Payment Due"
                 value={hoaDuesStatus.outstanding > 0 ? 'Due' : 'Current'}
                 subtitle={hoaDuesStatus.outstanding > 0 
                   ? `$${hoaDuesStatus.outstanding?.toLocaleString()}` 
