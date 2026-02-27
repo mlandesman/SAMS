@@ -15,6 +15,7 @@ import AuthTest from './components/AuthTest'; // Temporary test component
 import Dashboard from './components/Dashboard';
 import MobileOwnerDashboard from './components/owner/MobileOwnerDashboard';
 import TransactionsList from './components/owner/TransactionsList';
+import StatementPdfViewer from './components/owner/StatementPdfViewer';
 import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
@@ -257,6 +258,17 @@ function App() {
                   <ProtectedRoute>
                     <RoleProtectedRoute requiredRole="unitOwner">
                       <MyUnitReport />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/statement" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <StatementPdfViewer />
                     </RoleProtectedRoute>
                   </ProtectedRoute>
                 } 

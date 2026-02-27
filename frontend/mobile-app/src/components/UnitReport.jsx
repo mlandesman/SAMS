@@ -47,12 +47,17 @@ const formatCurrency = (amount) =>
     minimumFractionDigits: 2,
   }).format(amount || 0);
 
-const formatDate = (dateString) =>
-  new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+const centavosToPesos = (centavos) => (centavos || 0) / 100;
+
+const formatDate = (dateValue) => {
+  if (!dateValue) return '—';
+  if (typeof dateValue === 'object' && dateValue !== null) {
+    return dateValue.unambiguous_long_date || dateValue.display || dateValue.ISO_8601 || '—';
+  }
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 const UnitReport = ({ unitId: propUnitId }) => {
   const { currentClient, firebaseUser } = useAuth();
@@ -219,7 +224,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
           {currentStatus?.ytdPaid && (
             <div className="summary-row">
               <span className="label">YTD Total:</span>
-              <span className="value">{formatCurrency((currentStatus.ytdPaid.hoaDues || 0) + (currentStatus.ytdPaid.projects || 0))}</span>
+              <span className="value">{formatCurrency(centavosToPesos((currentStatus.ytdPaid.hoaDues || 0) + (currentStatus.ytdPaid.projects || 0)))}</span>
             </div>
           )}
           {accountStatus?.lastPayment && (
@@ -253,19 +258,17 @@ const UnitReport = ({ unitId: propUnitId }) => {
         ) : (
           <div className="transactions-list">
             {transactions.map((tx) => {
-              const isPayment = tx.payment && tx.payment > 0;
-              const isCharge = tx.charge && tx.charge > 0;
-              const amount = isPayment ? tx.payment : (isCharge ? tx.charge : tx.amount);
-              const amountColor = isPayment ? '#2e7d32' : (isCharge ? '#d32f2f' : undefined);
+              const amount = centavosToPesos(tx.amount);
 
               return (
                 <div
-                  key={tx.id || `${tx.date}-${tx.description}`}
+                  key={tx.id || `${formatDate(tx.date)}-${tx.description}`}
                   className="transaction-item"
                   onClick={() => setSelectedTransaction(tx)}
                 >
                   <div className="transaction-date">{formatDate(tx.date)}</div>
-                  <div className="transaction-amount" style={amountColor ? { color: amountColor } : undefined}>
+                  <div className="transaction-desc">{tx.vendor || tx.description || '—'}</div>
+                  <div className="transaction-amount">
                     {formatCurrency(amount)}
                   </div>
                 </div>
@@ -287,7 +290,10 @@ const UnitReport = ({ unitId: propUnitId }) => {
             </DialogTitle>
             <DialogContent dividers>
               <DetailRow label="Date" value={formatDate(selectedTransaction.date)} />
-              <DetailRow label="Amount" value={formatCurrency(selectedTransaction.amount || selectedTransaction.payment || selectedTransaction.charge)} />
+              <DetailRow label="Amount" value={formatCurrency(centavosToPesos(selectedTransaction.amount))} />
+              {selectedTransaction.vendor && (
+                <DetailRow label="Vendor" value={selectedTransaction.vendor} />
+              )}
               {selectedTransaction.description && (
                 <DetailRow label="Description" value={selectedTransaction.description} />
               )}
@@ -296,9 +302,6 @@ const UnitReport = ({ unitId: propUnitId }) => {
               )}
               {selectedTransaction.paymentMethod && (
                 <DetailRow label="Payment Method" value={selectedTransaction.paymentMethod} />
-              )}
-              {typeof selectedTransaction.balance === 'number' && (
-                <DetailRow label="Running Balance" value={formatCurrency(selectedTransaction.balance)} />
               )}
             </DialogContent>
             <DialogActions>

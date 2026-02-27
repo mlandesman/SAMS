@@ -20,8 +20,10 @@ import {
   Dashboard as DashboardIcon,
   Receipt as TransactionsIcon,
   Description as StatementIcon,
+  Assessment as StatusIcon,
   Info as AboutIcon,
   Add as AddIcon,
+  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -66,7 +68,9 @@ const Layout = ({ children }) => {
       case '/exchange-rates':
         return 'Exchange Rates';
       case '/my-report':
-        return 'Unit Report';
+        return 'Current Status';
+      case '/statement':
+        return 'Statement of Account';
       case '/about':
         return 'About';
       case '/transactions':
@@ -183,8 +187,9 @@ const Layout = ({ children }) => {
               ]
             : [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+                { label: 'Current Status', icon: <StatusIcon />, path: '/my-report' },
                 { label: 'Transactions', icon: <TransactionsIcon />, path: '/transactions' },
-                { label: 'Statement of Account', icon: <StatementIcon />, path: '/my-report' },
+                { label: 'Statement of Account', icon: <PdfIcon />, path: '/statement' },
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
           ).map((item) => (
