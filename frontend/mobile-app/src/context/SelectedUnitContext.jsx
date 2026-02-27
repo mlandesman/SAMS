@@ -16,9 +16,10 @@ export const useSelectedUnit = () => {
  * Supports both new unitAssignments array and legacy flat structure.
  */
 function extractAvailableUnits(samsUser, clientId) {
-  if (!samsUser?.clientAccess || !clientId) return [];
+  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess;
+  if (!clientAccess || !clientId) return [];
 
-  const access = samsUser.clientAccess[clientId];
+  const access = clientAccess[clientId];
   if (!access) return [];
 
   // New structure: unitAssignments array
