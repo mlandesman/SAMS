@@ -27,6 +27,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   });
   
   const [errors, setErrors] = useState({});
+  const [sqftUserEdited, setSqftUserEdited] = useState(false);
 
   // Migrate emails from legacy field to owner objects (aggressive migration)
   const migrateEmailsToOwners = (owners, emails) => {
@@ -220,21 +221,23 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       });
     }
     setErrors({});
+    setSqftUserEdited(false);
   }, [unit, isOpen]);
 
-  // Auto-calculate ownership when square feet changes (display value = percentage)
+  // Auto-calculate ownership only when user manually changes square feet
   useEffect(() => {
-    if (formData.squareFeet && selectedClient?.squareFeet) {
+    if (sqftUserEdited && formData.squareFeet && selectedClient?.squareFeet) {
       const decimal = parseFloat(formData.squareFeet) / parseFloat(selectedClient.squareFeet);
       setFormData(prev => ({
         ...prev,
         ownershipDisplay: (decimal * 100).toFixed(4)
       }));
     }
-  }, [formData.squareFeet, selectedClient?.squareFeet]);
+  }, [formData.squareFeet, selectedClient?.squareFeet, sqftUserEdited]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'squareFeet') setSqftUserEdited(true);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -452,9 +455,9 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       // Don't store square meters - calculate on display only
       // Remove active field - doesn't make sense
       // Note: emails field is removed - emails are now in owner objects
-      const { emails, ...formDataWithoutEmails } = formData; // Explicitly exclude emails field
+      const { emails, ownershipDisplay, ...cleanFormData } = formData;
       const submitData = {
-        ...formDataWithoutEmails,
+        ...cleanFormData,
         owners: ownersArray, // Includes userId field when user is selected
         managers: managersArray, // Includes userId field when user is selected
         squareFeet: formData.squareFeet ? parseFloat(formData.squareFeet) : undefined,

@@ -398,8 +398,10 @@ function HOADuesView() {
     const options = [];
 
     if (allEmails.length > 0) {
-      const toField = ownerEmails.join(',');
-      const ccField = managerEmails.length > 0 ? `?cc=${managerEmails.join(',')}` : '';
+      const toField = ownerEmails.length > 0 ? ownerEmails.join(',') : managerEmails.join(',');
+      const ccField = ownerEmails.length > 0 && managerEmails.length > 0
+        ? `?cc=${managerEmails.join(',')}`
+        : '';
       options.push({
         label: 'Email Owners & Managers',
         icon: '✉️',
