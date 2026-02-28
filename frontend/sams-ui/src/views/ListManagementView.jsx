@@ -451,9 +451,9 @@ function ListManagementView() {
             }
           },
           { 
-            key: 'percentOwned', 
-            label: 'Percentage Owned',
-            type: 'percentage'
+            key: 'ownershipPercentage', 
+            label: 'Ownership %',
+            render: (val) => val ? `${(Number(val) * 100).toFixed(2)}%` : '—'
           },
           { 
             key: 'duesAmount', 
