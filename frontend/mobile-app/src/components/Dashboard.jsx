@@ -187,7 +187,7 @@ const Dashboard = () => {
             color="#059669"
             loading={loading.dues}
             progress={hoaDuesStatus.collectionRate || 0}
-            onClick={() => navigate(isAdminOrSuperAdmin ? '/dashboard' : '/my-report')}
+            onClick={isAdminOrSuperAdmin ? undefined : () => navigate('/my-report')}
           />
 
           {/* Exchange Rates Card */}
@@ -336,7 +336,7 @@ const Dashboard = () => {
               fullWidth
               variant="contained"
               startIcon={<ArrowIcon />}
-              onClick={() => navigate('/unit-report')}
+              onClick={() => navigate('/statement')}
               sx={{
                 background: 'linear-gradient(135deg, #0863bf 0%, #3b82f6 100%)',
                 borderRadius: '12px',
