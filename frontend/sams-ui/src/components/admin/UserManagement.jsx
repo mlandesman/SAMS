@@ -58,7 +58,10 @@ const UserManagement = ({
       setError(null);
       
       const response = await secureApi.getSystemUsers();
-      setUsers(response.users || []);
+      const sorted = (response.users || []).sort((a, b) =>
+        (a.profile?.lastName || '').localeCompare(b.profile?.lastName || '', undefined, { sensitivity: 'base' })
+      );
+      setUsers(sorted);
     } catch (err) {
       console.error('Failed to load users:', err);
       setError(err.message || 'Failed to load users');
