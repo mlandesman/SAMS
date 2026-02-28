@@ -69,15 +69,14 @@ const UserManagement = ({
         return true;
       });
 
-      // Sort by last name, falling back to last word of display name
-      const getLastName = (u) => {
-        if (u.profile?.lastName) return u.profile.lastName;
-        const full = u.profile?.displayName || u.name || '';
-        const parts = full.trim().split(/\s+/);
-        return parts.length > 1 ? parts[parts.length - 1] : full;
+      // Sort by paternal surname (last word of lastName or display name)
+      const getSortableName = (u) => {
+        const raw = u.profile?.lastName || u.profile?.displayName || u.name || '';
+        const parts = raw.trim().split(/\s+/);
+        return parts[parts.length - 1] || '';
       };
       deduped.sort((a, b) =>
-        getLastName(a).localeCompare(getLastName(b), undefined, { sensitivity: 'base' })
+        getSortableName(a).localeCompare(getSortableName(b), undefined, { sensitivity: 'base' })
       );
       setUsers(deduped);
     } catch (err) {
