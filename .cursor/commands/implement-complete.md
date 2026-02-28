@@ -4,13 +4,33 @@ As an Implementation Agent, you will now mark your task as complete and prepare 
 
 ## Task Completion Process
 
-### 1. Final Validation
-Before marking complete, verify:
+### 1. Pre-Completion Quality Gate (MANDATORY)
+
+Before marking complete, run automated and manual checks against the full branch diff.
+
+#### 1a. Run Automated Checks
+```bash
+bash scripts/pre-pr-checks.sh main
+```
+This checks for: `new Date()` violations, dead/unused files, navigation targets without matching routes, and CommonJS in frontend code. **Fix all issues before proceeding.**
+
+#### 1b. Manual Code Review (Review `git diff main...HEAD`)
+You MUST review the full diff and check for these patterns that automated tools miss:
+
+- **Dead code from pivots**: If you created a component/file and later abandoned it in favor of a different approach, DELETE the abandoned file. Don't leave it in the branch.
+- **Unused imports**: If you removed usage of a component but left its `import` statement, remove the import.
+- **State reset on context changes**: For every component that uses `selectedUnitId`, `currentClient`, or similar context values — verify that local state (loaded data, selections, errors, displayed content) resets when those values change. Add a `useEffect` cleanup if missing.
+- **Data unit consistency**: When a component falls back between two data sources (e.g., `accountStatus?.value ?? currentStatus?.value`), verify both sources return the same units (pesos vs centavos, strings vs objects). Convert in the fallback if they differ.
+- **Role/permission alignment**: For every `onClick={() => navigate('/route')}`, verify the user who can SEE the clickable element also has PERMISSION to access that route. Check `RoleProtectedRoute` wrappers in `App.jsx`. If a card is visible to all users but links to a role-restricted route, gate the `onClick` or use role-appropriate targets.
+
+#### 1c. Standard Validation
 - [ ] All acceptance criteria are met
 - [ ] Code is tested and working
 - [ ] Documentation is complete
 - [ ] Memory Bank is updated
 - [ ] No outstanding issues
+- [ ] Quality gate script passes with zero issues
+- [ ] Manual review completed for state/data/permission patterns
 
 ### 2. Create Completion Summary
 

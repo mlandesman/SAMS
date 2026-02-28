@@ -122,3 +122,13 @@ Use the issue creation tool or follow the format in `/workspace/docs/issues 2/op
 - Verify timezone handling for date inputs
 - Check mobile app impact if touching shared components
 
+## Pre-PR Quality Gate (MANDATORY)
+Before creating any PR or marking work complete, agents MUST:
+
+1. **Run `bash scripts/pre-pr-checks.sh main`** — fixes all automated findings
+2. **Delete dead files** — if you created a component and later abandoned it, delete it
+3. **Verify state resets** — components using `selectedUnitId` or `currentClient` must reset local state when those values change
+4. **Check data unit consistency** — fallback chains must not mix pesos (dashboard-summary) with centavos (unit-report)
+5. **Audit navigate() targets** — every `navigate('/route')` must point to a route the current user can access; cross-reference with `RoleProtectedRoute` in `App.jsx`
+6. **Review full diff** — read `git diff main...HEAD` as a reviewer, not as the author
+

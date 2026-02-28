@@ -10,28 +10,49 @@ First, ensure you have the latest project information:
 - Review Implementation Plan progress
 - Identify completed tasks for review
 
-### 2. Review Checklist
-For each completed task, evaluate:
+### 2. Code Quality Verification (MANDATORY BEFORE APPROVAL)
 
-#### Functionality Review
+Before evaluating functionality or documentation, run the automated quality gate and perform a targeted code review. **Do NOT approve a PR until these pass.**
+
+#### 2a. Run Automated Quality Gate
+```bash
+bash scripts/pre-pr-checks.sh main
+```
+This catches: `new Date()` timezone violations, dead/unused files, orphaned imports, navigation targets without matching routes, CommonJS in frontend code. **All issues must be resolved before approval.**
+
+#### 2b. Targeted Code Review (Review `git diff main...HEAD`)
+
+Review the full branch diff for these specific patterns — these are the issues BugBot repeatedly catches and automated linting misses:
+
+| Check | What to look for | Why |
+|-------|-----------------|-----|
+| **Dead files** | Files created during the branch that are no longer imported by anything. Common after design pivots (e.g., built ComponentA, later switched to ComponentB, forgot to delete ComponentA). | 5 of 8 BugBot issues in Sprint MOBILE-OWNER-V1 were dead code. |
+| **Unused imports** | `import Foo from './Foo'` where `Foo` is never referenced in the file body. Often left behind when removing a component's usage. | Adds unnecessary bundle size and confuses future readers. |
+| **State reset on context change** | Components using `useSelectedUnit()`, `useAuth()`, or similar context — does local state (loaded data, PDF URLs, dropdown selections, error messages) reset when the context value changes? Look for missing `useEffect` cleanup. | Stale data from a previous unit/client displayed after switching. |
+| **Data unit mismatches in fallbacks** | `const value = sourceA?.field ?? sourceB?.field` — are both sources in the same units? Dashboard-summary returns pesos; unit-report returns centavos. Both return date objects differently. | Values display 100x too large or show "Invalid Date" until the preferred source loads. |
+| **Role/permission alignment** | Every `navigate('/route')` — can the user who SEES the clickable element actually ACCESS that route? Cross-reference with `RoleProtectedRoute` wrappers in `App.jsx`. Cards rendered outside `!isAdminOrSuperAdmin` guards must not link to `requiredRole="unitOwner"` routes. | Admin clicks a card and gets "You don't have permission." |
+| **Orphaned route references** | `navigate('/old-route')` pointing to routes that were renamed or removed during the branch. Check all `navigate()` calls against the current `App.jsx` `<Route>` definitions. | Click leads to catch-all redirect to `/auth`. |
+
+#### 2c. General Review Checklist
+
+##### Functionality Review
 - Does it meet the task requirements?
 - Are all acceptance criteria satisfied?
 - Does it integrate properly with other components?
 - Are edge cases handled appropriately?
 
-#### Code Quality Review
+##### Code Quality Review
 - Is the code clean and readable?
 - Does it follow project conventions?
-- Are there appropriate comments?
 - Is the logic clear and maintainable?
 
-#### Technical Review
+##### Technical Review
 - Are best practices followed?
 - Is the solution efficient?
 - Are there any security concerns?
 - Is error handling comprehensive?
 
-#### Documentation Review
+##### Documentation Review
 - Is the Memory Bank entry complete?
 - Are implementation decisions documented?
 - Is the code self-documenting where possible?
