@@ -19,7 +19,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     address: '',
     status: 'active',
     squareFeet: '',
-    percentOwned: '',
+    ownershipDisplay: '',  // Percentage for display (e.g. "7.10"), stored as decimal (0.071)
     duesAmount: '',
     type: 'condo',
     accessCode: '',
@@ -27,6 +27,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   });
   
   const [errors, setErrors] = useState({});
+  const [sqftUserEdited, setSqftUserEdited] = useState(false);
 
   // Migrate emails from legacy field to owner objects (aggressive migration)
   const migrateEmailsToOwners = (owners, emails) => {
@@ -148,6 +149,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
           ownersWithIds = [{ name: '', email: '', userId: null }];
         }
         
+        const rawOwnership = unit.ownershipPercentage || unit.percentOwned || '';
         setFormData({
           unitId: unit.unitId || '',
           unitName: unit.unitName || '',
@@ -156,7 +158,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
           address: unit.address || '',
           status: unit.status || 'Occupied',
           squareFeet: unit.squareFeet || '',
-          percentOwned: unit.percentOwned || '',
+          ownershipDisplay: rawOwnership ? (parseFloat(rawOwnership) * 100).toFixed(4) : '',
           duesAmount: unit.duesAmount || '',
           type: unit.type || 'condo',
           accessCode: unit.accessCode || '',
@@ -186,6 +188,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         userId: manager.userId || null
       }));
       
+      const rawOwnership = unit.ownershipPercentage || unit.percentOwned || '';
       setFormData({
         unitId: unit.unitId || '',
         unitName: unit.unitName || '',
@@ -194,7 +197,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         address: unit.address || '',
         status: unit.status || 'Occupied',
         squareFeet: unit.squareFeet || '',
-        percentOwned: unit.percentOwned || '',
+        ownershipDisplay: rawOwnership ? (parseFloat(rawOwnership) * 100).toFixed(4) : '',
         duesAmount: unit.duesAmount || '',
         type: unit.type || 'condo',
         accessCode: unit.accessCode || '',
@@ -205,12 +208,12 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       setFormData({
         unitId: '',
         unitName: '',
-        owners: [{ name: '', email: '', userId: null }], // Start with one empty owner row
+        owners: [{ name: '', email: '', userId: null }],
         managers: [],
         address: '',
         status: 'active',
         squareFeet: '',
-        percentOwned: '',
+        ownershipDisplay: '',
         duesAmount: '',
         type: 'condo',
         accessCode: '',
@@ -218,21 +221,23 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       });
     }
     setErrors({});
+    setSqftUserEdited(false);
   }, [unit, isOpen]);
 
-  // Auto-calculate percentage ownership when square feet changes
+  // Auto-calculate ownership only when user manually changes square feet
   useEffect(() => {
-    if (formData.squareFeet && selectedClient?.squareFeet) {
-      const percentage = (parseFloat(formData.squareFeet) / parseFloat(selectedClient.squareFeet)) * 100;
+    if (sqftUserEdited && formData.squareFeet && selectedClient?.squareFeet) {
+      const decimal = parseFloat(formData.squareFeet) / parseFloat(selectedClient.squareFeet);
       setFormData(prev => ({
         ...prev,
-        percentOwned: percentage.toFixed(12) // High precision for small percentages
+        ownershipDisplay: (decimal * 100).toFixed(4)
       }));
     }
-  }, [formData.squareFeet, selectedClient?.squareFeet]);
+  }, [formData.squareFeet, selectedClient?.squareFeet, sqftUserEdited]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'squareFeet') setSqftUserEdited(true);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -450,14 +455,14 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       // Don't store square meters - calculate on display only
       // Remove active field - doesn't make sense
       // Note: emails field is removed - emails are now in owner objects
-      const { emails, ...formDataWithoutEmails } = formData; // Explicitly exclude emails field
+      const { emails, ownershipDisplay, ...cleanFormData } = formData;
       const submitData = {
-        ...formDataWithoutEmails,
+        ...cleanFormData,
         owners: ownersArray, // Includes userId field when user is selected
         managers: managersArray, // Includes userId field when user is selected
         squareFeet: formData.squareFeet ? parseFloat(formData.squareFeet) : undefined,
         squareMeters: formData.squareFeet ? Math.round(parseFloat(formData.squareFeet) * 0.092903) : undefined,
-        percentOwned: formData.percentOwned ? parseFloat(formData.percentOwned) : undefined,
+        ownershipPercentage: formData.ownershipDisplay ? parseFloat(formData.ownershipDisplay) / 100 : undefined,
         duesAmount: formData.duesAmount ? parseFloat(formData.duesAmount) : undefined,
         propertyType: formData.type || 'condo'
         // Note: Units don't have an 'id' field - unitId IS the document ID
@@ -728,17 +733,22 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                 </div>
                 
                 <div className="sandyland-form-field">
-                  <label htmlFor="percentOwned">Percentage Owned</label>
+                  <label htmlFor="ownershipDisplay">Ownership %</label>
                   <input
-                    id="percentOwned"
-                    name="percentOwned"
-                    type="text"
-                    value={formData.percentOwned ? `${Number(formData.percentOwned).toFixed(4)}%` : ''}
-                    className="sandyland-auto-calculated"
-                    readOnly
+                    id="ownershipDisplay"
+                    name="ownershipDisplay"
+                    type="number"
+                    step="0.0001"
+                    value={formData.ownershipDisplay}
+                    onChange={handleChange}
+                    placeholder="e.g., 7.10"
                   />
-                  <span className="sandyland-helper-text">Auto-calculated from square feet</span>
-                  {errors.percentOwned && <span className="sandyland-error-text">{errors.percentOwned}</span>}
+                  <span className="sandyland-helper-text">
+                    {formData.squareFeet && selectedClient?.squareFeet
+                      ? 'Auto-calculated from sq ft (editable)'
+                      : 'Enter as percentage (e.g., 7.10 for 7.10%)'}
+                  </span>
+                  {errors.ownershipDisplay && <span className="sandyland-error-text">{errors.ownershipDisplay}</span>}
                 </div>
               </div>
               

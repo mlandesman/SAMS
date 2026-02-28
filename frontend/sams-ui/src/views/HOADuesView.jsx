@@ -13,7 +13,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { getOwnerInfo } from '../utils/unitUtils';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { getFirstOwnerName } from '../utils/unitContactUtils.js';
+import { getFirstOwnerName, normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
@@ -368,6 +368,65 @@ function HOADuesView() {
     });
   };
   
+  // Build tooltip text for unit header cell
+  const getUnitTooltip = (unitWithOwner) => {
+    if (!unitWithOwner) return '';
+    const owners = normalizeOwners(unitWithOwner.owners);
+    const managers = normalizeManagers(unitWithOwner.managers);
+    const lines = [];
+    if (owners.length > 0) {
+      lines.push(`Owner${owners.length > 1 ? 's' : ''}: ${owners.map(o => o.name).join(', ')}`);
+    }
+    if (managers.length > 0) {
+      lines.push(`Manager${managers.length > 1 ? 's' : ''}: ${managers.map(m => m.name).join(', ')}`);
+    }
+    return lines.join('\n') || 'No contact info';
+  };
+
+  // Handle unit header context menu (right-click for email/whatsapp)
+  const handleUnitHeaderContextMenu = (e, unitWithOwner) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!unitWithOwner) return;
+
+    const owners = normalizeOwners(unitWithOwner.owners);
+    const managers = normalizeManagers(unitWithOwner.managers);
+    const allEmails = [...owners, ...managers].map(c => c.email).filter(Boolean);
+    const ownerEmails = owners.map(c => c.email).filter(Boolean);
+    const managerEmails = managers.map(c => c.email).filter(Boolean);
+
+    const options = [];
+
+    if (allEmails.length > 0) {
+      const toField = ownerEmails.length > 0 ? ownerEmails.join(',') : managerEmails.join(',');
+      const ccField = ownerEmails.length > 0 && managerEmails.length > 0
+        ? `?cc=${managerEmails.join(',')}`
+        : '';
+      options.push({
+        label: 'Email Owners & Managers',
+        icon: '✉️',
+        onClick: () => { window.location.href = `mailto:${toField}${ccField}`; }
+      });
+    } else {
+      options.push({ label: 'No emails on file', icon: '✉️', disabled: true, onClick: () => {} });
+    }
+
+    options.push({
+      label: 'WhatsApp (coming soon)',
+      icon: '💬',
+      disabled: true,
+      onClick: () => {}
+    });
+
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      type: 'unit',
+      data: { unitId: unitWithOwner.unitId },
+      options
+    });
+  };
+
   // Close context menu
   const closeContextMenu = () => {
     setContextMenu({
@@ -892,15 +951,16 @@ function HOADuesView() {
                 </div>
               </th>
               {units.map(unit => {
-                // Find unit config from unitsWithOwners (has owner data from API)
                 const unitWithOwner = unitsWithOwners.find(u => u.unitId === unit.unitId);
                 const { lastName } = getOwnerInfo(unitWithOwner || {});
-                const ownerName = getFirstOwnerName(unitWithOwner?.owners) || unitWithOwner?.owner || 'No Name';
                 
                 return (
                   <th 
                     key={unit.unitId} 
                     className={`unit-header ${highlightedUnit === unit.unitId ? 'highlighted-unit' : ''}`}
+                    title={getUnitTooltip(unitWithOwner)}
+                    onContextMenu={(e) => handleUnitHeaderContextMenu(e, unitWithOwner)}
+                    style={{ cursor: 'context-menu' }}
                   >
                     <div className="unit-id-cell">{unit.unitId}</div>
                     <div className="owner-lastname-cell">{lastName}</div>

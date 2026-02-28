@@ -51,53 +51,46 @@ export function useBudgetStatus() {
                         Math.abs(expenseTotals.totalYtdActual || 0);
       const netVariance = netActual - netBudgetYTD;
 
-      // Find top variance items (positive and negative)
-      const allItems = [
-        ...(budgetData.income?.categories || []),
-        ...(budgetData.expenses?.categories || []),
-      ];
-
-      // Sort by absolute variance to find biggest misses
-      const topVariances = allItems
-        .filter(item => item.variance !== 0)
-        .sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))
-        .slice(0, 5)
+      // Over-budget watch list: expense categories where actual > budget
+      // Variance in BvA is (budget - actual), so negative = over budget
+      const expenseCategories = budgetData.expenses?.categories || [];
+      const overBudgetItems = expenseCategories
+        .filter(item => item.ytdBudget > 0 && item.variance < 0)
         .map(item => ({
           category: item.name,
-          variance: item.variance,
-          variancePercent: item.ytdBudget ? ((item.variance / item.ytdBudget) * 100).toFixed(0) : 0,
-          favorable: item.variance > 0, // positive variance is favorable
-        }));
+          overAmount: Math.abs(item.variance),
+          overPercent: Math.round(Math.abs(item.variance / item.ytdBudget) * 100),
+        }))
+        .sort((a, b) => b.overPercent - a.overPercent)
+        .slice(0, 5);
+
+      // Expense-only status: are expenses within budget?
+      const expenseYtdBudget = expenseTotals.totalYtdBudget || 0;
+      const expenseYtdActual = Math.abs(expenseTotals.totalYtdActual || 0);
+      const expenseVariance = expenseYtdBudget - expenseYtdActual;
 
       setData({
         fiscalYear: budgetData.reportInfo?.fiscalYear,
         percentElapsed: Math.round(percentElapsed),
         
-        // Income summary
-        incomeBudget: incomeTotals.totalAnnualBudget || 0,
-        incomeActual: incomeTotals.totalYtdActual || 0,
-        incomeVariance: incomeTotals.totalVariance || 0,
+        // Expense-focused metrics (what the card displays)
+        expenseYtdBudget,
+        expenseYtdActual,
+        expenseVariance,
+        expenseBudgetAnnual: expenseTotals.totalAnnualBudget || 0,
+
+        // Status based on expense budget health
+        status: expenseVariance >= 0 ? 'favorable' : 'unfavorable',
+        statusText: expenseVariance >= 0 ? 'On Track' : 'Over Budget',
+        statusColor: expenseVariance >= 0 ? '#059669' : '#dc2626',
         
-        // Expense summary  
-        expenseBudget: expenseTotals.totalAnnualBudget || 0,
-        expenseActual: Math.abs(expenseTotals.totalYtdActual || 0),
-        expenseVariance: expenseTotals.totalVariance || 0,
+        // Over-budget watch list for tooltip
+        overBudgetItems,
         
-        // Net position
+        // Legacy fields kept for backward compat
         netBudgetYTD,
         netActual,
         netVariance,
-        
-        // Status indicators
-        status: netVariance >= 0 ? 'favorable' : 'unfavorable',
-        statusText: netVariance >= 0 ? 'On Track' : 'Over Budget',
-        statusColor: netVariance >= 0 ? '#059669' : '#dc2626',
-        
-        // Top variances for tooltip/drill-down
-        topVariances,
-        
-        // Raw data reference
-        _raw: budgetData,
       });
 
     } catch (err) {

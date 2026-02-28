@@ -899,23 +899,23 @@ function DashboardView() {
         <Grid item xs={12} sm={6} md={4}>
           <Tooltip
             title={
-              budgetStatus?.topVariances?.length > 0 ? (
+              budgetStatus?.overBudgetItems?.length > 0 ? (
                 <Box sx={{ p: 1.5 }}>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
-                    Top Variances (FY {budgetStatus.fiscalYear})
+                    Over-Budget Watch List
                   </Typography>
-                  {budgetStatus.topVariances.map((item, index) => (
-                    <Box key={index} sx={{ mb: index < budgetStatus.topVariances.length - 1 ? 0.75 : 0 }}>
+                  {budgetStatus.overBudgetItems.map((item, index) => (
+                    <Box key={index} sx={{ mb: index < budgetStatus.overBudgetItems.length - 1 ? 0.75 : 0 }}>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, color: 'white' }}>
                         <span>{item.category}</span>
-                        <strong style={{ color: item.favorable ? '#86efac' : '#fca5a5' }}>
-                          {item.favorable ? '+' : ''}{item.variancePercent}%
+                        <strong style={{ color: '#fca5a5' }}>
+                          +{item.overPercent}%
                         </strong>
                       </Typography>
                     </Box>
                   ))}
                 </Box>
-              ) : 'View Budget vs Actual Report'
+              ) : budgetStatus ? 'All categories within budget' : 'View Budget vs Actual Report'
             }
             arrow
             placement="top"
@@ -988,17 +988,17 @@ function DashboardView() {
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span>Income YTD:</span>
-                        <strong style={{ color: '#059669' }}>${budgetStatus.incomeActual?.toLocaleString() || '0'}</strong>
+                        <span>YTD Budget:</span>
+                        <strong>${Math.round(budgetStatus.expenseYtdBudget)?.toLocaleString() || '0'}</strong>
                       </Typography>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span>Expenses YTD:</span>
-                        <strong style={{ color: '#dc2626' }}>${budgetStatus.expenseActual?.toLocaleString() || '0'}</strong>
+                        <span>YTD Actual:</span>
+                        <strong>${Math.round(budgetStatus.expenseYtdActual)?.toLocaleString() || '0'}</strong>
                       </Typography>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Net Variance:</span>
-                        <strong style={{ color: budgetStatus.netVariance >= 0 ? '#059669' : '#dc2626' }}>
-                          {budgetStatus.netVariance >= 0 ? '+' : ''}${Math.round(budgetStatus.netVariance)?.toLocaleString() || '0'}
+                        <span>Variance:</span>
+                        <strong style={{ color: budgetStatus.expenseVariance >= 0 ? '#059669' : '#dc2626' }}>
+                          {budgetStatus.expenseVariance >= 0 ? '+' : '-'}${Math.abs(Math.round(budgetStatus.expenseVariance))?.toLocaleString() || '0'}
                         </strong>
                       </Typography>
                     </Box>

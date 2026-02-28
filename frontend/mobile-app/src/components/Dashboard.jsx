@@ -39,6 +39,7 @@ import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useClients } from '../hooks/useClients.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
+import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
 import { VERSION } from '../utils/versionUtils.js';
@@ -51,6 +52,7 @@ const Dashboard = () => {
   const { selectedClient, selectClient } = useClients();
   const { selectedUnitId } = useSelectedUnit();
   const { data: unitAccountData } = useUnitAccountStatus(currentClient, selectedUnitId);
+  const { budgetStatus, loading: budgetLoading } = useBudgetStatus();
   const { 
     accountBalances, 
     hoaDuesStatus, 
@@ -203,14 +205,17 @@ const Dashboard = () => {
             secondaryValue={exchangeRates?.rates?.CAD?.toFixed(2) || '—'}
           />
 
-          {/* Budget Status Card - Shows actual data now! */}
+          {/* Budget Status Card */}
           <CompactCard
             icon={TrendingUpIcon}
             title="Budget"
-            value="On Track"
-            subtitle="YTD Status"
-            color="#f59e0b"
-            onClick={() => navigate('/reports')}
+            value={budgetStatus?.statusText || '—'}
+            subtitle={budgetStatus
+              ? `$${Math.round(budgetStatus.expenseYtdActual)?.toLocaleString()} of $${Math.round(budgetStatus.expenseYtdBudget)?.toLocaleString()}`
+              : 'Loading...'
+            }
+            color={budgetStatus?.statusColor || '#f59e0b'}
+            loading={budgetLoading}
           />
 
           {/* === NON-ADMIN USER CARDS === */}
