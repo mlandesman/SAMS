@@ -58,10 +58,28 @@ const UserManagement = ({
       setError(null);
       
       const response = await secureApi.getSystemUsers();
-      const sorted = (response.users || []).sort((a, b) =>
-        (a.profile?.lastName || '').localeCompare(b.profile?.lastName || '', undefined, { sensitivity: 'base' })
+      const raw = response.users || [];
+
+      // Deduplicate by email (keep first occurrence per email)
+      const seen = new Set();
+      const deduped = raw.filter(u => {
+        const key = (u.email || u.id).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // Sort by last name, falling back to last word of display name
+      const getLastName = (u) => {
+        if (u.profile?.lastName) return u.profile.lastName;
+        const full = u.profile?.displayName || u.name || '';
+        const parts = full.trim().split(/\s+/);
+        return parts.length > 1 ? parts[parts.length - 1] : full;
+      };
+      deduped.sort((a, b) =>
+        getLastName(a).localeCompare(getLastName(b), undefined, { sensitivity: 'base' })
       );
-      setUsers(sorted);
+      setUsers(deduped);
     } catch (err) {
       console.error('Failed to load users:', err);
       setError(err.message || 'Failed to load users');
