@@ -455,9 +455,9 @@ function ListManagementView() {
             label: 'Ownership %',
             render: (value, item) => {
               const decimal = item?.ownershipPercentage;
-              if (decimal) return `${(Number(decimal) * 100).toFixed(2)}%`;
+              if (decimal != null) return `${(Number(decimal) * 100).toFixed(2)}%`;
               const legacy = item?.percentOwned;
-              if (legacy) return `${Number(legacy).toFixed(2)}%`;
+              if (legacy != null) return `${Number(legacy).toFixed(2)}%`;
               return '—';
             }
           },
