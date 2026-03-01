@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getClientData, createExpense, cacheManager } from '../services/api';
-import { databaseFieldMappings } from '../../../src/utils/databaseFieldMappings';
+import { databaseFieldMappings } from '@/utils/databaseFieldMappings.js';
 
 export const useExpenseForm = (clientId) => {
   const [formData, setFormData] = useState({

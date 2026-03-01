@@ -29,7 +29,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useExpenseForm } from '../hooks/useExpenseForm.jsx';
 import { validateClientAccess } from '../services/api';
-import { databaseFieldMappings } from '../../../src/utils/databaseFieldMappings';
+import { databaseFieldMappings } from '@/utils/databaseFieldMappings.js';
 
 const ExpenseForm = () => {
   const { clientId } = useParams();

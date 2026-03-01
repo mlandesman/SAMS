@@ -1,12 +1,11 @@
 /**
  * Shared database field mappings and conversion utilities
- * Used by all frontend components and hooks
- * Note: Frontend doesn't have firebase-admin, uses different approach
+ * Used by mobile PWA components and hooks.
+ * Currency conversions delegate to currencyUtils.js (Sprint CX pattern).
  */
+import { centavosToPesos, pesosToCentavos } from './currencyUtils.js';
 
-// Timezone configuration - America/Cancun (no DST)
 const CANCUN_TIMEZONE = 'America/Cancun';
-const CANCUN_OFFSET = -5; // UTC-5, no DST changes
 
 export const databaseFieldMappings = {
   // ===== TIMESTAMP CONVERSIONS =====
@@ -98,40 +97,17 @@ export const databaseFieldMappings = {
     return new Date(cancunDateStr);
   },
 
-  // ===== AMOUNT CONVERSIONS =====
-  /**
-   * Convert cents to dollars for display
-   * @param {number} cents 
-   * @returns {number} Amount in dollars
-   */
-  centsToDollars: (cents) => {
-    if (!cents && cents !== 0) return 0;
-    return cents / 100;
-  },
+  // ===== AMOUNT CONVERSIONS (delegate to currencyUtils) =====
+  centsToDollars: (cents) => centavosToPesos(typeof cents === 'number' ? cents : 0),
 
-  /**
-   * Format amount for display with currency
-   * @param {number} cents - Amount in cents
-   * @param {string} currency - Currency code (USD, EUR, etc.)
-   * @returns {string} Formatted currency string
-   */
   formatCurrency: (cents, currency = 'USD') => {
-    const dollars = databaseFieldMappings.centsToDollars(cents);
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency
-    }).format(dollars);
+    const dollars = centavosToPesos(typeof cents === 'number' ? cents : 0);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(dollars);
   },
 
-  /**
-   * Convert dollars to cents for form submissions
-   * @param {number|string} dollars 
-   * @returns {number} Amount in cents
-   */
   dollarsToCents: (dollars) => {
     if (!dollars && dollars !== 0) return 0;
-    const amount = parseFloat(dollars);
-    return Math.round(amount * 100);
+    return pesosToCentavos(parseFloat(dollars));
   },
 
   // ===== FIELD MAPPINGS =====

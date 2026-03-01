@@ -6,32 +6,46 @@
       "changes": [
         {
           "type": "feat",
-          "issues": ["132", "147", "193"],
+          "issues": [
+            "132",
+            "147",
+            "193"
+          ],
           "text": "Mobile Owner PWA: hamburger menu with role-based navigation, unit selector in drawer, unitId chip in AppBar"
         },
         {
           "type": "feat",
-          "issues": ["147"],
+          "issues": [
+            "147"
+          ],
           "text": "Mobile Transactions tab: fiscal year transactions from /transactions endpoint with date/vendor/amount, tap-to-expand details"
         },
         {
           "type": "feat",
-          "issues": ["193"],
+          "issues": [
+            "193"
+          ],
           "text": "Mobile Current Status tab: unit summary with YTD total, payment calendar, unit-specific transactions (renamed from Statement of Account)"
         },
         {
           "type": "feat",
-          "issues": ["193"],
+          "issues": [
+            "193"
+          ],
           "text": "Mobile Statement of Account tab: stored PDF browser (Firestore metadata) + on-demand PDF generation with English/Spanish toggle"
         },
         {
           "type": "fix",
-          "issues": ["132"],
+          "issues": [
+            "132"
+          ],
           "text": "Fix propertyAccess vs clientAccess fallback in SelectedUnitContext and RoleProtectedRoute (backend returns propertyAccess)"
         },
         {
           "type": "fix",
-          "issues": ["193"],
+          "issues": [
+            "193"
+          ],
           "text": "Fix centavos-to-pesos conversion in UnitReport (YTD and transaction amounts), fix date object formatting (Invalid Date)"
         },
         {
@@ -76,6 +90,17 @@
             "195"
           ],
           "text": "Statement dashboard: fix next-payment amount conversion and monthly due-date month mapping in Unit Account Status summary logic."
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "194",
+            "184",
+            "196",
+            "159",
+            "176"
+          ],
+          "text": "Sprint HOUSEKEEPING-1: Sort users by paternal surname with dedup (#194), consolidate databaseFieldMappings/currencyUtils (#184), fix ownership percentage field name and make editable (#196), add owner/manager tooltip and contact menu to HOA Dues (#159), redesign Budget dashboard card for expense tracking (#176)"
         }
       ]
     },
