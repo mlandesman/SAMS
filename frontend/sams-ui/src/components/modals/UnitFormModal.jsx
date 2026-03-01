@@ -149,7 +149,13 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
           ownersWithIds = [{ name: '', email: '', userId: null }];
         }
         
-        const rawOwnership = unit.ownershipPercentage || unit.percentOwned || '';
+        const ownershipDecimal = unit.ownershipPercentage;
+        const ownershipLegacy = unit.percentOwned;
+        const ownershipDisplay = ownershipDecimal
+          ? (parseFloat(ownershipDecimal) * 100).toFixed(4)
+          : ownershipLegacy
+            ? parseFloat(ownershipLegacy).toFixed(4)
+            : '';
         setFormData({
           unitId: unit.unitId || '',
           unitName: unit.unitName || '',
@@ -158,7 +164,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
           address: unit.address || '',
           status: unit.status || 'Occupied',
           squareFeet: unit.squareFeet || '',
-          ownershipDisplay: rawOwnership ? (parseFloat(rawOwnership) * 100).toFixed(4) : '',
+          ownershipDisplay,
           duesAmount: unit.duesAmount || '',
           type: unit.type || 'condo',
           accessCode: unit.accessCode || '',
@@ -188,7 +194,13 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         userId: manager.userId || null
       }));
       
-      const rawOwnership = unit.ownershipPercentage || unit.percentOwned || '';
+      const ownershipDecimal = unit.ownershipPercentage;
+      const ownershipLegacy = unit.percentOwned;
+      const ownershipDisplay = ownershipDecimal
+        ? (parseFloat(ownershipDecimal) * 100).toFixed(4)
+        : ownershipLegacy
+          ? parseFloat(ownershipLegacy).toFixed(4)
+          : '';
       setFormData({
         unitId: unit.unitId || '',
         unitName: unit.unitName || '',
@@ -197,7 +209,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         address: unit.address || '',
         status: unit.status || 'Occupied',
         squareFeet: unit.squareFeet || '',
-        ownershipDisplay: rawOwnership ? (parseFloat(rawOwnership) * 100).toFixed(4) : '',
+        ownershipDisplay,
         duesAmount: unit.duesAmount || '',
         type: unit.type || 'condo',
         accessCode: unit.accessCode || '',

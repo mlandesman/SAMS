@@ -71,8 +71,8 @@ const UserManagement = ({
 
       // Sort by paternal surname (last word of lastName or display name)
       const getSortableName = (u) => {
-        const raw = u.profile?.lastName || u.profile?.displayName || u.name || '';
-        const parts = raw.trim().split(/\s+/);
+        const nameStr = u.profile?.lastName || u.profile?.displayName || u.name || '';
+        const parts = nameStr.trim().split(/\s+/);
         return parts[parts.length - 1] || '';
       };
       deduped.sort((a, b) =>
