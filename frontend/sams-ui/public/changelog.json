@@ -8,6 +8,7 @@
           "type": "feat",
           "issues": [
             "132",
+            "133",
             "147",
             "193"
           ],
@@ -60,7 +61,9 @@
         },
         {
           "type": "enhancement",
-          "issues": [],
+          "issues": [
+            "51"
+          ],
           "text": "Dashboard: Balance card shows Bank + Cash rows, Exchange Rate card date on subtitle line, restored original card grid for all users"
         },
         {
