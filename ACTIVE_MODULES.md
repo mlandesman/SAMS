@@ -8,15 +8,16 @@
 
 | Area | Files | Code Lines | Comments | Blanks |
 |------|------:|----------:|----------:|-------:|
-| Backend | 351 | 76,961 | 15,919 | 15,921 |
-| Frontend Desktop | 369 | 79,653 | 7,765 | 11,523 |
-| Mobile App (PWA) | 65 | 11,262 | 618 | 1,426 |
+| Backend | 340 | 74,026 | 15,410 | 15,270 |
+| Frontend Desktop | 328 | 68,303 | 7,010 | 9,950 |
+| Mobile App (PWA) | 55 | 10,488 | 608 | 1,326 |
 | Shared | 5 | 813 | 515 | 174 |
 | Cloud Functions (unique) | 33 | 3,848 | 1,770 | 918 |
-| **TOTAL** | **823** | **172,537** | **26,587** | **29,962** |
+| **TOTAL** | **761** | **157,478** | **25,313** | **27,638** |
 
 > Counts exclude `_archive/`, `node_modules/`, test files, and SVG assets.
 > `functions/backend/` is a mirror of `backend/` and is counted once.
+> Dead code archival on 2026-03-02 removed ~15,059 lines (8.7% reduction).
 
 ---
 
@@ -61,7 +62,7 @@
 | `layout/Layout.css` | Layout container styles |
 | `layout/ActionBar.css` | Shared action bar styles (imported by many views) |
 
-> **Note:** The `layout/` directory contains ~60 additional `.jsx` files that are **unused duplicates** of files in `components/`. Only the 8 files listed above are actively imported. See [Layout Duplication](#layout-duplication-note) below.
+> **Cleanup (2026-03-02):** 96 dead duplicate files were archived from `layout/` to `layout/_archive/`. Only the 8 files listed above remain — all actively imported.
 
 ### Routes (Desktop)
 
@@ -164,7 +165,6 @@
 | File | Purpose |
 |------|---------|
 | `components/payments/UnifiedPaymentModal.jsx` | Unified payment modal (HOA, water, etc.) |
-| `components/DuesPaymentModal-old.jsx` | Legacy HOA payment modal (**should be archived**) |
 | `components/PaymentDetailsModal.jsx` | Payment details display |
 
 #### Credit Balance
@@ -427,17 +427,6 @@
 | `/auth` | `AuthScreen.jsx` | Login/authentication |
 | `*` (fallback) | Redirects to `/auth` | — |
 
-#### Test/Debug Routes
-| Route | Component | Notes |
-|-------|-----------|-------|
-| `/test` | `AuthTest.jsx` | Auth test |
-| `/simple-test` | `SimpleAuthTest.jsx` | Simple auth test |
-| `/minimal-test` | `MinimalAuthTest.jsx` | Minimal auth test |
-| `/super-simple` | `SuperSimpleTest.jsx` | Super simple test |
-| `/ultra-simple` | `UltraSimpleTest.jsx` | Ultra simple test |
-| `/auth-debug` | `AuthDebugScreen.jsx` | Auth debug |
-| `/user-debug` | `UserDebugger.jsx` | User debug |
-
 #### Protected Routes (auth required)
 | Route | Component | Role |
 |-------|-----------|------|
@@ -572,13 +561,9 @@
 | `/client-management` | `routes/clientManagement.js` |
 | `/import` | `routes/import.js` |
 
-#### Unmounted Route Files (in `routes/` but not in `index.js`)
-- `routes/user-uid-based.js` — Legacy user route
-- `routes/user-email-docid.js` — Legacy user route
-- `routes/user-uid-based-backup.js` — Backup
-- `routes/exchangeRates-enterprise.js` — Enterprise variant
-- `routes/monitoring-enterprise.js` — Enterprise monitoring
-- `routes/creditAutoPayReportRoutes.js` — Not yet mounted
+#### Archived Route Files (moved to `_archive/` on 2026-03-02)
+- `user-uid-based.js`, `user-uid-based-backup.js`, `user-email-docid.js` — Legacy user routes
+- `exchangeRates-enterprise.js`, `monitoring-enterprise.js` — Enterprise variants (archived with full enterprise cluster)
 
 ### Controllers (`controllers/`)
 | File | Purpose |
@@ -620,7 +605,7 @@
 | `emailService.js` | Email sending (1,104 lines, misplaced — functions as controller) |
 | `translateController.js` | Translation |
 
-#### Enterprise/Unused Controllers
+#### Archived Enterprise Controllers (moved to `_archive/enterprise/` on 2026-03-02)
 - `transactionsController-enterprise.js`
 - `exchangeRatesController-enterprise.js`
 - `balancesController-enterprise.js`
@@ -673,7 +658,6 @@
 | `criticalErrorNotifier.js` | Critical error notification |
 | `fieldValidation.js` | Field validation |
 | `waterValidation.js` | Water domain validation |
-| `security-enterprise.js` | Enterprise security (unused in main flow) |
 
 ### Utilities (`utils/` — 31 files)
 | File | Purpose |
@@ -705,9 +689,7 @@
 | `voteTokenUtils.js` | Vote token utilities |
 | `data-augmentation-utils.js` | Data augmentation |
 | `performance-monitor.js` | Performance monitoring |
-| `performance-utils.js` | Performance utilities |
 | `health-diagnostics.js` | Health diagnostics |
-| `dataValidation-enterprise.js` | Enterprise validation (unused) |
 | `generateTestToken.js` | Test token generation |
 
 ### Templates (`templates/`)
@@ -821,36 +803,39 @@ TypeScript/React shared component library (not yet widely integrated):
 
 ---
 
-## Known Issues and Cleanup Opportunities
+## Archival History
 
-### Layout Duplication Note
-The `layout/` directory contains ~60 `.jsx` files that duplicate files in `components/`. Only 8 files from `layout/` are actively imported:
-- `MainLayout.jsx`, `Sidebar.jsx`, `StatusBar.jsx`, `AboutModal.jsx` (core layout)
-- `Layout.css`, `Sidebar.css`, `StatusBar.css`, `ActionBar.css` (styles)
+### 2026-03-02 — Dead Code Archival (~15,059 lines, 8.7% reduction)
 
-All view and component files import from `components/`, not `layout/`. The duplicate files in `layout/` (e.g., `layout/ClientSwitchModal.jsx`, `layout/UnifiedExpenseEntry.jsx`, etc.) appear to be copies that are never imported and could be removed.
+**Layout duplicates (96 files → `layout/_archive/`):**
+The `layout/` directory contained ~60 `.jsx` files (plus CSS pairs and 7 subdirectories) that were unused copies of files in `components/`. Only 8 layout files are actively imported. All duplicates archived.
 
-### Deprecated Files Still in Tree
-- `components/DuesPaymentModal-old.jsx` — 885 lines, should be archived
-- `components/deprecated/ExpenseEntryModal_components.jsx` — 449 lines
-- `components/deprecated/ExpenseEntryModal_layout.jsx` — 388 lines
+**Deprecated frontend components (→ `components/_archive/`):**
+- `DuesPaymentModal-old.jsx` — 885 lines, not imported anywhere
+- `deprecated/ExpenseEntryModal_components.jsx` — 449 lines
+- `deprecated/ExpenseEntryModal_layout.jsx` — 388 lines
 
-### `_archive` Directories
-- `frontend/sams-ui/src/_archive/` — Archived views
-- `frontend/sams-ui/src/components/_archive/` — Archived components
-- `functions/backend/_archive/` — Archived backend code
-- `functions/backend/controllers/_archive/` — Archived controllers
-- `scripts/_archive/` — Archived scripts
+**Backend enterprise cluster (→ `_archive/enterprise/`):**
+Self-referencing enterprise modules not used in the main app flow:
+- Routes: `exchangeRates-enterprise.js`, `monitoring-enterprise.js`
+- Controllers: `transactionsController-enterprise.js`, `exchangeRatesController-enterprise.js`, `balancesController-enterprise.js`
+- Middleware: `security-enterprise.js`
+- Utils: `dataValidation-enterprise.js`, `performance-utils.js`
 
-### Test/Debug Components in Mobile
-The mobile app contains several test/debug components that could be removed from production:
-- `AuthTest.jsx`, `SimpleAuthTest.jsx`, `MinimalAuthTest.jsx`
-- `SuperSimpleTest.jsx`, `UltraSimpleTest.jsx`
+**Unmounted backend routes (→ `_archive/`):**
+- `user-uid-based.js`, `user-uid-based-backup.js`, `user-email-docid.js`
+- `unitAuthorization.js.backup-*`
+
+**Mobile test/debug components (→ `mobile-app/src/components/_archive/`):**
+10 test/debug components archived, imports and routes removed from `App.jsx`:
+- `AuthTest.jsx`, `SimpleAuthTest.jsx`, `MinimalAuthTest.jsx`, `SuperSimpleTest.jsx`, `UltraSimpleTest.jsx`
 - `AuthDebugScreen.jsx`, `AuthDebugMinimal.jsx`, `AuthDebugger.jsx`
 - `UserDebugger.jsx`, `StaticTest.jsx`
 
-### Unmounted Backend Routes
-Five route files exist in `routes/` but are not mounted in `index.js`:
-- `user-uid-based.js`, `user-email-docid.js` — Legacy user routes
-- `exchangeRates-enterprise.js`, `monitoring-enterprise.js` — Enterprise variants
-- `creditAutoPayReportRoutes.js` — Not yet integrated
+### `_archive` Directory Locations
+- `frontend/sams-ui/src/_archive/` — Archived desktop views
+- `frontend/sams-ui/src/components/_archive/` — Archived desktop components
+- `frontend/sams-ui/src/layout/_archive/` — Archived layout duplicates (96 files)
+- `frontend/sams-ui/mobile-app/src/components/_archive/` — Archived mobile debug components
+- `functions/backend/_archive/` — Archived backend code + enterprise cluster
+- `scripts/_archive/` — Archived scripts
