@@ -10,19 +10,9 @@ import Confirmation from './components/Confirmation';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
-import AuthTest from './components/AuthTest'; // Temporary test component
 import Dashboard from './components/Dashboard';
-import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
-import UserDebugger from './components/UserDebugger';
-import StaticTest from './components/StaticTest';
-import AuthDebugMinimal from './components/AuthDebugMinimal.jsx'; // Temporary debug
-import SimpleAuthTest from './components/SimpleAuthTest';
-import MinimalAuthTest from './components/MinimalAuthTest';
-import SuperSimpleTest from './components/SuperSimpleTest';
-import UltraSimpleTest from './components/UltraSimpleTest';
-import AuthDebugScreen from './components/AuthDebugScreen';
 import ExpenseEntryScreen from './components/expense/ExpenseEntryScreen';
 import ExchangeRatesView from './components/ExchangeRatesView.jsx';
 import AboutScreen from './components/AboutScreen';
@@ -103,13 +93,6 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/auth" element={<AuthScreen />} />
-              <Route path="/test" element={<AuthTest />} />
-              <Route path="/simple-test" element={<SimpleAuthTest />} />
-              <Route path="/minimal-test" element={<MinimalAuthTest />} />
-              <Route path="/super-simple" element={<SuperSimpleTest />} />
-              <Route path="/ultra-simple" element={<UltraSimpleTest />} />
-              <Route path="/auth-debug" element={<AuthDebugScreen />} />
-              <Route path="/user-debug" element={<UserDebugger />} />
               
               {/* Protected Routes */}
               <Route 
