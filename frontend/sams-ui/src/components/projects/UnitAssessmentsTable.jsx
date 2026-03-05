@@ -141,13 +141,17 @@ function UnitRow({
                   </TableHead>
                   <TableBody>
                     {installments.map((row, i) => {
-                      const amount = Math.round((unitAllocation || 0) * (row.percentOfTotal || 0) / 100);
+                      const totalAllocated = Object.values(allocationSnapshot?.allocations || {}).reduce((s, v) => s + v, 0) || 1;
+                      const amount = row.amountCentavos != null && totalAllocated > 0
+                        ? Math.round((row.amountCentavos || 0) * (unitAllocation || 0) / totalAllocated)
+                        : Math.round((unitAllocation || 0) * (row.percentOfTotal || 0) / 100);
+                      const statusLabel = row.status === 'billed' ? 'Billed' : 'Not Billed';
                       return (
                         <TableRow key={i}>
                           <TableCell>{row.milestone}</TableCell>
                           <TableCell align="right">{row.percentOfTotal}%</TableCell>
                           <TableCell align="right">{formatCurrency(amount)}</TableCell>
-                          <TableCell>Not Billed</TableCell>
+                          <TableCell>{statusLabel}</TableCell>
                         </TableRow>
                       );
                     })}
