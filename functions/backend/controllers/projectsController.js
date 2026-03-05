@@ -55,12 +55,10 @@ function buildOwnershipMapFromUnits(units) {
   for (const u of units || []) {
     const unitId = u.unitId ?? u.id;
     if (!unitId) continue;
-    const raw = u.ownershipPercentage ?? u.percentOwned;
-    if (raw == null || Number.isNaN(Number(raw))) continue;
-    const num = typeof raw === 'number' ? raw : parseFloat(raw);
-    // ownershipPercentage is stored as 0-1 decimal; legacy percentOwned as 0-100
-    const decimal = num > 1 ? num / 100 : num;
-    if (decimal >= 0 && decimal <= 1) map[unitId] = decimal;
+    const pct = u.ownershipPercentage;
+    if (pct == null || Number.isNaN(Number(pct))) continue;
+    const decimal = typeof pct === 'number' ? pct : parseFloat(pct);
+    if (decimal > 0 && decimal <= 1) map[unitId] = decimal;
   }
   return map;
 }
