@@ -39,17 +39,28 @@ function extractAvailableUnits(samsUser, clientId) {
 
 export const SelectedUnitProvider = ({ children }) => {
   const { samsUser, currentClient } = useAuth();
-  const [selectedUnitId, setSelectedUnitIdState] = useState(null);
+  const [rawSelectedUnitId, setRawSelectedUnitId] = useState(null);
 
   const availableUnits = useMemo(
     () => extractAvailableUnits(samsUser, currentClient),
     [samsUser, currentClient]
   );
 
+  // Synchronous guard: never expose a unitId that doesn't belong to the
+  // current client's available units. This prevents a stale unitId from
+  // leaking into API calls during the render frame between a client switch
+  // and the useEffect that resets the selection.
+  const selectedUnitId = useMemo(() => {
+    if (!rawSelectedUnitId) return null;
+    if (availableUnits.length === 0) return null;
+    if (availableUnits.some(u => u.unitId === rawSelectedUnitId)) return rawSelectedUnitId;
+    return null;
+  }, [rawSelectedUnitId, availableUnits]);
+
   // Restore from localStorage or auto-select when client changes
   useEffect(() => {
     if (!currentClient) {
-      setSelectedUnitIdState(null);
+      setRawSelectedUnitId(null);
       return;
     }
 
@@ -57,21 +68,21 @@ export const SelectedUnitProvider = ({ children }) => {
     try {
       const stored = localStorage.getItem(key);
       if (stored && availableUnits.some(u => u.unitId === stored)) {
-        setSelectedUnitIdState(stored);
+        setRawSelectedUnitId(stored);
         return;
       }
     } catch (_) { /* ignore localStorage errors */ }
 
     // Auto-select first unit (or only unit)
     if (availableUnits.length > 0) {
-      setSelectedUnitIdState(availableUnits[0].unitId);
+      setRawSelectedUnitId(availableUnits[0].unitId);
     } else {
-      setSelectedUnitIdState(null);
+      setRawSelectedUnitId(null);
     }
   }, [currentClient, availableUnits]);
 
   const setSelectedUnitId = useCallback((unitId) => {
-    setSelectedUnitIdState(unitId);
+    setRawSelectedUnitId(unitId);
     if (currentClient && unitId) {
       try {
         localStorage.setItem(`sams_mobile_selectedUnit_${currentClient}`, unitId);
