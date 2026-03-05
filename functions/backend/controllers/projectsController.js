@@ -338,6 +338,50 @@ export async function createProject(clientId, projectData) {
 }
 
 /**
+ * Lock milestone amounts using largest-remainder rounding so sum equals totalCentavos exactly.
+ * @param {number} totalCentavos - Total project cost in centavos
+ * @param {Array} installments - Array of { milestone, percentOfTotal }
+ * @returns {Array} Installments with amountCentavos and status: 'unbilled'
+ */
+function lockMilestoneAmounts(totalCentavos, installments) {
+  const total = Math.round(Number(totalCentavos));
+  if (!installments || !Array.isArray(installments) || installments.length === 0) return [];
+  if (total <= 0) return installments.map(m => ({ ...m, amountCentavos: 0, status: 'unbilled' }));
+
+  const items = installments.map((m, i) => {
+    const pct = Number(m.percentOfTotal) || 0;
+    const ideal = total * pct / 100;
+    return {
+      index: i,
+      percentOfTotal: pct,
+      floor: Math.floor(ideal),
+      remainder: ideal % 1
+    };
+  });
+
+  let allocated = items.reduce((s, it) => s + it.floor, 0);
+  let remainder = total - allocated;
+
+  if (remainder > 0) {
+    const sorted = [...items].sort((a, b) => {
+      const d = b.remainder - a.remainder;
+      if (d !== 0) return d;
+      return a.index - b.index;
+    });
+    for (let i = 0; i < remainder && i < sorted.length; i++) {
+      sorted[i].floor += 1;
+    }
+  }
+
+  return installments.map((m, i) => ({
+    ...m,
+    percentOfTotal: m.percentOfTotal,
+    amountCentavos: items[i].floor,
+    status: 'unbilled'
+  }));
+}
+
+/**
  * Validate bid revision installments (milestone-based)
  * @param {Array} installments - Array of { milestone, percentOfTotal }
  * @throws {Error} If validation fails
@@ -449,6 +493,14 @@ export async function updateProject(clientId, projectId, updates) {
     const snapshot = await computeAllocationSnapshot(clientId, mergedCost, { participationMap, ownershipMap });
     if (snapshot) {
       updateData.allocationSnapshot = snapshot;
+    }
+
+    // Lock milestone amounts when project becomes approved
+    if (statusToApproved) {
+      const installments = mergedProject.installments;
+      if (installments && Array.isArray(installments) && installments.length > 0 && mergedCost > 0) {
+        updateData.installments = lockMilestoneAmounts(mergedCost, installments);
+      }
     }
   }
   
@@ -1020,15 +1072,18 @@ export async function selectBid(clientId, projectId, bidId) {
   if (allocationSnapshot) {
     batchUpdates.allocationSnapshot = allocationSnapshot;
   }
-  // Promote winning bid's installments to project
+  // Promote winning bid's installments to project and lock amounts
+  let rawInstallments;
   if (currentRevision.installments && Array.isArray(currentRevision.installments) && currentRevision.installments.length > 0) {
-    batchUpdates.installments = currentRevision.installments.map(({ milestone, percentOfTotal }) => ({
+    rawInstallments = currentRevision.installments.map(({ milestone, percentOfTotal }) => ({
       milestone: String(milestone || '').trim(),
       percentOfTotal: Number(percentOfTotal) || 0
     }));
   } else if (currentRevision.paymentTerms) {
-    // Legacy: convert paymentTerms to single 100% installment
-    batchUpdates.installments = [{ milestone: currentRevision.paymentTerms || 'Full Payment', percentOfTotal: 100 }];
+    rawInstallments = [{ milestone: currentRevision.paymentTerms || 'Full Payment', percentOfTotal: 100 }];
+  }
+  if (rawInstallments && rawInstallments.length > 0) {
+    batchUpdates.installments = lockMilestoneAmounts(currentRevision.amount, rawInstallments);
   }
   batch.update(projectRef, batchUpdates);
   
@@ -1040,6 +1095,95 @@ export async function selectBid(clientId, projectId, bidId) {
     projectId: updatedProject.id,
     ...updatedProject.data()
   };
+}
+
+/**
+ * Bill a milestone - create bill document and update milestone status
+ * @param {string} clientId - Client ID
+ * @param {string} projectId - Project ID
+ * @param {number} milestoneIndex - Index in installments array
+ * @param {string} billedBy - Admin userId from auth
+ * @returns {Promise<Object>} Created bill document
+ */
+export async function billMilestone(clientId, projectId, milestoneIndex, billedBy) {
+  const db = await getDb();
+  const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+  const projectDoc = await projectRef.get();
+
+  if (!projectDoc.exists) {
+    throw new Error('Project not found');
+  }
+
+  const projectData = projectDoc.data();
+  if (projectData.status !== 'approved') {
+    throw new Error('Project must be approved to bill milestones');
+  }
+
+  const installments = projectData.installments;
+  if (!installments || !Array.isArray(installments) || milestoneIndex < 0 || milestoneIndex >= installments.length) {
+    throw new Error('Invalid milestone index');
+  }
+
+  const milestone = installments[milestoneIndex];
+  if (milestone.status === 'billed') {
+    throw new Error('Milestone already billed');
+  }
+
+  const ownershipMap = projectData.allocationInputs?.ownership ?? projectData.allocationInputs?.lockedOwnership ?? {};
+  if (!ownershipMap || typeof ownershipMap !== 'object' || Object.keys(ownershipMap).length === 0) {
+    throw new Error('Project has no locked ownership for allocation');
+  }
+
+  const amountCentavos = milestone.amountCentavos ?? Math.round((projectData.totalCost || 0) * (milestone.percentOfTotal || 0) / 100);
+  const participationMap = projectData.unitParticipation ?? projectData.participation ?? {};
+
+  const { allocations } = allocateByOwnership(amountCentavos, ownershipMap, participationMap);
+
+  const billedDate = getNow().toISOString();
+  const units = {};
+  for (const [unitId, centavos] of Object.entries(allocations)) {
+    if (centavos > 0) {
+      units[unitId] = {
+        totalAmount: centavos,
+        paidAmount: 0,
+        status: 'unpaid',
+        payments: []
+      };
+    }
+  }
+
+  const billDoc = {
+    projectId,
+    projectName: projectData.name || '',
+    milestone: milestone.milestone || '',
+    milestoneIndex,
+    percentOfTotal: milestone.percentOfTotal ?? 0,
+    amountCentavos,
+    billedDate,
+    billedBy: billedBy || '',
+    units
+  };
+
+  const billsRef = projectRef.collection('bills');
+  const billRef = billsRef.doc(String(milestoneIndex));
+
+  const batch = db.batch();
+  batch.set(billRef, billDoc);
+
+  const updatedInstallments = [...installments];
+  updatedInstallments[milestoneIndex] = {
+    ...milestone,
+    status: 'billed',
+    billedDate
+  };
+  batch.update(projectRef, {
+    installments: updatedInstallments,
+    'metadata.updatedAt': billedDate
+  });
+
+  await batch.commit();
+
+  return { id: billRef.id, ...billDoc };
 }
 
 /**
@@ -1270,6 +1414,62 @@ export async function deleteBidHandler(req, res) {
     
     logError('❌ Error deleting bid:', error);
     return res.status(error.message.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Bill a milestone
+ * POST /api/clients/:clientId/projects/:projectId/bill-milestone
+ * Body: { milestoneIndex: number }
+ */
+export async function billMilestoneHandler(req, res) {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { projectId } = req.params;
+    const { milestoneIndex } = req.body;
+    const billedBy = req.user?.uid || req.user?.samsProfile?.id || '';
+
+    if (!clientId || !projectId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID and Project ID are required'
+      });
+    }
+
+    const idx = typeof milestoneIndex === 'number' ? milestoneIndex : parseInt(milestoneIndex, 10);
+    if (!Number.isInteger(idx) || idx < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'milestoneIndex must be a non-negative integer'
+      });
+    }
+
+    const bill = await billMilestone(clientId, projectId, idx, billedBy);
+
+    logDebug(`✅ Billed milestone ${idx} for project ${projectId}`);
+
+    return res.status(201).json({
+      success: true,
+      data: bill
+    });
+  } catch (error) {
+    if (error.message.includes('not found') || error.message.includes('Invalid milestone')) {
+      return res.status(404).json({
+        success: false,
+        error: error.message
+      });
+    }
+    if (error.message.includes('must be approved') || error.message.includes('already billed')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    logError('❌ Error billing milestone:', error);
+    return res.status(500).json({
       success: false,
       error: error.message
     });

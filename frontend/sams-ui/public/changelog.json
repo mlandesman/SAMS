@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "PM5D: Lock milestone amounts at project approval with largest-remainder rounding. Bill Milestone endpoint creates per-unit charge documents for SoA/UPC integration."
+        }
+      ]
+    },
+    {
       "version": "1.14.0",
       "date": "2026-03-05",
       "changes": [

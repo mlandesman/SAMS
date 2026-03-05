@@ -11,7 +11,18 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -23,8 +34,9 @@ import {
   faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
-import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf, getBids } from '../api/projects';
+import { getProjects, getProject, createProject, updateProject, deleteProject, billMilestone, generateBidComparisonPdf, getBids } from '../api/projects';
 import { getUnits } from '../api/units';
+import { getOwnerInfo } from '../utils/unitUtils';
 import { getPolls, getPoll } from '../api/polls';
 import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
@@ -138,6 +150,9 @@ function ProjectsView() {
   const [pollContext, setPollContext] = useState({});
   // Units for Unit Assessments grid (cached per client)
   const [unitsForAssessments, setUnitsForAssessments] = useState([]);
+  // Bill milestone dialog
+  const [billMilestoneDialog, setBillMilestoneDialog] = useState({ open: false, milestoneIndex: null, milestone: null });
+  const [billingInProgress, setBillingInProgress] = useState(false);
   const unitsCacheByClientRef = useRef(new Map());
   
   /**
@@ -757,6 +772,31 @@ function ProjectsView() {
   };
   
   /**
+   * Open bill milestone confirmation dialog
+   */
+  const handleBillMilestoneClick = (index, row) => {
+    setBillMilestoneDialog({ open: true, milestoneIndex: index, milestone: row });
+  };
+
+  /**
+   * Confirm and execute bill milestone
+   */
+  const handleBillMilestoneConfirm = async () => {
+    if (!selectedClient || !selectedProject || billMilestoneDialog.milestoneIndex == null) return;
+    setBillingInProgress(true);
+    try {
+      await billMilestone(selectedClient.id, selectedProject.projectId, billMilestoneDialog.milestoneIndex);
+      setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null });
+      await loadProjectDetails(selectedProject.projectId);
+    } catch (err) {
+      console.error('Error billing milestone:', err);
+      setError(err.message || 'Failed to bill milestone');
+    } finally {
+      setBillingInProgress(false);
+    }
+  };
+
+  /**
    * Handle project update from bids modal (when bid is selected/unselected)
    */
   const handleProjectUpdateFromBids = async (updatedProject) => {
@@ -1063,14 +1103,36 @@ function ProjectsView() {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedProject.installments.map((row, i) => (
-                          <tr key={i}>
-                            <td>{row.milestone}</td>
-                            <td>{row.percentOfTotal}%</td>
-                            <td>{formatCurrency(Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100))}</td>
-                            <td>Pending</td>
-                          </tr>
-                        ))}
+                        {selectedProject.installments.map((row, i) => {
+                          const amountCentavos = row.amountCentavos != null
+                            ? row.amountCentavos
+                            : Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100);
+                          const status = row.status || 'unbilled';
+                          const isApproved = selectedProject.status === 'approved';
+                          const canBill = isApproved && status === 'unbilled';
+                          return (
+                            <tr key={i}>
+                              <td>{row.milestone}</td>
+                              <td>{row.percentOfTotal}%</td>
+                              <td>{formatCurrency(amountCentavos)}</td>
+                              <td>
+                                {status === 'billed' ? (
+                                  <Chip label={row.billedDate ? `Billed ${row.billedDate.slice(0, 10)}` : 'Billed'} color="success" size="small" />
+                                ) : canBill ? (
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => handleBillMilestoneClick(i, row)}
+                                  >
+                                    Bill
+                                  </Button>
+                                ) : (
+                                  'Unbilled'
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </Box>
                   </Box>
@@ -1198,6 +1260,69 @@ function ProjectsView() {
         onClose={() => setIsDeleteDialogOpen(false)}
         confirmButtonClass="danger"
       />
+
+      {/* Bill Milestone Confirmation Dialog */}
+      <Dialog
+        open={billMilestoneDialog.open}
+        onClose={() => !billingInProgress && setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Bill Milestone: {billMilestoneDialog.milestone?.milestone}</DialogTitle>
+        <DialogContent>
+          {billMilestoneDialog.milestone && selectedProject && (() => {
+            const amountCentavos = billMilestoneDialog.milestone.amountCentavos ?? Math.round((selectedProject.totalCost || 0) * (billMilestoneDialog.milestone.percentOfTotal || 0) / 100);
+            const allocations = selectedProject.allocationSnapshot?.allocations || {};
+            const participation = selectedProject.unitParticipation || selectedProject.participation || {};
+            const totalAllocated = Object.entries(allocations).reduce((s, [uid, v]) => participation[uid] === 'out' ? s : s + v, 0) || 1;
+            const unitsMap = new Map((unitsForAssessments || []).map(u => [u.unitId || u.id, u]));
+            const rows = Object.entries(allocations)
+              .filter(([unitId, v]) => v > 0 && participation[unitId] !== 'out')
+              .map(([unitId, centavos]) => {
+                const perUnit = Math.round(amountCentavos * centavos / totalAllocated);
+                const unit = unitsMap.get(unitId);
+                const { lastName } = getOwnerInfo(unit || { unitId });
+                return { unitId, amount: perUnit, owner: lastName || '—' };
+              });
+            const participatingCount = rows.length;
+            return (
+              <Box sx={{ pt: 1 }}>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                  This will create charges of {formatCurrency(amountCentavos)} for {participatingCount} participating unit{participatingCount !== 1 ? 's' : ''}. This action cannot be undone.
+                </Typography>
+                <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 200 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Unit</TableCell>
+                        <TableCell>Owner</TableCell>
+                        <TableCell align="right">Amount</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {rows.map((r) => (
+                        <TableRow key={r.unitId}>
+                          <TableCell>{r.unitId}</TableCell>
+                          <TableCell>{r.owner}</TableCell>
+                          <TableCell align="right">{formatCurrency(r.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })} disabled={billingInProgress}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleBillMilestoneConfirm} disabled={billingInProgress} color="primary">
+            {billingInProgress ? 'Billing...' : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       
       {/* Bids Management Modal */}
       <BidsManagementModal

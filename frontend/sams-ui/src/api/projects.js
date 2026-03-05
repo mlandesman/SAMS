@@ -150,6 +150,31 @@ export async function createProject(clientId, projectData) {
 }
 
 /**
+ * Bill a milestone - creates bill document and updates milestone status
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {number} milestoneIndex - Index in installments array
+ * @returns {Promise<Object>} Response with created bill data
+ */
+export async function billMilestone(clientId, projectId, milestoneIndex) {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/bill-milestone`,
+    {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify({ milestoneIndex })
+    }
+  );
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to bill milestone');
+  }
+  return result;
+}
+
+/**
  * Update an existing project
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID
