@@ -337,6 +337,44 @@ export async function createProject(clientId, projectData) {
 }
 
 /**
+ * Validate installment schedule data
+ * @param {Array} installments - Array of { dueDate, percentOfTotal }
+ * @param {string} status - Project status (for approved-project warning)
+ * @throws {Error} If validation fails
+ */
+function validateInstallments(installments, status) {
+  if (!installments || !Array.isArray(installments)) return;
+  if (installments.length === 0) {
+    if (status === 'approved') {
+      logWarn('Approved project has no installment schedule');
+    }
+    return;
+  }
+  const seenDates = new Set();
+  let sum = 0;
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  for (let i = 0; i < installments.length; i++) {
+    const row = installments[i];
+    const pct = Number(row.percentOfTotal);
+    if (!Number.isInteger(pct) || pct <= 0 || pct > 100) {
+      throw new Error(`Installment row ${i + 1}: percentOfTotal must be an integer between 1 and 100`);
+    }
+    sum += pct;
+    const dueDate = String(row.dueDate || '').trim();
+    if (!isoDateRegex.test(dueDate)) {
+      throw new Error(`Installment row ${i + 1}: dueDate must be a valid ISO date (YYYY-MM-DD)`);
+    }
+    if (seenDates.has(dueDate)) {
+      throw new Error(`Installment row ${i + 1}: duplicate due date ${dueDate}`);
+    }
+    seenDates.add(dueDate);
+  }
+  if (sum !== 100) {
+    throw new Error(`Installment schedule must total 100% (currently ${sum}%)`);
+  }
+}
+
+/**
  * Update an existing project
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID
@@ -362,7 +400,13 @@ export async function updateProject(clientId, projectId, updates) {
   // Prevent changing the project ID
   delete updates.projectId;
   delete updates._id;
-  
+
+  // Validate installments if present (only on update, not create)
+  if ('installments' in otherUpdates) {
+    const mergedProject = { ...existing.data(), ...otherUpdates };
+    validateInstallments(otherUpdates.installments, mergedProject.status);
+  }
+
   // Handle metadata separately to avoid Firestore conflict
   // (can't set both 'metadata' object and 'metadata.updatedAt' in same update)
   const { metadata: incomingMetadata, ...otherUpdates } = updates;

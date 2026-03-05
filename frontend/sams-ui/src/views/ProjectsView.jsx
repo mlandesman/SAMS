@@ -38,6 +38,7 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './ProjectsView.css';
 import { centavosToPesos } from '../utils/currencyUtils';
+import { getMexicoDate, getMexicoDateTime } from '../utils/timezone';
 
 /**
  * Format centavos to currency display (US style, no currency code)
@@ -98,7 +99,7 @@ function ProjectsView() {
   const { setCenterContent, clearCenterContent } = useStatusBar();
   
   // Year selector state
-  const currentYear = new Date().getFullYear();
+  const currentYear = getMexicoDate().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
   // Projects state
@@ -410,7 +411,7 @@ function ProjectsView() {
             name: `Bid Comparison - ${enDoc.projectName || 'Project'} (English)`,
             url: enDoc.url,
             type: 'bid_comparison',
-            uploadedAt: new Date().toISOString(),
+            uploadedAt: getMexicoDateTime().toISOString(),
             uploadedBy: 'system'
           },
           {
@@ -418,7 +419,7 @@ function ProjectsView() {
             name: `Comparacion de Ofertas - ${esDoc.projectName || 'Proyecto'} (Espanol)`,
             url: esDoc.url,
             type: 'bid_comparison',
-            uploadedAt: new Date().toISOString(),
+            uploadedAt: getMexicoDateTime().toISOString(),
             uploadedBy: 'system'
           }
         ];
@@ -469,9 +470,10 @@ function ProjectsView() {
    * Helper to get date one week from now in YYYY-MM-DD format
    */
   const getOneWeekFromNow = () => {
-    const oneWeekFromNow = new Date();
-    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-    return oneWeekFromNow.toISOString().split('T')[0];
+    const today = getMexicoDate();
+    const oneWeek = new Date(today.getTime());
+    oneWeek.setDate(oneWeek.getDate() + 7);
+    return oneWeek.toISOString().split('T')[0];
   };
   
   /**
@@ -1017,6 +1019,67 @@ function ProjectsView() {
                   title=""
                   showUploader={true}
                 />
+              </Paper>
+
+              {/* Installment Schedule Section */}
+              <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>Installment Schedule</Typography>
+                {selectedProject.installments && selectedProject.installments.length > 0 ? (
+                  <Box>
+                    <Box
+                      component="table"
+                      sx={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        '& th, & td': { border: '1px solid #e0e0e0', p: 1.5, textAlign: 'left' },
+                        '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 }
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>% of Total</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedProject.installments.map((row, i) => (
+                          <tr key={i}>
+                            <td>{row.dueDate}</td>
+                            <td>{row.percentOfTotal}%</td>
+                            <td>—</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Box>
+                    {selectedProject.allocationSnapshot?.allocations && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                          Per-unit amounts (from allocation)
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {selectedProject.installments.map((row, i) => {
+                            const unitAmounts = Object.entries(selectedProject.allocationSnapshot.allocations || {})
+                              .filter(([, c]) => c > 0)
+                              .map(([unitId, centavos]) => {
+                                const centavosForRow = Math.round((centavos || 0) * (row.percentOfTotal || 0) / 100);
+                                return `${unitId}: ${formatCurrency(centavosForRow)}`;
+                              });
+                            return (
+                              <Typography key={i} variant="body2" color="text.secondary">
+                                {row.dueDate}: {unitAmounts.join(', ')}
+                              </Typography>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No installment schedule defined. Add one via Edit.
+                  </Typography>
+                )}
               </Paper>
 
               {/* Voting Status Section */}

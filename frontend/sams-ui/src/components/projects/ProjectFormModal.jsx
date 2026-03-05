@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faLanguage } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faLanguage, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
 import { translateToSpanish } from '../../api/translate';
+import { getMexicoDateString, getMexicoDateTime } from '../../utils/timezone';
+import { centavosToPesos } from '../../utils/currencyUtils';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -27,7 +29,7 @@ const PROJECT_STATUSES = [
 function generateProjectId(name, startDate) {
   if (!name) return '';
   
-  const year = startDate ? startDate.substring(0, 4) : new Date().getFullYear().toString();
+  const year = startDate ? startDate.substring(0, 4) : getMexicoDateString().substring(0, 4);
   const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -54,7 +56,8 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
     totalCost: '',
     notes: ''
   });
-  
+
+  const [installments, setInstallments] = useState([]);
   const [errors, setErrors] = useState({});
   const [projectId, setProjectId] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -73,6 +76,9 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         totalCost: project.totalCost ? (project.totalCost / 100).toFixed(2) : '',
         notes: project.metadata?.notes || ''
       });
+      setInstallments(Array.isArray(project.installments) && project.installments.length > 0
+        ? project.installments.map(i => ({ dueDate: i.dueDate || '', percentOfTotal: i.percentOfTotal ?? '' }))
+        : []);
       setProjectId(project.projectId || '');
     } else {
       // Reset form for new project
@@ -82,11 +88,12 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         description: '',
         description_es: '',
         status: 'proposed',
-        startDate: new Date().toISOString().substring(0, 10),
+        startDate: getMexicoDateString(),
         completionDate: '',
         totalCost: '',
         notes: ''
       });
+      setInstallments([]);
       setProjectId('');
     }
     setErrors({});
@@ -143,6 +150,25 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
     }
   }, [formData.name, formData.description, formData.name_es, formData.description_es]);
 
+  const showInstallmentSection = (formData.totalCost && parseFloat(formData.totalCost) > 0) || formData.status === 'approved';
+
+  const handleAddInstallment = () => {
+    setInstallments(prev => [...prev, { dueDate: getMexicoDateString(), percentOfTotal: '' }]);
+  };
+
+  const handleRemoveInstallment = (index) => {
+    setInstallments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleInstallmentChange = (index, field, value) => {
+    setInstallments(prev => prev.map((row, i) =>
+      i === index ? { ...row, [field]: value } : row
+    ));
+  };
+
+  const installmentSum = installments.reduce((s, row) => s + (Number(row.percentOfTotal) || 0), 0);
+  const installmentValid = installmentSum === 100;
+
   // Validate the form
   const validateForm = () => {
     const newErrors = {};
@@ -162,6 +188,31 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
     if (formData.completionDate && formData.startDate && 
         formData.completionDate < formData.startDate) {
       newErrors.completionDate = 'Completion date cannot be before start date';
+    }
+
+    if (installments.length > 0) {
+      const seenDates = new Set();
+      for (let i = 0; i < installments.length; i++) {
+        const row = installments[i];
+        const pct = Number(row.percentOfTotal);
+        if (!Number.isInteger(pct) || pct <= 0 || pct > 100) {
+          newErrors.installments = `Row ${i + 1}: percent must be 1-100`;
+          break;
+        }
+        const dueDate = String(row.dueDate || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+          newErrors.installments = `Row ${i + 1}: valid date (YYYY-MM-DD) required`;
+          break;
+        }
+        if (seenDates.has(dueDate)) {
+          newErrors.installments = `Row ${i + 1}: duplicate date`;
+          break;
+        }
+        seenDates.add(dueDate);
+      }
+      if (!newErrors.installments && installmentSum !== 100) {
+        newErrors.installments = `Installment total must be 100% (currently ${installmentSum}%)`;
+      }
     }
     
     setErrors(newErrors);
@@ -188,9 +239,18 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           totalCost: formData.totalCost ? Math.round(parseFloat(formData.totalCost) * 100) : 0,
           metadata: {
             notes: formData.notes.trim(),
-            updatedAt: new Date().toISOString()
+            updatedAt: getMexicoDateTime().toISOString()
           }
         };
+
+        if (installments.length > 0) {
+          projectData.installments = installments.map(row => ({
+            dueDate: String(row.dueDate || '').trim(),
+            percentOfTotal: Number(row.percentOfTotal) || 0
+          })).filter(row => row.dueDate && row.percentOfTotal > 0);
+        } else if (isEdit && project) {
+          projectData.installments = [];
+        }
         
         // If editing, preserve existing data that shouldn't be overwritten
         if (isEdit && project) {
@@ -213,7 +273,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           projectData.unitAssessments = {};
           projectData.collections = [];
           projectData.payments = [];
-          projectData.metadata.createdAt = new Date().toISOString();
+          projectData.metadata.createdAt = getMexicoDateTime().toISOString();
         }
         
         await onSave(projectData);
@@ -398,6 +458,90 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
               </label>
             </div>
           </div>
+
+          {/* Installment Schedule Section */}
+          {showInstallmentSection && (
+            <div className="sandyland-form-section">
+              <h3 className="sandyland-section-title">Installment Schedule</h3>
+              <p className="sandyland-form-hint" style={{ marginBottom: 12 }}>
+                Define when unit owners pay. Percentages must total 100%.
+              </p>
+              {installments.map((row, index) => (
+                <div
+                  key={index}
+                  className="sandyland-form-row"
+                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}
+                >
+                  <label className="sandyland-form-label" style={{ flex: '1 1 140px' }}>
+                    Due Date
+                    <input
+                      type="date"
+                      value={row.dueDate}
+                      onChange={(e) => handleInstallmentChange(index, 'dueDate', e.target.value)}
+                      className="sandyland-form-input"
+                    />
+                  </label>
+                  <label className="sandyland-form-label" style={{ flex: '0 1 80px' }}>
+                    % of Total
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={row.percentOfTotal}
+                      onChange={(e) => handleInstallmentChange(index, 'percentOfTotal', e.target.value)}
+                      className={`sandyland-form-input ${errors.installments ? 'error' : ''}`}
+                      placeholder="%"
+                    />
+                  </label>
+                  {project?.allocationSnapshot?.allocations && (
+                    <span className="sandyland-form-hint" style={{ flex: '1 1 200px', alignSelf: 'flex-end', fontSize: '0.8rem' }}>
+                      {Object.entries(project.allocationSnapshot.allocations)
+                        .filter(([, c]) => c > 0)
+                        .slice(0, 4)
+                        .map(([unitId, centavos]) => {
+                          const amount = centavosToPesos(Math.round((centavos || 0) * (Number(row.percentOfTotal) || 0) / 100));
+                          return `${unitId}: $${amount.toFixed(2)}`;
+                        })
+                        .join(', ')}
+                      {Object.keys(project.allocationSnapshot.allocations || {}).length > 4 ? '...' : ''}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveInstallment(index)}
+                    className="sandyland-btn sandyland-btn-secondary"
+                    style={{ padding: '8px 12px', alignSelf: 'flex-end' }}
+                    title="Remove row"
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                </div>
+              ))}
+              <div className="sandyland-form-row" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleAddInstallment}
+                  className="sandyland-btn sandyland-btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  Add installment
+                </button>
+                <span
+                  style={{
+                    color: installmentValid ? '#2e7d32' : (installmentSum > 0 ? '#d32f2f' : '#666'),
+                    fontWeight: 500,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  {installmentSum}% of 100%
+                </span>
+                {errors.installments && (
+                  <span className="sandyland-error-text">{errors.installments}</span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Additional Information Section */}
           <div className="sandyland-form-section">
