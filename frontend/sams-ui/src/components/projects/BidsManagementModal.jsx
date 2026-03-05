@@ -31,24 +31,16 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { getMexicoDateTime } from '../../utils/timezone';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from '../../api/projects';
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';
 import ProjectDocumentsList from './ProjectDocumentsList';
 import '../../styles/SandylandModalTheme.css';
 
-/**
- * Format centavos to currency display
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD', false);
 }
 
 /**

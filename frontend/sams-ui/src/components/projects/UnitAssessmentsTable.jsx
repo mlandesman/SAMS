@@ -23,18 +23,11 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { getOwnerInfo } from '../../utils/unitUtils';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 
-/**
- * Format centavos to currency display (US style)
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD');
 }
 
 /**

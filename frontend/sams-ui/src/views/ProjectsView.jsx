@@ -38,22 +38,12 @@ import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './ProjectsView.css';
-import { centavosToPesos } from '../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '../utils/currencyUtils';
 import { getMexicoDate, getMexicoDateTime } from '../utils/timezone';
 
-/**
- * Format centavos to currency display (US style, no currency code)
- * @param {number} centavos - Amount in centavos
- * @returns {string} Formatted currency string
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavosToPesos(centavos);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD');
 }
 
 /**

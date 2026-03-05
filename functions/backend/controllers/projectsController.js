@@ -55,9 +55,11 @@ function buildOwnershipMapFromUnits(units) {
   for (const u of units || []) {
     const unitId = u.unitId ?? u.id;
     if (!unitId) continue;
-    const pct = u.ownershipPercentage ?? u.percentOwned;
-    if (pct == null || Number.isNaN(Number(pct))) continue;
-    const decimal = typeof pct === 'number' ? pct : parseFloat(pct);
+    const raw = u.ownershipPercentage ?? u.percentOwned;
+    if (raw == null || Number.isNaN(Number(raw))) continue;
+    const num = typeof raw === 'number' ? raw : parseFloat(raw);
+    // ownershipPercentage is stored as 0-1 decimal; legacy percentOwned as 0-100
+    const decimal = num > 1 ? num / 100 : num;
     if (decimal >= 0 && decimal <= 1) map[unitId] = decimal;
   }
   return map;
@@ -1068,12 +1070,14 @@ export async function unselectBid(clientId, projectId) {
     }
   });
   
-  // Clear project's selected bid info and installments, set back to bidding
+  // Clear project's selected bid info, installments, and allocation data
   const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
   batch.update(projectRef, {
     selectedBidId: null,
     status: 'bidding',
     installments: admin.firestore.FieldValue.delete(),
+    allocationSnapshot: admin.firestore.FieldValue.delete(),
+    allocationInputs: admin.firestore.FieldValue.delete(),
     'metadata.updatedAt': getNow().toISOString()
   });
   

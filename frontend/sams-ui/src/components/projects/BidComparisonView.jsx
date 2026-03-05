@@ -15,20 +15,12 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getMexicoDateTime } from '../../utils/timezone';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 import '../../styles/SandylandModalTheme.css';
 
-/**
- * Format centavos to currency display
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD', false);
 }
 
 /**
