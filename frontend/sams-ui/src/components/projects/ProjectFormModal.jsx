@@ -4,6 +4,7 @@ import { faTimes, faLanguage } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
 import { translateToSpanish } from '../../api/translate';
+import { getMexicoDateString, getMexicoDateTime } from '../../utils/timezone';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -27,7 +28,7 @@ const PROJECT_STATUSES = [
 function generateProjectId(name, startDate) {
   if (!name) return '';
   
-  const year = startDate ? startDate.substring(0, 4) : new Date().getFullYear().toString();
+  const year = startDate ? startDate.substring(0, 4) : getMexicoDateString().substring(0, 4);
   const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -54,7 +55,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
     totalCost: '',
     notes: ''
   });
-  
+
   const [errors, setErrors] = useState({});
   const [projectId, setProjectId] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -82,7 +83,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         description: '',
         description_es: '',
         status: 'proposed',
-        startDate: new Date().toISOString().substring(0, 10),
+        startDate: getMexicoDateString(),
         completionDate: '',
         totalCost: '',
         notes: ''
@@ -188,7 +189,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           totalCost: formData.totalCost ? Math.round(parseFloat(formData.totalCost) * 100) : 0,
           metadata: {
             notes: formData.notes.trim(),
-            updatedAt: new Date().toISOString()
+            updatedAt: getMexicoDateTime().toISOString()
           }
         };
         
@@ -213,7 +214,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           projectData.unitAssessments = {};
           projectData.collections = [];
           projectData.payments = [];
-          projectData.metadata.createdAt = new Date().toISOString();
+          projectData.metadata.createdAt = getMexicoDateTime().toISOString();
         }
         
         await onSave(projectData);

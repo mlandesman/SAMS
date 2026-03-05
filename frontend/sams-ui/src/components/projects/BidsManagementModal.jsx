@@ -15,6 +15,7 @@ import {
   AccordionDetails,
   TextField
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTimes, 
@@ -26,28 +27,20 @@ import {
   faFileAlt,
   faComments,
   faHistory,
-  faBalanceScale,
-  faChevronDown
+  faBalanceScale
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
+import { getMexicoDateTime } from '../../utils/timezone';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from '../../api/projects';
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';
 import ProjectDocumentsList from './ProjectDocumentsList';
 import '../../styles/SandylandModalTheme.css';
 
-/**
- * Format centavos to currency display
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD', false);
 }
 
 /**
@@ -56,7 +49,7 @@ function formatCurrency(centavos) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
-    const date = new Date(dateStr);
+    const date = getMexicoDateTime(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return dateStr;
@@ -486,10 +479,35 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                       )}
                     </Box>
                     
-                    {currentRevision.paymentTerms && (
+                    {(currentRevision.installments?.length > 0 || currentRevision.paymentTerms) && (
                       <Box sx={{ mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary">Payment Terms</Typography>
-                        <Typography variant="body2">{currentRevision.paymentTerms}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                          {currentRevision.installments?.length > 0 ? 'Installment Schedule' : 'Payment Terms (legacy)'}
+                        </Typography>
+                        {currentRevision.installments?.length > 0 ? (
+                          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #eee' }}>Milestone</th>
+                                <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #eee' }}>%</th>
+                                <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #eee' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentRevision.installments.map((row, i) => (
+                                <tr key={i}>
+                                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>{row.milestone}</td>
+                                  <td style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>{row.percentOfTotal}%</td>
+                                  <td style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>
+                                    {formatCurrency(Math.round((currentRevision.amount || 0) * (row.percentOfTotal || 0) / 100))}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2">{currentRevision.paymentTerms || '—'}</Typography>
+                        )}
                       </Box>
                     )}
                   </Paper>
@@ -510,7 +528,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 {/* Revision history accordion */}
                 {selectedBid.revisions.length > 1 && (
                   <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
-                    <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <FontAwesomeIcon icon={faHistory} style={{ marginRight: 8 }} />
                       <Typography>Revision History ({selectedBid.revisions.length})</Typography>
                     </AccordionSummary>
@@ -542,7 +560,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 
                 {/* Communications accordion */}
                 <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
-                  <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <FontAwesomeIcon icon={faComments} style={{ marginRight: 8 }} />
                     <Typography>Messages ({selectedBid.communications?.length || 0})</Typography>
                   </AccordionSummary>
@@ -593,7 +611,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 
                 {/* Documents accordion */}
                 <Accordion defaultExpanded={false}>
-                  <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <FontAwesomeIcon icon={faFileAlt} style={{ marginRight: 8 }} />
                     <Typography>Bid Documents</Typography>
                   </AccordionSummary>

@@ -104,6 +104,11 @@
             "176"
           ],
           "text": "Sprint HOUSEKEEPING-1: Sort users by paternal surname with dedup (#194), consolidate databaseFieldMappings/currencyUtils (#184), fix ownership percentage field name and make editable (#196), add owner/manager tooltip and contact menu to HOA Dues (#159), redesign Budget dashboard card for expense tracking (#176)"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Projects Financial Module PM5: Allocation engine with per-bid/per-unit cost distribution (largest-remainder rounding, binary in/out participation), milestone-based installment schedules on bid revisions (replacing paymentTerms), and rebuilt Unit Assessments grid with two-level display (summary + expandable milestone breakdown)"
         }
       ]
     },

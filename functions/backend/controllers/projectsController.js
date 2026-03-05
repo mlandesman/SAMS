@@ -8,9 +8,13 @@
  * project types like waterBills or propaneTanks which are structural documents.
  */
 
+import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getMexicoDateString } from '../utils/timezone.js';
+import { getNow } from '../../shared/services/DateService.js';
+import { listUnits } from './unitsController.js';
+import { allocateByOwnership } from '../../shared/utils/allocationUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Documents to exclude from project listings (structural, not projects)
@@ -39,6 +43,65 @@ function isValidProject(doc) {
   }
   
   return true;
+}
+
+/**
+ * Build ownership map from units (ownershipPercentage or percentOwned)
+ * @param {Array} units - Units from listUnits
+ * @returns {Object<string, number>} unitId -> decimal (0-1)
+ */
+function buildOwnershipMapFromUnits(units) {
+  const map = {};
+  for (const u of units || []) {
+    const unitId = u.unitId ?? u.id;
+    if (!unitId) continue;
+    const pct = u.ownershipPercentage;
+    if (pct == null || Number.isNaN(Number(pct))) continue;
+    const decimal = typeof pct === 'number' ? pct : parseFloat(pct);
+    if (decimal > 0 && decimal <= 1) map[unitId] = decimal;
+  }
+  return map;
+}
+
+/**
+ * Compute an allocation snapshot for a given amount, ownership, and participation.
+ * Callers provide the amount (bid or project totalCost) and can pass a pre-fetched
+ * ownershipMap to avoid redundant listUnits calls.
+ *
+ * @param {string} clientId - Client ID (used only if ownershipMap not provided)
+ * @param {number} amountCentavos - Amount to allocate (integer centavos)
+ * @param {Object} options
+ * @param {Object<string,'in'|'out'>} [options.participationMap] - unitId -> 'in'|'out'
+ * @param {Object<string,number>} [options.ownershipMap] - unitId -> decimal (0-1). If omitted, fetched live.
+ * @returns {Object|null} Snapshot to persist, or null if cannot compute
+ */
+async function computeAllocationSnapshot(clientId, amountCentavos, { participationMap = {}, ownershipMap } = {}) {
+  const total = Math.round(Number(amountCentavos));
+  if (!total || !Number.isInteger(total) || total <= 0) return null;
+
+  let ownership = ownershipMap;
+  if (!ownership || typeof ownership !== 'object' || Object.keys(ownership).length === 0) {
+    const units = await listUnits(clientId);
+    ownership = buildOwnershipMapFromUnits(units);
+  }
+
+  if (Object.keys(ownership).length === 0) return null;
+
+  try {
+    const { allocations, reconciliation } = allocateByOwnership(total, ownership, participationMap);
+    return {
+      inputs: {
+        ownership,
+        participation: participationMap
+      },
+      allocations,
+      reconciliation,
+      computedAt: getNow().toISOString()
+    };
+  } catch (err) {
+    logWarn(`Allocation compute failed: ${err.message}`);
+    return null;
+  }
 }
 
 /**
@@ -264,14 +327,44 @@ export async function createProject(clientId, projectData) {
     ...projectData,
     metadata: {
       ...projectData.metadata,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: getNow().toISOString(),
+      updatedAt: getNow().toISOString()
     }
   };
   
   await docRef.set(project);
   
   return { projectId, ...project };
+}
+
+/**
+ * Validate bid revision installments (milestone-based)
+ * @param {Array} installments - Array of { milestone, percentOfTotal }
+ * @throws {Error} If validation fails
+ */
+function validateBidInstallments(installments) {
+  if (!installments || !Array.isArray(installments)) {
+    throw new Error('At least one installment row is required');
+  }
+  if (installments.length === 0) {
+    throw new Error('At least one installment row is required');
+  }
+  let sum = 0;
+  for (let i = 0; i < installments.length; i++) {
+    const row = installments[i];
+    const milestone = String(row.milestone || '').trim();
+    if (!milestone) {
+      throw new Error(`Installment row ${i + 1}: milestone is required`);
+    }
+    const pct = Number(row.percentOfTotal);
+    if (!Number.isInteger(pct) || pct <= 0 || pct > 100) {
+      throw new Error(`Installment row ${i + 1}: percentOfTotal must be an integer between 1 and 100`);
+    }
+    sum += pct;
+  }
+  if (sum !== 100) {
+    throw new Error(`Installment schedule must total 100% (currently ${sum}%)`);
+  }
 }
 
 /**
@@ -300,7 +393,7 @@ export async function updateProject(clientId, projectId, updates) {
   // Prevent changing the project ID
   delete updates.projectId;
   delete updates._id;
-  
+
   // Handle metadata separately to avoid Firestore conflict
   // (can't set both 'metadata' object and 'metadata.updatedAt' in same update)
   const { metadata: incomingMetadata, ...otherUpdates } = updates;
@@ -312,15 +405,51 @@ export async function updateProject(clientId, projectId, updates) {
       ...otherUpdates,
       metadata: {
         ...incomingMetadata,
-        updatedAt: new Date().toISOString()
+        updatedAt: getNow().toISOString()
       }
     };
   } else {
     // No metadata in updates, just set the timestamp via dot notation
     updateData = {
       ...otherUpdates,
-      'metadata.updatedAt': new Date().toISOString()
+      'metadata.updatedAt': getNow().toISOString()
     };
+  }
+
+  // Recompute allocation when totalCost, unitParticipation, or status (to approved) changes
+  const existingData = existing.data();
+  const totalCostChanged = 'totalCost' in otherUpdates;
+  const participationChanged = 'unitParticipation' in otherUpdates || 'participation' in otherUpdates;
+  const statusToApproved = otherUpdates.status === 'approved' && existingData.status !== 'approved';
+  if (totalCostChanged || participationChanged || statusToApproved) {
+    const mergedProject = { ...existingData, ...otherUpdates };
+    const mergedCost = mergedProject.totalCost ?? 0;
+    const participationMap = mergedProject.unitParticipation ?? mergedProject.participation ?? {};
+
+    // Use locked ownership if approved, otherwise fetch live (single call)
+    const isApproved = mergedProject.status === 'approved';
+    const lockedOwnership = existingData.allocationInputs?.ownership;
+    let ownershipMap;
+
+    if (isApproved && lockedOwnership && typeof lockedOwnership === 'object') {
+      ownershipMap = lockedOwnership;
+    } else {
+      const units = await listUnits(clientId);
+      ownershipMap = buildOwnershipMapFromUnits(units);
+
+      // Lock ownership when project becomes approved
+      if (statusToApproved) {
+        updateData.allocationInputs = {
+          ownership: ownershipMap,
+          lockedAt: getNow().toISOString()
+        };
+      }
+    }
+
+    const snapshot = await computeAllocationSnapshot(clientId, mergedCost, { participationMap, ownershipMap });
+    if (snapshot) {
+      updateData.allocationSnapshot = snapshot;
+    }
   }
   
   await docRef.update(updateData);
@@ -623,7 +752,14 @@ export async function createBid(clientId, projectId, bidData) {
   
   const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
   
-  // Create initial revision from bid data
+  // Installments: new format required. Legacy paymentTerms converted at read/display only.
+  const installments = bidData.installments;
+  if (installments && installments.length > 0) {
+    validateBidInstallments(installments);
+  } else {
+    throw new Error('At least one installment row is required (milestone + percent must total 100%)');
+  }
+
   const initialRevision = {
     revisionNumber: 1,
     submittedAt: bidData.submittedAt || getMexicoDateString(),
@@ -632,11 +768,27 @@ export async function createBid(clientId, projectId, bidData) {
     description: bidData.description || '',
     inclusions: bidData.inclusions || '',
     exclusions: bidData.exclusions || '',
-    paymentTerms: bidData.paymentTerms || '',
+    installments: installments.map(({ milestone, percentOfTotal }) => ({
+      milestone: String(milestone || '').trim(),
+      percentOfTotal: Number(percentOfTotal) || 0
+    })),
     notes: bidData.notes || '',
     documents: bidData.documents || []
   };
   
+  // Fetch project participation for allocation computation
+  const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+  const projectDoc = await projectRef.get();
+  const participationMap = projectDoc.exists
+    ? (projectDoc.data().unitParticipation ?? projectDoc.data().participation ?? {})
+    : {};
+
+  const bidAmount = initialRevision.amount;
+  let allocationSnapshot = null;
+  if (bidAmount && Number.isInteger(bidAmount) && bidAmount > 0) {
+    allocationSnapshot = await computeAllocationSnapshot(clientId, bidAmount, { participationMap });
+  }
+
   const bid = {
     vendorName: bidData.vendorName,
     vendorContact: bidData.vendorContact || {},
@@ -644,9 +796,12 @@ export async function createBid(clientId, projectId, bidData) {
     currentRevision: 1,
     revisions: [initialRevision],
     communications: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: getNow().toISOString(),
+    updatedAt: getNow().toISOString()
   };
+  if (allocationSnapshot) {
+    bid.allocationSnapshot = allocationSnapshot;
+  }
   
   const docRef = await bidsRef.add(bid);
   
@@ -678,25 +833,52 @@ export async function updateBid(clientId, projectId, bidId, updates) {
   
   // If adding a new revision
   if (updates.newRevision) {
+    const rev = updates.newRevision;
+    const installments = rev.installments;
+    if (installments && installments.length > 0) {
+      validateBidInstallments(installments);
+    } else {
+      throw new Error('At least one installment row is required (milestone + percent must total 100%)');
+    }
+
     const newRevisionNumber = currentData.currentRevision + 1;
     const newRevision = {
       revisionNumber: newRevisionNumber,
-      submittedAt: updates.newRevision.submittedAt || getMexicoDateString(),
-      amount: updates.newRevision.amount,
-      timeline: updates.newRevision.timeline || '',
-      description: updates.newRevision.description || '',
-      inclusions: updates.newRevision.inclusions || '',
-      exclusions: updates.newRevision.exclusions || '',
-      paymentTerms: updates.newRevision.paymentTerms || '',
-      notes: updates.newRevision.notes || '',
-      documents: updates.newRevision.documents || []
+      submittedAt: rev.submittedAt || getMexicoDateString(),
+      amount: rev.amount,
+      timeline: rev.timeline || '',
+      description: rev.description || '',
+      inclusions: rev.inclusions || '',
+      exclusions: rev.exclusions || '',
+      installments: installments.map(({ milestone, percentOfTotal }) => ({
+        milestone: String(milestone || '').trim(),
+        percentOfTotal: Number(percentOfTotal) || 0
+      })),
+      notes: rev.notes || '',
+      documents: rev.documents || []
     };
-    
-    await docRef.update({
+
+    const revisionUpdate = {
       currentRevision: newRevisionNumber,
       revisions: [...currentData.revisions, newRevision],
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: getNow().toISOString()
+    };
+
+    // Recompute bid allocation if the revision amount changed
+    const newAmount = newRevision.amount;
+    if (newAmount && Number.isInteger(newAmount) && newAmount > 0) {
+      const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+      const projectDoc = await projectRef.get();
+      const participationMap = projectDoc.exists
+        ? (projectDoc.data().unitParticipation ?? projectDoc.data().participation ?? {})
+        : {};
+      const snapshot = await computeAllocationSnapshot(clientId, newAmount, { participationMap });
+      if (snapshot) {
+        revisionUpdate.allocationSnapshot = snapshot;
+      }
+    }
+
+    await docRef.update(revisionUpdate);
   } 
   // If adding a communication
   else if (updates.newCommunication) {
@@ -709,13 +891,13 @@ export async function updateBid(clientId, projectId, bidId, updates) {
     
     await docRef.update({
       communications: [...currentData.communications, comm],
-      updatedAt: new Date().toISOString()
+      updatedAt: getNow().toISOString()
     });
   }
   // General metadata update
   else {
     const allowedFields = ['vendorName', 'vendorContact', 'status'];
-    const updateData = { updatedAt: new Date().toISOString() };
+    const updateData = { updatedAt: getNow().toISOString() };
     
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
@@ -795,20 +977,31 @@ export async function selectBid(clientId, projectId, bidId) {
     if (doc.id === bidId) {
       batch.update(doc.ref, { 
         status: 'selected',
-        selectedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        selectedAt: getNow().toISOString(),
+        updatedAt: getNow().toISOString()
       });
     } else if (doc.data().status === 'active') {
       batch.update(doc.ref, { 
         status: 'rejected',
-        updatedAt: new Date().toISOString()
+        updatedAt: getNow().toISOString()
       });
     }
   });
   
-  // Update the project with vendor and cost from selected bid
+  // Lock ownership and compute project-level allocation (single listUnits call)
   const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
-  batch.update(projectRef, {
+  const projectDoc = await projectRef.get();
+  const projectData = projectDoc.exists ? projectDoc.data() : {};
+  const participationMap = projectData.unitParticipation ?? projectData.participation ?? {};
+
+  const units = await listUnits(clientId);
+  const ownershipMap = buildOwnershipMapFromUnits(units);
+
+  const allocationSnapshot = await computeAllocationSnapshot(
+    clientId, currentRevision.amount, { participationMap, ownershipMap }
+  );
+
+  const batchUpdates = {
     vendor: {
       name: bidData.vendorName,
       contact: bidData.vendorContact?.phone || bidData.vendorContact?.email || '',
@@ -818,8 +1011,26 @@ export async function selectBid(clientId, projectId, bidId) {
     totalCost: currentRevision.amount,
     selectedBidId: bidId,
     status: 'approved',
-    'metadata.updatedAt': new Date().toISOString()
-  });
+    allocationInputs: {
+      ownership: ownershipMap,
+      lockedAt: getNow().toISOString()
+    },
+    'metadata.updatedAt': getNow().toISOString()
+  };
+  if (allocationSnapshot) {
+    batchUpdates.allocationSnapshot = allocationSnapshot;
+  }
+  // Promote winning bid's installments to project
+  if (currentRevision.installments && Array.isArray(currentRevision.installments) && currentRevision.installments.length > 0) {
+    batchUpdates.installments = currentRevision.installments.map(({ milestone, percentOfTotal }) => ({
+      milestone: String(milestone || '').trim(),
+      percentOfTotal: Number(percentOfTotal) || 0
+    }));
+  } else if (currentRevision.paymentTerms) {
+    // Legacy: convert paymentTerms to single 100% installment
+    batchUpdates.installments = [{ milestone: currentRevision.paymentTerms || 'Full Payment', percentOfTotal: 100 }];
+  }
+  batch.update(projectRef, batchUpdates);
   
   await batch.commit();
   
@@ -852,17 +1063,20 @@ export async function unselectBid(clientId, projectId) {
     if (status === 'selected' || status === 'rejected') {
       batch.update(doc.ref, { 
         status: 'active',
-        updatedAt: new Date().toISOString()
+        updatedAt: getNow().toISOString()
       });
     }
   });
   
-  // Clear project's selected bid info, set back to bidding
+  // Clear project's selected bid info, installments, and allocation data
   const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
   batch.update(projectRef, {
     selectedBidId: null,
     status: 'bidding',
-    'metadata.updatedAt': new Date().toISOString()
+    installments: admin.firestore.FieldValue.delete(),
+    allocationSnapshot: admin.firestore.FieldValue.delete(),
+    allocationInputs: admin.firestore.FieldValue.delete(),
+    'metadata.updatedAt': getNow().toISOString()
   });
   
   await batch.commit();

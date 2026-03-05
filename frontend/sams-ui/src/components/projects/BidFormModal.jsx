@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { getVendors } from '../../api/vendors';
 import { getMexicoDateString } from '../../utils/timezone';
@@ -26,11 +26,11 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
     description: '',
     inclusions: '',
     exclusions: '',
-    paymentTerms: '',
     submittedAt: getMexicoDateString(),
     notes: ''
   });
-  
+
+  const [installments, setInstallments] = useState([{ milestone: '', percentOfTotal: 100 }]);
   const [errors, setErrors] = useState({});
   const [isRevision, setIsRevision] = useState(false);
   
@@ -63,10 +63,8 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
   useEffect(() => {
     if (bid && isEdit) {
       const currentRevision = bid.revisions[bid.currentRevision - 1];
-      
-      // Find vendor by name to get ID
       const matchingVendor = vendors.find(v => v.name === bid.vendorName);
-      
+
       setFormData({
         vendorId: matchingVendor?.id || '',
         vendorName: bid.vendorName || '',
@@ -77,13 +75,22 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
         description: currentRevision?.description || '',
         inclusions: currentRevision?.inclusions || '',
         exclusions: currentRevision?.exclusions || '',
-        paymentTerms: currentRevision?.paymentTerms || '',
         submittedAt: currentRevision?.submittedAt || getMexicoDateString(),
         notes: ''
       });
+
+      if (currentRevision?.installments && Array.isArray(currentRevision.installments) && currentRevision.installments.length > 0) {
+        setInstallments(currentRevision.installments.map(i => ({
+          milestone: i.milestone || '',
+          percentOfTotal: i.percentOfTotal ?? ''
+        })));
+      } else if (currentRevision?.paymentTerms) {
+        setInstallments([{ milestone: currentRevision.paymentTerms || 'Full Payment', percentOfTotal: 100 }]);
+      } else {
+        setInstallments([{ milestone: '', percentOfTotal: 100 }]);
+      }
       setIsRevision(false);
     } else {
-      // Reset for new bid
       setFormData({
         vendorId: '',
         vendorName: '',
@@ -94,10 +101,10 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
         description: '',
         inclusions: '',
         exclusions: '',
-        paymentTerms: '',
         submittedAt: getMexicoDateString(),
         notes: ''
       });
+      setInstallments([{ milestone: '', percentOfTotal: 100 }]);
       setIsRevision(false);
     }
     setErrors({});
@@ -138,17 +145,52 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
     }
   };
   
+  const handleAddInstallment = () => {
+    setInstallments(prev => [...prev, { milestone: '', percentOfTotal: '' }]);
+  };
+
+  const handleRemoveInstallment = (index) => {
+    setInstallments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleInstallmentChange = (index, field, value) => {
+    setInstallments(prev => prev.map((row, i) =>
+      i === index ? { ...row, [field]: value } : row
+    ));
+  };
+
+  const installmentSum = installments.reduce((s, row) => s + (Number(row.percentOfTotal) || 0), 0);
+  const installmentValid = installmentSum === 100;
+
   const validate = () => {
     const newErrors = {};
-    
+
     if (!formData.vendorName.trim()) {
       newErrors.vendorName = 'Vendor is required';
     }
-    
-    if (!formData.amount || isNaN(parseFloat(formData.amount))) {
+
+    if ((!isEdit || isRevision) && (!formData.amount || isNaN(parseFloat(formData.amount)))) {
       newErrors.amount = 'Valid amount is required';
     }
-    
+
+    if ((!isEdit || isRevision) && installments.length > 0) {
+      for (let i = 0; i < installments.length; i++) {
+        const row = installments[i];
+        if (!String(row.milestone || '').trim()) {
+          newErrors.installments = `Row ${i + 1}: milestone is required`;
+          break;
+        }
+        const pct = Number(row.percentOfTotal);
+        if (!Number.isInteger(pct) || pct <= 0 || pct > 100) {
+          newErrors.installments = `Row ${i + 1}: percent must be 1-100`;
+          break;
+        }
+      }
+      if (!newErrors.installments && installmentSum !== 100) {
+        newErrors.installments = `Installment total must be 100% (currently ${installmentSum}%)`;
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -161,7 +203,6 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
     const amountCentavos = Math.round(parseFloat(formData.amount) * 100);
     
     if (isEdit && isRevision) {
-      // Submit as new revision
       onSave({
         newRevision: {
           amount: amountCentavos,
@@ -169,7 +210,10 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
           description: formData.description,
           inclusions: formData.inclusions,
           exclusions: formData.exclusions,
-          paymentTerms: formData.paymentTerms,
+          installments: installments.map(row => ({
+            milestone: String(row.milestone || '').trim(),
+            percentOfTotal: Number(row.percentOfTotal) || 0
+          })).filter(row => row.milestone && row.percentOfTotal > 0),
           submittedAt: formData.submittedAt,
           notes: formData.notes,
           documents: []
@@ -185,7 +229,6 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
         }
       });
     } else {
-      // Create new bid
       onSave({
         vendorName: formData.vendorName,
         vendorContact: {
@@ -197,7 +240,10 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
         description: formData.description,
         inclusions: formData.inclusions,
         exclusions: formData.exclusions,
-        paymentTerms: formData.paymentTerms,
+        installments: installments.map(row => ({
+          milestone: String(row.milestone || '').trim(),
+          percentOfTotal: Number(row.percentOfTotal) || 0
+        })).filter(row => row.milestone && row.percentOfTotal > 0),
         submittedAt: formData.submittedAt,
         notes: formData.notes
       });
@@ -411,20 +457,59 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
                 </label>
               </div>
               
-              <div className="sandyland-form-row">
-                <label className="sandyland-form-label" style={{ flex: 1 }}>
-                  Payment Terms
-                  <input
-                    type="text"
-                    name="paymentTerms"
-                    value={formData.paymentTerms}
-                    onChange={handleChange}
-                    className="sandyland-form-input"
-                    placeholder="e.g., 50% deposit, 50% on completion"
-                  />
-                </label>
+              <div className="sandyland-form-section" style={{ marginTop: 16 }}>
+                <h4 className="sandyland-section-title" style={{ fontSize: '0.95rem', marginBottom: 8 }}>Installment Schedule</h4>
+                <p className="sandyland-form-hint" style={{ marginBottom: 12, fontSize: '0.85rem' }}>
+                  Define when the vendor expects payment. Percentages must total 100%.
+                </p>
+                {installments.map((row, index) => (
+                  <div key={index} className="sandyland-form-row" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <label className="sandyland-form-label" style={{ flex: '1 1 180px' }}>
+                      Milestone
+                      <input
+                        type="text"
+                        value={row.milestone}
+                        onChange={(e) => handleInstallmentChange(index, 'milestone', e.target.value)}
+                        className={`sandyland-form-input ${errors.installments ? 'error' : ''}`}
+                        placeholder="e.g., Contract Signing"
+                      />
+                    </label>
+                    <label className="sandyland-form-label" style={{ flex: '0 1 80px' }}>
+                      % Due
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={row.percentOfTotal}
+                        onChange={(e) => handleInstallmentChange(index, 'percentOfTotal', e.target.value)}
+                        className={`sandyland-form-input ${errors.installments ? 'error' : ''}`}
+                        placeholder="%"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveInstallment(index)}
+                      className="sandyland-btn sandyland-btn-secondary"
+                      style={{ padding: '8px 12px', alignSelf: 'flex-end' }}
+                      title="Remove row"
+                      disabled={installments.length <= 1}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                ))}
+                <div className="sandyland-form-row" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={handleAddInstallment} className="sandyland-btn sandyland-btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FontAwesomeIcon icon={faPlus} />
+                    Add installment
+                  </button>
+                  <span style={{ color: installmentValid ? '#2e7d32' : (installmentSum > 0 ? '#d32f2f' : '#666'), fontWeight: 500, fontSize: '0.9rem' }}>
+                    {installmentSum}% of 100%
+                  </span>
+                  {errors.installments && <span className="sandyland-error-text">{errors.installments}</span>}
+                </div>
               </div>
-              
+
               <div className="sandyland-form-row">
                 <label className="sandyland-form-label" style={{ flex: 1 }}>
                   Notes

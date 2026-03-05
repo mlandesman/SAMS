@@ -14,20 +14,11 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 
-/**
- * Format centavos to currency display (US style, no currency code)
- * @param {number} centavos - Amount in centavos
- * @returns {string} Formatted currency string
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD');
 }
 
 /**

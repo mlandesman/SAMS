@@ -14,20 +14,13 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { getMexicoDateTime } from '../../utils/timezone';
+import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
 import '../../styles/SandylandModalTheme.css';
 
-/**
- * Format centavos to currency display
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavos / 100;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD', false);
 }
 
 /**
@@ -36,7 +29,7 @@ function formatCurrency(centavos) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
-    const date = new Date(dateStr);
+    const date = getMexicoDateTime(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;
@@ -53,6 +46,8 @@ function BidComparisonView({ isOpen, onClose, bids }) {
     
     return bids.map(bid => {
       const revision = bid.revisions[bid.currentRevision - 1];
+      const installments = revision?.installments;
+      const paymentTermsLegacy = revision?.paymentTerms;
       return {
         id: bid.id,
         vendorName: bid.vendorName,
@@ -63,7 +58,9 @@ function BidComparisonView({ isOpen, onClose, bids }) {
         revisions: bid.currentRevision,
         inclusions: revision?.inclusions || '-',
         exclusions: revision?.exclusions || '-',
-        paymentTerms: revision?.paymentTerms || '-',
+        installments: installments && installments.length > 0 ? installments : null,
+        paymentTermsLegacy: paymentTermsLegacy || null,
+        allocationSnapshot: bid.allocationSnapshot,
         documents: revision?.documents?.length || 0
       };
     }).sort((a, b) => a.amount - b.amount); // Sort by amount ascending (lowest first)
@@ -196,12 +193,25 @@ function BidComparisonView({ isOpen, onClose, bids }) {
                   ))}
                 </TableRow>
                 
-                {/* Payment Terms */}
+                {/* Installment Schedule / Payment Terms (legacy) */}
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'medium' }}>Payment Terms</TableCell>
+                  <TableCell sx={{ fontWeight: 'medium', verticalAlign: 'top' }}>Installment Schedule</TableCell>
                   {comparisonData.map(bid => (
-                    <TableCell key={bid.id} sx={{ fontSize: '0.85rem' }}>
-                      {bid.paymentTerms}
+                    <TableCell key={bid.id} sx={{ fontSize: '0.85rem', verticalAlign: 'top' }}>
+                      {bid.installments ? (
+                        <Box>
+                          {bid.installments.map((row, i) => (
+                            <Box key={i} sx={{ mb: i < bid.installments.length - 1 ? 0.5 : 0 }}>
+                              {row.milestone}: {row.percentOfTotal}% — {formatCurrency(Math.round((bid.amount || 0) * (row.percentOfTotal || 0) / 100))}
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        <>
+                          <Typography component="span" variant="caption" color="text.secondary">(legacy) </Typography>
+                          <span>{bid.paymentTermsLegacy || '—'}</span>
+                        </>
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

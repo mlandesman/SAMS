@@ -24,6 +24,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf, getBids } from '../api/projects';
+import { getUnits } from '../api/units';
 import { getPolls, getPoll } from '../api/polls';
 import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
@@ -37,21 +38,12 @@ import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import './ProjectsView.css';
-import { centavosToPesos } from '../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '../utils/currencyUtils';
+import { getMexicoDate, getMexicoDateTime } from '../utils/timezone';
 
-/**
- * Format centavos to currency display (US style, no currency code)
- * @param {number} centavos - Amount in centavos
- * @returns {string} Formatted currency string
- */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
-  const amount = centavosToPesos(centavos);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  }).format(amount);
+  return formatCurrencyShared(centavos, 'USD');
 }
 
 /**
@@ -98,7 +90,7 @@ function ProjectsView() {
   const { setCenterContent, clearCenterContent } = useStatusBar();
   
   // Year selector state
-  const currentYear = new Date().getFullYear();
+  const currentYear = getMexicoDate().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
   // Projects state
@@ -144,6 +136,9 @@ function ProjectsView() {
   const [generatingDocs, setGeneratingDocs] = useState(false);
   // Pre-populated poll context (title/description with translations)
   const [pollContext, setPollContext] = useState({});
+  // Units for Unit Assessments grid (cached per client)
+  const [unitsForAssessments, setUnitsForAssessments] = useState([]);
+  const unitsCacheByClientRef = useRef(new Map());
   
   /**
    * Extract fiscal year from a project's startDate
@@ -330,6 +325,31 @@ function ProjectsView() {
     }
   }, [selectedProjectId, selectedClient]);
 
+  // Fetch units when project has allocationSnapshot (for Unit Assessments owner names)
+  useEffect(() => {
+    const loadUnitsForAssessments = async () => {
+      if (!selectedClient?.id || !selectedProject?.allocationSnapshot) {
+        setUnitsForAssessments([]);
+        return;
+      }
+      const cached = unitsCacheByClientRef.current.get(selectedClient.id);
+      if (cached) {
+        setUnitsForAssessments(cached);
+        return;
+      }
+      try {
+        const result = await getUnits(selectedClient.id);
+        const list = result.data || result.units || [];
+        unitsCacheByClientRef.current.set(selectedClient.id, list);
+        setUnitsForAssessments(list);
+      } catch (err) {
+        console.error('Error loading units for assessments:', err);
+        setUnitsForAssessments([]);
+      }
+    };
+    loadUnitsForAssessments();
+  }, [selectedClient?.id, selectedProject?.allocationSnapshot]);
+
   useEffect(() => {
     const loadLinkedPoll = async () => {
       if (!selectedClient?.id || !selectedProject?.projectId) {
@@ -410,7 +430,7 @@ function ProjectsView() {
             name: `Bid Comparison - ${enDoc.projectName || 'Project'} (English)`,
             url: enDoc.url,
             type: 'bid_comparison',
-            uploadedAt: new Date().toISOString(),
+            uploadedAt: getMexicoDateTime().toISOString(),
             uploadedBy: 'system'
           },
           {
@@ -418,7 +438,7 @@ function ProjectsView() {
             name: `Comparacion de Ofertas - ${esDoc.projectName || 'Proyecto'} (Espanol)`,
             url: esDoc.url,
             type: 'bid_comparison',
-            uploadedAt: new Date().toISOString(),
+            uploadedAt: getMexicoDateTime().toISOString(),
             uploadedBy: 'system'
           }
         ];
@@ -469,9 +489,10 @@ function ProjectsView() {
    * Helper to get date one week from now in YYYY-MM-DD format
    */
   const getOneWeekFromNow = () => {
-    const oneWeekFromNow = new Date();
-    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-    return oneWeekFromNow.toISOString().split('T')[0];
+    const today = getMexicoDate();
+    const oneWeek = new Date(today.getTime());
+    oneWeek.setDate(oneWeek.getDate() + 7);
+    return oneWeek.toISOString().split('T')[0];
   };
   
   /**
@@ -1019,6 +1040,47 @@ function ProjectsView() {
                 />
               </Paper>
 
+              {/* Installment Schedule Section (promoted from selected bid) */}
+              <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>Installment Schedule</Typography>
+                {selectedProject.installments && selectedProject.installments.length > 0 ? (
+                  <Box>
+                    <Box
+                      component="table"
+                      sx={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        '& th, & td': { border: '1px solid #e0e0e0', p: 1.5, textAlign: 'left' },
+                        '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 }
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th>Milestone</th>
+                          <th>% of Total</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedProject.installments.map((row, i) => (
+                          <tr key={i}>
+                            <td>{row.milestone}</td>
+                            <td>{row.percentOfTotal}%</td>
+                            <td>{formatCurrency(Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100))}</td>
+                            <td>Pending</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No installment schedule — select a bid to set payment terms.
+                  </Typography>
+                )}
+              </Paper>
+
               {/* Voting Status Section */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1084,8 +1146,10 @@ function ProjectsView() {
                   Unit Assessments & Collections
                 </Typography>
                 <UnitAssessmentsTable 
-                  unitAssessments={selectedProject.unitAssessments}
-                  collections={selectedProject.collections}
+                  allocationSnapshot={selectedProject.allocationSnapshot}
+                  installments={selectedProject.installments}
+                  units={unitsForAssessments}
+                  payments={selectedProject.payments || []}
                 />
               </Box>
               
