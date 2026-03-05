@@ -1,3 +1,11 @@
+/**
+ * UnitAssessmentsTable - Unit assessments grid sourced from allocation engine
+ *
+ * Data from allocationSnapshot (PM5A) + installments (PM5B).
+ * Populates at bid selection — units see total obligation immediately.
+ * Billed/Paid are $0 until PM6/PM7.
+ */
+
 import React, { useState, useMemo } from 'react';
 import {
   Box,
@@ -14,11 +22,10 @@ import {
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import { getOwnerInfo } from '../../utils/unitUtils';
 
 /**
- * Format centavos to currency display (US style, no currency code)
- * @param {number} centavos - Amount in centavos
- * @returns {string} Formatted currency string
+ * Format centavos to currency display (US style)
  */
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
@@ -31,133 +38,156 @@ function formatCurrency(centavos) {
 }
 
 /**
- * Get payment status for a unit assessment
- * @param {object} assessment - Unit assessment object
- * @returns {object} Status info with label and color
+ * Get status chip for a unit row
  */
-function getPaymentStatus(assessment) {
-  if (assessment.exempt) {
-    return { label: 'Exempt', color: 'default' };
+function getStatusChip({ excluded, paid, totalAssessed }) {
+  if (excluded) {
+    return { label: 'Excluded', color: 'default' };
   }
-  
-  const expected = assessment.expectedAmount || 0;
-  const paid = assessment.actualPaid || 0;
-  
-  if (paid >= expected && expected > 0) {
+  if (totalAssessed <= 0) {
+    return { label: '—', color: 'default' };
+  }
+  if (paid >= totalAssessed) {
     return { label: 'Paid', color: 'success' };
-  } else if (paid > 0) {
-    return { label: 'Partial', color: 'warning' };
-  } else {
-    return { label: 'Pending', color: 'error' };
   }
+  if (paid > 0) {
+    return { label: 'Partial', color: 'warning' };
+  }
+  return { label: 'Pending', color: 'error' };
 }
 
 /**
- * Row component with expandable transaction details
+ * Get next milestone label (text, not date)
  */
-function AssessmentRow({ assessment, collections }) {
+function getNextMilestone({ excluded, paid, totalAssessed, installments, billedMilestoneCount }) {
+  if (excluded || !installments || installments.length === 0) return '-';
+  if (totalAssessed > 0 && paid >= totalAssessed) return '-';
+  const nextIdx = billedMilestoneCount ?? 0;
+  if (nextIdx >= installments.length) return '-';
+  return installments[nextIdx].milestone || '-';
+}
+
+/**
+ * Expandable row with per-milestone breakdown
+ */
+function UnitRow({
+  unitId,
+  ownerLastName,
+  totalAssessed,
+  billed,
+  paid,
+  balance,
+  excluded,
+  nextMilestone,
+  installments,
+  allocationSnapshot,
+  statusChip
+}) {
   const [open, setOpen] = useState(false);
-  const status = getPaymentStatus(assessment);
-  
-  // Find collections for this unit
-  const unitCollections = useMemo(() => {
-    return (collections || []).filter(c => c.unitId === assessment.unitId);
-  }, [collections, assessment.unitId]);
-  
-  const hasPaidAmount = (assessment.actualPaid || 0) > 0;
-  const hasCollections = unitCollections.length > 0;
-  
+  const unitAllocation = allocationSnapshot?.allocations?.[unitId] ?? 0;
+  const hasInstallments = installments && installments.length > 0;
+
   return (
     <>
-      <TableRow 
-        sx={{ 
+      <TableRow
+        sx={{
           '& > *': { borderBottom: 'unset' },
-          '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
+          '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+          cursor: 'pointer'
         }}
+        onClick={() => setOpen(!open)}
       >
         <TableCell component="th" scope="row">
-          <Typography variant="body2" fontWeight="medium">
-            {assessment.unitId}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" fontWeight="medium">
+              {unitId}
+            </Typography>
+            {open ? (
+              <KeyboardArrowUpIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            ) : (
+              <KeyboardArrowDownIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            )}
+          </Box>
+        </TableCell>
+        <TableCell>
+          <Typography variant="body2">{ownerLastName || '—'}</Typography>
         </TableCell>
         <TableCell align="right">
-          {assessment.exempt ? (
-            <Typography variant="body2" color="text.secondary">-</Typography>
-          ) : (
-            formatCurrency(assessment.expectedAmount)
-          )}
+          <Typography variant="body2">{excluded ? '-' : formatCurrency(totalAssessed)}</Typography>
         </TableCell>
-        <TableCell 
-          align="right"
-          sx={{ 
-            cursor: hasCollections ? 'pointer' : 'default',
-            '&:hover': hasCollections ? { 
-              backgroundColor: 'rgba(25, 118, 210, 0.08)',
-              borderRadius: 1
-            } : {}
-          }}
-          onClick={() => hasCollections && setOpen(!open)}
-        >
-          {hasPaidAmount ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-              <Typography variant="body2" color="success.main">
-                {formatCurrency(assessment.actualPaid)}
-              </Typography>
-              {hasCollections && (
-                open ? 
-                  <KeyboardArrowUpIcon fontSize="small" sx={{ color: 'text.secondary' }} /> :
-                  <KeyboardArrowDownIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-              )}
-            </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary">-</Typography>
-          )}
+        <TableCell align="right">
+          <Typography variant="body2">{excluded ? '-' : formatCurrency(billed)}</Typography>
+        </TableCell>
+        <TableCell align="right">
+          <Typography variant="body2">{excluded ? '-' : formatCurrency(paid)}</Typography>
+        </TableCell>
+        <TableCell align="right">
+          <Typography variant="body2">{excluded ? '-' : formatCurrency(balance)}</Typography>
         </TableCell>
         <TableCell align="center">
-          <Chip 
-            label={status.label} 
-            color={status.color}
-            size="small"
-            sx={{ minWidth: 70 }}
-          />
+          <Chip label={statusChip.label} color={statusChip.color} size="small" sx={{ minWidth: 70 }} />
+        </TableCell>
+        <TableCell>
+          <Typography variant="body2">{nextMilestone}</Typography>
         </TableCell>
       </TableRow>
-      
-      {/* Expandable transaction details */}
-      {hasCollections && (
+
+      {!excluded && hasInstallments && (
         <TableRow>
-          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
+          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
             <Collapse in={open} timeout="auto" unmountOnExit>
               <Box sx={{ margin: 1, ml: 2, mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom color="text.secondary">
-                  Payment Transactions
-                </Typography>
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell>Milestone</TableCell>
+                      <TableCell align="right">%</TableCell>
                       <TableCell align="right">Amount</TableCell>
-                      <TableCell>Transaction ID</TableCell>
+                      <TableCell>Status</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {unitCollections.map((collection, idx) => (
-                      <TableRow key={collection.transactionId || idx}>
-                        <TableCell>{collection.date || '-'}</TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" color="success.main">
-                            {formatCurrency(collection.amount)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                            {collection.transactionId || '-'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {installments.map((row, i) => {
+                      const amount = Math.round((unitAllocation || 0) * (row.percentOfTotal || 0) / 100);
+                      return (
+                        <TableRow key={i}>
+                          <TableCell>{row.milestone}</TableCell>
+                          <TableCell align="right">{row.percentOfTotal}%</TableCell>
+                          <TableCell align="right">{formatCurrency(amount)}</TableCell>
+                          <TableCell>Not Billed</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
+              </Box>
+            </Collapse>
+          </TableCell>
+        </TableRow>
+      )}
+
+      {excluded && (
+        <TableRow>
+          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
+            <Collapse in={open} timeout="auto" unmountOnExit>
+              <Box sx={{ margin: 1, ml: 2, mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Unit excluded from this project.
+                </Typography>
+              </Box>
+            </Collapse>
+          </TableCell>
+        </TableRow>
+      )}
+
+      {!excluded && !hasInstallments && (
+        <TableRow>
+          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
+            <Collapse in={open} timeout="auto" unmountOnExit>
+              <Box sx={{ margin: 1, ml: 2, mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  No installment schedule defined.
+                </Typography>
               </Box>
             </Collapse>
           </TableCell>
@@ -168,74 +198,131 @@ function AssessmentRow({ assessment, collections }) {
 }
 
 /**
- * UnitAssessmentsTable - Displays unit assessments with payment status
- * 
+ * UnitAssessmentsTable - Displays unit assessments from allocation engine
+ *
  * @param {object} props
- * @param {object} props.unitAssessments - Map of unitId -> assessment data
- * @param {array} props.collections - Array of collection transactions
+ * @param {object} props.allocationSnapshot - { allocations: { unitId: centavos }, inputs: { participation: { unitId: 'in'|'out' } } }
+ * @param {array} props.installments - [{ milestone, percentOfTotal }]
+ * @param {array} props.units - Unit objects with owner info (for owner names)
+ * @param {array} props.payments - Payment records (pass [] until PM7)
  */
-function UnitAssessmentsTable({ unitAssessments, collections }) {
-  // Convert unitAssessments object to sorted array
-  const assessmentsList = useMemo(() => {
-    if (!unitAssessments) return [];
-    
-    return Object.entries(unitAssessments)
-      .map(([unitId, data]) => ({
-        unitId,
-        ...data
-      }))
-      .sort((a, b) => {
-        // Sort by unit ID (alphanumeric sort)
-        return a.unitId.localeCompare(b.unitId, undefined, { numeric: true });
-      });
-  }, [unitAssessments]);
-  
-  // Calculate totals - must be before any early returns (React hooks rule)
+function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], payments = [] }) {
+  const rows = useMemo(() => {
+    const allocations = allocationSnapshot?.allocations || {};
+    const participation = allocationSnapshot?.inputs?.participation || {};
+    const allocationUnitIds = new Set(Object.keys(allocations));
+    const excludedUnitIds = Object.entries(participation)
+      .filter(([, v]) => v === 'out')
+      .map(([k]) => k);
+    const unitIds = [...new Set([...allocationUnitIds, ...excludedUnitIds])];
+
+    if (unitIds.length === 0) return [];
+
+    const unitsMap = new Map((units || []).map(u => [u.unitId || u.id, u]));
+
+    return unitIds
+      .map(unitId => {
+        const centavos = allocations[unitId] ?? 0;
+        const isExcluded = participation[unitId] === 'out';
+        const unit = unitsMap.get(unitId);
+        const { lastName } = getOwnerInfo(unit || { unitId });
+
+        // Billed/Paid from payments - sum by unit (PM7); for now 0
+        const billed = 0;
+        const paid = 0;
+        const balance = isExcluded ? 0 : centavos - paid;
+
+        const statusChip = getStatusChip({
+          excluded: isExcluded,
+          paid,
+          totalAssessed: centavos
+        });
+
+        const nextMilestone = getNextMilestone({
+          excluded: isExcluded,
+          paid,
+          totalAssessed: centavos,
+          installments,
+          billedMilestoneCount: 0
+        });
+
+        return {
+          unitId,
+          ownerLastName: lastName || '—',
+          totalAssessed: centavos,
+          billed,
+          paid,
+          balance,
+          excluded: isExcluded,
+          nextMilestone,
+          statusChip
+        };
+      })
+      .sort((a, b) => (a.unitId || '').localeCompare(b.unitId || '', undefined, { numeric: true }));
+  }, [allocationSnapshot, installments, units, payments]);
+
   const totals = useMemo(() => {
-    return assessmentsList.reduce((acc, a) => ({
-      expected: acc.expected + (a.exempt ? 0 : (a.expectedAmount || 0)),
-      paid: acc.paid + (a.actualPaid || 0)
-    }), { expected: 0, paid: 0 });
-  }, [assessmentsList]);
-  
-  if (assessmentsList.length === 0) {
+    const participating = rows.filter(r => !r.excluded);
+    return {
+      totalAssessed: participating.reduce((s, r) => s + r.totalAssessed, 0),
+      billed: participating.reduce((s, r) => s + r.billed, 0),
+      paid: participating.reduce((s, r) => s + r.paid, 0),
+      balance: participating.reduce((s, r) => s + r.balance, 0),
+      participatingCount: participating.length,
+      totalCount: rows.length
+    };
+  }, [rows]);
+
+  if (!allocationSnapshot || !allocationSnapshot.allocations || Object.keys(allocationSnapshot.allocations).length === 0) {
     return (
       <Box sx={{ py: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          No unit assessments defined for this project.
+          No allocations — select and approve a bid to generate unit assessments.
         </Typography>
       </Box>
     );
   }
-  
+
   return (
     <TableContainer component={Paper} variant="outlined">
       <Table size="small">
         <TableHead>
           <TableRow sx={{ backgroundColor: 'grey.100' }}>
             <TableCell>Unit</TableCell>
-            <TableCell align="right">Assessment</TableCell>
+            <TableCell>Owner</TableCell>
+            <TableCell align="right">Total Assessed</TableCell>
+            <TableCell align="right">Billed</TableCell>
             <TableCell align="right">Paid</TableCell>
+            <TableCell align="right">Balance</TableCell>
             <TableCell align="center">Status</TableCell>
+            <TableCell>Next Milestone</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {assessmentsList.map((assessment) => (
-            <AssessmentRow 
-              key={assessment.unitId} 
-              assessment={assessment}
-              collections={collections}
+          {rows.map(row => (
+            <UnitRow
+              key={row.unitId}
+              {...row}
+              installments={installments}
+              allocationSnapshot={allocationSnapshot}
             />
           ))}
-          
-          {/* Totals row */}
+
           <TableRow sx={{ backgroundColor: 'grey.50' }}>
             <TableCell>
-              <Typography variant="body2" fontWeight="bold">Total</Typography>
+              <Typography variant="body2" fontWeight="bold">
+                Total
+              </Typography>
+            </TableCell>
+            <TableCell />
+            <TableCell align="right">
+              <Typography variant="body2" fontWeight="bold">
+                {formatCurrency(totals.totalAssessed)}
+              </Typography>
             </TableCell>
             <TableCell align="right">
               <Typography variant="body2" fontWeight="bold">
-                {formatCurrency(totals.expected)}
+                {formatCurrency(totals.billed)}
               </Typography>
             </TableCell>
             <TableCell align="right">
@@ -243,11 +330,17 @@ function UnitAssessmentsTable({ unitAssessments, collections }) {
                 {formatCurrency(totals.paid)}
               </Typography>
             </TableCell>
-            <TableCell align="center">
-              <Typography variant="caption" color="text.secondary">
-                {assessmentsList.length} units
+            <TableCell align="right">
+              <Typography variant="body2" fontWeight="bold">
+                {formatCurrency(totals.balance)}
               </Typography>
             </TableCell>
+            <TableCell align="center">
+              <Typography variant="caption" color="text.secondary">
+                {totals.participatingCount} / {totals.totalCount} units
+              </Typography>
+            </TableCell>
+            <TableCell />
           </TableRow>
         </TableBody>
       </Table>

@@ -24,6 +24,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { getProjects, getProject, createProject, updateProject, deleteProject, generateBidComparisonPdf, getBids } from '../api/projects';
+import { getUnits } from '../api/units';
 import { getPolls, getPoll } from '../api/polls';
 import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
@@ -145,6 +146,9 @@ function ProjectsView() {
   const [generatingDocs, setGeneratingDocs] = useState(false);
   // Pre-populated poll context (title/description with translations)
   const [pollContext, setPollContext] = useState({});
+  // Units for Unit Assessments grid (cached per client)
+  const [unitsForAssessments, setUnitsForAssessments] = useState([]);
+  const unitsCacheByClientRef = useRef(new Map());
   
   /**
    * Extract fiscal year from a project's startDate
@@ -330,6 +334,31 @@ function ProjectsView() {
       setSelectedProject(null);
     }
   }, [selectedProjectId, selectedClient]);
+
+  // Fetch units when project has allocationSnapshot (for Unit Assessments owner names)
+  useEffect(() => {
+    const loadUnitsForAssessments = async () => {
+      if (!selectedClient?.id || !selectedProject?.allocationSnapshot) {
+        setUnitsForAssessments([]);
+        return;
+      }
+      const cached = unitsCacheByClientRef.current.get(selectedClient.id);
+      if (cached) {
+        setUnitsForAssessments(cached);
+        return;
+      }
+      try {
+        const result = await getUnits(selectedClient.id);
+        const list = result.data || result.units || [];
+        unitsCacheByClientRef.current.set(selectedClient.id, list);
+        setUnitsForAssessments(list);
+      } catch (err) {
+        console.error('Error loading units for assessments:', err);
+        setUnitsForAssessments([]);
+      }
+    };
+    loadUnitsForAssessments();
+  }, [selectedClient?.id, selectedProject?.allocationSnapshot]);
 
   useEffect(() => {
     const loadLinkedPoll = async () => {
@@ -1127,8 +1156,10 @@ function ProjectsView() {
                   Unit Assessments & Collections
                 </Typography>
                 <UnitAssessmentsTable 
-                  unitAssessments={selectedProject.unitAssessments}
-                  collections={selectedProject.collections}
+                  allocationSnapshot={selectedProject.allocationSnapshot}
+                  installments={selectedProject.installments}
+                  units={unitsForAssessments}
+                  payments={selectedProject.payments || []}
                 />
               </Box>
               
