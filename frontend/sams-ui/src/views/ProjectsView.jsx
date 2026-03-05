@@ -1273,7 +1273,7 @@ function ProjectsView() {
           {billMilestoneDialog.milestone && selectedProject && (() => {
             const amountCentavos = billMilestoneDialog.milestone.amountCentavos ?? Math.round((selectedProject.totalCost || 0) * (billMilestoneDialog.milestone.percentOfTotal || 0) / 100);
             const allocations = selectedProject.allocationSnapshot?.allocations || {};
-            const participation = selectedProject.allocationSnapshot?.inputs?.participation || {};
+            const participation = selectedProject.unitParticipation || selectedProject.participation || {};
             const totalAllocated = Object.entries(allocations).reduce((s, [uid, v]) => participation[uid] === 'out' ? s : s + v, 0) || 1;
             const unitsMap = new Map((unitsForAssessments || []).map(u => [u.unitId || u.id, u]));
             const rows = Object.entries(allocations)
