@@ -522,21 +522,22 @@ function fiscalPeriodToCalendarDate(fiscalYear, fiscalMonthIndex, fiscalYearStar
  * COPIED EXACTLY FROM PROTOTYPE (lines 129-401)
  */
 function createChronologicalTransactionList(
-  payments, 
-  transactionMap, 
-  scheduledAmount, 
-  duesFrequency, 
-  fiscalYearStartMonth, 
+  payments,
+  transactionMap,
+  scheduledAmount,
+  duesFrequency,
+  fiscalYearStartMonth,
   fiscalYear,
   fiscalYearBounds,
-  waterBills = [], 
-  hoaPenalties = [], 
+  waterBills = [],
+  hoaPenalties = [],
   waterPenalties = [],
   openingBalance = 0,
-  creditAdjustments = []
+  creditAdjustments = [],
+  projectBills = []
 ) {
   const transactions = [];
-  
+
   // Helper to parse due date
   const parseDueDate = (dueDateValue) => {
     if (!dueDateValue) return null;
@@ -601,7 +602,55 @@ function createChronologicalTransactionList(
       }
     }
   }
-  
+
+  // Add project milestone charges (PM6 — SoA integration)
+  for (const pb of projectBills) {
+    const { projectId, projectName, milestone, milestoneIndex, billedDate, unitBill } = pb;
+    const amountPesos = centavosToPesos(unitBill.totalAmount || 0);
+    if (amountPesos <= 0) continue;
+
+    const billRef = {
+      billId: `${projectId}-${milestoneIndex}`,
+      billType: 'project',
+      projectId,
+      milestoneIndex
+    };
+
+    transactions.push({
+      type: 'charge',
+      category: 'project',
+      date: billedDate,
+      description: `${projectName} — ${milestone}`,
+      amount: amountPesos,
+      charge: amountPesos,
+      payment: 0,
+      balance: 0,
+      billRef
+    });
+
+    // Add payment entries from unitBill.payments
+    for (const payment of unitBill.payments || []) {
+      const paymentDate = parseDateFromService(payment.date);
+      if (!paymentDate || isNaN(paymentDate.getTime())) continue;
+
+      const paymentAmountPesos = centavosToPesos(payment.amount || 0);
+      if (paymentAmountPesos <= 0) continue;
+
+      transactions.push({
+        type: 'payment',
+        category: 'project',
+        date: paymentDate,
+        description: `Payment — ${projectName} ${milestone}`,
+        amount: -paymentAmountPesos,
+        charge: 0,
+        payment: paymentAmountPesos,
+        balance: 0,
+        transactionId: payment.transactionId || null,
+        billRef
+      });
+    }
+  }
+
   // Extract charges from payments array
   // Track processed transactions across ALL quarters to prevent duplicates
   const processedTransactionIds = new Set();
@@ -999,7 +1048,10 @@ function createChronologicalTransactionList(
     if (processedTransactionIds.has(txnId)) continue;
     
     // Skip project/special assessment payments (Issue #80 fix)
-    // These should ONLY appear in Special Projects section, NOT in Activity Report
+    // PM6: Project charges and payments come from bill documents (fetchProjectBillsForUnit),
+    // not from the transaction map. Transactions tagged projects-* or special-assessments
+    // are UPC allocations for project bill payments. We skip them here to avoid
+    // double-counting when PM7 records payments in unitBill.payments[].
     const categoryId = transaction.categoryId || '';
     if (categoryId.startsWith('projects-') || categoryId === 'special-assessments') {
       continue;
@@ -1081,6 +1133,7 @@ function createChronologicalTransactionList(
 function buildLedgerInputs(transactions = []) {
   const hoaDuesCharges = [];
   const waterBillCharges = [];
+  const projectCharges = [];
   const postedPenalties = [];
   const cashPayments = [];
   const adminCreditAdjustments = [];
@@ -1125,6 +1178,11 @@ function buildLedgerInputs(transactions = []) {
       return;
     }
 
+    if (txn.type === 'charge' && txn.category === 'project') {
+      projectCharges.push(baseRow);
+      return;
+    }
+
     if (txn.type === 'charge') {
       hoaDuesCharges.push(baseRow);
     }
@@ -1133,6 +1191,7 @@ function buildLedgerInputs(transactions = []) {
   return {
     hoaDuesCharges,
     waterBillCharges,
+    projectCharges,
     postedPenalties,
     cashPayments,
     adminCreditAdjustments
@@ -1210,6 +1269,63 @@ async function fetchWaterBills(api, clientId, unitId, year, fiscalYearStartMonth
     if (error.response?.status === 404) {
       return [];
     }
+    return [];
+  }
+}
+
+/**
+ * Fetch billed project milestones for a unit (PM6 — SoA integration).
+ * Reads from clients/{clientId}/projects/{projectId}/bills/* subcollections.
+ * @param {Object} db - Firestore database instance
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @param {Object} fiscalYearBounds - { startDate: Date, endDate: Date }
+ * @returns {Promise<Array>} Array of { projectId, projectName, milestone, milestoneIndex, billedDate, unitBill }
+ */
+async function fetchProjectBillsForUnit(db, clientId, unitId, fiscalYearBounds) {
+  const results = [];
+  const startTime = fiscalYearBounds?.startDate?.getTime?.() ?? 0;
+  const endTime = fiscalYearBounds?.endDate?.getTime?.() ?? Number.MAX_SAFE_INTEGER;
+
+  try {
+    const projectsSnap = await db
+      .collection('clients').doc(clientId)
+      .collection('projects')
+      .get();
+
+    for (const projectDoc of projectsSnap.docs) {
+      const projectData = projectDoc.data();
+      if (projectData.type !== 'special-assessment') continue;
+
+      const projectId = projectDoc.id;
+      const projectName = projectData.name || projectId;
+      const billsSnap = await projectDoc.ref.collection('bills').get();
+
+      for (const billDoc of billsSnap.docs) {
+        const billData = billDoc.data();
+        const unitBill = billData.units?.[unitId];
+        if (!unitBill || (unitBill.totalAmount || 0) <= 0) continue;
+
+        const billedDate = parseDateFromService(billData.billedDate);
+        if (!billedDate || isNaN(billedDate.getTime())) continue;
+
+        const billedTime = billedDate.getTime();
+        if (billedTime < startTime || billedTime > endTime) continue;
+
+        results.push({
+          projectId,
+          projectName,
+          milestone: billData.milestone || '',
+          milestoneIndex: billData.milestoneIndex ?? parseInt(billDoc.id, 10),
+          billedDate,
+          unitBill
+        });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    logWarn(`[fetchProjectBillsForUnit] Error for ${clientId}/${unitId}:`, error.message);
     return [];
   }
 }
@@ -1482,6 +1598,9 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const waterBills = hasWaterBillsProject
       ? await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth)
       : [];
+
+    // Step 5b: Fetch billed project milestones (PM6 — SoA integration)
+    const projectBills = await fetchProjectBillsForUnit(db, clientId, unitId, fiscalYearBounds);
     
     // Step 6: Also fetch transactions from water bill payments
     for (const bill of waterBills) {
@@ -2194,11 +2313,7 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       logWarn(`Warning: Could not fetch credit activity for ${clientId}/${unitId}:`, error.message);
     }
     
-    // Step 8: Create chronological transaction list
-    // NOTE: Special Assessments (projectsData) are NOT included in chronologicalTransactions
-    // They only appear in Allocation Summary currently
-    // TODO/FUTURE: Add Special Assessment charges/payments to chronologicalTransactions when Projects feature is complete
-    // Build full transaction list (charges, payments, credit adjustments)
+    // Step 8: Create chronological transaction list (includes project charges from PM6)
     const allTransactions = createChronologicalTransactionList(
       payments,
       transactionMap,
@@ -2211,7 +2326,8 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       hoaPenalties,
       waterPenalties,
       openingBalance,
-      creditAdjustments
+      creditAdjustments,
+      projectBills
     );
     
     // Determine if creditBalances has a starting_balance entry (used to decide pre-FY payment handling)
@@ -2277,15 +2393,17 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
     const {
       hoaDuesCharges,
       waterBillCharges,
+      projectCharges,
       postedPenalties,
       cashPayments,
       adminCreditAdjustments
     } = buildLedgerInputs(visibleTransactions);
-    
+
     const ledgerResult = generateLedgerData({
       openingBalance,
       hoaDuesCharges,
       waterBillCharges,
+      projectCharges,
       postedPenalties,
       cashPayments,
       adminCreditAdjustments
