@@ -4,7 +4,6 @@ import { faTimes, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { getVendors } from '../../api/vendors';
 import { getMexicoDateString } from '../../utils/timezone';
-import { centavosToPesos } from '../../utils/currencyUtils';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -476,7 +475,7 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
                       />
                     </label>
                     <label className="sandyland-form-label" style={{ flex: '0 1 80px' }}>
-                      % of Total
+                      % Due
                       <input
                         type="number"
                         min="1"
@@ -487,19 +486,6 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
                         placeholder="%"
                       />
                     </label>
-                    {bid?.allocationSnapshot?.allocations && formData.amount && (
-                      <span className="sandyland-form-hint" style={{ flex: '1 1 200px', alignSelf: 'flex-end', fontSize: '0.8rem' }}>
-                        {Object.entries(bid.allocationSnapshot.allocations)
-                          .filter(([, c]) => c > 0)
-                          .slice(0, 3)
-                          .map(([unitId, centavos]) => {
-                            const amount = centavosToPesos(Math.round((centavos || 0) * (Number(row.percentOfTotal) || 0) / 100));
-                            return `${unitId}: $${amount.toFixed(2)}`;
-                          })
-                          .join(', ')}
-                        {Object.keys(bid.allocationSnapshot.allocations || {}).length > 3 ? '...' : ''}
-                      </span>
-                    )}
                     <button
                       type="button"
                       onClick={() => handleRemoveInstallment(index)}

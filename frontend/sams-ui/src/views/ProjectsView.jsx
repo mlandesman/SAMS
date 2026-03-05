@@ -1039,6 +1039,7 @@ function ProjectsView() {
                         <tr>
                           <th>Milestone</th>
                           <th>% of Total</th>
+                          <th>Amount</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -1047,33 +1048,12 @@ function ProjectsView() {
                           <tr key={i}>
                             <td>{row.milestone}</td>
                             <td>{row.percentOfTotal}%</td>
+                            <td>{formatCurrency(Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100))}</td>
                             <td>Pending</td>
                           </tr>
                         ))}
                       </tbody>
                     </Box>
-                    {selectedProject.allocationSnapshot?.allocations && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                          Per-unit amounts (from allocation)
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {selectedProject.installments.map((row, i) => {
-                            const unitAmounts = Object.entries(selectedProject.allocationSnapshot.allocations || {})
-                              .filter(([, c]) => c > 0)
-                              .map(([unitId, centavos]) => {
-                                const centavosForRow = Math.round((centavos || 0) * (row.percentOfTotal || 0) / 100);
-                                return `${unitId}: ${formatCurrency(centavosForRow)}`;
-                              });
-                            return (
-                              <Typography key={i} variant="body2" color="text.secondary">
-                                {row.milestone}: {unitAmounts.join(', ')}
-                              </Typography>
-                            );
-                          })}
-                        </Box>
-                      </Box>
-                    )}
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">

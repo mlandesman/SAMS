@@ -15,6 +15,7 @@ import {
   AccordionDetails,
   TextField
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTimes, 
@@ -26,8 +27,7 @@ import {
   faFileAlt,
   faComments,
   faHistory,
-  faBalanceScale,
-  faChevronDown
+  faBalanceScale
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { getMexicoDateTime } from '../../utils/timezone';
@@ -514,7 +514,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                             </tbody>
                           </Box>
                         ) : (
-                          <Typography variant="body2">{currentRevision.paymentTerms}</Typography>
+                          <Typography variant="body2">{currentRevision.paymentTerms || '—'}</Typography>
                         )}
                       </Box>
                     )}
@@ -536,7 +536,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 {/* Revision history accordion */}
                 {selectedBid.revisions.length > 1 && (
                   <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
-                    <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                       <FontAwesomeIcon icon={faHistory} style={{ marginRight: 8 }} />
                       <Typography>Revision History ({selectedBid.revisions.length})</Typography>
                     </AccordionSummary>
@@ -568,7 +568,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 
                 {/* Communications accordion */}
                 <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
-                  <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <FontAwesomeIcon icon={faComments} style={{ marginRight: 8 }} />
                     <Typography>Messages ({selectedBid.communications?.length || 0})</Typography>
                   </AccordionSummary>
@@ -619,7 +619,7 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                 
                 {/* Documents accordion */}
                 <Accordion defaultExpanded={false}>
-                  <AccordionSummary expandIcon={<FontAwesomeIcon icon={faChevronDown} />}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <FontAwesomeIcon icon={faFileAlt} style={{ marginRight: 8 }} />
                     <Typography>Bid Documents</Typography>
                   </AccordionSummary>
