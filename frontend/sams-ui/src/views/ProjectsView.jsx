@@ -1021,7 +1021,7 @@ function ProjectsView() {
                 />
               </Paper>
 
-              {/* Installment Schedule Section */}
+              {/* Installment Schedule Section (promoted from selected bid) */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>Installment Schedule</Typography>
                 {selectedProject.installments && selectedProject.installments.length > 0 ? (
@@ -1037,7 +1037,7 @@ function ProjectsView() {
                     >
                       <thead>
                         <tr>
-                          <th>Date</th>
+                          <th>Milestone</th>
                           <th>% of Total</th>
                           <th>Status</th>
                         </tr>
@@ -1045,9 +1045,9 @@ function ProjectsView() {
                       <tbody>
                         {selectedProject.installments.map((row, i) => (
                           <tr key={i}>
-                            <td>{row.dueDate}</td>
+                            <td>{row.milestone}</td>
                             <td>{row.percentOfTotal}%</td>
-                            <td>—</td>
+                            <td>Pending</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1067,7 +1067,7 @@ function ProjectsView() {
                               });
                             return (
                               <Typography key={i} variant="body2" color="text.secondary">
-                                {row.dueDate}: {unitAmounts.join(', ')}
+                                {row.milestone}: {unitAmounts.join(', ')}
                               </Typography>
                             );
                           })}
@@ -1077,7 +1077,7 @@ function ProjectsView() {
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No installment schedule defined. Add one via Edit.
+                    No installment schedule — select a bid to set payment terms.
                   </Typography>
                 )}
               </Paper>

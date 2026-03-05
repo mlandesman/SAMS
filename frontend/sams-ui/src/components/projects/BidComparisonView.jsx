@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { getMexicoDateTime } from '../../utils/timezone';
 import '../../styles/SandylandModalTheme.css';
 
 /**
@@ -36,7 +37,7 @@ function formatCurrency(centavos) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
-    const date = new Date(dateStr);
+    const date = getMexicoDateTime(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;
@@ -53,6 +54,8 @@ function BidComparisonView({ isOpen, onClose, bids }) {
     
     return bids.map(bid => {
       const revision = bid.revisions[bid.currentRevision - 1];
+      const installments = revision?.installments;
+      const paymentTermsLegacy = revision?.paymentTerms;
       return {
         id: bid.id,
         vendorName: bid.vendorName,
@@ -63,7 +66,9 @@ function BidComparisonView({ isOpen, onClose, bids }) {
         revisions: bid.currentRevision,
         inclusions: revision?.inclusions || '-',
         exclusions: revision?.exclusions || '-',
-        paymentTerms: revision?.paymentTerms || '-',
+        installments: installments && installments.length > 0 ? installments : null,
+        paymentTermsLegacy: paymentTermsLegacy || null,
+        allocationSnapshot: bid.allocationSnapshot,
         documents: revision?.documents?.length || 0
       };
     }).sort((a, b) => a.amount - b.amount); // Sort by amount ascending (lowest first)
@@ -196,12 +201,39 @@ function BidComparisonView({ isOpen, onClose, bids }) {
                   ))}
                 </TableRow>
                 
-                {/* Payment Terms */}
+                {/* Installment Schedule / Payment Terms (legacy) */}
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'medium' }}>Payment Terms</TableCell>
+                  <TableCell sx={{ fontWeight: 'medium', verticalAlign: 'top' }}>Installment Schedule</TableCell>
                   {comparisonData.map(bid => (
-                    <TableCell key={bid.id} sx={{ fontSize: '0.85rem' }}>
-                      {bid.paymentTerms}
+                    <TableCell key={bid.id} sx={{ fontSize: '0.85rem', verticalAlign: 'top' }}>
+                      {bid.installments ? (
+                        <Box>
+                          {bid.installments.map((row, i) => (
+                            <Box key={i} sx={{ mb: i < bid.installments.length - 1 ? 0.5 : 0 }}>
+                              {row.milestone}: {row.percentOfTotal}%
+                              {bid.allocationSnapshot?.allocations && (
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                                  {Object.entries(bid.allocationSnapshot.allocations)
+                                    .filter(([, c]) => c > 0)
+                                    .slice(0, 2)
+                                    .map(([unitId, centavos]) =>
+                                      `${unitId}: ${formatCurrency(Math.round((centavos || 0) * (row.percentOfTotal || 0) / 100))}`
+                                    )
+                                    .join(', ')}
+                                  {Object.keys(bid.allocationSnapshot.allocations || {}).length > 2 ? '...' : ''}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : bid.paymentTermsLegacy ? (
+                        <>
+                          <Typography component="span" variant="caption" color="text.secondary">(legacy) </Typography>
+                          <span>{bid.paymentTermsLegacy}</span>
+                        </>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

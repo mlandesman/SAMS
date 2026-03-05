@@ -30,6 +30,7 @@ import {
   faChevronDown
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
+import { getMexicoDateTime } from '../../utils/timezone';
 import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from '../../api/projects';
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';
@@ -56,7 +57,7 @@ function formatCurrency(centavos) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
-    const date = new Date(dateStr);
+    const date = getMexicoDateTime(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return dateStr;
@@ -486,10 +487,35 @@ function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
                       )}
                     </Box>
                     
-                    {currentRevision.paymentTerms && (
+                    {(currentRevision.installments?.length > 0 || currentRevision.paymentTerms) && (
                       <Box sx={{ mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary">Payment Terms</Typography>
-                        <Typography variant="body2">{currentRevision.paymentTerms}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                          {currentRevision.installments?.length > 0 ? 'Installment Schedule' : 'Payment Terms (legacy)'}
+                        </Typography>
+                        {currentRevision.installments?.length > 0 ? (
+                          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #eee' }}>Milestone</th>
+                                <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #eee' }}>%</th>
+                                <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #eee' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentRevision.installments.map((row, i) => (
+                                <tr key={i}>
+                                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>{row.milestone}</td>
+                                  <td style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>{row.percentOfTotal}%</td>
+                                  <td style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>
+                                    {formatCurrency(Math.round((currentRevision.amount || 0) * (row.percentOfTotal || 0) / 100))}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2">{currentRevision.paymentTerms}</Typography>
+                        )}
                       </Box>
                     )}
                   </Paper>

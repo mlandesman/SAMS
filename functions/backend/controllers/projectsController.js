@@ -8,6 +8,7 @@
  * project types like waterBills or propaneTanks which are structural documents.
  */
 
+import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getMexicoDateString } from '../utils/timezone.js';
@@ -337,37 +338,29 @@ export async function createProject(clientId, projectData) {
 }
 
 /**
- * Validate installment schedule data
- * @param {Array} installments - Array of { dueDate, percentOfTotal }
- * @param {string} status - Project status (for approved-project warning)
+ * Validate bid revision installments (milestone-based)
+ * @param {Array} installments - Array of { milestone, percentOfTotal }
  * @throws {Error} If validation fails
  */
-function validateInstallments(installments, status) {
-  if (!installments || !Array.isArray(installments)) return;
-  if (installments.length === 0) {
-    if (status === 'approved') {
-      logWarn('Approved project has no installment schedule');
-    }
-    return;
+function validateBidInstallments(installments) {
+  if (!installments || !Array.isArray(installments)) {
+    throw new Error('At least one installment row is required');
   }
-  const seenDates = new Set();
+  if (installments.length === 0) {
+    throw new Error('At least one installment row is required');
+  }
   let sum = 0;
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
   for (let i = 0; i < installments.length; i++) {
     const row = installments[i];
+    const milestone = String(row.milestone || '').trim();
+    if (!milestone) {
+      throw new Error(`Installment row ${i + 1}: milestone is required`);
+    }
     const pct = Number(row.percentOfTotal);
     if (!Number.isInteger(pct) || pct <= 0 || pct > 100) {
       throw new Error(`Installment row ${i + 1}: percentOfTotal must be an integer between 1 and 100`);
     }
     sum += pct;
-    const dueDate = String(row.dueDate || '').trim();
-    if (!isoDateRegex.test(dueDate)) {
-      throw new Error(`Installment row ${i + 1}: dueDate must be a valid ISO date (YYYY-MM-DD)`);
-    }
-    if (seenDates.has(dueDate)) {
-      throw new Error(`Installment row ${i + 1}: duplicate due date ${dueDate}`);
-    }
-    seenDates.add(dueDate);
   }
   if (sum !== 100) {
     throw new Error(`Installment schedule must total 100% (currently ${sum}%)`);
@@ -400,12 +393,6 @@ export async function updateProject(clientId, projectId, updates) {
   // Prevent changing the project ID
   delete updates.projectId;
   delete updates._id;
-
-  // Validate installments if present (only on update, not create)
-  if ('installments' in otherUpdates) {
-    const mergedProject = { ...existing.data(), ...otherUpdates };
-    validateInstallments(otherUpdates.installments, mergedProject.status);
-  }
 
   // Handle metadata separately to avoid Firestore conflict
   // (can't set both 'metadata' object and 'metadata.updatedAt' in same update)
@@ -765,7 +752,14 @@ export async function createBid(clientId, projectId, bidData) {
   
   const bidsRef = db.collection(`clients/${clientId}/projects/${projectId}/bids`);
   
-  // Create initial revision from bid data
+  // Installments: new format required. Legacy paymentTerms converted at read/display only.
+  const installments = bidData.installments;
+  if (installments && installments.length > 0) {
+    validateBidInstallments(installments);
+  } else {
+    throw new Error('At least one installment row is required (milestone + percent must total 100%)');
+  }
+
   const initialRevision = {
     revisionNumber: 1,
     submittedAt: bidData.submittedAt || getMexicoDateString(),
@@ -774,7 +768,10 @@ export async function createBid(clientId, projectId, bidData) {
     description: bidData.description || '',
     inclusions: bidData.inclusions || '',
     exclusions: bidData.exclusions || '',
-    paymentTerms: bidData.paymentTerms || '',
+    installments: installments.map(({ milestone, percentOfTotal }) => ({
+      milestone: String(milestone || '').trim(),
+      percentOfTotal: Number(percentOfTotal) || 0
+    })),
     notes: bidData.notes || '',
     documents: bidData.documents || []
   };
@@ -836,18 +833,29 @@ export async function updateBid(clientId, projectId, bidId, updates) {
   
   // If adding a new revision
   if (updates.newRevision) {
+    const rev = updates.newRevision;
+    const installments = rev.installments;
+    if (installments && installments.length > 0) {
+      validateBidInstallments(installments);
+    } else {
+      throw new Error('At least one installment row is required (milestone + percent must total 100%)');
+    }
+
     const newRevisionNumber = currentData.currentRevision + 1;
     const newRevision = {
       revisionNumber: newRevisionNumber,
-      submittedAt: updates.newRevision.submittedAt || getMexicoDateString(),
-      amount: updates.newRevision.amount,
-      timeline: updates.newRevision.timeline || '',
-      description: updates.newRevision.description || '',
-      inclusions: updates.newRevision.inclusions || '',
-      exclusions: updates.newRevision.exclusions || '',
-      paymentTerms: updates.newRevision.paymentTerms || '',
-      notes: updates.newRevision.notes || '',
-      documents: updates.newRevision.documents || []
+      submittedAt: rev.submittedAt || getMexicoDateString(),
+      amount: rev.amount,
+      timeline: rev.timeline || '',
+      description: rev.description || '',
+      inclusions: rev.inclusions || '',
+      exclusions: rev.exclusions || '',
+      installments: installments.map(({ milestone, percentOfTotal }) => ({
+        milestone: String(milestone || '').trim(),
+        percentOfTotal: Number(percentOfTotal) || 0
+      })),
+      notes: rev.notes || '',
+      documents: rev.documents || []
     };
 
     const revisionUpdate = {
@@ -1012,6 +1020,16 @@ export async function selectBid(clientId, projectId, bidId) {
   if (allocationSnapshot) {
     batchUpdates.allocationSnapshot = allocationSnapshot;
   }
+  // Promote winning bid's installments to project
+  if (currentRevision.installments && Array.isArray(currentRevision.installments) && currentRevision.installments.length > 0) {
+    batchUpdates.installments = currentRevision.installments.map(({ milestone, percentOfTotal }) => ({
+      milestone: String(milestone || '').trim(),
+      percentOfTotal: Number(percentOfTotal) || 0
+    }));
+  } else if (currentRevision.paymentTerms) {
+    // Legacy: convert paymentTerms to single 100% installment
+    batchUpdates.installments = [{ milestone: currentRevision.paymentTerms || 'Full Payment', percentOfTotal: 100 }];
+  }
   batch.update(projectRef, batchUpdates);
   
   await batch.commit();
@@ -1050,11 +1068,12 @@ export async function unselectBid(clientId, projectId) {
     }
   });
   
-  // Clear project's selected bid info, set back to bidding
+  // Clear project's selected bid info and installments, set back to bidding
   const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
   batch.update(projectRef, {
     selectedBidId: null,
     status: 'bidding',
+    installments: admin.firestore.FieldValue.delete(),
     'metadata.updatedAt': getNow().toISOString()
   });
   
