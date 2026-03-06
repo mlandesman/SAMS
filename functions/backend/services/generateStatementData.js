@@ -174,6 +174,7 @@ export function generateStatementData({
   openingBalanceDescription,
   hoaDuesCharges = [],
   waterBillCharges = [],
+  projectCharges = [],
   cashPayments = [],
   adminCreditAdjustments = [],
   postedPenalties = [],
@@ -202,6 +203,12 @@ export function generateStatementData({
     }),
     ...buildRows({
       rows: waterBillCharges,
+      type: 'charge',
+      amountsInCentavos,
+      nextIndexRef
+    }),
+    ...buildRows({
+      rows: projectCharges,
       type: 'charge',
       amountsInCentavos,
       nextIndexRef

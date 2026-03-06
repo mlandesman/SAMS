@@ -8,6 +8,11 @@
           "type": "feat",
           "issues": [],
           "text": "PM5D: Lock milestone amounts at project approval with largest-remainder rounding. Bill Milestone endpoint creates per-unit charge documents for SoA/UPC integration."
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "PM6: Statement of Account integration for project billing — billed milestones appear as charges in Account Activity with running balance"
         }
       ]
     },
