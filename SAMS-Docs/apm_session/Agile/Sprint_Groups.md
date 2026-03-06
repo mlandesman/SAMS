@@ -232,29 +232,39 @@
 
 ---
 
-### 💰 Sprint PM-Finance: Project Financial Integration (Deferred)
-*UPC and Statement of Account integration for Special Assessments*
+### 💰 Sprint PM-Finance-Next: Project Financial Cycle
+*Complete the billing, payment, and reporting pipeline for Special Assessments*
 
-| Task | Title | Priority | Est |
-|------|-------|----------|-----|
-| PM5 | Assessment Allocation - Calculate unit shares from approved bid | medium | 3h |
-| PM6 | Statement of Account Integration - Show assessments as billable items | medium | 4h |
-| PM7 | UPC Payment Integration - Accept payments for project assessments | medium | 5h |
+| Task | Title | Priority | Est | Status |
+|------|-------|----------|-----|--------|
+| PM5A | Allocation Engine v2 — per-bid allocations, ownership locking | medium | 3h | ✅ DONE |
+| PM5B | Installment Schedule UI — milestone-based on bid revisions | medium | 3h | ✅ DONE |
+| PM5C | Unit Assessments Grid — two-level display (summary + milestone) | medium | 3h | ✅ DONE |
+| PM5D | Lock Amounts + Bill Milestone — lock amountCentavos at approval, billMilestone endpoint | medium | 4h | ✅ DONE |
+| PM6 | Statement of Account Integration — project charges in SoA | high | 4h | 🔄 IN REVIEW |
+| PM7 | UPC Payment Integration — accept payments for project assessments | high | 5h | ⏳ NEXT |
+| PM8B | BvA Special Assessments — populate COLLECTIONS + EXPENDITURES in Budget vs Actual | medium | 3h | ⏳ QUEUED |
+| PM8 | Vendor Payments + Project Financial Summary — vendor tracking, project summary card | medium | 4h | ⏳ QUEUED |
+| PM5E | Adjustment Milestones — insert price change milestones for cost overruns/credits | low | 3h | ⏳ DEFERRED |
+| PM9 | Stabilization & Regression — end-to-end test of full billing/payment/reversal cycle | medium | 3h | ⏳ QUEUED |
+
+**Execution Order**: PM5A → PM5B → PM5C → PM5D → PM6 → PM7 → PM8B → PM8 → PM5E → PM9
 
 **Theme**: Complete the financial cycle for Special Projects  
-**Risk**: HIGH (modifies UPC and Statement of Account - core engines)  
-**Total Estimate**: ~12 hours  
-**Status**: ⏸️ **DEFERRED** — Waiting for SoA/UPC to stabilize after Q1 start
+**Risk**: HIGH (modifies UPC and Statement of Account — core engines)  
+**Total Estimate**: ~35 hours  
+**Status**: 🔄 **ACTIVE** — PM5A-D complete, PM6 in review
 
-**Deferral Rationale**:
-- PM5-7 require modifications to UPC (transaction journal writes) and Statement of Account (billing/notification)
-- These are SAMS core engines; changes should wait until Q1 baseline is stable
-- Polling-1 and Polling-2 provide interim vote tracking without touching financials
-
-**Review Trigger**: After Polling sprints complete and no SoA/UPC hotfixes for 2+ weeks
+**Key Architecture Decisions**:
+- Bill subcollection at `clients/{clientId}/projects/{projectId}/bills/{milestoneIndex}` mirrors water bills pattern
+- Milestone amounts locked (centavos) at project approval; percentages kept as metadata
+- Billing is manual admin action (Bill button on Installment Schedule)
+- Transaction metadata stores `projectId` and `milestoneIndex` for atomic reversal in `deleteTransaction`
+- PM8B separated from PM8: BvA report population (PM8B) vs vendor tracking + financial summary (PM8)
 
 **Requirements Document**: `Agile/sprints/SAMS_Special_Projects.md`  
-**Implementation Plan**: `Agile/sprints/Sprint_PM_Implementation_Plan.md`
+**Implementation Plan**: `Agile/sprints/Sprint_PM_Implementation_Plan.md`  
+**Task Assignments**: `Memory/Task_Assignments/PM-Finance-Next_Task_PM*`
 
 ---
 
