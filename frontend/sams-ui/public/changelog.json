@@ -13,6 +13,11 @@
           "type": "feat",
           "issues": [],
           "text": "PM6: Statement of Account integration for project billing — billed milestones appear as charges in Account Activity with running balance"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "PM8: Vendor payment CRUD — atomic transaction pattern, project financial summary card, deleteTransaction reversal path"
         }
       ]
     },
