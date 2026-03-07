@@ -56,10 +56,27 @@ function convertPreviewFromCentavos(data) {
     status: bill.status || 'unpaid',
     priority: bill.priority || 999
   }));
-  
+
+  const projectBills = (data.project?.billsAffected || []).map(bill => ({
+    billType: 'project',
+    billPeriod: bill.billPeriod,
+    baseChargeDue: bill.baseDue || 0,
+    penaltyDue: 0,
+    totalDue: bill.totalDue || 0,
+    remainingDue: bill.remainingDue ?? null,
+    originalTotalDue: bill.originalTotalDue ?? null,
+    isPartial: bill.isPartial || false,
+    baseChargePayment: bill.basePaid || 0,
+    penaltyPayment: 0,
+    totalPayment: bill.totalPaid || 0,
+    status: bill.status || 'unpaid',
+    priority: bill.priority || 999,
+    monthData: { projectName: bill.projectName, milestone: bill.milestone }
+  }));
+
   // Merge and sort by priority, then by billPeriod
   // This preserves the backend's payment order
-  allBills.push(...hoaBills, ...waterBills);
+  allBills.push(...hoaBills, ...waterBills, ...projectBills);
   allBills.sort((a, b) => {
     if (a.priority !== b.priority) {
       return a.priority - b.priority;

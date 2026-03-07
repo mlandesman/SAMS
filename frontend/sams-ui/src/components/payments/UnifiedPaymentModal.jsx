@@ -524,6 +524,9 @@ function UnifiedPaymentModal({ isOpen, onClose, unitId: initialUnitId, onSuccess
    * Format bill period for display
    */
   const formatBillPeriod = (billPeriod, billType, monthData) => {
+    if (billType === 'project') {
+      return `${monthData?.projectName || 'Project'}: ${monthData?.milestone || billPeriod}`;
+    }
     const prefix = billType === 'hoa' ? 'HOA' : billType === 'water' ? 'Water' : 'Bill';
     
     console.log('formatBillPeriod called:', {

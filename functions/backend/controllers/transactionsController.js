@@ -34,6 +34,7 @@ import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { updatePriorYearClosedFlag } from './hoaDuesController.js';
 import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
 
@@ -913,7 +914,15 @@ async function deleteTransaction(clientId, txnId) {
     
     // Combined Water detection
     const hasWaterData = hasWaterAllocations || isLegacyWaterTransaction || hasWaterMetadata;
-    
+
+    // Check for Project assessment allocations (PM7)
+    const hasProjectAllocations = originalData.allocations?.some(alloc =>
+      alloc.type === 'project_assessment' ||
+      alloc.categoryId?.startsWith('projects-')
+    ) || false;
+    const hasProjectMetadata = (originalData.metadata?.projectBillsPaid || 0) > 0;
+    const hasProjectData = hasProjectAllocations || hasProjectMetadata;
+
     // Determine transaction type
     const isUnifiedTransaction = hasHOAData && hasWaterData;
     const isHOAOnlyTransaction = hasHOAData && !hasWaterData;
@@ -1137,7 +1146,31 @@ async function deleteTransaction(clientId, txnId) {
           projectDataForCleanup = projectDoc.data();
         }
       }
-      
+
+      // Read project assessment bill documents (PM7) - MUST be in PHASE 1
+      let projectBillDocs = [];
+      if (hasProjectData && originalData.unitId && (await isFeatureEnabled('projectPaymentsInUPC'))) {
+        const projectAllocations = (originalData.allocations || []).filter(
+          a => a.type === 'project_assessment' || a.data?.projectId
+        );
+        for (const alloc of projectAllocations) {
+          const projectId = alloc.data?.projectId || alloc.projectId;
+          const milestoneIndex = alloc.data?.milestoneIndex ?? alloc.milestoneIndex;
+          if (projectId != null && milestoneIndex != null) {
+            const billRef = db.doc(`clients/${clientId}/projects/${projectId}/bills/${milestoneIndex}`);
+            const billDoc = await transaction.get(billRef);
+            if (billDoc.exists) {
+              const billData = billDoc.data();
+              const unitBill = billData.units?.[originalData.unitId];
+              const hasPaymentFromTxn = unitBill?.payments?.some(p => p.transactionId === txnId);
+              if (hasPaymentFromTxn) {
+                projectBillDocs.push({ ref: billRef, data: billData, unitBill });
+              }
+            }
+          }
+        }
+      }
+
       // PHASE 2: ALL WRITES SECOND
       
       // Delete the transaction
@@ -1271,6 +1304,28 @@ async function deleteTransaction(clientId, txnId) {
         const updatedPayments = vendorPayments.filter(vp => vp.transactionId !== txnId);
         transaction.update(projectRef, { vendorPayments: updatedPayments });
         logDebug(`🧹 [BACKEND] Project vendor payment cleanup: removed txn ${txnId} from project ${projectId}`);
+      }
+
+      // Project assessment bill reversal (PM7) - reverse paidAmount, remove payment entry
+      for (const { ref: billRef, data: billData, unitBill } of projectBillDocs) {
+        const unitId = originalData.unitId;
+        const payments = unitBill.payments || [];
+        const paymentEntry = payments.find(p => p.transactionId === txnId);
+        if (!paymentEntry) continue;
+
+        const amountToReverse = paymentEntry.amount || 0;
+        const newPaidAmount = Math.max(0, (unitBill.paidAmount || 0) - amountToReverse);
+        const totalAmount = unitBill.totalAmount || 0;
+        const newStatus = newPaidAmount <= 0 ? 'unpaid' : (newPaidAmount >= totalAmount ? 'paid' : 'partial');
+
+        const newPayments = payments.filter(p => p.transactionId !== txnId);
+
+        transaction.update(billRef, {
+          [`units.${unitId}.paidAmount`]: newPaidAmount,
+          [`units.${unitId}.status`]: newStatus,
+          [`units.${unitId}.payments`]: newPayments
+        });
+        logDebug(`🧹 [BACKEND] Project bill reversal: ${billRef.path}, reversed ${amountToReverse} centavos`);
       }
       });
       
