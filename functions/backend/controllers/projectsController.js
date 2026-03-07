@@ -1328,7 +1328,7 @@ export async function recordVendorPaymentHandler(req, res) {
       });
     }
 
-    if (!paymentData || typeof paymentData.amount !== 'number' && !paymentData.amount) {
+    if (!paymentData || (typeof paymentData.amount !== 'number' && !paymentData.amount)) {
       return res.status(400).json({
         success: false,
         error: 'Amount is required'

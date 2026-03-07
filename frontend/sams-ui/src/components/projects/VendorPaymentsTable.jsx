@@ -21,7 +21,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  IconButton
+  IconButton,
+  Alert,
+  DialogContentText
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExternalLinkAlt, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -78,6 +80,8 @@ function VendorPaymentsTable({
 }) {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const [accounts, setAccounts] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -179,15 +183,18 @@ function VendorPaymentsTable({
     }
   };
 
-  const handleDelete = async (transactionId) => {
+  const handleDeleteConfirm = async () => {
+    const transactionId = confirmDeleteId;
     if (!transactionId || !clientId) return;
+    setConfirmDeleteId(null);
     setDeletingId(transactionId);
+    setDeleteError('');
     try {
       await deleteTransaction(clientId, transactionId);
       onRefresh?.();
     } catch (err) {
       console.error('Failed to delete payment:', err);
-      setError(err.message || 'Failed to delete payment');
+      setDeleteError(err.message || 'Failed to delete payment');
     } finally {
       setDeletingId(null);
     }
@@ -308,7 +315,7 @@ function VendorPaymentsTable({
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={() => handleDelete(payment.transactionId)}
+                          onClick={() => setConfirmDeleteId(payment.transactionId)}
                           disabled={deletingId === payment.transactionId}
                         >
                           <FontAwesomeIcon icon={faTrash} size="sm" />
@@ -423,6 +430,28 @@ function VendorPaymentsTable({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)} maxWidth="xs">
+        <DialogTitle>Delete Vendor Payment</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will permanently delete the payment transaction and reverse the account balance. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {deleteError && (
+        <Alert severity="error" onClose={() => setDeleteError('')} sx={{ mt: 1 }}>
+          {deleteError}
+        </Alert>
+      )}
     </Box>
   );
 }
