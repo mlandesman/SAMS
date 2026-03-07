@@ -170,6 +170,7 @@ function getTranslations(language) {
       unitCreditAccountsTable: 'UNIT CREDIT ACCOUNTS',
       expenseTable: 'EXPENSES',
       collections: 'COLLECTIONS (from Unit Owners)',
+      totalCollections: 'TOTAL COLLECTIONS',
       expenditures: 'EXPENDITURES (Project Costs)',
       totalExpenditures: 'TOTAL EXPENDITURES',
       netFundBalance: 'NET FUND BALANCE',
@@ -201,6 +202,7 @@ function getTranslations(language) {
       unitCreditAccountsTable: 'CUENTAS DE CRÉDITO DE UNIDADES',
       expenseTable: 'GASTOS',
       collections: 'RECAUDACIONES (de Propietarios)',
+      totalCollections: 'TOTAL DE RECAUDACIÓN',
       expenditures: 'GASTOS (Costos de Proyectos)',
       totalExpenditures: 'TOTAL DE GASTOS',
       netFundBalance: 'SALDO NETO DEL FONDO',
@@ -663,11 +665,23 @@ export function generateBudgetActualHtml(data, options = {}) {
         <tr class="section-row">
           <td colspan="2">${t.collections}</td>
         </tr>
-        ${specialAssessments.collections && specialAssessments.collections.amount > 0 ? `
+        ${specialAssessments.collections && specialAssessments.collections.projects ? (() => {
+          const projects = specialAssessments.collections.projects;
+          if (projects.length === 0) {
+            return `<tr><td class="col-special-type" colspan="2" style="text-align: center; padding: 10px;">${t.noData}</td></tr>`;
+          }
+          const rows = projects.map(p => `
         <tr>
-          <td class="col-special-type">${translateCategoryName(specialAssessments.collections.categoryName, language)}</td>
+          <td class="col-special-type">${translateCategoryName(p.projectName, language)}</td>
+          <td class="col-special-amount">${formatCurrency(p.collected)}</td>
+        </tr>`).join('');
+          const totalRow = projects.length > 1 ? `
+        <tr class="total-row">
+          <td class="col-special-type">${t.totalCollections}</td>
           <td class="col-special-amount">${formatCurrency(specialAssessments.collections.amount)}</td>
-        </tr>` : `
+        </tr>` : '';
+          return rows + totalRow;
+        })() : `
         <tr>
           <td class="col-special-type" colspan="2" style="text-align: center; padding: 10px;">${t.noData}</td>
         </tr>`}
