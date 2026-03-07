@@ -30,6 +30,7 @@ import { getMexicoDateTime, getMexicoDateString } from '../../utils/timezone';
 import { recordVendorPayment } from '../../api/projects';
 import { deleteTransaction } from '../../api/transaction';
 import { clientAPI } from '../../api/client';
+import { getVendors } from '../../api/vendors';
 
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
@@ -72,14 +73,17 @@ function VendorPaymentsTable({
   onRefresh,
   clientId,
   projectId,
-  defaultVendor = ''
+  defaultVendor = '',
+  defaultVendorId = ''
 }) {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [formData, setFormData] = useState({
     date: getMexicoDateString(),
+    vendorId: defaultVendorId,
     vendor: defaultVendor,
     amount: '',
     description: '',
@@ -92,15 +96,20 @@ function VendorPaymentsTable({
   const payments = vendorPayments || [];
 
   useEffect(() => {
-    setFormData(prev => ({ ...prev, vendor: defaultVendor }));
-  }, [defaultVendor]);
+    setFormData(prev => ({ ...prev, vendor: defaultVendor, vendorId: defaultVendorId }));
+  }, [defaultVendor, defaultVendorId]);
 
   useEffect(() => {
     if (recordDialogOpen && clientId) {
       Promise.all([
         clientAPI.getAccounts(clientId),
-        clientAPI.getPaymentMethods(clientId)
-      ]).then(([accountsRes, methodsRes]) => {
+        clientAPI.getPaymentMethods(clientId),
+        getVendors(clientId)
+      ]).then(([accountsRes, methodsRes, vendorsRes]) => {
+        const vendorsList = (vendorsRes?.data || [])
+          .filter(v => v.status === 'active')
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setVendors(vendorsList);
         const accs = Array.isArray(accountsRes) ? accountsRes : (accountsRes?.accounts || accountsRes?.data || []);
         const methods = Array.isArray(methodsRes) ? methodsRes : (methodsRes?.paymentMethods || methodsRes?.data || []);
         setAccounts(accs);
@@ -119,6 +128,7 @@ function VendorPaymentsTable({
   const handleOpenRecord = () => {
     setFormData({
       date: getMexicoDateString(),
+      vendorId: defaultVendorId,
       vendor: defaultVendor,
       amount: '',
       description: '',
@@ -154,6 +164,7 @@ function VendorPaymentsTable({
         date: formData.date,
         amount,
         vendor: formData.vendor || 'Vendor',
+        vendorId: formData.vendorId,
         description: formData.description,
         accountId: formData.accountId,
         accountType,
@@ -341,13 +352,24 @@ function VendorPaymentsTable({
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
-            <TextField
-              label="Vendor"
-              value={formData.vendor}
-              onChange={e => setFormData(prev => ({ ...prev, vendor: e.target.value }))}
-              placeholder="Vendor name"
-              fullWidth
-            />
+            <FormControl fullWidth>
+              <InputLabel>Vendor</InputLabel>
+              <Select
+                value={formData.vendorId}
+                label="Vendor"
+                onChange={e => {
+                  const vid = e.target.value;
+                  const v = vendors.find(v => v.id === vid);
+                  setFormData(prev => ({ ...prev, vendorId: vid, vendor: v?.name || '' }));
+                }}
+              >
+                {vendors.map(v => (
+                  <MenuItem key={v.id} value={v.id}>
+                    {v.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               label="Amount (pesos)"
               type="number"

@@ -1270,6 +1270,7 @@ function ProjectsView() {
                   clientId={selectedClient?.id}
                   projectId={selectedProject.projectId}
                   defaultVendor={selectedProject.vendor?.name || ''}
+                  defaultVendorId={selectedProject.vendorId || selectedProject.vendor?.id || ''}
                 />
               </Box>
             </Box>

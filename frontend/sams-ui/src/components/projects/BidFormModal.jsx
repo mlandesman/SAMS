@@ -220,8 +220,8 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
         }
       });
     } else if (isEdit) {
-      // Update vendor info only
       onSave({
+        vendorId: formData.vendorId,
         vendorName: formData.vendorName,
         vendorContact: {
           phone: formData.vendorPhone,
@@ -230,6 +230,7 @@ function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
       });
     } else {
       onSave({
+        vendorId: formData.vendorId,
         vendorName: formData.vendorName,
         vendorContact: {
           phone: formData.vendorPhone,

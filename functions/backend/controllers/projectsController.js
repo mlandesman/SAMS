@@ -860,6 +860,7 @@ export async function createBid(clientId, projectId, bidData) {
   }
 
   const bid = {
+    vendorId: bidData.vendorId || null,
     vendorName: bidData.vendorName,
     vendorContact: bidData.vendorContact || {},
     status: 'active',
@@ -966,7 +967,7 @@ export async function updateBid(clientId, projectId, bidId, updates) {
   }
   // General metadata update
   else {
-    const allowedFields = ['vendorName', 'vendorContact', 'status'];
+    const allowedFields = ['vendorId', 'vendorName', 'vendorContact', 'status'];
     const updateData = { updatedAt: getNow().toISOString() };
     
     for (const field of allowedFields) {
@@ -1072,7 +1073,9 @@ export async function selectBid(clientId, projectId, bidId) {
   );
 
   const batchUpdates = {
+    vendorId: bidData.vendorId || null,
     vendor: {
+      id: bidData.vendorId || null,
       name: bidData.vendorName,
       contact: bidData.vendorContact?.phone || bidData.vendorContact?.email || '',
       notes: `Selected from bid on ${getMexicoDateString()}`
@@ -1259,12 +1262,7 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
   const projectCategoryId = `projects-${projectId}`;
   const projectCategoryName = `Projects: ${projectName}`;
 
-  const vendorsSnap = await db.collection('clients').doc(clientId)
-    .collection('vendors')
-    .where('name', '==', paymentData.vendor)
-    .limit(1)
-    .get();
-  const resolvedVendorId = vendorsSnap.empty ? (paymentData.vendor || 'vendor') : vendorsSnap.docs[0].id;
+  const resolvedVendorId = paymentData.vendorId || projectData.vendorId || null;
 
   const txnData = {
     date: paymentDate,
@@ -1297,6 +1295,7 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     amount: amountCentavos,
     date: paymentDate,
     vendor: paymentData.vendor || 'Vendor',
+    vendorId: resolvedVendorId,
     description: paymentData.description || '',
     recordedBy: userId,
     recordedAt: getNow().toISOString()
