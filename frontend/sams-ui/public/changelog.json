@@ -18,6 +18,11 @@
           "type": "feat",
           "issues": [],
           "text": "PM8: Vendor payment CRUD — atomic transaction pattern, project financial summary card, deleteTransaction reversal path"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "PM8: vendorId propagation through bid-project-payment chain, vendor dropdown in Record Payment, delete confirmation dialog"
         }
       ]
     },
