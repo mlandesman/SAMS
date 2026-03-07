@@ -16,6 +16,7 @@ import { getNow } from '../../shared/services/DateService.js';
 import { listUnits } from './unitsController.js';
 import { allocateByOwnership } from '../../shared/utils/allocationUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
+import { createTransaction } from './transactionsController.js';
 
 // Documents to exclude from project listings (structural, not projects)
 const EXCLUDED_PROJECT_IDS = ['waterBills', 'propaneTanks'];
@@ -504,8 +505,24 @@ export async function updateProject(clientId, projectId, updates) {
     }
   }
   
-  await docRef.update(updateData);
-  
+  if (statusToApproved) {
+    const batch = db.batch();
+    batch.update(docRef, updateData);
+    const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
+    batch.set(categoryRef, {
+      name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
+      description: existingData.name || otherUpdates.name || projectId,
+      type: 'expense',
+      status: 'active',
+      notBudgeted: true,
+      projectId: projectId,
+      createdAt: getNow().toISOString()
+    }, { merge: true });
+    await batch.commit();
+  } else {
+    await docRef.update(updateData);
+  }
+
   // Fetch and return updated project
   const updated = await docRef.get();
   return { projectId, ...updated.data() };
@@ -537,11 +554,12 @@ export async function deleteProject(clientId, projectId) {
   
   // Check for associated transactions - cannot delete if any exist
   const hasCollections = projectData.collections && projectData.collections.length > 0;
-  const hasPayments = projectData.payments && projectData.payments.length > 0;
-  
-  if (hasCollections || hasPayments) {
+  const vendorPayments = projectData.vendorPayments || [];
+  const hasVendorPayments = vendorPayments.length > 0;
+
+  if (hasCollections || hasVendorPayments) {
     const collectionCount = projectData.collections?.length || 0;
-    const paymentCount = projectData.payments?.length || 0;
+    const paymentCount = vendorPayments.length;
     throw new Error(
       `Cannot delete project with financial records. ` +
       `This project has ${collectionCount} collection(s) and ${paymentCount} payment(s). ` +
@@ -842,6 +860,7 @@ export async function createBid(clientId, projectId, bidData) {
   }
 
   const bid = {
+    vendorId: bidData.vendorId || null,
     vendorName: bidData.vendorName,
     vendorContact: bidData.vendorContact || {},
     status: 'active',
@@ -948,7 +967,7 @@ export async function updateBid(clientId, projectId, bidId, updates) {
   }
   // General metadata update
   else {
-    const allowedFields = ['vendorName', 'vendorContact', 'status'];
+    const allowedFields = ['vendorId', 'vendorName', 'vendorContact', 'status'];
     const updateData = { updatedAt: getNow().toISOString() };
     
     for (const field of allowedFields) {
@@ -1054,7 +1073,9 @@ export async function selectBid(clientId, projectId, bidId) {
   );
 
   const batchUpdates = {
+    vendorId: bidData.vendorId || null,
     vendor: {
+      id: bidData.vendorId || null,
       name: bidData.vendorName,
       contact: bidData.vendorContact?.phone || bidData.vendorContact?.email || '',
       notes: `Selected from bid on ${getMexicoDateString()}`
@@ -1086,7 +1107,19 @@ export async function selectBid(clientId, projectId, bidId) {
     batchUpdates.installments = lockMilestoneAmounts(currentRevision.amount, rawInstallments);
   }
   batch.update(projectRef, batchUpdates);
-  
+
+  // Create project expense category for transaction categorization
+  const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
+  batch.set(categoryRef, {
+    name: `Projects: ${projectData.name || projectId}`,
+    description: projectData.name || projectId,
+    type: 'expense',
+    status: 'active',
+    notBudgeted: true,
+    projectId: projectId,
+    createdAt: getNow().toISOString()
+  }, { merge: true });
+
   await batch.commit();
   
   // Return updated project
@@ -1184,6 +1217,145 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
   await batch.commit();
 
   return { id: billRef.id, ...billDoc };
+}
+
+/**
+ * Record a vendor payment for a project (money OUT to contractor)
+ * Creates a real transaction via createTransaction batch mode and stores cross-reference on project.
+ * @param {string} clientId - Client ID
+ * @param {string} projectId - Project ID
+ * @param {Object} paymentData - { date, amount (pesos), vendor, description, accountId, accountType, paymentMethod }
+ * @param {string} userId - User ID from auth
+ * @returns {Promise<Object>} { transactionId, vendorPaymentEntry }
+ */
+export async function recordVendorPayment(clientId, projectId, paymentData, userId) {
+  const db = await getDb();
+  const projectRef = db.doc(`clients/${clientId}/projects/${projectId}`);
+  const projectDoc = await projectRef.get();
+
+  if (!projectDoc.exists) {
+    throw new Error('Project not found');
+  }
+
+  const projectData = projectDoc.data();
+  if (projectData.status !== 'approved') {
+    throw new Error('Project must be approved to record vendor payments');
+  }
+
+  const projectName = projectData.name || '';
+  const amountPesos = Math.abs(Number(paymentData.amount) || 0);
+  if (amountPesos <= 0) {
+    throw new Error('Amount must be greater than zero');
+  }
+
+  const paymentDate = paymentData.date || getMexicoDateString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)) {
+    throw new Error('Invalid date format (expected YYYY-MM-DD)');
+  }
+
+  const accountId = paymentData.accountId;
+  const accountType = paymentData.accountType || 'bank';
+  if (!accountId) {
+    throw new Error('Bank account is required');
+  }
+
+  const projectCategoryId = `projects-${projectId}`;
+  const projectCategoryName = `Projects: ${projectName}`;
+
+  const resolvedVendorId = paymentData.vendorId || projectData.vendorId || null;
+
+  const txnData = {
+    date: paymentDate,
+    amount: -amountPesos, // Expense: negative for schema validation
+    type: 'expense',
+    categoryId: projectCategoryId,
+    categoryName: projectCategoryName,
+    unitId: null,
+    accountId,
+    accountType,
+    paymentMethod: paymentData.paymentMethod || 'eTransfer',
+    vendorId: resolvedVendorId,
+    vendorName: paymentData.vendor || 'Vendor',
+    notes: paymentData.description || `Vendor payment — ${projectName}`,
+    source: 'project_vendor_payment',
+    enteredBy: userId,
+    metadata: {
+      projectId,
+      projectName,
+      projectVendorPayment: true
+    }
+  };
+
+  const batch = db.batch();
+  const txnId = await createTransaction(clientId, txnData, { batch });
+
+  const amountCentavos = Math.round(amountPesos * 100);
+  const vendorPaymentEntry = {
+    transactionId: txnId,
+    amount: amountCentavos,
+    date: paymentDate,
+    vendor: paymentData.vendor || 'Vendor',
+    vendorId: resolvedVendorId,
+    description: paymentData.description || '',
+    recordedBy: userId,
+    recordedAt: getNow().toISOString()
+  };
+
+  batch.update(projectRef, {
+    vendorPayments: admin.firestore.FieldValue.arrayUnion(vendorPaymentEntry)
+  });
+
+  await batch.commit();
+
+  return { transactionId: txnId, vendorPaymentEntry };
+}
+
+/**
+ * Express route handler: Record vendor payment
+ * POST /api/clients/:clientId/projects/:projectId/vendor-payment
+ */
+export async function recordVendorPaymentHandler(req, res) {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const { projectId } = req.params;
+    const paymentData = req.body;
+    const userId = req.user?.uid || req.user?.samsProfile?.id || '';
+
+    if (!clientId || !projectId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID and Project ID are required'
+      });
+    }
+
+    if (!paymentData || (typeof paymentData.amount !== 'number' && !paymentData.amount)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Amount is required'
+      });
+    }
+
+    const result = await recordVendorPayment(clientId, projectId, paymentData, userId);
+
+    logDebug(`✅ Recorded vendor payment for project ${projectId}: ${result.transactionId}`);
+
+    return res.status(201).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    if (error.message.includes('not found') || error.message.includes('must be approved')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    logError('❌ Error recording vendor payment:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 }
 
 /**

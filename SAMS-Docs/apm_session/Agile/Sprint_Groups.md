@@ -241,19 +241,19 @@
 | PM5B | Installment Schedule UI — milestone-based on bid revisions | medium | 3h | ✅ DONE |
 | PM5C | Unit Assessments Grid — two-level display (summary + milestone) | medium | 3h | ✅ DONE |
 | PM5D | Lock Amounts + Bill Milestone — lock amountCentavos at approval, billMilestone endpoint | medium | 4h | ✅ DONE |
-| PM6 | Statement of Account Integration — project charges in SoA | high | 4h | 🔄 IN REVIEW |
-| PM7 | UPC Payment Integration — accept payments for project assessments | high | 5h | ⏳ NEXT |
+| PM6 | Statement of Account Integration — project charges in SoA | high | 4h | ✅ DONE |
+| PM8 | Vendor Payment CRUD + Project Financial Summary — atomic transaction pattern, reversal | high | 5h | 🔄 IN PROGRESS |
+| PM7 | UPC Payment Integration — accept payments for project assessments | high | 5h | ⏳ QUEUED |
 | PM8B | BvA Special Assessments — populate COLLECTIONS + EXPENDITURES in Budget vs Actual | medium | 3h | ⏳ QUEUED |
-| PM8 | Vendor Payments + Project Financial Summary — vendor tracking, project summary card | medium | 4h | ⏳ QUEUED |
 | PM5E | Adjustment Milestones — insert price change milestones for cost overruns/credits | low | 3h | ⏳ DEFERRED |
 | PM9 | Stabilization & Regression — end-to-end test of full billing/payment/reversal cycle | medium | 3h | ⏳ QUEUED |
 
-**Execution Order**: PM5A → PM5B → PM5C → PM5D → PM6 → PM7 → PM8B → PM8 → PM5E → PM9
+**Execution Order**: PM5A → PM5B → PM5C → PM5D → PM6 → PM8 → PM7 → PM8B → PM5E → PM9
 
 **Theme**: Complete the financial cycle for Special Projects  
 **Risk**: HIGH (modifies UPC and Statement of Account — core engines)  
 **Total Estimate**: ~35 hours  
-**Status**: 🔄 **ACTIVE** — PM5A-D complete, PM6 in review
+**Status**: 🔄 **ACTIVE** — PM5A-D + PM6 complete (PRs #215, #218), PM8 in progress
 
 **Key Architecture Decisions**:
 - Bill subcollection at `clients/{clientId}/projects/{projectId}/bills/{milestoneIndex}` mirrors water bills pattern
@@ -261,6 +261,8 @@
 - Billing is manual admin action (Bill button on Installment Schedule)
 - Transaction metadata stores `projectId` and `milestoneIndex` for atomic reversal in `deleteTransaction`
 - PM8B separated from PM8: BvA report population (PM8B) vs vendor tracking + financial summary (PM8)
+- PM8 reordered before PM7: vendor payments are independent of UPC, establishes the atomic transaction pattern for project payments
+- Vendor payments follow UPC batch pattern: `createTransaction` in batch mode + `project.vendorPayments[]` cross-reference + `deleteTransaction` reversal
 
 **Requirements Document**: `Agile/sprints/SAMS_Special_Projects.md`  
 **Implementation Plan**: `Agile/sprints/Sprint_PM_Implementation_Plan.md`  
