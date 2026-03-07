@@ -1044,10 +1044,13 @@ async function deleteTransaction(clientId, txnId) {
       });
       
       // Read credit balance document if transaction affects credit
+      // PM7: Include hasProjectData - project-only payments can add overpayment to credit
+      const mayAffectCredit = isWaterTransaction || isUnifiedTransaction || isHOATransaction || hasProjectData ||
+        (originalData.metadata?.creditAdded > 0 || originalData.metadata?.creditUsed > 0);
       let creditDoc = null;
       let creditData = null;
       let unitCreditData = null;
-      if (originalData.unitId && (isWaterTransaction || isUnifiedTransaction || isHOATransaction)) {
+      if (originalData.unitId && mayAffectCredit) {
         const creditBalancesRef = db.collection('clients').doc(clientId)
           .collection('units').doc('creditBalances');
         

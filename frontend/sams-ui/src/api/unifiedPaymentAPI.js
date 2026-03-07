@@ -77,6 +77,7 @@ function convertPreviewFromCentavos(data) {
   // Merge and sort by priority, then by billPeriod
   // This preserves the backend's payment order
   allBills.push(...hoaBills, ...waterBills, ...projectBills);
+  console.log('[PM7 DEBUG] convertPreviewFromCentavos — HOA:', hoaBills.length, 'Water:', waterBills.length, 'Project:', projectBills.length, 'Total:', allBills.length);
   allBills.sort((a, b) => {
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
@@ -159,9 +160,22 @@ const unifiedPaymentAPI = {
       
       const data = await response.json();
       console.log('📥 Unified Payment Preview Response (raw):', data);
-      
+
       // Extract preview from response wrapper
       const previewData = data.preview || data;
+
+      // PM7 DEBUG: Log project data from backend
+      const projectBillsCount = previewData.project?.billsAffected?.length ?? 0;
+      console.log('[PM7 DEBUG] Preview response — project.billsAffected:', projectBillsCount, previewData.project?.billsAffected ?? 'none');
+      if (projectBillsCount > 0) {
+        console.log('[PM7 DEBUG] Project bills detail:', previewData.project.billsAffected.map(b => ({
+          billPeriod: b.billPeriod,
+          projectName: b.projectName,
+          milestone: b.milestone,
+          totalDue: b.totalDue,
+          remainingDue: b.remainingDue
+        })));
+      }
       
       // Debug: Log HOA months before conversion
       console.log('🔍 HOA months before conversion:', previewData.hoa?.monthsAffected?.slice(0, 3));

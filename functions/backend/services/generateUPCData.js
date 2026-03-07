@@ -145,9 +145,12 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
   
   // Gather project bills only when flag is ON (PM7)
   let projectBills = [];
-  if (await isFeatureEnabled('projectPaymentsInUPC')) {
+  const projectPaymentsFlagEnabled = await isFeatureEnabled('projectPaymentsInUPC');
+  logInfo(`   🚩 [PM7] projectPaymentsInUPC flag = ${projectPaymentsFlagEnabled} (client=${clientId}, unit=${unitId})`);
+  if (projectPaymentsFlagEnabled) {
     projectBills = await getProjectBillsForUnit(db, clientId, unitId);
-    logDebug(`   📋 Project bills: ${projectBills.length}`);
+    const billSummary = projectBills.length > 0 ? projectBills.map(b => `${b.projectName}:${b.milestone}(${b.remainingCentavos}c)`).join('; ') : 'none';
+    logInfo(`   📋 [PM7] Project bills retrieved: ${projectBills.length} — ${billSummary}`);
   }
 
   // Gather data in parallel - only fetch water bills if client has water service
@@ -437,12 +440,15 @@ async function getWaterBillsForUnit(db, clientId, unitId) {
  */
 async function getProjectBillsForUnit(db, clientId, unitId) {
   const bills = [];
+  logInfo(`   🔍 [PM7] getProjectBillsForUnit: fetching projects for ${clientId}/${unitId}`);
 
   try {
     const projectsSnap = await db
       .collection('clients').doc(clientId)
       .collection('projects')
       .get();
+
+    logInfo(`   🔍 [PM7] Found ${projectsSnap.docs.length} project docs, filtering for type=special-assessment, status=approved`);
 
     for (const projectDoc of projectsSnap.docs) {
       const projectData = projectDoc.data();
@@ -486,6 +492,7 @@ async function getProjectBillsForUnit(db, clientId, unitId) {
       }
     }
 
+    logInfo(`   ✅ [PM7] getProjectBillsForUnit: returning ${bills.length} unpaid project bills`);
     return bills;
   } catch (error) {
     logError(`   ❌ [getProjectBillsForUnit] Error for ${clientId}/${unitId}:`, error.message);

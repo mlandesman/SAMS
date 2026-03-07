@@ -1,9 +1,8 @@
 /**
  * UnitAssessmentsTable - Unit assessments grid sourced from allocation engine
  *
- * Data from allocationSnapshot (PM5A) + installments (PM5B).
- * Populates at bid selection — units see total obligation immediately.
- * Billed/Paid are $0 until PM6/PM7.
+ * Data from allocationSnapshot (PM5A) + installments (PM5B) + unitCollections (PM7).
+ * Billed/Paid from project bills subcollection (unitCollections prop).
  */
 
 import React, { useState, useMemo } from 'react';
@@ -32,13 +31,18 @@ function formatCurrency(centavos) {
 
 /**
  * Get status chip for a unit row
+ * Paid = all billed amount paid (paid >= billed). Partial = some paid. Pending = none paid.
  */
-function getStatusChip({ excluded, paid, totalAssessed }) {
+function getStatusChip({ excluded, paid, billed, totalAssessed }) {
   if (excluded) {
     return { label: 'Excluded', color: 'default' };
   }
   if (totalAssessed <= 0) {
     return { label: '—', color: 'default' };
+  }
+  // Paid when all billed amount is paid (or fully paid on total assessment)
+  if (billed > 0 && paid >= billed) {
+    return { label: 'Paid', color: 'success' };
   }
   if (paid >= totalAssessed) {
     return { label: 'Paid', color: 'success' };
@@ -201,9 +205,9 @@ function UnitRow({
  * @param {object} props.allocationSnapshot - { allocations: { unitId: centavos }, inputs: { participation: { unitId: 'in'|'out' } } }
  * @param {array} props.installments - [{ milestone, percentOfTotal }]
  * @param {array} props.units - Unit objects with owner info (for owner names)
- * @param {array} props.payments - Payment records (pass [] until PM7)
+ * @param {object} props.unitCollections - Per-unit billed/paid from project bills (PM7): { unitId: { billed, paid } } in centavos
  */
-function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], payments = [] }) {
+function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], unitCollections = {} }) {
   const rows = useMemo(() => {
     const allocations = allocationSnapshot?.allocations || {};
     const participation = allocationSnapshot?.inputs?.participation || {};
@@ -224,23 +228,28 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], pa
         const unit = unitsMap.get(unitId);
         const { lastName } = getOwnerInfo(unit || { unitId });
 
-        // Billed/Paid from payments - sum by unit (PM7); for now 0
-        const billed = 0;
-        const paid = 0;
-        const balance = isExcluded ? 0 : centavos - paid;
+        // Billed/Paid from project bills (PM7)
+        const coll = unitCollections[unitId] || {};
+        const billed = coll.billed ?? 0;
+        const paid = coll.paid ?? 0;
+        // Balance = remaining due on BILLED amount (not total assessed)
+        const balance = isExcluded ? 0 : Math.max(0, billed - paid);
 
         const statusChip = getStatusChip({
           excluded: isExcluded,
           paid,
+          billed,
           totalAssessed: centavos
         });
 
+        // billedMilestoneCount = first unbilled index (from project-level installments status)
+        const billedMilestoneCount = (installments || []).filter(i => i.status === 'billed').length;
         const nextMilestone = getNextMilestone({
           excluded: isExcluded,
           paid,
           totalAssessed: centavos,
           installments,
-          billedMilestoneCount: 0
+          billedMilestoneCount
         });
 
         return {
@@ -256,7 +265,7 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], pa
         };
       })
       .sort((a, b) => (a.unitId || '').localeCompare(b.unitId || '', undefined, { numeric: true }));
-  }, [allocationSnapshot, installments, units, payments]);
+  }, [allocationSnapshot, installments, units, unitCollections]);
 
   const totals = useMemo(() => {
     const participating = rows.filter(r => !r.excluded);
@@ -290,7 +299,7 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], pa
             <TableCell align="right">Total Assessed</TableCell>
             <TableCell align="right">Billed</TableCell>
             <TableCell align="right">Paid</TableCell>
-            <TableCell align="right">Balance</TableCell>
+            <TableCell align="right">Due</TableCell>
             <TableCell align="center">Status</TableCell>
             <TableCell>Next Milestone</TableCell>
           </TableRow>

@@ -1254,7 +1254,7 @@ function ProjectsView() {
                   allocationSnapshot={selectedProject.allocationSnapshot}
                   installments={selectedProject.installments}
                   units={unitsForAssessments}
-                  payments={[]}
+                  unitCollections={selectedProject.unitCollections || {}}
                 />
               </Box>
               

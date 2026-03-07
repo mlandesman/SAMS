@@ -2,7 +2,7 @@
  * Feature Flags Utility
  *
  * Per SAMS Feature_Flag_Requirements.md section 9.2
- * Flags stored in Firestore at config/featureFlags
+ * Flags stored in Firestore at system/featureFlags (system-level, deployment-scoped)
  *
  * @module featureFlags
  */
@@ -23,7 +23,7 @@ export async function getFeatureFlags() {
     return cachedFlags;
   }
   const db = await getDb();
-  const doc = await db.doc('config/featureFlags').get();
+  const doc = await db.doc('system/featureFlags').get();
   cachedFlags = doc.exists ? doc.data() : {};
   cacheExpiry = now + CACHE_TTL;
   return cachedFlags;
