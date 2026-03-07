@@ -506,7 +506,19 @@ export async function updateProject(clientId, projectId, updates) {
   }
   
   await docRef.update(updateData);
-  
+
+  // Create project expense category when project becomes approved
+  if (statusToApproved) {
+    const db = await getDb();
+    const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
+    await categoryRef.set({
+      name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
+      type: 'expense',
+      projectId: projectId,
+      createdAt: getNow().toISOString()
+    }, { merge: true });
+  }
+
   // Fetch and return updated project
   const updated = await docRef.get();
   return { projectId, ...updated.data() };
@@ -538,7 +550,7 @@ export async function deleteProject(clientId, projectId) {
   
   // Check for associated transactions - cannot delete if any exist
   const hasCollections = projectData.collections && projectData.collections.length > 0;
-  const vendorPayments = projectData.vendorPayments || projectData.payments || [];
+  const vendorPayments = projectData.vendorPayments || [];
   const hasVendorPayments = vendorPayments.length > 0;
 
   if (hasCollections || hasVendorPayments) {
@@ -1088,7 +1100,16 @@ export async function selectBid(clientId, projectId, bidId) {
     batchUpdates.installments = lockMilestoneAmounts(currentRevision.amount, rawInstallments);
   }
   batch.update(projectRef, batchUpdates);
-  
+
+  // Create project expense category for transaction categorization
+  const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
+  batch.set(categoryRef, {
+    name: `Projects: ${projectData.name || projectId}`,
+    type: 'expense',
+    projectId: projectId,
+    createdAt: getNow().toISOString()
+  }, { merge: true });
+
   await batch.commit();
   
   // Return updated project
@@ -1228,12 +1249,15 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     throw new Error('Bank account is required');
   }
 
+  const projectCategoryId = `projects-${projectId}`;
+  const projectCategoryName = `Projects: ${projectName}`;
+
   const txnData = {
     date: paymentDate,
     amount: -amountPesos, // Expense: negative for schema validation
     type: 'expense',
-    categoryId: 'project-vendor-payment',
-    categoryName: 'Project Vendor Payment',
+    categoryId: projectCategoryId,
+    categoryName: projectCategoryName,
     unitId: null,
     accountId,
     accountType,
@@ -1249,8 +1273,8 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
       targetId: projectId,
       targetName: projectName,
       amount: -amountPesos,
-      categoryName: 'Project Vendor Payment',
-      categoryId: 'project-vendor-payment',
+      categoryName: projectCategoryName,
+      categoryId: projectCategoryId,
       data: { projectId }
     }],
     metadata: {

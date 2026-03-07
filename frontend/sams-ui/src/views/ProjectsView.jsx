@@ -698,7 +698,7 @@ function ProjectsView() {
   const canDeleteProject = (project) => {
     if (!project) return false;
     const hasCollections = project.collections && project.collections.length > 0;
-    const hasVendorPayments = (project.vendorPayments || project.payments || []).length > 0;
+    const hasVendorPayments = (project.vendorPayments || []).length > 0;
     return !hasCollections && !hasVendorPayments;
   };
   
@@ -711,7 +711,7 @@ function ProjectsView() {
     // Check for financial records before showing confirmation
     if (!canDeleteProject(selectedProject)) {
       const collectionCount = selectedProject.collections?.length || 0;
-      const paymentCount = (selectedProject.vendorPayments || selectedProject.payments || []).length;
+      const paymentCount = (selectedProject.vendorPayments || []).length;
       setError(
         `Cannot delete project with financial records. ` +
         `This project has ${collectionCount} collection(s) and ${paymentCount} payment(s). ` +
@@ -1107,7 +1107,7 @@ function ProjectsView() {
                     <Box>
                       <Typography variant="caption" color="text.secondary">Paid to Vendor</Typography>
                       <Typography variant="body1" fontWeight="medium" color="error.main">
-                        {formatCurrency((selectedProject.vendorPayments || selectedProject.payments || [])
+                        {formatCurrency((selectedProject.vendorPayments || [])
                           .reduce((s, vp) => s + Math.abs(vp.amount || 0), 0))}
                       </Typography>
                     </Box>
@@ -1115,7 +1115,7 @@ function ProjectsView() {
                       <Typography variant="caption" color="text.secondary">Remaining Budget</Typography>
                       <Typography variant="body1" fontWeight="medium">
                         {formatCurrency((selectedProject.totalCost || 0) -
-                          (selectedProject.vendorPayments || selectedProject.payments || [])
+                          (selectedProject.vendorPayments || [])
                             .reduce((s, vp) => s + Math.abs(vp.amount || 0), 0))}
                       </Typography>
                     </Box>
@@ -1264,7 +1264,7 @@ function ProjectsView() {
                   Vendor Payments
                 </Typography>
                 <VendorPaymentsTable 
-                  vendorPayments={selectedProject.vendorPayments || selectedProject.payments || []}
+                  vendorPayments={selectedProject.vendorPayments || []}
                   onTransactionClick={handleTransactionClick}
                   onRefresh={() => loadProjectDetails(selectedProject.projectId)}
                   clientId={selectedClient?.id}

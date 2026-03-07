@@ -1267,7 +1267,7 @@ async function deleteTransaction(clientId, txnId) {
         const projectId = originalData.metadata.projectId;
         const projectRef = db.collection('clients').doc(clientId)
           .collection('projects').doc(projectId);
-        const vendorPayments = projectDataForCleanup.vendorPayments || projectDataForCleanup.payments || [];
+        const vendorPayments = projectDataForCleanup.vendorPayments || [];
         const updatedPayments = vendorPayments.filter(vp => vp.transactionId !== txnId);
         transaction.update(projectRef, { vendorPayments: updatedPayments });
         logDebug(`🧹 [BACKEND] Project vendor payment cleanup: removed txn ${txnId} from project ${projectId}`);
