@@ -513,7 +513,10 @@ export async function updateProject(clientId, projectId, updates) {
     const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
     await categoryRef.set({
       name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
+      description: existingData.name || otherUpdates.name || projectId,
       type: 'expense',
+      status: 'active',
+      notBudgeted: true,
       projectId: projectId,
       createdAt: getNow().toISOString()
     }, { merge: true });
@@ -1105,7 +1108,10 @@ export async function selectBid(clientId, projectId, bidId) {
   const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
   batch.set(categoryRef, {
     name: `Projects: ${projectData.name || projectId}`,
+    description: projectData.name || projectId,
     type: 'expense',
+    status: 'active',
+    notBudgeted: true,
     projectId: projectId,
     createdAt: getNow().toISOString()
   }, { merge: true });
