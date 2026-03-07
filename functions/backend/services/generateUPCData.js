@@ -24,6 +24,7 @@
 
 import { getNow } from '../../shared/services/DateService.js';
 import { getDb } from '../firebase.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
 import { centavosToPesos, pesosToCentavos } from '../utils/currencyUtils.js';
@@ -142,18 +143,29 @@ async function gatherRawData(db, clientId, unitId, asOfDate) {
   // AVII has WaterBills activity enabled, MTC does not
   const hasWaterBillsProject = await hasActivity(db, clientId, 'WaterBills');
   
+  // Gather project bills only when flag is ON (PM7)
+  let projectBills = [];
+  const projectPaymentsFlagEnabled = await isFeatureEnabled('projectPaymentsInUPC');
+  logInfo(`   🚩 [PM7] projectPaymentsInUPC flag = ${projectPaymentsFlagEnabled} (client=${clientId}, unit=${unitId})`);
+  if (projectPaymentsFlagEnabled) {
+    projectBills = await getProjectBillsForUnit(db, clientId, unitId);
+    const billSummary = projectBills.length > 0 ? projectBills.map(b => `${b.projectName}:${b.milestone}(${b.remainingCentavos}c)`).join('; ') : 'none';
+    logInfo(`   📋 [PM7] Project bills retrieved: ${projectBills.length} — ${billSummary}`);
+  }
+
   // Gather data in parallel - only fetch water bills if client has water service
   const [hoaDues, waterBills, transactions] = await Promise.all([
     getHOADuesForUnit(db, clientId, unitId, fiscalYear, fiscalYearStartMonth, duesFrequency),
     hasWaterBillsProject ? getWaterBillsForUnit(db, clientId, unitId) : Promise.resolve([]),
     getTransactionsForUnit(db, clientId, unitId, fiscalYear)
   ]);
-  
-  logDebug(`   ✅ Gathered: ${hoaDues.length} HOA dues, ${waterBills.length} water bills, ${transactions.length} transactions`);
-  
+
+  logDebug(`   ✅ Gathered: ${hoaDues.length} HOA dues, ${waterBills.length} water bills, ${projectBills.length} project bills, ${transactions.length} transactions`);
+
   return {
     hoaDues,
     waterBills,
+    projectBills,
     transactions,
     config: {
       fiscalYearStartMonth,
@@ -417,6 +429,78 @@ async function getWaterBillsForUnit(db, clientId, unitId) {
 }
 
 /**
+ * Get project assessment bills for a unit (PM7 - flag-gated)
+ * Reads from clients/{clientId}/projects/{projectId}/bills/* subcollections.
+ * Only fetches when projectPaymentsInUPC feature flag is ON.
+ *
+ * @param {object} db - Firestore database instance
+ * @param {string} clientId - Client ID
+ * @param {string} unitId - Unit ID
+ * @returns {Promise<Array>} Project bills array for UPC
+ */
+async function getProjectBillsForUnit(db, clientId, unitId) {
+  const bills = [];
+  logInfo(`   🔍 [PM7] getProjectBillsForUnit: fetching projects for ${clientId}/${unitId}`);
+
+  try {
+    const projectsSnap = await db
+      .collection('clients').doc(clientId)
+      .collection('projects')
+      .get();
+
+    logInfo(`   🔍 [PM7] Found ${projectsSnap.docs.length} project docs, filtering for type=special-assessment, status=approved`);
+
+    for (const projectDoc of projectsSnap.docs) {
+      const projectData = projectDoc.data();
+      // Only special-assessment projects (excludes waterBills, etc.)
+      if (projectData.type !== 'special-assessment') continue;
+      // Only approved projects
+      if (projectData.status !== 'approved') continue;
+
+      const projectId = projectDoc.id;
+      const projectName = projectData.name || projectId;
+      const billsSnap = await projectDoc.ref.collection('bills').get();
+
+      for (const billDoc of billsSnap.docs) {
+        const billData = billDoc.data();
+        const unitBill = billData.units?.[unitId];
+
+        if (!unitBill || unitBill.status === 'paid') continue;
+
+        const totalAmount = unitBill.totalAmount || 0;
+        const paidAmount = unitBill.paidAmount || 0;
+        const remainingCentavos = Math.max(0, totalAmount - paidAmount);
+        if (remainingCentavos <= 0) continue;
+
+        const milestoneIndex = billData.milestoneIndex ?? parseInt(billDoc.id, 10);
+        const billedDate = billData.billedDate || billData.dueDate || null;
+
+        bills.push({
+          billId: `project-${projectId}-${milestoneIndex}`,
+          billType: 'project',
+          projectId,
+          projectName,
+          milestone: billData.milestone || `Milestone ${milestoneIndex + 1}`,
+          milestoneIndex,
+          billedDate,
+          totalCentavos: totalAmount,
+          paidCentavos: paidAmount,
+          remainingCentavos,
+          status: unitBill.status,
+          penaltyRemainingCentavos: 0
+        });
+      }
+    }
+
+    logInfo(`   ✅ [PM7] getProjectBillsForUnit: returning ${bills.length} unpaid project bills`);
+    return bills;
+  } catch (error) {
+    logError(`   ❌ [getProjectBillsForUnit] Error for ${clientId}/${unitId}:`, error.message);
+    return [];
+  }
+}
+
+/**
  * Get transactions for a unit
  * 
  * @param {object} db - Firestore database instance
@@ -670,7 +754,62 @@ function computePerBillRemaining(rawData, waivedPenalties, excludedBills) {
       }
     });
   }
-  
+
+  // Process Project Bills (PM7 - flag-gated, only present when projectPaymentsInUPC is ON)
+  for (const projectBill of (rawData.projectBills || [])) {
+    if (excludedBills.includes(projectBill.billId)) {
+      logDebug(`   ⏭️ Excluding project bill: ${projectBill.billId}`);
+      continue;
+    }
+
+    const originalCentavos = projectBill.totalCentavos || 0;
+    const totalPaidCentavos = projectBill.paidCentavos || 0;
+    const totalRemainingCentavos = projectBill.remainingCentavos || 0;
+
+    bills.push({
+      id: projectBill.billId,
+      billId: projectBill.billId,
+      period: projectBill.billId,
+      billType: 'project',
+      description: `${projectBill.projectName}: ${projectBill.milestone}`,
+
+      originalCentavos,
+      currentCharge: originalCentavos,
+      baseCharge: originalCentavos,
+      baseAmount: originalCentavos,
+
+      penaltyCentavos: 0,
+      penaltyAmount: 0,
+
+      paidCentavos: totalPaidCentavos,
+      basePaid: totalPaidCentavos,
+      paidAmount: totalPaidCentavos,
+      penaltyPaidCentavos: 0,
+      penaltyPaid: 0,
+      totalPaidCentavos,
+
+      remainingCentavos: totalRemainingCentavos,
+      penaltyRemainingCentavos: 0,
+      totalRemainingCentavos,
+
+      totalCharge: originalCentavos,
+
+      dueDate: projectBill.billedDate,
+      status: projectBill.status,
+
+      projectId: projectBill.projectId,
+      projectName: projectBill.projectName,
+      milestone: projectBill.milestone,
+      milestoneIndex: projectBill.milestoneIndex,
+
+      _metadata: {
+        moduleType: 'project',
+        billPeriod: projectBill.billId,
+        priority: null
+      }
+    });
+  }
+
   // Filter to only unpaid/partial bills (those with remaining amounts)
   const unpaidBills = bills.filter(b => b.totalRemainingCentavos > 0);
   
@@ -825,7 +964,17 @@ function extractBillIdFromAllocation(alloc) {
   if (alloc.type === 'water_penalty' || alloc.type === 'water-penalty') {
     return alloc.data?.billPeriod || null;
   }
-  
+
+  // Project assessment allocations (PM7)
+  if (alloc.type === 'project_assessment') {
+    const projectId = alloc.data?.projectId;
+    const milestoneIndex = alloc.data?.milestoneIndex;
+    if (projectId != null && milestoneIndex != null) {
+      return `project-${projectId}-${milestoneIndex}`;
+    }
+    return alloc.billId || null;
+  }
+
   return null;
 }
 

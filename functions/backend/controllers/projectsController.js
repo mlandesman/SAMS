@@ -181,9 +181,29 @@ export async function getProject(clientId, projectId) {
     return null;
   }
   
+  // PM7: Fetch bills subcollection and compute per-unit billed/paid for Unit Assessments table
+  let unitCollections = {};
+  if (data.type === 'special-assessment') {
+    const billsSnap = await docRef.collection('bills').get();
+    for (const billDoc of billsSnap.docs) {
+      const billData = billDoc.data();
+      const units = billData.units || {};
+      for (const [unitId, unitBill] of Object.entries(units)) {
+        if (!unitCollections[unitId]) {
+          unitCollections[unitId] = { billed: 0, paid: 0 };
+        }
+        const totalAmount = unitBill.totalAmount || 0;
+        const paidAmount = unitBill.paidAmount || 0;
+        unitCollections[unitId].billed += totalAmount;
+        unitCollections[unitId].paid += paidAmount;
+      }
+    }
+  }
+  
   return {
     projectId: doc.id,
-    ...data
+    ...data,
+    unitCollections
   };
 }
 

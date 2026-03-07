@@ -46,6 +46,7 @@ import creditService from './creditService.js';
 import admin from 'firebase-admin';
 import { createNotesEntry, getNotesArray } from '../../shared/utils/formatUtils.js';
 import { generateUPCData } from './generateUPCData.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Import module-specific functions
@@ -154,6 +155,7 @@ export class UnifiedPaymentWrapper {
         newCreditBalance: roundPesos(currentCredit + paymentAmount),
         hoa: { billsPaid: [], totalPaid: 0, monthsAffected: [] },
         water: { billsPaid: [], totalPaid: 0, billsAffected: [] },
+        project: { billsPaid: [], totalPaid: 0, billsAffected: [] },
         credit: {
           used: 0,
           added: paymentAmount,
@@ -196,8 +198,8 @@ export class UnifiedPaymentWrapper {
     let paymentForNextLevel = paymentAmount;  // Track payment portion for distribution service
     let creditForNextLevel = currentCredit;   // Track credit portion for distribution service
     
-    // Process priority levels 1-5 sequentially
-    for (let priorityLevel = 1; priorityLevel <= 5; priorityLevel++) {
+    // Process priority levels 1-6 sequentially (3=project, 4=current HOA, 5=current Water, 6=future HOA)
+    for (let priorityLevel = 1; priorityLevel <= 6; priorityLevel++) {
       if (remainingFunds <= 0) break;
       
       const billsAtThisLevel = billsWithUniquePeroids.filter(
@@ -505,6 +507,30 @@ export class UnifiedPaymentWrapper {
       });
     }
     
+    // Add Project allocations (PM7 - flag-gated)
+    if (await isFeatureEnabled('projectPaymentsInUPC') && preview.project?.billsAffected) {
+      for (const bill of preview.project.billsAffected) {
+        if (bill.totalPaid > 0) {
+          allocations.push({
+            id: `alloc_${String(allocationIndex).padStart(3, '0')}`,
+            type: 'project_assessment',
+            targetId: `project_${bill.projectId}_${bill.milestoneIndex}`,
+            targetName: `${bill.projectName || bill.projectId}: ${bill.milestone || 'Milestone'}`,
+            amount: bill.totalPaid,
+            categoryName: `Projects: ${bill.projectName || bill.projectId}`,
+            categoryId: `projects-${bill.projectId}`,
+            data: {
+              unitId: unitId,
+              projectId: bill.projectId,
+              milestoneIndex: bill.milestoneIndex,
+              billId: bill.billId || `project-${bill.projectId}-${bill.milestoneIndex}`
+            }
+          });
+          allocationIndex++;
+        }
+      }
+    }
+
     // Add Water allocations (split into base and penalty)
     if (preview.water && preview.water.billsAffected) {
       preview.water.billsAffected.forEach(bill => {
@@ -552,7 +578,7 @@ export class UnifiedPaymentWrapper {
     // - If netCreditAdded is negative, credit was used (negative allocation)
     // - If netCreditAdded is positive, credit was added (positive allocation)
     
-    const totalBillsPaid = (preview.hoa?.totalPaid || 0) + (preview.water?.totalPaid || 0);
+    const totalBillsPaid = (preview.hoa?.totalPaid || 0) + (preview.water?.totalPaid || 0) + (preview.project?.totalPaid || 0);
     
     if (preview.credit && preview.netCreditAdded !== undefined && preview.netCreditAdded !== 0) {
       if (preview.netCreditAdded < 0) {
@@ -637,6 +663,7 @@ export class UnifiedPaymentWrapper {
       metadata: {
         hoaBillsPaid: preview.hoa?.billsPaid?.length || 0,
         waterBillsPaid: preview.water?.billsPaid?.length || 0,
+        projectBillsPaid: preview.project?.billsPaid?.length || 0,
         creditUsed: preview.credit?.used || 0,
         creditAdded: preview.credit?.added || 0
       }
@@ -684,7 +711,7 @@ export class UnifiedPaymentWrapper {
     // Step 3c: Prepare Water bills updates for batch (if Water bills were paid)
     if (preview.water && preview.water.billsAffected && preview.water.billsAffected.length > 0) {
       logDebug(`   💧 Preparing ${preview.water.billsAffected.length} Water bills for batch...`);
-      
+
       // Prepare Water batch updates
       await this._prepareWaterBatchUpdates(
         batch,
@@ -696,10 +723,27 @@ export class UnifiedPaymentWrapper {
         paymentMethod,
         reference
       );
-      
+
       logDebug(`      ✅ Water updates prepared for batch`);
     }
-    
+
+    // Step 3c2: Prepare Project bill updates for batch (PM7 - flag-gated)
+    if (await isFeatureEnabled('projectPaymentsInUPC') && preview.project?.billsAffected?.length > 0) {
+      const projectBillsToUpdate = preview.project.billsAffected.filter(b => b.totalPaid > 0);
+      if (projectBillsToUpdate.length > 0) {
+        logDebug(`   📋 Preparing ${projectBillsToUpdate.length} Project bills for batch...`);
+        await this._prepareProjectBatchUpdates(
+          batch,
+          clientId,
+          unitId,
+          projectBillsToUpdate,
+          transactionId,
+          paymentDate
+        );
+        logDebug(`      ✅ Project updates prepared for batch`);
+      }
+    }
+
     // Step 3d: Prepare Credit balance update for batch (if credit changed)
     const creditChange = (preview.credit?.added || 0) - (preview.credit?.used || 0);
     if (Math.abs(creditChange) > 0.01) {
@@ -1417,41 +1461,45 @@ export class UnifiedPaymentWrapper {
    * @returns {number} Priority value (lower = higher priority)
    */
   _calculatePriority(bill, currentDate, fiscalYearStartMonth = 1) {
-    const moduleType = bill._metadata.moduleType;
-    const dueDate = new Date(bill.dueDate);
-    
+    const moduleType = bill._metadata?.moduleType;
+    const dueDate = bill.dueDate ? new Date(bill.dueDate) : currentDate;
+
+    // Project assessments: priority 3 (after past-due HOA/Water, before current dues)
+    if (moduleType === 'project') {
+      return 3;
+    }
+
     // Determine bill timing relative to current date
     const isPastDue = dueDate < currentDate;
     const isCurrent = this._isCurrentPeriod(dueDate, currentDate, fiscalYearStartMonth);
     const isFuture = dueDate > currentDate && !isCurrent;
-    
+
     // Apply business rules for priority
     if (moduleType === 'hoa' && isPastDue) {
       return 1; // Highest priority: Past due HOA
     }
-    
+
     if (moduleType === 'water' && isPastDue) {
       return 2; // Second priority: Past due Water
     }
-    
+
     if (moduleType === 'hoa' && isCurrent) {
-      return 3; // Third priority: Current HOA
+      return 4; // Fourth priority: Current HOA (was 3, shifted for project)
     }
-    
+
     if (moduleType === 'water' && isCurrent) {
-      return 4; // Fourth priority: Current Water
+      return 5; // Fifth priority: Current Water (was 4)
     }
-    
+
     if (moduleType === 'hoa' && isFuture) {
-      return 5; // Fifth priority: Future HOA (prepaid allowed)
+      return 6; // Sixth priority: Future HOA (was 5)
     }
-    
+
     // Water bills are manually generated on demand - if the document exists, it's payable
-    // No such thing as "future" water bill - they're generated when ready to bill
     if (moduleType === 'water' && isFuture) {
-      return 4; // Treat as current water - it exists, so it's payable
+      return 5; // Treat as current water - it exists, so it's payable
     }
-    
+
     // Fallback (should not reach here)
     return 50;
   }
@@ -1508,25 +1556,30 @@ export class UnifiedPaymentWrapper {
     
     // Filter bills to include:
     // 1. All past-due and current bills (existing behavior)
-    // 2. Future HOA bills within 15-day buffer (NEW)
-    // 3. Exclude future water bills (they're post-paid)
+    // 2. Future HOA bills within 15-day buffer
+    // 3. Project assessments: always include when billed (ready to pay)
+    // 4. Exclude future water bills (they're post-paid)
     const eligibleBills = bills.filter(bill => {
-      const dueDate = new Date(bill.dueDate);
+      const dueDate = bill.dueDate ? new Date(bill.dueDate) : currentDate;
       const moduleType = bill._metadata?.moduleType;
-      
+
+      // Project assessments: always include (billed = ready to pay)
+      if (moduleType === 'project') {
+        return true;
+      }
+
       // Water bills: always include if document exists (manually generated = ready to pay)
-      // No "future" concept for water bills - they're generated on demand
       if (moduleType === 'water') {
         return true;
       }
-      
+
       // HOA bills: include if within 15-day buffer
       if (moduleType === 'hoa') {
         const bufferDate = new Date(dueDate);
         bufferDate.setDate(bufferDate.getDate() - HOA_BUFFER_DAYS);
-        return currentDate >= bufferDate; // Current date is at or past buffer start
+        return currentDate >= bufferDate;
       }
-      
+
       // Default: include if past due (fallback for unknown types)
       return dueDate <= currentDate;
     });
@@ -1556,9 +1609,10 @@ export class UnifiedPaymentWrapper {
     logDebug(`   Priority breakdown:`, {
       priority1_pastHOA: sortedBills.filter(b => b._metadata.priority === 1).length,
       priority2_pastWater: sortedBills.filter(b => b._metadata.priority === 2).length,
-      priority3_currentHOA: sortedBills.filter(b => b._metadata.priority === 3).length,
-      priority4_currentWater: sortedBills.filter(b => b._metadata.priority === 4).length,
-      priority5_futureHOA: sortedBills.filter(b => b._metadata.priority === 5).length
+      priority3_project: sortedBills.filter(b => b._metadata.priority === 3).length,
+      priority4_currentHOA: sortedBills.filter(b => b._metadata.priority === 4).length,
+      priority5_currentWater: sortedBills.filter(b => b._metadata.priority === 5).length,
+      priority6_futureHOA: sortedBills.filter(b => b._metadata.priority === 6).length
     });
     
     return sortedBills;
@@ -1616,6 +1670,11 @@ export class UnifiedPaymentWrapper {
         monthsAffected: []
       },
       water: {
+        billsPaid: [],
+        totalPaid: 0,
+        billsAffected: []
+      },
+      project: {
         billsPaid: [],
         totalPaid: 0,
         billsAffected: []
@@ -1753,6 +1812,40 @@ export class UnifiedPaymentWrapper {
           status: payment.newStatus || waterBillStatus,
           isPartial: waterIsPartial,
           priority: billToUse._metadata?.priority  // For frontend sorting
+        });
+      } else if (moduleType === 'project') {
+        // Project assessment bills (PM7)
+        result.project.billsPaid.push(payment);
+        result.project.totalPaid = roundPesos(result.project.totalPaid + (payment.amountPaid || 0));
+
+        const projectBaseDue = payment.totalBaseDue || 0;
+        const projectTotalDue = payment.totalDue || 0;
+        const projectBasePaid = payment.baseChargePaid || 0;
+        const projectTotalPaid = payment.amountPaid || 0;
+        const projectTotalRemainingCentavos = originalBill?.totalRemainingCentavos ?? billToUse.totalRemainingCentavos ?? 0;
+        const projectStatus = originalBill?.status ?? billToUse.status ?? 'unpaid';
+        const projectIsPartial = projectStatus === 'partial';
+
+        result.project.billsAffected.push({
+          billPeriod: displayPeriod,
+          billId: originalBill?.billId ?? billToUse.billId,
+          projectId: originalBill?.projectId ?? billToUse.projectId,
+          projectName: originalBill?.projectName ?? billToUse.projectName,
+          milestone: originalBill?.milestone ?? billToUse.milestone,
+          milestoneIndex: originalBill?.milestoneIndex ?? billToUse.milestoneIndex,
+          dueDate: originalBill?.dueDate || payment.dueDate,
+          baseDue: projectBaseDue,
+          penaltyDue: 0,
+          totalDue: projectTotalDue,
+          remainingDue: centavosToPesos(projectTotalRemainingCentavos),
+          baseRemaining: projectBaseDue,
+          penaltyRemaining: 0,
+          basePaid: projectBasePaid,
+          penaltyPaid: 0,
+          totalPaid: projectTotalPaid,
+          status: payment.newStatus || projectStatus,
+          isPartial: projectIsPartial,
+          priority: billToUse._metadata?.priority
         });
       }
     });
@@ -1894,6 +1987,13 @@ export class UnifiedPaymentWrapper {
       parts.push(`HOA: ${hoaParts.join('; ')}`);
     }
     
+    // Project assessments paid (PM7)
+    const projectPaid = (preview.project?.billsAffected || []).filter(b => b.totalPaid > 0);
+    if (projectPaid.length > 0) {
+      const projectParts = projectPaid.map(b => `${b.projectName || b.projectId}: ${b.milestone || 'Milestone'}`).join(', ');
+      parts.push(`Projects: ${projectParts}`);
+    }
+
     // Water bills paid
     if (preview.water && preview.water.billsPaid && preview.water.billsPaid.length > 0) {
       const waterMonths = preview.water.billsPaid
@@ -2273,6 +2373,53 @@ export class UnifiedPaymentWrapper {
       });
       
       logDebug(`      💧 Water batch update prepared for ${billId}: ${billData.totalPaid} pesos`);
+    }
+  }
+
+  /**
+   * Prepare Project bill updates for batch commit (PM7)
+   * @private
+   */
+  async _prepareProjectBatchUpdates(batch, clientId, unitId, projectBills, transactionId, paymentDate) {
+    const paymentDateStr = typeof paymentDate === 'string' ? paymentDate : paymentDate?.toISOString?.()?.split('T')[0] || getNow().toISOString().split('T')[0];
+
+    for (const billData of projectBills) {
+      const projectId = billData.projectId;
+      const milestoneIndex = billData.milestoneIndex;
+      const billRef = this.db.doc(`clients/${clientId}/projects/${projectId}/bills/${milestoneIndex}`);
+
+      const billDoc = await billRef.get();
+      if (!billDoc.exists) {
+        logWarn(`Project bill ${projectId}/${milestoneIndex} not found - skipping`);
+        continue;
+      }
+
+      const billDocData = billDoc.data();
+      const unitBill = billDocData.units?.[unitId];
+      if (!unitBill) {
+        logWarn(`Unit ${unitId} not found in project bill ${projectId}/${milestoneIndex} - skipping`);
+        continue;
+      }
+
+      const amountCentavos = pesosToCentavos(billData.totalPaid);
+      const newPaidAmount = (unitBill.paidAmount || 0) + amountCentavos;
+      const totalAmount = unitBill.totalAmount || 0;
+      const newStatus = newPaidAmount >= totalAmount ? 'paid' : 'partial';
+
+      const paymentEntry = {
+        date: paymentDateStr,
+        amount: amountCentavos,
+        transactionId,
+        recordedAt: getNow().toISOString()
+      };
+
+      batch.update(billRef, {
+        [`units.${unitId}.paidAmount`]: newPaidAmount,
+        [`units.${unitId}.status`]: newStatus,
+        [`units.${unitId}.payments`]: admin.firestore.FieldValue.arrayUnion(paymentEntry)
+      });
+
+      logDebug(`      📋 Project batch update prepared for ${projectId}/${milestoneIndex}: ${billData.totalPaid} pesos`);
     }
   }
 
