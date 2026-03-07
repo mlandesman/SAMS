@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.14.0",
-  "buildDate": "2026-03-07T02:03:17.044Z",
-  "buildTimestamp": 1772848997044,
+  "buildDate": "2026-03-07T02:43:47.516Z",
+  "buildTimestamp": 1772851427517,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "5d40750",
+    "hash": "fdd929e",
     "branch": "feature/pm-finance-integration",
-    "lastCommitDate": "2026-03-05 19:19:03 -0500"
+    "lastCommitDate": "2026-03-06 21:36:20 -0500"
   },
   "build": {
-    "timestamp": "2026-03-07T02:03:17.044Z",
+    "timestamp": "2026-03-07T02:43:47.516Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260306.2103"
+    "buildNumber": "260306.2143"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-03-07T02:03:17.044Z",
+    "date": "2026-03-07T02:43:47.516Z",
     "automated": true
   },
   "releaseNotes": {

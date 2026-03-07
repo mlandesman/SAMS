@@ -505,13 +505,11 @@ export async function updateProject(clientId, projectId, updates) {
     }
   }
   
-  await docRef.update(updateData);
-
-  // Create project expense category when project becomes approved
   if (statusToApproved) {
-    const db = await getDb();
+    const batch = db.batch();
+    batch.update(docRef, updateData);
     const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
-    await categoryRef.set({
+    batch.set(categoryRef, {
       name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
       description: existingData.name || otherUpdates.name || projectId,
       type: 'expense',
@@ -520,6 +518,9 @@ export async function updateProject(clientId, projectId, updates) {
       projectId: projectId,
       createdAt: getNow().toISOString()
     }, { merge: true });
+    await batch.commit();
+  } else {
+    await docRef.update(updateData);
   }
 
   // Fetch and return updated project
@@ -1258,6 +1259,13 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
   const projectCategoryId = `projects-${projectId}`;
   const projectCategoryName = `Projects: ${projectName}`;
 
+  const vendorsSnap = await db.collection('clients').doc(clientId)
+    .collection('vendors')
+    .where('name', '==', paymentData.vendor)
+    .limit(1)
+    .get();
+  const resolvedVendorId = vendorsSnap.empty ? (paymentData.vendor || 'vendor') : vendorsSnap.docs[0].id;
+
   const txnData = {
     date: paymentDate,
     amount: -amountPesos, // Expense: negative for schema validation
@@ -1268,21 +1276,11 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     accountId,
     accountType,
     paymentMethod: paymentData.paymentMethod || 'eTransfer',
-    vendorId: paymentData.vendor || 'vendor',
+    vendorId: resolvedVendorId,
     vendorName: paymentData.vendor || 'Vendor',
     notes: paymentData.description || `Vendor payment — ${projectName}`,
     source: 'project_vendor_payment',
     enteredBy: userId,
-    allocations: [{
-      id: 'alloc_vendor_001',
-      type: 'project_vendor_payment',
-      targetId: projectId,
-      targetName: projectName,
-      amount: -amountPesos,
-      categoryName: projectCategoryName,
-      categoryId: projectCategoryId,
-      data: { projectId }
-    }],
     metadata: {
       projectId,
       projectName,
@@ -1301,7 +1299,7 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     vendor: paymentData.vendor || 'Vendor',
     description: paymentData.description || '',
     recordedBy: userId,
-    recordedAt: getNow()
+    recordedAt: getNow().toISOString()
   };
 
   batch.update(projectRef, {
