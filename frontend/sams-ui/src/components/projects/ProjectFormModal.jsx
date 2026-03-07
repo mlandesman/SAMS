@@ -200,7 +200,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           projectData.balance = project.balance || 0;
           projectData.unitAssessments = project.unitAssessments || {};
           projectData.collections = project.collections || [];
-          projectData.payments = project.payments || [];
+          projectData.vendorPayments = project.vendorPayments || project.payments || [];
           // Preserve vendor data if it exists from before
           if (project.vendor) projectData.vendor = project.vendor;
           if (project.vendors) projectData.vendors = project.vendors;
@@ -213,7 +213,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           projectData.balance = 0;
           projectData.unitAssessments = {};
           projectData.collections = [];
-          projectData.payments = [];
+          projectData.vendorPayments = [];
           projectData.metadata.createdAt = getMexicoDateTime().toISOString();
         }
         

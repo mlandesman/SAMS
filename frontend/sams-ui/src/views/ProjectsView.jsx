@@ -35,6 +35,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { getProjects, getProject, createProject, updateProject, deleteProject, billMilestone, generateBidComparisonPdf, getBids } from '../api/projects';
+import { useNavigate } from 'react-router-dom';
 import { getUnits } from '../api/units';
 import { getOwnerInfo } from '../utils/unitUtils';
 import { getPolls, getPoll } from '../api/polls';
@@ -99,6 +100,7 @@ function formatPollDate(value) {
 
 function ProjectsView() {
   const { selectedClient } = useClient();
+  const navigate = useNavigate();
   const { setCenterContent, clearCenterContent } = useStatusBar();
   
   // Year selector state
@@ -696,8 +698,8 @@ function ProjectsView() {
   const canDeleteProject = (project) => {
     if (!project) return false;
     const hasCollections = project.collections && project.collections.length > 0;
-    const hasPayments = project.payments && project.payments.length > 0;
-    return !hasCollections && !hasPayments;
+    const hasVendorPayments = (project.vendorPayments || project.payments || []).length > 0;
+    return !hasCollections && !hasVendorPayments;
   };
   
   /**
@@ -709,7 +711,7 @@ function ProjectsView() {
     // Check for financial records before showing confirmation
     if (!canDeleteProject(selectedProject)) {
       const collectionCount = selectedProject.collections?.length || 0;
-      const paymentCount = selectedProject.payments?.length || 0;
+      const paymentCount = (selectedProject.vendorPayments || selectedProject.payments || []).length;
       setError(
         `Cannot delete project with financial records. ` +
         `This project has ${collectionCount} collection(s) and ${paymentCount} payment(s). ` +
@@ -758,8 +760,7 @@ function ProjectsView() {
    * Handle clicking a transaction link (navigate to Transactions view)
    */
   const handleTransactionClick = (transactionId) => {
-    // TODO: Implement navigation to transaction detail
-    console.log('Navigate to transaction:', transactionId);
+    navigate(`/transactions?id=${transactionId}`);
   };
   
   /**
@@ -1080,6 +1081,48 @@ function ProjectsView() {
                 />
               </Paper>
 
+              {/* Project Financial Summary Card (approved projects only) */}
+              {selectedProject.status === 'approved' && (
+                <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>Project Financial Summary</Typography>
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: 2
+                  }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Budget</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {formatCurrency(selectedProject.totalCost || 0)}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Billed to Owners</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {formatCurrency((selectedProject.installments || [])
+                          .filter(i => i.status === 'billed')
+                          .reduce((s, i) => s + (i.amountCentavos || 0), 0))}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Paid to Vendor</Typography>
+                      <Typography variant="body1" fontWeight="medium" color="error.main">
+                        {formatCurrency((selectedProject.vendorPayments || selectedProject.payments || [])
+                          .reduce((s, vp) => s + Math.abs(vp.amount || 0), 0))}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Remaining Budget</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {formatCurrency((selectedProject.totalCost || 0) -
+                          (selectedProject.vendorPayments || selectedProject.payments || [])
+                            .reduce((s, vp) => s + Math.abs(vp.amount || 0), 0))}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              )}
+
               {/* Installment Schedule Section (promoted from selected bid) */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>Installment Schedule</Typography>
@@ -1211,7 +1254,7 @@ function ProjectsView() {
                   allocationSnapshot={selectedProject.allocationSnapshot}
                   installments={selectedProject.installments}
                   units={unitsForAssessments}
-                  payments={selectedProject.payments || []}
+                  payments={[]}
                 />
               </Box>
               
@@ -1221,8 +1264,12 @@ function ProjectsView() {
                   Vendor Payments
                 </Typography>
                 <VendorPaymentsTable 
-                  payments={selectedProject.payments}
+                  vendorPayments={selectedProject.vendorPayments || selectedProject.payments || []}
                   onTransactionClick={handleTransactionClick}
+                  onRefresh={() => loadProjectDetails(selectedProject.projectId)}
+                  clientId={selectedClient?.id}
+                  projectId={selectedProject.projectId}
+                  defaultVendor={selectedProject.vendor?.name || ''}
                 />
               </Box>
             </Box>

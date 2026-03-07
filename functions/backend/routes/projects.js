@@ -8,6 +8,7 @@ import {
   updateProjectHandler,
   deleteProjectHandler,
   billMilestoneHandler,
+  recordVendorPaymentHandler,
   // Bids handlers
   listBidsHandler,
   getBidHandler,
@@ -74,6 +75,10 @@ router.delete('/:projectId', deleteProjectHandler);
 // POST /api/clients/:clientId/projects/:projectId/bill-milestone
 // Body: { milestoneIndex: number }
 router.post('/:projectId/bill-milestone', billMilestoneHandler);
+
+// Record a vendor payment for a project
+// POST /api/clients/:clientId/projects/:projectId/vendor-payment
+router.post('/:projectId/vendor-payment', recordVendorPaymentHandler);
 
 /**
  * Bids Routes (subcollection under projects)

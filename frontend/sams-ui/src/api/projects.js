@@ -150,6 +150,31 @@ export async function createProject(clientId, projectData) {
 }
 
 /**
+ * Record a vendor payment for a project
+ * @param {string} clientId - The client ID
+ * @param {string} projectId - The project ID
+ * @param {Object} paymentData - { date, amount (pesos), vendor, description, accountId, accountType, paymentMethod }
+ * @returns {Promise<Object>} Response with { transactionId, vendorPaymentEntry }
+ */
+export async function recordVendorPayment(clientId, projectId, paymentData) {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/clients/${clientId}/projects/${projectId}/vendor-payment`,
+    {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(paymentData)
+    }
+  );
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to record vendor payment');
+  }
+  return result.data;
+}
+
+/**
  * Bill a milestone - creates bill document and updates milestone status
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID

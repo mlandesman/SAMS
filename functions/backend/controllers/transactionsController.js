@@ -1124,6 +1124,19 @@ async function deleteTransaction(clientId, txnId) {
         
         logDebug(`💧 [BACKEND] Found ${waterBillDocs.length} water bills to reverse for transaction ${txnId}`);
       }
+
+      // Read project document if this is a project vendor payment (PM8) - MUST be in PHASE 1 (all reads before writes)
+      let projectDoc = null;
+      let projectDataForCleanup = null;
+      if (originalData.metadata?.projectVendorPayment && originalData.metadata?.projectId) {
+        const projectId = originalData.metadata.projectId;
+        const projectRef = db.collection('clients').doc(clientId)
+          .collection('projects').doc(projectId);
+        projectDoc = await transaction.get(projectRef);
+        if (projectDoc.exists) {
+          projectDataForCleanup = projectDoc.data();
+        }
+      }
       
       // PHASE 2: ALL WRITES SECOND
       
@@ -1247,6 +1260,17 @@ async function deleteTransaction(clientId, txnId) {
           billDocsFound: waterBillDocs.length,
           transactionId: txnId
         });
+      }
+
+      // Project vendor payment cleanup (PM8) - use project data read in PHASE 1
+      if (projectDoc && projectDataForCleanup && originalData.metadata?.projectId) {
+        const projectId = originalData.metadata.projectId;
+        const projectRef = db.collection('clients').doc(clientId)
+          .collection('projects').doc(projectId);
+        const vendorPayments = projectDataForCleanup.vendorPayments || projectDataForCleanup.payments || [];
+        const updatedPayments = vendorPayments.filter(vp => vp.transactionId !== txnId);
+        transaction.update(projectRef, { vendorPayments: updatedPayments });
+        logDebug(`🧹 [BACKEND] Project vendor payment cleanup: removed txn ${txnId} from project ${projectId}`);
       }
       });
       
