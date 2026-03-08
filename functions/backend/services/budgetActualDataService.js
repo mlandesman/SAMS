@@ -372,9 +372,6 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const incomeCategories = [];
     const expenseCategories = [];
     
-    // Special Assessments structure: collections (income) + expenditures (expenses)
-    let specialAssessmentsCollections = null; // Single income category
-    const specialAssessmentsExpenditures = []; // Multiple project expense categories
     
     // Unit Credit Accounts: Fetch from creditBalances document (single source of truth)
     // This is cleaner than parsing transaction allocations with various category IDs

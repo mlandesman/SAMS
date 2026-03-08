@@ -423,6 +423,11 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
   if (!isCreditUsed && (catId.includes('credit') || allocType.includes('credit') || catName.includes('credit'))) {
     breakdown['Credit Balance'] += amount;
   }
+  // Check for Special Assessments / Projects (before HOA/water to prevent projects-hoa-* false matches)
+  else if (catId.startsWith('projects-') || catId.startsWith('projects_') ||
+           catName.includes('special assessment') || catName.includes('special_assessment')) {
+    breakdown['Special Assessments'] += amount;
+  }
   // Check for HOA Penalties (must check before general HOA)
   else if (catId.includes('hoa-penalties') || catId.includes('hoa_penalties') || 
            allocType.includes('hoa-penalties') || allocType.includes('hoa_penalties') ||
@@ -436,7 +441,6 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
     breakdown['Water Penalties'] += amount;
   }
   // Check for HOA Dues (general HOA)
-  // Match on categoryId, categoryName, or type (e.g., "hoa-dues", "HOA Dues", "hoa-month")
   else if (catId.includes('hoa') || catId.includes('dues') || catId.includes('maintenance') ||
            allocType.includes('hoa_month') || allocType.includes('hoa-month') ||
            catName === 'hoa dues' || catName.includes('hoa dues') || 
@@ -449,10 +453,6 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
            catName === 'water consumption' || catName.includes('water consumption') ||
            catName.includes('agua') || catName.includes('lavado')) {
     breakdown['Water Consumption'] += amount;
-  }
-  else if (catId.startsWith('projects-') || catId.startsWith('projects_') ||
-           catName.includes('special assessment') || catName.includes('special_assessment')) {
-    breakdown['Special Assessments'] += amount;
   }
   else {
     breakdown['Other'] += amount;
