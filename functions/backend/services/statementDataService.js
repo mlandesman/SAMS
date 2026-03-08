@@ -450,10 +450,8 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
            catName.includes('agua') || catName.includes('lavado')) {
     breakdown['Water Consumption'] += amount;
   }
-  // Check for Special Assessments / Projects (PM8B)
   else if (catId.startsWith('projects-') || catId.startsWith('projects_') ||
-           catName.includes('special assessment') || catName.includes('special_assessment') ||
-           catName.includes('projects') || allocType.includes('project')) {
+           catName.includes('special assessment') || catName.includes('special_assessment')) {
     breakdown['Special Assessments'] += amount;
   }
   else {
@@ -3149,8 +3147,6 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           categoryName = 'HOA Dues';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
           categoryName = 'Water Consumption';
-        } else if (desc.includes('pool') || desc.includes('project') || desc.includes('repairs') || desc.includes('assessment')) {
-          categoryName = 'Special Assessments';
         }
       }
     }
@@ -3215,8 +3211,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           }
         } else if (desc.includes('credit') || desc.includes('saldo') || desc.includes('account credit')) {
           paymentCategory = 'Credit Balance';
-        } else if (desc.includes('pool') || desc.includes('project') || desc.includes('repairs') || desc.includes('assessment') ||
-                   (item.allocations && item.allocations.some(a => (a.categoryId || '').startsWith('projects-')))) {
+        } else if (item.allocations && item.allocations.some(a => (a.categoryId || '').startsWith('projects-'))) {
           paymentCategory = 'Special Assessments';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || 
                    desc.includes('bill') || desc.includes('q1') || desc.includes('q2') || desc.includes('q3') || desc.includes('q4')) {

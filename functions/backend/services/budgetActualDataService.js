@@ -108,25 +108,57 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
       .get();
 
     // PM8B: Fetch project collections (from bill subcollection paidAmount) and expenditures (from vendorPayments)
+    // Only include projects with activity (owner payments or vendor payments) during this fiscal year.
+    // When included, show full lifetime totals — projects budget within themselves, not annually.
     const projectsSnap = await db.collection('clients').doc(clientId)
       .collection('projects')
-      .where('status', '==', 'approved')
+      .where('status', 'in', ['approved', 'completed'])
       .get();
+
+    const toMs = (val) => {
+      if (!val) return null;
+      if (val.toMillis) return val.toMillis();
+      if (val._seconds) return val._seconds * 1000;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d.getTime();
+    };
+    const fyStartMs = startDate.getTime();
+    const fyEndMs = endDate.getTime();
 
     let totalCollectedFromOwners = 0;
     const projectCollections = [];
+    const specialAssessmentsExpendituresDirect = [];
 
     for (const projectDoc of projectsSnap.docs) {
       const project = projectDoc.data();
       const billsSnap = await projectDoc.ref.collection('bills').get();
 
       let projectCollected = 0;
+      let hasOwnerPaymentInFY = false;
       for (const billDoc of billsSnap.docs) {
         const bill = billDoc.data();
         for (const [unitId, unitBill] of Object.entries(bill.units || {})) {
           projectCollected += unitBill.paidAmount || 0;
+          if (!hasOwnerPaymentInFY) {
+            for (const pmt of unitBill.payments || []) {
+              const ms = toMs(pmt.date);
+              if (ms && ms >= fyStartMs && ms <= fyEndMs) {
+                hasOwnerPaymentInFY = true;
+                break;
+              }
+            }
+          }
         }
       }
+
+      const vendorPayments = project.vendorPayments || [];
+      const vendorTotal = vendorPayments.reduce((sum, vp) => sum + (vp.amount || 0), 0);
+      const hasVendorPaymentInFY = vendorPayments.some(vp => {
+        const ms = toMs(vp.date);
+        return ms && ms >= fyStartMs && ms <= fyEndMs;
+      });
+
+      if (!hasOwnerPaymentInFY && !hasVendorPaymentInFY) continue;
 
       projectCollections.push({
         projectId: projectDoc.id,
@@ -134,13 +166,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         collected: projectCollected
       });
       totalCollectedFromOwners += projectCollected;
-    }
 
-    const specialAssessmentsExpendituresDirect = [];
-    for (const projectDoc of projectsSnap.docs) {
-      const project = projectDoc.data();
-      const vendorTotal = (project.vendorPayments || [])
-        .reduce((sum, vp) => sum + (vp.amount || 0), 0);
       if (vendorTotal > 0) {
         specialAssessmentsExpendituresDirect.push({
           id: projectDoc.id,
