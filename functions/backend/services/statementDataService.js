@@ -357,6 +357,7 @@ function calculateCategoryBreakdown(transaction) {
     'Water Consumption': 0,
     'Water Penalties': 0,
     'Credit Balance': 0,
+    'Special Assessments': 0,
     'Other': 0
   };
   
@@ -448,6 +449,12 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
            catName === 'water consumption' || catName.includes('water consumption') ||
            catName.includes('agua') || catName.includes('lavado')) {
     breakdown['Water Consumption'] += amount;
+  }
+  // Check for Special Assessments / Projects (PM8B)
+  else if (catId.startsWith('projects-') || catId.startsWith('projects_') ||
+           catName.includes('special assessment') || catName.includes('special_assessment') ||
+           catName.includes('projects') || allocType.includes('project')) {
+    breakdown['Special Assessments'] += amount;
   }
   else {
     breakdown['Other'] += amount;
@@ -2995,6 +3002,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   const periodCovered = `${startMonthName} ${startDate.getDate()}, ${startYear} - ${endMonthName} ${endDate.getDate()}, ${endYear}`;
   
   // Transform chronological transactions to lineItems
+  // NOTE: Do NOT re-sort here — balances are computed in generateStatementData based on
+  // ledger order. Re-sorting would attach wrong balances to rows.
   const lineItems = rawData.chronologicalTransactions.map(txn => {
     const txnDate = txn.date instanceof Date ? txn.date : parseDate(txn.date);
     const dateStr = txnDate ? txnDate.toISOString().split('T')[0] : '';
@@ -3119,6 +3128,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           categoryName = 'HOA Dues';
         } else if (cat === 'water' || cat.includes('water') || cat.includes('consumption')) {
           categoryName = 'Water Consumption';
+        } else if (cat === 'project' || cat.includes('project') || cat.includes('special_assessment')) {
+          categoryName = 'Special Assessments';
         }
       }
     } else {
@@ -3138,6 +3149,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           categoryName = 'HOA Dues';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo')) {
           categoryName = 'Water Consumption';
+        } else if (desc.includes('pool') || desc.includes('project') || desc.includes('repairs') || desc.includes('assessment')) {
+          categoryName = 'Special Assessments';
         }
       }
     }
@@ -3192,14 +3205,19 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           else if (cat === 'hoa' || cat === 'hoa_dues' || cat === 'hoa_maintenance' || 
                    (cat.includes('hoa') && !cat.includes('penalties'))) {
             paymentCategory = 'HOA Dues';
-          } else if (cat === 'water' || cat === 'water_consumption' || 
+          }           else if (cat === 'water' || cat === 'water_consumption' || 
                      (cat.includes('water') && !cat.includes('penalties'))) {
             paymentCategory = 'Water Consumption';
+          } else if (cat === 'project' || cat.includes('project') || cat.includes('special_assessment')) {
+            paymentCategory = 'Special Assessments';
           } else if (cat.includes('credit')) {
             paymentCategory = 'Credit Balance';
           }
         } else if (desc.includes('credit') || desc.includes('saldo') || desc.includes('account credit')) {
           paymentCategory = 'Credit Balance';
+        } else if (desc.includes('pool') || desc.includes('project') || desc.includes('repairs') || desc.includes('assessment') ||
+                   (item.allocations && item.allocations.some(a => (a.categoryId || '').startsWith('projects-')))) {
+          paymentCategory = 'Special Assessments';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || 
                    desc.includes('bill') || desc.includes('q1') || desc.includes('q2') || desc.includes('q3') || desc.includes('q4')) {
           // Check for water-related payments (including quarterly bill references)
