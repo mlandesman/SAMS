@@ -1175,8 +1175,9 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
 
   const userId = options.userId || '';
   const previousStatus = projectData.status || 'bidding';
+  const projectDataWithStatus = { ...projectData, status: previousStatus };
   const lifecycleUpdates = previousStatus !== 'approved'
-    ? buildStatusLifecycleUpdates(projectData, 'approved', userId)
+    ? buildStatusLifecycleUpdates(projectDataWithStatus, 'approved', userId)
     : {};
 
   const batchUpdates = {
