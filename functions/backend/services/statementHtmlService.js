@@ -150,6 +150,8 @@ function translateDescription(description, language) {
     'Q4': 'T4',
     
     // Other common terms
+    'Special Assessments': 'Cuotas Especiales',
+    'Other': 'Otros',
     'Penalty': 'Penalización',
     'Opening Balance': 'Balance Inicial',
     'Adjustment': 'Ajuste',
@@ -1833,7 +1835,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
           <tbody>
             ${data.allocationSummary.categories.map(cat => `
             <tr>
-              <td class="col-category">${cat.name}</td>
+              <td class="col-category">${translateDescription(cat.name, language)}</td>
               <td class="col-charges">${cat.charges > 0 ? formatCurrency(cat.charges) : ''}</td>
               <td class="col-penalties">${cat.penalties > 0 ? formatCurrency(cat.penalties) : ''}</td>
             </tr>

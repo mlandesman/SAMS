@@ -357,6 +357,7 @@ function calculateCategoryBreakdown(transaction) {
     'Water Consumption': 0,
     'Water Penalties': 0,
     'Credit Balance': 0,
+    'Special Assessments': 0,
     'Other': 0
   };
   
@@ -422,6 +423,11 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
   if (!isCreditUsed && (catId.includes('credit') || allocType.includes('credit') || catName.includes('credit'))) {
     breakdown['Credit Balance'] += amount;
   }
+  // Check for Special Assessments / Projects (before HOA/water to prevent projects-hoa-* false matches)
+  else if (catId.startsWith('projects-') || catId.startsWith('projects_') ||
+           catName.includes('special assessment') || catName.includes('special_assessment')) {
+    breakdown['Special Assessments'] += amount;
+  }
   // Check for HOA Penalties (must check before general HOA)
   else if (catId.includes('hoa-penalties') || catId.includes('hoa_penalties') || 
            allocType.includes('hoa-penalties') || allocType.includes('hoa_penalties') ||
@@ -435,7 +441,6 @@ function categorizeAmount(breakdown, amount, categoryId, categoryName, type) {
     breakdown['Water Penalties'] += amount;
   }
   // Check for HOA Dues (general HOA)
-  // Match on categoryId, categoryName, or type (e.g., "hoa-dues", "HOA Dues", "hoa-month")
   else if (catId.includes('hoa') || catId.includes('dues') || catId.includes('maintenance') ||
            allocType.includes('hoa_month') || allocType.includes('hoa-month') ||
            catName === 'hoa dues' || catName.includes('hoa dues') || 
@@ -537,6 +542,8 @@ function createChronologicalTransactionList(
   projectBills = []
 ) {
   const transactions = [];
+  // Track processed transactions across ALL sections (HOA, water, project) to prevent duplicates
+  const processedTransactionIds = new Set();
 
   // Helper to parse due date
   const parseDueDate = (dueDateValue) => {
@@ -628,32 +635,12 @@ function createChronologicalTransactionList(
       billRef
     });
 
-    // Add payment entries from unitBill.payments
-    for (const payment of unitBill.payments || []) {
-      const paymentDate = parseDateFromService(payment.date);
-      if (!paymentDate || isNaN(paymentDate.getTime())) continue;
-
-      const paymentAmountPesos = centavosToPesos(payment.amount || 0);
-      if (paymentAmountPesos <= 0) continue;
-
-      transactions.push({
-        type: 'payment',
-        category: 'project',
-        date: paymentDate,
-        description: `Payment — ${projectName} ${milestone}`,
-        amount: -paymentAmountPesos,
-        charge: 0,
-        payment: paymentAmountPesos,
-        balance: 0,
-        transactionId: payment.transactionId || null,
-        billRef
-      });
-    }
+    // Project payment entries are added after HOA/water processing (below)
+    // so we can use full transaction amount from transactionMap and avoid duplicates
+    // when a single UPC transaction covers HOA+project (HOA processes first)
   }
 
   // Extract charges from payments array
-  // Track processed transactions across ALL quarters to prevent duplicates
-  const processedTransactionIds = new Set();
   
   if (duesFrequency === 'quarterly') {
     // Group months into quarters
@@ -1041,21 +1028,86 @@ function createChronologicalTransactionList(
     }
   }
   
+  // Add project payment entries (PM8B: follow HOA/Water pattern)
+  // Run AFTER HOA/water so HOA+project combo payments show once (from HOA section)
+  for (const pb of projectBills) {
+    const { projectId, projectName, milestone, milestoneIndex, unitBill } = pb;
+    const billRef = {
+      billId: `${projectId}-${milestoneIndex}`,
+      billType: 'project',
+      projectId,
+      milestoneIndex
+    };
+    for (const payment of unitBill.payments || []) {
+      const txnId = payment.transactionId || payment.reference;
+      if (!txnId || txnId === '-' || processedTransactionIds.has(txnId)) continue;
+
+      const paymentDate = parseDateFromService(payment.date);
+      if (!paymentDate || isNaN(paymentDate.getTime())) continue;
+
+      const transaction = transactionMap.get(txnId);
+      let paymentAmountPesos;
+      let description;
+
+      if (transaction) {
+        paymentAmountPesos = centavosToPesos(transaction.amount || 0);
+        description = transaction.notes || transaction.description || `Payment — ${projectName} ${milestone}`;
+      } else {
+        paymentAmountPesos = centavosToPesos(payment.amount || 0);
+        description = `Payment — ${projectName} ${milestone}`;
+      }
+      if (paymentAmountPesos <= 0) continue;
+
+      const categoryBreakdown = transaction
+        ? calculateCategoryBreakdown(transaction)
+        : { 'Special Assessments': paymentAmountPesos };
+      const primaryCategory = transaction
+        ? getPrimaryCategory(categoryBreakdown)
+        : 'project';
+
+      processedTransactionIds.add(txnId);
+      transactions.push({
+        type: 'payment',
+        category: primaryCategory,
+        date: paymentDate,
+        description,
+        amount: -paymentAmountPesos,
+        charge: 0,
+        payment: paymentAmountPesos,
+        balance: 0,
+        transactionId: txnId,
+        transactionRef: transaction ? {
+          id: txnId,
+          date: transaction.date,
+          description: transaction.description,
+          amount: transaction.amount,
+          method: transaction.method,
+          reference: transaction.reference,
+          notes: transaction.notes,
+          categoryId: transaction.categoryId || null,
+          categoryName: transaction.categoryName || null
+        } : null,
+        allocations: transaction
+          ? (transaction.allocations || []).map(alloc => ({
+              categoryId: alloc.categoryId,
+              categoryName: alloc.categoryName,
+              type: alloc.type,
+              amount: centavosToPesos(alloc.amount || 0),
+              targetId: alloc.targetId,
+              targetName: alloc.targetName,
+              notes: alloc.notes
+            }))
+          : [],
+        categoryBreakdown: categoryBreakdown,
+        billRef
+      });
+    }
+  }
+  
   // Extract remaining "Orphaned" or General payments
-  // This catches payments found in Step 6.5 that weren't processed as HOA or Water
-  // EXCLUDE project/special assessment payments - they appear ONLY in Special Projects section
+  // This catches payments found in Step 6.5 that weren't processed as HOA, Water, or Project
   for (const [txnId, transaction] of transactionMap.entries()) {
     if (processedTransactionIds.has(txnId)) continue;
-    
-    // Skip project/special assessment payments (Issue #80 fix)
-    // PM6: Project charges and payments come from bill documents (fetchProjectBillsForUnit),
-    // not from the transaction map. Transactions tagged projects-* or special-assessments
-    // are UPC allocations for project bill payments. We skip them here to avoid
-    // double-counting when PM7 records payments in unitBill.payments[].
-    const categoryId = transaction.categoryId || '';
-    if (categoryId.startsWith('projects-') || categoryId === 'special-assessments') {
-      continue;
-    }
     
     const paymentDate = parseDate(transaction.date);
     // Only process if valid date and appears to be a payment (positive amount in our system usually means income/payment)
@@ -2969,6 +3021,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
   const periodCovered = `${startMonthName} ${startDate.getDate()}, ${startYear} - ${endMonthName} ${endDate.getDate()}, ${endYear}`;
   
   // Transform chronological transactions to lineItems
+  // NOTE: Do NOT re-sort here — balances are computed in generateStatementData based on
+  // ledger order. Re-sorting would attach wrong balances to rows.
   const lineItems = rawData.chronologicalTransactions.map(txn => {
     const txnDate = txn.date instanceof Date ? txn.date : parseDate(txn.date);
     const dateStr = txnDate ? txnDate.toISOString().split('T')[0] : '';
@@ -3093,6 +3147,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           categoryName = 'HOA Dues';
         } else if (cat === 'water' || cat.includes('water') || cat.includes('consumption')) {
           categoryName = 'Water Consumption';
+        } else if (cat === 'project' || cat.includes('project') || cat.includes('special_assessment')) {
+          categoryName = 'Special Assessments';
         }
       }
     } else {
@@ -3166,14 +3222,18 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           else if (cat === 'hoa' || cat === 'hoa_dues' || cat === 'hoa_maintenance' || 
                    (cat.includes('hoa') && !cat.includes('penalties'))) {
             paymentCategory = 'HOA Dues';
-          } else if (cat === 'water' || cat === 'water_consumption' || 
+          }           else if (cat === 'water' || cat === 'water_consumption' || 
                      (cat.includes('water') && !cat.includes('penalties'))) {
             paymentCategory = 'Water Consumption';
+          } else if (cat === 'project' || cat.includes('project') || cat.includes('special_assessment')) {
+            paymentCategory = 'Special Assessments';
           } else if (cat.includes('credit')) {
             paymentCategory = 'Credit Balance';
           }
         } else if (desc.includes('credit') || desc.includes('saldo') || desc.includes('account credit')) {
           paymentCategory = 'Credit Balance';
+        } else if (item.allocations && item.allocations.some(a => (a.categoryId || '').startsWith('projects-'))) {
+          paymentCategory = 'Special Assessments';
         } else if (desc.includes('water') || desc.includes('agua') || desc.includes('consumption') || desc.includes('consumo') || 
                    desc.includes('bill') || desc.includes('q1') || desc.includes('q2') || desc.includes('q3') || desc.includes('q4')) {
           // Check for water-related payments (including quarterly bill references)

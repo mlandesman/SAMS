@@ -109,13 +109,22 @@ function generateSpecialAssessmentsSection(specialAssessments) {
   output += 'SPECIAL ASSESSMENTS FUND\n';
   output += '='.repeat(80) + '\n\n';
   
-  // Collections section (income from unit owners)
+  // Collections section (income from unit owners) - PM8B: per-project breakdown
   output += 'COLLECTIONS (from Unit Owners)\n';
   output += '-'.repeat(80) + '\n';
-  if (specialAssessments.collections && specialAssessments.collections.amount > 0) {
-    const collectionName = specialAssessments.collections.categoryName.padEnd(60);
-    const collectionAmount = formatPesos(specialAssessments.collections.amount).padStart(20);
-    output += `  ${collectionName}${collectionAmount}\n`;
+  const collections = specialAssessments.collections;
+  if (collections && collections.projects && collections.projects.length > 0) {
+    collections.projects.forEach(project => {
+      const projectName = (project.projectName || project.projectId).padEnd(60);
+      const projectAmount = formatPesos(project.collected || 0).padStart(20);
+      output += `  ${projectName}${projectAmount}\n`;
+    });
+    if (collections.projects.length > 1) {
+      const totalLabel = 'TOTAL COLLECTIONS'.padEnd(60);
+      const totalAmount = formatPesos(collections.amount || 0).padStart(20);
+      output += '-'.repeat(80) + '\n';
+      output += `  ${totalLabel}${totalAmount}\n`;
+    }
   } else {
     output += '  No collections recorded\n';
   }

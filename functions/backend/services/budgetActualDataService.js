@@ -107,6 +107,75 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
       .where('date', '<=', extendedEndTimestamp)
       .get();
 
+    // PM8B: Fetch project collections (from bill subcollection paidAmount) and expenditures (from vendorPayments)
+    // Only include projects with activity (owner payments or vendor payments) during this fiscal year.
+    // When included, show full lifetime totals — projects budget within themselves, not annually.
+    const projectsSnap = await db.collection('clients').doc(clientId)
+      .collection('projects')
+      .where('status', 'in', ['approved', 'completed'])
+      .get();
+
+    const toMs = (val) => {
+      if (!val) return null;
+      if (val.toMillis) return val.toMillis();
+      if (val._seconds) return val._seconds * 1000;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d.getTime();
+    };
+    const fyStartMs = startDate.getTime();
+    const fyEndMs = endDate.getTime();
+
+    let totalCollectedFromOwners = 0;
+    const projectCollections = [];
+    const specialAssessmentsExpendituresDirect = [];
+
+    for (const projectDoc of projectsSnap.docs) {
+      const project = projectDoc.data();
+      const billsSnap = await projectDoc.ref.collection('bills').get();
+
+      let projectCollected = 0;
+      let hasOwnerPaymentInFY = false;
+      for (const billDoc of billsSnap.docs) {
+        const bill = billDoc.data();
+        for (const [unitId, unitBill] of Object.entries(bill.units || {})) {
+          projectCollected += unitBill.paidAmount || 0;
+          if (!hasOwnerPaymentInFY) {
+            for (const pmt of unitBill.payments || []) {
+              const ms = toMs(pmt.date);
+              if (ms && ms >= fyStartMs && ms <= fyEndMs) {
+                hasOwnerPaymentInFY = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      const vendorPayments = project.vendorPayments || [];
+      const vendorTotal = vendorPayments.reduce((sum, vp) => sum + (vp.amount || 0), 0);
+      const hasVendorPaymentInFY = vendorPayments.some(vp => {
+        const ms = toMs(vp.date);
+        return ms && ms >= fyStartMs && ms <= fyEndMs;
+      });
+
+      if (!hasOwnerPaymentInFY && !hasVendorPaymentInFY) continue;
+
+      projectCollections.push({
+        projectId: projectDoc.id,
+        projectName: project.name || projectDoc.id,
+        collected: projectCollected
+      });
+      totalCollectedFromOwners += projectCollected;
+
+      if (vendorTotal > 0) {
+        specialAssessmentsExpendituresDirect.push({
+          id: projectDoc.id,
+          name: project.name || projectDoc.id,
+          amount: vendorTotal
+        });
+      }
+    }
+
     // Helper function to check if categoryId is HOA Dues (supports legacy formats)
     // Supports: 'hoa-dues' (current standard), 'hoadues' (legacy), 'hoa_dues' (legacy)
     const isHOADuesCategory = (categoryId) => {
@@ -303,9 +372,6 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const incomeCategories = [];
     const expenseCategories = [];
     
-    // Special Assessments structure: collections (income) + expenditures (expenses)
-    let specialAssessmentsCollections = null; // Single income category
-    const specialAssessmentsExpenditures = []; // Multiple project expense categories
     
     // Unit Credit Accounts: Fetch from creditBalances document (single source of truth)
     // This is cleaner than parsing transaction allocations with various category IDs
@@ -414,26 +480,13 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
 
       // Categorize into three tables
       // Priority: Special Assessments first, then Income, then Expenses
+      // PM8B: Skip transaction-based special assessments - we use direct project/bill queries instead
       if (isSpecialAssessmentsCategory(categoryId)) {
-        // Special Assessments income (collections) - single category
-        // Use raw signed value (income is positive)
-        const rawActual = actualMap.get(categoryId) || 0;
-        specialAssessmentsCollections = {
-          amount: rawActual, // centavos (positive for income)
-          categoryName: categoryName
-        };
+        // Skip - specialAssessmentsCollections populated from projectCollections below
+        return;
       } else if (isProjectCategory(categoryId, categoryName)) {
-        // Project expenses (expenditures) - filter out empty projects
-        // Use raw signed value (expenses are negative), convert to positive for display
-        const rawActual = actualMap.get(categoryId) || 0;
-        const expenditureAmount = Math.abs(rawActual); // Convert to positive for display
-        if (expenditureAmount > 0) {
-          specialAssessmentsExpenditures.push({
-            id: categoryId,
-            name: categoryName,
-            amount: expenditureAmount // centavos (positive for display)
-          });
-        }
+        // Skip - specialAssessmentsExpenditures populated from vendorPayments below
+        return;
       } else if (isAccountCreditCategory(categoryId)) {
         // Skip Account Credit categories - they're shown in Unit Credit Accounts section
         // Account Credit data comes from creditBalances document, not transactions
@@ -481,11 +534,20 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     expenseTotals.totalVariancePercent = expenseTotals.totalYtdBudget > 0 
       ? (expenseTotals.totalVariance / expenseTotals.totalYtdBudget) * 100 : 0;
 
+    // PM8B: Replace transaction-based special assessments with direct project/bill data
+    const specialAssessmentsCollectionsFinal = projectCollections.length > 0
+      ? {
+          amount: totalCollectedFromOwners,
+          categoryName: 'Special Assessments',
+          projects: projectCollections
+        }
+      : null;
+    const specialAssessmentsExpendituresFinal = specialAssessmentsExpendituresDirect;
+
     // Special Assessments: Calculate fund balance (collections - expenditures)
-    // Collections are positive (income), expenditures are stored as positive for display
-    const totalExpenditures = specialAssessmentsExpenditures.reduce((sum, exp) => sum + exp.amount, 0);
-    const collectionsAmount = specialAssessmentsCollections?.amount || 0;
-    const netBalance = collectionsAmount - totalExpenditures; // Both positive, so this gives net fund balance
+    const totalExpenditures = specialAssessmentsExpendituresFinal.reduce((sum, exp) => sum + exp.amount, 0);
+    const collectionsAmount = specialAssessmentsCollectionsFinal?.amount || 0;
+    const netBalance = collectionsAmount - totalExpenditures;
 
     // Generate report ID
     const reportId = `BUDGET-ACTUAL-${clientId}-${effectiveFiscalYear}-${now.getTime()}`;
@@ -509,8 +571,8 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         totals: incomeTotals
       },
       specialAssessments: {
-        collections: specialAssessmentsCollections || { amount: 0, categoryName: 'Special Assessments' },
-        expenditures: specialAssessmentsExpenditures,
+        collections: specialAssessmentsCollectionsFinal || { amount: 0, categoryName: 'Special Assessments' },
+        expenditures: specialAssessmentsExpendituresFinal,
         totalExpenditures: totalExpenditures,
         netBalance: netBalance
       },
