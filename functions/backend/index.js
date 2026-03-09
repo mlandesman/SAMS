@@ -14,6 +14,7 @@ import documentsRoutes from './routes/documents.js'; // Import documents routes
 // Client management routes now mounted via admin domain - see admin.js:106
 import adminRoutes from './routes/admin.js'; // Import admin routes
 import authRoutes from './routes/auth.js'; // Import auth routes
+import passkeyRoutes from './routes/passkey.js'; // Import passkey (WebAuthn) routes
 import versionRoutes from './routes/version.js'; // Import version routes
 import waterRoutes from './routes/waterRoutes.js'; // Import clean water routes
 import propaneRoutes from './routes/propaneRoutes.js'; // Import propane routes
@@ -228,8 +229,9 @@ app.use('/vote', voteRoutes); // Polling and voting domain
 
 // AUTH & USER MANAGEMENT DOMAIN
 logDebug('Mounting auth domain routes');
-app.use('/api/auth', authRoutes); // Authentication endpoints  
-app.use('/auth/user', userRoutes); // User management (migrated to auth domain)
+app.use('/api/auth', authRoutes); // Authentication endpoints
+app.use('/auth/user', userRoutes); // User management (migrated to auth domain) - must be before /auth
+app.use('/auth', passkeyRoutes); // Passkey (WebAuthn) registration, login, invite
 
 // CLIENT DOMAIN (same pattern as /auth, /water, /comm)
 logDebug('Mounting clients domain routes');
@@ -333,10 +335,10 @@ app.use((err, req, res, next) => {
     method: req.method
   });
 
-  // Handle JSON syntax errors
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+  // Handle JSON syntax errors (body-parser throws SyntaxError with status 400)
+  if (err instanceof SyntaxError && (err.status === 400 || err.message?.includes('JSON'))) {
     return res.status(400).json({
-      error: "Invalid JSON format",
+      error: "Invalid JSON in request body. Use double quotes for keys/values, e.g. {\"email\":\"user@example.com\"}. Token goes in Authorization header, not body.",
       code: "INVALID_JSON"
     });
   }

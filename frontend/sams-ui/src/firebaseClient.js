@@ -117,6 +117,12 @@ export async function loginWithEmailPassword(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     console.log('Sign in successful:', userCredential.user.uid);
     authUser = userCredential.user;
+    // Dev: log token for passkey/API testing (see About modal for copy-paste)
+    if (import.meta.env.DEV) {
+      userCredential.user.getIdToken().then((token) => {
+        console.info('[Dev] Auth token for API testing:', token);
+      });
+    }
     return userCredential;
   } catch (error) {
     console.error('Login failed:', error.code, error.message);

@@ -35,6 +35,12 @@ kill_port() {
   fi
 }
 
+# Environment variables for Passkey (WebAuthn) authentication testing
+# Required for local dev: rpID must match origin host (localhost)
+export WEBAUTHN_RP_ID=localhost
+export WEBAUTHN_ORIGIN=http://localhost:5173
+
+
 # Function to start backend server
 start_backend() {
   echo "🔄 Starting backend server..."
@@ -148,6 +154,16 @@ echo "   Backend: http://localhost:5001"
 echo "   Frontend: http://localhost:5173"
 echo "   PWA Mobile App: http://localhost:5174"
 echo "   PWA Mobile (phone): http://$(ipconfig getifaddr en0 2>/dev/null || echo 'YOUR_IP'):5174"
+echo "======================================================"
+echo ""
+echo "🔐 WebAuthn (Passkey) - local testing:"
+echo "   WEBAUTHN_RP_ID=$WEBAUTHN_RP_ID"
+echo "   WEBAUTHN_ORIGIN=$WEBAUTHN_ORIGIN"
+echo ""
+echo "   API endpoints (no UI yet - PK2 adds frontend):"
+echo "   • POST http://localhost:5001/auth/passkey/login/options  (body: {} or {\"email\":\"user@example.com\"})"
+echo "   • POST http://localhost:5001/auth/passkey/register/options (body: {\"email\":\"...\"} + Bearer token or inviteToken)"
+echo "   • Test with: curl -X POST http://localhost:5001/auth/passkey/login/options -H 'Content-Type: application/json' -d '{}'"
 echo "======================================================"
 echo ""
 echo "💡 Press Ctrl+C to stop all services"
