@@ -319,6 +319,7 @@ function ProjectDocumentsList({
       }
     } catch (err) {
       console.error('Error deleting document:', err);
+      setConfirmDelete({ open: false, documentId: null });
       setError(err.message);
     }
   };

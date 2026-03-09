@@ -480,7 +480,7 @@ function buildStatusLifecycleUpdates(existingData, newStatus, userId) {
   }
   if (newStatus === 'completed') {
     updates.completedAt = getNow().toISOString();
-  } else if (existingStatus === 'completed' || newStatus === 'approved') {
+  } else if (existingStatus === 'completed') {
     updates.completedAt = null;
   }
 

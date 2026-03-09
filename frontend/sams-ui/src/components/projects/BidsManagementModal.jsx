@@ -194,6 +194,7 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
       await loadBids();
     } catch (err) {
       console.error('Error deleting bid:', err);
+      setConfirmDialog({ open: false, action: null });
       setError(err.message);
     }
   };
@@ -212,6 +213,7 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
       if (onProjectUpdate) onProjectUpdate(result.data);
     } catch (err) {
       console.error('Error selecting bid:', err);
+      setConfirmDialog({ open: false, action: null });
       setError(err.message);
     }
   };
@@ -230,6 +232,7 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
       if (onProjectUpdate) onProjectUpdate(result.data);
     } catch (err) {
       console.error('Error unselecting bid:', err);
+      setConfirmDialog({ open: false, action: null });
       setError(err.message);
     }
   };
