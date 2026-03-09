@@ -10,6 +10,7 @@ import { getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
 import databaseFieldMappings from '../utils/databaseFieldMappings.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 
 const { convertToTimestamp } = databaseFieldMappings;
 
@@ -110,10 +111,14 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     // PM8B: Fetch project collections (from bill subcollection paidAmount) and expenditures (from vendorPayments)
     // Only include projects with activity (owner payments or vendor payments) during this fiscal year.
     // When included, show full lifetime totals — projects budget within themselves, not annually.
-    const projectsSnap = await db.collection('clients').doc(clientId)
-      .collection('projects')
-      .where('status', 'in', ['approved', 'completed'])
-      .get();
+    // Flag-gated for consistency with SoA (not critical — BvA data is isolated from core tables).
+    const projectFlagEnabled = await isFeatureEnabled('projectPaymentsInUPC');
+    const projectsSnap = projectFlagEnabled
+      ? await db.collection('clients').doc(clientId)
+          .collection('projects')
+          .where('status', 'in', ['approved', 'completed'])
+          .get()
+      : { docs: [] };
 
     const toMs = (val) => {
       if (!val) return null;
