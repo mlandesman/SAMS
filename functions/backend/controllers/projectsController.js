@@ -1174,7 +1174,10 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
   );
 
   const userId = options.userId || '';
-  const lifecycleUpdates = buildStatusLifecycleUpdates(projectData, 'approved', userId);
+  const previousStatus = projectData.status || 'bidding';
+  const lifecycleUpdates = previousStatus !== 'approved'
+    ? buildStatusLifecycleUpdates(projectData, 'approved', userId)
+    : {};
 
   const batchUpdates = {
     vendorId: bidData.vendorId || null,
@@ -1190,7 +1193,7 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
     status: 'approved',
     approvedAt: lifecycleUpdates.approvedAt ?? projectData.approvedAt ?? getNow().toISOString(),
     completedAt: lifecycleUpdates.completedAt ?? null,
-    statusHistory: lifecycleUpdates.statusHistory,
+    ...(lifecycleUpdates.statusHistory && { statusHistory: lifecycleUpdates.statusHistory }),
     allocationInputs: {
       ownership: ownershipMap,
       lockedAt: getNow().toISOString()

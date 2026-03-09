@@ -21,7 +21,6 @@ const SandylandConfirmModal = ({
   const handleConfirm = () => {
     if (disabled) return;
     onConfirm();
-    onClose();
   };
 
   const getConfirmButtonClass = () => {

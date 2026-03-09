@@ -369,6 +369,7 @@ function VendorPaymentsTable({
                       setFormData(prev => ({ ...prev, vendorId: vid, vendor: v?.name || '' }));
                     }}
                   >
+                    <option value="">Select vendor…</option>
                     {vendors.map(v => (
                       <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
@@ -398,6 +399,7 @@ function VendorPaymentsTable({
                     value={formData.accountId}
                     onChange={e => setFormData(prev => ({ ...prev, accountId: e.target.value }))}
                   >
+                    <option value="">Select account…</option>
                     {accounts.map(acc => (
                       <option key={acc.id} value={acc.id}>
                         {acc.name} ({acc.type || 'bank'})
