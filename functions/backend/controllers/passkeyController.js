@@ -45,21 +45,21 @@ async function storeChallenge(db, challengeId, data) {
 }
 
 /**
- * Helper: Get and delete challenge (one-time use)
+ * Helper: Get and delete challenge atomically (one-time use).
+ * Uses a Firestore transaction to prevent replay attacks from concurrent requests.
  */
 async function consumeChallenge(db, challengeId) {
   const ref = db.collection('system').doc('webauthn').collection('challenges').doc(challengeId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-  const data = doc.data();
-  const now = getNow();
-  const expiresAt = data.expiresAt?.toDate?.() ?? new Date(0);
-  if (expiresAt < now) {
-    await ref.delete();
-    return null;
-  }
-  await ref.delete();
-  return data;
+  return db.runTransaction(async (txn) => {
+    const doc = await txn.get(ref);
+    if (!doc.exists) return null;
+    const data = doc.data();
+    const now = getNow();
+    const expiresAt = data.expiresAt?.toDate?.() ?? new Date(0);
+    txn.delete(ref);
+    if (expiresAt < now) return null;
+    return data;
+  });
 }
 
 /**
@@ -137,11 +137,15 @@ export async function registrationOptions(req, res) {
       }
       const userData = userDoc.exists ? userDoc.data() : {};
       const userEmail = (userData.email || '').trim().toLowerCase();
-      // Token email may be empty for custom-token sign-in; use Firestore or allow when both empty
+      if (!tokenEmail && !userEmail) {
+        return res.status(403).json({
+          error: 'Cannot verify email ownership — no email on token or user profile',
+          hint: 'User must have an email set in Firebase Auth or Firestore before registering a passkey.',
+        });
+      }
       const emailMatches =
         (tokenEmail && tokenEmail === normalizedEmail) ||
-        (userEmail && userEmail === normalizedEmail) ||
-        (!tokenEmail && !userEmail);
+        (userEmail && userEmail === normalizedEmail);
       if (!emailMatches) {
         return res.status(403).json({
           error: 'Requested email does not match user',
@@ -260,8 +264,6 @@ export async function registrationVerify(req, res) {
     batch.set(indexRef, { userId: uid, createdAt: now.toISOString() });
     await batch.commit();
 
-    // Mark invite as consumed if it was used (we don't have inviteToken here, so skip for now - handled at options step)
-    // Invite consumption is done when we have the token; for verify we don't have it. Task says "If invite token was used, mark as consumed" - we'd need to pass inviteToken to verify. For now we'll handle at options only; the invite is single-use for getting options. Actually the task says "If invite token was used, mark it as consumed" in the verify step. We'd need to pass inviteToken in the verify request. Let me add that.
     const { inviteToken } = req.body || {};
     if (inviteToken) {
       const inviteRef = db.collection('system').doc('invites').collection('tokens').doc(inviteToken);
