@@ -105,7 +105,7 @@ export async function registrationOptions(req, res) {
         return res.status(403).json({ error: 'Invite token does not match this email' });
       }
       const userDoc = await db.collection('users').doc(uid).get();
-      user = userDoc.exists ? { uid, ...userDoc.data() } : { uid, email: normalizedEmail, name: normalizedEmail };
+      user = userDoc.exists ? { ...userDoc.data(), uid } : { uid, email: normalizedEmail, name: normalizedEmail };
     } else {
       // Bearer token: use token as source of truth (Firestore doc.id may not match Auth UID)
       const authHeader = req.headers.authorization;
@@ -158,7 +158,7 @@ export async function registrationOptions(req, res) {
           hint: `Ensure users/${uid} exists or a user with email ${normalizedEmail} exists.`
         });
       }
-      user = { uid, ...userData };
+      user = { ...userData, uid };
     }
 
     // Fetch existing passkeys for excludeCredentials
