@@ -21,6 +21,7 @@ import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
+import { isFeatureEnabled } from '../utils/featureFlags.js';
 
 /**
  * Get utility graph data for a unit
@@ -1651,8 +1652,11 @@ export async function getConsolidatedUnitData(api, clientId, unitId, fiscalYear 
       ? await fetchWaterBills(api, clientId, unitId, currentFiscalYear, fiscalYearStartMonth)
       : [];
 
-    // Step 5b: Fetch billed project milestones (PM6 — SoA integration)
-    const projectBills = await fetchProjectBillsForUnit(db, clientId, unitId, fiscalYearBounds);
+    // Step 5b: Fetch billed project milestones (PM6 — SoA integration, flag-gated)
+    const projectPaymentsFlagEnabled = await isFeatureEnabled('projectPaymentsInUPC');
+    const projectBills = projectPaymentsFlagEnabled
+      ? await fetchProjectBillsForUnit(db, clientId, unitId, fiscalYearBounds)
+      : [];
     
     // Step 6: Also fetch transactions from water bill payments
     for (const bill of waterBills) {
