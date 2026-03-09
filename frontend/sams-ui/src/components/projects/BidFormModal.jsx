@@ -9,7 +9,7 @@ import '../../styles/SandylandModalTheme.css';
 /**
  * BidFormModal - Add or edit a bid
  */
-function BidFormModal({ isOpen, onClose, onSave, bid = null, isEdit = false }) {
+function BidFormModal({ isOpen, onClose = () => {}, onSave, bid = null, isEdit = false }) {
   const { selectedClient } = useClient();
   
   // Vendors list

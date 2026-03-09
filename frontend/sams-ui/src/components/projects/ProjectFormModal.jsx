@@ -40,7 +40,7 @@ function generateProjectId(name, startDate) {
 /**
  * Modal for creating/editing projects
  */
-const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = false }) => {
+const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, isEdit = false }) => {
   const { selectedClient } = useClient();
   const { isLoading: isSaving, withLoading } = useLoadingSpinner();
   
@@ -53,6 +53,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
     startDate: '',
     completionDate: '',
     totalCost: '',
+    lifeExpectancy: '',
     notes: ''
   });
 
@@ -72,6 +73,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         startDate: project.startDate || '',
         completionDate: project.completionDate || '',
         totalCost: project.totalCost ? (project.totalCost / 100).toFixed(2) : '',
+        lifeExpectancy: project.lifeExpectancy != null ? String(project.lifeExpectancy) : '',
         notes: project.metadata?.notes || ''
       });
       setProjectId(project.projectId || '');
@@ -86,6 +88,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
         startDate: getMexicoDateString(),
         completionDate: '',
         totalCost: '',
+        lifeExpectancy: '',
         notes: ''
       });
       setProjectId('');
@@ -187,6 +190,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
           startDate: formData.startDate,
           completionDate: formData.completionDate || null,
           totalCost: formData.totalCost ? Math.round(parseFloat(formData.totalCost) * 100) : 0,
+          lifeExpectancy: formData.lifeExpectancy ? parseInt(formData.lifeExpectancy, 10) : null,
           metadata: {
             notes: formData.notes.trim(),
             updatedAt: getMexicoDateTime().toISOString()
@@ -396,6 +400,22 @@ const ProjectFormModal = ({ project = null, isOpen, onClose, onSave, isEdit = fa
                   className={`sandyland-form-input ${errors.completionDate ? 'error' : ''}`}
                 />
                 {errors.completionDate && <span className="sandyland-error-text">{errors.completionDate}</span>}
+              </label>
+            </div>
+
+            <div className="sandyland-form-row">
+              <label className="sandyland-form-label">
+                Life Expectancy (years)
+                <input
+                  type="number"
+                  name="lifeExpectancy"
+                  value={formData.lifeExpectancy}
+                  onChange={handleChange}
+                  className="sandyland-form-input"
+                  placeholder="e.g., 5 for painting, 15 for roof"
+                  min="1"
+                  step="1"
+                />
               </label>
             </div>
           </div>

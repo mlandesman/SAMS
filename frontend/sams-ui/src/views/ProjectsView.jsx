@@ -981,6 +981,13 @@ function ProjectsView() {
                   {selectedProject.completionDate && ` - ${selectedProject.completionDate}`}
                 </Typography>
               </Box>
+
+              {selectedProject.lifeExpectancy != null && selectedProject.lifeExpectancy > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary">Life Expectancy</Typography>
+                  <Typography variant="body2">{selectedProject.lifeExpectancy} years</Typography>
+                </Box>
+              )}
               
               {selectedProject.description && (
                 <Typography variant="body1" sx={{ mb: 2 }}>
