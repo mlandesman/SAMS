@@ -1,8 +1,8 @@
 {
   "releases": [
     {
-      "version": "pending",
-      "date": null,
+      "version": "1.15.0",
+      "date": "2026-03-09",
       "changes": [
         {
           "type": "feat",
@@ -23,6 +23,23 @@
           "type": "fix",
           "issues": [],
           "text": "PM8: vendorId propagation through bid-project-payment chain, vendor dropdown in Record Payment, delete confirmation dialog"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "PM7: Project assessment payments integrated into UPC with feature flag (projectPaymentsInUPC), priority-based allocation, atomic bill updates, and credit reversal support"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "222"
+          ],
+          "text": "BvA Special Assessments (collections from bill paidAmount, expenditures from vendorPayments) with per-project breakdown and FY activity filter. SoA project payment fix (full transaction amounts, processedTransactionIds dedup, categoryBreakdown for allocation summary). Allocation Summary shows Special Assessments category with EN/ES translations."
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Special Projects financial module: allocation engine, installment schedules, unit assessments grid, milestone billing, SoA integration, UPC payment integration, vendor payment CRUD, BvA Special Assessments reporting, project lifecycle tracking (statusHistory, lifeExpectancy), SoA/BvA feature flag gating, Sandyland modal cleanup"
         }
       ]
     },
