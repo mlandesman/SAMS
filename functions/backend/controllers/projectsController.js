@@ -1170,7 +1170,8 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
     totalCost: currentRevision.amount,
     selectedBidId: bidId,
     status: 'approved',
-    approvedAt: getNow().toISOString(),
+    approvedAt: projectData.approvedAt || getNow().toISOString(),
+    completedAt: null,
     statusHistory: [...existingHistory, statusHistoryEntry],
     allocationInputs: {
       ownership: ownershipMap,
