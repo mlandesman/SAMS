@@ -101,7 +101,7 @@ export async function registrationOptions(req, res) {
         return res.status(401).json({ error: 'Invalid or expired invite token' });
       }
       uid = inviteResult.userId;
-      if (inviteResult.email !== normalizedEmail) {
+      if ((inviteResult.email || '').trim().toLowerCase() !== normalizedEmail) {
         return res.status(403).json({ error: 'Invite token does not match this email' });
       }
       const userDoc = await db.collection('users').doc(uid).get();
