@@ -66,7 +66,7 @@ async function consumeChallenge(db, challengeId) {
  * Helper: Clean expired challenges (defensive)
  */
 async function cleanupExpiredChallenges(db) {
-  const now = admin.firestore.Timestamp.now();
+  const now = admin.firestore.Timestamp.fromDate(getNow());
   const snapshot = await db.collection('system').doc('webauthn').collection('challenges')
     .where('expiresAt', '<', now)
     .limit(50)
