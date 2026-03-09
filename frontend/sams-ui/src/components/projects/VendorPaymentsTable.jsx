@@ -12,18 +12,8 @@ import {
   Link,
   Tooltip,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   IconButton,
-  Alert,
-  DialogContentText
+  Alert
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExternalLinkAlt, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -33,6 +23,8 @@ import { recordVendorPayment } from '../../api/projects';
 import { deleteTransaction } from '../../api/transaction';
 import { clientAPI } from '../../api/client';
 import { getVendors } from '../../api/vendors';
+import SandylandConfirmModal from '../shared/SandylandConfirmModal';
+import '../../styles/SandylandModalTheme.css';
 
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';
@@ -40,7 +32,7 @@ function formatCurrency(centavos) {
 }
 
 /**
- * Format date for display (uses getMexicoDateTime - no new Date() for parsing)
+ * Format date for display (uses getMexicoDateTime for timezone-safe parsing)
  */
 function formatDate(dateStr) {
   if (!dateStr) return '-';
@@ -343,109 +335,120 @@ function VendorPaymentsTable({
         </TableContainer>
       )}
 
-      {/* Record Payment Dialog */}
-      <Dialog open={recordDialogOpen} onClose={handleCloseRecord} maxWidth="sm" fullWidth>
-        <DialogTitle>Record Vendor Payment</DialogTitle>
-        <DialogContent>
-          {error && (
-            <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              label="Date"
-              type="date"
-              value={formData.date}
-              onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Vendor</InputLabel>
-              <Select
-                value={formData.vendorId}
-                label="Vendor"
-                onChange={e => {
-                  const vid = e.target.value;
-                  const v = vendors.find(v => v.id === vid);
-                  setFormData(prev => ({ ...prev, vendorId: vid, vendor: v?.name || '' }));
-                }}
+      {/* Record Payment Dialog - Sandyland modal */}
+      {recordDialogOpen && (
+        <div className="sandyland-modal-overlay" onClick={handleCloseRecord}>
+          <div
+            className="sandyland-modal"
+            style={{ width: 550, maxWidth: '90vw' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="sandyland-modal-header">
+              <h2 className="sandyland-modal-title">Record Vendor Payment</h2>
+            </div>
+            <div className="sandyland-modal-content">
+              {error && (
+                <div className="sandyland-error-alert" style={{ marginBottom: 16 }}>{error}</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="sandyland-form-field full-width">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  />
+                </div>
+                <div className="sandyland-form-field full-width">
+                  <label>Vendor</label>
+                  <select
+                    value={formData.vendorId}
+                    onChange={e => {
+                      const vid = e.target.value;
+                      const v = vendors.find(v => v.id === vid);
+                      setFormData(prev => ({ ...prev, vendorId: vid, vendor: v?.name || '' }));
+                    }}
+                  >
+                    <option value="">Select vendor…</option>
+                    {vendors.map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sandyland-form-field full-width">
+                  <label>Amount (pesos)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formData.amount}
+                    onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
+                <div className="sandyland-form-field full-width">
+                  <label>Description / Notes</label>
+                  <textarea
+                    rows={2}
+                    value={formData.description}
+                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+                <div className="sandyland-form-field full-width">
+                  <label>Bank Account</label>
+                  <select
+                    value={formData.accountId}
+                    onChange={e => setFormData(prev => ({ ...prev, accountId: e.target.value }))}
+                  >
+                    <option value="">Select account…</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.type || 'bank'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sandyland-form-field full-width">
+                  <label>Payment Method</label>
+                  <select
+                    value={formData.paymentMethod}
+                    onChange={e => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                  >
+                    {paymentMethods.map(m => (
+                      <option key={m} value={typeof m === 'string' ? m : m.name}>
+                        {typeof m === 'string' ? m : m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="sandyland-modal-buttons">
+              <button className="sandyland-btn sandyland-btn-secondary" onClick={handleCloseRecord}>
+                Cancel
+              </button>
+              <button
+                className="sandyland-btn sandyland-btn-primary"
+                onClick={handleRecordSubmit}
+                disabled={submitting}
               >
-                {vendors.map(v => (
-                  <MenuItem key={v.id} value={v.id}>
-                    {v.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              label="Amount (pesos)"
-              type="number"
-              value={formData.amount}
-              onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-              inputProps={{ min: 0, step: 0.01 }}
-              fullWidth
-            />
-            <TextField
-              label="Description / Notes"
-              value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              multiline
-              rows={2}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Bank Account</InputLabel>
-              <Select
-                value={formData.accountId}
-                label="Bank Account"
-                onChange={e => setFormData(prev => ({ ...prev, accountId: e.target.value }))}
-              >
-                {accounts.map(acc => (
-                  <MenuItem key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.type || 'bank'})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Payment Method</InputLabel>
-              <Select
-                value={formData.paymentMethod}
-                label="Payment Method"
-                onChange={e => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-              >
-                {paymentMethods.map(m => (
-                  <MenuItem key={m} value={typeof m === 'string' ? m : m.name}>
-                    {typeof m === 'string' ? m : m.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRecord}>Cancel</Button>
-          <Button variant="contained" onClick={handleRecordSubmit} disabled={submitting}>
-            {submitting ? 'Recording...' : 'Record Payment'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                {submitting ? 'Recording...' : 'Record Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)} maxWidth="xs">
-        <DialogTitle>Delete Vendor Payment</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will permanently delete the payment transaction and reverse the account balance. This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Delete Confirmation - SandylandConfirmModal */}
+      <SandylandConfirmModal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Vendor Payment"
+        message="This will permanently delete the payment transaction and reverse the account balance. This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        type="danger"
+      />
 
       {deleteError && (
         <Alert severity="error" onClose={() => setDeleteError('')} sx={{ mt: 1 }}>
