@@ -502,7 +502,7 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
     const statusHistoryEntry = buildStatusHistoryEntry(existingStatus, newStatus, userId);
     const existingHistory = existingData.statusHistory || [];
     otherUpdates.statusHistory = [...existingHistory, statusHistoryEntry];
-    if (newStatus === 'approved') {
+    if (newStatus === 'approved' && !existingData.approvedAt) {
       otherUpdates.approvedAt = getNow().toISOString();
     }
     if (newStatus === 'completed') {
