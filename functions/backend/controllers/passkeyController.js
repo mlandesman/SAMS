@@ -63,17 +63,21 @@ async function consumeChallenge(db, challengeId) {
 }
 
 /**
- * Helper: Clean expired challenges (defensive)
+ * Helper: Clean expired challenges (fire-and-forget, never blocks callers)
  */
-async function cleanupExpiredChallenges(db) {
+function cleanupExpiredChallenges(db) {
   const now = admin.firestore.Timestamp.fromDate(getNow());
-  const snapshot = await db.collection('system').doc('webauthn').collection('challenges')
+  db.collection('system').doc('webauthn').collection('challenges')
     .where('expiresAt', '<', now)
     .limit(50)
-    .get();
-  const batch = db.batch();
-  snapshot.docs.forEach((d) => batch.delete(d.ref));
-  if (!snapshot.empty) await batch.commit();
+    .get()
+    .then((snapshot) => {
+      if (snapshot.empty) return;
+      const batch = db.batch();
+      snapshot.docs.forEach((d) => batch.delete(d.ref));
+      return batch.commit();
+    })
+    .catch((err) => logError('Challenge cleanup failed (non-fatal):', err));
 }
 
 /**
@@ -89,7 +93,7 @@ export async function registrationOptions(req, res) {
     }
 
     const db = await getDb();
-    await cleanupExpiredChallenges(db);
+    cleanupExpiredChallenges(db);
 
     // Authorization: either inviteToken OR valid Firebase Auth session (admin bootstrap)
     let uid;
@@ -295,7 +299,7 @@ export async function authenticationOptions(req, res) {
   try {
     const { email } = req.body || {};
     const db = await getDb();
-    await cleanupExpiredChallenges(db);
+    cleanupExpiredChallenges(db);
 
     let allowCredentials = [];
     let userIdForChallenge = null;
