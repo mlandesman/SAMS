@@ -113,10 +113,11 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     // When included, show full lifetime totals — projects budget within themselves, not annually.
     // Flag-gated for consistency with SoA (not critical — BvA data is isolated from core tables).
     const projectFlagEnabled = await isFeatureEnabled('projectPaymentsInUPC');
+    // Include in_progress and bidding: in_progress = ongoing work; bidding = reverted projects (only include if transition happened in FY)
     const projectsSnap = projectFlagEnabled
       ? await db.collection('clients').doc(clientId)
           .collection('projects')
-          .where('status', 'in', ['approved', 'completed'])
+          .where('status', 'in', ['approved', 'completed', 'in_progress', 'bidding'])
           .get()
       : { docs: [] };
 
@@ -163,7 +164,22 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         return ms && ms >= fyStartMs && ms <= fyEndMs;
       });
 
-      if (!hasOwnerPaymentInFY && !hasVendorPaymentInFY) continue;
+      // PM8C: FY activity signals. Handle status reversals: when status is bidding (reverted from approved),
+      // project is NOT active — only include if approvedAt/completedAt transition happened in this FY.
+      const approvedAtMs = toMs(project.approvedAt);
+      const completedAtMs = toMs(project.completedAt);
+      const approvedAtInFY = approvedAtMs && approvedAtMs >= fyStartMs && approvedAtMs <= fyEndMs;
+      const completedAtInFY = completedAtMs && completedAtMs >= fyStartMs && completedAtMs <= fyEndMs;
+      const hadPaymentActivityInFY = hasOwnerPaymentInFY || hasVendorPaymentInFY;
+      const isOngoingActive = ['approved', 'in_progress'].includes(project.status) && !project.completedAt;
+
+      const isActiveInFY =
+        approvedAtInFY ||
+        completedAtInFY ||
+        isOngoingActive ||
+        (['approved', 'in_progress', 'completed'].includes(project.status) && hadPaymentActivityInFY);
+
+      if (!isActiveInFY) continue;
 
       projectCollections.push({
         projectId: projectDoc.id,

@@ -39,7 +39,7 @@ function formatDate(dateStr) {
 /**
  * BidComparisonView - Side-by-side bid comparison
  */
-function BidComparisonView({ isOpen, onClose, bids }) {
+function BidComparisonView({ isOpen, onClose = () => {}, bids }) {
   // Process bids for comparison
   const comparisonData = useMemo(() => {
     if (!bids || bids.length === 0) return [];

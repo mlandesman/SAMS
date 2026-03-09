@@ -340,12 +340,22 @@ export async function createProject(clientId, projectData) {
     throw new Error('Project with this ID already exists');
   }
   
+  // PM8C: lifeExpectancy - accept positive integer or null
+  let lifeExpectancy = projectData.lifeExpectancy;
+  if (lifeExpectancy === null || lifeExpectancy === undefined || lifeExpectancy === '') {
+    lifeExpectancy = null;
+  } else {
+    const num = Number(lifeExpectancy);
+    lifeExpectancy = (Number.isInteger(num) && num > 0) ? num : null;
+  }
+
   // Ensure required fields
   const project = {
     _id: projectId,
     projectId: projectId,
     type: 'special-assessment',
     ...projectData,
+    lifeExpectancy,
     metadata: {
       ...projectData.metadata,
       createdAt: getNow().toISOString(),
@@ -433,13 +443,30 @@ function validateBidInstallments(installments) {
 }
 
 /**
+ * Build statusHistory entry for a status transition
+ * @param {string} from - Previous status
+ * @param {string} to - New status
+ * @param {string} userId - User who made the change
+ * @returns {Object} statusHistory entry
+ */
+function buildStatusHistoryEntry(from, to, userId) {
+  return {
+    from: from || 'unknown',
+    to,
+    changedAt: getNow().toISOString(),
+    changedBy: userId || ''
+  };
+}
+
+/**
  * Update an existing project
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID
  * @param {Object} updates - The fields to update
+ * @param {Object} [options] - Optional: { userId }
  * @returns {Promise<Object>} Updated project object
  */
-export async function updateProject(clientId, projectId, updates) {
+export async function updateProject(clientId, projectId, updates, options = {}) {
   const db = await getDb();
   
   // Check for excluded IDs
@@ -454,15 +481,48 @@ export async function updateProject(clientId, projectId, updates) {
   if (!existing.exists) {
     throw new Error('Project not found');
   }
-  
+
+  const existingData = existing.data();
+
   // Prevent changing the project ID
   delete updates.projectId;
   delete updates._id;
 
+  const userId = options.userId || '';
+
   // Handle metadata separately to avoid Firestore conflict
-  // (can't set both 'metadata' object and 'metadata.updatedAt' in same update)
   const { metadata: incomingMetadata, ...otherUpdates } = updates;
-  
+
+  // PM8C: Status change tracking - detect status transitions and record timestamps
+  const existingStatus = existingData.status;
+  const newStatus = otherUpdates.status;
+  const statusChanged = newStatus !== undefined && newStatus !== existingStatus;
+
+  if (statusChanged) {
+    const statusHistoryEntry = buildStatusHistoryEntry(existingStatus, newStatus, userId);
+    const existingHistory = existingData.statusHistory || [];
+    otherUpdates.statusHistory = [...existingHistory, statusHistoryEntry];
+    if (newStatus === 'approved') {
+      otherUpdates.approvedAt = getNow().toISOString();
+    }
+    if (newStatus === 'completed') {
+      otherUpdates.completedAt = getNow().toISOString();
+    }
+  }
+
+  // PM8C: lifeExpectancy - accept positive integer or null (optional, no validation beyond type)
+  if ('lifeExpectancy' in otherUpdates) {
+    const val = otherUpdates.lifeExpectancy;
+    if (val === null || val === undefined || val === '') {
+      otherUpdates.lifeExpectancy = null;
+    } else {
+      const num = Number(val);
+      if (Number.isInteger(num) && num > 0) {
+        otherUpdates.lifeExpectancy = num;
+      }
+    }
+  }
+
   let updateData;
   if (incomingMetadata) {
     // Merge incoming metadata with updatedAt
@@ -482,7 +542,6 @@ export async function updateProject(clientId, projectId, updates) {
   }
 
   // Recompute allocation when totalCost, unitParticipation, or status (to approved) changes
-  const existingData = existing.data();
   const totalCostChanged = 'totalCost' in otherUpdates;
   const participationChanged = 'unitParticipation' in otherUpdates || 'participation' in otherUpdates;
   const statusToApproved = otherUpdates.status === 'approved' && existingData.status !== 'approved';
@@ -678,8 +737,9 @@ export async function updateProjectHandler(req, res) {
     }
     
     logDebug(`📝 Updating project ${projectId} for client: ${clientId}`);
-    
-    const project = await updateProject(clientId, projectId, updates);
+
+    const userId = req.user?.uid || req.user?.samsProfile?.id || '';
+    const project = await updateProject(clientId, projectId, updates, { userId });
     
     // Audit log
     await writeAuditLog({
@@ -1041,9 +1101,10 @@ export async function deleteBid(clientId, projectId, bidId) {
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID
  * @param {string} bidId - The bid ID to select
+ * @param {Object} [options] - Optional: { userId }
  * @returns {Promise<Object>} Updated project object
  */
-export async function selectBid(clientId, projectId, bidId) {
+export async function selectBid(clientId, projectId, bidId, options = {}) {
   const db = await getDb();
   
   // Get the bid to select
@@ -1092,6 +1153,11 @@ export async function selectBid(clientId, projectId, bidId) {
     clientId, currentRevision.amount, { participationMap, ownershipMap }
   );
 
+  const userId = options.userId || '';
+  const previousStatus = projectData.status || 'bidding';
+  const statusHistoryEntry = buildStatusHistoryEntry(previousStatus, 'approved', userId);
+  const existingHistory = projectData.statusHistory || [];
+
   const batchUpdates = {
     vendorId: bidData.vendorId || null,
     vendor: {
@@ -1104,6 +1170,8 @@ export async function selectBid(clientId, projectId, bidId) {
     totalCost: currentRevision.amount,
     selectedBidId: bidId,
     status: 'approved',
+    approvedAt: getNow().toISOString(),
+    statusHistory: [...existingHistory, statusHistoryEntry],
     allocationInputs: {
       ownership: ownershipMap,
       lockedAt: getNow().toISOString()
@@ -1677,8 +1745,9 @@ export async function selectBidHandler(req, res) {
     const { clientId, projectId, bidId } = req.params;
     
     logDebug(`✅ Selecting bid ${bidId} for project ${projectId}`);
-    
-    const project = await selectBid(clientId, projectId, bidId);
+
+    const userId = req.user?.uid || req.user?.samsProfile?.id || '';
+    const project = await selectBid(clientId, projectId, bidId, { userId });
     
     // Audit log
     await writeAuditLog({

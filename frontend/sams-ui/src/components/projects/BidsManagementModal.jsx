@@ -71,7 +71,7 @@ function getStatusColor(status) {
 /**
  * BidsManagementModal - Full bid management interface
  */
-function BidsManagementModal({ isOpen, onClose, project, onProjectUpdate }) {
+function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpdate }) {
   const { selectedClient } = useClient();
   
   // State
