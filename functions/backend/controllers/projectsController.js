@@ -507,6 +507,8 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
     }
     if (newStatus === 'completed') {
       otherUpdates.completedAt = getNow().toISOString();
+    } else if (existingStatus === 'completed') {
+      otherUpdates.completedAt = null;
     }
   }
 
@@ -517,9 +519,7 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
       otherUpdates.lifeExpectancy = null;
     } else {
       const num = Number(val);
-      if (Number.isInteger(num) && num > 0) {
-        otherUpdates.lifeExpectancy = num;
-      }
+      otherUpdates.lifeExpectancy = (Number.isInteger(num) && num > 0) ? num : null;
     }
   }
 
