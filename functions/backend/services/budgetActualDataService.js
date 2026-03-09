@@ -171,7 +171,8 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
       const approvedAtInFY = approvedAtMs && approvedAtMs >= fyStartMs && approvedAtMs <= fyEndMs;
       const completedAtInFY = completedAtMs && completedAtMs >= fyStartMs && completedAtMs <= fyEndMs;
       const hadPaymentActivityInFY = hasOwnerPaymentInFY || hasVendorPaymentInFY;
-      const isOngoingActive = ['approved', 'in_progress'].includes(project.status) && !project.completedAt;
+      const isOngoingActive = ['approved', 'in_progress'].includes(project.status) && !project.completedAt
+        && approvedAtMs && approvedAtMs <= fyEndMs;
 
       const isActiveInFY =
         approvedAtInFY ||
