@@ -3,9 +3,9 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "1.14.0",
-  "buildDate": "2026-03-07T02:43:47.516Z",
-  "buildTimestamp": 1772851427517,
+  "version": "1.15.0",
+  "buildDate": "2026-03-09T14:09:22.565Z",
+  "buildTimestamp": 1773065362569,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "fdd929e",
-    "branch": "feature/pm-finance-integration",
-    "lastCommitDate": "2026-03-06 21:36:20 -0500"
+    "hash": "928c622",
+    "branch": "main",
+    "lastCommitDate": "2026-03-09 08:25:49 -0500"
   },
   "build": {
-    "timestamp": "2026-03-07T02:43:47.516Z",
+    "timestamp": "2026-03-09T14:09:22.565Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260306.2143"
+    "buildNumber": "260309.0909"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-03-07T02:43:47.516Z",
+    "date": "2026-03-09T14:09:22.565Z",
     "automated": true
   },
   "releaseNotes": {
