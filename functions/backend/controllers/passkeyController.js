@@ -365,6 +365,10 @@ export async function authenticationVerify(req, res) {
     }
     const { userId: uid } = indexDoc.data();
 
+    if (challengeData.userId && challengeData.userId !== uid) {
+      return res.status(401).json({ error: 'Credential does not belong to the expected user' });
+    }
+
     const passkeyDoc = await db.collection('users').doc(uid).collection('passkeys').doc(credentialId).get();
     if (!passkeyDoc.exists) {
       return res.status(401).json({ error: 'Credential not found' });
