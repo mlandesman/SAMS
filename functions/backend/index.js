@@ -336,7 +336,7 @@ app.use((err, req, res, next) => {
   });
 
   // Handle JSON syntax errors (body-parser throws SyntaxError with status 400)
-  if (err instanceof SyntaxError && (err.status === 400 || err.message?.includes('JSON'))) {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({
       error: "Invalid JSON in request body. Use double quotes for keys/values, e.g. {\"email\":\"user@example.com\"}. Token goes in Authorization header, not body.",
       code: "INVALID_JSON"

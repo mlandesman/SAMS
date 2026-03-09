@@ -28,7 +28,7 @@ async function getUserByEmail(db, email) {
   const snapshot = await db.collection('users').where('email', '==', normalizedEmail).limit(1).get();
   if (snapshot.empty) return null;
   const doc = snapshot.docs[0];
-  return { uid: doc.id, ...doc.data() };
+  return { ...doc.data(), uid: doc.id };
 }
 
 /**
@@ -189,6 +189,7 @@ export async function registrationOptions(req, res) {
       userId: uid,
       email: normalizedEmail,
       type: 'registration',
+      ...(inviteToken && { inviteToken }),
     });
 
     res.json({ options, challengeId });
@@ -262,16 +263,11 @@ export async function registrationVerify(req, res) {
     const batch = db.batch();
     batch.set(passkeyRef, credentialDoc);
     batch.set(indexRef, { userId: uid, createdAt: now.toISOString() });
-    await batch.commit();
-
-    const { inviteToken } = req.body || {};
-    if (inviteToken) {
-      const inviteRef = db.collection('system').doc('invites').collection('tokens').doc(inviteToken);
-      const invDoc = await inviteRef.get();
-      if (invDoc.exists && invDoc.data().userId === uid) {
-        await inviteRef.update({ consumed: true, consumedAt: admin.firestore.FieldValue.serverTimestamp() });
-      }
+    if (challengeData.inviteToken) {
+      const inviteRef = db.collection('system').doc('invites').collection('tokens').doc(challengeData.inviteToken);
+      batch.update(inviteRef, { consumed: true, consumedAt: admin.firestore.FieldValue.serverTimestamp() });
     }
+    await batch.commit();
 
     const customToken = await admin.auth().createCustomToken(uid);
     const userDoc = await db.collection('users').doc(uid).get();
