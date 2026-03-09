@@ -1058,10 +1058,17 @@ function createChronologicalTransactionList(
       }
       if (paymentAmountPesos <= 0) continue;
 
+      const categoryBreakdown = transaction
+        ? calculateCategoryBreakdown(transaction)
+        : { 'Special Assessments': paymentAmountPesos };
+      const primaryCategory = transaction
+        ? getPrimaryCategory(categoryBreakdown)
+        : 'project';
+
       processedTransactionIds.add(txnId);
       transactions.push({
         type: 'payment',
-        category: 'project',
+        category: primaryCategory,
         date: paymentDate,
         description,
         amount: -paymentAmountPesos,
@@ -1076,8 +1083,22 @@ function createChronologicalTransactionList(
           amount: transaction.amount,
           method: transaction.method,
           reference: transaction.reference,
-          notes: transaction.notes
+          notes: transaction.notes,
+          categoryId: transaction.categoryId || null,
+          categoryName: transaction.categoryName || null
         } : null,
+        allocations: transaction
+          ? (transaction.allocations || []).map(alloc => ({
+              categoryId: alloc.categoryId,
+              categoryName: alloc.categoryName,
+              type: alloc.type,
+              amount: centavosToPesos(alloc.amount || 0),
+              targetId: alloc.targetId,
+              targetName: alloc.targetName,
+              notes: alloc.notes
+            }))
+          : [],
+        categoryBreakdown: categoryBreakdown,
         billRef
       });
     }
