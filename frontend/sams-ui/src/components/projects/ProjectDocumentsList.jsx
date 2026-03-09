@@ -55,6 +55,7 @@ import {
   updateDocumentMetadata
 } from '../../api/documents';
 import DocumentUploader from '../documents/DocumentUploader';
+import SandylandConfirmModal from '../shared/SandylandConfirmModal';
 
 // Default folders for projects
 const DEFAULT_FOLDERS = [
@@ -158,6 +159,9 @@ function ProjectDocumentsList({
   // Pending uploads for description (supports multiple)
   const [pendingDocs, setPendingDocs] = useState([]);
   const [pendingDescriptions, setPendingDescriptions] = useState({});
+
+  // Delete confirmation dialog
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, documentId: null });
   
   // Load documents
   const loadDocuments = useCallback(async () => {
@@ -299,14 +303,17 @@ function ProjectDocumentsList({
     setError(err.message || 'Upload failed');
   };
   
-  // Handle delete document
-  const handleDelete = async (documentId) => {
-    if (!window.confirm('Delete this document?')) return;
-    
+  const handleDelete = (documentId) => {
+    setConfirmDelete({ open: true, documentId });
+  };
+
+  const executeDelete = async () => {
+    const documentId = confirmDelete.documentId;
+    if (!selectedClient || !documentId) return;
     try {
       await deleteDocument(selectedClient.id, documentId);
+      setConfirmDelete({ open: false, documentId: null });
       await loadDocuments();
-      
       if (onDocumentChange) {
         onDocumentChange(documents.filter(d => d.id !== documentId));
       }
@@ -721,6 +728,17 @@ function ProjectDocumentsList({
           <Button onClick={(e) => { e.stopPropagation(); handleCreateFolder(); }} variant="contained">Create</Button>
         </DialogActions>
       </Dialog>
+
+      <SandylandConfirmModal
+        isOpen={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, documentId: null })}
+        onConfirm={executeDelete}
+        title="Delete Document"
+        message="Delete this document?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        type="danger"
+      />
     </Box>
   );
 }

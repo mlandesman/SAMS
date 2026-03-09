@@ -459,6 +459,35 @@ function buildStatusHistoryEntry(from, to, userId) {
 }
 
 /**
+ * Build status lifecycle updates for a project status transition.
+ * Returns an object of fields to merge into the project update.
+ * @param {Object} existingData - Current project data
+ * @param {string} newStatus - Target status
+ * @param {string} userId - User who made the change
+ * @returns {Object} Fields to merge (statusHistory, approvedAt, completedAt as applicable)
+ */
+function buildStatusLifecycleUpdates(existingData, newStatus, userId) {
+  const updates = {};
+  const existingStatus = existingData.status;
+
+  if (newStatus === existingStatus) return updates;
+
+  const statusHistoryEntry = buildStatusHistoryEntry(existingStatus, newStatus, userId);
+  updates.statusHistory = [...(existingData.statusHistory || []), statusHistoryEntry];
+
+  if (newStatus === 'approved' && !existingData.approvedAt) {
+    updates.approvedAt = getNow().toISOString();
+  }
+  if (newStatus === 'completed') {
+    updates.completedAt = getNow().toISOString();
+  } else if (existingStatus === 'completed' || newStatus === 'approved') {
+    updates.completedAt = null;
+  }
+
+  return updates;
+}
+
+/**
  * Update an existing project
  * @param {string} clientId - The client ID
  * @param {string} projectId - The project ID
@@ -499,17 +528,8 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
   const statusChanged = newStatus !== undefined && newStatus !== existingStatus;
 
   if (statusChanged) {
-    const statusHistoryEntry = buildStatusHistoryEntry(existingStatus, newStatus, userId);
-    const existingHistory = existingData.statusHistory || [];
-    otherUpdates.statusHistory = [...existingHistory, statusHistoryEntry];
-    if (newStatus === 'approved' && !existingData.approvedAt) {
-      otherUpdates.approvedAt = getNow().toISOString();
-    }
-    if (newStatus === 'completed') {
-      otherUpdates.completedAt = getNow().toISOString();
-    } else if (existingStatus === 'completed') {
-      otherUpdates.completedAt = null;
-    }
+    const lifecycleUpdates = buildStatusLifecycleUpdates(existingData, newStatus, userId);
+    Object.assign(otherUpdates, lifecycleUpdates);
   }
 
   // PM8C: lifeExpectancy - accept positive integer or null (optional, no validation beyond type)
@@ -1154,9 +1174,7 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
   );
 
   const userId = options.userId || '';
-  const previousStatus = projectData.status || 'bidding';
-  const statusHistoryEntry = buildStatusHistoryEntry(previousStatus, 'approved', userId);
-  const existingHistory = projectData.statusHistory || [];
+  const lifecycleUpdates = buildStatusLifecycleUpdates(projectData, 'approved', userId);
 
   const batchUpdates = {
     vendorId: bidData.vendorId || null,
@@ -1170,9 +1188,9 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
     totalCost: currentRevision.amount,
     selectedBidId: bidId,
     status: 'approved',
-    approvedAt: projectData.approvedAt || getNow().toISOString(),
-    completedAt: null,
-    statusHistory: [...existingHistory, statusHistoryEntry],
+    approvedAt: lifecycleUpdates.approvedAt ?? projectData.approvedAt ?? getNow().toISOString(),
+    completedAt: lifecycleUpdates.completedAt ?? null,
+    statusHistory: lifecycleUpdates.statusHistory,
     allocationInputs: {
       ownership: ownershipMap,
       lockedAt: getNow().toISOString()

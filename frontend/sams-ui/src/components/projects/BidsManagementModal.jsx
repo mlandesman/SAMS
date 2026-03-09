@@ -36,6 +36,7 @@ import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';
 import ProjectDocumentsList from './ProjectDocumentsList';
+import SandylandConfirmModal from '../shared/SandylandConfirmModal';
 import '../../styles/SandylandModalTheme.css';
 
 function formatCurrency(centavos) {
@@ -88,6 +89,9 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
   // Communication state
   const [newMessage, setNewMessage] = useState('');
   const [messageType, setMessageType] = useState('note');
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, action: null });
   
   // Load bids when modal opens
   useEffect(() => {
@@ -173,18 +177,20 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
     }
   };
   
-  const handleDeleteBid = async () => {
+  const handleDeleteBid = () => {
     if (!selectedClient || !project || !selectedBid) return;
-    
     if (selectedBid.status === 'selected') {
       setError('Cannot delete a selected bid. Unselect it first.');
       return;
     }
-    
-    if (!window.confirm(`Delete bid from ${selectedBid.vendorName}?`)) return;
-    
+    setConfirmDialog({ open: true, action: 'delete', bid: selectedBid });
+  };
+
+  const executeDeleteBid = async () => {
+    if (!selectedClient || !project || !confirmDialog.bid) return;
     try {
-      await deleteBid(selectedClient.id, project.projectId, selectedBid.id);
+      await deleteBid(selectedClient.id, project.projectId, confirmDialog.bid.id);
+      setConfirmDialog({ open: false, action: null });
       await loadBids();
     } catch (err) {
       console.error('Error deleting bid:', err);
@@ -192,40 +198,36 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
     }
   };
   
-  const handleSelectBid = async () => {
+  const handleSelectBid = () => {
     if (!selectedClient || !project || !selectedBid) return;
-    
-    const confirmMsg = `Select bid from ${selectedBid.vendorName} for ${formatCurrency(currentRevision?.amount)}?\n\nThis will:\n• Set project vendor to ${selectedBid.vendorName}\n• Set project budget to ${formatCurrency(currentRevision?.amount)}\n• Mark other bids as rejected`;
-    
-    if (!window.confirm(confirmMsg)) return;
-    
+    setConfirmDialog({ open: true, action: 'select', bid: selectedBid });
+  };
+
+  const executeSelectBid = async () => {
+    if (!selectedClient || !project || !confirmDialog.bid) return;
     try {
-      const result = await selectBid(selectedClient.id, project.projectId, selectedBid.id);
+      const result = await selectBid(selectedClient.id, project.projectId, confirmDialog.bid.id);
+      setConfirmDialog({ open: false, action: null });
       await loadBids();
-      
-      // Notify parent to refresh project
-      if (onProjectUpdate) {
-        onProjectUpdate(result.data);
-      }
+      if (onProjectUpdate) onProjectUpdate(result.data);
     } catch (err) {
       console.error('Error selecting bid:', err);
       setError(err.message);
     }
   };
   
-  const handleUnselectBid = async () => {
+  const handleUnselectBid = () => {
     if (!selectedClient || !project) return;
-    
-    if (!window.confirm('Unselect the current bid? This will allow re-selection.')) return;
-    
+    setConfirmDialog({ open: true, action: 'unselect' });
+  };
+
+  const executeUnselectBid = async () => {
+    if (!selectedClient || !project) return;
     try {
       const result = await unselectBid(selectedClient.id, project.projectId);
+      setConfirmDialog({ open: false, action: null });
       await loadBids();
-      
-      // Notify parent to refresh project
-      if (onProjectUpdate) {
-        onProjectUpdate(result.data);
-      }
+      if (onProjectUpdate) onProjectUpdate(result.data);
     } catch (err) {
       console.error('Error unselecting bid:', err);
       setError(err.message);
@@ -657,6 +659,50 @@ function BidsManagementModal({ isOpen, onClose = () => {}, project, onProjectUpd
           bids={bids}
         />
       )}
+
+      {/* Confirmation modals */}
+      <SandylandConfirmModal
+        isOpen={confirmDialog.open && confirmDialog.action === 'delete'}
+        onClose={() => setConfirmDialog({ open: false, action: null })}
+        onConfirm={executeDeleteBid}
+        title="Delete Bid"
+        message={confirmDialog.bid ? `Delete bid from ${confirmDialog.bid.vendorName}?` : ''}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        type="danger"
+      />
+      <SandylandConfirmModal
+        isOpen={confirmDialog.open && confirmDialog.action === 'select'}
+        onClose={() => setConfirmDialog({ open: false, action: null })}
+        onConfirm={executeSelectBid}
+        title="Select Bid"
+        message={confirmDialog.bid && currentRevision ? (
+          <>
+            <p style={{ margin: '0 0 12px 0' }}>
+              Select bid from {confirmDialog.bid.vendorName} for {formatCurrency(currentRevision?.amount)}?
+            </p>
+            <p style={{ margin: 0 }}>This will:</p>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+              <li>Set project vendor to {confirmDialog.bid.vendorName}</li>
+              <li>Set project budget to {formatCurrency(currentRevision?.amount)}</li>
+              <li>Mark other bids as rejected</li>
+            </ul>
+          </>
+        ) : ''}
+        confirmLabel="Select"
+        cancelLabel="Cancel"
+        type="warning"
+      />
+      <SandylandConfirmModal
+        isOpen={confirmDialog.open && confirmDialog.action === 'unselect'}
+        onClose={() => setConfirmDialog({ open: false, action: null })}
+        onConfirm={executeUnselectBid}
+        title="Unselect Bid"
+        message="Unselect the current bid? This will allow re-selection."
+        confirmLabel="Unselect"
+        cancelLabel="Cancel"
+        type="warning"
+      />
     </div>
   );
 }

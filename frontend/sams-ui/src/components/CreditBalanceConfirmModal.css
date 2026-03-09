@@ -9,18 +9,3 @@
   line-height: 1.5;
   margin: 0;
 }
-
-/* Warning button style */
-.sandyland-btn-warning {
-  background-color: #f59e0b;
-  color: white;
-  border: none;
-}
-
-.sandyland-btn-warning:hover {
-  background-color: #d97706;
-}
-
-.sandyland-btn-warning:active {
-  background-color: #b45309;
-}

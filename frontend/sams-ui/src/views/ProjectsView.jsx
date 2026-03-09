@@ -12,10 +12,6 @@ import {
   ListItemButton,
   ListItemText,
   Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
   Table,
   TableBody,
@@ -50,6 +46,7 @@ import PollDetailView from '../components/polls/PollDetailView';
 import { faGavel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
+import '../styles/SandylandModalTheme.css';
 import './ProjectsView.css';
 import { formatCurrency as formatCurrencyShared } from '../utils/currencyUtils';
 import { getMexicoDate, getMexicoDateTime } from '../utils/timezone';
@@ -1316,68 +1313,84 @@ function ProjectsView() {
         confirmButtonClass="danger"
       />
 
-      {/* Bill Milestone Confirmation Dialog */}
-      <Dialog
-        open={billMilestoneDialog.open}
-        onClose={() => !billingInProgress && setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Bill Milestone: {billMilestoneDialog.milestone?.milestone}</DialogTitle>
-        <DialogContent>
-          {billMilestoneDialog.milestone && selectedProject && (() => {
-            const amountCentavos = billMilestoneDialog.milestone.amountCentavos ?? Math.round((selectedProject.totalCost || 0) * (billMilestoneDialog.milestone.percentOfTotal || 0) / 100);
-            const allocations = selectedProject.allocationSnapshot?.allocations || {};
-            const participation = selectedProject.unitParticipation || selectedProject.participation || {};
-            const totalAllocated = Object.entries(allocations).reduce((s, [uid, v]) => participation[uid] === 'out' ? s : s + v, 0) || 1;
-            const unitsMap = new Map((unitsForAssessments || []).map(u => [u.unitId || u.id, u]));
-            const rows = Object.entries(allocations)
-              .filter(([unitId, v]) => v > 0 && participation[unitId] !== 'out')
-              .map(([unitId, centavos]) => {
-                const perUnit = Math.round(amountCentavos * centavos / totalAllocated);
-                const unit = unitsMap.get(unitId);
-                const { lastName } = getOwnerInfo(unit || { unitId });
-                return { unitId, amount: perUnit, owner: lastName || '—' };
-              });
-            const participatingCount = rows.length;
-            return (
-              <Box sx={{ pt: 1 }}>
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  This will create charges of {formatCurrency(amountCentavos)} for {participatingCount} participating unit{participatingCount !== 1 ? 's' : ''}. This action cannot be undone.
-                </Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 200 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Unit</TableCell>
-                        <TableCell>Owner</TableCell>
-                        <TableCell align="right">Amount</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {rows.map((r) => (
-                        <TableRow key={r.unitId}>
-                          <TableCell>{r.unitId}</TableCell>
-                          <TableCell>{r.owner}</TableCell>
-                          <TableCell align="right">{formatCurrency(r.amount)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            );
-          })()}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })} disabled={billingInProgress}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={handleBillMilestoneConfirm} disabled={billingInProgress} color="primary">
-            {billingInProgress ? 'Billing...' : 'Confirm'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Bill Milestone Confirmation Dialog - Sandyland modal */}
+      {billMilestoneDialog.open && (
+        <div
+          className="sandyland-modal-overlay"
+          onClick={() => !billingInProgress && setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })}
+        >
+          <div
+            className="sandyland-modal"
+            style={{ width: 600, maxWidth: '90vw' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="sandyland-modal-header">
+              <h2 className="sandyland-modal-title">Bill Milestone: {billMilestoneDialog.milestone?.milestone}</h2>
+            </div>
+            <div className="sandyland-modal-content">
+              {billMilestoneDialog.milestone && selectedProject && (() => {
+                const amountCentavos = billMilestoneDialog.milestone.amountCentavos ?? Math.round((selectedProject.totalCost || 0) * (billMilestoneDialog.milestone.percentOfTotal || 0) / 100);
+                const allocations = selectedProject.allocationSnapshot?.allocations || {};
+                const participation = selectedProject.unitParticipation || selectedProject.participation || {};
+                const totalAllocated = Object.entries(allocations).reduce((s, [uid, v]) => participation[uid] === 'out' ? s : s + v, 0) || 1;
+                const unitsMap = new Map((unitsForAssessments || []).map(u => [u.unitId || u.id, u]));
+                const rows = Object.entries(allocations)
+                  .filter(([unitId, v]) => v > 0 && participation[unitId] !== 'out')
+                  .map(([unitId, centavos]) => {
+                    const perUnit = Math.round(amountCentavos * centavos / totalAllocated);
+                    const unit = unitsMap.get(unitId);
+                    const { lastName } = getOwnerInfo(unit || { unitId });
+                    return { unitId, amount: perUnit, owner: lastName || '—' };
+                  });
+                const participatingCount = rows.length;
+                return (
+                  <Box sx={{ pt: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      This will create charges of {formatCurrency(amountCentavos)} for {participatingCount} participating unit{participatingCount !== 1 ? 's' : ''}. This action cannot be undone.
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 200 }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Unit</TableCell>
+                            <TableCell>Owner</TableCell>
+                            <TableCell align="right">Amount</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {rows.map((r) => (
+                            <TableRow key={r.unitId}>
+                              <TableCell>{r.unitId}</TableCell>
+                              <TableCell>{r.owner}</TableCell>
+                              <TableCell align="right">{formatCurrency(r.amount)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                );
+              })()}
+            </div>
+            <div className="sandyland-modal-buttons">
+              <button
+                className="sandyland-btn sandyland-btn-secondary"
+                onClick={() => setBillMilestoneDialog({ open: false, milestoneIndex: null, milestone: null })}
+                disabled={billingInProgress}
+              >
+                Cancel
+              </button>
+              <button
+                className="sandyland-btn sandyland-btn-primary"
+                onClick={handleBillMilestoneConfirm}
+                disabled={billingInProgress}
+              >
+                {billingInProgress ? 'Billing...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Bids Management Modal */}
       <BidsManagementModal
