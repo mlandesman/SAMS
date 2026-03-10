@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { config } from '../config';
 import { useVersionInfo } from '../utils/versionUtils';
-import { passkeyService, getDefaultDeviceName } from '../services/passkeyService';
+import { passkeyService } from '../services/passkeyService';
 import { getAuthInstance } from '../firebaseClient';
 import '../styles/SandylandModalTheme.css';
 import './LoginForm.css';
@@ -12,7 +12,7 @@ import './LoginForm.css';
  * Primary: Sign in with Passkey. Secondary: Use password (bootstrap).
  * After password login: dismissible "Register a passkey" prompt.
  */
-const LoginForm = ({ onLoginSuccess }) => {
+const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -20,11 +20,6 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [isResetting, setIsResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
-  const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
-  const [passkeyPromptUser, setPasskeyPromptUser] = useState(null);
-  const [deviceName, setDeviceName] = useState('');
-  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
-  const [passkeyRegError, setPasskeyRegError] = useState('');
   const { login, loginWithPasskey, error, setError } = useAuth();
   const versionInfo = useVersionInfo();
   const supportsPasskeys = passkeyService.supportsPasskeys();
@@ -79,12 +74,10 @@ const LoginForm = ({ onLoginSuccess }) => {
       setPassword('');
       setHasLoginFailed(false);
 
-      if (supportsPasskeys) {
-        setPasskeyPromptUser(userCredential.user);
-        setDeviceName(getDefaultDeviceName());
-        setShowPasskeyPrompt(true);
-      } else {
-        if (onLoginSuccess) onLoginSuccess(userCredential.user);
+      if (supportsPasskeys && onShowPasskeyPrompt) {
+        onShowPasskeyPrompt(userCredential.user);
+      } else if (onLoginSuccess) {
+        onLoginSuccess(userCredential.user);
       }
     } catch (err) {
       if (import.meta.env.DEV) {
@@ -94,42 +87,6 @@ const LoginForm = ({ onLoginSuccess }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePasskeyPromptRegister = async () => {
-    if (!passkeyPromptUser?.email) return;
-    setPasskeyRegError('');
-    setIsRegisteringPasskey(true);
-    try {
-      const auth = getAuthInstance();
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Not authenticated');
-      await passkeyService.startPasskeyRegistration(
-        passkeyPromptUser.email,
-        token,
-        deviceName.trim() || getDefaultDeviceName(),
-        null
-      );
-      setShowPasskeyPrompt(false);
-      setPasskeyPromptUser(null);
-      if (onLoginSuccess) onLoginSuccess(passkeyPromptUser);
-    } catch (err) {
-      let msg = err.message || 'Registration failed.';
-      if (err.name === 'NotAllowedError' || msg.toLowerCase().includes('cancel')) {
-        msg = 'Registration cancelled. You can set up a passkey later.';
-      }
-      setPasskeyRegError(msg);
-    } finally {
-      setIsRegisteringPasskey(false);
-    }
-  };
-
-  const handlePasskeyPromptDismiss = () => {
-    const user = passkeyPromptUser;
-    setShowPasskeyPrompt(false);
-    setPasskeyPromptUser(null);
-    setPasskeyRegError('');
-    if (onLoginSuccess && user) onLoginSuccess(user);
   };
 
   const handleForgotPassword = async () => {
@@ -273,50 +230,6 @@ const LoginForm = ({ onLoginSuccess }) => {
           </div>
         </div>
       </div>
-
-      {/* Post-password-login passkey registration prompt */}
-      {showPasskeyPrompt && (
-        <div className="sandyland-modal-overlay" onClick={(e) => e.target === e.currentTarget && handlePasskeyPromptDismiss()}>
-          <div className="sandyland-modal" onClick={(e) => e.stopPropagation()} style={{ width: '420px', maxWidth: '90vw' }}>
-            <div className="sandyland-modal-header">
-              <h2 className="sandyland-modal-title">Set up a passkey for faster login</h2>
-            </div>
-            <div className="sandyland-modal-content">
-              <p style={{ margin: '0 0 1rem 0', color: '#4a5568' }}>
-                Register a passkey to sign in quickly next time with your fingerprint or face.
-              </p>
-              <div className="form-group">
-                <label htmlFor="device-name">Device name:</label>
-                <input
-                  type="text"
-                  id="device-name"
-                  value={deviceName}
-                  onChange={(e) => setDeviceName(e.target.value)}
-                  placeholder="e.g. MacBook Pro"
-                  className="login-form-input"
-                />
-              </div>
-              {passkeyRegError && <div className="error-message">{passkeyRegError}</div>}
-            </div>
-            <div className="sandyland-modal-buttons">
-              <button
-                className="sandyland-btn sandyland-btn-secondary"
-                onClick={handlePasskeyPromptDismiss}
-                disabled={isRegisteringPasskey}
-              >
-                Maybe later
-              </button>
-              <button
-                className="sandyland-btn sandyland-btn-primary"
-                onClick={handlePasskeyPromptRegister}
-                disabled={isRegisteringPasskey}
-              >
-                {isRegisteringPasskey ? 'Registering...' : 'Register'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
