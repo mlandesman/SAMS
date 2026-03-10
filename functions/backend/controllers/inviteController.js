@@ -66,7 +66,9 @@ export async function generateInvite(req, res) {
       consumed: false,
     });
 
-    const origin = webauthnConfig.origin;
+    const origin = Array.isArray(webauthnConfig.origin)
+      ? webauthnConfig.origin[0]
+      : webauthnConfig.origin;
     const inviteUrl = `${origin}/invite/${token}`;
 
     res.json({ inviteToken: token, inviteUrl });

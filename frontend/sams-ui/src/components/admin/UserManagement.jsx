@@ -15,6 +15,7 @@ import { getUnits } from '../../api/units';
 import { LoadingSpinner } from '../common';
 import { formatUnitDisplay } from '../../utils/unitDisplayUtils';
 import { fetchClients } from '../../utils/fetchClients';
+import { getMexicoDate, getMexicoDateString, getMexicoDateTime } from '../../utils/timezone';
 import ExportMenu from '../common/ExportMenu';
 import { exportToCSV } from '../../utils/csvExport';
 import './UserManagement.css';
@@ -89,11 +90,13 @@ const UserManagement = ({
 
   const handleCreateUser = async (userData) => {
     try {
-      await secureApi.createUser(userData);
+      const result = await secureApi.createUser(userData);
       loadUsers(); // Refresh the list
+      return result;
     } catch (err) {
       console.error('Failed to create user:', err);
       setError(err.message || 'Failed to create user');
+      throw err;
     }
   };
 
@@ -204,7 +207,7 @@ const UserManagement = ({
       ];
     });
 
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getMexicoDateString();
     exportToCSV({
       headers,
       rows,
@@ -384,7 +387,7 @@ const UserRow = ({ user, canManage, isSelected, onSelect, currentUser }) => {
     
     // Fallback to local calculation if API doesn't provide formatted date
     const lastLogin = new Date(lastSignInTime);
-    const now = new Date();
+    const now = getMexicoDateTime();
     const diffMs = now - lastLogin;
     const diffHours = diffMs / (1000 * 60 * 60);
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -457,6 +460,7 @@ const UserRow = ({ user, canManage, isSelected, onSelect, currentUser }) => {
  * Create User Modal Component
  */
 const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => {
+  const secureApi = useSecureApi();
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -466,7 +470,7 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
     // Contact fields for unit owners/managers (defaults to user name/email, can be overridden)
     contactName: '',
     contactEmail: '',
-    creationMethod: 'invitation', // 'invitation' or 'manual'
+    creationMethod: 'passkey', // 'passkey' or 'manual'
     // NEW FIELDS
     canLogin: true,
     profile: {
@@ -547,10 +551,13 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
     fetchUnitsForClient();
   }, [formData.clientId, formData.role]);
 
+  const [passkeyInviteUrl, setPasskeyInviteUrl] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setCreationResult(null);
+    setPasskeyInviteUrl(null);
 
     try {
       // Prepare form data - include contactName/contactEmail for unitOwner/unitManager roles
@@ -564,18 +571,25 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
       const result = await onCreate(submitData);
       setCreationResult(result);
       
+      // For passkey method, generate invite and show URL
+      if (formData.creationMethod === 'passkey' && result?.user?.uid) {
+        try {
+          const inviteRes = await secureApi.generatePasskeyInvite(result.user.uid);
+          setPasskeyInviteUrl(inviteRes.inviteUrl || (inviteRes.inviteToken ? `${window.location.origin}/invite/${inviteRes.inviteToken}` : null));
+        } catch (inviteErr) {
+          setCreationResult(prev => ({ ...prev, inviteError: inviteErr.message }));
+        }
+        return;
+      }
+      
       // For manual password method, show the temporary password
-      if (formData.creationMethod === 'manual' && result.temporaryPassword) {
+      if (formData.creationMethod === 'manual' && result?.temporaryPassword) {
         // Keep modal open to show password
         return;
       }
       
-      // For invitation method, close modal immediately
-      if (formData.creationMethod === 'invitation') {
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-      }
+      // For other methods, close modal after short delay
+      setTimeout(() => onClose(), 2000);
     } catch (error) {
       console.error('Create user failed:', error);
     } finally {
@@ -619,13 +633,13 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
                   <input
                     type="radio"
                     name="creationMethod"
-                    value="invitation"
-                    checked={formData.creationMethod === 'invitation'}
+                    value="passkey"
+                    checked={formData.creationMethod === 'passkey'}
                     onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
                   />
                   <span className="radio-label">
-                    <strong>📧 Email Invitation</strong>
-                    <small>User receives secure link to set their own password</small>
+                    <strong>🔐 Passkey Invitation</strong>
+                    <small>User receives a link to register their passkey</small>
                   </span>
                 </label>
                 <label className="radio-option">
@@ -637,8 +651,8 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
                     onChange={(e) => setFormData({...formData, creationMethod: e.target.value})}
                   />
                   <span className="radio-label">
-                    <strong>🔑 Manual Password</strong>
-                    <small>Generate temporary password (for tech-averse users)</small>
+                    <strong>🔑 Temporary Password</strong>
+                    <small>User receives a temporary password by email</small>
                   </span>
                 </label>
               </div>
@@ -933,17 +947,38 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
           </fieldset>
 
           {/* Success/Result Display */}
-          {creationResult && (
+          {(creationResult || passkeyInviteUrl) && (
             <div className="creation-result">
-              {creationResult.success ? (
+              {creationResult?.success || passkeyInviteUrl ? (
                 <>
-                  {formData.creationMethod === 'invitation' ? (
-                    <div className="success-message">
-                      <h4>✅ Invitation Sent Successfully!</h4>
-                      <p><strong>{formData.name}</strong> will receive an email invitation at <strong>{formData.email}</strong></p>
-                      <p>They can use the secure link to set up their password and activate their account.</p>
-                    </div>
-                  ) : (
+                  {formData.creationMethod === 'passkey' && (passkeyInviteUrl || creationResult?.inviteError) ? (
+                    creationResult?.inviteError ? (
+                      <div className="error-message">
+                        <h4>✅ User Created — Invite Failed</h4>
+                        <p>User was created but generating the passkey invite failed: {creationResult.inviteError}</p>
+                        <p>You can send a passkey invite from the Edit User modal.</p>
+                      </div>
+                    ) : (
+                      <div className="success-message">
+                        <h4>✅ User Created Successfully!</h4>
+                        <p><strong>{formData.name}</strong> has been created. Share this link so they can register their passkey:</p>
+                        <div className="temp-password-box" style={{ marginTop: '12px' }}>
+                          <label>Passkey Invite URL (expires in 72 hours):</label>
+                          <div className="password-value" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input type="text" readOnly value={passkeyInviteUrl} style={{ flex: 1, padding: '8px', fontFamily: 'monospace', fontSize: '12px' }} />
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard.writeText(passkeyInviteUrl); alert('Copied to clipboard'); }}
+                              className="copy-btn"
+                              title="Copy to clipboard"
+                            >
+                              Copy to Clipboard
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ) : formData.creationMethod === 'manual' && creationResult?.temporaryPassword ? (
                     <div className="password-display">
                       <h4>✅ User Created Successfully!</h4>
                       <p><strong>{formData.name}</strong> has been created with a temporary password:</p>
@@ -973,29 +1008,32 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
                         </ul>
                       </div>
                     </div>
-                  )}
+                  ) : creationResult?.success && !passkeyInviteUrl && !creationResult?.temporaryPassword ? (
+                    <div className="success-message">
+                      <h4>✅ User Created Successfully!</h4>
+                      <p><strong>{formData.name}</strong> has been created.</p>
+                    </div>
+                  ) : null}
                 </>
-              ) : (
+              ) : creationResult && !creationResult.success ? (
                 <div className="error-message">
                   <h4>❌ Creation Failed</h4>
                   <p>{creationResult.error || 'An error occurred while creating the user.'}</p>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
           <div className="form-actions">
-            {creationResult && creationResult.success ? (
+            {(creationResult?.success || passkeyInviteUrl) ? (
               <button type="button" onClick={onClose} className="btn-primary">
-                {formData.creationMethod === 'invitation' ? 'Done' : 'Close'}
+                Done
               </button>
             ) : (
               <>
                 <button type="button" onClick={onClose}>Cancel</button>
                 <button type="submit" disabled={submitting}>
-                  {submitting ? 'Creating...' : (
-                    formData.creationMethod === 'invitation' ? 'Send Invitation' : 'Create User'
-                  )}
+                  {submitting ? 'Creating...' : 'Create User'}
                 </button>
               </>
             )}
@@ -1085,7 +1123,34 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
   const [availableUnits, setAvailableUnits] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [availableClients, setAvailableClients] = useState([]);
+  const [passkeys, setPasskeys] = useState([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
+  const [sendingInvite, setSendingInvite] = useState(false);
   const secureApi = useSecureApi();
+
+  // Load passkeys when editing a user
+  const userId = user?.id || user?.uid;
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const loadPasskeys = async () => {
+      setPasskeysLoading(true);
+      setInviteUrl(null);
+      setInviteError(null);
+      try {
+        const res = await secureApi.listUserPasskeys(userId);
+        if (!cancelled) setPasskeys(res.passkeys || []);
+      } catch (err) {
+        if (!cancelled) setPasskeys([]);
+      } finally {
+        if (!cancelled) setPasskeysLoading(false);
+      }
+    };
+    loadPasskeys();
+    return () => { cancelled = true; };
+  }, [userId, secureApi]);
 
   // Load available clients when modal opens
   useEffect(() => {
@@ -1605,6 +1670,112 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
               This allows users to have different roles for different units within the same client
             </small>
           </div>
+
+          {/* Passkeys Section */}
+          {formData.canLogin && (
+            <fieldset className="form-section">
+              <legend>Passkeys</legend>
+              {passkeysLoading ? (
+                <p style={{ color: '#666', fontStyle: 'italic' }}>Loading passkeys...</p>
+              ) : passkeys.length > 0 ? (
+                <div style={{ marginBottom: '12px' }}>
+                  {passkeys.map((pk) => {
+                    const created = pk.createdAt ? new Date(pk.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                    const lastUsed = pk.lastUsedAt ? new Date(pk.lastUsedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                    const isToday = pk.lastUsedAt && new Date(pk.lastUsedAt).toDateString() === getMexicoDate().toDateString();
+                    return (
+                      <div
+                        key={pk.credentialId}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          marginBottom: '8px',
+                          backgroundColor: '#f9f9f9',
+                          borderRadius: '4px',
+                          border: '1px solid #eee'
+                        }}
+                      >
+                        <div>
+                          <strong>{pk.deviceName}</strong>
+                          <span style={{ marginLeft: '12px', color: '#666', fontSize: '13px' }}>
+                            registered {created} • last used {isToday ? 'today' : lastUsed}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`Revoke passkey for "${pk.deviceName}"? ${user?.name || user?.email} won't be able to sign in with this device.`)) return;
+                            try {
+                              await secureApi.revokeUserPasskey(userId, pk.credentialId);
+                              const res = await secureApi.listUserPasskeys(userId);
+                              setPasskeys(res.passkeys || []);
+                            } catch (err) {
+                              alert(`Failed to revoke: ${err.message}`);
+                            }
+                          }}
+                          style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ color: '#666', fontStyle: 'italic', marginBottom: '12px' }}>
+                  No passkeys registered — send an invite to set up access
+                </p>
+              )}
+              <div>
+                <button
+                  type="button"
+                  disabled={sendingInvite}
+                  onClick={async () => {
+                    setInviteError(null);
+                    setInviteUrl(null);
+                    setSendingInvite(true);
+                    try {
+                      const res = await secureApi.generatePasskeyInvite(userId);
+                      setInviteUrl(res.inviteUrl || res.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null);
+                    } catch (err) {
+                      setInviteError(err.message || 'Failed to generate invite');
+                    } finally {
+                      setSendingInvite(false);
+                    }
+                  }}
+                  style={{ padding: '8px 12px', backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: sendingInvite ? 'not-allowed' : 'pointer' }}
+                >
+                  {sendingInvite ? 'Generating...' : 'Send Passkey Invite'}
+                </button>
+                {inviteError && <p style={{ color: '#dc3545', marginTop: '8px', fontSize: '13px' }}>{inviteError}</p>}
+                {inviteUrl && (
+                  <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#e8f5e9', borderRadius: '4px', border: '1px solid #c8e6c9' }}>
+                    <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>This invite expires in 72 hours.</p>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={inviteUrl}
+                        style={{ flex: 1, minWidth: '200px', padding: '8px', fontFamily: 'monospace', fontSize: '12px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(inviteUrl);
+                          alert('Copied to clipboard');
+                        }}
+                        style={{ padding: '8px 12px', backgroundColor: '#2e7d32', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Copy to Clipboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </fieldset>
+          )}
 
           {/* Password Reset Section */}
           <fieldset className="form-section">
