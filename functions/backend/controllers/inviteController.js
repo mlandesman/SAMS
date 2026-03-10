@@ -41,6 +41,11 @@ export async function validateInviteToken(db, token) {
  */
 export async function generateInvite(req, res) {
   try {
+    const role = req.user?.samsProfile?.globalRole;
+    if (role !== 'admin' && role !== 'superAdmin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const { userId } = req.body || {};
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });

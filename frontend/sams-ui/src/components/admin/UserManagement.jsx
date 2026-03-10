@@ -1008,6 +1008,11 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
                         </ul>
                       </div>
                     </div>
+                  ) : formData.canLogin && formData.creationMethod === 'passkey' && creationResult?.success && !passkeyInviteUrl && !creationResult?.inviteError ? (
+                    <div className="success-message">
+                      <h4>✅ User Created</h4>
+                      <p>Generating passkey invite...</p>
+                    </div>
                   ) : creationResult?.success && !passkeyInviteUrl && !creationResult?.temporaryPassword ? (
                     <div className="success-message">
                       <h4>✅ User Created Successfully!</h4>
@@ -1025,7 +1030,8 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
           )}
 
           <div className="form-actions">
-            {(creationResult?.success || passkeyInviteUrl) ? (
+            {((creationResult?.success || passkeyInviteUrl) &&
+              (!(formData.canLogin && formData.creationMethod === 'passkey') || passkeyInviteUrl || creationResult?.inviteError)) ? (
               <button type="button" onClick={onClose} className="btn-primary">
                 Done
               </button>
