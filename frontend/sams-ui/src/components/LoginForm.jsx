@@ -1,23 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { config } from '../config';
 import { useVersionInfo } from '../utils/versionUtils';
+import { passkeyService } from '../services/passkeyService';
+import { getAuthInstance } from '../firebaseClient';
+import '../styles/SandylandModalTheme.css';
 import './LoginForm.css';
 
 /**
- * A simple login form component
- * @param {Object} props Component properties
- * @param {function} props.onLoginSuccess Callback function to execute when login is successful
+ * Login form with passkey-first UI.
+ * Primary: Sign in with Passkey. Secondary: Use password (bootstrap).
+ * After password login: dismissible "Register a passkey" prompt.
  */
-const LoginForm = ({ onLoginSuccess }) => {
+const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPasswordField, setShowPasswordField] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
-  const { login, error, setError } = useAuth();
+  const { login, loginWithPasskey, error, setError } = useAuth();
   const versionInfo = useVersionInfo();
+  const supportsPasskeys = passkeyService.supportsPasskeys();
+
+  useEffect(() => {
+    if (!supportsPasskeys) {
+      setShowPasswordField(true);
+    }
+  }, [supportsPasskeys]);
+
+  const handlePasskeyLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setResetMessage('');
+    setIsLoading(true);
+    try {
+      await loginWithPasskey(email.trim() || undefined);
+      setEmail('');
+      setHasLoginFailed(false);
+      if (onLoginSuccess) {
+        const auth = getAuthInstance();
+        onLoginSuccess(auth.currentUser);
+      }
+    } catch (err) {
+      let msg = err.message || 'Passkey sign-in failed.';
+      if (err.name === 'NotAllowedError' || msg.toLowerCase().includes('cancel')) {
+        msg = 'Authentication cancelled. Try again or use password.';
+      } else if (msg.includes('User not found') || msg.includes('404') || msg.includes('No passkey') || msg.includes('Credential not found')) {
+        msg = 'No passkey found for this email. Sign in with password to register one.';
+      } else if (msg.includes('network') || msg.includes('fetch')) {
+        msg = 'Network error. Please try again.';
+      }
+      setError(msg);
+      setHasLoginFailed(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,22 +67,23 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     try {
       const userCredential = await login(email, password);
-      console.log('Login successful:', userCredential.user);
-      
-      // Reset form and login failure state on success
+      if (import.meta.env.DEV) {
+        console.log('Login successful:', userCredential.user);
+      }
       setEmail('');
       setPassword('');
       setHasLoginFailed(false);
-      
-      // Call the success callback
-      if (onLoginSuccess) {
+
+      if (supportsPasskeys && onShowPasskeyPrompt) {
+        onShowPasskeyPrompt(userCredential.user);
+      } else if (onLoginSuccess) {
         onLoginSuccess(userCredential.user);
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      // Set login failed state to show forgotten password option
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('Login error:', err);
+      }
       setHasLoginFailed(true);
-      // Error is handled in the AuthContext
     } finally {
       setIsLoading(false);
     }
@@ -59,17 +100,14 @@ const LoginForm = ({ onLoginSuccess }) => {
     setResetMessage('');
 
     try {
-      // Use the backend API to reset password (same as User Management system)
       const API_BASE_URL = config.api.baseUrl;
       const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           email: email.trim(),
-          requestType: 'forgot-password' 
-        })
+          requestType: 'forgot-password',
+        }),
       });
 
       if (!response.ok) {
@@ -78,26 +116,14 @@ const LoginForm = ({ onLoginSuccess }) => {
       }
 
       const result = await response.json();
-      
       setResetMessage(`A temporary password has been sent to ${email}. Please check your inbox and use the temporary password to log in. You will be required to create a new password on your first login.`);
-      console.log('Temporary password sent to:', email);
-      
-    } catch (error) {
-      console.error('Password reset error:', error);
-      
-      // Handle specific error messages from backend
-      let errorMessage = error.message;
-      
-      if (error.message.includes('User not found')) {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.message.includes('Invalid email')) {
-        errorMessage = 'Invalid email address.';
-      } else if (error.message.includes('Too many requests')) {
-        errorMessage = 'Too many password reset requests. Please try again later.';
-      } else if (!errorMessage.includes('Failed to')) {
-        errorMessage = 'Failed to send temporary password. ' + errorMessage;
-      }
-      
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Password reset error:', err);
+      let errorMessage = err.message;
+      if (err.message.includes('User not found')) errorMessage = 'No account found with this email address.';
+      else if (err.message.includes('Invalid email')) errorMessage = 'Invalid email address.';
+      else if (err.message.includes('Too many requests')) errorMessage = 'Too many password reset requests. Please try again later.';
+      else if (!errorMessage.includes('Failed to')) errorMessage = 'Failed to send temporary password. ' + errorMessage;
       setError(errorMessage);
     } finally {
       setIsResetting(false);
@@ -105,80 +131,106 @@ const LoginForm = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="login-form-container">
-      <div className="login-form">
-        <div className="login-logo-container">
-          <img
-            src="https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-high-resolution-logo-transparent.png?alt=media&token=a39645c7-aa81-41a0-9b20-35086de026d0"
-            alt="Sandyland Properties"
-            className="login-logo"
-          />
-        </div>
-        <h2>Login to SAMS</h2>
-        <form onSubmit={handleSubmit}>
-          {error && <div className="error-message">{error}</div>}
-          {resetMessage && <div className="success-message">{resetMessage}</div>}
-          
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="your@email.com"
-              autoComplete="email"
+    <>
+      <div className="login-form-container">
+        <div className="login-form">
+          <div className="login-logo-container">
+            <img
+              src="https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-high-resolution-logo-transparent.png?alt=media&token=a39645c7-aa81-41a0-9b20-35086de026d0"
+              alt="Sandyland Properties"
+              className="login-logo"
             />
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password:</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Your password"
-              autoComplete="current-password"
-            />
+          <h2>Login to SAMS</h2>
+          <form onSubmit={supportsPasskeys && !showPasswordField ? handlePasskeyLogin : handleSubmit}>
+            {error && <div className="error-message">{error}</div>}
+            {resetMessage && <div className="success-message">{resetMessage}</div>}
+
+            <div className="form-group">
+              <label htmlFor="email">Email:</label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="your@email.com"
+                autoComplete="email"
+              />
+            </div>
+
+            {showPasswordField && (
+              <div className="form-group">
+                <label htmlFor="password">Password:</label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required={showPasswordField}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
+
+            {supportsPasskeys && !showPasswordField ? (
+              <>
+                <button type="submit" className="login-form-submit-button" disabled={isLoading}>
+                  {isLoading ? 'Signing in...' : 'Sign in with Passkey'}
+                </button>
+                <button
+                  type="button"
+                  className="login-form-link-button"
+                  onClick={() => setShowPasswordField(true)}
+                >
+                  Use password instead
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="submit" className="login-form-submit-button" disabled={isLoading}>
+                  {isLoading ? 'Logging in...' : 'Login'}
+                </button>
+                {supportsPasskeys && (
+                  <button
+                    type="button"
+                    className="login-form-link-button"
+                    onClick={() => setShowPasswordField(false)}
+                  >
+                    Use passkey instead
+                  </button>
+                )}
+              </>
+            )}
+          </form>
+
+          {hasLoginFailed && (
+            <div className="forgot-password-section">
+              <p className="forgot-password-text">Forgot your password?</p>
+              <button
+                type="button"
+                className="forgot-password-button"
+                onClick={handleForgotPassword}
+                disabled={isResetting}
+              >
+                {isResetting ? 'Sending reset email...' : 'Send Reset Email'}
+              </button>
+              <p className="forgot-password-help">
+                Enter your email address above and click &quot;Send Reset Email&quot; to receive a temporary password.
+              </p>
+            </div>
+          )}
+
+          <div className="login-version">
+            <span className="version-text">
+              {versionInfo.versionDisplay}
+              <span className="version-build">({versionInfo.build?.buildNumber || 'dev'})</span>
+            </span>
           </div>
-          
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        
-        {/* Forgot Password Section - Only show after login failure */}
-        {hasLoginFailed && (
-          <div className="forgot-password-section">
-            <p className="forgot-password-text">
-              Forgot your password?
-            </p>
-            <button 
-              type="button" 
-              className="forgot-password-button"
-              onClick={handleForgotPassword}
-              disabled={isResetting}
-            >
-              {isResetting ? 'Sending reset email...' : 'Send Reset Email'}
-            </button>
-            <p className="forgot-password-help">
-              Enter your email address above and click "Send Reset Email" to receive a temporary password. You'll be required to create a new password when you log in.
-            </p>
-          </div>
-        )}
-        
-        {/* Version Display */}
-        <div className="login-version">
-          <span className="version-text">
-            {versionInfo.versionDisplay} 
-            <span className="version-build">({versionInfo.build?.buildNumber || 'dev'})</span>
-          </span>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

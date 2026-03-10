@@ -19,16 +19,20 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { passkeyService } from '../services/passkeyService';
+import { config } from '../config/index.js';
 
 const AuthScreen = () => {
   const navigate = useNavigate();
-  const { user, login, loading, error, clearError } = useAuth();
+  const { user, login, loginWithPasskey, loading, error, clearError } = useAuth();
+  const supportsPasskeys = passkeyService.supportsPasskeys();
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordField, setShowPasswordField] = useState(!supportsPasskeys);
   const [formError, setFormError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
@@ -75,39 +79,53 @@ const AuthScreen = () => {
     if (formError) setFormError('');
   };
 
-  const validateForm = () => {
+  const validateForm = (requirePassword = true) => {
     if (!formData.email) {
       setFormError('Email is required');
       return false;
     }
-    
     if (!formData.email.includes('@')) {
       setFormError('Please enter a valid email address');
       return false;
     }
-    
-    if (!formData.password) {
+    if (requirePassword && !formData.password) {
       setFormError('Password is required');
       return false;
     }
-    
     return true;
+  };
+
+  const handlePasskeyLogin = async (event) => {
+    event.preventDefault();
+    if (!formData.email || !formData.email.includes('@')) {
+      setFormError('Please enter a valid email address');
+      return;
+    }
+    clearError();
+    setFormError('');
+    try {
+      await loginWithPasskey(formData.email.trim());
+      setHasLoginFailed(false);
+    } catch (err) {
+      let msg = err.message || 'Passkey sign-in failed.';
+      if (err.name === 'NotAllowedError' || msg.toLowerCase().includes('cancel')) {
+        msg = 'Authentication cancelled. Try again or use password.';
+      } else if (msg.includes('User not found') || msg.includes('404') || msg.includes('Credential not found')) {
+        msg = 'No passkey found for this email. Sign in with password to register one.';
+      }
+      setFormError(msg);
+      setHasLoginFailed(true);
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
-    if (!validateForm()) return;
-    
+    if (!validateForm(showPasswordField)) return;
     try {
       await login(formData.email, formData.password);
-      // Reset login failure state on success
       setHasLoginFailed(false);
-      // Navigation will happen automatically via useEffect above
     } catch (error) {
-      // Set login failed state to show forgotten password option
       setHasLoginFailed(true);
-      // Error is handled by the auth hook
       console.error('Login failed:', error);
     }
   };
@@ -128,8 +146,7 @@ const AuthScreen = () => {
     clearError();
 
     try {
-      // Use the backend API to reset password (same as User Management system)
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      const API_BASE_URL = config.api.baseUrl;
       const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
         headers: {
@@ -262,7 +279,7 @@ const AuthScreen = () => {
         }}
       >
         <CardContent sx={{ p: 3 }}>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={supportsPasskeys && !showPasswordField ? handlePasskeyLogin : handleSubmit}>
             {(error || formError) && (
               <Alert 
                 severity="error" 
@@ -306,41 +323,43 @@ const AuthScreen = () => {
               sx={{ mb: 2 }}
             />
 
-            <TextField
-              fullWidth
-              type={showPassword ? 'text' : 'password'}
-              label="Password"
-              value={formData.password}
-              onChange={handleInputChange('password')}
-              disabled={loading}
-              autoComplete="current-password"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={togglePasswordVisibility}
-                      disabled={loading}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                className: 'mobile-input',
-              }}
-              sx={{ mb: 3 }}
-            />
+            {showPasswordField && (
+              <TextField
+                fullWidth
+                type={showPassword ? 'text' : 'password'}
+                label="Password"
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                disabled={loading}
+                autoComplete="current-password"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={togglePasswordVisibility}
+                        disabled={loading}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  className: 'mobile-input',
+                }}
+                sx={{ mb: 2 }}
+              />
+            )}
 
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              disabled={loading || !formData.email || !formData.password}
+              disabled={loading || !formData.email || (showPasswordField && !formData.password)}
               sx={{
                 py: 1.5,
                 fontSize: '16px',
@@ -351,10 +370,26 @@ const AuthScreen = () => {
             >
               {loading ? (
                 <LoadingSpinner size="small" />
+              ) : supportsPasskeys && !showPasswordField ? (
+                'Sign in with Passkey'
               ) : (
                 'Sign In'
               )}
             </Button>
+
+            {supportsPasskeys && (
+              <Button
+                type="button"
+                fullWidth
+                variant="text"
+                size="small"
+                onClick={() => setShowPasswordField((prev) => !prev)}
+                disabled={loading}
+                sx={{ mt: 1, textTransform: 'none', fontSize: '14px' }}
+              >
+                {showPasswordField ? 'Use passkey instead' : 'Use password instead'}
+              </Button>
+            )}
             
             {/* Forgot Password Section - Only show after login failure */}
             {hasLoginFailed && (

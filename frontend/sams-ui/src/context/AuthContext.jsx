@@ -1,12 +1,100 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { getAuthInstance, loginWithEmailPassword, logout as firebaseLogout } from '../firebaseClient';
+import { getAuthInstance, loginWithEmailPassword, loginWithCustomToken, logout as firebaseLogout } from '../firebaseClient';
+import { passkeyService, getDefaultDeviceName } from '../services/passkeyService';
 import { onAuthStateChanged } from 'firebase/auth';
 import LoginForm from '../components/LoginForm';
 import PasswordChangeModal from '../components/PasswordChangeModal';
 import { userAPI } from '../api/user';
+import '../styles/SandylandModalTheme.css';
+import '../components/LoginForm.css';
 
 // Create authentication context
 const AuthContext = createContext();
+
+/**
+ * Post-login passkey registration prompt. Rendered by AuthContext so it stays
+ * mounted when LoginForm unmounts (currentUser set triggers LoginForm unmount).
+ */
+function PasskeyRegistrationPrompt({ user, onComplete, onDismiss }) {
+  const [deviceName, setDeviceName] = useState(() => getDefaultDeviceName());
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleRegister = async () => {
+    if (!user?.email) return;
+    setError('');
+    setIsRegistering(true);
+    try {
+      const auth = getAuthInstance();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Not authenticated');
+      await passkeyService.startPasskeyRegistration(
+        user.email,
+        token,
+        deviceName.trim() || getDefaultDeviceName(),
+        null
+      );
+      onComplete(user);
+    } catch (err) {
+      const msg = err.name === 'NotAllowedError' || (err.message || '').toLowerCase().includes('cancel')
+        ? 'Registration cancelled. You can set up a passkey later.'
+        : (err.message || 'Registration failed.');
+      setError(msg);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleDismiss = () => {
+    onComplete(user);
+  };
+
+  return (
+    <div
+      className="sandyland-modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && handleDismiss()}
+    >
+      <div className="sandyland-modal" onClick={(e) => e.stopPropagation()} style={{ width: '420px', maxWidth: '90vw' }}>
+        <div className="sandyland-modal-header">
+          <h2 className="sandyland-modal-title">Set up a passkey for faster login</h2>
+        </div>
+        <div className="sandyland-modal-content">
+          <p style={{ margin: '0 0 1rem 0', color: '#4a5568' }}>
+            Register a passkey to sign in quickly next time with your fingerprint or face.
+          </p>
+          <div className="form-group">
+            <label htmlFor="passkey-prompt-device">Device name:</label>
+            <input
+              type="text"
+              id="passkey-prompt-device"
+              value={deviceName}
+              onChange={(e) => setDeviceName(e.target.value)}
+              placeholder="e.g. MacBook Pro"
+              className="login-form-input"
+            />
+          </div>
+          {error && <div className="error-message">{error}</div>}
+        </div>
+        <div className="sandyland-modal-buttons">
+          <button
+            className="sandyland-btn sandyland-btn-secondary"
+            onClick={handleDismiss}
+            disabled={isRegistering}
+          >
+            Maybe later
+          </button>
+          <button
+            className="sandyland-btn sandyland-btn-primary"
+            onClick={handleRegister}
+            disabled={isRegistering}
+          >
+            {isRegistering ? 'Registering...' : 'Register'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Authentication provider component to wrap the application
@@ -21,6 +109,7 @@ export const AuthProvider = ({ children }) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [passwordChangeUser, setPasswordChangeUser] = useState(null);
+  const [passkeyPromptUser, setPasskeyPromptUser] = useState(null);
   const auth = getAuthInstance();
 
   useEffect(() => {
@@ -125,7 +214,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, [auth]);
 
-  // Login function
+  // Login function (password)
   async function login(email, password) {
     try {
       setError('');
@@ -137,6 +226,21 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login error:', error.code, error.message);
       setError(error.userMessage || 'Failed to login. Please check your credentials.');
+      throw error;
+    }
+  }
+
+  // Login function (passkey)
+  async function loginWithPasskey(email) {
+    try {
+      setError('');
+      const result = await passkeyService.startPasskeyLogin(email);
+      await loginWithCustomToken(result.token);
+      // onAuthStateChanged fires automatically; profile load continues unchanged
+      return { user: result.user };
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Passkey login error:', error);
+      setError(error.message || 'Passkey sign-in failed. Try password or try again.');
       throw error;
     }
   }
@@ -176,6 +280,11 @@ export const AuthProvider = ({ children }) => {
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
     setShowLoginForm(false);
+    setPasskeyPromptUser(null);
+  };
+
+  const handleShowPasskeyPrompt = (user) => {
+    setPasskeyPromptUser(user);
   };
 
   const handlePasswordChanged = async () => {
@@ -200,6 +309,7 @@ export const AuthProvider = ({ children }) => {
     samsUser, // Add SAMS user profile with roles
     loading,
     login,
+    loginWithPasskey,
     logout,
     error,
     setError,
@@ -216,7 +326,12 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {(showLoginForm || (!loading && !currentUser)) && <LoginForm onLoginSuccess={handleLoginSuccess} />}
+      {(showLoginForm || (!loading && !currentUser)) && (
+        <LoginForm
+          onLoginSuccess={handleLoginSuccess}
+          onShowPasskeyPrompt={handleShowPasskeyPrompt}
+        />
+      )}
       {requiresPasswordChange && passwordChangeUser && (
         <PasswordChangeModal
           open={requiresPasswordChange}
@@ -226,6 +341,12 @@ export const AuthProvider = ({ children }) => {
         />
       )}
       {!loading && !requiresPasswordChange && children}
+      {passkeyPromptUser && (
+        <PasskeyRegistrationPrompt
+          user={passkeyPromptUser}
+          onComplete={handleLoginSuccess}
+        />
+      )}
     </AuthContext.Provider>
   );
 };

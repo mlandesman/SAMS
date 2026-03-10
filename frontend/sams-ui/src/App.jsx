@@ -28,6 +28,7 @@ import AddExpenseView from './views/AddExpenseView';
 import WaterBillsViewV3 from './views/WaterBillsViewV3';
 import PropaneView from './components/propane/PropaneView';
 import PublicVotingPage from './views/PublicVotingPage';
+import InviteView from './views/InviteView';
 
 import './App.css';
 import { forceProductionMobileMode } from './utils/mobileDetection';
@@ -317,6 +318,7 @@ function App() {
         <Routes>
           {/* Public routes that don't require authentication */}
           <Route path="/setup-password" element={<PasswordSetupView />} />
+          <Route path="/invite/:token" element={<InviteView />} />
           <Route path="/vote/:token" element={<PublicVotingPage />} />
           
           {/* Protected routes that require authentication */}

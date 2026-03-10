@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { auth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from '../services/firebase';
+import { auth, onAuthStateChanged, signInWithEmailAndPassword, signOut, loginWithCustomToken } from '../services/firebase';
+import { passkeyService } from '../services/passkeyService';
 import { userAPI } from '../services/api';
 
 const AuthContext = createContext({});
@@ -154,6 +155,21 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const loginWithPasskey = useCallback(async (email) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await passkeyService.startPasskeyLogin(email?.trim() || undefined);
+      await loginWithCustomToken(result.token);
+      return { user: result.user };
+    } catch (error) {
+      const msg = error.message || 'Passkey sign-in failed.';
+      setError(msg);
+      setLoading(false);
+      throw error;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       setLoading(true);
@@ -248,6 +264,7 @@ export const AuthProvider = ({ children }) => {
     
     // Auth actions
     login,
+    loginWithPasskey,
     logout,
     clearError,
   }), [
@@ -261,6 +278,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     selectClient,
     login,
+    loginWithPasskey,
     logout,
     clearError
   ]);

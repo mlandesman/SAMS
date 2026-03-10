@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { 
   getAuth, 
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signOut,
   setPersistence,
   browserLocalPersistence,
@@ -33,6 +34,11 @@ setPersistence(auth, browserLocalPersistence)
   .catch((error) => {
     console.error('Error setting auth persistence:', error);
   });
+
+export async function loginWithCustomToken(customToken) {
+  await setPersistence(auth, browserLocalPersistence);
+  return signInWithCustomToken(auth, customToken);
+}
 
 export { 
   auth, 
