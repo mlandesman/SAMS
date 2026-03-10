@@ -448,13 +448,20 @@ export async function listUserPasskeys(req, res) {
     const db = await getDb();
     const passkeysSnap = await db.collection('users').doc(userId).collection('passkeys').get();
 
+    const toISO = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string') return val;
+      if (val && typeof val.toDate === 'function') return val.toDate().toISOString();
+      return null;
+    };
+
     const passkeys = passkeysSnap.docs.map((d) => {
       const data = d.data();
       return {
         credentialId: d.id,
         deviceName: data.deviceName || 'Unknown Device',
-        createdAt: data.createdAt || null,
-        lastUsedAt: data.lastUsedAt || null,
+        createdAt: toISO(data.createdAt),
+        lastUsedAt: toISO(data.lastUsedAt),
         deviceType: data.deviceType || 'singleDevice',
         backedUp: data.backedUp ?? false,
       };
