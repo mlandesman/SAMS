@@ -97,12 +97,7 @@ function getAuthState() {
     user: authUser
   };
 }
-/**
- * Login with email and password
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise<UserCredential>} Firebase user credential
- */
+
 /**
  * Login with custom token (e.g. from passkey verification)
  * @param {string} customToken - Firebase custom token from backend
@@ -118,12 +113,18 @@ export async function loginWithCustomToken(customToken) {
     authUser = userCredential.user;
     return userCredential;
   } catch (error) {
-    console.error('Custom token sign-in failed:', error.code, error.message);
+    if (import.meta.env.DEV) console.error('Custom token sign-in failed:', error.code, error.message);
     error.userMessage = error.message || 'Sign-in failed. Please try again.';
     throw error;
   }
 }
 
+/**
+ * Login with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<UserCredential>} Firebase user credential
+ */
 export async function loginWithEmailPassword(email, password) {
   try {
     console.log(`Attempting to sign in with email: ${email}`);

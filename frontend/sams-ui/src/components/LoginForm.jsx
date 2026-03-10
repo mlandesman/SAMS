@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { config } from '../config';
 import { useVersionInfo } from '../utils/versionUtils';
-import { passkeyService } from '../services/passkeyService';
+import { passkeyService, getDefaultDeviceName } from '../services/passkeyService';
 import { getAuthInstance } from '../firebaseClient';
 import '../styles/SandylandModalTheme.css';
 import './LoginForm.css';
@@ -94,17 +94,6 @@ const LoginForm = ({ onLoginSuccess }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getDefaultDeviceName = () => {
-    if (typeof navigator !== 'undefined' && navigator.userAgent) {
-      const ua = navigator.userAgent;
-      if (ua.includes('iPhone') || ua.includes('iPad')) return 'iPhone';
-      if (ua.includes('Android')) return 'Android';
-      if (ua.includes('Mac')) return 'MacBook';
-      if (ua.includes('Windows')) return 'Windows PC';
-    }
-    return 'This device';
   };
 
   const handlePasskeyPromptRegister = async () => {

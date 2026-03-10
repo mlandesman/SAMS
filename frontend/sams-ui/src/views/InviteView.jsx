@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { passkeyService } from '../services/passkeyService';
+import { passkeyService, getDefaultDeviceName } from '../services/passkeyService';
 import { loginWithCustomToken } from '../firebaseClient';
 import '../styles/SandylandModalTheme.css';
 import '../components/LoginForm.css';
@@ -21,17 +21,6 @@ function InviteView() {
   const [error, setError] = useState('');
 
   const supportsPasskeys = passkeyService.supportsPasskeys();
-
-  const getDefaultDeviceName = () => {
-    if (typeof navigator !== 'undefined' && navigator.userAgent) {
-      const ua = navigator.userAgent;
-      if (ua.includes('iPhone') || ua.includes('iPad')) return 'iPhone';
-      if (ua.includes('Android')) return 'Android';
-      if (ua.includes('Mac')) return 'MacBook';
-      if (ua.includes('Windows')) return 'Windows PC';
-    }
-    return 'This device';
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

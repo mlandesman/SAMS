@@ -8,6 +8,21 @@ import { config } from '../config';
 
 const API_BASE = config.api.baseUrl;
 
+/**
+ * Returns a default device name based on user agent.
+ * @returns {string}
+ */
+export function getDefaultDeviceName() {
+  if (typeof navigator !== 'undefined' && navigator.userAgent) {
+    const ua = navigator.userAgent;
+    if (ua.includes('iPhone') || ua.includes('iPad')) return 'iPhone';
+    if (ua.includes('Android')) return 'Android';
+    if (ua.includes('Mac')) return 'MacBook';
+    if (ua.includes('Windows')) return 'Windows PC';
+  }
+  return 'This device';
+}
+
 export const passkeyService = {
   supportsPasskeys() {
     return browserSupportsWebAuthn();
@@ -97,7 +112,7 @@ export const passkeyService = {
       email: (email || '').trim().toLowerCase(),
       credential,
       challengeId,
-      ...(deviceName && { deviceName: (deviceName || '').trim() || deviceName }),
+      ...(deviceName && { deviceName: (deviceName || '').trim() }),
       ...(inviteToken && { inviteToken }),
     };
     const response = await fetch(url, {

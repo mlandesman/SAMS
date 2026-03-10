@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
       // onAuthStateChanged fires automatically; profile load continues unchanged
       return { user: result.user };
     } catch (error) {
-      console.error('Passkey login error:', error);
+      if (import.meta.env.DEV) console.error('Passkey login error:', error);
       setError(error.message || 'Passkey sign-in failed. Try password or try again.');
       throw error;
     }

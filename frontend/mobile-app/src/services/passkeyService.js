@@ -70,7 +70,7 @@ export const passkeyService = {
       email: (email || '').trim().toLowerCase(),
       credential,
       challengeId,
-      ...(deviceName && { deviceName: (deviceName || '').trim() || deviceName }),
+      ...(deviceName && { deviceName: (deviceName || '').trim() }),
       ...(inviteToken && { inviteToken }),
     };
     const response = await fetch(url, {
