@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { getAuthInstance, loginWithEmailPassword, logout as firebaseLogout } from '../firebaseClient';
+import { getAuthInstance, loginWithEmailPassword, loginWithCustomToken, logout as firebaseLogout } from '../firebaseClient';
+import { passkeyService } from '../services/passkeyService';
 import { onAuthStateChanged } from 'firebase/auth';
 import LoginForm from '../components/LoginForm';
 import PasswordChangeModal from '../components/PasswordChangeModal';
@@ -125,7 +126,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, [auth]);
 
-  // Login function
+  // Login function (password)
   async function login(email, password) {
     try {
       setError('');
@@ -137,6 +138,21 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login error:', error.code, error.message);
       setError(error.userMessage || 'Failed to login. Please check your credentials.');
+      throw error;
+    }
+  }
+
+  // Login function (passkey)
+  async function loginWithPasskey(email) {
+    try {
+      setError('');
+      const result = await passkeyService.startPasskeyLogin(email);
+      await loginWithCustomToken(result.token);
+      // onAuthStateChanged fires automatically; profile load continues unchanged
+      return { user: result.user };
+    } catch (error) {
+      console.error('Passkey login error:', error);
+      setError(error.message || 'Passkey sign-in failed. Try password or try again.');
       throw error;
     }
   }
@@ -200,6 +216,7 @@ export const AuthProvider = ({ children }) => {
     samsUser, // Add SAMS user profile with roles
     loading,
     login,
+    loginWithPasskey,
     logout,
     error,
     setError,

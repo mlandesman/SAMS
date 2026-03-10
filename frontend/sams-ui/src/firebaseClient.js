@@ -4,6 +4,7 @@ import {
   getAuth, 
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signOut,
   setPersistence,
   browserSessionPersistence,
@@ -102,6 +103,27 @@ function getAuthState() {
  * @param {string} password - User password
  * @returns {Promise<UserCredential>} Firebase user credential
  */
+/**
+ * Login with custom token (e.g. from passkey verification)
+ * @param {string} customToken - Firebase custom token from backend
+ * @returns {Promise<UserCredential>} Firebase user credential
+ */
+export async function loginWithCustomToken(customToken) {
+  try {
+    if (!auth) {
+      throw new Error('Firebase authentication is not initialized');
+    }
+    await setPersistence(auth, browserSessionPersistence);
+    const userCredential = await signInWithCustomToken(auth, customToken);
+    authUser = userCredential.user;
+    return userCredential;
+  } catch (error) {
+    console.error('Custom token sign-in failed:', error.code, error.message);
+    error.userMessage = error.message || 'Sign-in failed. Please try again.';
+    throw error;
+  }
+}
+
 export async function loginWithEmailPassword(email, password) {
   try {
     console.log(`Attempting to sign in with email: ${email}`);
