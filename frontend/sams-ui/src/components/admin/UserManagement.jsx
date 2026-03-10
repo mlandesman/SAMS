@@ -571,8 +571,8 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
       const result = await onCreate(submitData);
       setCreationResult(result);
       
-      // For passkey method, generate invite and show URL
-      if (formData.creationMethod === 'passkey' && result?.user?.uid) {
+      // For passkey method, generate invite and show URL (only when canLogin — contact-only users don't get invites)
+      if (formData.canLogin && formData.creationMethod === 'passkey' && result?.user?.uid) {
         try {
           const inviteRes = await secureApi.generatePasskeyInvite(result.user.uid);
           setPasskeyInviteUrl(inviteRes.inviteUrl || (inviteRes.inviteToken ? `${window.location.origin}/invite/${inviteRes.inviteToken}` : null));
@@ -1738,7 +1738,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                     setSendingInvite(true);
                     try {
                       const res = await secureApi.generatePasskeyInvite(userId);
-                      setInviteUrl(res.inviteUrl || res.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null);
+                      setInviteUrl(res.inviteUrl || (res.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null));
                     } catch (err) {
                       setInviteError(err.message || 'Failed to generate invite');
                     } finally {
