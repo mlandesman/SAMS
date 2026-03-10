@@ -166,7 +166,7 @@ export const AuthProvider = ({ children }) => {
       const msg = error.message || 'Passkey sign-in failed.';
       setError(msg);
       setLoading(false);
-      throw new Error(msg);
+      throw error;
     }
   }, []);
 
