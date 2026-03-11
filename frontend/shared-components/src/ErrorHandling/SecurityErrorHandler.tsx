@@ -146,7 +146,7 @@ export class SecurityError extends StandardizedError {
     const redirectMap: Record<string, string> = {
       [ERROR_CODES.UNAUTHORIZED]: '/login',
       [ERROR_CODES.TOKEN_EXPIRED]: '/login',
-      'PASSWORD_EXPIRED': '/setup-password',
+      'PASSWORD_EXPIRED': '/login',
       'MFA_REQUIRED': '/mfa-setup',
       [ERROR_CODES.CLIENT_ACCESS_DENIED]: '/dashboard'
     };

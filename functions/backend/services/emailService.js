@@ -169,7 +169,8 @@ const SANDYLAND_EMAIL_CONFIG = {
 };
 
 /**
- * Send user invitation email with password setup link
+ * @deprecated No longer called — PK3 replaced "Email Invitation" with "Passkey Invitation".
+ * The /setup-password route has been removed. Kept for reference only.
  */
 export async function sendUserInvitation({ email, name, clientName, role, invitedBy }) {
   try {
