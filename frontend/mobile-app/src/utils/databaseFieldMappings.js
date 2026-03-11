@@ -4,6 +4,7 @@
  * Currency conversions delegate to currencyUtils.js (Sprint CX pattern).
  */
 import { centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils.js';
+import { getMexicoDate } from './timezone.js';
 
 const CANCUN_TIMEZONE = 'America/Cancun';
 
@@ -80,7 +81,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {Date} Start of day in Cancun time
    */
-  getStartOfDayCancun: (date = new Date()) => {
+  getStartOfDayCancun: (date = getMexicoDate()) => {
     const d = new Date(date);
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00-05:00`;
     return new Date(cancunDateStr);
@@ -91,7 +92,7 @@ export const databaseFieldMappings = {
    * @param {Date|string} date - Input date
    * @returns {Date} End of day in Cancun time
    */
-  getEndOfDayCancun: (date = new Date()) => {
+  getEndOfDayCancun: (date = getMexicoDate()) => {
     const d = new Date(date);
     const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T23:59:59.999-05:00`;
     return new Date(cancunDateStr);

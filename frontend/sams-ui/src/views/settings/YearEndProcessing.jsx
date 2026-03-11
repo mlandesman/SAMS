@@ -3,6 +3,7 @@ import { useClient } from '../../context/ClientContext';
 import { getCurrentUser, getAuthInstance } from '../../firebaseClient';
 import { config } from '../../config';
 import { centavosToPesos } from '@shared/utils/currencyUtils';
+import { getMexicoDate } from '../../utils/timezone';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -79,7 +80,7 @@ function YearEndProcessing() {
   // Initialize closing year to current year
   useEffect(() => {
     if (selectedClient && !closingYear) {
-      const currentYear = new Date().getFullYear();
+      const currentYear = getMexicoDate().getFullYear();
       setClosingYear(currentYear);
     }
   }, [selectedClient, closingYear]);
@@ -280,7 +281,7 @@ function YearEndProcessing() {
               style={{ padding: '5px 10px', fontSize: '14px' }}
             >
               {Array.from({ length: 5 }, (_, i) => {
-                const year = new Date().getFullYear() - 2 + i;
+                const year = getMexicoDate().getFullYear() - 2 + i;
                 return <option key={year} value={year}>{year}</option>;
               })}
             </select>

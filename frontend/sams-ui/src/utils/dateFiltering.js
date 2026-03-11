@@ -3,6 +3,7 @@
  */
 
 import { databaseFieldMappings } from './databaseFieldMappings';
+import { getMexicoDate } from './timezone';
 
 /**
  * Get date range based on predefined range type
@@ -10,7 +11,7 @@ import { databaseFieldMappings } from './databaseFieldMappings';
  * @returns {Object} Object with startDate and endDate
  */
 export const getDateRangeFromType = (rangeType) => {
-  const now = new Date();
+  const now = getMexicoDate();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   switch (rangeType) {

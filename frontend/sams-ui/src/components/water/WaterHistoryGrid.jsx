@@ -12,6 +12,7 @@ import {
   getFiscalYear,
   isFiscalYear
 } from '../../utils/fiscalYearUtils';
+import { getMexicoDate } from '../../utils/timezone';
 import waterAPI from '../../api/waterAPI';
 import '../../views/HOADuesView.css'; // Use HOA Dues styles
 
@@ -312,8 +313,8 @@ const WaterHistoryGrid = ({ clientId, onBillSelection, selectedBill }) => {
                 const monthLabel = `${monthName}-${displayYear}`;
                 
                 // Determine month styling based on selected year and current date
-                const currentFiscalMonth = getCurrentFiscalMonth(new Date(), fiscalYearStartMonth);
-                const currentFiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+                const currentFiscalMonth = getCurrentFiscalMonth(getMexicoDate(), fiscalYearStartMonth);
+                const currentFiscalYear = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
                 
                 let monthClass = 'future-month';
                 // For current fiscal year, compare to current fiscal month

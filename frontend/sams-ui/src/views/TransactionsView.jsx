@@ -13,7 +13,7 @@ import { clientAPI } from '../api/client';
 import { fetchTransactions } from '../utils/fetchTransactions';
 import { getClientAccountBalances, clearAccountsCache } from '../utils/clientAccounts';
 import { recalculateClientBalances } from '../utils/balanceRecalculation';
-import { getDateRangeForFilter, getMexicoDateString } from '../utils/timezone';
+import { getDateRangeForFilter, getMexicoDateString, getMexicoDate } from '../utils/timezone';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import FilterSwitchModal from '../components/FilterSwitchModal';
 import { useClient } from '../context/ClientContext';
@@ -732,7 +732,7 @@ function TransactionsView() {
       
       // Determine the correct year for balance recalculation
       const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
-      const currentDate = new Date();
+      const currentDate = getMexicoDate();
       const yearForSnapshot = getFiscalYear(currentDate, fiscalYearStartMonth) - 1; // Previous fiscal year
       
       // For transaction changes, we need to actually recalculate balances
@@ -1390,7 +1390,7 @@ function TransactionsView() {
     });
     
     const clientId = selectedClient?.id || 'unknown';
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getMexicoDateString();
     exportToCSV({
       headers,
       rows,
@@ -1591,7 +1591,7 @@ function TransactionsView() {
           try {
             // Determine the correct year for balance recalculation
             const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 1;
-            const currentDate = new Date();
+            const currentDate = getMexicoDate();
             const yearForSnapshot = getFiscalYear(currentDate, fiscalYearStartMonth) - 1; // Previous fiscal year
             
             // Perform full balance recalculation from year-end snapshot
