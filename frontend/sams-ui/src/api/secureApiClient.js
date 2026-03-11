@@ -410,6 +410,25 @@ export class SecureApiClient {
       }
     );
   }
+
+  // Passkey admin (admin-only)
+  async generatePasskeyInvite(userId) {
+    return secureApiCall('/auth/invite', {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  }
+
+  async listUserPasskeys(userId) {
+    return secureApiCall(`/auth/passkey/credentials/${userId}`, { method: 'GET' });
+  }
+
+  async revokeUserPasskey(userId, credentialId) {
+    return secureApiCall(
+      `/auth/passkey/credentials/${userId}/${credentialId}`,
+      { method: 'DELETE' }
+    );
+  }
 }
 
 /**

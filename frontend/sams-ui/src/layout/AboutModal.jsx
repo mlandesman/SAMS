@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Computer as ComputerIcon
+  Computer as ComputerIcon,
 } from '@mui/icons-material';
 import ChangelogDisplay from '../components/ChangelogDisplay';
 
@@ -24,6 +24,8 @@ import ChangelogDisplay from '../components/ChangelogDisplay';
 const SANDYLAND_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
 
 const AboutModal = ({ open, onClose, versionInfo }) => {
+  const isDev = import.meta.env.DEV || versionInfo?.environment === 'development';
+
   const environmentColors = {
     development: '#ff9800',
     staging: '#2196f3', 

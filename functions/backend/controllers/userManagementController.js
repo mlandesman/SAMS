@@ -10,7 +10,7 @@ import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
-import { sendUserInvitation, sendPasswordNotification } from '../services/emailService.js';
+import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
@@ -410,8 +410,8 @@ export async function createUser(req, res) {
           disabled: true  // KEY: Cannot log in
         });
         accountState = 'contact_only';
-      } else if (creationMethod === 'invitation') {
-        // Create user with temporary password for invitation flow (more reliable than disabled users)
+      } else if (creationMethod === 'passkey') {
+        // Create user for passkey flow — no email sent; admin generates invite URL
         temporaryPassword = generateSecurePassword();
         userRecord = await admin.auth().createUser({
           email: email,
@@ -420,7 +420,7 @@ export async function createUser(req, res) {
           emailVerified: false,
           disabled: false
         });
-        accountState = 'pending_invitation';
+        accountState = 'pending_passkey';
       } else {
         // Create active user with temporary password for manual flow
         temporaryPassword = generateSecurePassword();
@@ -513,29 +513,17 @@ export async function createUser(req, res) {
         await syncUnitAssignments(userRecord.uid, {}, propertyAccessData, unitContactName, unitContactEmail);
       }
 
-      // Send appropriate notification (only for login-enabled users)
+      // Send password notification email (only for manual/temp-password creation)
       let emailResult = null;
-      if (canLogin) {
-        if (creationMethod === 'invitation') {
-          // Send invitation email
-          emailResult = await sendUserInvitation({
-            email: email,
-            name: name,
-            clientName: clientId || 'System',
-            role: role,
-            invitedBy: creatingUser.email
-          });
-        } else {
-          // Send password notification email
-          emailResult = await sendPasswordNotification({
-            email: email,
-            name: name,
-            password: temporaryPassword,
-            clientName: clientId || 'System',
-            role: role,
-            createdBy: creatingUser.email
-          });
-        }
+      if (canLogin && creationMethod === 'manual') {
+        emailResult = await sendPasswordNotification({
+          email: email,
+          name: name,
+          password: temporaryPassword,
+          clientName: clientId || 'System',
+          role: role,
+          createdBy: creatingUser.email
+        });
       }
 
       // Log user creation
@@ -564,8 +552,8 @@ export async function createUser(req, res) {
         emailSent: emailResult?.success || false
       };
 
-      if (creationMethod === 'invitation') {
-        response.message = 'User invitation sent successfully. They will receive an email to set up their password.';
+      if (creationMethod === 'passkey') {
+        response.message = 'User created. Generate a passkey invite and share the link with the user.';
       } else {
         response.temporaryPassword = temporaryPassword; // Only include for manual method
         response.message = 'User created successfully with temporary password. Email notification sent.';
