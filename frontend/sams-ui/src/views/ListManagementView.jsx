@@ -46,6 +46,7 @@ import { getCategories } from '../api/categories';
 import { getPaymentMethods } from '../api/paymentMethods';
 import { getUnits } from '../api/units';
 import { fetchAllExchangeRates } from '../api/exchangeRates';
+import { getMexicoDateTime, getMexicoDateString } from '../utils/timezone';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
@@ -585,7 +586,7 @@ function ListManagementView() {
               if (!lastSignInTime) return 'Never';
               
               const lastLogin = new Date(lastSignInTime);
-              const now = new Date();
+              const now = getMexicoDateTime();
               const diffHours = (now - lastLogin) / (1000 * 60 * 60);
               const diffDays = diffHours / 24;
               
@@ -813,7 +814,7 @@ function ListManagementView() {
         cat.type || '',
         cat.status === 'inactive' ? 'Inactive' : 'Active'
       ]);
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `categories-${selectedClient.id}-${dateStr}` });
     } catch (error) {
       console.error('Error exporting categories:', error);
@@ -839,7 +840,7 @@ function ListManagementView() {
         v.phone || '',
         v.status === 'inactive' ? 'Inactive' : 'Active'
       ]);
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `vendors-${selectedClient.id}-${dateStr}` });
     } catch (error) {
       console.error('Error exporting vendors:', error);
@@ -864,7 +865,7 @@ function ListManagementView() {
         m.details || '',
         m.status === 'inactive' ? 'Inactive' : 'Active'
       ]);
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `payment-methods-${selectedClient.id}-${dateStr}` });
     } catch (error) {
       console.error('Error exporting payment methods:', error);
@@ -901,7 +902,7 @@ function ListManagementView() {
           u.notes || ''
         ];
       });
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `units-${selectedClient.id}-${dateStr}` });
     } catch (error) {
       console.error('Error exporting units:', error);
@@ -923,7 +924,7 @@ function ListManagementView() {
           ratesObj.MXN_COP?.rate || ''
         ];
       });
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `exchange-rates-${dateStr}` });
     } catch (error) {
       console.error('Error exporting exchange rates:', error);
@@ -999,7 +1000,7 @@ function ListManagementView() {
         ];
       });
 
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = getMexicoDateString();
       exportToCSV({ headers, rows, filename: `users-${dateStr}` });
     } catch (error) {
       console.error('Error exporting users:', error);
