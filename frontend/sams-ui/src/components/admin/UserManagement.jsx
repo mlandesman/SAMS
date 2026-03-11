@@ -15,15 +15,15 @@ import { getUnits } from '../../api/units';
 import { LoadingSpinner } from '../common';
 import { formatUnitDisplay } from '../../utils/unitDisplayUtils';
 import { fetchClients } from '../../utils/fetchClients';
-import { getMexicoDate, getMexicoDateString, getMexicoDateTime, formatDateInMexico } from '../../utils/timezone';
+import { getMexicoDateString, getMexicoDateTime, formatDateInMexico } from '../../utils/timezone';
+import ExportMenu from '../common/ExportMenu';
+import { exportToCSV } from '../../utils/csvExport';
+import './UserManagement.css';
 
 /** Build invite URL from API response (inviteUrl or inviteToken fallback) */
 function getInviteUrlFromResponse(res) {
   return res?.inviteUrl || (res?.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null);
 }
-import ExportMenu from '../common/ExportMenu';
-import { exportToCSV } from '../../utils/csvExport';
-import './UserManagement.css';
 
 const UserManagement = ({ 
   onSelectionChange, 
