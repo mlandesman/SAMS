@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
       deploymentTime: getNow().toISOString(),
       nodeVersion: process.version,
       environment: isProduction ? 'production' : (process.env.NODE_ENV || 'development'),
+      projectId: process.env.GCLOUD_PROJECT || 'unknown', // For prod/dev verification
       // Full version display
       versionDisplay: versionInfo.versionDisplay,
       fullVersionDisplay: versionInfo.fullVersionDisplay,

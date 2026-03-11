@@ -1880,12 +1880,22 @@ async function executeHOADuesCleanup(firestoreTransaction, db, clientId, origina
 async function listTransactions(clientId) {
   try {
     const db = await getDb();
-    const snapshot = await db.collection(`clients/${clientId}/transactions`).get();
-    const transactions = [];
+    const [snapshot, clientDoc] = await Promise.all([
+      db.collection(`clients/${clientId}/transactions`).get(),
+      db.collection('clients').doc(clientId).get()
+    ]);
+    const accounts = clientDoc.exists ? (clientDoc.data().accounts || []) : [];
+    const accountNameById = new Map(accounts.map(a => [a.id, a.name]));
 
+    const transactions = [];
     snapshot.forEach(doc => {
       const data = doc.data();
-      
+      const accountId = data.accountId || null;
+      // Resolve accountName from accounts collection (source of truth) to fix stale denormalized data
+      const accountName = accountId
+        ? (accountNameById.get(accountId) || data.accountName || '')
+        : (data.accountName || '');
+
       // Build transaction with ONLY valid fields
       const transaction = {
         id: doc.id,
@@ -1897,8 +1907,8 @@ async function listTransactions(clientId) {
         vendorName: data.vendorName || '',
         categoryId: data.categoryId || null,
         categoryName: data.categoryName || '',
-        accountId: data.accountId || null,
-        accountName: data.accountName || '',
+        accountId,
+        accountName,
         accountType: data.accountType || '',
         // Other fields
         type: data.type || 'expense',
@@ -1936,6 +1946,12 @@ async function getTransaction(clientId, txnId) {
     }
 
     const data = txnDoc.data();
+    const accountId = data.accountId || null;
+    // Resolve accountName from accounts collection (source of truth) to fix stale denormalized data
+    const accountName = accountId
+      ? (await resolveAccountName(clientId, accountId)) || data.accountName || ''
+      : (data.accountName || '');
+
     return {
       id: txnDoc.id,
       ...data,
@@ -1946,8 +1962,8 @@ async function getTransaction(clientId, txnId) {
       vendorName: data.vendorName || '',
       categoryId: data.categoryId || null,
       categoryName: data.categoryName || '',
-      accountId: data.accountId || null,
-      accountName: data.accountName || '',
+      accountId,
+      accountName,
       accountType: data.accountType || '',
       // Other fields
       type: data.type || 'expense',
@@ -2194,7 +2210,13 @@ async function queryTransactions(clientId, filters = {}) {
     
     // Execute query with ordering
     query = query.orderBy('date', 'desc');
-    const snapshot = await query.get();
+    const [snapshot, clientDoc] = await Promise.all([
+      query.get(),
+      db.collection('clients').doc(clientId).get()
+    ]);
+    const accounts = clientDoc.exists ? (clientDoc.data().accounts || []) : [];
+    const accountNameById = new Map(accounts.map(a => [a.id, a.name]));
+
     const allDocs = [];
     snapshot.forEach(doc => {
       allDocs.push(doc);
@@ -2206,7 +2228,12 @@ async function queryTransactions(clientId, filters = {}) {
     
     allDocs.forEach(doc => {
       const data = doc.data();
-      
+      const accountId = data.accountId || null;
+      // Resolve accountName from accounts collection (source of truth) to fix stale denormalized data
+      const accountName = accountId
+        ? (accountNameById.get(accountId) || data.accountName || '')
+        : (data.accountName || '');
+
       // Build transaction with proper field mapping (same as listTransactions)
       const transaction = {
         id: doc.id,
@@ -2218,8 +2245,8 @@ async function queryTransactions(clientId, filters = {}) {
         vendorName: data.vendorName || '',
         categoryId: data.categoryId || null,
         categoryName: data.categoryName || '',
-        accountId: data.accountId || null,
-        accountName: data.accountName || '',
+        accountId,
+        accountName,
         accountType: data.accountType || '',
         // Other fields
         type: data.type || 'expense',

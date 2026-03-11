@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.13.0 | **Deployed:** February 16, 2026  
-**Last Updated:** February 27, 2026 — Sprint MOBILE-OWNER-V1 ✅ COMPLETE (#132, #147, #193). Future enhancements: Budget card, Projects card, Vote Needed card. Sprint WA next.  
+**Version:** v1.15.0 | **Deployed:** March 10, 2026  
+**Last Updated:** March 10, 2026 — Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233). WebAuthn passkey authentication for all users. Ready for mobile app deployment.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,17 +25,62 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-### Sprint WA (Next)
-**Status:** Deferred — Sprint MOBILE-OWNER-V1 took priority  
-**Bootstrap Prompt:** `SAMS-Docs/apm_session/Agile/Sprints/Sprint_WA_Manager_Turnover_Prompt_2026-02-27.md`
-
-| Sprint | Issue | Theme | Est |
-|--------|-------|-------|-----|
-| **WA** | #178 | WhatsApp notifications (payment confirmations, poll alerts, task notices) | 6-8h |
+No active sprint. Next session: determine priority — Sprint D (PWA/Mobile Enhancements) or Sprint WA (WhatsApp Notifications).
 
 ---
 
 ## Recently Completed
+
+### Sprint PASSKEY-AUTH: Passkey Authentication ✅ COMPLETE
+**Completed:** March 10, 2026  
+**Duration:** March 9–10, 2026 (2 days)  
+**PR:** #233 (merged to main) — includes task PRs #228, #229, #230, #232  
+**Issue:** #189  
+**Quality Rating:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- Backend WebAuthn endpoints with SimpleWebAuthn — registration, authentication, invite generation (PK1)
+- Credential storage at `/users/{uid}/passkeys/{credentialId}` with index at `/system/webauthn/credentials`
+- Firebase Custom Token minting for passkey-based session establishment
+- Passkey-first login UI on desktop and mobile — primary "Sign in with Passkey", secondary "Use password instead" (PK2)
+- Post-password-login passkey registration prompt ("Register" / "Maybe later")
+- Invite-based registration flow via `/invite/:token` route (PK2)
+- Admin passkey management — list, revoke, send invite from Edit User modal (PK3)
+- Passkey-first user creation — "Passkey Invitation" default method in Create User modal (PK3)
+- Passkey invite emails with Sandyland branding sent automatically on invite generation
+- Removed password reset flow from login forms — replaced with "Contact your administrator" (PK3)
+- Removed orphaned PasswordSetupView and dead Email Invitation code path (PK4)
+- Security: removed auth token display from About Modal (PK4)
+- Multi-origin WebAuthn config for desktop + mobile dev servers (PK3)
+- Mobile PWA passkey support with Vite proxy infrastructure for ngrok testing (PK3)
+
+**Architecture:**
+- SimpleWebAuthn (server v11 + browser v11) for FIDO2/WebAuthn
+- Email-first flow with discoverable credential support for returning users
+- Firebase `signInWithCustomToken()` bridges WebAuthn → Firebase Auth session
+- Recovery: admin revokes credentials → re-invites → user registers new passkey
+
+### Sprint PM-Finance-Next: Special Projects Financial Module ✅ COMPLETE
+**Completed:** March 9, 2026  
+**Duration:** March 2–9, 2026 (8 days)  
+**PRs:** #215, #218, #219, #221, #224, #225, #226  
+**Quality Rating:** ⭐⭐⭐⭐⭐
+
+**Deliverables:**
+- Allocation Engine v2 with per-bid allocations and ownership locking (PM5A)
+- Installment Schedule UI with milestone-based payment schedules (PM5B)
+- Unit Assessments Grid with two-level display (PM5C)
+- Locked milestone amounts + billMilestone endpoint (PM5D)
+- Statement of Account integration for project charges/payments (PM6)
+- UPC payment integration — full, partial, and mixed payments (PM7)
+- Vendor Payment CRUD with atomic transaction pattern (PM8)
+- BvA "Special Assessments" with per-project collections and expenditures (PM8B)
+- Project lifecycle tracking: statusHistory, approvedAt, completedAt, lifeExpectancy (PM8C)
+- Feature flag gating: `projectPaymentsInUPC` gates UPC writes, SoA reads, BvA reads (PM8B/PM8C)
+- Sandyland modal cleanup + `buildStatusLifecycleUpdates()` code dedup (PM9)
+
+**Deferred:** PM5E (Adjustment Milestones) — low priority, future sprint  
+**Archive:** `SAMS-Docs/apm_session/Memory/Archive/PM-Finance-Next_Sprint_2026-03-09/`
 
 ### Sprint MOBILE-OWNER-V1: Mobile Owner PWA ✅ COMPLETE
 **Completed:** February 27, 2026  
@@ -329,7 +374,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Known Blockers
 
-*None currently*
+No active blockers.
 
 ---
 

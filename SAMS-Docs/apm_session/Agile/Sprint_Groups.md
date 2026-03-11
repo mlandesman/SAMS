@@ -201,15 +201,16 @@
 | PK1 | Backend: WebAuthn endpoints + credential storage (SimpleWebAuthn) | high | 4h | ✅ DONE |
 | PK2 | Frontend: Passkey login/registration UI (mobile + desktop) | high | 4h | ✅ DONE (PR #229) |
 | PK3 | Admin: Passkey management, invite UI, password reset removal | high | 5h | ✅ DONE (PR #230) |
-| PK4 | Testing & Stabilization: Cleanup, orphan removal, pre-PR checks | medium | 2h | 🔄 IN PROGRESS |
+| PK4 | Testing & Stabilization: Cleanup, orphan removal, pre-PR checks | medium | 2h | ✅ DONE (PR #232) |
 
 **Execution Order**: PK1 → PK2 → PK3 → PK4
 
 **Theme**: Replace email/password authentication with passkey-only (WebAuthn) before enabling external users
 **Issue**: #189
 **Risk**: MEDIUM (modifies authentication — core security layer)
-**Total Estimate**: ~13 hours
-**Status**: 🔄 **ACTIVE**
+**Total Estimate**: ~15 hours (actual)
+**Status**: ✅ **COMPLETE** — Merged to main (PR #233, March 10, 2026)
+**Branch**: `feature/passkey-auth` (merged)
 
 **Architecture**:
 - SimpleWebAuthn (server + browser) for FIDO2/WebAuthn challenge/verification
@@ -701,5 +702,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 10, 2026 - PASSKEY-AUTH sprint active. PK1-PK3 ✅ DONE. PK4 IN PROGRESS (cleanup, orphan removal, pre-PR checks).*  
+*Updated: March 10, 2026 — Sprint PASSKEY-AUTH ✅ COMPLETE. All 4 tasks done (PK1–PK4). Merged to main via PR #233. Passkey invite emails, admin management, password reset removal, dead code cleanup all included.*  
 *Last Review: March 10, 2026*

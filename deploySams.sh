@@ -292,6 +292,14 @@ fi
 
 print_step "Step 3: Deploying to Firebase"
 
+# CRITICAL: Ensure we deploy to production project (default is sandyland-management-system = DEV)
+# Without this, functions would deploy to DEV and prod app would read from Dev Firestore
+print_info "Switching to production project: sams-sandyland-prod"
+if ! firebase use production; then
+    print_error "Failed to switch to production project. Aborting deploy."
+    exit 1
+fi
+
 DEPLOY_TARGET=""
 case $DEPLOY_TYPE in
     frontend) DEPLOY_TARGET="--only hosting:desktop" ;;
