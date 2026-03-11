@@ -49,6 +49,19 @@ import { fetchAllExchangeRates } from '../api/exchangeRates';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
+/** Shared display label for accountState — used by table render and CSV export */
+function getAccountStateDisplay(value) {
+  switch (value) {
+    case 'active': return 'Active';
+    case 'pending_password_change': return 'Pending Password Change';
+    case 'pending_invitation': return 'Pending Invitation';
+    case 'pending_passkey': return 'Pending Passkey';
+    case 'contact_only': return 'Contact Only';
+    case 'disabled': return 'Disabled';
+    default: return value || 'Unknown';
+  }
+}
+
 // TabPanel component to handle tab content
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -562,16 +575,7 @@ function ListManagementView() {
           { 
             key: 'accountState', 
             label: 'Account State',
-            render: (value) => {
-              switch(value) {
-                case 'active': return 'Active';
-                case 'pending_password_change': return 'Pending Password Change';
-                case 'pending_invitation': return 'Pending Invitation';
-                case 'pending_passkey': return 'Pending Passkey';
-                case 'contact_only': return 'Contact Only';
-                default: return value || 'Unknown';
-              }
-            }
+            render: (value) => getAccountStateDisplay(value)
           },
           { 
             key: 'firebaseMetadata.lastSignInTime', 
@@ -955,18 +959,7 @@ function ListManagementView() {
           }
         }
 
-        // Format status (align with accountState table render)
-        const getAccountStateDisplay = (v) => {
-          switch (v) {
-            case 'active': return 'Active';
-            case 'pending_password_change': return 'Pending Password Change';
-            case 'pending_invitation': return 'Pending Invitation';
-            case 'pending_passkey': return 'Pending Passkey';
-            case 'contact_only': return 'Contact Only';
-            case 'disabled': return 'Disabled';
-            default: return v || 'Unknown';
-          }
-        };
+        // Format status (shared helper with table render)
         const status = user.accountState ? getAccountStateDisplay(user.accountState) :
                       user.canLogin === false ? 'Cannot Login' : 'Active';
 
