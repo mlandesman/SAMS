@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,33 +16,15 @@ import {
 import {
   Close as CloseIcon,
   Computer as ComputerIcon,
-  ContentCopy as CopyIcon
 } from '@mui/icons-material';
 import ChangelogDisplay from '../components/ChangelogDisplay';
-import { getAuthInstance } from '../firebaseClient';
 
 // Sandyland Properties logo from Firebase Storage - using same URL as Sidebar
 // TODO: Update to use transparent logo from sams-sandyland-prod bucket once file permissions are configured
 const SANDYLAND_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/sandyland-management-system.firebasestorage.app/o/logos%2Fsandyland-properties-white-background.png?alt=media&token=1cab6b71-9325-408a-bd55-e00057c69bd5";
 
 const AboutModal = ({ open, onClose, versionInfo }) => {
-  const [authToken, setAuthToken] = useState(null);
   const isDev = import.meta.env.DEV || versionInfo?.environment === 'development';
-
-  useEffect(() => {
-    if (!open || !isDev) return;
-    const auth = getAuthInstance();
-    const user = auth?.currentUser;
-    if (user) {
-      user.getIdToken().then(setAuthToken).catch(() => setAuthToken(null));
-    } else {
-      setAuthToken(null);
-    }
-  }, [open, isDev]);
-
-  const handleCopyToken = () => {
-    if (authToken) navigator.clipboard.writeText(authToken);
-  };
 
   const environmentColors = {
     development: '#ff9800',
@@ -196,44 +178,6 @@ const AboutModal = ({ open, onClose, versionInfo }) => {
               </Card>
             </Grid>
           </Grid>
-
-          {/* Dev: Auth Token (testing only) */}
-          {isDev && (
-            <>
-              <Divider sx={{ my: 3 }} />
-              <Card sx={{ border: '1px dashed #ff9800', bgcolor: '#fff8e1' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ color: '#e65100' }}>
-                    Dev: Auth Token (for passkey/API testing)
-                  </Typography>
-                  {authToken ? (
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                      <Typography
-                        component="code"
-                        sx={{
-                          fontSize: '0.7rem',
-                          wordBreak: 'break-all',
-                          flex: 1,
-                          fontFamily: 'monospace',
-                          maxHeight: 80,
-                          overflow: 'auto'
-                        }}
-                      >
-                        {authToken}
-                      </Typography>
-                      <IconButton size="small" onClick={handleCopyToken} title="Copy token">
-                        <CopyIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Not logged in. Sign in to see your token.
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
 
           {/* Changelog Section */}
           <Divider sx={{ my: 3 }} />
