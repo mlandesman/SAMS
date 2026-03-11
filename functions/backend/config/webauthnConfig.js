@@ -7,9 +7,12 @@
 const DEFAULT_ORIGIN = 'https://sams.sandyland.com.mx,https://mobile.sams.sandyland.com.mx';
 
 function parseOrigins(value) {
-  if (!value) return DEFAULT_ORIGIN;
-  const origins = value.split(',').map((o) => o.trim()).filter(Boolean);
-  if (origins.length === 0) return DEFAULT_ORIGIN;
+  const raw = value || DEFAULT_ORIGIN;
+  const origins = raw.split(',').map((o) => o.trim()).filter(Boolean);
+  if (origins.length === 0) {
+    const fallback = DEFAULT_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+    return fallback.length === 1 ? fallback[0] : fallback;
+  }
   return origins.length === 1 ? origins[0] : origins;
 }
 

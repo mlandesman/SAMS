@@ -205,7 +205,7 @@ export async function sendPasskeyInvite({ email, name, inviteUrl, invitedBy }) {
           <div class="content">
             <h2>Hi ${name},</h2>
             
-            <p>You've been invited to join the Sandyland Asset Management System (SAMS) by <strong>${invitedBy}</strong>.</p>
+            <p>You've been invited to join the Sandyland Asset Management System (SAMS).</p>
             
             <p>To set up your account, click the button below. You'll be asked to register a passkey using your device's biometrics (Face ID, Touch ID, or fingerprint).</p>
             
@@ -248,7 +248,7 @@ Welcome to Sandyland Asset Management System!
 
 Hi ${name},
 
-You've been invited to join SAMS by ${invitedBy}.
+You've been invited to join the Sandyland Asset Management System (SAMS).
 
 To set up your account, visit the link below to register your passkey:
 ${inviteUrl}
