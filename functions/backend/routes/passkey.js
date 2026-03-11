@@ -10,6 +10,8 @@ import {
   registrationVerify,
   authenticationOptions,
   authenticationVerify,
+  listUserPasskeys,
+  revokeUserPasskey,
 } from '../controllers/passkeyController.js';
 import { generateInvite } from '../controllers/inviteController.js';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
@@ -24,5 +26,7 @@ router.post('/passkey/login/verify', authenticationVerify);
 
 // Admin-only
 router.post('/invite', authenticateUserWithProfile, generateInvite);
+router.get('/passkey/credentials/:userId', authenticateUserWithProfile, listUserPasskeys);
+router.delete('/passkey/credentials/:userId/:credentialId', authenticateUserWithProfile, revokeUserPasskey);
 
 export default router;

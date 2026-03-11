@@ -421,6 +421,17 @@ export async function createUser(req, res) {
           disabled: false
         });
         accountState = 'pending_invitation';
+      } else if (creationMethod === 'passkey') {
+        // Create user for passkey flow — no email sent; admin generates invite URL
+        temporaryPassword = generateSecurePassword();
+        userRecord = await admin.auth().createUser({
+          email: email,
+          password: temporaryPassword,
+          displayName: name,
+          emailVerified: false,
+          disabled: false
+        });
+        accountState = 'pending_passkey';
       } else {
         // Create active user with temporary password for manual flow
         temporaryPassword = generateSecurePassword();
@@ -515,7 +526,7 @@ export async function createUser(req, res) {
 
       // Send appropriate notification (only for login-enabled users)
       let emailResult = null;
-      if (canLogin) {
+      if (canLogin && creationMethod !== 'passkey') {
         if (creationMethod === 'invitation') {
           // Send invitation email
           emailResult = await sendUserInvitation({
@@ -566,6 +577,8 @@ export async function createUser(req, res) {
 
       if (creationMethod === 'invitation') {
         response.message = 'User invitation sent successfully. They will receive an email to set up their password.';
+      } else if (creationMethod === 'passkey') {
+        response.message = 'User created. Generate a passkey invite and share the link with the user.';
       } else {
         response.temporaryPassword = temporaryPassword; // Only include for manual method
         response.message = 'User created successfully with temporary password. Email notification sent.';

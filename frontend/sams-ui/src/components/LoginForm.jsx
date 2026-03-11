@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { config } from '../config';
 import { useVersionInfo } from '../utils/versionUtils';
 import { passkeyService } from '../services/passkeyService';
 import { getAuthInstance } from '../firebaseClient';
@@ -17,8 +16,6 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const [password, setPassword] = useState('');
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetMessage, setResetMessage] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
   const { login, loginWithPasskey, error, setError } = useAuth();
   const versionInfo = useVersionInfo();
@@ -33,7 +30,6 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const handlePasskeyLogin = async (e) => {
     e.preventDefault();
     setError('');
-    setResetMessage('');
     setIsLoading(true);
     try {
       await loginWithPasskey(email.trim() || undefined);
@@ -62,7 +58,6 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setResetMessage('');
     setIsLoading(true);
 
     try {
@@ -89,47 +84,6 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address first, then click "Forgot Password"');
-      return;
-    }
-
-    setIsResetting(true);
-    setError('');
-    setResetMessage('');
-
-    try {
-      const API_BASE_URL = config.api.baseUrl;
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email.trim(),
-          requestType: 'forgot-password',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to reset password');
-      }
-
-      const result = await response.json();
-      setResetMessage(`A temporary password has been sent to ${email}. Please check your inbox and use the temporary password to log in. You will be required to create a new password on your first login.`);
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('Password reset error:', err);
-      let errorMessage = err.message;
-      if (err.message.includes('User not found')) errorMessage = 'No account found with this email address.';
-      else if (err.message.includes('Invalid email')) errorMessage = 'Invalid email address.';
-      else if (err.message.includes('Too many requests')) errorMessage = 'Too many password reset requests. Please try again later.';
-      else if (!errorMessage.includes('Failed to')) errorMessage = 'Failed to send temporary password. ' + errorMessage;
-      setError(errorMessage);
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
   return (
     <>
       <div className="login-form-container">
@@ -144,7 +98,6 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
           <h2>Login to SAMS</h2>
           <form onSubmit={supportsPasskeys && !showPasswordField ? handlePasskeyLogin : handleSubmit}>
             {error && <div className="error-message">{error}</div>}
-            {resetMessage && <div className="success-message">{resetMessage}</div>}
 
             <div className="form-group">
               <label htmlFor="email">Email:</label>
@@ -207,18 +160,8 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
 
           {hasLoginFailed && (
             <div className="forgot-password-section">
-              <p className="forgot-password-text">Forgot your password?</p>
-              <button
-                type="button"
-                className="forgot-password-button"
-                onClick={handleForgotPassword}
-                disabled={isResetting}
-              >
-                {isResetting ? 'Sending reset email...' : 'Send Reset Email'}
-              </button>
-              <p className="forgot-password-help">
-                Enter your email address above and click &quot;Send Reset Email&quot; to receive a temporary password.
-              </p>
+              <p className="forgot-password-text">Can&apos;t sign in?</p>
+              <p className="forgot-password-help">Contact your administrator to reset your access.</p>
             </div>
           )}
 

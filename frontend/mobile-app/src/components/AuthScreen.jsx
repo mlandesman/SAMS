@@ -20,7 +20,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { passkeyService } from '../services/passkeyService';
-import { config } from '../config/index.js';
 
 const AuthScreen = () => {
   const navigate = useNavigate();
@@ -34,8 +33,6 @@ const AuthScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordField, setShowPasswordField] = useState(!supportsPasskeys);
   const [formError, setFormError] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetMessage, setResetMessage] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
 
   // Redirect if already authenticated - STABLE VERSION
@@ -132,62 +129,6 @@ const AuthScreen = () => {
 
   const togglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
-  };
-
-  const handleForgotPassword = async () => {
-    if (!formData.email) {
-      setFormError('Please enter your email address first, then click "Forgot Password"');
-      return;
-    }
-
-    setIsResetting(true);
-    setFormError('');
-    setResetMessage('');
-    clearError();
-
-    try {
-      const API_BASE_URL = config.api.baseUrl;
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: formData.email.trim(),
-          requestType: 'forgot-password' 
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to reset password');
-      }
-
-      const result = await response.json();
-      
-      setResetMessage(`A temporary password has been sent to ${formData.email}. Please check your inbox and use the temporary password to log in. You will be required to create a new password on your first login.`);
-      console.log('Temporary password sent to:', formData.email);
-      
-    } catch (error) {
-      console.error('Password reset error:', error);
-      
-      // Handle specific error messages from backend
-      let errorMessage = error.message;
-      
-      if (error.message.includes('User not found')) {
-        errorMessage = 'No account found with this email address.';
-      } else if (error.message.includes('Invalid email')) {
-        errorMessage = 'Invalid email address.';
-      } else if (error.message.includes('Too many requests')) {
-        errorMessage = 'Too many password reset requests. Please try again later.';
-      } else if (!errorMessage.includes('Failed to')) {
-        errorMessage = 'Failed to send temporary password. ' + errorMessage;
-      }
-      
-      setFormError(errorMessage);
-    } finally {
-      setIsResetting(false);
-    }
   };
 
   if (user) {
@@ -293,16 +234,6 @@ const AuthScreen = () => {
               </Alert>
             )}
             
-            {resetMessage && (
-              <Alert 
-                severity="success" 
-                sx={{ mb: 2 }}
-                onClose={() => setResetMessage('')}
-              >
-                {resetMessage}
-              </Alert>
-            )}
-
             <TextField
               fullWidth
               type="email"
@@ -391,27 +322,14 @@ const AuthScreen = () => {
               </Button>
             )}
             
-            {/* Forgot Password Section - Only show after login failure */}
+            {/* Can't sign in - Only show after login failure */}
             {hasLoginFailed && (
               <Box sx={{ textAlign: 'center', pt: 1, borderTop: '1px solid #eee' }}>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                  Forgot your password?
+                  Can&apos;t sign in?
                 </Typography>
-                <Button
-                  variant="text"
-                  size="small"
-                  onClick={handleForgotPassword}
-                  disabled={isResetting || !formData.email}
-                  sx={{
-                    fontSize: '14px',
-                    color: 'primary.main',
-                    textTransform: 'none',
-                  }}
-                >
-                  {isResetting ? 'Sending...' : 'Send Reset Email'}
-                </Button>
-                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.5 }}>
-                  Enter your email above and click "Send Reset Email" to receive a temporary password
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                  Contact your administrator to reset your access.
                 </Typography>
               </Box>
             )}

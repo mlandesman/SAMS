@@ -37,8 +37,9 @@ kill_port() {
 
 # Environment variables for Passkey (WebAuthn) authentication testing
 # Required for local dev: rpID must match origin host (localhost)
+# Multi-origin supports desktop (5173) and mobile (5174) dev servers
 export WEBAUTHN_RP_ID=localhost
-export WEBAUTHN_ORIGIN=http://localhost:5173
+export WEBAUTHN_ORIGIN=http://localhost:5173,http://localhost:5174
 
 
 # Function to start backend server

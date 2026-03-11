@@ -428,3 +428,85 @@ export async function authenticationVerify(req, res) {
     res.status(500).json({ error: 'Failed to verify authentication' });
   }
 }
+
+/**
+ * GET /auth/passkey/credentials/:userId (admin-only)
+ * List a user's registered passkeys. Does not return publicKey.
+ */
+export async function listUserPasskeys(req, res) {
+  try {
+    const role = req.user?.samsProfile?.globalRole;
+    if (role !== 'admin' && role !== 'superAdmin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params || {};
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const db = await getDb();
+    const passkeysSnap = await db.collection('users').doc(userId).collection('passkeys').get();
+
+    const toISO = (val) => {
+      if (!val) return null;
+      if (typeof val === 'string') return val;
+      if (val && typeof val.toDate === 'function') return val.toDate().toISOString();
+      return null;
+    };
+
+    const passkeys = passkeysSnap.docs.map((d) => {
+      const data = d.data();
+      return {
+        credentialId: d.id,
+        deviceName: data.deviceName || 'Unknown Device',
+        createdAt: toISO(data.createdAt),
+        lastUsedAt: toISO(data.lastUsedAt),
+        deviceType: data.deviceType || 'singleDevice',
+        backedUp: data.backedUp ?? false,
+      };
+    });
+
+    res.json({ passkeys });
+  } catch (error) {
+    logError('List user passkeys error:', error);
+    res.status(500).json({ error: 'Failed to list passkeys' });
+  }
+}
+
+/**
+ * DELETE /auth/passkey/credentials/:userId/:credentialId (admin-only)
+ * Revoke a passkey. Deletes both user passkey doc and credential index atomically.
+ */
+export async function revokeUserPasskey(req, res) {
+  try {
+    const role = req.user?.samsProfile?.globalRole;
+    if (role !== 'admin' && role !== 'superAdmin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId, credentialId } = req.params || {};
+    if (!userId || !credentialId) {
+      return res.status(400).json({ error: 'userId and credentialId are required' });
+    }
+
+    const db = await getDb();
+    const passkeyRef = db.collection('users').doc(userId).collection('passkeys').doc(credentialId);
+    const indexRef = db.collection('system').doc('webauthn').collection('credentials').doc(credentialId);
+
+    const passkeyDoc = await passkeyRef.get();
+    if (!passkeyDoc.exists) {
+      return res.status(404).json({ error: 'Passkey not found' });
+    }
+
+    const batch = db.batch();
+    batch.delete(passkeyRef);
+    batch.delete(indexRef);
+    await batch.commit();
+
+    res.json({ success: true, message: 'Passkey revoked' });
+  } catch (error) {
+    logError('Revoke passkey error:', error);
+    res.status(500).json({ error: 'Failed to revoke passkey' });
+  }
+}

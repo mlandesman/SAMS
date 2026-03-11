@@ -17,7 +17,13 @@ const getUnifiedApiUrl = () => {
     return '';  // Empty = same origin (Firebase handles routing)
   }
   
-  // 3. Development fallback
+  // 3. Development: when served from ngrok (non-localhost), use same-origin so
+  //    requests go through Vite proxy (Phone → ngrok → Vite → backend)
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return '';
+  }
+  
+  // 4. Development fallback (desktop at localhost)
   return 'http://localhost:5001';  // Clean base (no /api suffix)
 };
 
