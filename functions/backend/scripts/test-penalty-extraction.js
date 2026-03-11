@@ -9,7 +9,7 @@
 
 import admin from 'firebase-admin';
 import { readFile } from 'fs/promises';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
 
 // Extract the helper functions from ImportService logic

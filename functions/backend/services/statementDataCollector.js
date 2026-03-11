@@ -9,7 +9,7 @@
 
 import { getNow } from '../../shared/services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
-import { centavosToPesos } from '../utils/currencyUtils.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { getDb } from '../firebase.js';
 import { getAllDuesDataForYear } from '../controllers/hoaDuesController.js';
 import { getTransaction, queryTransactions } from '../controllers/transactionsController.js';

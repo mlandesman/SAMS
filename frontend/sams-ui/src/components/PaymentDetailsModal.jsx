@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { centavosToPesos } from '../utils/currencyUtils';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 import './PaymentDetailsModal.css';
 
 /**

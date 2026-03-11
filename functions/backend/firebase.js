@@ -123,4 +123,27 @@ async function getApp() {
   return firebaseApp;
 }
 
-export { admin, getDb, initializeFirebase, checkFirestoreConnection, getApp };
+/**
+ * Convert date value to Firestore Timestamp using backend's admin instance.
+ * Use this instead of databaseFieldMappings.convertToTimestamp to avoid
+ * "Timestamp doesn't match expected instance" errors from shared module resolution.
+ */
+function toFirestoreTimestamp(dateValue) {
+  if (!dateValue) return null;
+  let date;
+  if (dateValue instanceof Date) {
+    date = dateValue;
+  } else if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
+    date = dateValue.toDate();
+  } else if (dateValue._seconds !== undefined) {
+    date = new Date(dateValue._seconds * 1000);
+  } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+    date = new Date(dateValue);
+  } else {
+    return null;
+  }
+  if (isNaN(date.getTime())) return null;
+  return admin.firestore.Timestamp.fromDate(date);
+}
+
+export { admin, getDb, initializeFirebase, checkFirestoreConnection, getApp, toFirestoreTimestamp };

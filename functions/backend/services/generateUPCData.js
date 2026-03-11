@@ -27,7 +27,7 @@ import { getDb } from '../firebase.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 import { getCreditBalance } from '../../shared/services/CreditBalanceService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
-import { centavosToPesos, pesosToCentavos } from '../utils/currencyUtils.js';
+import { centavosToPesos, pesosToCentavos } from '../../shared/utils/currencyUtils.js';
 import { queryTransactions } from '../controllers/transactionsController.js';
 import { getHOABillingConfig } from '../controllers/hoaDuesController.js';
 import { hasActivity } from '../utils/clientFeatures.js';

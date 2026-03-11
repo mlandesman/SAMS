@@ -6,7 +6,7 @@ import { waterDataService } from '../services/waterDataService.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import penaltyRecalculationService from '../services/penaltyRecalculationService.js';
 import { getNow } from '../services/DateService.js';
-import { centavosToPesos } from '../utils/currencyUtils.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Convert bills from centavos (backend storage) to pesos (frontend display)

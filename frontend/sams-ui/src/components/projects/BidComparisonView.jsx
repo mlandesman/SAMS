@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { getMexicoDateTime } from '../../utils/timezone';
-import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '@shared/utils/currencyUtils';
 import '../../styles/SandylandModalTheme.css';
 
 function formatCurrency(centavos) {

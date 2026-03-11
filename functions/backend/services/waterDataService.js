@@ -6,7 +6,7 @@ import waterBillsService from './waterBillsService.js';
 import penaltyRecalculationService from './penaltyRecalculationService.js';
 // import { calculateCurrentPenalties } from '../utils/penaltyCalculator.js'; // DEPRECATED - now using stored penalty data
 import { getNow, DateService } from '../services/DateService.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';

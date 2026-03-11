@@ -1,12 +1,10 @@
 // src/CRUD/units.js
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
-const { convertToTimestamp } = databaseFieldMappings;
 
 /**
  * Create a Unit under a Client
@@ -49,7 +47,7 @@ async function createUnit(clientId, unitData, docId = null) {
       unitName: restData.unitName || '',
       
       // Timestamps - only updated, creation metadata in audit log
-      updated: convertToTimestamp(getNow())
+      updated: toFirestoreTimestamp(getNow())
     };
     
     let unitRef;
@@ -91,12 +89,12 @@ async function updateUnit(clientId, unitId, newData) {
     
     // Handle timestamp updates
     if (updates.created) {
-      updates.created = convertToTimestamp(updates.created);
+      updates.created = toFirestoreTimestamp(updates.created);
     }
     
     await unitRef.update({
       ...updates,
-      updated: convertToTimestamp(getNow()),
+      updated: toFirestoreTimestamp(getNow()),
     });
 
     const auditSuccess = await writeAuditLog({
@@ -193,7 +191,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
     
     await unitRef.update({
       managers: managers || [],
-      updated: convertToTimestamp(getNow())
+      updated: toFirestoreTimestamp(getNow())
     });
     
     await writeAuditLog({

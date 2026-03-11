@@ -3,7 +3,7 @@
  * Centralized calculations for HOA dues payment processing
  */
 
-import databaseFieldMappings from './databaseFieldMappings.js';
+import databaseFieldMappings from '../../shared/utils/databaseFieldMappings.js';
 import { getFiscalYear, getCurrentFiscalMonth } from './fiscalYearUtils.js';
 import { getNow } from '../services/DateService.js';
 

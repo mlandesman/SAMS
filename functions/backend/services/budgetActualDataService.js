@@ -9,10 +9,7 @@ import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
-
-const { convertToTimestamp } = databaseFieldMappings;
 
 /**
  * Get Budget vs Actual data for a client and fiscal year
@@ -58,8 +55,6 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
 
     // Get fiscal year bounds
     const { startDate, endDate } = getFiscalYearBounds(effectiveFiscalYear, fiscalYearStartMonth);
-    const startTimestamp = convertToTimestamp(startDate);
-    const endTimestamp = convertToTimestamp(endDate);
     const fiscalYearStart = startDate.getTime();
     const fiscalYearEnd = endDate.getTime();
     const fiscalYearDuration = fiscalYearEnd - fiscalYearStart;
@@ -97,15 +92,14 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     // So we query a broader date range and filter in memory
     const extendedStartDate = new Date(startDate);
     extendedStartDate.setFullYear(extendedStartDate.getFullYear() - 1); // Look back 1 year for prepayments
-    const extendedStartTimestamp = convertToTimestamp(extendedStartDate);
-    
     const extendedEndDate = new Date(endDate);
     extendedEndDate.setFullYear(extendedEndDate.getFullYear() + 1); // Look ahead 1 year for late payments
-    const extendedEndTimestamp = convertToTimestamp(extendedEndDate);
-    
+
+    // Use Date directly in query to avoid Firestore Timestamp instance mismatch
+    // (convertToTimestamp from shared utils can produce Timestamp from different module resolution)
     const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`)
-      .where('date', '>=', extendedStartTimestamp)
-      .where('date', '<=', extendedEndTimestamp)
+      .where('date', '>=', extendedStartDate)
+      .where('date', '<=', extendedEndDate)
       .get();
 
     // PM8B: Fetch project collections (from bill subcollection paidAmount) and expenditures (from vendorPayments)

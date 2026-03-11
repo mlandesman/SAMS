@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { getCurrentUser, getAuthInstance } from '../../firebaseClient';
 import { config } from '../../config';
-import { centavosToPesos } from '../../utils/currencyUtils';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 
 const API_BASE_URL = config.api.baseUrl;
 

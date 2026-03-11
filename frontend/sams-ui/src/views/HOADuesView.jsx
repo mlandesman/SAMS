@@ -25,7 +25,7 @@ import {
 } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
-import { centavosToPesos } from '../utils/currencyUtils';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 import debug from '../utils/debug';
 import ContextMenu from '../components/ContextMenu';
 import PaymentDetailsModal from '../components/PaymentDetailsModal';

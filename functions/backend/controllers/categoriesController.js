@@ -4,13 +4,10 @@
  * Refactored to include propertyAccess validation
  */
 
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { generateCategoryId, ensureUniqueDocumentId } from '../utils/documentIdGenerator.js';
 import { getNow } from '../services/DateService.js';
-
-const { convertToTimestamp } = databaseFieldMappings;
 
 /**
  * CRUD operations for categories under a client
@@ -40,7 +37,7 @@ async function createCategory(clientId, data, user) {
       type: data.type || 'expense', // expense or income
       status: 'active',
       // Only keep updated timestamp - creation metadata goes in audit log
-      updated: convertToTimestamp(getNow()),
+      updated: toFirestoreTimestamp(getNow()),
     };
     
     // Remove any budget-related fields that might be passed in
@@ -111,7 +108,7 @@ async function updateCategory(clientId, catId, newData, user) {
     
     await catRef.update({
       ...updates,
-      updated: convertToTimestamp(getNow()),
+      updated: toFirestoreTimestamp(getNow()),
       updatedBy: user.uid,
     });
 

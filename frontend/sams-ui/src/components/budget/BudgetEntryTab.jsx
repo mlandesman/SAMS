@@ -6,7 +6,7 @@ import { getFiscalYear } from '../../utils/fiscalYearUtils';
 import { getMexicoDate } from '../../utils/timezone';
 import { CircularProgress, Alert, TextField, Button, Select, MenuItem, FormControl, InputLabel, IconButton, Tooltip } from '@mui/material';
 import { Refresh, SystemUpdateAlt } from '@mui/icons-material';
-import { centavosToPesos, pesosToCentavos } from '../../utils/currencyUtils';
+import { centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils';
 import './BudgetEntryTab.css';
 
 

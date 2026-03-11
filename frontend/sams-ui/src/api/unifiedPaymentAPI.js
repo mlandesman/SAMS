@@ -5,7 +5,7 @@
 
 import { config } from '../config';
 import { getAuthInstance } from '../firebaseClient';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils';
+import { pesosToCentavos, centavosToPesos } from '@shared/utils/currencyUtils';
 
 /**
  * Convert preview response from centavos to pesos

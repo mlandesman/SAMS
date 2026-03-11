@@ -2,7 +2,7 @@
  * Date filtering utilities for transactions
  */
 
-import { databaseFieldMappings } from '../databaseFieldMappings';
+import { databaseFieldMappings } from './databaseFieldMappings';
 
 /**
  * Get date range based on predefined range type

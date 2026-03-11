@@ -4,14 +4,11 @@
  * Budgets are stored at: /clients/{clientId}/categories/{categoryId}/budget/{year}
  */
 
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-
-const { convertToTimestamp } = databaseFieldMappings;
 
 /**
  * List all budgets for a fiscal year with category info
@@ -125,7 +122,7 @@ export async function upsertBudget(clientId, categoryId, year, amount, notes, us
     const budgetDoc = await budgetRef.get();
     
     const now = getNow();
-    const timestamp = convertToTimestamp(now);
+    const timestamp = toFirestoreTimestamp(now);
     
     if (budgetDoc.exists) {
       // Update existing budget
@@ -290,9 +287,7 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
     
     // Get fiscal year bounds for prior year
     const { startDate, endDate } = getFiscalYearBounds(priorYear, fiscalYearStartMonth);
-    const startTimestamp = convertToTimestamp(startDate);
-    const endTimestamp = convertToTimestamp(endDate);
-    
+
     // Fetch prior year budget
     const budgetRef = db.doc(`clients/${clientId}/categories/${categoryId}/budget/${priorYear}`);
     const budgetDoc = await budgetRef.get();
@@ -307,10 +302,10 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
     }
     
     // Fetch transactions for prior year and calculate actual spending
-    // Query all transactions within fiscal year bounds, then filter by category in memory
+    // Use Date directly in query to avoid Firestore Timestamp instance mismatch from shared convertToTimestamp
     const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`)
-      .where('date', '>=', startTimestamp)
-      .where('date', '<=', endTimestamp)
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate)
       .get();
     
     // Aggregate actual spending for this category

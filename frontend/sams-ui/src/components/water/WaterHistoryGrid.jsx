@@ -4,7 +4,7 @@ import { useWaterBills } from '../../context/WaterBillsContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faTint } from '@fortawesome/free-solid-svg-icons';
 import { databaseFieldMappings } from '../../utils/databaseFieldMappings';
-import { centavosToPesos } from '../../utils/currencyUtils';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,

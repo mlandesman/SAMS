@@ -1,5 +1,5 @@
 // src/controllers/hoaDuesController.js
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { createTransaction } from './transactionsController.js';
 import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
@@ -29,7 +29,7 @@ import creditService from '../services/creditService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 // Legacy functions for compatibility during transition
-const { dollarsToCents, centsToDollars, convertToTimestamp, convertFromTimestamp } = databaseFieldMappings;
+const { dollarsToCents, centsToDollars, convertFromTimestamp } = databaseFieldMappings;
 
 // Initialize DateService for Mexico timezone (using shared DateService)
 import { DateService } from '../../shared/services/DateService.js';
@@ -1042,7 +1042,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
       
       // Use timestamp conversion utility - but store as ISO string for Firestore compatibility
       // CRITICAL FIX: Firestore update() cannot serialize Timestamp objects from different SDK versions
-      const paymentTimestamp = convertToTimestamp(paymentDate);
+      const paymentTimestamp = toFirestoreTimestamp(paymentDate);
       // Convert to ISO string immediately to avoid serialization issues
       const paymentDateISO = paymentTimestamp?.toDate?.() ? paymentTimestamp.toDate().toISOString() : (paymentDate instanceof Date ? paymentDate.toISOString() : paymentDate);
       
@@ -1199,7 +1199,7 @@ async function recordDuesPayment(clientId, unitId, year, paymentData, distributi
         creditBalanceHistory: admin.firestore.FieldValue.delete(),
 
         // Update timestamp
-        updated: convertToTimestamp(getNow())
+        updated: toFirestoreTimestamp(getNow())
       };
       
       // IMPORTANT: We do NOT include these fields in updates:
@@ -2083,7 +2083,7 @@ async function updateCreditBalanceFromModule(req, res) {
       await duesRef.update({
         creditBalance: admin.firestore.FieldValue.delete(),
         creditBalanceHistory: admin.firestore.FieldValue.delete(),
-        updated: convertToTimestamp(getNow())
+        updated: toFirestoreTimestamp(getNow())
       });
     } catch (legacyCleanupError) {
       if (legacyCleanupError.code !== 'not-found') {

@@ -3,7 +3,7 @@
  * Used by mobile PWA components and hooks.
  * Currency conversions delegate to currencyUtils.js (Sprint CX pattern).
  */
-import { centavosToPesos, pesosToCentavos } from './currencyUtils.js';
+import { centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils.js';
 
 const CANCUN_TIMEZONE = 'America/Cancun';
 

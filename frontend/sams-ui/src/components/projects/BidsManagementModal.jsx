@@ -31,7 +31,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
 import { getMexicoDateTime } from '../../utils/timezone';
-import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '@shared/utils/currencyUtils';
 import { getBids, createBid, updateBid, deleteBid, selectBid, unselectBid } from '../../api/projects';
 import BidFormModal from './BidFormModal';
 import BidComparisonView from './BidComparisonView';

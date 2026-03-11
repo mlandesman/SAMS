@@ -22,7 +22,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { getOwnerInfo } from '../../utils/unitUtils';
-import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '@shared/utils/currencyUtils';
 
 function formatCurrency(centavos) {
   if (centavos === null || centavos === undefined) return '-';

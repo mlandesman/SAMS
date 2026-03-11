@@ -4,7 +4,7 @@ import express from 'express';
 import { authenticateUserWithProfile, enforceClientAccess } from '../middleware/clientAuth.js';
 import waterBillsService from '../services/waterBillsService.js';
 import waterReadingsService from '../services/waterReadingsService.js';
-import { centavosToPesos } from '../utils/currencyUtils.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 import { 

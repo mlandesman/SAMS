@@ -48,7 +48,7 @@ import ConfirmationDialog from '../components/ConfirmationDialog';
 import '../layout/ActionBar.css';
 import '../styles/SandylandModalTheme.css';
 import './ProjectsView.css';
-import { formatCurrency as formatCurrencyShared } from '../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '@shared/utils/currencyUtils';
 import { getMexicoDate, getMexicoDateTime } from '../utils/timezone';
 
 function formatCurrency(centavos) {

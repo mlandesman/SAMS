@@ -327,7 +327,7 @@ export const addCreditHistoryEntry = async (clientId, unitId, amount, date, note
     }
     
     // Convert amount from pesos to centavos
-    const { pesosToCentavos } = await import('../utils/currencyUtils');
+    const { pesosToCentavos } = await import('@shared/utils/currencyUtils');
     const amountCentavos = pesosToCentavos(amount);
     
     const response = await fetch(`${API_BASE_URL}/credit/${clientId}/${unitId}/history`, {
@@ -386,7 +386,7 @@ export const updateCreditHistoryEntry = async (clientId, unitId, entryId, update
     // Convert amount from pesos to centavos if provided
     const requestBody = { ...updates };
     if (updates.amount !== undefined) {
-      const { pesosToCentavos } = await import('../utils/currencyUtils');
+      const { pesosToCentavos } = await import('@shared/utils/currencyUtils');
       requestBody.amount = pesosToCentavos(updates.amount);
     }
     

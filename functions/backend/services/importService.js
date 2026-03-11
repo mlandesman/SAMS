@@ -9,7 +9,7 @@ import admin from 'firebase-admin';
 import { DateTime } from 'luxon';
 import { DateService, getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
-import { pesosToCentavos, centavosToPesos } from '../utils/currencyUtils.js';
+import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { validateCentavos, validateCentavosInObject } from '../utils/centavosValidation.js';
 import { readFileFromFirebaseStorage, deleteImportFiles, findFileCaseInsensitive, writeFileToFirebaseStorage } from '../api/importStorage.js';
 import { 

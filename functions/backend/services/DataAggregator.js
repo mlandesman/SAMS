@@ -8,7 +8,7 @@ import { getNow } from './DateService.js';
 import { createDate as createCancunDate, parseDate as parseCancunDate } from '../../shared/services/DateService.js';
 import { DateTime } from 'luxon';
 import waterBillsService from './waterBillsService.js';
-import { centavosToPesos } from '../utils/currencyUtils.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { 
   getFiscalYear, 
   getFiscalYearBounds,

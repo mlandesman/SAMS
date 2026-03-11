@@ -16,13 +16,13 @@
  * CRUD operations for transactions collection
  */
 
-import { getDb, getApp } from '../firebase.js';
+import { getDb, getApp, toFirestoreTimestamp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
 import { updateAccountBalance, rebuildBalances } from './accountsController.js';
 import { applyAccountMapping, validateAccountFields } from '../utils/accountMapping.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
+import databaseFieldMappings from '../../shared/utils/databaseFieldMappings.js';
 import { validateDocument } from '../utils/validateDocument.js';
 import { getMexicoDate, getMexicoDateString } from '../utils/timezone.js';
 import { getUserPreferences } from '../utils/userPreferences.js';
@@ -36,7 +36,7 @@ import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
 
-const { dollarsToCents, centsToDollars, generateTransactionId, convertToTimestamp } = databaseFieldMappings;
+const { dollarsToCents, centsToDollars, generateTransactionId } = databaseFieldMappings;
 
 // Initialize DateService for Mexico timezone
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -680,7 +680,7 @@ async function updateTransaction(clientId, txnId, newData) {
     
     // Convert dates to timestamps
     if (validation.data.date) {
-      normalizedData.date = convertToTimestamp(validation.data.date);
+      normalizedData.date = toFirestoreTimestamp(validation.data.date);
     }
     
     // Resolve field relationships (ID→name priority for updates)
@@ -756,7 +756,7 @@ async function updateTransaction(clientId, txnId, newData) {
     }
     
     // Always update the updated timestamp
-    normalizedData.updated = convertToTimestamp(getNow());
+    normalizedData.updated = toFirestoreTimestamp(getNow());
     
     // Use a transaction to ensure consistency
     await db.runTransaction(async (transaction) => {
@@ -2171,14 +2171,14 @@ async function queryTransactions(clientId, filters = {}) {
     let query = db.collection(`clients/${clientId}/transactions`);
     
     // Apply date range filter if provided
+    // Use Date directly to avoid Firestore Timestamp instance mismatch from shared convertToTimestamp
     if (filters.startDate) {
-      const startTimestamp = convertToTimestamp(filters.startDate);
-      query = query.where('date', '>=', startTimestamp);
+      const startDate = filters.startDate instanceof Date ? filters.startDate : new Date(filters.startDate);
+      query = query.where('date', '>=', startDate);
     }
-    
     if (filters.endDate) {
-      const endTimestamp = convertToTimestamp(filters.endDate);
-      query = query.where('date', '<=', endTimestamp);
+      const endDate = filters.endDate instanceof Date ? filters.endDate : new Date(filters.endDate);
+      query = query.where('date', '<=', endDate);
     }
     
     // Apply category filter if provided

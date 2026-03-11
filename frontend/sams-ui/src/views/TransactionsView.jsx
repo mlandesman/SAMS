@@ -47,7 +47,7 @@ import UnifiedPaymentModal from '../components/payments/UnifiedPaymentModal';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToCSV } from '../utils/csvExport';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
-import { centavosToPesos } from '../utils/currencyUtils';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 import { generateTransactionsPdfHtml } from '../utils/transactionPdfTemplate';
 import reportService from '../services/reportService';
 

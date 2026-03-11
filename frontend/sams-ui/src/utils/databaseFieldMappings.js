@@ -4,7 +4,7 @@
  * Currency conversions delegate to currencyUtils (single source of truth)
  */
 
-import { centavosToPesos, pesosToCentavos } from './currencyUtils';
+import { centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils';
 
 // Timezone configuration - America/Cancun (no DST)
 const CANCUN_TIMEZONE = 'America/Cancun';
@@ -75,6 +75,13 @@ export const databaseFieldMappings = {
     // Return ISO string
     return date.toISOString();
   },
+
+  /**
+   * Convert Firestore Timestamp to Date (alias for convertToTimestamp for API compatibility)
+   * @param {Object|Date|string} timestamp 
+   * @returns {Date|null} JavaScript Date object
+   */
+  timestampToDate: (timestamp) => databaseFieldMappings.convertToTimestamp(timestamp),
 
   /**
    * Format timestamp for display in UI (short date format)

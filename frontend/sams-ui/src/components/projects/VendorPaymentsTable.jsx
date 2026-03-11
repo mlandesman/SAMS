@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExternalLinkAlt, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { formatCurrency as formatCurrencyShared } from '../../utils/currencyUtils';
+import { formatCurrency as formatCurrencyShared } from '@shared/utils/currencyUtils';
 import { getMexicoDateTime, getMexicoDateString } from '../../utils/timezone';
 import { recordVendorPayment } from '../../api/projects';
 import { deleteTransaction } from '../../api/transaction';

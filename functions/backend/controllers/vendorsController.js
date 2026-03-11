@@ -4,13 +4,11 @@
  * Refactored to include propertyAccess validation
  */
 
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
-import databaseFieldMappings from '../utils/databaseFieldMappings.js';
 import { generateVendorId, ensureUniqueDocumentId } from '../utils/documentIdGenerator.js';
 import { getNow } from '../services/DateService.js';
 
-const { convertToTimestamp } = databaseFieldMappings;
 
 /**
  * CRUD operations for vendors under a client
@@ -54,7 +52,7 @@ async function createVendor(clientId, data, user) {
       status: 'active',
       
       // Timestamps - only updated, creation metadata in audit log
-      updated: convertToTimestamp(getNow()),
+      updated: toFirestoreTimestamp(getNow()),
     };
     
     // Generate custom document ID from vendor name
@@ -144,7 +142,7 @@ async function updateVendor(clientId, vendorId, newData, user) {
     
     await vendorRef.update({
       ...updates,
-      updated: convertToTimestamp(getNow()),
+      updated: toFirestoreTimestamp(getNow()),
       updatedBy: user.uid,
     });
 

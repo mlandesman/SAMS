@@ -5,7 +5,7 @@
 import { getDb } from '../firebase.js';
 import { getNow } from './DateService.js';
 import { getFiscalYear } from '../utils/fiscalYearUtils.js';
-import { formatCurrency } from '../utils/currencyUtils.js';
+import { formatCurrency } from '../../shared/utils/currencyUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateCentavos } from '../utils/centavosValidation.js';
 import { getCreditBalance, createCreditHistoryEntry } from '../../shared/utils/creditBalanceUtils.js';
