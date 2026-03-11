@@ -127,23 +127,48 @@ async function getApp() {
  * Convert date value to Firestore Timestamp using backend's admin instance.
  * Use this instead of databaseFieldMappings.convertToTimestamp to avoid
  * "Timestamp doesn't match expected instance" errors from shared module resolution.
+ *
+ * CRITICAL: Applies same Cancun timezone conversion as shared convertToTimestamp
+ * so stored values match historical data (e.g. "2025-07-15" → Cancun-adjusted, not midnight UTC).
  */
 function toFirestoreTimestamp(dateValue) {
   if (!dateValue) return null;
+
+  // Already a Firestore Timestamp
+  if (dateValue._seconds !== undefined) {
+    return dateValue;
+  }
+
   let date;
   if (dateValue instanceof Date) {
     date = dateValue;
   } else if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
     date = dateValue.toDate();
-  } else if (dateValue._seconds !== undefined) {
-    date = new Date(dateValue._seconds * 1000);
   } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
     date = new Date(dateValue);
   } else {
     return null;
   }
   if (isNaN(date.getTime())) return null;
-  return admin.firestore.Timestamp.fromDate(date);
+
+  // Apply Cancun timezone conversion (matches shared convertToTimestamp)
+  // Ensures "2025-07-15" stores as Cancun-adjusted, not midnight UTC
+  const cancunDateStr = date.toLocaleDateString('en-CA', {
+    timeZone: 'America/Cancun',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const cancunTimeStr = date.toLocaleTimeString('en-CA', {
+    timeZone: 'America/Cancun',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  const localDateTime = new Date(`${cancunDateStr}T${cancunTimeStr}`);
+
+  return admin.firestore.Timestamp.fromDate(localDateTime);
 }
 
 export { admin, getDb, initializeFirebase, checkFirestoreConnection, getApp, toFirestoreTimestamp };

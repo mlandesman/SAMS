@@ -10,6 +10,7 @@ import { getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
 
 /**
  * Get Budget vs Actual data for a client and fiscal year
@@ -95,11 +96,13 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const extendedEndDate = new Date(endDate);
     extendedEndDate.setFullYear(extendedEndDate.getFullYear() + 1); // Look ahead 1 year for late payments
 
-    // Use Date directly in query to avoid Firestore Timestamp instance mismatch
-    // (convertToTimestamp from shared utils can produce Timestamp from different module resolution)
+    // Use Cancun-adjusted Timestamps for query to match historical transaction storage
+    const extendedStartTimestamp = databaseFieldMappings.convertToTimestamp(extendedStartDate);
+    const extendedEndTimestamp = databaseFieldMappings.getEndOfDayCancun(extendedEndDate);
+
     const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`)
-      .where('date', '>=', extendedStartDate)
-      .where('date', '<=', extendedEndDate)
+      .where('date', '>=', extendedStartTimestamp)
+      .where('date', '<=', extendedEndTimestamp)
       .get();
 
     // PM8B: Fetch project collections (from bill subcollection paidAmount) and expenditures (from vendorPayments)
