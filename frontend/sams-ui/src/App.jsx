@@ -20,7 +20,6 @@ import TestRoute from './components/TestRoute';
 import UnitReportView from './views/UnitReportView';
 import MaintenanceGuard from './components/MaintenanceGuard';
 import ErrorBoundary from './components/ErrorBoundary';
-import PasswordSetupView from './views/PasswordSetupView';
 import ClientProtectedRoute from './components/security/ClientProtectedRoute';
 import AuthGuard from './components/guards/AuthGuard';
 import ExchangeRatesView from './views/ExchangeRatesView';
@@ -317,7 +316,6 @@ function App() {
         <Router>
         <Routes>
           {/* Public routes that don't require authentication */}
-          <Route path="/setup-password" element={<PasswordSetupView />} />
           <Route path="/invite/:token" element={<InviteView />} />
           <Route path="/vote/:token" element={<PublicVotingPage />} />
           

@@ -193,12 +193,45 @@
 
 ---
 
+### 🔐 Sprint PASSKEY-AUTH: Passkey-Only Authentication
+*WebAuthn passkey authentication for all users — prerequisite for mobile app deployment*
+
+| Task | Title | Priority | Est | Status |
+|------|-------|----------|-----|--------|
+| PK1 | Backend: WebAuthn endpoints + credential storage (SimpleWebAuthn) | high | 4h | ✅ DONE |
+| PK2 | Frontend: Passkey login/registration UI (mobile + desktop) | high | 4h | ✅ DONE (PR #229) |
+| PK3 | Admin: Passkey management, invite UI, password reset removal | high | 5h | ✅ DONE (PR #230) |
+| PK4 | Testing & Stabilization: Cleanup, orphan removal, pre-PR checks | medium | 2h | 🔄 IN PROGRESS |
+
+**Execution Order**: PK1 → PK2 → PK3 → PK4
+
+**Theme**: Replace email/password authentication with passkey-only (WebAuthn) before enabling external users
+**Issue**: #189
+**Risk**: MEDIUM (modifies authentication — core security layer)
+**Total Estimate**: ~13 hours
+**Status**: 🔄 **ACTIVE**
+
+**Architecture**:
+- SimpleWebAuthn (server + browser) for FIDO2/WebAuthn challenge/verification
+- Firebase Admin `createCustomToken(uid)` → frontend `signInWithCustomToken()` for session
+- Credentials stored at `/users/{uid}/passkeys/{credentialId}` in Firestore
+- No password fallback — passkey is the sole authentication method
+- Recovery: Admin revokes credentials → re-invites → user registers new passkey
+- Admin bootstrap: existing admin registers passkey while authenticated with current email/password
+
+**Key Decisions**:
+- Email-first flow: user enters email → server sends challenge → biometric → session
+- Discoverable credentials supported for returning users (browser passkey picker)
+- `/users/{uid}` documents remain canonical — no structural changes to user model
+- Firebase Auth users created on-demand via custom token (most users don't have Auth accounts yet)
+
+---
+
 ### 🔮 Sprint G: Future Features (Backlog)
 *Larger features for future consideration*
 
 | # | Title | Priority | Est |
 |---|-------|----------|-----|
-| **189** | Passkey-Only Authentication (Firebase Auth + WebAuthn) | feature | 8-12h |
 | **157** | In-App Bug Reporting → GitHub Issues | feature | 6-8h |
 | **138** | Bulk Edit for Transactions | backlog | 4h |
 | **148** | Water Bill Post-Payment Correction | backlog | 3h |
@@ -212,7 +245,6 @@
 **Theme**: New capabilities requiring design decisions  
 **Risk**: Varies  
 **Dependencies**: Requires planning before implementation  
-**Note**: #189 (Passkey auth) supersedes #49 (Autologin/biometrics) — #49 closed and merged into #189. Passkeys provide native biometric UX. Firebase built-in support makes implementation straightforward when scheduled.  
 
 ---
 
@@ -243,17 +275,18 @@
 | PM5D | Lock Amounts + Bill Milestone — lock amountCentavos at approval, billMilestone endpoint | medium | 4h | ✅ DONE |
 | PM6 | Statement of Account Integration — project charges in SoA | high | 4h | ✅ DONE |
 | PM8 | Vendor Payment CRUD + Project Financial Summary — atomic transaction pattern, reversal | high | 5h | ✅ DONE |
-| PM7 | UPC Payment Integration — accept payments for project assessments | high | 5h | ⏳ QUEUED |
-| PM8B | BvA Special Assessments — populate COLLECTIONS + EXPENDITURES in Budget vs Actual | medium | 3h | ⏳ QUEUED |
+| PM7 | UPC Payment Integration — accept payments for project assessments | high | 5h | ✅ DONE |
+| PM8B | BvA Special Assessments — populate COLLECTIONS + EXPENDITURES in Budget vs Actual | medium | 3h | ✅ DONE |
+| PM8C | Project Lifecycle Data — status dates, life expectancy, BvA FY filtering | medium | 3h | ✅ DONE |
 | PM5E | Adjustment Milestones — insert price change milestones for cost overruns/credits | low | 3h | ⏳ DEFERRED |
-| PM9 | Stabilization & Regression — end-to-end test of full billing/payment/reversal cycle | medium | 3h | ⏳ QUEUED |
+| PM9 | Stabilization & Regression — modal cleanup, code dedup, end-to-end regression | medium | 4h | ✅ DONE |
 
-**Execution Order**: PM5A → PM5B → PM5C → PM5D → PM6 → PM8 → PM7 → PM8B → PM5E → PM9
+**Execution Order**: PM5A → PM5B → PM5C → PM5D → PM6 → PM8 → PM7 → PM8B → PM8C → PM5E → PM9
 
 **Theme**: Complete the financial cycle for Special Projects  
 **Risk**: HIGH (modifies UPC and Statement of Account — core engines)  
-**Total Estimate**: ~35 hours  
-**Status**: 🔄 **ACTIVE** — PM5A-D + PM6 + PM8 complete (PRs #215, #218, #219), PM7 next
+**Total Estimate**: ~38 hours  
+**Status**: ✅ **COMPLETE** — All tasks done (PRs #215, #218, #219, #221, #224, #225, #226). PM5E deferred to future sprint.
 
 **Key Architecture Decisions**:
 - Bill subcollection at `clients/{clientId}/projects/{projectId}/bills/{milestoneIndex}` mirrors water bills pattern
@@ -668,5 +701,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 7, 2026 - PM8 (Vendor Payment CRUD) ✅ DONE, merged PR #219. vendorId propagation fix, delete confirmation, BugBot remediation. Sprint PM-Finance-Next: PM5A-D + PM6 + PM8 complete, PM7 next.*  
-*Last Review: March 7, 2026*
+*Updated: March 10, 2026 - PASSKEY-AUTH sprint active. PK1-PK3 ✅ DONE. PK4 IN PROGRESS (cleanup, orphan removal, pre-PR checks).*  
+*Last Review: March 10, 2026*

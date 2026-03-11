@@ -567,6 +567,7 @@ function ListManagementView() {
                 case 'active': return 'Active';
                 case 'pending_password_change': return 'Pending Password Change';
                 case 'pending_invitation': return 'Pending Invitation';
+                case 'pending_passkey': return 'Pending Passkey';
                 case 'contact_only': return 'Contact Only';
                 default: return value || 'Unknown';
               }
@@ -954,8 +955,19 @@ function ListManagementView() {
           }
         }
 
-        // Format status
-        const status = user.accountState === 'disabled' ? 'Disabled' : 
+        // Format status (align with accountState table render)
+        const getAccountStateDisplay = (v) => {
+          switch (v) {
+            case 'active': return 'Active';
+            case 'pending_password_change': return 'Pending Password Change';
+            case 'pending_invitation': return 'Pending Invitation';
+            case 'pending_passkey': return 'Pending Passkey';
+            case 'contact_only': return 'Contact Only';
+            case 'disabled': return 'Disabled';
+            default: return v || 'Unknown';
+          }
+        };
+        const status = user.accountState ? getAccountStateDisplay(user.accountState) :
                       user.canLogin === false ? 'Cannot Login' : 'Active';
 
         // Get display role

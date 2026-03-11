@@ -38,7 +38,7 @@ echo "Pre-PR Quality Gate — checking $(echo "$FRONTEND_CHANGES" | wc -l | tr -
 
 # ━━━ CHECK 1: new Date() violations ━━━
 header "Check 1: new Date() violations"
-DATE_VIOLATIONS=$(echo "$FRONTEND_CHANGES" | xargs grep -n 'new Date()' 2>/dev/null | grep -v 'node_modules' | grep -v '\.test\.' | grep -v '_archive' || true)
+DATE_VIOLATIONS=$(echo "$FRONTEND_CHANGES" | xargs grep -n 'new Date()' 2>/dev/null | grep -v 'node_modules' | grep -v '\.test\.' | grep -v '_archive' | grep -v 'utils/timezone' || true)
 if [ -n "$DATE_VIOLATIONS" ]; then
   fail "Found new Date() — use getMexicoDate() or getMexicoDateTime() instead:"
   echo "$DATE_VIOLATIONS" | head -20
