@@ -5,6 +5,20 @@
       "date": "2026-03-11",
       "changes": [
         {
+          "type": "fix",
+          "issues": [
+            "189"
+          ],
+          "text": "Cross-subdomain passkey support: Changed rpID to parent domain (sandyland.com.mx) so passkeys registered on desktop also work on mobile PWA."
+        },
+        {
+          "type": "enhance",
+          "issues": [
+            "189"
+          ],
+          "text": "Invite landing page: Passkey registration no longer auto-logs in. Shows success confirmation with device-aware 'Sign In to SAMS' link (routes to mobile or desktop app)."
+        },
+        {
           "type": "feat",
           "issues": [
             "189"
