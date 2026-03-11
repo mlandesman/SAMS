@@ -174,9 +174,8 @@ const SANDYLAND_EMAIL_CONFIG = {
  * @param {string} params.email - Recipient email
  * @param {string} params.name - Recipient display name
  * @param {string} params.inviteUrl - Passkey registration URL (/invite/:token)
- * @param {string} params.invitedBy - Admin who generated the invite
  */
-export async function sendPasskeyInvite({ email, name, inviteUrl, invitedBy }) {
+export async function sendPasskeyInvite({ email, name, inviteUrl }) {
   try {
     const emailTransporter = createGmailTransporter();
     const samsUrl = process.env.FRONTEND_URL || 'https://sams.sandyland.com.mx';
@@ -217,7 +216,7 @@ export async function sendPasskeyInvite({ email, name, inviteUrl, invitedBy }) {
               <strong>🔄 What Happens Next:</strong><br/>
               1. Click "Register Your Passkey" above<br/>
               2. Your device will prompt you for biometric verification (Face ID, Touch ID, or fingerprint)<br/>
-              3. Once registered, you'll be signed in automatically<br/>
+              3. Once registered, click "Sign In to SAMS" to sign in<br/>
               4. Future sign-ins: visit <a href="${samsUrl}">${samsUrl}</a> and use your passkey
             </div>
             
@@ -256,7 +255,7 @@ ${inviteUrl}
 What happens next:
 1. Open the link above
 2. Your device will prompt for biometric verification (Face ID, Touch ID, or fingerprint)
-3. Once registered, you'll be signed in automatically
+3. Once registered, click "Sign In to SAMS" to sign in
 4. Future sign-ins: visit ${samsUrl} and use your passkey
 
 Important:

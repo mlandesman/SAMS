@@ -86,7 +86,6 @@ export async function generateInvite(req, res) {
         email,
         name: userName,
         inviteUrl,
-        invitedBy: adminEmail,
       });
       emailSent = emailResult?.success || false;
     }
