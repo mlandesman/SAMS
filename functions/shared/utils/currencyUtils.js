@@ -81,7 +81,10 @@ export function centavosToPesos(centavos) {
  * pesosToCentavos(0);          // 0
  */
 export function pesosToCentavos(pesos) {
-  return Math.round(pesos * 100);
+  if (pesos == null || (typeof pesos === 'number' && isNaN(pesos))) return 0;
+  const num = typeof pesos === 'number' ? pesos : parseFloat(pesos);
+  if (isNaN(num)) return 0;
+  return Math.round(num * 100);
 }
 
 /**
