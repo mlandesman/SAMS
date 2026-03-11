@@ -4,7 +4,7 @@
  * origin supports comma-separated values for multi-origin (desktop + mobile + ngrok).
  */
 
-const DEFAULT_ORIGIN = 'https://sams.sandyland.com.mx';
+const DEFAULT_ORIGIN = 'https://sams.sandyland.com.mx,https://mobile.sams.sandyland.com.mx';
 
 function parseOrigins(value) {
   if (!value) return DEFAULT_ORIGIN;
@@ -15,6 +15,6 @@ function parseOrigins(value) {
 
 export const webauthnConfig = {
   rpName: 'SAMS - Sandyland Asset Management',
-  rpID: process.env.WEBAUTHN_RP_ID || 'sams.sandyland.com.mx',
-  origin: parseOrigins(process.env.WEBAUTHN_ORIGIN || 'https://sams.sandyland.com.mx'),
+  rpID: process.env.WEBAUTHN_RP_ID || 'sandyland.com.mx',
+  origin: parseOrigins(process.env.WEBAUTHN_ORIGIN || DEFAULT_ORIGIN),
 };
