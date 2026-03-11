@@ -16,7 +16,7 @@
  * CRUD operations for transactions collection
  */
 
-import { getDb, getApp, toFirestoreTimestamp } from '../firebase.js';
+import { getDb, getApp, toFirestoreTimestamp, getEndOfDayCancunTimestamp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
@@ -2170,15 +2170,14 @@ async function queryTransactions(clientId, filters = {}) {
     const db = await getDb();
     let query = db.collection(`clients/${clientId}/transactions`);
     
-    // Apply date range filter if provided
-    // Use Date directly to avoid Firestore Timestamp instance mismatch from shared convertToTimestamp
+    // Apply date range filter if provided (Cancun-adjusted Timestamps to match stored transaction dates)
     if (filters.startDate) {
       const startDate = filters.startDate instanceof Date ? filters.startDate : new Date(filters.startDate);
-      query = query.where('date', '>=', startDate);
+      query = query.where('date', '>=', toFirestoreTimestamp(startDate));
     }
     if (filters.endDate) {
       const endDate = filters.endDate instanceof Date ? filters.endDate : new Date(filters.endDate);
-      query = query.where('date', '<=', endDate);
+      query = query.where('date', '<=', getEndOfDayCancunTimestamp(endDate));
     }
     
     // Apply category filter if provided

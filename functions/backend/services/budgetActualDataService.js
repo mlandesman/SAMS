@@ -5,12 +5,11 @@
  * Follows Statement of Account pattern for consistency
  */
 
-import { getDb } from '../firebase.js';
+import { getDb, toFirestoreTimestamp, getEndOfDayCancunTimestamp } from '../firebase.js';
 import { getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
-import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
 
 /**
  * Get Budget vs Actual data for a client and fiscal year
@@ -96,9 +95,9 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const extendedEndDate = new Date(endDate);
     extendedEndDate.setFullYear(extendedEndDate.getFullYear() + 1); // Look ahead 1 year for late payments
 
-    // Use Cancun-adjusted Timestamps for query to match historical transaction storage
-    const extendedStartTimestamp = databaseFieldMappings.convertToTimestamp(extendedStartDate);
-    const extendedEndTimestamp = databaseFieldMappings.getEndOfDayCancun(extendedEndDate);
+    // Use Cancun-adjusted Timestamps (backend firebase.js) to match historical storage and avoid shared-module instance mismatch
+    const extendedStartTimestamp = toFirestoreTimestamp(extendedStartDate);
+    const extendedEndTimestamp = getEndOfDayCancunTimestamp(extendedEndDate);
 
     const transactionsSnapshot = await db.collection(`clients/${clientId}/transactions`)
       .where('date', '>=', extendedStartTimestamp)

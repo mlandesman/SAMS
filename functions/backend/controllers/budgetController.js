@@ -4,12 +4,11 @@
  * Budgets are stored at: /clients/{clientId}/categories/{categoryId}/budget/{year}
  */
 
-import { getDb, toFirestoreTimestamp } from '../firebase.js';
+import { getDb, toFirestoreTimestamp, getEndOfDayCancunTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-import { databaseFieldMappings } from '../../shared/utils/databaseFieldMappings.js';
 
 /**
  * List all budgets for a fiscal year with category info
@@ -289,10 +288,9 @@ export async function getPriorYearData(clientId, categoryId, year, user) {
     // Get fiscal year bounds for prior year
     const { startDate, endDate } = getFiscalYearBounds(priorYear, fiscalYearStartMonth);
 
-    // Use Cancun-adjusted Timestamps for query to match historical transaction storage
-    // (transactions were stored with convertToTimestamp which applies Cancun timezone shift)
-    const startTimestamp = databaseFieldMappings.convertToTimestamp(startDate);
-    const endTimestamp = databaseFieldMappings.getEndOfDayCancun(endDate);
+    // Use Cancun-adjusted Timestamps (backend firebase.js) to match historical storage and avoid shared-module instance mismatch
+    const startTimestamp = toFirestoreTimestamp(startDate);
+    const endTimestamp = getEndOfDayCancunTimestamp(endDate);
 
     // Fetch prior year budget
     const budgetRef = db.doc(`clients/${clientId}/categories/${categoryId}/budget/${priorYear}`);
