@@ -4,8 +4,8 @@
  * Uses existing Sandyland email infrastructure with professional branding
  */
 
-import admin from 'firebase-admin';
 import nodemailer from 'nodemailer';
+import { logError } from '../../shared/logger.js';
 
 /**
  * Get Gmail transporter for health checks. Returns null if not configured.
@@ -169,24 +169,23 @@ const SANDYLAND_EMAIL_CONFIG = {
 };
 
 /**
- * @deprecated No longer called — PK3 replaced "Email Invitation" with "Passkey Invitation".
- * The /setup-password route has been removed. Kept for reference only.
+ * Send passkey invite email with registration link.
+ * @param {object} params
+ * @param {string} params.email - Recipient email
+ * @param {string} params.name - Recipient display name
+ * @param {string} params.inviteUrl - Passkey registration URL (/invite/:token)
+ * @param {string} params.invitedBy - Admin who generated the invite
  */
-export async function sendUserInvitation({ email, name, clientName, role, invitedBy }) {
+export async function sendPasskeyInvite({ email, name, inviteUrl, invitedBy }) {
   try {
-    // Generate password reset link for new user setup (now works since user has temp password)
-    const passwordSetupLink = await admin.auth().generatePasswordResetLink(email, {
-      url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-password`,
-      handleCodeInApp: true
-    });
-
     const emailTransporter = createGmailTransporter();
+    const samsUrl = process.env.FRONTEND_URL || 'https://sams.sandyland.com.mx';
     
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Sandyland Asset Management - Account Invitation</title>
+        <title>Sandyland Asset Management - Account Setup</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -208,38 +207,28 @@ export async function sendUserInvitation({ email, name, clientName, role, invite
             
             <p>You've been invited to join the Sandyland Asset Management System (SAMS) by <strong>${invitedBy}</strong>.</p>
             
-            <div class="info-box">
-              <strong>Your Account Details:</strong><br>
-              📧 <strong>Email:</strong> ${email}<br>
-              🏢 <strong>Property:</strong> ${clientName}<br>
-              👤 <strong>Role:</strong> ${role}<br>
-            </div>
-            
-            <p>To complete your account setup and create your password, please click the button below:</p>
+            <p>To set up your account, click the button below. You'll be asked to register a passkey using your device's biometrics (Face ID, Touch ID, or fingerprint).</p>
             
             <div style="text-align: center;">
-              <a href="${passwordSetupLink}" class="button">Set Up Your Password</a>
+              <a href="${inviteUrl}" class="button">Register Your Passkey</a>
             </div>
-            
-            <p><strong>⚠️ Important: Link Usage Instructions</strong></p>
-            <ul>
-              <li><strong>Single Use Only:</strong> This link can only be used ONCE. After you set your password, the link becomes invalid.</li>
-              <li><strong>Expires in 1 Hour:</strong> For security, this link expires 1 hour after being generated.</li>
-              <li><strong>Password Requirements:</strong> Choose a strong password with at least 8 characters, including uppercase, lowercase, numbers, and special characters.</li>
-              <li><strong>After Setup:</strong> Once your password is set, you can access SAMS at: <a href="${process.env.FRONTEND_URL || 'https://sams.sandyland.com.mx'}">${process.env.FRONTEND_URL || 'https://sams.sandyland.com.mx'}</a></li>
-            </ul>
             
             <div style="background: #fff3cd; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #ffc107;">
               <strong>🔄 What Happens Next:</strong><br/>
-              1. Click the "Set Up Your Password" button above<br/>
-              2. Enter your chosen password (the link will become invalid after this)<br/>
-              3. You'll see a success message and be redirected to SAMS<br/>
-              4. Sign in with your email and new password
+              1. Click "Register Your Passkey" above<br/>
+              2. Your device will prompt you for biometric verification (Face ID, Touch ID, or fingerprint)<br/>
+              3. Once registered, you'll be signed in automatically<br/>
+              4. Future sign-ins: visit <a href="${samsUrl}">${samsUrl}</a> and use your passkey
             </div>
             
-            <p>If you have any questions or need assistance with your account setup, please don't hesitate to contact us.</p>
+            <p><strong>⚠️ Important:</strong></p>
+            <ul>
+              <li><strong>Expires in 72 hours:</strong> This link must be used within 72 hours.</li>
+              <li><strong>Single use:</strong> The link can only be used once to register a passkey.</li>
+              <li><strong>Device required:</strong> Use a device with biometric support (iPhone, iPad, Mac with Touch ID, etc.).</li>
+            </ul>
             
-            <p>We look forward to having you on our platform!</p>
+            <p>If you have any questions or need a new invite link, contact your property administrator.</p>
             
             <div class="footer">
               <p><strong>Sandyland Asset Management System</strong><br>
@@ -261,22 +250,21 @@ Hi ${name},
 
 You've been invited to join SAMS by ${invitedBy}.
 
-Your Account Details:
-- Email: ${email}
-- Client: ${clientName}
-- Role: ${role}
+To set up your account, visit the link below to register your passkey:
+${inviteUrl}
 
-To complete your account setup, visit this link to create your password:
-${passwordSetupLink}
+What happens next:
+1. Open the link above
+2. Your device will prompt for biometric verification (Face ID, Touch ID, or fingerprint)
+3. Once registered, you'll be signed in automatically
+4. Future sign-ins: visit ${samsUrl} and use your passkey
 
 Important:
-- This link expires in 24 hours
-- Choose a strong password with at least 8 characters
-- Access SAMS at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}
+- This link expires in 72 hours
+- It can only be used once
+- Use a device with biometric support
 
-If you need assistance, contact your administrator.
-
-Welcome to the team!
+If you need assistance, contact your property administrator.
 
 ---
 Sandyland Asset Management System
@@ -291,22 +279,20 @@ This is an automated message. Please do not reply.
       to: email,
       cc: SANDYLAND_EMAIL_CONFIG.ccList,
       replyTo: SANDYLAND_EMAIL_CONFIG.replyTo,
-      subject: `🏡 Welcome to Sandyland Asset Management - Account Setup Required`,
+      subject: `🏡 Sandyland Asset Management - Set Up Your Account`,
       text: textContent,
       html: htmlContent
     };
 
     const result = await emailTransporter.sendMail(mailOptions);
-    console.log('✅ Invitation email sent successfully:', result.messageId);
     
     return {
       success: true,
       messageId: result.messageId,
-      invitationLink: passwordSetupLink
     };
 
   } catch (error) {
-    console.error('❌ Failed to send invitation email:', error);
+    logError('Failed to send passkey invite email:', error);
     return {
       success: false,
       error: error.message

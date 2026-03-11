@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { getNow } from '../services/DateService.js';
 import { webauthnConfig } from '../config/webauthnConfig.js';
 import { logError } from '../../shared/logger.js';
+import { sendPasskeyInvite } from '../services/emailService.js';
 
 const INVITE_EXPIRY_HOURS = 72;
 
@@ -76,7 +77,21 @@ export async function generateInvite(req, res) {
       : webauthnConfig.origin;
     const inviteUrl = `${origin}/invite/${token}`;
 
-    res.json({ inviteToken: token, inviteUrl });
+    const userName = userData.name || userData.displayName || email;
+    const adminEmail = req.user?.email || req.user?.samsProfile?.email || 'Administrator';
+    let emailSent = false;
+
+    if (email) {
+      const emailResult = await sendPasskeyInvite({
+        email,
+        name: userName,
+        inviteUrl,
+        invitedBy: adminEmail,
+      });
+      emailSent = emailResult?.success || false;
+    }
+
+    res.json({ inviteToken: token, inviteUrl, emailSent });
   } catch (error) {
     logError('Invite generation error:', error);
     res.status(500).json({ error: 'Failed to generate invite' });
