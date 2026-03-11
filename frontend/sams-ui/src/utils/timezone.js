@@ -25,6 +25,22 @@ export function getMexicoDate() {
 }
 
 /**
+ * Format a date/ISO string to YYYY-MM-DD in Mexico timezone
+ * @param {string|Date} dateOrIso - ISO string or Date
+ * @returns {string} YYYY-MM-DD in America/Cancun
+ */
+export function formatDateInMexico(dateOrIso) {
+  if (!dateOrIso) return null;
+  const d = typeof dateOrIso === 'string' ? new Date(dateOrIso) : dateOrIso;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: MEXICO_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
+}
+
+/**
  * Get date string in YYYY-MM-DD format for Mexico timezone
  * @param {Date} date - Optional date, defaults to current Mexico time
  * @returns {string} Date in YYYY-MM-DD format

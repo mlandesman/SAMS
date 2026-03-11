@@ -15,10 +15,15 @@ import { getUnits } from '../../api/units';
 import { LoadingSpinner } from '../common';
 import { formatUnitDisplay } from '../../utils/unitDisplayUtils';
 import { fetchClients } from '../../utils/fetchClients';
-import { getMexicoDate, getMexicoDateString, getMexicoDateTime } from '../../utils/timezone';
+import { getMexicoDateString, getMexicoDateTime, formatDateInMexico } from '../../utils/timezone';
 import ExportMenu from '../common/ExportMenu';
 import { exportToCSV } from '../../utils/csvExport';
 import './UserManagement.css';
+
+/** Build invite URL from API response (inviteUrl or inviteToken fallback) */
+function getInviteUrlFromResponse(res) {
+  return res?.inviteUrl || (res?.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null);
+}
 
 const UserManagement = ({ 
   onSelectionChange, 
@@ -575,7 +580,7 @@ const CreateUserModal = ({ onClose, onCreate, currentUser, selectedClient }) => 
       if (formData.canLogin && formData.creationMethod === 'passkey' && result?.user?.uid) {
         try {
           const inviteRes = await secureApi.generatePasskeyInvite(result.user.uid);
-          setPasskeyInviteUrl(inviteRes.inviteUrl || (inviteRes.inviteToken ? `${window.location.origin}/invite/${inviteRes.inviteToken}` : null));
+          setPasskeyInviteUrl(getInviteUrlFromResponse(inviteRes));
         } catch (inviteErr) {
           setCreationResult(prev => ({ ...prev, inviteError: inviteErr.message }));
         }
@@ -1688,7 +1693,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                   {passkeys.map((pk) => {
                     const created = pk.createdAt ? new Date(pk.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
                     const lastUsed = pk.lastUsedAt ? new Date(pk.lastUsedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-                    const isToday = pk.lastUsedAt && new Date(pk.lastUsedAt).toDateString() === getMexicoDate().toDateString();
+                    const isToday = pk.lastUsedAt && formatDateInMexico(pk.lastUsedAt) === getMexicoDateString();
                     return (
                       <div
                         key={pk.credentialId}
@@ -1744,7 +1749,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
                     setSendingInvite(true);
                     try {
                       const res = await secureApi.generatePasskeyInvite(userId);
-                      setInviteUrl(res.inviteUrl || (res.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null));
+                      setInviteUrl(getInviteUrlFromResponse(res));
                     } catch (err) {
                       setInviteError(err.message || 'Failed to generate invite');
                     } finally {
