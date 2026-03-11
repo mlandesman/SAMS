@@ -1,6 +1,66 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "189"
+          ],
+          "text": "Passkey authentication: Sign in with Face ID, Touch ID, or fingerprint instead of passwords. Email-first flow with discoverable credential support for returning users."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "189"
+          ],
+          "text": "Passkey registration: Post-login prompt for existing password users to register a passkey. Invite-based registration for new users via /invite/:token route."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "189"
+          ],
+          "text": "Admin passkey management: View registered passkeys, revoke credentials, and send passkey invites from Edit User modal. Invite emails sent automatically with Sandyland branding."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "189"
+          ],
+          "text": "Passkey-first user creation: Create User modal defaults to 'Passkey Invitation' method. Admin generates invite URL, email sent to user with registration link."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "189"
+          ],
+          "text": "Mobile passkey support: Passkey login in mobile PWA app with same passkey-first UI. Multi-origin WebAuthn config for desktop + mobile dev servers."
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "189"
+          ],
+          "text": "Removed password reset flow from login forms (desktop + mobile). Replaced with 'Can't sign in? Contact your administrator' guidance."
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "189"
+          ],
+          "text": "Removed PasswordSetupView and dead Email Invitation code path. Cleaned up /setup-password references across frontend and backend."
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Security: Removed auth token display from About Modal. Fixed SecurityErrorHandler PASSWORD_EXPIRED redirect to /login."
+        }
+      ]
+    },
+    {
       "version": "1.15.0",
       "date": "2026-03-09",
       "changes": [
