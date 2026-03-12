@@ -2,91 +2,12 @@
 import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
+import {
+  normalizeContactsForStorage,
+  resolveOwners,
+  resolveManagers,
+} from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-
-function normalizeContactForStorage(entry) {
-  if (typeof entry === 'string') {
-    const trimmedName = entry.trim();
-    if (!trimmedName) return null;
-    return { name: trimmedName, email: '' };
-  }
-
-  if (!entry || typeof entry !== 'object') {
-    return null;
-  }
-
-  if (typeof entry.userId === 'string' && entry.userId.trim()) {
-    return { userId: entry.userId.trim() };
-  }
-
-  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-  const email = typeof entry.email === 'string' ? entry.email.trim() : '';
-  if (!name && !email) {
-    return null;
-  }
-
-  return { name, email };
-}
-
-function normalizeContactsForStorage(contacts) {
-  if (!Array.isArray(contacts)) return [];
-  return contacts
-    .map(normalizeContactForStorage)
-    .filter(Boolean);
-}
-
-function getUserIdsFromContacts(contacts) {
-  if (!Array.isArray(contacts)) return [];
-
-  return contacts
-    .filter(contact => contact && typeof contact === 'object' && typeof contact.userId === 'string')
-    .map(contact => contact.userId.trim())
-    .filter(Boolean);
-}
-
-function getResolvedName(userData = {}) {
-  const profile = userData.profile || {};
-  const firstName = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
-  const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
-  const fullName = `${firstName} ${lastName}`.trim();
-  if (fullName) return fullName;
-  return typeof userData.name === 'string' ? userData.name.trim() : '';
-}
-
-function getResolvedPhone(userData = {}) {
-  const profile = userData.profile || {};
-  return typeof profile.phone === 'string' ? profile.phone.trim() : '';
-}
-
-function getResolvedEmail(userData = {}) {
-  return typeof userData.email === 'string' ? userData.email.trim() : '';
-}
-
-function enrichContactsWithUserMap(contacts, userMap) {
-  if (!Array.isArray(contacts)) return [];
-
-  return contacts.map(contact => {
-    if (!contact || typeof contact !== 'object') {
-      return contact;
-    }
-
-    if (typeof contact.userId === 'string' && contact.userId.trim()) {
-      const userId = contact.userId.trim();
-      const userData = userMap.get(userId);
-      if (!userData) {
-        return { userId, name: '', email: '', phone: '' };
-      }
-      return {
-        userId,
-        name: getResolvedName(userData),
-        email: getResolvedEmail(userData),
-        phone: getResolvedPhone(userData),
-      };
-    }
-
-    return contact;
-  });
-}
 
 /**
  * Create a Unit under a Client
@@ -253,9 +174,18 @@ async function listUnits(clientId) {
       const data = doc.data();
       const ownersRaw = Array.isArray(data.owners) ? data.owners : (data.owner ? [data.owner] : []);
       const managersRaw = Array.isArray(data.managers) ? data.managers : [];
-
-      getUserIdsFromContacts(ownersRaw).forEach(userId => allUserIds.add(userId));
-      getUserIdsFromContacts(managersRaw).forEach(userId => allUserIds.add(userId));
+      ownersRaw.forEach(owner => {
+        if (owner && typeof owner === 'object' && typeof owner.userId === 'string') {
+          const userId = owner.userId.trim();
+          if (userId) allUserIds.add(userId);
+        }
+      });
+      managersRaw.forEach(manager => {
+        if (manager && typeof manager === 'object' && typeof manager.userId === 'string') {
+          const userId = manager.userId.trim();
+          if (userId) allUserIds.add(userId);
+        }
+      });
       
       units.push({
         unitId: doc.id, // Document ID is the unit identifier
@@ -283,8 +213,8 @@ async function listUnits(clientId) {
     }
 
     const enrichedUnits = units.map(unit => {
-      const owners = enrichContactsWithUserMap(unit.ownersRaw, userMap);
-      const managers = enrichContactsWithUserMap(unit.managersRaw, userMap);
+      const owners = unit.ownersRaw;
+      const managers = unit.managersRaw;
       const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
       return {
         ...unitWithoutRaw,
@@ -292,8 +222,16 @@ async function listUnits(clientId) {
         managers,
       };
     });
+    const resolvedUnits = [];
+    for (const unit of enrichedUnits) {
+      resolvedUnits.push({
+        ...unit,
+        owners: await resolveOwners(unit.owners, db, userMap),
+        managers: await resolveManagers(unit.managers, db, userMap),
+      });
+    }
 
-    return enrichedUnits;
+    return resolvedUnits;
   } catch (error) {
     logError('❌ Error listing units:', error);
     return [];

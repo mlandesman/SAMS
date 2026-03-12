@@ -86,6 +86,48 @@ function resolveContactWithCache(contact, userCache) {
 }
 
 /**
+ * Normalize a single contact object for Firestore storage.
+ * Keeps UID references when present and preserves legacy {name,email}.
+ *
+ * @param {string|Object|null|undefined} entry
+ * @returns {{userId: string}|{name: string, email: string}|null}
+ */
+export function normalizeContactForStorage(entry) {
+  if (typeof entry === 'string') {
+    const trimmedName = entry.trim();
+    if (!trimmedName) return null;
+    return { name: trimmedName, email: '' };
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  if (typeof entry.userId === 'string' && entry.userId.trim()) {
+    return { userId: entry.userId.trim() };
+  }
+
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  const email = typeof entry.email === 'string' ? entry.email.trim() : '';
+  if (!name && !email) {
+    return null;
+  }
+
+  return { name, email };
+}
+
+/**
+ * Normalize contact array for Firestore storage.
+ *
+ * @param {Array<any>|undefined} contacts
+ * @returns {Array<Object>}
+ */
+export function normalizeContactsForStorage(contacts) {
+  if (!Array.isArray(contacts)) return [];
+  return contacts.map(normalizeContactForStorage).filter(Boolean);
+}
+
+/**
  * Normalize owners array to new structure [{name, email}]
  * Assumes new format only - converts string format if found (should not happen after migration)
  * 
@@ -159,7 +201,7 @@ export function normalizeManagers(managers) {
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveOwners(owners, db) {
+export async function resolveOwners(owners, db, existingCache = null) {
   if (!Array.isArray(owners) || owners.length === 0) {
     return [];
   }
@@ -170,7 +212,7 @@ export async function resolveOwners(owners, db) {
   }
 
   const userIds = getUniqueUserIds(owners);
-  const userCache = await buildUserCache(userIds, db, new Map());
+  const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
   return owners.map(owner => resolveContactWithCache(owner, userCache));
 }
@@ -183,7 +225,7 @@ export async function resolveOwners(owners, db) {
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveManagers(managers, db) {
+export async function resolveManagers(managers, db, existingCache = null) {
   if (!Array.isArray(managers) || managers.length === 0) {
     return [];
   }
@@ -194,7 +236,7 @@ export async function resolveManagers(managers, db) {
   }
 
   const userIds = getUniqueUserIds(managers);
-  const userCache = await buildUserCache(userIds, db, new Map());
+  const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
   return managers.map(manager => resolveContactWithCache(manager, userCache));
 }

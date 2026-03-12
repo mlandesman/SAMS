@@ -34,70 +34,51 @@ function generateSecurePassword() {
  * @param {string} userId - User ID
  * @param {string} role - Role: 'unitOwner' or 'unitManager'
  */
-function normalizeContactForStorage(entry) {
-  if (typeof entry === 'string') {
-    const trimmedName = entry.trim();
-    if (!trimmedName) return null;
-    return { name: trimmedName, email: '' };
-  }
-
-  if (!entry || typeof entry !== 'object') {
-    return null;
-  }
-
-  if (typeof entry.userId === 'string' && entry.userId.trim()) {
-    return { userId: entry.userId.trim() };
-  }
-
-  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-  const email = typeof entry.email === 'string' ? entry.email.trim() : '';
-  if (!name && !email) {
-    return null;
-  }
-
-  return { name, email };
-}
-
-function normalizeContactsForStorage(contacts) {
-  if (!Array.isArray(contacts)) return [];
-  return contacts.map(normalizeContactForStorage).filter(Boolean);
-}
-
 async function addPersonToUnit(batch, clientId, unitId, userId, role) {
   
   const db = await getDb();
   const unitRef = db.collection('clients').doc(clientId)
     .collection('units').doc(unitId);
+  const userRef = db.collection('users').doc(userId);
     
-  const unitDoc = await unitRef.get();
+  const [unitDoc, userDoc] = await Promise.all([unitRef.get(), userRef.get()]);
+  const userData = userDoc.exists ? userDoc.data() : null;
+  const unitContact = { userId };
+  if (userData?.name) {
+    unitContact.name = userData.name;
+  }
+  if (userData?.email) {
+    unitContact.email = userData.email;
+  }
+
   if (unitDoc.exists) {
     const unitData = unitDoc.data();
     const updateData = {};
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      const normalizedOwners = normalizeContactsForStorage(unitData.owners);
+      const existingOwners = Array.isArray(unitData.owners) ? [...unitData.owners] : [];
       // Check if user already exists by userId
-      const exists = normalizedOwners.some(owner => 
-        owner.userId === userId
+      const exists = existingOwners.some(owner => 
+        owner && typeof owner === 'object' && owner.userId === userId
       );
       if (!exists) {
-        normalizedOwners.push({ userId });
-        updateData.owners = normalizedOwners;
+        existingOwners.push(unitContact);
+        updateData.owners = existingOwners;
         hasChanges = true;
       }
       
       // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      const normalizedManagers = normalizeContactsForStorage(unitData.managers);
+      const existingManagers = Array.isArray(unitData.managers) ? [...unitData.managers] : [];
       // Check if user already exists by userId
-      const exists = normalizedManagers.some(manager => 
-        manager.userId === userId
+      const exists = existingManagers.some(manager => 
+        manager && typeof manager === 'object' && manager.userId === userId
       );
       if (!exists) {
-        normalizedManagers.push({ userId });
-        updateData.managers = normalizedManagers;
+        existingManagers.push(unitContact);
+        updateData.managers = existingManagers;
         hasChanges = true;
       }
       
@@ -132,12 +113,12 @@ async function removePersonFromUnit(batch, clientId, unitId, userId, role) {
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      const normalizedOwners = normalizeContactsForStorage(unitData.owners);
-      const owners = normalizedOwners.filter(owner => 
-        owner.userId !== userId
+      const existingOwners = Array.isArray(unitData.owners) ? unitData.owners : [];
+      const owners = existingOwners.filter(owner => 
+        !(owner && typeof owner === 'object' && owner.userId === userId)
       );
       
-      if (normalizedOwners.length !== owners.length) {
+      if (existingOwners.length !== owners.length) {
         updateData.owners = owners;
         hasChanges = true;
       }
@@ -145,12 +126,12 @@ async function removePersonFromUnit(batch, clientId, unitId, userId, role) {
       // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      const normalizedManagers = normalizeContactsForStorage(unitData.managers);
-      const managers = normalizedManagers.filter(manager => 
-        manager.userId !== userId
+      const existingManagers = Array.isArray(unitData.managers) ? unitData.managers : [];
+      const managers = existingManagers.filter(manager => 
+        !(manager && typeof manager === 'object' && manager.userId === userId)
       );
       
-      if (normalizedManagers.length !== managers.length) {
+      if (existingManagers.length !== managers.length) {
         updateData.managers = managers;
         hasChanges = true;
       }
