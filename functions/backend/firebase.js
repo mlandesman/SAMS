@@ -174,11 +174,13 @@ function toFirestoreTimestamp(dateValue) {
 /**
  * Get end of day in Cancun timezone as Firestore Timestamp (using backend's admin instance).
  * Use for query bounds to match historical transaction storage; avoids shared module Timestamp mismatch.
+ * Preserves .999 ms for inclusive end-of-day boundary (toFirestoreTimestamp would strip ms via toLocaleTimeString).
  */
 function getEndOfDayCancunTimestamp(date) {
   const d = date instanceof Date ? date : new Date(date);
   const cancunDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T23:59:59.999-05:00`;
-  return toFirestoreTimestamp(cancunDateStr);
+  const dateObj = new Date(cancunDateStr);
+  return admin.firestore.Timestamp.fromDate(dateObj);
 }
 
 export { admin, getDb, initializeFirebase, checkFirestoreConnection, getApp, toFirestoreTimestamp, getEndOfDayCancunTimestamp };
