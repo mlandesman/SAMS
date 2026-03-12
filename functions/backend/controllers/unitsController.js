@@ -307,7 +307,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
     const unitRef = db.doc(`clients/${clientId}/units/${unitId}`);
     
     await unitRef.update({
-      managers: managers || [],
+      managers: normalizeContactsForStorage(managers || []),
       updated: toFirestoreTimestamp(getNow())
     });
     
