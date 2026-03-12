@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-const INSTALL_DISMISSED_KEY = 'samsInstallDismissed';
-const INSTALL_CONFIRMED_KEY = 'samsInstalled';
+import {
+  INSTALL_CONFIRMED_KEY,
+  INSTALL_DISMISSED_KEY
+} from '../constants/installPrompt.js';
 
 const MOBILE_USER_AGENT_REGEX = /iPhone|iPad|iPod|Android/i;
 const IOS_USER_AGENT_REGEX = /iPhone|iPad|iPod/i;

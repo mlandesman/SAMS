@@ -8,6 +8,7 @@ import {
 import IosShareIcon from '@mui/icons-material/IosShare';
 import AddToHomeScreenIcon from '@mui/icons-material/AddToHomeScreen';
 import DownloadForOfflineIcon from '@mui/icons-material/DownloadForOffline';
+import { INSTALL_ICON_PATH } from '../constants/installPrompt.js';
 
 const cardSx = {
   width: '100%',
@@ -94,7 +95,7 @@ export default function InstallBanner({
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Box
             component="img"
-            src="/icon-192x192.png"
+              src={INSTALL_ICON_PATH}
             alt="SAMS icon"
             sx={{ width: 56, height: 56, borderRadius: 2, flexShrink: 0 }}
           />
