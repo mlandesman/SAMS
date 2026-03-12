@@ -50,9 +50,9 @@ if (typeof window !== 'undefined') {
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
+      main: '#1e40af',
+      light: '#3b82f6',
+      dark: '#1e3a8a',
     },
     secondary: {
       main: '#dc004e',
