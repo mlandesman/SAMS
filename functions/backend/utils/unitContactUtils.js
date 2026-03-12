@@ -10,6 +10,81 @@
 
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
+function getDisplayNameFromUser(userData = {}) {
+  const profile = userData.profile || {};
+  const firstName = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
+  const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  if (fullName) return fullName;
+  if (typeof userData.name === 'string') return userData.name.trim();
+  return '';
+}
+
+function getPhoneFromUser(userData = {}) {
+  const profile = userData.profile || {};
+  return typeof profile.phone === 'string' ? profile.phone.trim() : '';
+}
+
+function getEmailFromUser(userData = {}) {
+  return typeof userData.email === 'string' ? userData.email.trim() : '';
+}
+
+function getUniqueUserIds(contacts) {
+  if (!Array.isArray(contacts)) return [];
+
+  return [...new Set(
+    contacts
+      .filter(contact => contact && typeof contact === 'object' && typeof contact.userId === 'string')
+      .map(contact => contact.userId.trim())
+      .filter(Boolean)
+  )];
+}
+
+async function buildUserCache(userIds, db, existingCache = new Map()) {
+  const missingUserIds = userIds.filter(userId => !existingCache.has(userId));
+
+  if (missingUserIds.length === 0) {
+    return existingCache;
+  }
+
+  const userRefs = missingUserIds.map(userId => db.collection('users').doc(userId));
+  const userDocs = await db.getAll(...userRefs);
+
+  userDocs.forEach((userDoc, index) => {
+    const userId = missingUserIds[index];
+    existingCache.set(userId, userDoc.exists ? userDoc.data() : null);
+  });
+
+  return existingCache;
+}
+
+function resolveContactWithCache(contact, userCache) {
+  if (!contact || typeof contact !== 'object') {
+    return contact;
+  }
+
+  if (typeof contact.userId === 'string' && contact.userId.trim()) {
+    const userId = contact.userId.trim();
+    const userData = userCache.get(userId);
+
+    if (!userData) {
+      // Keep unresolved UID entries backward-compatible for response shape.
+      return { userId, name: '', email: '', phone: '' };
+    }
+
+    return {
+      userId,
+      name: getDisplayNameFromUser(userData),
+      email: getEmailFromUser(userData),
+      phone: getPhoneFromUser(userData),
+    };
+  }
+
+  // Legacy format entry should pass through unchanged.
+  return contact;
+}
+
 /**
  * Normalize owners array to new structure [{name, email}]
  * Assumes new format only - converts string format if found (should not happen after migration)
@@ -26,12 +101,21 @@ export function normalizeOwners(owners) {
       logWarn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
-    // New format: {name, email}
+    // UID format: {userId}
+    if (typeof owner.userId === 'string' && owner.userId.trim()) {
+      return {
+        userId: owner.userId.trim(),
+        name: (owner.name || '').trim(),
+        email: (owner.email || '').trim(),
+        phone: (owner.phone || '').trim()
+      };
+    }
+    // Legacy/new format: {name, email}
     return {
       name: (owner.name || '').trim(),
       email: (owner.email || '').trim()
     };
-  }).filter(owner => owner.name); // Remove empty names
+  }).filter(owner => owner.name || owner.userId); // Keep UID entries even without names
 }
 
 /**
@@ -50,12 +134,69 @@ export function normalizeManagers(managers) {
       logWarn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
-    // New format: {name, email}
+    // UID format: {userId}
+    if (typeof manager.userId === 'string' && manager.userId.trim()) {
+      return {
+        userId: manager.userId.trim(),
+        name: (manager.name || '').trim(),
+        email: (manager.email || '').trim(),
+        phone: (manager.phone || '').trim()
+      };
+    }
+    // Legacy/new format: {name, email}
     return {
       name: (manager.name || '').trim(),
       email: (manager.email || '').trim()
     };
-  }).filter(manager => manager.name); // Remove empty names
+  }).filter(manager => manager.name || manager.userId); // Keep UID entries even without names
+}
+
+/**
+ * Resolve owners to enriched owner objects for API responses.
+ * Supports mixed arrays of {userId} and legacy {name, email}.
+ *
+ * @param {Array<Object>|undefined} owners
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<Array<Object>>}
+ */
+export async function resolveOwners(owners, db) {
+  if (!Array.isArray(owners) || owners.length === 0) {
+    return [];
+  }
+
+  if (!db) {
+    logWarn('resolveOwners called without db; returning normalized owners');
+    return normalizeOwners(owners);
+  }
+
+  const userIds = getUniqueUserIds(owners);
+  const userCache = await buildUserCache(userIds, db, new Map());
+
+  return owners.map(owner => resolveContactWithCache(owner, userCache));
+}
+
+/**
+ * Resolve managers to enriched manager objects for API responses.
+ * Supports mixed arrays of {userId} and legacy {name, email}.
+ *
+ * @param {Array<Object>|undefined} managers
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<Array<Object>>}
+ */
+export async function resolveManagers(managers, db) {
+  if (!Array.isArray(managers) || managers.length === 0) {
+    return [];
+  }
+
+  if (!db) {
+    logWarn('resolveManagers called without db; returning normalized managers');
+    return normalizeManagers(managers);
+  }
+
+  const userIds = getUniqueUserIds(managers);
+  const userCache = await buildUserCache(userIds, db, new Map());
+
+  return managers.map(manager => resolveContactWithCache(manager, userCache));
 }
 
 /**

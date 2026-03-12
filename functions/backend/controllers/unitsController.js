@@ -2,9 +2,91 @@
 import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
+function normalizeContactForStorage(entry) {
+  if (typeof entry === 'string') {
+    const trimmedName = entry.trim();
+    if (!trimmedName) return null;
+    return { name: trimmedName, email: '' };
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  if (typeof entry.userId === 'string' && entry.userId.trim()) {
+    return { userId: entry.userId.trim() };
+  }
+
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  const email = typeof entry.email === 'string' ? entry.email.trim() : '';
+  if (!name && !email) {
+    return null;
+  }
+
+  return { name, email };
+}
+
+function normalizeContactsForStorage(contacts) {
+  if (!Array.isArray(contacts)) return [];
+  return contacts
+    .map(normalizeContactForStorage)
+    .filter(Boolean);
+}
+
+function getUserIdsFromContacts(contacts) {
+  if (!Array.isArray(contacts)) return [];
+
+  return contacts
+    .filter(contact => contact && typeof contact === 'object' && typeof contact.userId === 'string')
+    .map(contact => contact.userId.trim())
+    .filter(Boolean);
+}
+
+function getResolvedName(userData = {}) {
+  const profile = userData.profile || {};
+  const firstName = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
+  const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  if (fullName) return fullName;
+  return typeof userData.name === 'string' ? userData.name.trim() : '';
+}
+
+function getResolvedPhone(userData = {}) {
+  const profile = userData.profile || {};
+  return typeof profile.phone === 'string' ? profile.phone.trim() : '';
+}
+
+function getResolvedEmail(userData = {}) {
+  return typeof userData.email === 'string' ? userData.email.trim() : '';
+}
+
+function enrichContactsWithUserMap(contacts, userMap) {
+  if (!Array.isArray(contacts)) return [];
+
+  return contacts.map(contact => {
+    if (!contact || typeof contact !== 'object') {
+      return contact;
+    }
+
+    if (typeof contact.userId === 'string' && contact.userId.trim()) {
+      const userId = contact.userId.trim();
+      const userData = userMap.get(userId);
+      if (!userData) {
+        return { userId, name: '', email: '', phone: '' };
+      }
+      return {
+        userId,
+        name: getResolvedName(userData),
+        email: getResolvedEmail(userData),
+        phone: getResolvedPhone(userData),
+      };
+    }
+
+    return contact;
+  });
+}
 
 /**
  * Create a Unit under a Client
@@ -33,9 +115,9 @@ async function createUnit(clientId, unitData, docId = null) {
       propertyType: restData.propertyType || 'condo',
       status: restData.status || 'active',
       
-      // New array fields (denormalized for display, normalized to new structure)
-      owners: normalizeOwners(restData.owners || []),
-      managers: normalizeManagers(restData.managers || []),
+      // Persist as UID references when provided; keep legacy entries for transition.
+      owners: normalizeContactsForStorage(restData.owners || []),
+      managers: normalizeContactsForStorage(restData.managers || []),
       // Note: emails field removed - emails are now in owner objects
       
       // Physical data
@@ -87,6 +169,14 @@ async function updateUnit(clientId, unitId, newData) {
     delete updates.unitId;
     delete updates.emails; // Remove emails field - emails are now in owner objects
     
+    // Keep owners/managers in UID-reference shape when provided.
+    if (Object.prototype.hasOwnProperty.call(updates, 'owners')) {
+      updates.owners = normalizeContactsForStorage(updates.owners);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'managers')) {
+      updates.managers = normalizeContactsForStorage(updates.managers);
+    }
+
     // Handle timestamp updates
     if (updates.created) {
       updates.created = toFirestoreTimestamp(updates.created);
@@ -150,6 +240,7 @@ async function listUnits(clientId) {
     const db = await getDb();
     const snapshot = await db.collection(`clients/${clientId}/units`).get();
     const units = [];
+    const allUserIds = new Set();
 
     snapshot.forEach(doc => {
       // CRITICAL FIX: Exclude creditBalances* documents from units list
@@ -160,23 +251,49 @@ async function listUnits(clientId) {
       }
       
       const data = doc.data();
+      const ownersRaw = Array.isArray(data.owners) ? data.owners : (data.owner ? [data.owner] : []);
+      const managersRaw = Array.isArray(data.managers) ? data.managers : [];
+
+      getUserIdsFromContacts(ownersRaw).forEach(userId => allUserIds.add(userId));
+      getUserIdsFromContacts(managersRaw).forEach(userId => allUserIds.add(userId));
       
-      // Add the document ID as unitId for API response
-      const unit = {
+      units.push({
         unitId: doc.id, // Document ID is the unit identifier
         ...data,
-        // Handle owner/owners field mapping (normalized to new structure)
-        owners: normalizeOwners(data.owners || (data.owner ? [data.owner] : [])),
-        managers: normalizeManagers(data.managers || []),
+        ownersRaw,
+        managersRaw,
         // Ensure other expected fields exist
         status: data.status || 'active',
         notes: data.notes || ''
-      };
-      
-      units.push(unit);
+      });
     });
 
-    return units;
+    const userMap = new Map();
+    const userIds = [...allUserIds];
+
+    if (userIds.length > 0) {
+      const userRefs = userIds.map(userId => db.collection('users').doc(userId));
+      const userDocs = await db.getAll(...userRefs);
+
+      userDocs.forEach((userDoc, index) => {
+        if (userDoc.exists) {
+          userMap.set(userIds[index], userDoc.data());
+        }
+      });
+    }
+
+    const enrichedUnits = units.map(unit => {
+      const owners = enrichContactsWithUserMap(unit.ownersRaw, userMap);
+      const managers = enrichContactsWithUserMap(unit.managersRaw, userMap);
+      const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
+      return {
+        ...unitWithoutRaw,
+        owners,
+        managers,
+      };
+    });
+
+    return enrichedUnits;
   } catch (error) {
     logError('❌ Error listing units:', error);
     return [];
