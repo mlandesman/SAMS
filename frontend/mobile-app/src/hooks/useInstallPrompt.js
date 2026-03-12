@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const INSTALL_DISMISSED_KEY = 'samsInstallDismissed';
 const INSTALL_CONFIRMED_KEY = 'samsInstalled';
-const INSTALL_INTERACTED_KEY = 'samsInstallInteracted';
 
 const MOBILE_USER_AGENT_REGEX = /iPhone|iPad|iPod|Android/i;
 const IOS_USER_AGENT_REGEX = /iPhone|iPad|iPod/i;
@@ -40,7 +39,6 @@ export function useInstallPrompt() {
 
     const installedHandler = () => {
       localStorage.setItem(INSTALL_CONFIRMED_KEY, 'true');
-      localStorage.setItem(INSTALL_INTERACTED_KEY, 'true');
       setIsInstalled(true);
       setDismissed(true);
       setDeferredPrompt(null);
@@ -82,7 +80,6 @@ export function useInstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice;
     const accepted = outcome === 'accepted';
 
-    localStorage.setItem(INSTALL_INTERACTED_KEY, 'true');
     setDeferredPrompt(null);
 
     if (accepted) {
@@ -96,7 +93,6 @@ export function useInstallPrompt() {
 
   const dismiss = useCallback(() => {
     localStorage.setItem(INSTALL_DISMISSED_KEY, 'true');
-    localStorage.setItem(INSTALL_INTERACTED_KEY, 'true');
     setDismissed(true);
   }, []);
 

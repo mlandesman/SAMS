@@ -50,6 +50,7 @@ const Layout = ({ children }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const {
     showInstallUI,
+    isMobile,
     isIOS,
     isInstalled,
     canPromptInstall,
@@ -273,7 +274,7 @@ const Layout = ({ children }) => {
               </ListItemButton>
             </ListItem>
           ))}
-          {!isInstalled && (
+          {!isInstalled && isMobile && (
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => {
