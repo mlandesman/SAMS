@@ -15,6 +15,13 @@ const updateSW = registerSW({
   },
 });
 
+if (
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true
+) {
+  localStorage.setItem('samsInstalled', 'true');
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />

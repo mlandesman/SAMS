@@ -8,6 +8,7 @@ import {
   Drawer,
   List,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Divider,
@@ -29,12 +30,15 @@ import {
   Add as AddIcon,
   PictureAsPdf as PdfIcon,
   Home as HomeIcon,
+  DownloadForOffline as InstallIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
+import InstallBanner from './InstallBanner.jsx';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
@@ -44,6 +48,15 @@ const Layout = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const {
+    showInstallUI,
+    isIOS,
+    isInstalled,
+    canPromptInstall,
+    promptInstall,
+    dismiss,
+    reopenInstallUI
+  } = useInstallPrompt();
 
   // Monitor network status
   useEffect(() => {
@@ -249,27 +262,44 @@ const Layout = ({ children }) => {
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
           ).map((item) => (
-            <ListItem
-              button
-              key={item.path}
-              selected={location.pathname === item.path}
-              onClick={() => { navigate(item.path); setDrawerOpen(false); }}
-              sx={{ minHeight: 48 }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => { navigate(item.path); setDrawerOpen(false); }}
+                sx={{ minHeight: 48 }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
             </ListItem>
           ))}
+          {!isInstalled && (
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  reopenInstallUI();
+                  setDrawerOpen(false);
+                }}
+                sx={{ minHeight: 48 }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <InstallIcon />
+                </ListItemIcon>
+                <ListItemText primary="Install App" />
+              </ListItemButton>
+            </ListItem>
+          )}
         </List>
         <Divider />
         <List>
-          <ListItem
-            button
-            onClick={() => { setDrawerOpen(false); handleLogout(); }}
-            sx={{ minHeight: 48 }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
-            <ListItemText primary="Logout" />
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => { setDrawerOpen(false); handleLogout(); }}
+              sx={{ minHeight: 48 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
+              <ListItemText primary="Logout" />
+            </ListItemButton>
           </ListItem>
         </List>
       </Drawer>
@@ -291,6 +321,14 @@ const Layout = ({ children }) => {
       <UserProfileManager 
         open={profileOpen} 
         onClose={() => setProfileOpen(false)} 
+      />
+
+      <InstallBanner
+        open={showInstallUI && location.pathname !== '/auth'}
+        isIOS={isIOS}
+        canPromptInstall={canPromptInstall}
+        promptInstall={promptInstall}
+        dismiss={dismiss}
       />
     </div>
   );

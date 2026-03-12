@@ -46,12 +46,12 @@ export default defineConfig({
         // Clean up old caches
         cleanupOutdatedCaches: true,
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'sandyland-logo.png'],
+      includeAssets: ['sandyland-logo.png'],
       manifest: {
-        name: 'Sandyland Asset Management',
-        short_name: 'Sandyland',
+        name: 'SAMS - Sandyland Property Management',
+        short_name: 'SAMS',
         description: 'Mobile asset management for Sandyland Property Management',
-        theme_color: '#1976d2',
+        theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',
@@ -69,11 +69,6 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
-          },
-          {
-            src: 'icons/icon-384x384.png',
-            sizes: '384x384',
-            type: 'image/png'
           }
         ]
       }
