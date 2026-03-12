@@ -129,7 +129,7 @@ function convertContactArray({
         `${unitRef} ${role}[${index}] missing email; kept legacy entry`
       );
       unmatched += 1;
-      return normalizedEntry;
+      return entry;
     }
 
     if (duplicateEmailMap.has(email)) {
@@ -146,7 +146,7 @@ function convertContactArray({
         email,
         reason: `multiple users: ${duplicateUids.join(', ')}`,
       });
-      return normalizedEntry;
+      return entry;
     }
 
     const matchedUid = emailToUidMap.get(email);
@@ -161,7 +161,7 @@ function convertContactArray({
         email,
         reason: 'not found',
       });
-      return normalizedEntry;
+      return entry;
     }
 
     matched += 1;
@@ -405,6 +405,7 @@ async function main() {
       console.log('MIGRATION EXECUTION COMPLETE.');
     }
     console.log('');
+    process.exit(0);
   } catch (error) {
     console.error('Fatal migration error:', error);
     process.exit(1);
