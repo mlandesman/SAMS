@@ -7,6 +7,21 @@ import {
 const MOBILE_USER_AGENT_REGEX = /iPhone|iPad|iPod|Android/i;
 const IOS_USER_AGENT_REGEX = /iPhone|iPad|iPod/i;
 
+function isIPadOS13Plus() {
+  return (
+    window.navigator.platform === 'MacIntel' &&
+    window.navigator.maxTouchPoints > 1
+  );
+}
+
+function detectIOSDevice() {
+  return IOS_USER_AGENT_REGEX.test(window.navigator.userAgent) || isIPadOS13Plus();
+}
+
+function detectMobileDevice() {
+  return MOBILE_USER_AGENT_REGEX.test(window.navigator.userAgent) || isIPadOS13Plus();
+}
+
 function isStandaloneMode() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -22,8 +37,8 @@ export function useInstallPrompt() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const mobile = MOBILE_USER_AGENT_REGEX.test(window.navigator.userAgent);
-    const ios = IOS_USER_AGENT_REGEX.test(window.navigator.userAgent);
+    const mobile = detectMobileDevice();
+    const ios = detectIOSDevice();
     const standalone = isStandaloneMode();
     const markedInstalled = localStorage.getItem(INSTALL_CONFIRMED_KEY) === 'true';
     const wasDismissed = localStorage.getItem(INSTALL_DISMISSED_KEY) === 'true';
