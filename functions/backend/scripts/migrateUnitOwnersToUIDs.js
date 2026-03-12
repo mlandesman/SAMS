@@ -98,6 +98,10 @@ function convertContactArray({
   unmatchedEmailRows,
 }) {
   if (!Array.isArray(contacts)) {
+    // Missing contact arrays are treated as empty to avoid undefined writes.
+    if (contacts === undefined || contacts === null) {
+      return { converted: [], matched: 0, unmatched: 0, convertedCount: 0 };
+    }
     return { converted: contacts, matched: 0, unmatched: 0, convertedCount: 0 };
   }
 
@@ -286,10 +290,8 @@ async function main() {
           unmatchedEmailRows: summary.unmatchedEmailRows,
         });
 
-        const existingOwners = Array.isArray(unitData.owners) ? unitData.owners : [];
-        const existingManagers = Array.isArray(unitData.managers)
-          ? unitData.managers
-          : [];
+        const existingOwners = unitData.owners ?? [];
+        const existingManagers = unitData.managers ?? [];
 
         const ownersChanged =
           JSON.stringify(existingOwners) !== JSON.stringify(ownersResult.converted);
@@ -316,11 +318,24 @@ async function main() {
         }
 
         try {
-          await unitDoc.ref.update({
-            owners: ownersResult.converted,
-            managers: managersResult.converted,
+          const updatePayload = {
             updated: admin.firestore.FieldValue.serverTimestamp(),
-          });
+          };
+
+          // Update only changed fields to avoid accidental normalization/writes
+          // on untouched contact arrays.
+          if (ownersChanged) {
+            updatePayload.owners = Array.isArray(ownersResult.converted)
+              ? ownersResult.converted
+              : [];
+          }
+          if (managersChanged) {
+            updatePayload.managers = Array.isArray(managersResult.converted)
+              ? managersResult.converted
+              : [];
+          }
+
+          await unitDoc.ref.update(updatePayload);
 
           summary.unitsUpdated += 1;
           console.log(`  [UPDATED] ${unitRef}`);
