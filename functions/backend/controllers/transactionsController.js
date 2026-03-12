@@ -16,7 +16,7 @@
  * CRUD operations for transactions collection
  */
 
-import { getDb, getApp, toFirestoreTimestamp, getEndOfDayCancunTimestamp } from '../firebase.js';
+import { getDb, getApp, toFirestoreTimestamp } from '../firebase.js';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { normalizeDates } from '../utils/timestampUtils.js';
@@ -2177,7 +2177,7 @@ async function queryTransactions(clientId, filters = {}) {
     }
     if (filters.endDate) {
       const endDate = filters.endDate instanceof Date ? filters.endDate : new Date(filters.endDate);
-      query = query.where('date', '<=', getEndOfDayCancunTimestamp(endDate));
+      query = query.where('date', '<=', toFirestoreTimestamp(endDate));
     }
     
     // Apply category filter if provided
