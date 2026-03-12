@@ -22,7 +22,7 @@ import {
   generateBothLanguageReports 
 } from '../services/waterBillReportHtmlService.js';
 import { generateAllUnitsReportData } from '../services/waterBillReportService.js';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { resolveOwners, resolveManagers } from '../utils/unitContactUtils.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import crypto from 'crypto';
 import axios from 'axios';
@@ -93,9 +93,8 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
 
     const unitData = unitDoc.data();
 
-    // Get owners and managers directly from the unit document (normalized to new structure)
-    const owners = normalizeOwners(unitData.owners);
-    const managers = normalizeManagers(unitData.managers);
+    const owners = await resolveOwners(unitData.owners || [], db);
+    const managers = await resolveManagers(unitData.managers || [], db);
 
     // Get HOA dues information using the same approach as desktop UI
     const currentDate = getNow();

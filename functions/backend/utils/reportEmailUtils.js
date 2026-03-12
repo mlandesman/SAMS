@@ -12,7 +12,7 @@
  */
 
 import { getDb } from '../firebase.js';
-import { normalizeOwners, normalizeManagers, joinOwnerNames } from './unitContactUtils.js';
+import { resolveOwners, resolveManagers } from './unitContactUtils.js';
 
 /**
  * Check if running in production environment
@@ -43,29 +43,30 @@ export function getDevEmailOverride() {
  */
 export async function getUnitEmailLanguage(unit, clientId) {
   const db = await getDb();
-  const owners = normalizeOwners(unit.owners);
-  
-  if (!owners.length || !owners[0].email) {
-    // Fallback to client default
+  const owners = await resolveOwners(unit.owners || [], db);
+
+  if (!owners.length || (!owners[0].email && !owners[0].userId)) {
     const clientDoc = await db.collection('clients').doc(clientId).get();
     return clientDoc.data()?.configuration?.defaultLanguage || 'english';
   }
-  
-  // Look up owner[0] in users collection
-  const userSnapshot = await db.collection('users')
-    .where('email', '==', owners[0].email)
-    .limit(1)
-    .get();
-  
-  if (userSnapshot.empty) {
-    // Fallback to client default
+
+  let userData = null;
+  if (owners[0].userId) {
+    const userDoc = await db.collection('users').doc(owners[0].userId).get();
+    userData = userDoc.exists ? userDoc.data() : null;
+  }
+  if (!userData && owners[0].email) {
+    const userSnapshot = await db.collection('users')
+      .where('email', '==', owners[0].email)
+      .limit(1)
+      .get();
+    userData = !userSnapshot.empty ? userSnapshot.docs[0].data() : null;
+  }
+  if (!userData) {
     const clientDoc = await db.collection('clients').doc(clientId).get();
     return clientDoc.data()?.configuration?.defaultLanguage || 'english';
   }
-  
-  const userData = userSnapshot.docs[0].data();
-  // Canonical location is profile.preferredLanguage
-  // Fall back to top-level for backwards compatibility with older user docs
+
   const preferredLang = userData.profile?.preferredLanguage || userData.preferredLanguage;
   return preferredLang === 'spanish' || preferredLang === 'es' ? 'spanish' : 'english';
 }
@@ -79,11 +80,12 @@ export async function getUnitEmailLanguage(unit, clientId) {
  * @returns {Promise<Object>} Recipient info object
  */
 export async function getUnitRecipientInfo(unit, clientId) {
-  const owners = normalizeOwners(unit.owners);
-  const managers = normalizeManagers(unit.managers);
-  
+  const db = await getDb();
+  const owners = await resolveOwners(unit.owners || [], db);
+  const managers = await resolveManagers(unit.managers || [], db);
+
   // Primary owner name(s) for salutation
-  const ownerNames = joinOwnerNames(unit.owners) || 'Owner';
+  const ownerNames = owners.map(o => o.name).filter(Boolean).join(', ') || 'Owner';
   
   // Primary email addresses (To:)
   const toEmails = owners.filter(o => o.email).map(o => o.email);
