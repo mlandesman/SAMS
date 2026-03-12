@@ -120,7 +120,7 @@ const PWANavigation = () => {
             '& .MuiBottomNavigationAction-root': {
               fontSize: '0.75rem',
               '&.Mui-selected': {
-                color: '#1976d2',
+                color: 'primary.main',
               },
             },
           }}
