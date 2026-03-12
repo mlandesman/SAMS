@@ -63,7 +63,9 @@ export function formatCurrency(centavos, currency = 'MXN', showCents = true) {
  */
 export function centavosToPesos(centavos) {
   if (centavos == null || (typeof centavos === 'number' && isNaN(centavos))) return 0;
-  return centavos / 100;
+  const num = typeof centavos === 'number' ? centavos : parseFloat(centavos);
+  if (isNaN(num)) return 0;
+  return num / 100;
 }
 
 /**
