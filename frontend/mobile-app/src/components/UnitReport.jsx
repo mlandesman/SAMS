@@ -182,10 +182,20 @@ const UnitReport = ({ unitId: propUnitId }) => {
         <div className="unit-number-display">Unit {unit.unitId}</div>
         <div className="people-list">
           {unit.owners.map((owner, i) => (
-            <div key={`owner-${i}`} className="person-item">{owner.name}</div>
+            <div key={`owner-${i}`} className="person-item">
+              {owner.name}
+              {owner.phone && (
+                <> · <a href={`tel:${owner.phone.replace(/\D/g, '')}`} style={{ textDecoration: 'none' }}>{owner.phone}</a></>
+              )}
+            </div>
           ))}
           {unit.managers.map((manager, i) => (
-            <div key={`mgr-${i}`} className="person-item manager">{manager.name} (Mgr)</div>
+            <div key={`mgr-${i}`} className="person-item manager">
+              {manager.name} (Mgr)
+              {manager.phone && (
+                <> · <a href={`tel:${manager.phone.replace(/\D/g, '')}`} style={{ textDecoration: 'none' }}>{manager.phone}</a></>
+              )}
+            </div>
           ))}
         </div>
       </div>
