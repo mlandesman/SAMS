@@ -39,17 +39,9 @@ async function addPersonToUnit(batch, clientId, unitId, userId, role) {
   const db = await getDb();
   const unitRef = db.collection('clients').doc(clientId)
     .collection('units').doc(unitId);
-  const userRef = db.collection('users').doc(userId);
-    
-  const [unitDoc, userDoc] = await Promise.all([unitRef.get(), userRef.get()]);
-  const userData = userDoc.exists ? userDoc.data() : null;
+
+  const unitDoc = await unitRef.get();
   const unitContact = { userId };
-  if (userData?.name) {
-    unitContact.name = userData.name;
-  }
-  if (userData?.email) {
-    unitContact.email = userData.email;
-  }
 
   if (unitDoc.exists) {
     const unitData = unitDoc.data();
