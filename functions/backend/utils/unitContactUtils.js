@@ -60,6 +60,11 @@ async function buildUserCache(userIds, db, existingCache = new Map()) {
 }
 
 function resolveContactWithCache(contact, userCache) {
+  // Normalize legacy string format to {name, email, phone} for consistent API response
+  if (typeof contact === 'string') {
+    const name = contact.trim();
+    return name ? { name, email: '', phone: '' } : null;
+  }
   if (!contact || typeof contact !== 'object') {
     return contact;
   }

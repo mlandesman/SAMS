@@ -9,7 +9,7 @@ import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
 import { getDb } from '../firebase.js';
-import { resolveOwners, getFirstOwnerLastName } from '../utils/unitContactUtils.js';
+import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 class WaterDataService {
@@ -266,9 +266,8 @@ class WaterDataService {
         throw new Error(`Unit ${unitId} not found in client config`);
       }
 
-      const db = await getDb();
-      const resolvedOwners = await resolveOwners(unit.owners || [], db);
-      const ownerLastName = getFirstOwnerLastName(resolvedOwners) || 'Unknown';
+      // Unit from getClientConfig is already enriched; use owners directly
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
 
       // Calculate ONLY this unit's data using the same logic as the full month builder
       const unitData = this._calculateUnitData(
@@ -544,15 +543,7 @@ class WaterDataService {
       logDebug(`📊 Carryover results:`, unpaidCarryover);
     }
     
-    // Pre-resolve all owners (batch for performance)
-    const db = await getDb();
-    const resolvedOwnersMap = new Map();
-    const userCache = new Map();
-    for (const unit of units) {
-      const resolved = await resolveOwners(unit.owners || [], db, userCache);
-      resolvedOwnersMap.set(unit.unitId, resolved);
-    }
-
+    // Units from fetchUnits (listUnits) are already enriched with resolved owners; use directly
     // Build unit data
     const unitData = {};
 
@@ -592,7 +583,7 @@ class WaterDataService {
         currentReadingObj.washes = washesWithCost;
       }
 
-      const ownerLastName = getFirstOwnerLastName(resolvedOwnersMap.get(unitId) || []) || 'Unknown';
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
 
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -844,15 +835,7 @@ class WaterDataService {
    * This allows reuse with different data fetching strategies
    */
   async _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}, currentTimestamp = null, priorTimestamp = null) {
-    // Pre-resolve all owners (batch for performance)
-    const db = await getDb();
-    const resolvedOwnersMap = new Map();
-    const userCache = new Map();
-    for (const unit of units) {
-      const resolved = await resolveOwners(unit.owners || [], db, userCache);
-      resolvedOwnersMap.set(unit.unitId, resolved);
-    }
-
+    // Units from fetchUnits (listUnits) are already enriched with resolved owners; use directly
     // Build unit data (reuse existing logic from buildMonthData)
     const unitData = {};
 
@@ -892,7 +875,7 @@ class WaterDataService {
         currentReadingObj.washes = washesWithCost;
       }
 
-      const ownerLastName = getFirstOwnerLastName(resolvedOwnersMap.get(unitId) || []) || 'Unknown';
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
 
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService

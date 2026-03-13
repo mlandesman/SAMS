@@ -206,9 +206,8 @@ async function listUnits(clientId) {
       const userDocs = await db.getAll(...userRefs);
 
       userDocs.forEach((userDoc, index) => {
-        if (userDoc.exists) {
-          userMap.set(userIds[index], userDoc.data());
-        }
+        const uid = userIds[index];
+        userMap.set(uid, userDoc.exists ? userDoc.data() : null);
       });
     }
 
