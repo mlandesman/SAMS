@@ -31,6 +31,7 @@ import {
   PictureAsPdf as PdfIcon,
   Home as HomeIcon,
   DownloadForOffline as InstallIcon,
+  Contacts as ContactsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -103,6 +104,8 @@ const Layout = ({ children }) => {
       case '/water-reading':
       case '/tareas/agua':
         return 'Lectura de Agua';
+      case '/unit-directory':
+        return 'Unit Directory';
       default:
         if (location.pathname.startsWith('/expense/')) {
           return 'Add Expense';
@@ -253,6 +256,7 @@ const Layout = ({ children }) => {
             ? [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
                 { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
+                { label: 'Unit Directory', icon: <ContactsIcon />, path: '/unit-directory' },
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [
