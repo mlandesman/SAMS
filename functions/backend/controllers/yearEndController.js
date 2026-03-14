@@ -78,6 +78,8 @@ export async function previewYearEnd(req, res) {
     let unitsWithCredit = 0;
     let unitsWithRateChange = 0;
     
+    // Shared user cache to avoid N+1 queries across units
+    const userCache = new Map();
     // Process each unit
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
@@ -87,7 +89,7 @@ export async function previewYearEnd(req, res) {
       
       const unitData = unitDoc.data();
 
-      const resolvedOwners = await resolveOwners(unitData.owners || [], db);
+      const resolvedOwners = await resolveOwners(unitData.owners || [], db, userCache);
       let ownerNames = resolvedOwners.map(o => o.name).filter(Boolean);
       if (ownerNames.length === 0 && unitData.owner) {
         ownerNames = [typeof unitData.owner === 'string' ? unitData.owner : (unitData.owner.name || '')];
@@ -478,13 +480,14 @@ async function getPreviewDataForReport(db, clientId, closingYear, fiscalYearStar
   const unitsSnapshot = await unitsRef.get();
   
   const units = [];
+  const userCache = new Map();
   for (const unitDoc of unitsSnapshot.docs) {
     const unitId = unitDoc.id;
     if (unitId.startsWith('creditBalances')) continue;
     
     const unitData = unitDoc.data();
 
-    const resolvedOwners = await resolveOwners(unitData.owners || [], db);
+    const resolvedOwners = await resolveOwners(unitData.owners || [], db, userCache);
     let ownerNames = resolvedOwners.map(o => o.name).filter(Boolean);
     if (ownerNames.length === 0 && unitData.owner) {
       ownerNames = [typeof unitData.owner === 'string' ? unitData.owner : (unitData.owner.name || '')];

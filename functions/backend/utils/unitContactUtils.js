@@ -219,7 +219,7 @@ export async function resolveOwners(owners, db, existingCache = null) {
   const userIds = getUniqueUserIds(owners);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  return owners.map(owner => resolveContactWithCache(owner, userCache));
+  return owners.map(owner => resolveContactWithCache(owner, userCache)).filter(Boolean);
 }
 
 /**
@@ -243,7 +243,7 @@ export async function resolveManagers(managers, db, existingCache = null) {
   const userIds = getUniqueUserIds(managers);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  return managers.map(manager => resolveContactWithCache(manager, userCache));
+  return managers.map(manager => resolveContactWithCache(manager, userCache)).filter(Boolean);
 }
 
 /**
@@ -253,7 +253,7 @@ export async function resolveManagers(managers, db, existingCache = null) {
  * @returns {Array<string>} Array of owner names
  */
 export function getOwnerNames(owners) {
-  return normalizeOwners(owners).map(owner => owner.name);
+  return normalizeOwners(owners).map(owner => owner.name).filter(Boolean);
 }
 
 /**
@@ -263,7 +263,7 @@ export function getOwnerNames(owners) {
  * @returns {Array<string>} Array of manager names
  */
 export function getManagerNames(managers) {
-  return normalizeManagers(managers).map(manager => manager.name);
+  return normalizeManagers(managers).map(manager => manager.name).filter(Boolean);
 }
 
 /**
