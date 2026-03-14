@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.15.0 | **Deployed:** March 10, 2026  
-**Last Updated:** March 10, 2026 — Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233). WebAuthn passkey authentication for all users. Ready for mobile app deployment.  
+**Last Updated:** March 14, 2026 — Sprint NRM ✅ COMPLETE (PR #240, merged March 14). Sprint D ✅ COMPLETE (D1 PR #236, D2 PR #237). Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233).  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -23,13 +23,42 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ---
 
-## Current Sprint
+## Last Completed Sprint
 
-No active sprint. Next session: determine priority — Sprint D (PWA/Mobile Enhancements) or Sprint WA (WhatsApp Notifications).
+**Sprint NRM: Normalize Unit-User References** — #133 ✅ COMPLETE (PR #240, merged March 14, 2026)
+
+| Task | Title | Est | Actual | Status |
+|------|-------|-----|--------|--------|
+| NRM1 | Data migration script — `owners[{name,email}]` → `owners[{userId}]` | 4h | 3h | ✅ COMPLETE |
+| NRM2 | Backend API — resolve user data at query time from `users` collection | 4h | 3h | ✅ COMPLETE |
+| NRM3 | Backend service consumers (11 files) + sync logic refactor (UID-only writes) | 6h | 4h | ✅ COMPLETE |
+| NRM4 | Desktop frontend — `UnitFormModal` sends only `{userId}` | 4h | 1h | ✅ COMPLETE |
+| NRM5 | Mobile frontend — `UnitReport` tappable phone links, `unitContactUtils` | 3h | 1h | ✅ COMPLETE |
+| NRM6 | Transition verification — pre-PR checks, both builds, full diff review | 4h | 1h | ✅ COMPLETE |
+| NRM7 | Mobile PWA Unit Directory — admin contact list with phone/email | 3h | 2h | ✅ COMPLETE |
+
+**Estimated**: 28h | **Actual**: ~15h | **Quality**: ⭐⭐⭐⭐⭐ (4 BugBot rounds, 0 regressions, manual testing confirmed)
+
+**Impact**: Single source of truth for user data. Eliminated `updateUserNameInUnits` sync function. 17 files changed (+665/-331). Phone numbers now accessible across all unit displays.
 
 ---
 
 ## Recently Completed
+
+### Sprint D: PWA/Mobile Enhancements ✅ COMPLETE
+**Completed:** March 12, 2026  
+**Duration:** March 10–12, 2026  
+
+| Task | Title | Status |
+|------|-------|--------|
+| D1 | #184: Consolidate duplicate databaseFieldMappings.js and currencyUtils | ✅ COMPLETE (PR #236) |
+| D2 | #109: PWA Mobile Install Flow (iOS + Android) | ✅ COMPLETE (PR #237) |
+| D3 | #133: PWA Unit Information Dashboard | ❌ CANCELLED → Sprint NRM |
+| D4+ | #176, Projects card, Vote Needed card | Deprioritized → Sprint G |
+
+**Note**: D3 investigation revealed unit documents store denormalized owner/manager data (name/email copies instead of UID references). Converted #133 to tech debt sprint (NRM) with significantly expanded scope covering backend, desktop, and mobile refactoring + data migration.
+
+---
 
 ### Sprint PASSKEY-AUTH: Passkey Authentication ✅ COMPLETE
 **Completed:** March 10, 2026  
@@ -382,6 +411,7 @@ No active blockers.
 
 | Item | Notes |
 |------|-------|
+| **Unit owner/manager denormalization** | ✅ RESOLVED — Sprint NRM (#133, PR #240, March 14, 2026). Unit documents now store `{userId}` references. All services resolve user data at query time. |
 | **Dashboard content cache** | Lightweight `dashboard-summary` endpoint exists; consider adding a cache layer for Dashboard content in a future sprint to improve load time. |
 
 ---

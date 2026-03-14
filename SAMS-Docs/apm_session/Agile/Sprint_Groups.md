@@ -22,24 +22,53 @@
 
 ---
 
-### 📱 Sprint D: PWA/Mobile Enhancements (12-16 hours)
+### 📱 Sprint D: PWA/Mobile Enhancements — ✅ COMPLETE
 *Mobile app improvements*
 
-| # | Title | Priority | Est |
-|---|-------|----------|-----|
-| **176** | Budget Dashboard Card redesign — live budget data for mobile | enhancement | 2h |
-| NEW | Projects card — live project status data for mobile dashboard | enhancement | 2h |
-| NEW | Vote Needed card — show open polls requiring user action on mobile dashboard | enhancement | 3h |
-| **184** | Consolidate duplicate databaseFieldMappings.js and currencyUtils | tech-debt | 2h |
-| **133** | PWA unit information dashboard | enhancement | 3h |
-| **109** | PWA Mobile Install Flow (iOS + Android) | enhancement | 2h |
-| **51** | PWA Balance Card expandable | enhancement | 1h |
-| **47** | Refactor PWA Dashboard layout cards | medium | 2h |
+| # | Title | Priority | Est | Status |
+|---|-------|----------|-----|--------|
+| **184** | Consolidate duplicate databaseFieldMappings.js and currencyUtils | tech-debt | 2h | ✅ D1 COMPLETE (PR #236, March 12) |
+| **109** | PWA Mobile Install Flow (iOS + Android) | enhancement | 2h | ✅ D2 COMPLETE (PR #237, March 12) |
+| **133** | PWA unit information dashboard | enhancement | 2h | ❌ CANCELLED → Converted to Sprint NRM (tech debt #133 with expanded scope) |
+| **176** | Budget Dashboard Card redesign — live budget data for mobile | enhancement | 2h | Deprioritized → Sprint G backlog |
+| NEW | Projects card — live project status data for mobile dashboard | enhancement | 2h | Deprioritized → Sprint G backlog |
+| NEW | Vote Needed card — show open polls requiring user action on mobile dashboard | enhancement | 3h | Deprioritized → Sprint G backlog |
+| **51** | PWA Balance Card expandable | enhancement | 1h | ✅ Already implemented (compact card shows all accounts) |
+| **47** | Refactor PWA Dashboard layout cards | medium | 2h | ✅ Closed — implemented in MOBILE-OWNER-V1 |
 
 **Theme**: Mobile experience improvements  
-**Risk**: Medium (mobile-specific testing required)  
-**Dependencies**: MOBILE-OWNER-V1 complete. #184 should be done before other mobile work (code cleanup prerequisite).  
-**Note**: #132, #147, #193 closed in Sprint MOBILE-OWNER-V1. Budget card (#176), Projects card, and Vote Needed card carried forward from MOBILE-OWNER-V1 as future enhancements.  
+**Status**: ✅ Sprint Complete (March 12, 2026). D1 and D2 done. D3 converted to standalone Sprint NRM. Remaining cards deprioritized to Sprint G.  
+**Note**: #132, #147, #193 closed in Sprint MOBILE-OWNER-V1. Budget card (#176), Projects card, and Vote Needed card carried forward to Sprint G backlog.  
+
+---
+
+### ✅ Sprint NRM: Normalize Unit-User References — COMPLETE (PR #240, March 14, 2026)
+*Refactored unit owner/manager storage from denormalized name/email copies to UID-based references*
+
+| Task | Title | Priority | Est | Actual | Status |
+|------|-------|----------|-----|--------|--------|
+| NRM1 | Data migration script — `owners[{name,email}]` → `owners[{userId}]` | high | 4h | 3h | ✅ COMPLETE |
+| NRM2 | Backend API — resolve user data at query time from `users` collection | high | 4h | 3h | ✅ COMPLETE |
+| NRM3 | Backend service consumers (11 files) + sync logic refactor | high | 6h | 4h | ✅ COMPLETE |
+| NRM4 | Desktop frontend — `UnitFormModal` sends only `{userId}` | high | 4h | 1h | ✅ COMPLETE |
+| NRM5 | Mobile frontend — `UnitReport` tappable phone links | medium | 3h | 1h | ✅ COMPLETE |
+| NRM6 | Transition verification — pre-PR checks, builds, diff review | medium | 4h | 1h | ✅ COMPLETE |
+| NRM7 | Mobile PWA Unit Directory — admin contact list with phone/email | medium | 3h | 2h | ✅ COMPLETE |
+
+**Issue**: #133 (converted from PWA unit info dashboard to tech debt)  
+**Theme**: Data normalization — single source of truth for user data  
+**Estimated**: 28h | **Actual**: ~15h | **Quality**: ⭐⭐⭐⭐⭐  
+**Key result**: 17 files changed (+665/-331), `updateUserNameInUnits` deleted, 4 BugBot rounds, 0 regressions  
+**Risk**: HIGH (touches unit CRUD across all three codebases + requires data migration)  
+**Dependencies**: None — should be done before beta user deployment  
+**Status**: Planned — next priority after Sprint D  
+
+**Why Now**: Unit owner/manager arrays currently store `{name, email}` copies instead of `{userId}` references. This creates two sources of truth that will diverge as users update profiles. Phone numbers are inaccessible from unit queries. The sync mechanism (`addPersonToUnit`, `syncUnitAssignments`, `updateUserNameInUnits`) uses fragile string matching. Must fix before external users are on the system.
+
+**Migration Strategy**:
+1. Write migration script: match `owners[].email` → `users` collection → write `owners[].userId`
+2. Backend API supports both formats during transition (has `userId` → resolve; has `name`/`email` → use as-is)
+3. After migration verified, remove legacy format support
 
 ---
 
@@ -702,5 +731,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 10, 2026 — Sprint PASSKEY-AUTH ✅ COMPLETE. All 4 tasks done (PK1–PK4). Merged to main via PR #233. Passkey invite emails, admin management, password reset removal, dead code cleanup all included.*  
-*Last Review: March 10, 2026*
+*Updated: March 14, 2026 — Sprint NRM ✅ COMPLETE (PR #240, merged March 14). Sprint D ✅ COMPLETE (D1 PR #236, D2 PR #237).*  
+*Last Review: March 14, 2026*

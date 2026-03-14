@@ -409,10 +409,10 @@
 **Framework:** React + Material-UI + Vite PWA
 
 ### Entry Points
-- `/frontend/sams-ui/mobile-app/src/main.jsx` — React root with PWA service worker registration
-- `/frontend/sams-ui/mobile-app/src/App.jsx` — Mobile app routing with MUI theme
-- `/frontend/sams-ui/mobile-app/src/styles/mobile.css` — Mobile-specific styles
-- `/frontend/sams-ui/mobile-app/vite.config.js` — Vite config with PWA plugin
+- `/frontend/mobile-app/src/main.jsx` — React root with PWA service worker registration
+- `/frontend/mobile-app/src/App.jsx` — Mobile app routing with MUI theme
+- `/frontend/mobile-app/src/styles/mobile.css` — Mobile-specific styles
+- `/frontend/mobile-app/vite.config.js` — Vite config with PWA plugin
 
 ### Auth
 - `hooks/useAuthStable.jsx` — Stable auth hook (`AuthProvider`, `useAuth`)
@@ -727,6 +727,10 @@ Migration, diagnostic, seed, and utility scripts. These are not part of the runn
 
 ## Shared Modules (`/shared/`)
 
+Root `shared/` provides cross-boundary access to canonical shared code:
+- `shared/services/` → symlink to `functions/shared/services/` (canonical)
+- `shared/utils/` → should be symlink to `functions/shared/utils/` (D1 task pending; currently independent copy)
+
 | File | Purpose |
 |------|---------|
 | `utils/versionUtils.js` | Cross-platform version utilities (448 lines) |
@@ -836,6 +840,7 @@ Self-referencing enterprise modules not used in the main app flow:
 - `frontend/sams-ui/src/_archive/` — Archived desktop views
 - `frontend/sams-ui/src/components/_archive/` — Archived desktop components
 - `frontend/sams-ui/src/layout/_archive/` — Archived layout duplicates (96 files)
-- `frontend/sams-ui/mobile-app/src/components/_archive/` — Archived mobile debug components
+- `frontend/mobile-app/src/components/_archive/` — Archived mobile debug components
+- `frontend/sams-ui/mobile-app/` — Dead mobile app copy (entire directory stale, archived)
 - `functions/backend/_archive/` — Archived backend code + enterprise cluster
 - `scripts/_archive/` — Archived scripts

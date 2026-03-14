@@ -153,11 +153,11 @@ case $DEPLOY_TYPE in
     full)
         echo "Type: Full Deployment"
         echo "Bump: $BUMP_TYPE"
-        echo "Deploy: Frontend + Backend"
+        echo "Deploy: Frontend + Backend + Mobile PWA"
         ;;
     quick)
         echo "Type: Quick Deploy (no version bump)"
-        echo "Deploy: Frontend + Backend"
+        echo "Deploy: Frontend + Backend + Mobile PWA"
         ;;
     frontend)
         echo "Type: Frontend Only (Desktop)"
@@ -272,17 +272,31 @@ if [ "$DEPLOY_TYPE" = "pwa" ]; then
     cd ../..
     echo ""
 elif [ "$DEPLOY_TYPE" != "backend" ]; then
-    print_step "Step 2: Building frontend (Desktop)"
+    print_step "Step 2a: Building frontend (Desktop)"
     
     cd frontend/sams-ui
     if npm run build; then
-        print_success "Frontend built successfully"
+        print_success "Desktop frontend built successfully"
     else
-        print_error "Frontend build failed"
+        print_error "Desktop frontend build failed"
         cd ../..
         exit 1
     fi
     cd ../..
+
+    if [ "$DEPLOY_TYPE" = "full" ] || [ "$DEPLOY_TYPE" = "quick" ]; then
+        print_step "Step 2b: Building PWA (Mobile App)"
+        
+        cd frontend/mobile-app
+        if npm run build; then
+            print_success "Mobile PWA built successfully"
+        else
+            print_error "Mobile PWA build failed"
+            cd ../..
+            exit 1
+        fi
+        cd ../..
+    fi
     echo ""
 fi
 
@@ -407,6 +421,9 @@ echo "URLs:"
 if [ "$DEPLOY_TYPE" = "pwa" ]; then
     echo "  PWA (Mobile): https://sams-mobile-pwa.web.app"
     echo "  Custom Domain: https://mobile.sams.sandyland.com.mx"
+elif [ "$DEPLOY_TYPE" = "full" ] || [ "$DEPLOY_TYPE" = "quick" ]; then
+    echo "  Desktop: https://sams.sandyland.com.mx"
+    echo "  Mobile PWA: https://mobile.sams.sandyland.com.mx"
 else
     echo "  Frontend (Desktop): https://sams-sandyland-prod.web.app"
     echo "  Custom Domain: https://sams.sandyland.com.mx"

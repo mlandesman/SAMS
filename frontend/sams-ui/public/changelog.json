@@ -1,6 +1,54 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "maint",
+          "issues": [
+            "184"
+          ],
+          "text": "Consolidate duplicate currencyUtils and databaseFieldMappings: single source at functions/shared/utils/, symlink shared/utils, frontend imports via @shared, toFirestoreTimestamp helper, new Date() violations fixed"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "109"
+          ],
+          "text": "PWA Mobile Install Flow: guided install banner for iOS (Add to Home Screen instructions) and Android (native install prompt), standalone detection, dismiss persistence, hamburger menu re-prompt"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "133"
+          ],
+          "text": "NRM1: Migration script to convert unit owners/managers from denormalized {name,email} copies to {userId} UID references, with prod/dev dry-run and gap reporting"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "133"
+          ],
+          "text": "Refactored unit owner/manager storage from denormalized {name, email} copies to UID-based {userId} references. All 11+ backend services now resolve user details at query time from users collection. Deleted updateUserNameInUnits sync function. Single source of truth for user data."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "133"
+          ],
+          "text": "Mobile PWA Unit Directory — admin-only contact list with tappable phone/email links for all unit owners and managers"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "133"
+          ],
+          "text": "UnitFormModal sends only {userId} for owners/managers; mobile UnitReport shows tappable phone links for owner and manager contacts"
+        }
+      ]
+    },
+    {
       "version": "1.16.0",
       "date": "2026-03-11",
       "changes": [
