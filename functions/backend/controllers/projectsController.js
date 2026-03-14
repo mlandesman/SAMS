@@ -352,6 +352,9 @@ export async function createProject(clientId, projectData) {
   // noAssessmentRequired: reserve-funded projects excluded from UPC/SoA billing (default false)
   const noAssessmentRequired = projectData.noAssessmentRequired === true;
 
+  // assessmentSchedule: set at approval time via Assessment Collection Dialog; typically null at creation
+  const assessmentSchedule = projectData.assessmentSchedule || null;
+
   // Ensure required fields
   const project = {
     _id: projectId,
@@ -359,6 +362,7 @@ export async function createProject(clientId, projectData) {
     type: 'special-assessment',
     ...projectData,
     noAssessmentRequired,
+    assessmentSchedule,
     lifeExpectancy,
     metadata: {
       ...projectData.metadata,
@@ -375,13 +379,14 @@ export async function createProject(clientId, projectData) {
 /**
  * Lock milestone amounts using largest-remainder rounding so sum equals totalCentavos exactly.
  * @param {number} totalCentavos - Total project cost in centavos
- * @param {Array} installments - Array of { milestone, percentOfTotal }
- * @returns {Array} Installments with amountCentavos and status: 'unbilled'
+ * @param {Array} installments - Array of { milestone|label, percentOfTotal }
+ * @param {string} [statusOverride='unbilled'] - Status for output (use 'pending' for assessmentSchedule)
+ * @returns {Array} Installments with amountCentavos and status
  */
-function lockMilestoneAmounts(totalCentavos, installments) {
+function lockMilestoneAmounts(totalCentavos, installments, statusOverride = 'unbilled') {
   const total = Math.round(Number(totalCentavos));
   if (!installments || !Array.isArray(installments) || installments.length === 0) return [];
-  if (total <= 0) return installments.map(m => ({ ...m, amountCentavos: 0, status: 'unbilled' }));
+  if (total <= 0) return installments.map(m => ({ ...m, amountCentavos: 0, status: statusOverride }));
 
   const items = installments.map((m, i) => {
     const pct = Number(m.percentOfTotal) || 0;
@@ -412,7 +417,8 @@ function lockMilestoneAmounts(totalCentavos, installments) {
     ...m,
     percentOfTotal: m.percentOfTotal,
     amountCentavos: items[i].floor,
-    status: 'unbilled'
+    status: statusOverride,
+    ...(statusOverride === 'pending' && { billedDate: m.billedDate ?? null })
   }));
 }
 
@@ -617,6 +623,20 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
       if (installments && Array.isArray(installments) && installments.length > 0 && mergedCost > 0) {
         updateData.installments = lockMilestoneAmounts(mergedCost, installments);
       }
+      // Lock assessment milestones if defined (typically set later via dialog)
+      const assessmentSchedule = mergedProject.assessmentSchedule;
+      if (assessmentSchedule && Array.isArray(assessmentSchedule) && assessmentSchedule.length > 0 && mergedCost > 0) {
+        updateData.assessmentSchedule = lockMilestoneAmounts(mergedCost, assessmentSchedule, 'pending');
+      }
+    }
+  }
+
+  // If assessmentSchedule is being set/updated on an already-approved project, lock amounts
+  const projectCost = (existingData.totalCost ?? 0) || (otherUpdates.totalCost ?? 0);
+  if (otherUpdates.assessmentSchedule && Array.isArray(otherUpdates.assessmentSchedule) && otherUpdates.assessmentSchedule.length > 0 && projectCost > 0) {
+    const isApproved = (otherUpdates.status ?? existingData.status) === 'approved';
+    if (isApproved) {
+      updateData.assessmentSchedule = lockMilestoneAmounts(projectCost, otherUpdates.assessmentSchedule, 'pending');
     }
   }
   
@@ -1282,12 +1302,14 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
     throw new Error('Project must be approved to bill milestones');
   }
 
-  const installments = projectData.installments;
-  if (!installments || !Array.isArray(installments) || milestoneIndex < 0 || milestoneIndex >= installments.length) {
+  // Use assessmentSchedule when available (new flow), fall back to installments (legacy)
+  const milestones = projectData.assessmentSchedule || projectData.installments;
+  const milestoneField = projectData.assessmentSchedule ? 'assessmentSchedule' : 'installments';
+  if (!milestones || !Array.isArray(milestones) || milestoneIndex < 0 || milestoneIndex >= milestones.length) {
     throw new Error('Invalid milestone index');
   }
 
-  const milestone = installments[milestoneIndex];
+  const milestone = milestones[milestoneIndex];
   if (milestone.status === 'billed') {
     throw new Error('Milestone already billed');
   }
@@ -1315,10 +1337,11 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
     }
   }
 
+  const milestoneLabel = milestone.milestone ?? milestone.label ?? '';
   const billDoc = {
     projectId,
     projectName: projectData.name || '',
-    milestone: milestone.milestone || '',
+    milestone: milestoneLabel,
     milestoneIndex,
     percentOfTotal: milestone.percentOfTotal ?? 0,
     amountCentavos,
@@ -1333,14 +1356,14 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
   const batch = db.batch();
   batch.set(billRef, billDoc);
 
-  const updatedInstallments = [...installments];
-  updatedInstallments[milestoneIndex] = {
+  const updatedMilestones = [...milestones];
+  updatedMilestones[milestoneIndex] = {
     ...milestone,
     status: 'billed',
     billedDate
   };
   batch.update(projectRef, {
-    installments: updatedInstallments,
+    [milestoneField]: updatedMilestones,
     'metadata.updatedAt': billedDate
   });
 
@@ -1427,6 +1450,7 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     vendor: paymentData.vendor || 'Vendor',
     vendorId: resolvedVendorId,
     description: paymentData.description || '',
+    milestoneIndex: paymentData.milestoneIndex != null ? Number(paymentData.milestoneIndex) : null,
     recordedBy: userId,
     recordedAt: getNow().toISOString()
   };

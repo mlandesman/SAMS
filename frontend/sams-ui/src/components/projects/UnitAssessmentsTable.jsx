@@ -69,12 +69,12 @@ function getNextMilestone({ excluded, paid, totalAssessed, installments, billedM
 
   let nextIdx;
   if (noAssessmentRequired && Array.isArray(vendorPayments) && vendorPayments.length > 0) {
-    // Derive from vendor payments: count distinct milestone indices if present, else use payment count as proxy
+    // Derive from vendor payments: use max paid milestone index + 1 (handles non-sequential completion)
     const paidIndices = new Set();
     vendorPayments.forEach(vp => {
       if (vp.milestoneIndex != null) paidIndices.add(vp.milestoneIndex);
     });
-    nextIdx = paidIndices.size;
+    nextIdx = paidIndices.size > 0 ? Math.max(...paidIndices) + 1 : 0;
   } else {
     nextIdx = billedMilestoneCount ?? 0;
   }

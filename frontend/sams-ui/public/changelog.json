@@ -45,6 +45,14 @@
             "133"
           ],
           "text": "UnitFormModal sends only {userId} for owners/managers; mobile UnitReport shows tappable phone links for owner and manager contacts"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "235",
+            "197"
+          ],
+          "text": "Project Assessment Bypass: noAssessmentRequired flag for reserve-funded projects (excluded from UPC/SoA billing). Enable polls feature flag. Fix bid comparison PDF caching (#197)."
         }
       ]
     },
