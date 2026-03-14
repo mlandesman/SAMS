@@ -8,6 +8,7 @@ import penaltyRecalculationService from './penaltyRecalculationService.js';
 import { getNow, DateService } from '../services/DateService.js';
 import { pesosToCentavos, centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { calculateCompoundingPenalty } from '../../shared/services/PenaltyRecalculationService.js';
+import { getDb } from '../firebase.js';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -176,7 +177,7 @@ class WaterDataService {
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
     // Build the month data using existing logic (no carryover for single month builds)
-    return this._buildMonthDataFromSourcesWithCarryover(
+    return await this._buildMonthDataFromSourcesWithCarryover(
       year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, {}, currentTimestamp, priorTimestamp
     );
   }
@@ -264,17 +265,21 @@ class WaterDataService {
       if (!unit) {
         throw new Error(`Unit ${unitId} not found in client config`);
       }
-      
+
+      // Unit from getClientConfig is already enriched; use owners directly
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
+
       // Calculate ONLY this unit's data using the same logic as the full month builder
       const unitData = this._calculateUnitData(
-        unit, 
-        currentReadings, 
-        priorReadings, 
-        bills, 
-        unpaidCarryover, 
-        ratePerM3, 
+        unit,
+        currentReadings,
+        priorReadings,
+        bills,
+        unpaidCarryover,
+        ratePerM3,
         config,
-        month
+        month,
+        ownerLastName
       );
       
       logDebug(`✅ [SURGICAL] Unit ${unitId} data calculated successfully`);
@@ -290,7 +295,7 @@ class WaterDataService {
    * Calculate data for a single unit (extracted from loop logic)
    * This is the core unit calculation that both full month and surgical updates use
    */
-  _calculateUnitData(unit, currentReadings, priorReadings, bills, unpaidCarryover, ratePerM3, config, month) {
+  _calculateUnitData(unit, currentReadings, priorReadings, bills, unpaidCarryover, ratePerM3, config, month, resolvedOwnerLastName = null) {
     const unitId = unit.unitId;
     
     // 1. Extract reading from nested structure if present
@@ -323,8 +328,8 @@ class WaterDataService {
       currentReadingObj.washes = washesWithCost;
     }
     
-    // 3. Extract owner last name
-    const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
+    // 3. Extract owner last name (use pre-resolved if provided)
+    const ownerLastName = resolvedOwnerLastName ?? getFirstOwnerLastName(unit.owners) ?? 'Unknown';
     
     // 4. Calculate bill amounts (ALL IN CENTAVOS - integers)
     const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
@@ -489,7 +494,7 @@ class WaterDataService {
     const ratePerM3 = config?.ratePerM3 || 5000; // In centavos
     
     // Build month data using the fetched data with calculated carryover
-    return this._buildMonthDataFromSourcesWithCarryover(
+    return await this._buildMonthDataFromSourcesWithCarryover(
       year, month, 
       currentReadings, priorReadings, bills,
       units, config, ratePerM3, unpaidCarryover, 
@@ -538,12 +543,13 @@ class WaterDataService {
       logDebug(`📊 Carryover results:`, unpaidCarryover);
     }
     
+    // Units from fetchUnits (listUnits) are already enriched with resolved owners; use directly
     // Build unit data
     const unitData = {};
-    
+
     for (const unit of units) {
       const unitId = unit.unitId;
-      
+
       // Extract reading from nested structure if present
       let currentReading = currentReadings[unitId] || 0;
       let washes = undefined; // Only include if washes array exists
@@ -576,15 +582,14 @@ class WaterDataService {
         }));
         currentReadingObj.washes = washesWithCost;
       }
-      
-      // Extract owner last name from owners array (following HOA pattern)
-      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
-      
+
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
+
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
       const calculatedAmount = consumption > 0 ? Math.round(consumption * ratePerM3) : 0; // ratePerM3 is in centavos
       const billAmount = currentCharge ?? calculatedAmount;
-      
+
       // Removed Unit 203 debug logging to prevent confusion
       
       // Use carryover data if no bills exist for this month
@@ -820,7 +825,7 @@ class WaterDataService {
     }
     
     // Build month data using existing logic with carryover data
-    return this._buildMonthDataFromSourcesWithCarryover(
+    return await this._buildMonthDataFromSourcesWithCarryover(
       year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover, currentTimestamp, priorTimestamp
     );
   }
@@ -829,12 +834,11 @@ class WaterDataService {
    * Core month data builder that takes all data sources as parameters
    * This allows reuse with different data fetching strategies
    */
-  _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}, currentTimestamp = null, priorTimestamp = null) {
-    // Building month data with carryover calculations
-    
+  async _buildMonthDataFromSourcesWithCarryover(year, month, currentReadings, priorReadings, bills, units, config, ratePerM3, unpaidCarryover = {}, currentTimestamp = null, priorTimestamp = null) {
+    // Units from fetchUnits (listUnits) are already enriched with resolved owners; use directly
     // Build unit data (reuse existing logic from buildMonthData)
     const unitData = {};
-    
+
     for (const unit of units) {
       const unitId = unit.unitId;
       
@@ -870,15 +874,14 @@ class WaterDataService {
         }));
         currentReadingObj.washes = washesWithCost;
       }
-      
-      // Extract owner last name from owners array (following HOA pattern)
-      const ownerLastName = getFirstOwnerLastName(unit.owners) || 'Unknown';
-      
+
+      const ownerLastName = getFirstOwnerLastName(unit.owners || []) || 'Unknown';
+
       // Calculate billAmount (ALL IN CENTAVOS - integers)
       const currentCharge = bill?.currentCharge; // Already in centavos from waterBillsService
       const calculatedAmount = consumption > 0 ? Math.round(consumption * ratePerM3) : 0; // ratePerM3 is in centavos
       const billAmount = currentCharge ?? calculatedAmount;
-      
+
       // Use carryover data if no bills exist for this month
       const carryover = unpaidCarryover[unitId] || {};
       

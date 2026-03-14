@@ -2,9 +2,12 @@
 import { getDb, toFirestoreTimestamp } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import {
+  normalizeContactsForStorage,
+  resolveOwners,
+  resolveManagers,
+} from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-
 
 /**
  * Create a Unit under a Client
@@ -33,9 +36,9 @@ async function createUnit(clientId, unitData, docId = null) {
       propertyType: restData.propertyType || 'condo',
       status: restData.status || 'active',
       
-      // New array fields (denormalized for display, normalized to new structure)
-      owners: normalizeOwners(restData.owners || []),
-      managers: normalizeManagers(restData.managers || []),
+      // Persist as UID references when provided; keep legacy entries for transition.
+      owners: normalizeContactsForStorage(restData.owners || []),
+      managers: normalizeContactsForStorage(restData.managers || []),
       // Note: emails field removed - emails are now in owner objects
       
       // Physical data
@@ -87,6 +90,14 @@ async function updateUnit(clientId, unitId, newData) {
     delete updates.unitId;
     delete updates.emails; // Remove emails field - emails are now in owner objects
     
+    // Keep owners/managers in UID-reference shape when provided.
+    if (Object.prototype.hasOwnProperty.call(updates, 'owners')) {
+      updates.owners = normalizeContactsForStorage(updates.owners);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'managers')) {
+      updates.managers = normalizeContactsForStorage(updates.managers);
+    }
+
     // Handle timestamp updates
     if (updates.created) {
       updates.created = toFirestoreTimestamp(updates.created);
@@ -150,6 +161,7 @@ async function listUnits(clientId) {
     const db = await getDb();
     const snapshot = await db.collection(`clients/${clientId}/units`).get();
     const units = [];
+    const allUserIds = new Set();
 
     snapshot.forEach(doc => {
       // CRITICAL FIX: Exclude creditBalances* documents from units list
@@ -160,23 +172,56 @@ async function listUnits(clientId) {
       }
       
       const data = doc.data();
+      const ownersRaw = Array.isArray(data.owners) ? data.owners : (data.owner ? [data.owner] : []);
+      const managersRaw = Array.isArray(data.managers) ? data.managers : [];
+      ownersRaw.forEach(owner => {
+        if (owner && typeof owner === 'object' && typeof owner.userId === 'string') {
+          const userId = owner.userId.trim();
+          if (userId) allUserIds.add(userId);
+        }
+      });
+      managersRaw.forEach(manager => {
+        if (manager && typeof manager === 'object' && typeof manager.userId === 'string') {
+          const userId = manager.userId.trim();
+          if (userId) allUserIds.add(userId);
+        }
+      });
       
-      // Add the document ID as unitId for API response
-      const unit = {
+      units.push({
         unitId: doc.id, // Document ID is the unit identifier
         ...data,
-        // Handle owner/owners field mapping (normalized to new structure)
-        owners: normalizeOwners(data.owners || (data.owner ? [data.owner] : [])),
-        managers: normalizeManagers(data.managers || []),
+        ownersRaw,
+        managersRaw,
         // Ensure other expected fields exist
         status: data.status || 'active',
         notes: data.notes || ''
-      };
-      
-      units.push(unit);
+      });
     });
 
-    return units;
+    const userMap = new Map();
+    const userIds = [...allUserIds];
+
+    if (userIds.length > 0) {
+      const userRefs = userIds.map(userId => db.collection('users').doc(userId));
+      const userDocs = await db.getAll(...userRefs);
+
+      userDocs.forEach((userDoc, index) => {
+        const uid = userIds[index];
+        userMap.set(uid, userDoc.exists ? userDoc.data() : null);
+      });
+    }
+
+    const resolvedUnits = [];
+    for (const unit of units) {
+      const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
+      resolvedUnits.push({
+        ...unitWithoutRaw,
+        owners: await resolveOwners(ownersRaw, db, userMap),
+        managers: await resolveManagers(managersRaw, db, userMap),
+      });
+    }
+
+    return resolvedUnits;
   } catch (error) {
     logError('❌ Error listing units:', error);
     return [];
@@ -190,7 +235,7 @@ async function updateUnitManagers(clientId, unitId, managers) {
     const unitRef = db.doc(`clients/${clientId}/units/${unitId}`);
     
     await unitRef.update({
-      managers: managers || [],
+      managers: normalizeContactsForStorage(managers || []),
       updated: toFirestoreTimestamp(getNow())
     });
     

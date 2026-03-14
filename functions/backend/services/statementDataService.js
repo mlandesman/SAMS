@@ -2968,8 +2968,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       const units = unitsResponse.data.data;
       const unit = units.find(u => u.unitId === unitId || u._id === unitId);
       if (unit) {
-        // Extract owners (normalized to array of strings for backward compatibility)
-        owners = getOwnerNames(unit.owners);
+        // Units from listUnits API are already resolved; use getOwnerNames directly
+        owners = getOwnerNames(unit.owners || []);
         // Handle legacy single owner field
         if (owners.length === 0 && unit.owner) {
           owners = [typeof unit.owner === 'string' ? unit.owner : unit.owner.name || unit.owner];
@@ -3000,8 +3000,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           emails = await Promise.all(emailPromises);
         }
         
-        // Extract managers (normalized to array of strings for backward compatibility)
-        managers = getManagerNames(unit.managers);
+        managers = getManagerNames(unit.managers || []);
       }
     }
   } catch (error) {

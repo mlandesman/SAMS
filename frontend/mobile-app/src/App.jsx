@@ -29,6 +29,7 @@ import AuthDebugScreen from './components/AuthDebugScreen';
 import ExpenseEntryScreen from './components/expense/ExpenseEntryScreen';
 import ExchangeRatesView from './components/ExchangeRatesView.jsx';
 import AboutScreen from './components/AboutScreen';
+import UnitDirectory from './components/UnitDirectory';
 import TareasMenu from './components/TareasMenu';
 import PropaneReadingEntry from './components/PropaneReadingEntry';
 import WaterMeterEntryNew from './components/WaterMeterEntryNew';
@@ -151,6 +152,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AboutScreen />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/unit-directory" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="admin">
+                      <UnitDirectory />
+                    </RoleProtectedRoute>
                   </ProtectedRoute>
                 } 
               />

@@ -20,13 +20,15 @@ export function normalizeOwners(owners) {
   
   return owners.map(owner => {
     if (typeof owner === 'string') {
-      return { name: owner.trim(), email: '' };
+      return { name: owner.trim(), email: '', phone: '', userId: '' };
     }
     return {
       name: (owner.name || '').trim(),
-      email: (owner.email || '').trim()
+      email: (owner.email || '').trim(),
+      phone: (owner.phone || '').trim(),
+      userId: (owner.userId || '').trim()
     };
-  }).filter(owner => owner.name); // Remove empty names
+  }).filter(owner => owner.name || owner.userId); // Keep entries with name or userId
 }
 
 /**
@@ -41,13 +43,15 @@ export function normalizeManagers(managers) {
   
   return managers.map(manager => {
     if (typeof manager === 'string') {
-      return { name: manager.trim(), email: '' };
+      return { name: manager.trim(), email: '', phone: '', userId: '' };
     }
     return {
       name: (manager.name || '').trim(),
-      email: (manager.email || '').trim()
+      email: (manager.email || '').trim(),
+      phone: (manager.phone || '').trim(),
+      userId: (manager.userId || '').trim()
     };
-  }).filter(manager => manager.name); // Remove empty names
+  }).filter(manager => manager.name || manager.userId); // Keep entries with name or userId
 }
 
 /**

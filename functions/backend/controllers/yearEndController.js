@@ -5,6 +5,7 @@
  */
 
 import { getDb } from '../firebase.js';
+import { resolveOwners, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
@@ -77,6 +78,12 @@ export async function previewYearEnd(req, res) {
     let unitsWithCredit = 0;
     let unitsWithRateChange = 0;
     
+    // Pre-collect units and build user cache in one batched fetch
+    const unitsData = unitsSnapshot.docs
+      .filter(doc => !doc.id.startsWith('creditBalances'))
+      .map(doc => ({ unitId: doc.id, ...doc.data() }));
+    const userCache = await buildUserCacheForUnits(unitsData, db);
+    
     // Process each unit
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
@@ -84,24 +91,14 @@ export async function previewYearEnd(req, res) {
       // Skip creditBalances* documents (includes yearly archives like creditBalances_2025)
       if (unitId.startsWith('creditBalances')) continue;
       
-      // Get unit data for owner names
       const unitData = unitDoc.data();
-      
-      // Extract owner names
-      let ownerNames = [];
-      if (Array.isArray(unitData.owners) && unitData.owners.length > 0) {
-        ownerNames = unitData.owners.map(owner => {
-          if (typeof owner === 'string') {
-            return owner;
-          } else if (owner && typeof owner === 'object') {
-            return owner.name || '';
-          }
-          return '';
-        }).filter(name => name);
-      } else if (unitData.owner) {
+
+      const resolvedOwners = await resolveOwners(unitData.owners || [], db, userCache);
+      let ownerNames = resolvedOwners.map(o => o.name).filter(Boolean);
+      if (ownerNames.length === 0 && unitData.owner) {
         ownerNames = [typeof unitData.owner === 'string' ? unitData.owner : (unitData.owner.name || '')];
       }
-      
+
       // Get current year dues (amounts are in centavos in Firestore)
       const currentYearDuesRef = db.doc(`clients/${clientId}/units/${unitId}/dues/${closingYear}`);
       const currentYearDuesDoc = await currentYearDuesRef.get();
@@ -487,28 +484,23 @@ async function getPreviewDataForReport(db, clientId, closingYear, fiscalYearStar
   const unitsSnapshot = await unitsRef.get();
   
   const units = [];
+  const unitsData = [...unitsSnapshot.docs]
+    .filter(doc => !doc.id.startsWith('creditBalances'))
+    .map(doc => ({ unitId: doc.id, ...doc.data() }));
+  const userCache = await buildUserCacheForUnits(unitsData, db);
+  
   for (const unitDoc of unitsSnapshot.docs) {
     const unitId = unitDoc.id;
     if (unitId.startsWith('creditBalances')) continue;
     
-    // Get unit data for owner names
     const unitData = unitDoc.data();
-    
-    // Extract owner names
-    let ownerNames = [];
-    if (Array.isArray(unitData.owners) && unitData.owners.length > 0) {
-      ownerNames = unitData.owners.map(owner => {
-        if (typeof owner === 'string') {
-          return owner;
-        } else if (owner && typeof owner === 'object') {
-          return owner.name || '';
-        }
-        return '';
-      }).filter(name => name);
-    } else if (unitData.owner) {
+
+    const resolvedOwners = await resolveOwners(unitData.owners || [], db, userCache);
+    let ownerNames = resolvedOwners.map(o => o.name).filter(Boolean);
+    if (ownerNames.length === 0 && unitData.owner) {
       ownerNames = [typeof unitData.owner === 'string' ? unitData.owner : (unitData.owner.name || '')];
     }
-    
+
     const currentYearDuesRef = db.doc(`clients/${clientId}/units/${unitId}/dues/${closingYear}`);
     const currentYearDuesDoc = await currentYearDuesRef.get();
     

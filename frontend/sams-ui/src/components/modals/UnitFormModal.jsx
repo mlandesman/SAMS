@@ -271,12 +271,10 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
       newErrors.unitId = 'Unit ID is required';
     }
     
-    // Validate owners - at least one owner required (either from picker or name)
-    const validOwners = formData.owners.filter(owner => 
-      (owner.userId && owner.userId !== '') || (owner.name && owner.name.trim())
-    );
+    // Validate owners - at least one owner with userId required (NRM: UserPicker selection)
+    const validOwners = formData.owners.filter(owner => owner.userId && owner.userId !== '');
     if (validOwners.length === 0) {
-      newErrors.owners = 'At least one owner is required';
+      newErrors.owners = 'At least one owner is required. Please select from the user list.';
     }
     
     // Validate email formats for owners (only validate if email is provided)
@@ -431,34 +429,13 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Filter out empty owners/managers and normalize - include userId if present
+      // NRM: Send only { userId } — backend resolves name/email from users collection
       const ownersArray = formData.owners
-        .map(owner => {
-          const ownerData = {
-            name: (owner.name || '').trim(),
-            email: (owner.email || '').trim()
-          };
-          // Include userId if present (from UserPicker selection)
-          if (owner.userId) {
-            ownerData.userId = owner.userId;
-          }
-          return ownerData;
-        })
-        .filter(owner => owner.name || owner.userId); // Keep if has name OR userId
-      
+        .filter(owner => owner.userId)
+        .map(owner => ({ userId: owner.userId }));
       const managersArray = formData.managers
-        .map(manager => {
-          const managerData = {
-            name: (manager.name || '').trim(),
-            email: (manager.email || '').trim()
-          };
-          // Include userId if present (from UserPicker selection)
-          if (manager.userId) {
-            managerData.userId = manager.userId;
-          }
-          return managerData;
-        })
-        .filter(manager => manager.name || manager.userId); // Keep if has name OR userId
+        .filter(manager => manager.userId)
+        .map(manager => ({ userId: manager.userId }));
       
       // Extract userIds for propertyAccess sync
       const validOwnerIds = ownersArray.map(o => o.userId).filter(id => id != null && id !== '');

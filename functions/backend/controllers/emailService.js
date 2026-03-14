@@ -9,7 +9,8 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
 import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
 import { getNow } from '../services/DateService.js';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { resolveOwners, resolveManagers } from '../utils/unitContactUtils.js';
+import { getUnitEmailLanguage } from '../utils/reportEmailUtils.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { getStatementData } from '../services/statementDataService.js';
 import { generatePdf } from '../services/pdfService.js';
@@ -636,41 +637,6 @@ async function testWaterBillEmail(unitNumber = '101', userLanguage = 'en', testE
 
 
 /**
- * Get email language preference for a unit
- * Checks owner[0]'s preferredLanguage from users collection
- * Falls back to client default language
- */
-async function getUnitEmailLanguage(unit, clientId) {
-  const db = await getDb();
-  const owners = normalizeOwners(unit.owners);
-  
-  if (!owners.length || !owners[0].email) {
-    // Fallback to client default
-    const clientDoc = await db.collection('clients').doc(clientId).get();
-    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
-  }
-  
-  // Look up owner[0] in users collection
-  const userSnapshot = await db.collection('users')
-    .where('email', '==', owners[0].email)
-    .limit(1)
-    .get();
-  
-  if (userSnapshot.empty) {
-    // Fallback to client default
-    const clientDoc = await db.collection('clients').doc(clientId).get();
-    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
-  }
-  
-  const userData = userSnapshot.docs[0].data();
-  // Canonical location is profile.preferredLanguage
-  // Fall back to top-level for backwards compatibility with older user docs
-  const preferredLang = userData.profile?.preferredLanguage || userData.preferredLanguage;
-  return preferredLang === 'spanish' || preferredLang === 'es' ? 'spanish' : 'english';
-}
-
-
-/**
  * Generate PDF URLs for statement (both languages)
  * PDFs may already exist from preview/generate, so we construct URLs
  * In future, can generate on-demand if needed
@@ -1097,11 +1063,11 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     }
     
     const unit = { id: unitDoc.id, ...unitDoc.data() };
-    
-    // Extract recipients
-    const owners = normalizeOwners(unit.owners);
-    const managers = normalizeManagers(unit.managers);
-    
+
+    // Extract recipients (resolve UIDs from users collection)
+    const owners = await resolveOwners(unit.owners || [], db);
+    const managers = await resolveManagers(unit.managers || [], db);
+
     const toEmails = owners.filter(o => o.email).map(o => o.email);
     const ccEmails = managers.filter(m => m.email).map(m => m.email);
     
@@ -1389,11 +1355,11 @@ export async function sendWaterReportEmail(clientId, unitId, options = {}, user 
     
     const unitData = unitDoc.data();
     const unit = { id: unitDoc.id, ...unitData };
-    
-    // Extract recipients (same pattern as sendStatementEmail)
-    const owners = normalizeOwners(unit.owners);
-    const managers = normalizeManagers(unit.managers);
-    
+
+    // Extract recipients (resolve UIDs from users collection)
+    const owners = await resolveOwners(unit.owners || [], db);
+    const managers = await resolveManagers(unit.managers || [], db);
+
     const toEmails = owners.filter(o => o.email).map(o => o.email);
     const ccEmails = managers.filter(m => m.email).map(m => m.email);
     

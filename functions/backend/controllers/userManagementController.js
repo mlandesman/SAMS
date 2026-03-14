@@ -12,7 +12,6 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
 /**
@@ -32,47 +31,46 @@ function generateSecurePassword() {
  * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
- * @param {string} personName - Person's name
- * @param {string} personEmail - Person's email
+ * @param {string} userId - User ID
  * @param {string} role - Role: 'unitOwner' or 'unitManager'
  */
-async function addPersonToUnit(batch, clientId, unitId, personName, personEmail, role) {
+async function addPersonToUnit(batch, clientId, unitId, userId, role) {
   
   const db = await getDb();
   const unitRef = db.collection('clients').doc(clientId)
     .collection('units').doc(unitId);
-    
+
   const unitDoc = await unitRef.get();
+  const unitContact = { userId };
+
   if (unitDoc.exists) {
     const unitData = unitDoc.data();
     const updateData = {};
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      // Handle owners array (normalize to new structure)
-      const normalizedOwners = normalizeOwners(unitData.owners);
-      // Check if person already exists (by name or email)
-      const exists = normalizedOwners.some(owner => 
-        owner.name === personName || owner.email === personEmail
+      const existingOwners = Array.isArray(unitData.owners) ? [...unitData.owners] : [];
+      // Check if user already exists by userId
+      const exists = existingOwners.some(owner => 
+        owner && typeof owner === 'object' && owner.userId === userId
       );
       if (!exists) {
-        normalizedOwners.push({ name: personName, email: personEmail });
-        updateData.owners = normalizedOwners;
+        existingOwners.push(unitContact);
+        updateData.owners = existingOwners;
         hasChanges = true;
       }
       
       // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      // Handle managers array (normalize to new structure)
-      const normalizedManagers = normalizeManagers(unitData.managers);
-      // Check if person already exists (by name or email)
-      const exists = normalizedManagers.some(manager => 
-        manager.name === personName || manager.email === personEmail
+      const existingManagers = Array.isArray(unitData.managers) ? [...unitData.managers] : [];
+      // Check if user already exists by userId
+      const exists = existingManagers.some(manager => 
+        manager && typeof manager === 'object' && manager.userId === userId
       );
       if (!exists) {
-        normalizedManagers.push({ name: personName, email: personEmail });
-        updateData.managers = normalizedManagers;
+        existingManagers.push(unitContact);
+        updateData.managers = existingManagers;
         hasChanges = true;
       }
       
@@ -91,11 +89,10 @@ async function addPersonToUnit(batch, clientId, unitId, personName, personEmail,
  * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
  * @param {string} clientId - Client ID
  * @param {string} unitId - Unit ID
- * @param {string} personName - Person's name
- * @param {string} personEmail - Person's email
+ * @param {string} userId - User ID
  * @param {string} role - Role: 'unitOwner' or 'unitManager'
  */
-async function removePersonFromUnit(batch, clientId, unitId, personName, personEmail, role) {
+async function removePersonFromUnit(batch, clientId, unitId, userId, role) {
   
   const db = await getDb();
   const unitRef = db.collection('clients').doc(clientId)
@@ -108,13 +105,12 @@ async function removePersonFromUnit(batch, clientId, unitId, personName, personE
     let hasChanges = false;
     
     if (role === 'unitOwner') {
-      // Handle owners array (normalize to new structure, then filter)
-      const normalizedOwners = normalizeOwners(unitData.owners);
-      const owners = normalizedOwners.filter(owner => 
-        owner.name !== personName && owner.email !== personEmail
+      const existingOwners = Array.isArray(unitData.owners) ? unitData.owners : [];
+      const owners = existingOwners.filter(owner => 
+        !(owner && typeof owner === 'object' && owner.userId === userId)
       );
       
-      if (normalizedOwners.length !== owners.length) {
+      if (existingOwners.length !== owners.length) {
         updateData.owners = owners;
         hasChanges = true;
       }
@@ -122,13 +118,12 @@ async function removePersonFromUnit(batch, clientId, unitId, personName, personE
       // Note: emails field removed - emails are now in owner objects
       
     } else if (role === 'unitManager') {
-      // Handle managers array (normalize to new structure, then filter)
-      const normalizedManagers = normalizeManagers(unitData.managers);
-      const managers = normalizedManagers.filter(manager => 
-        manager.name !== personName && manager.email !== personEmail
+      const existingManagers = Array.isArray(unitData.managers) ? unitData.managers : [];
+      const managers = existingManagers.filter(manager => 
+        !(manager && typeof manager === 'object' && manager.userId === userId)
       );
       
-      if (normalizedManagers.length !== managers.length) {
+      if (existingManagers.length !== managers.length) {
         updateData.managers = managers;
         hasChanges = true;
       }
@@ -213,11 +208,8 @@ function getAllUnitAssignmentsFromAccess(propertyAccess) {
  * @param {string} userId - User ID
  * @param {Object} oldClientAccess - Previous client access data
  * @param {Object} newClientAccess - New client access data
- * @param {string} userName - User's display name
- * @param {string} userEmail - User's email address
- * @param {string} oldUserName - Previous user name (for name changes)
  */
-async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName = null) {
+async function syncUnitAssignments(userId, oldClientAccess, newClientAccess) {
   logDebug(`🔄 [SYNC] Syncing unit assignments for user ${userId}`);
   
   const db = await getDb();
@@ -245,73 +237,20 @@ async function syncUnitAssignments(userId, oldClientAccess, newClientAccess, use
   
   // Remove person from units no longer assigned
   for (const assignment of assignmentsToRemove) {
-    await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldUserName || userName, userEmail, assignment.role);
+    await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, userId, assignment.role);
     operationCount++;
   }
   
   // Add person to newly assigned units
   for (const assignment of assignmentsToAdd) {
-    await addPersonToUnit(batch, assignment.clientId, assignment.unitId, userName, userEmail, assignment.role);
+    await addPersonToUnit(batch, assignment.clientId, assignment.unitId, userId, assignment.role);
     operationCount++;
-  }
-  
-  // Handle name changes for existing assignments
-  if (oldUserName && oldUserName !== userName) {
-    // Find assignments that remain unchanged (intersection)
-    const unchangedAssignments = newUnitAssignments.filter(unit => 
-      oldUnitsSet.has(`${unit.clientId}/${unit.unitId}/${unit.role}`)
-    );
-    
-    for (const assignment of unchangedAssignments) {
-      await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldUserName, userEmail, assignment.role);
-      await addPersonToUnit(batch, assignment.clientId, assignment.unitId, userName, userEmail, assignment.role);
-      operationCount += 2;
-    }
   }
   
   // Commit all changes atomically
   if (operationCount > 0) {
     await batch.commit();
     logDebug(`✅ [SYNC] Unit synchronization completed for user ${userId}`);
-  }
-}
-
-
-/**
- * Handle name updates across all unit records (owners and managers)
- * @param {string} userId - User ID
- * @param {string} oldName - Previous name
- * @param {string} newName - New name
- * @param {string} userEmail - User's email
- * @param {Object} propertyAccess - User's client access data
- */
-async function updateUserNameInUnits(userId, oldName, newName, userEmail, propertyAccess) {
-  logDebug(`🔄 [NAME_UPDATE] Updating name from ${oldName} to ${newName} for user ${userId}`);
-  
-  const db = await getDb();
-  const batch = db.batch();
-  let operationCount = 0;
-  
-  // Get all unit assignments for this user
-  const unitAssignments = getUnitAssignmentsFromAccess(propertyAccess);
-  
-  logDebug(`📋 [NAME_UPDATE] Unit assignments to update:`, unitAssignments);
-  
-  // Update name in all assigned units
-  for (const assignment of unitAssignments) {
-    logDebug(`🔄 [NAME_UPDATE] Updating ${assignment.role} name in ${assignment.clientId}/${assignment.unitId}`);
-    await removePersonFromUnit(batch, assignment.clientId, assignment.unitId, oldName, userEmail, assignment.role);
-    await addPersonToUnit(batch, assignment.clientId, assignment.unitId, newName, userEmail, assignment.role);
-    operationCount += 2;
-  }
-  
-  // Commit all changes atomically
-  if (operationCount > 0) {
-    logDebug(`💾 [NAME_UPDATE] Committing ${operationCount} name update operations...`);
-    await batch.commit();
-    logDebug(`✅ [NAME_UPDATE] Name updated successfully in all units for user ${userId}`);
-  } else {
-    logDebug(`ℹ️ [NAME_UPDATE] No name updates needed for user ${userId}`);
   }
 }
 
@@ -508,9 +447,7 @@ export async function createUser(req, res) {
         logDebug(`🔄 [CREATE] Syncing ${role} assignment for new user: ${name} → ${clientId}/${unitId}`);
         // For new users, oldClientAccess is empty
         // Use contactName/contactEmail if provided, otherwise use user name/email
-        const unitContactName = contactName || name;
-        const unitContactEmail = contactEmail || email;
-        await syncUnitAssignments(userRecord.uid, {}, propertyAccessData, unitContactName, unitContactEmail);
+        await syncUnitAssignments(userRecord.uid, {}, propertyAccessData);
       }
 
       // Send password notification email (only for manual/temp-password creation)
@@ -833,8 +770,7 @@ export async function updateUser(req, res) {
       lastModifiedBy: updatingUser.email
     };
 
-    // Handle name changes with manager synchronization
-    const nameChanged = name && name !== currentUserData.name;
+    // Handle name updates (display name is now resolved at query time for units)
     if (name) updateData.name = name;
     if (isActive !== undefined) updateData.isActive = isActive;
     
@@ -853,14 +789,11 @@ export async function updateUser(req, res) {
         // Synchronize manager assignments if propertyAccess is being updated
         const oldClientAccess = currentUserData.propertyAccess;
         const newClientAccess = propertyAccess;
-        const userName = updateData.name || currentUserData.name;
-        const oldUserName = nameChanged ? currentUserData.name : null;
         
         logDebug(`🔄 [UPDATE] Calling syncUnitAssignments...`);
         
-        // Sync manager assignments between user roles and unit records
-        const userEmail = currentUserData.email || 'unknown@example.com';
-        await syncUnitAssignments(userId, oldClientAccess, newClientAccess, userName, userEmail, oldUserName);
+        // Sync assignments between user roles and unit records
+        await syncUnitAssignments(userId, oldClientAccess, newClientAccess);
         
         updateData.propertyAccess = propertyAccess;
         logDebug(`✅ [UPDATE] ClientAccess updated and synchronized`);
@@ -870,12 +803,6 @@ export async function updateUser(req, res) {
           error: 'Only SuperAdmin can update client access' 
         });
       }
-    }
-    
-    // Handle name changes for existing managers (when only name is updated)
-    if (nameChanged && !propertyAccess && currentUserData.propertyAccess) {
-      const userEmail = currentUserData.email || 'unknown@example.com';
-      await updateUserNameInUnits(userId, currentUserData.name, name, userEmail, currentUserData.propertyAccess);
     }
 
     // Handle canLogin toggle (enable/disable Firebase Auth)
@@ -1314,7 +1241,7 @@ export async function updateUserPropertyAccess(req, res) {
 export async function addUnitRoleAssignment(req, res) {
   try {
     const { userId } = req.params;
-    const { clientId, unitId, role, contactName, contactEmail } = req.body;
+    const { clientId, unitId, role } = req.body;
     const assigningUser = req.user;
 
     // Validate inputs
@@ -1393,10 +1320,7 @@ export async function addUnitRoleAssignment(req, res) {
     });
 
     // Sync unit assignments to unit records (for all roles: owners and managers)
-    // Use contactName/contactEmail if provided, otherwise use user name/email
-    const unitContactName = contactName || userData.name;
-    const unitContactEmail = contactEmail || userData.email;
-    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, unitContactName, unitContactEmail);
+    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess);
 
     // Log the assignment
     await writeAuditLog({
@@ -1481,8 +1405,6 @@ export async function removeUnitRoleAssignment(req, res) {
       });
     }
 
-    const wasManager = assignmentToRemove.role === 'unitManager';
-
     // Remove the assignment
     updatedClientAccess[clientId].unitAssignments = updatedClientAccess[clientId].unitAssignments.filter(
       assignment => assignment.unitId !== unitId
@@ -1501,7 +1423,7 @@ export async function removeUnitRoleAssignment(req, res) {
     });
 
     // Sync unit assignments to unit records (for all roles: owners and managers)
-    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess, userData.name, userData.email);
+    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess);
 
     // Log the removal
     await writeAuditLog({
@@ -1562,10 +1484,9 @@ export async function deleteUser(req, res) {
 
     const userData = userDoc.data();
 
-    // Clean up manager references in unit records if user was a manager
+    // Clean up owner/manager references in unit records by removing all assignments.
     if (userData.propertyAccess) {
-      const userEmail = userData.email || 'unknown@example.com';
-      await updateUserNameInUnits(userId, userData.name, '', userEmail, userData.propertyAccess);
+      await syncUnitAssignments(userId, userData.propertyAccess, {});
     }
 
     // Delete from Firebase Auth

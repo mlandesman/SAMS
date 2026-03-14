@@ -14,7 +14,7 @@ import {
 } from '../../shared/utils/waterBillReportUtils.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { getNow } from '../../shared/services/DateService.js';
-import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
+import { resolveOwners, resolveManagers, getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { getFiscalYear, fiscalToCalendarMonth } from '../utils/fiscalYearUtils.js';
 import { DateTime } from 'luxon';
 
@@ -326,10 +326,11 @@ async function getUnitInfo(db, clientId, unitId) {
     }
     
     const data = unitDoc.data();
-    
-    // Get owners and managers
-    const allOwners = getOwnerNames(data.owners);
-    const managers = getManagerNames(data.managers);
+
+    const resolvedOwners = await resolveOwners(data.owners || [], db);
+    const resolvedManagers = await resolveManagers(data.managers || [], db);
+    const allOwners = getOwnerNames(resolvedOwners);
+    const managers = getManagerNames(resolvedManagers);
     
     // Filter out managers from owner list
     // If someone is listed as both owner AND manager, exclude them from owner display

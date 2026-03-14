@@ -16,7 +16,7 @@ import { generatePdf } from '../services/pdfService.js';
 import { sendStatementEmail } from './emailService.js';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-import { getFirstOwnerName } from '../utils/unitContactUtils.js';
+import { resolveOwners, getFirstOwnerName, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 
 /**
  * Get all units for a client (excluding system collections)
@@ -25,23 +25,27 @@ async function getAllUnits(clientId) {
   const db = await getDb();
   const unitsSnapshot = await db.collection('clients').doc(clientId)
     .collection('units').get();
-  
+
+  const unitsData = [...unitsSnapshot.docs]
+    .filter(doc => !doc.id.startsWith('creditBalances'))
+    .map(doc => ({ unitId: doc.id, ...doc.data() }));
+  const userCache = await buildUserCacheForUnits(unitsData, db);
+
   const units = [];
-  unitsSnapshot.forEach(doc => {
-    // Skip system documents like creditBalances and yearly archives (creditBalances_2025)
-    if (doc.id.startsWith('creditBalances')) return;
-    
+  for (const doc of unitsSnapshot.docs) {
+    if (doc.id.startsWith('creditBalances')) continue;
+
     const data = doc.data();
-    // Get owner name (first owner's name if available)
-    const ownerName = getFirstOwnerName(data.owners) || null;
-    
+    const resolvedOwners = await resolveOwners(data.owners || [], db, userCache);
+    const ownerName = getFirstOwnerName(resolvedOwners) || null;
+
     units.push({
       unitId: doc.id,
       unitNumber: data.unitNumber || doc.id,
       ownerName: ownerName || null
     });
-  });
-  
+  }
+
   return units.sort((a, b) => {
     return a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true, sensitivity: 'base' });
   });
