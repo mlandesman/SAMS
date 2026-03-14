@@ -32,13 +32,18 @@ function formatCurrency(centavos) {
 /**
  * Get status chip for a unit row
  * Paid = all billed amount paid (paid >= billed). Partial = some paid. Pending = none paid.
+ * For noAssessmentRequired: No Bill (no unit billing; progress via vendor payments).
  */
-function getStatusChip({ excluded, paid, billed, totalAssessed }) {
+function getStatusChip({ excluded, paid, billed, totalAssessed, noAssessmentRequired }) {
   if (excluded) {
     return { label: 'Excluded', color: 'default' };
   }
   if (totalAssessed <= 0) {
     return { label: '—', color: 'default' };
+  }
+  // noAssessmentRequired: no unit bills; progress tracked by vendor payments
+  if (noAssessmentRequired && billed === 0) {
+    return { label: 'No Bill', color: 'default' };
   }
   // Paid when all billed amount is paid (or fully paid on total assessment)
   if (billed > 0 && paid >= billed) {
@@ -54,14 +59,29 @@ function getStatusChip({ excluded, paid, billed, totalAssessed }) {
 }
 
 /**
- * Get next milestone label (text, not date)
+ * Get next milestone label (text, not date).
+ * For normal projects: based on billed milestones (unit collections).
+ * For noAssessmentRequired: based on vendor payments (which vendor milestones have been paid).
  */
-function getNextMilestone({ excluded, paid, totalAssessed, installments, billedMilestoneCount }) {
+function getNextMilestone({ excluded, paid, totalAssessed, installments, billedMilestoneCount, noAssessmentRequired, vendorPayments }) {
   if (excluded || !installments || installments.length === 0) return '-';
   if (totalAssessed > 0 && paid >= totalAssessed) return '-';
-  const nextIdx = billedMilestoneCount ?? 0;
+
+  let nextIdx;
+  if (noAssessmentRequired && Array.isArray(vendorPayments) && vendorPayments.length > 0) {
+    // Derive from vendor payments: count distinct milestone indices if present, else use payment count as proxy
+    const paidIndices = new Set();
+    vendorPayments.forEach(vp => {
+      if (vp.milestoneIndex != null) paidIndices.add(vp.milestoneIndex);
+    });
+    nextIdx = paidIndices.size;
+  } else {
+    nextIdx = billedMilestoneCount ?? 0;
+  }
+
   if (nextIdx >= installments.length) return '-';
-  return installments[nextIdx].milestone || '-';
+  const milestone = installments[nextIdx]?.milestone;
+  return (milestone != null && milestone !== '') ? milestone : '-';
 }
 
 /**
@@ -206,8 +226,10 @@ function UnitRow({
  * @param {array} props.installments - [{ milestone, percentOfTotal }]
  * @param {array} props.units - Unit objects with owner info (for owner names)
  * @param {object} props.unitCollections - Per-unit billed/paid from project bills (PM7): { unitId: { billed, paid } } in centavos
+ * @param {boolean} props.noAssessmentRequired - Project funded from reserve; no unit billing
+ * @param {array} props.vendorPayments - Vendor payments (for noAssessmentRequired: next milestone derived from these)
  */
-function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], unitCollections = {} }) {
+function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], unitCollections = {}, noAssessmentRequired = false, vendorPayments = [] }) {
   const rows = useMemo(() => {
     const allocations = allocationSnapshot?.allocations || {};
     const participation = allocationSnapshot?.inputs?.participation || {};
@@ -239,17 +261,21 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], un
           excluded: isExcluded,
           paid,
           billed,
-          totalAssessed: centavos
+          totalAssessed: centavos,
+          noAssessmentRequired
         });
 
         // billedMilestoneCount = first unbilled index (from project-level installments status)
+        // For noAssessmentRequired: next milestone derived from vendor payments
         const billedMilestoneCount = (installments || []).filter(i => i.status === 'billed').length;
         const nextMilestone = getNextMilestone({
           excluded: isExcluded,
           paid,
           totalAssessed: centavos,
           installments,
-          billedMilestoneCount
+          billedMilestoneCount,
+          noAssessmentRequired,
+          vendorPayments
         });
 
         return {
@@ -265,7 +291,7 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], un
         };
       })
       .sort((a, b) => (a.unitId || '').localeCompare(b.unitId || '', undefined, { numeric: true }));
-  }, [allocationSnapshot, installments, units, unitCollections]);
+  }, [allocationSnapshot, installments, units, unitCollections, noAssessmentRequired, vendorPayments]);
 
   const totals = useMemo(() => {
     const participating = rows.filter(r => !r.excluded);

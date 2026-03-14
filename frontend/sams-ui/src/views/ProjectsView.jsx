@@ -1268,6 +1268,8 @@ function ProjectsView() {
                   installments={selectedProject.installments}
                   units={unitsForAssessments}
                   unitCollections={selectedProject.unitCollections || {}}
+                  noAssessmentRequired={selectedProject.noAssessmentRequired === true}
+                  vendorPayments={selectedProject.vendorPayments || []}
                 />
               </Box>
               
