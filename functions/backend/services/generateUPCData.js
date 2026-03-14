@@ -456,6 +456,8 @@ async function getProjectBillsForUnit(db, clientId, unitId) {
       if (projectData.type !== 'special-assessment') continue;
       // Only approved projects
       if (projectData.status !== 'approved') continue;
+      // Reserve-funded projects: no owner billing
+      if (projectData.noAssessmentRequired === true) continue;
 
       const projectId = projectDoc.id;
       const projectName = projectData.name || projectId;

@@ -1349,6 +1349,7 @@ async function fetchProjectBillsForUnit(db, clientId, unitId, fiscalYearBounds) 
     for (const projectDoc of projectsSnap.docs) {
       const projectData = projectDoc.data();
       if (projectData.type !== 'special-assessment') continue;
+      if (projectData.noAssessmentRequired === true) continue;
 
       const projectId = projectDoc.id;
       const projectName = projectData.name || projectId;
