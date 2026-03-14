@@ -961,7 +961,12 @@ function ProjectsView() {
                     onClick={() => handleProjectSelect(project.projectId)}
                     selected={project.projectId === selectedProjectId}
                   >
-                    {project.name}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <span>{project.name}</span>
+                      {project.noAssessmentRequired === true && (
+                        <Chip label="Reserve Funded" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                      )}
+                    </Box>
                   </MenuItem>
                 ))}
               </Menu>
@@ -972,6 +977,9 @@ function ProjectsView() {
                   color={getStatusColor(selectedProject.status)}
                   size="small"
                 />
+                {selectedProject.noAssessmentRequired === true && (
+                  <Chip label="Reserve Funded" color="default" size="small" variant="outlined" />
+                )}
                 
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {selectedProject.startDate || 'No start date'}
@@ -1156,7 +1164,8 @@ function ProjectsView() {
                             : Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100);
                           const status = row.status || 'unbilled';
                           const isApproved = selectedProject.status === 'approved';
-                          const canBill = isApproved && status === 'unbilled';
+                          const noAssessment = selectedProject.noAssessmentRequired === true;
+                          const canBill = isApproved && status === 'unbilled' && !noAssessment;
                           return (
                             <tr key={i}>
                               <td>{row.milestone}</td>

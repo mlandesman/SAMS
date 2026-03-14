@@ -21,6 +21,7 @@ import {
 import { generateBidComparisonHtml } from '../services/bidComparisonHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { getApp } from '../firebase.js';
+import { getNow } from '../services/DateService.js';
 import { DateTime } from 'luxon';
 import {
   getProjectPeriod,
@@ -161,6 +162,7 @@ router.post('/:projectId/bids/comparison-pdf', async (req, res) => {
     await file.save(pdfBuffer, {
       metadata: {
         contentType: 'application/pdf',
+        cacheControl: 'private, max-age=0, no-transform',
         metadata: {
           clientId,
           projectId,
@@ -168,7 +170,7 @@ router.post('/:projectId/bids/comparison-pdf', async (req, res) => {
           language,
           bidCount: String(meta.bidCount),
           generatedBy: user?.email || 'system',
-          generatedAt: new Date().toISOString()
+          generatedAt: getNow().toISOString()
         }
       }
     });
@@ -176,8 +178,9 @@ router.post('/:projectId/bids/comparison-pdf', async (req, res) => {
     // Make file publicly readable
     await file.makePublic();
     
-    // Generate public URL
-    const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+    // Generate public URL with cache-busting so fresh content loads after regeneration
+    const cacheBuster = getNow().getTime();
+    const url = `https://storage.googleapis.com/${bucket.name}/${storagePath}?v=${cacheBuster}`;
     
     res.json({
       success: true,

@@ -178,12 +178,15 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
 
       if (!isActiveInFY) continue;
 
-      projectCollections.push({
-        projectId: projectDoc.id,
-        projectName: project.name || projectDoc.id,
-        collected: projectCollected
-      });
-      totalCollectedFromOwners += projectCollected;
+      // noAssessmentRequired: skip collections (no bills sent) but still include vendor expenditures
+      if (project.noAssessmentRequired !== true) {
+        projectCollections.push({
+          projectId: projectDoc.id,
+          projectName: project.name || projectDoc.id,
+          collected: projectCollected
+        });
+        totalCollectedFromOwners += projectCollected;
+      }
 
       if (vendorTotal > 0) {
         specialAssessmentsExpendituresDirect.push({

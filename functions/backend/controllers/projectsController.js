@@ -349,12 +349,16 @@ export async function createProject(clientId, projectData) {
     lifeExpectancy = (Number.isInteger(num) && num > 0) ? num : null;
   }
 
+  // noAssessmentRequired: reserve-funded projects excluded from UPC/SoA billing (default false)
+  const noAssessmentRequired = projectData.noAssessmentRequired === true;
+
   // Ensure required fields
   const project = {
     _id: projectId,
     projectId: projectId,
     type: 'special-assessment',
     ...projectData,
+    noAssessmentRequired,
     lifeExpectancy,
     metadata: {
       ...projectData.metadata,
@@ -530,6 +534,17 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
   if (statusChanged) {
     const lifecycleUpdates = buildStatusLifecycleUpdates(existingData, newStatus, userId);
     Object.assign(otherUpdates, lifecycleUpdates);
+  }
+
+  // noAssessmentRequired - allow toggling; log warning if setting true on project with billed milestones
+  if ('noAssessmentRequired' in otherUpdates) {
+    const newVal = otherUpdates.noAssessmentRequired === true;
+    if (newVal) {
+      const billsSnap = await docRef.collection('bills').get();
+      if (billsSnap.size > 0) {
+        console.warn(`[projectsController] noAssessmentRequired=true set on project ${projectId} which has ${billsSnap.size} billed milestone(s)`);
+      }
+    }
   }
 
   // PM8C: lifeExpectancy - accept positive integer or null (optional, no validation beyond type)
@@ -1259,6 +1274,9 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
   }
 
   const projectData = projectDoc.data();
+  if (projectData.noAssessmentRequired === true) {
+    throw new Error('Cannot bill milestones for projects funded from reserve/maintenance fees. This project has "No Assessment Required" enabled.');
+  }
   if (projectData.status !== 'approved') {
     throw new Error('Project must be approved to bill milestones');
   }
@@ -1745,7 +1763,7 @@ export async function billMilestoneHandler(req, res) {
         error: error.message
       });
     }
-    if (error.message.includes('must be approved') || error.message.includes('already billed')) {
+    if (error.message.includes('must be approved') || error.message.includes('already billed') || error.message.includes('No Assessment Required')) {
       return res.status(400).json({
         success: false,
         error: error.message
