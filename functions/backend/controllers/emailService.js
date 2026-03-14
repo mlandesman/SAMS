@@ -9,7 +9,8 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
 import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
 import { getNow } from '../services/DateService.js';
-import { resolveOwners, resolveManagers, normalizeOwners } from '../utils/unitContactUtils.js';
+import { resolveOwners, resolveManagers } from '../utils/unitContactUtils.js';
+import { getUnitEmailLanguage } from '../utils/reportEmailUtils.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { getStatementData } from '../services/statementDataService.js';
 import { generatePdf } from '../services/pdfService.js';
@@ -632,43 +633,6 @@ async function testWaterBillEmail(unitNumber = '101', userLanguage = 'en', testE
     [testEmail],      // Test recipient
     { isTest: true }  // Test mode
   );
-}
-
-
-/**
- * Get email language preference for a unit
- * Checks owner[0]'s preferredLanguage from users collection
- * Falls back to client default language
- */
-async function getUnitEmailLanguage(unit, clientId) {
-  // Use sync normalizeOwners to get userId/email — single fetch for preferredLanguage
-  const owners = normalizeOwners(unit.owners || (unit.owner ? [unit.owner] : []));
-  if (!owners.length || (!owners[0].email && !owners[0].userId)) {
-    const db = await getDb();
-    const clientDoc = await db.collection('clients').doc(clientId).get();
-    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
-  }
-
-  const db = await getDb();
-  let userData = null;
-  if (owners[0].userId) {
-    const userDoc = await db.collection('users').doc(owners[0].userId).get();
-    userData = userDoc.exists ? userDoc.data() : null;
-  }
-  if (!userData && owners[0].email) {
-    const userSnapshot = await db.collection('users')
-      .where('email', '==', owners[0].email)
-      .limit(1)
-      .get();
-    userData = !userSnapshot.empty ? userSnapshot.docs[0].data() : null;
-  }
-  if (!userData) {
-    const clientDoc = await db.collection('clients').doc(clientId).get();
-    return clientDoc.data()?.configuration?.defaultLanguage || 'english';
-  }
-
-  const preferredLang = userData.profile?.preferredLanguage || userData.preferredLanguage;
-  return preferredLang === 'spanish' || preferredLang === 'es' ? 'spanish' : 'english';
 }
 
 

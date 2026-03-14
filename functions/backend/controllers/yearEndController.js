@@ -5,7 +5,7 @@
  */
 
 import { getDb } from '../firebase.js';
-import { resolveOwners } from '../utils/unitContactUtils.js';
+import { resolveOwners, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js';
@@ -78,8 +78,12 @@ export async function previewYearEnd(req, res) {
     let unitsWithCredit = 0;
     let unitsWithRateChange = 0;
     
-    // Shared user cache to avoid N+1 queries across units
-    const userCache = new Map();
+    // Pre-collect units and build user cache in one batched fetch
+    const unitsData = unitsSnapshot.docs
+      .filter(doc => !doc.id.startsWith('creditBalances'))
+      .map(doc => ({ unitId: doc.id, ...doc.data() }));
+    const userCache = await buildUserCacheForUnits(unitsData, db);
+    
     // Process each unit
     for (const unitDoc of unitsSnapshot.docs) {
       const unitId = unitDoc.id;
@@ -480,7 +484,11 @@ async function getPreviewDataForReport(db, clientId, closingYear, fiscalYearStar
   const unitsSnapshot = await unitsRef.get();
   
   const units = [];
-  const userCache = new Map();
+  const unitsData = [...unitsSnapshot.docs]
+    .filter(doc => !doc.id.startsWith('creditBalances'))
+    .map(doc => ({ unitId: doc.id, ...doc.data() }));
+  const userCache = await buildUserCacheForUnits(unitsData, db);
+  
   for (const unitDoc of unitsSnapshot.docs) {
     const unitId = unitDoc.id;
     if (unitId.startsWith('creditBalances')) continue;

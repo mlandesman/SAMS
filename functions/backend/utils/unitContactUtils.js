@@ -199,6 +199,21 @@ export function normalizeManagers(managers) {
 }
 
 /**
+ * Pre-build user cache for multiple units in one batched fetch (avoids N+1).
+ * @param {Array<{owners?: Array, managers?: Array}>} units
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<Map<string, object|null>>}
+ */
+export async function buildUserCacheForUnits(units, db) {
+  const allIds = new Set();
+  for (const unit of units) {
+    getUniqueUserIds(unit.owners || []).forEach(id => allIds.add(id));
+    getUniqueUserIds(unit.managers || []).forEach(id => allIds.add(id));
+  }
+  return buildUserCache([...allIds], db, new Map());
+}
+
+/**
  * Resolve owners to enriched owner objects for API responses.
  * Supports mixed arrays of {userId} and legacy {name, email}.
  *

@@ -16,7 +16,7 @@ import { generatePdf } from '../services/pdfService.js';
 import { sendStatementEmail } from './emailService.js';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-import { resolveOwners, getFirstOwnerName } from '../utils/unitContactUtils.js';
+import { resolveOwners, getFirstOwnerName, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 
 /**
  * Get all units for a client (excluding system collections)
@@ -26,8 +26,12 @@ async function getAllUnits(clientId) {
   const unitsSnapshot = await db.collection('clients').doc(clientId)
     .collection('units').get();
 
+  const unitsData = [...unitsSnapshot.docs]
+    .filter(doc => !doc.id.startsWith('creditBalances'))
+    .map(doc => ({ unitId: doc.id, ...doc.data() }));
+  const userCache = await buildUserCacheForUnits(unitsData, db);
+
   const units = [];
-  const userCache = new Map();
   for (const doc of unitsSnapshot.docs) {
     if (doc.id.startsWith('creditBalances')) continue;
 
