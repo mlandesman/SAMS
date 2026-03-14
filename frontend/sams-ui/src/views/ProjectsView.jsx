@@ -1339,6 +1339,7 @@ function ProjectsView() {
                 <UnitAssessmentsTable 
                   allocationSnapshot={selectedProject.allocationSnapshot}
                   installments={selectedProject.installments}
+                  assessmentSchedule={selectedProject.assessmentSchedule}
                   units={unitsForAssessments}
                   unitCollections={selectedProject.unitCollections || {}}
                   noAssessmentRequired={selectedProject.noAssessmentRequired === true}

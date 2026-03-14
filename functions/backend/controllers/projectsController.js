@@ -632,9 +632,10 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
   }
 
   // If assessmentSchedule is being set/updated on an already-approved project, lock amounts
-  const projectCost = (existingData.totalCost ?? 0) || (otherUpdates.totalCost ?? 0);
+  const mergedForAssessment = { ...existingData, ...otherUpdates };
+  const projectCost = mergedForAssessment.totalCost ?? 0;
   if (otherUpdates.assessmentSchedule && Array.isArray(otherUpdates.assessmentSchedule) && otherUpdates.assessmentSchedule.length > 0 && projectCost > 0) {
-    const isApproved = (otherUpdates.status ?? existingData.status) === 'approved';
+    const isApproved = mergedForAssessment.status === 'approved';
     if (isApproved) {
       updateData.assessmentSchedule = lockMilestoneAmounts(projectCost, otherUpdates.assessmentSchedule, 'pending');
     }
