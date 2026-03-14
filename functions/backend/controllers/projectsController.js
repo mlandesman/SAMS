@@ -536,9 +536,10 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
     Object.assign(otherUpdates, lifecycleUpdates);
   }
 
-  // noAssessmentRequired - allow toggling; log warning if setting true on project with billed milestones
+  // noAssessmentRequired - sanitize to boolean; log warning if setting true on project with billed milestones
   if ('noAssessmentRequired' in otherUpdates) {
     const newVal = otherUpdates.noAssessmentRequired === true;
+    otherUpdates.noAssessmentRequired = newVal;
     if (newVal) {
       const billsSnap = await docRef.collection('bills').get();
       if (billsSnap.size > 0) {
