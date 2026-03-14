@@ -12,7 +12,7 @@
  */
 
 import { getDb } from '../firebase.js';
-import { resolveOwners, resolveManagers } from './unitContactUtils.js';
+import { resolveOwners, resolveManagers, normalizeOwners } from './unitContactUtils.js';
 
 /**
  * Check if running in production environment
@@ -42,14 +42,15 @@ export function getDevEmailOverride() {
  * @returns {Promise<string>} 'english' or 'spanish'
  */
 export async function getUnitEmailLanguage(unit, clientId) {
-  const db = await getDb();
-  const owners = await resolveOwners(unit.owners || [], db);
-
+  // Use sync normalizeOwners to get userId/email — single fetch for preferredLanguage
+  const owners = normalizeOwners(unit.owners || (unit.owner ? [unit.owner] : []));
   if (!owners.length || (!owners[0].email && !owners[0].userId)) {
+    const db = await getDb();
     const clientDoc = await db.collection('clients').doc(clientId).get();
     return clientDoc.data()?.configuration?.defaultLanguage || 'english';
   }
 
+  const db = await getDb();
   let userData = null;
   if (owners[0].userId) {
     const userDoc = await db.collection('users').doc(owners[0].userId).get();

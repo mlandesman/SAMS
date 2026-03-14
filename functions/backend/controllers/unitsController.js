@@ -211,22 +211,13 @@ async function listUnits(clientId) {
       });
     }
 
-    const enrichedUnits = units.map(unit => {
-      const owners = unit.ownersRaw;
-      const managers = unit.managersRaw;
-      const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
-      return {
-        ...unitWithoutRaw,
-        owners,
-        managers,
-      };
-    });
     const resolvedUnits = [];
-    for (const unit of enrichedUnits) {
+    for (const unit of units) {
+      const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
       resolvedUnits.push({
-        ...unit,
-        owners: await resolveOwners(unit.owners, db, userMap),
-        managers: await resolveManagers(unit.managers, db, userMap),
+        ...unitWithoutRaw,
+        owners: await resolveOwners(ownersRaw, db, userMap),
+        managers: await resolveManagers(managersRaw, db, userMap),
       });
     }
 

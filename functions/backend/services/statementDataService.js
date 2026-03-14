@@ -15,7 +15,7 @@ import { getNow, parseDate as parseDateFromService, createDate, DateService } fr
 const dashboardDateService = new DateService({ timezone: 'America/Cancun' });
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { getDb } from '../firebase.js';
-import { resolveOwners, resolveManagers, getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
+import { getOwnerNames, getManagerNames } from '../utils/unitContactUtils.js';
 import { generateStatementData as generateLedgerData } from './generateStatementData.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { hasActivity } from '../utils/clientFeatures.js';
@@ -2968,10 +2968,8 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
       const units = unitsResponse.data.data;
       const unit = units.find(u => u.unitId === unitId || u._id === unitId);
       if (unit) {
-        const db = await getDb();
-        const resolvedOwners = await resolveOwners(unit.owners || [], db);
-        const resolvedManagers = await resolveManagers(unit.managers || [], db);
-        owners = getOwnerNames(resolvedOwners);
+        // Units from listUnits API are already resolved; use getOwnerNames directly
+        owners = getOwnerNames(unit.owners || []);
         // Handle legacy single owner field
         if (owners.length === 0 && unit.owner) {
           owners = [typeof unit.owner === 'string' ? unit.owner : unit.owner.name || unit.owner];
@@ -3002,7 +3000,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
           emails = await Promise.all(emailPromises);
         }
         
-        managers = getManagerNames(resolvedManagers);
+        managers = getManagerNames(unit.managers || []);
       }
     }
   } catch (error) {

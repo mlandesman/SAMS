@@ -9,7 +9,7 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { getDb } from '../firebase.js';
 import { buildWaterBillTemplateVariables } from '../templates/waterBills/templateVariables.js';
 import { getNow } from '../services/DateService.js';
-import { resolveOwners, resolveManagers } from '../utils/unitContactUtils.js';
+import { resolveOwners, resolveManagers, normalizeOwners } from '../utils/unitContactUtils.js';
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { getStatementData } from '../services/statementDataService.js';
 import { generatePdf } from '../services/pdfService.js';
@@ -641,16 +641,15 @@ async function testWaterBillEmail(unitNumber = '101', userLanguage = 'en', testE
  * Falls back to client default language
  */
 async function getUnitEmailLanguage(unit, clientId) {
-  const db = await getDb();
-  const owners = await resolveOwners(unit.owners || [], db);
-
+  // Use sync normalizeOwners to get userId/email — single fetch for preferredLanguage
+  const owners = normalizeOwners(unit.owners || (unit.owner ? [unit.owner] : []));
   if (!owners.length || (!owners[0].email && !owners[0].userId)) {
-    // Fallback to client default
+    const db = await getDb();
     const clientDoc = await db.collection('clients').doc(clientId).get();
     return clientDoc.data()?.configuration?.defaultLanguage || 'english';
   }
 
-  // Look up owner[0] by userId (preferred) or email
+  const db = await getDb();
   let userData = null;
   if (owners[0].userId) {
     const userDoc = await db.collection('users').doc(owners[0].userId).get();
