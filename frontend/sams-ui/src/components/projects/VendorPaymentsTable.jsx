@@ -342,7 +342,7 @@ function VendorPaymentsTable({
                     {formatCurrency(-totalPaid)}
                   </Typography>
                 </TableCell>
-                <TableCell colSpan={clientId ? (installments.length > 0 ? 4 : 3) : (installments.length > 0 ? 3 : 2)}></TableCell>
+                <TableCell colSpan={clientId ? 3 : 2}></TableCell>
               </TableRow>
             </TableBody>
           </Table>

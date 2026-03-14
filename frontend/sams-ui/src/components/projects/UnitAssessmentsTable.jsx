@@ -69,17 +69,23 @@ function getNextMilestone({ excluded, paid, totalAssessed, installments, billedM
 
   let nextIdx;
   if (noAssessmentRequired && Array.isArray(vendorPayments) && vendorPayments.length > 0) {
-    // Derive from vendor payments: use max paid milestone index + 1 (handles non-sequential completion)
+    // Derive from vendor payments: find first unpaid milestone index (handles non-sequential completion)
     const paidIndices = new Set();
     vendorPayments.forEach(vp => {
       if (vp.milestoneIndex != null) paidIndices.add(vp.milestoneIndex);
     });
-    nextIdx = paidIndices.size > 0 ? Math.max(...paidIndices) + 1 : 0;
+    nextIdx = -1;
+    for (let i = 0; i < installments.length; i++) {
+      if (!paidIndices.has(i)) {
+        nextIdx = i;
+        break;
+      }
+    }
   } else {
     nextIdx = billedMilestoneCount ?? 0;
   }
 
-  if (nextIdx >= installments.length) return '-';
+  if (nextIdx < 0 || nextIdx >= installments.length) return '-';
   const milestone = installments[nextIdx]?.milestone;
   return (milestone != null && milestone !== '') ? milestone : '-';
 }
