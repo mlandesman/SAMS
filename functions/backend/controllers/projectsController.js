@@ -1303,9 +1303,10 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
     throw new Error('Project must be approved to bill milestones');
   }
 
-  // Use assessmentSchedule when available (new flow), fall back to installments (legacy)
-  const milestones = projectData.assessmentSchedule || projectData.installments;
-  const milestoneField = projectData.assessmentSchedule ? 'assessmentSchedule' : 'installments';
+  // Use assessmentSchedule when available and non-empty (new flow), fall back to installments (legacy)
+  const hasAssessmentSchedule = projectData.assessmentSchedule?.length > 0;
+  const milestones = hasAssessmentSchedule ? projectData.assessmentSchedule : projectData.installments;
+  const milestoneField = hasAssessmentSchedule ? 'assessmentSchedule' : 'installments';
   if (!milestones || !Array.isArray(milestones) || milestoneIndex < 0 || milestoneIndex >= milestones.length) {
     throw new Error('Invalid milestone index');
   }

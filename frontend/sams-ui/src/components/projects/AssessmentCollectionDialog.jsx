@@ -60,7 +60,7 @@ function AssessmentCollectionDialog({ isOpen, onClose, project, clientId, onSave
   const validate = () => {
     if (assessmentType === ASSESSMENT_TYPE.NONE) return true;
     const sum = phases.reduce((s, p) => s + (Number(p.percentOfTotal) || 0), 0);
-    if (sum !== 100) {
+    if (Math.abs(sum - 100) > 0.01) {
       setPercentError(`Percentages must sum to 100% (currently ${sum}%)`);
       return false;
     }
