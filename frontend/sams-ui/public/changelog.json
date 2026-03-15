@@ -53,6 +53,13 @@
             "197"
           ],
           "text": "Project Assessment Bypass: noAssessmentRequired flag for reserve-funded projects (excluded from UPC/SoA billing). Enable polls feature flag. Fix bid comparison PDF caching (#197)."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "242"
+          ],
+          "text": "Separate assessment milestones from vendor payment milestones. Assessment Collection Dialog on project approval (No Assessment, 100% Upfront, Split Phases). Vendor payment milestone tracking with milestoneIndex. Bill doc ID namespacing (assessment_N/vendor_N)."
         }
       ]
     },
