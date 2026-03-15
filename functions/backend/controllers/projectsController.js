@@ -632,10 +632,12 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
   }
 
   // If assessmentSchedule is being set/updated on an already-approved project, lock amounts.
-  // Use merged cost (otherUpdates overrides existingData) so concurrent totalCost + assessmentSchedule updates work.
+  // Skip when statusToApproved already locked it above (avoids duplicate lock).
   const mergedForAssessment = { ...existingData, ...otherUpdates };
   const projectCost = mergedForAssessment.totalCost ?? 0;
-  if (otherUpdates.assessmentSchedule && Array.isArray(otherUpdates.assessmentSchedule) && otherUpdates.assessmentSchedule.length > 0 && projectCost > 0) {
+  const assessmentToLock = otherUpdates.assessmentSchedule ?? existingData.assessmentSchedule;
+  const alreadyLockedInApproval = statusToApproved && Array.isArray(assessmentToLock) && assessmentToLock.length > 0;
+  if (!alreadyLockedInApproval && otherUpdates.assessmentSchedule && Array.isArray(otherUpdates.assessmentSchedule) && otherUpdates.assessmentSchedule.length > 0 && projectCost > 0) {
     const isApproved = mergedForAssessment.status === 'approved';
     if (isApproved) {
       updateData.assessmentSchedule = lockMilestoneAmounts(projectCost, otherUpdates.assessmentSchedule, 'pending');

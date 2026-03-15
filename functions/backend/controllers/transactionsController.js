@@ -1160,10 +1160,14 @@ async function deleteTransaction(clientId, txnId) {
           const projectId = alloc.data?.projectId || alloc.projectId;
           const milestoneIndex = alloc.data?.milestoneIndex ?? alloc.milestoneIndex;
           if (projectId != null && milestoneIndex != null) {
-            // Project assessment bills: Sprint 242 uses assessment_N; legacy used numeric N
+            // Project bills: try assessment_N, vendor_N, then legacy numeric N
             const billsCol = `clients/${clientId}/projects/${projectId}/bills`;
             let foundRef = db.doc(`${billsCol}/assessment_${milestoneIndex}`);
             let billDoc = await transaction.get(foundRef);
+            if (!billDoc.exists) {
+              foundRef = db.doc(`${billsCol}/vendor_${milestoneIndex}`);
+              billDoc = await transaction.get(foundRef);
+            }
             if (!billDoc.exists) {
               foundRef = db.doc(`${billsCol}/${milestoneIndex}`);
               billDoc = await transaction.get(foundRef);
