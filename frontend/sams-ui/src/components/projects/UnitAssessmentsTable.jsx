@@ -63,25 +63,42 @@ function getStatusChip({ excluded, paid, billed, totalAssessed, noAssessmentRequ
  * For normal projects: based on billed milestones (unit collections).
  * For noAssessmentRequired: based on vendor payments (which vendor milestones have been paid).
  */
-function getNextMilestone({ excluded, paid, totalAssessed, installments, billedMilestoneCount, noAssessmentRequired, vendorPayments }) {
-  if (excluded || !installments || installments.length === 0) return '-';
+function getNextMilestone({ excluded, paid, totalAssessed, installments, assessmentSchedule, billedMilestoneCount, noAssessmentRequired, vendorPayments }) {
+  const milestones = assessmentSchedule && assessmentSchedule.length > 0 ? assessmentSchedule : installments;
+  if (excluded || !milestones || milestones.length === 0) return '-';
   if (totalAssessed > 0 && paid >= totalAssessed) return '-';
 
   let nextIdx;
-  if (noAssessmentRequired && Array.isArray(vendorPayments) && vendorPayments.length > 0) {
-    // Derive from vendor payments: count distinct milestone indices if present, else use payment count as proxy
+  if (assessmentSchedule && assessmentSchedule.length > 0) {
+    // Assessment schedule flow: find first unbilled assessment phase
+    nextIdx = -1;
+    for (let i = 0; i < assessmentSchedule.length; i++) {
+      if (assessmentSchedule[i].status !== 'billed') {
+        nextIdx = i;
+        break;
+      }
+    }
+  } else if (noAssessmentRequired && Array.isArray(vendorPayments) && vendorPayments.length > 0) {
+    // Reserve-funded: derive from vendor payments
     const paidIndices = new Set();
     vendorPayments.forEach(vp => {
       if (vp.milestoneIndex != null) paidIndices.add(vp.milestoneIndex);
     });
-    nextIdx = paidIndices.size;
+    nextIdx = -1;
+    for (let i = 0; i < installments.length; i++) {
+      if (!paidIndices.has(i)) {
+        nextIdx = i;
+        break;
+      }
+    }
   } else {
     nextIdx = billedMilestoneCount ?? 0;
   }
 
-  if (nextIdx >= installments.length) return '-';
-  const milestone = installments[nextIdx]?.milestone;
-  return (milestone != null && milestone !== '') ? milestone : '-';
+  if (nextIdx < 0 || nextIdx >= milestones.length) return '-';
+  const m = milestones[nextIdx];
+  const label = m?.label ?? m?.milestone ?? '';
+  return (label !== '') ? label : '-';
 }
 
 /**
@@ -223,13 +240,14 @@ function UnitRow({
  *
  * @param {object} props
  * @param {object} props.allocationSnapshot - { allocations: { unitId: centavos }, inputs: { participation: { unitId: 'in'|'out' } } }
- * @param {array} props.installments - [{ milestone, percentOfTotal }]
+ * @param {array} props.installments - [{ milestone, percentOfTotal }] — vendor payment milestones from bid
+ * @param {array} props.assessmentSchedule - [{ label, percentOfTotal, status }] — unit billing schedule (passed from ProjectsView; when present, used for next-milestone and billed count)
  * @param {array} props.units - Unit objects with owner info (for owner names)
  * @param {object} props.unitCollections - Per-unit billed/paid from project bills (PM7): { unitId: { billed, paid } } in centavos
  * @param {boolean} props.noAssessmentRequired - Project funded from reserve; no unit billing
  * @param {array} props.vendorPayments - Vendor payments (for noAssessmentRequired: next milestone derived from these)
  */
-function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], unitCollections = {}, noAssessmentRequired = false, vendorPayments = [] }) {
+function UnitAssessmentsTable({ allocationSnapshot, installments, assessmentSchedule, units = [], unitCollections = {}, noAssessmentRequired = false, vendorPayments = [] }) {
   const rows = useMemo(() => {
     const allocations = allocationSnapshot?.allocations || {};
     const participation = allocationSnapshot?.inputs?.participation || {};
@@ -265,14 +283,15 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], un
           noAssessmentRequired
         });
 
-        // billedMilestoneCount = first unbilled index (from project-level installments status)
-        // For noAssessmentRequired: next milestone derived from vendor payments
-        const billedMilestoneCount = (installments || []).filter(i => i.status === 'billed').length;
+        // billedMilestoneCount = from installments (legacy) or assessmentSchedule
+        const scheduleToCount = assessmentSchedule && assessmentSchedule.length > 0 ? assessmentSchedule : installments;
+        const billedMilestoneCount = (scheduleToCount || []).filter(i => i.status === 'billed').length;
         const nextMilestone = getNextMilestone({
           excluded: isExcluded,
           paid,
           totalAssessed: centavos,
           installments,
+          assessmentSchedule,
           billedMilestoneCount,
           noAssessmentRequired,
           vendorPayments
@@ -291,7 +310,7 @@ function UnitAssessmentsTable({ allocationSnapshot, installments, units = [], un
         };
       })
       .sort((a, b) => (a.unitId || '').localeCompare(b.unitId || '', undefined, { numeric: true }));
-  }, [allocationSnapshot, installments, units, unitCollections, noAssessmentRequired, vendorPayments]);
+  }, [allocationSnapshot, installments, assessmentSchedule, units, unitCollections, noAssessmentRequired, vendorPayments]);
 
   const totals = useMemo(() => {
     const participating = rows.filter(r => !r.excluded);

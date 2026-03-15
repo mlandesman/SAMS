@@ -63,6 +63,7 @@ const PAYMENT_METHODS = ['eTransfer', 'Cash', 'Check', 'Wire Transfer', 'Other']
  */
 function VendorPaymentsTable({
   vendorPayments = [],
+  installments = [],
   onTransactionClick,
   onRefresh,
   clientId,
@@ -84,7 +85,8 @@ function VendorPaymentsTable({
     amount: '',
     description: '',
     accountId: '',
-    paymentMethod: 'eTransfer'
+    paymentMethod: 'eTransfer',
+    milestoneIndex: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -129,7 +131,8 @@ function VendorPaymentsTable({
       amount: '',
       description: '',
       accountId: accounts[0]?.id || '',
-      paymentMethod: 'eTransfer'
+      paymentMethod: 'eTransfer',
+      milestoneIndex: ''
     });
     setError('');
     setRecordDialogOpen(true);
@@ -164,7 +167,8 @@ function VendorPaymentsTable({
         description: formData.description,
         accountId: formData.accountId,
         accountType,
-        paymentMethod: formData.paymentMethod
+        paymentMethod: formData.paymentMethod,
+        milestoneIndex: formData.milestoneIndex !== '' ? Number(formData.milestoneIndex) : null
       });
       handleCloseRecord();
       onRefresh?.();
@@ -242,6 +246,7 @@ function VendorPaymentsTable({
               <TableRow sx={{ backgroundColor: 'grey.100' }}>
                 <TableCell>Date</TableCell>
                 <TableCell>Vendor</TableCell>
+                {installments.length > 0 && <TableCell>Milestone</TableCell>}
                 <TableCell align="right">Amount</TableCell>
                 <TableCell>Notes</TableCell>
                 <TableCell align="center" width={80}>Transaction</TableCell>
@@ -260,6 +265,15 @@ function VendorPaymentsTable({
                   <TableCell>
                     <Typography variant="body2">{payment.vendor || '-'}</Typography>
                   </TableCell>
+                  {installments.length > 0 && (
+                    <TableCell>
+                      <Typography variant="body2">
+                        {payment.milestoneIndex != null && installments[payment.milestoneIndex]
+                          ? installments[payment.milestoneIndex].milestone
+                          : '-'}
+                      </Typography>
+                    </TableCell>
+                  )}
                   <TableCell align="right">
                     <Typography variant="body2" color="error.main">
                       {formatCurrency(payment.amount)}
@@ -318,7 +332,7 @@ function VendorPaymentsTable({
                 </TableRow>
               ))}
               <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                <TableCell colSpan={2}>
+                <TableCell colSpan={installments.length > 0 ? 3 : 2}>
                   <Typography variant="body2" fontWeight="bold">
                     Total ({sortedPayments.length} payment{sortedPayments.length !== 1 ? 's' : ''})
                   </Typography>
@@ -375,6 +389,20 @@ function VendorPaymentsTable({
                     ))}
                   </select>
                 </div>
+                {installments && installments.length > 0 && (
+                  <div className="sandyland-form-field full-width">
+                    <label>Vendor Milestone (optional)</label>
+                    <select
+                      value={formData.milestoneIndex}
+                      onChange={e => setFormData(prev => ({ ...prev, milestoneIndex: e.target.value }))}
+                    >
+                      <option value="">— Select milestone —</option>
+                      {installments.map((inst, i) => (
+                        <option key={i} value={i}>{inst.milestone} ({inst.percentOfTotal}%)</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="sandyland-form-field full-width">
                   <label>Amount (pesos)</label>
                   <input

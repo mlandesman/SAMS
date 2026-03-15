@@ -39,7 +39,7 @@ import { translateToSpanish } from '../api/translate';
 import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import GlobalSearch from '../components/GlobalSearch';
-import { UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal, ProjectDocumentsList } from '../components/projects';
+import { AssessmentCollectionDialog, UnitAssessmentsTable, VendorPaymentsTable, ProjectFormModal, BidsManagementModal, ProjectDocumentsList } from '../components/projects';
 import { LoadingSpinner } from '../components/common';
 import PollCreationWizard from '../components/polls/PollCreationWizard';
 import PollDetailView from '../components/polls/PollDetailView';
@@ -134,6 +134,7 @@ function ProjectsView() {
   
   // Bids modal state
   const [isBidsModalOpen, setIsBidsModalOpen] = useState(false);
+  const [assessmentDialogProject, setAssessmentDialogProject] = useState(null);
 
   // Poll linking state
   const [linkedPoll, setLinkedPoll] = useState(null);
@@ -806,6 +807,13 @@ function ProjectsView() {
     if (selectedProjectId) {
       await loadProjectDetails(selectedProjectId);
     }
+    // When project becomes approved from bids flow, pop Assessment dialog so user can configure or edit.
+    // Skip when user explicitly chose "No Assessment Required" (reserve-funded) — don't re-trigger on bid changes.
+    const hasExplicitNoAssessment = updatedProject?.noAssessmentRequired === true;
+    if (updatedProject?.status === 'approved' && !hasExplicitNoAssessment) {
+      setIsBidsModalOpen(false);
+      setAssessmentDialogProject(updatedProject);
+    }
   };
   
   if (!selectedClient) {
@@ -1111,9 +1119,12 @@ function ProjectsView() {
                     <Box>
                       <Typography variant="caption" color="text.secondary">Billed to Owners</Typography>
                       <Typography variant="body1" fontWeight="medium">
-                        {formatCurrency((selectedProject.installments || [])
-                          .filter(i => i.status === 'billed')
-                          .reduce((s, i) => s + (i.amountCentavos || 0), 0))}
+                        {formatCurrency((() => {
+                          const schedule = selectedProject.assessmentSchedule?.length > 0
+                            ? selectedProject.assessmentSchedule
+                            : selectedProject.installments || [];
+                          return schedule.filter(i => i.status === 'billed').reduce((s, i) => s + (i.amountCentavos || 0), 0);
+                        })())}
                       </Typography>
                     </Box>
                     <Box>
@@ -1135,9 +1146,9 @@ function ProjectsView() {
                 </Paper>
               )}
 
-              {/* Installment Schedule Section (promoted from selected bid) */}
+              {/* Vendor Payment Milestones Section (from selected bid) */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>Installment Schedule</Typography>
+                <Typography variant="h6" sx={{ mb: 2 }}>Vendor Payment Milestones</Typography>
                 {selectedProject.installments && selectedProject.installments.length > 0 ? (
                   <Box>
                     <Box
@@ -1162,18 +1173,23 @@ function ProjectsView() {
                           const amountCentavos = row.amountCentavos != null
                             ? row.amountCentavos
                             : Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100);
-                          const status = row.status || 'unbilled';
+                          // Single source of truth: derive status from vendorPayments (not installments)
+                          const vendorPayments = selectedProject.vendorPayments || [];
+                          const paymentForMilestone = vendorPayments.find(vp => vp.milestoneIndex === i);
+                          const isBilled = !!paymentForMilestone;
+                          const billedDate = paymentForMilestone?.date;
                           const isApproved = selectedProject.status === 'approved';
                           const noAssessment = selectedProject.noAssessmentRequired === true;
-                          const canBill = isApproved && status === 'unbilled' && !noAssessment;
+                          const hasAssessmentSchedule = selectedProject.assessmentSchedule && selectedProject.assessmentSchedule.length > 0;
+                          const canBill = isApproved && !isBilled && !noAssessment && !hasAssessmentSchedule;
                           return (
                             <tr key={i}>
                               <td>{row.milestone}</td>
                               <td>{row.percentOfTotal}%</td>
                               <td>{formatCurrency(amountCentavos)}</td>
                               <td>
-                                {status === 'billed' ? (
-                                  <Chip label={row.billedDate ? `Billed ${row.billedDate.slice(0, 10)}` : 'Billed'} color="success" size="small" />
+                                {isBilled ? (
+                                  <Chip label={billedDate ? `Billed ${billedDate.slice(0, 10)}` : 'Billed'} color="success" size="small" />
                                 ) : canBill ? (
                                   <Button
                                     variant="outlined"
@@ -1194,10 +1210,87 @@ function ProjectsView() {
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No installment schedule — select a bid to set payment terms.
+                    No vendor payment milestones — select a bid to set payment terms.
                   </Typography>
                 )}
               </Paper>
+
+              {/* Assessment Schedule Section (unit owner billing) - only when noAssessmentRequired or assessmentSchedule exists */}
+              {(selectedProject.noAssessmentRequired || (selectedProject.assessmentSchedule && selectedProject.assessmentSchedule.length > 0)) && (
+                <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="h6">Assessment Schedule</Typography>
+                    {selectedProject.status === 'approved' && (
+                      <button
+                        className="action-item"
+                        onClick={() => setAssessmentDialogProject(selectedProject)}
+                        style={{ padding: '6px 12px', fontSize: '0.875rem' }}
+                      >
+                        Edit Assessment Plan
+                      </button>
+                    )}
+                  </Box>
+                  {selectedProject.noAssessmentRequired ? (
+                    <Chip label="Reserve Funded — No Assessment Required" color="info" size="small" />
+                  ) : selectedProject.assessmentSchedule && selectedProject.assessmentSchedule.length > 0 ? (
+                    <Box>
+                      <Box
+                        component="table"
+                        sx={{
+                          width: '100%',
+                          borderCollapse: 'collapse',
+                          '& th, & td': { border: '1px solid #e0e0e0', p: 1.5, textAlign: 'left' },
+                          '& th': { backgroundColor: '#f5f5f5', fontWeight: 600 }
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th>Label</th>
+                            <th>% of Total</th>
+                            <th>Amount</th>
+                            <th>Target Date</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedProject.assessmentSchedule.map((row, i) => {
+                            const amountCentavos = row.amountCentavos != null
+                              ? row.amountCentavos
+                              : Math.round((selectedProject.totalCost || 0) * (row.percentOfTotal || 0) / 100);
+                            const status = row.status || 'pending';
+                            const isApproved = selectedProject.status === 'approved';
+                            const canBill = isApproved && status === 'pending';
+                            const label = row.label ?? row.milestone ?? '';
+                            return (
+                              <tr key={i}>
+                                <td>{label}</td>
+                                <td>{row.percentOfTotal}%</td>
+                                <td>{formatCurrency(amountCentavos)}</td>
+                                <td>{row.targetDate ? row.targetDate.slice(0, 10) : '—'}</td>
+                                <td>
+                                  {status === 'billed' ? (
+                                    <Chip label={row.billedDate ? `Billed ${row.billedDate.slice(0, 10)}` : 'Billed'} color="success" size="small" />
+                                  ) : canBill ? (
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      onClick={() => handleBillMilestoneClick(i, { ...row, milestone: label })}
+                                    >
+                                      Bill
+                                    </Button>
+                                  ) : (
+                                    'Pending'
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </Box>
+                    </Box>
+                  ) : null}
+                </Paper>
+              )}
 
               {/* Voting Status Section */}
               <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
@@ -1266,6 +1359,7 @@ function ProjectsView() {
                 <UnitAssessmentsTable 
                   allocationSnapshot={selectedProject.allocationSnapshot}
                   installments={selectedProject.installments}
+                  assessmentSchedule={selectedProject.assessmentSchedule}
                   units={unitsForAssessments}
                   unitCollections={selectedProject.unitCollections || {}}
                   noAssessmentRequired={selectedProject.noAssessmentRequired === true}
@@ -1280,6 +1374,7 @@ function ProjectsView() {
                 </Typography>
                 <VendorPaymentsTable 
                   vendorPayments={selectedProject.vendorPayments || []}
+                  installments={selectedProject.installments || []}
                   onTransactionClick={handleTransactionClick}
                   onRefresh={() => loadProjectDetails(selectedProject.projectId)}
                   clientId={selectedClient?.id}
@@ -1336,7 +1431,7 @@ function ProjectsView() {
             onClick={e => e.stopPropagation()}
           >
             <div className="sandyland-modal-header">
-              <h2 className="sandyland-modal-title">Bill Milestone: {billMilestoneDialog.milestone?.milestone}</h2>
+              <h2 className="sandyland-modal-title">Bill Milestone: {billMilestoneDialog.milestone?.milestone ?? billMilestoneDialog.milestone?.label}</h2>
             </div>
             <div className="sandyland-modal-content">
               {billMilestoneDialog.milestone && selectedProject && (() => {
@@ -1409,6 +1504,20 @@ function ProjectsView() {
         onClose={() => setIsBidsModalOpen(false)}
         project={selectedProject}
         onProjectUpdate={handleProjectUpdateFromBids}
+      />
+
+      <AssessmentCollectionDialog
+        isOpen={!!assessmentDialogProject}
+        onClose={() => setAssessmentDialogProject(null)}
+        project={assessmentDialogProject}
+        clientId={selectedClient?.id}
+        onSave={async () => {
+          setAssessmentDialogProject(null);
+          await loadProjects();
+          if (selectedProjectId) {
+            await loadProjectDetails(selectedProjectId);
+          }
+        }}
       />
 
       <PollCreationWizard

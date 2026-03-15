@@ -1829,6 +1829,7 @@ export class UnifiedPaymentWrapper {
         result.project.billsAffected.push({
           billPeriod: displayPeriod,
           billId: originalBill?.billId ?? billToUse.billId,
+          billDocId: originalBill?.billDocId ?? billToUse?.billDocId,
           projectId: originalBill?.projectId ?? billToUse.projectId,
           projectName: originalBill?.projectName ?? billToUse.projectName,
           milestone: originalBill?.milestone ?? billToUse.milestone,
@@ -2386,11 +2387,22 @@ export class UnifiedPaymentWrapper {
     for (const billData of projectBills) {
       const projectId = billData.projectId;
       const milestoneIndex = billData.milestoneIndex;
-      const billRef = this.db.doc(`clients/${clientId}/projects/${projectId}/bills/${milestoneIndex}`);
-
-      const billDoc = await billRef.get();
-      if (!billDoc.exists) {
-        logWarn(`Project bill ${projectId}/${milestoneIndex} not found - skipping`);
+      // Sprint 242: try assessment_N, vendor_N, legacy N (matches transactionsController delete flow)
+      const billsCol = `clients/${clientId}/projects/${projectId}/bills`;
+      const docIdsToTry = [
+        billData.billDocId ?? `assessment_${milestoneIndex}`,
+        `vendor_${milestoneIndex}`,
+        String(milestoneIndex)
+      ].filter((id, i, arr) => arr.indexOf(id) === i);
+      let billDoc = null;
+      let billRef = null;
+      for (const docId of docIdsToTry) {
+        billRef = this.db.doc(`${billsCol}/${docId}`);
+        billDoc = await billRef.get();
+        if (billDoc.exists) break;
+      }
+      if (!billDoc?.exists) {
+        logWarn(`Project bill ${projectId}/${milestoneIndex} not found (tried ${docIdsToTry.join(', ')}) - skipping`);
         continue;
       }
 

@@ -1160,14 +1160,24 @@ async function deleteTransaction(clientId, txnId) {
           const projectId = alloc.data?.projectId || alloc.projectId;
           const milestoneIndex = alloc.data?.milestoneIndex ?? alloc.milestoneIndex;
           if (projectId != null && milestoneIndex != null) {
-            const billRef = db.doc(`clients/${clientId}/projects/${projectId}/bills/${milestoneIndex}`);
-            const billDoc = await transaction.get(billRef);
+            // Project bills: try assessment_N, vendor_N, then legacy numeric N
+            const billsCol = `clients/${clientId}/projects/${projectId}/bills`;
+            let foundRef = db.doc(`${billsCol}/assessment_${milestoneIndex}`);
+            let billDoc = await transaction.get(foundRef);
+            if (!billDoc.exists) {
+              foundRef = db.doc(`${billsCol}/vendor_${milestoneIndex}`);
+              billDoc = await transaction.get(foundRef);
+            }
+            if (!billDoc.exists) {
+              foundRef = db.doc(`${billsCol}/${milestoneIndex}`);
+              billDoc = await transaction.get(foundRef);
+            }
             if (billDoc.exists) {
               const billData = billDoc.data();
               const unitBill = billData.units?.[originalData.unitId];
               const hasPaymentFromTxn = unitBill?.payments?.some(p => p.transactionId === txnId);
               if (hasPaymentFromTxn) {
-                projectBillDocs.push({ ref: billRef, data: billData, unitBill });
+                projectBillDocs.push({ ref: foundRef, data: billData, unitBill });
               }
             }
           }

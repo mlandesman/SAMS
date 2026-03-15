@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FormControlLabel, Checkbox, Tooltip } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faLanguage } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../../context/ClientContext';
@@ -55,7 +54,6 @@ const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, 
     completionDate: '',
     totalCost: '',
     lifeExpectancy: '',
-    noAssessmentRequired: false,
     notes: ''
   });
 
@@ -76,7 +74,6 @@ const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, 
         completionDate: project.completionDate || '',
         totalCost: project.totalCost ? (project.totalCost / 100).toFixed(2) : '',
         lifeExpectancy: project.lifeExpectancy != null ? String(project.lifeExpectancy) : '',
-        noAssessmentRequired: project.noAssessmentRequired === true,
         notes: project.metadata?.notes || ''
       });
       setProjectId(project.projectId || '');
@@ -92,7 +89,6 @@ const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, 
         completionDate: '',
         totalCost: '',
         lifeExpectancy: '',
-        noAssessmentRequired: false,
         notes: ''
       });
       setProjectId('');
@@ -195,7 +191,7 @@ const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, 
           completionDate: formData.completionDate || null,
           totalCost: formData.totalCost ? Math.round(parseFloat(formData.totalCost) * 100) : 0,
           lifeExpectancy: formData.lifeExpectancy ? parseInt(formData.lifeExpectancy, 10) : null,
-          noAssessmentRequired: formData.noAssessmentRequired === true,
+          noAssessmentRequired: isEdit && project?.noAssessmentRequired === true,
           metadata: {
             notes: formData.notes.trim(),
             updatedAt: getMexicoDateTime().toISOString()
@@ -381,22 +377,6 @@ const ProjectFormModal = ({ project = null, isOpen, onClose = () => {}, onSave, 
               </label>
             </div>
 
-            <div className="sandyland-form-row">
-              <Tooltip title="This project is funded from reserve or maintenance fees and does not require billing to unit owners.">
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      name="noAssessmentRequired"
-                      checked={formData.noAssessmentRequired}
-                      onChange={(e) => setFormData(prev => ({ ...prev, noAssessmentRequired: e.target.checked }))}
-                      color="primary"
-                    />
-                  }
-                  label="No Assessment Required"
-                />
-              </Tooltip>
-            </div>
-            
             <div className="sandyland-form-row sandyland-form-row-split">
               <label className="sandyland-form-label">
                 Start Date *
