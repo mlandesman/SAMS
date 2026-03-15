@@ -1346,6 +1346,7 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
     projectName: projectData.name || '',
     milestone: milestoneLabel,
     milestoneIndex,
+    milestoneSource: hasAssessmentSchedule ? 'assessment' : 'vendor',
     percentOfTotal: milestone.percentOfTotal ?? 0,
     amountCentavos,
     billedDate,
@@ -1353,8 +1354,11 @@ export async function billMilestone(clientId, projectId, milestoneIndex, billedB
     units
   };
 
+  // Use namespaced doc IDs to avoid collision: assessment_0 vs vendor_0. If both arrays
+  // used the same index (e.g. 0), billing one before configuring the other would overwrite.
   const billsRef = projectRef.collection('bills');
-  const billRef = billsRef.doc(String(milestoneIndex));
+  const billDocId = hasAssessmentSchedule ? `assessment_${milestoneIndex}` : `vendor_${milestoneIndex}`;
+  const billRef = billsRef.doc(billDocId);
 
   const batch = db.batch();
   batch.set(billRef, billDoc);
