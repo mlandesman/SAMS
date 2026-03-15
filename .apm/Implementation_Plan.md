@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.15.0 | **Deployed:** March 10, 2026  
-**Last Updated:** March 14, 2026 — Sprint NRM ✅ COMPLETE (PR #240, merged March 14). Sprint D ✅ COMPLETE (D1 PR #236, D2 PR #237). Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233).  
+**Last Updated:** March 14, 2026 — Sprint 242 ✅ COMPLETE (PR #243). Sprint NRM ✅ COMPLETE (PR #240). Sprint 235 ✅ COMPLETE (PR #241). Sprint D ✅ COMPLETE. Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233).  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -24,6 +24,24 @@ All planning and backlog management is maintained in the Agile documentation:
 ---
 
 ## Last Completed Sprint
+
+**Sprint 242: Separate Assessment vs Vendor Payment Milestones** — #242 ✅ COMPLETE (PR #243, approved March 14, 2026)
+
+| Task | Title | Est | Actual | Status |
+|------|-------|-----|--------|--------|
+| 242-1 | Data model: assessmentSchedule[], lockMilestoneAmounts, billMilestone | 3-4h | ~3h | ✅ COMPLETE |
+| 242-2 | Backend: billMilestone uses assessmentSchedule, recordVendorPayment milestoneIndex | 1h | ~1h | ✅ COMPLETE |
+| 242-3A | Frontend: AssessmentCollectionDialog (No Assessment, Upfront, Split Phases) | 2-3h | ~2h | ✅ COMPLETE |
+| 242-3B | Frontend: Dialog trigger on approval, remove noAssessmentRequired checkbox | 1h | ~1h | ✅ COMPLETE |
+| 242-3C | Frontend: Rename Installment Schedule → Vendor Payment Milestones, Assessment Schedule | 1h | ~1h | ✅ COMPLETE |
+| 242-3D | Frontend: Milestone selector, UnitAssessmentsTable assessmentSchedule support | 1h | ~1h | ✅ COMPLETE |
+| 242-4 | Testing, BugBot fixes (vendor_N lookup, duplicate lock, payment fallback) | 1h | ~1h | ✅ COMPLETE |
+
+**Estimated**: 8-10h | **Actual**: ~10h | **Quality**: ⭐⭐⭐⭐ (BugBot fixes: transaction delete, duplicate assessment lock, payment fallback doc ID chain)
+
+**Impact**: Assessment milestones (unit billing) decoupled from vendor payment milestones (contractor execution). Assessment Collection Dialog pops on bid selection. Bill doc IDs: assessment_N, vendor_N, legacy N. Vendor status derived from vendorPayments. 16 files changed (+632/-128).
+
+---
 
 **Sprint NRM: Normalize Unit-User References** — #133 ✅ COMPLETE (PR #240, merged March 14, 2026)
 

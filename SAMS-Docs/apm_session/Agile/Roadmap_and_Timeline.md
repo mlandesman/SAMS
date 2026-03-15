@@ -49,20 +49,26 @@
 | ~~3~~ | ~~**PASSKEY-AUTH**~~ | ~~Passkey Authentication~~ | ~~~15h~~ | ~~#189, PK1–PK4~~ ✅ COMPLETE (Mar 10, 2026) |
 | ~~4~~ | ~~**D**~~ | ~~PWA/Mobile Enhancements~~ | ~~12-16h~~ | ~~#184, #109~~ ✅ COMPLETE (Mar 12, 2026) |
 | ~~5~~ | ~~**NRM**~~ | ~~Normalize Unit-User References~~ | ~~16-24h~~ | ~~#133 [DEBT]~~ ✅ COMPLETE (Mar 14, 2026, PR #240, ~15h actual) |
-| 6 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 7 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 8 | **E** | Admin & Settings | 7-9h | #194, #182, #106, #102, #50, #159 |
-| 9 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 10 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176 |
+| ~~6~~ | ~~**235**~~ | ~~Project Assessment Bypass + Flag Cleanup~~ | ~~8-10h~~ | ~~#235, #197~~ ✅ COMPLETE (PR #241, March 14, 2026) |
+| ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
+| 8 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
+| 9 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 10 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
+| 11 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| 12 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint WA (WhatsApp Notifications) is next in the sequence.
+**Current Focus**: Sprint 242 ✅ COMPLETE (PR #243). Next: Mobile Owner UX Refactor sprint (~20-26h) or Sprint WA (WhatsApp Notifications). External user deployment proceeding in parallel. Roadmap ordering subject to change based on operational needs and scrum reviews.
 
 **Mobile PWA Future Enhancements** (carry to Sprint G):
 - Budget card: live budget data integration (#176)
 - Projects card: live project status data
 - Vote Needed card: new card for open polls requiring user action
 
-**Schedule Note (Mar 14, 2026)**: Sprint NRM ✅ COMPLETE (PR #240, ~15h actual vs 28h estimated). Unit documents now store `{userId}` references only — all 11+ backend services resolve user data at query time. `updateUserNameInUnits` sync function deleted. Mobile Unit Directory added. 17 files changed (+665/-331). 4 BugBot rounds, 0 regressions. Manual testing confirmed. #133 closed.
+**Schedule Note (Mar 14, 2026 — Sprint 242)**: Sprint 242 ✅ COMPLETE (PR #243). Assessment milestones decoupled from vendor payment milestones. AssessmentCollectionDialog pops on bid selection. Bill doc IDs: assessment_N, vendor_N, legacy N. Vendor status derived from vendorPayments. BugBot fixes: transaction delete vendor_N lookup, duplicate assessment lock, payment fallback doc ID chain. 16 files changed (+632/-128).
+
+**Schedule Note (Mar 14, 2026 — Scrum Review)**: Sprint NRM ✅ COMPLETE. Roadmap amended: Sprint 235 (Project Assessment Bypass) inserted at position 6 — business decision that first project uses reserve funds, not special assessment billing. #211 closed (manual fix). #194 removed from Sprint E (closed). #231 placed in backlog (manual workaround). #238 added to Sprint G far-future. Feature flags `projects` and `polls` can be enabled — deferred only because PO is traveling, not due to technical issues. `projectPaymentsInUPC` remains OFF pending #235 resolution.
+
+**Schedule Note (Mar 14, 2026 — NRM)**: Sprint NRM ✅ COMPLETE (PR #240, ~15h actual vs 28h estimated). Unit documents now store `{userId}` references only — all 11+ backend services resolve user data at query time. `updateUserNameInUnits` sync function deleted. Mobile Unit Directory added. 17 files changed (+665/-331). 4 BugBot rounds, 0 regressions. Manual testing confirmed. #133 closed.
 
 **Schedule Note (Mar 12, 2026)**: Sprint D ✅ COMPLETE (D1 PR #236, D2 PR #237). D3 investigation revealed unit documents store denormalized owner/manager data (`{name, email}` copies instead of `{userId}` references). PO decision: stop D3, convert #133 to tech debt with expanded scope, create standalone Sprint NRM. Must fix before beta deployment — one truth, not two.
 
@@ -80,7 +86,8 @@
 |------|--------|----------------|
 | ~~PM-Finance (PM5-9)~~ | ~~Touches UPC and SoA core engines~~ | ✅ COMPLETE (Mar 9, 2026) |
 | #90 Credit Auto-Pay | Monitoring via email override | Q2 2026 |
-| Sprint B3 bugs (#124, #52) | Manual workarounds exist, no user impact | Before July 2026 for #124 |
+| Sprint B3 bugs (#124, #52) | Manual workarounds exist, no user impact | ✅ #124 fixed in Sprint F, #52 fixed in Sprint F |
+| #231 New user role grant | Manual workaround via Firebase Console | Future cleanup sprint |
 
 ---
 
@@ -99,6 +106,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| 235 (Project Assessment Bypass + Flag Cleanup) | Mar 14, 2026 | #235, #197 (PR #241) — 5 tasks, 10 files, +526/-21 lines |
 | NRM (Normalize Unit-User References) | Mar 14, 2026 | #133 (PR #240) — 7 tasks (NRM1-NRM7), 17 files, ~15h |
 | D (PWA/Mobile Enhancements) | Mar 12, 2026 | #184 (PR #236), #109 (PR #237). D3 (#133) → Sprint NRM |
 | PASSKEY-AUTH (Passkey Authentication) | Mar 10, 2026 | #189 — PR #233 (PK1–PK4) |
@@ -144,4 +152,4 @@
 
 ---
 
-*Last Updated: March 14, 2026 — Sprint NRM ✅ COMPLETE (PR #240, merged March 14). #133 closed.*
+*Last Updated: March 14, 2026 — Sprint 242 ✅ COMPLETE (PR #243). Assessment Collection Dialog, assessmentSchedule[], vendor milestone separation, bill doc ID fallback chain.*

@@ -72,12 +72,41 @@
 
 ---
 
-### ⚙️ Sprint E: Admin & Settings (7-9 hours)
+### ✅ Sprint 235: Project Assessment Bypass + Flag Cleanup — COMPLETE (PR #241, March 14, 2026)
+*Reserve-funded projects bypass special assessment billing, feature flag cleanup, PDF caching fix*
+
+**Issues**: #235 ✅ CLOSED, #197 ✅ CLOSED  
+**PR**: #241 (merged March 14, 2026) — 10 files changed, +526/-21 lines  
+**Quality**: ⭐⭐⭐⭐  
+**Deliverables**: `noAssessmentRequired` flag on project model, pre-query filters in UPC/SoA/BvA, "Reserve Funded" chip + "No Assessment Required" checkbox in desktop UI, enable-polls-flag.js script, bid comparison PDF cache-busting fix  
+**BugBot**: 2 rounds — sanitize boolean fix applied; UnitAssessmentsTable milestone tracking noted as known limitation (see #242)
+
+---
+
+### ✅ Sprint 242: Separate Assessment vs Vendor Payment Milestones — COMPLETE (PR #243, March 14, 2026)
+*Decouple unit assessment billing schedule from vendor payment execution milestones. Add Assessment Collection Dialog on project approval.*
+
+| Task | Title | Priority | Est | Status |
+|------|-------|----------|-----|--------|
+| 242-1 | Data model: Add `assessmentSchedule[]` (with `label`, `targetDate`, `status`) separate from `installments[]` (vendor milestones). Add `milestoneIndex` to vendor payment recording. Handle locking amounts on save. | high | 3-4h | ✅ COMPLETE |
+| 242-2 | Backend: Update `billMilestone()` to use `assessmentSchedule[]`. Ensure vendor payment endpoint forwards `milestoneIndex`. | high | 1h | ✅ COMPLETE |
+| 242-3A | Frontend: New `AssessmentCollectionDialog` — pops on bid selection (auto-approve). Admin chooses: No Assessment Required, 100% Upfront, or Split Phases with advisory target dates. | high | 2-3h | ✅ COMPLETE |
+| 242-3B | Frontend: Trigger dialog from `handleProjectUpdateFromBids` in ProjectsView when project becomes approved. Remove `noAssessmentRequired` checkbox from ProjectFormModal. | high | 1h | ✅ COMPLETE |
+| 242-3C | Frontend: Rename "Installment Schedule" → "Vendor Payment Milestones". Add "Assessment Schedule" section with target dates and Bill buttons. | medium | 1h | ✅ COMPLETE |
+| 242-3D | Frontend: Add milestone selector dropdown to VendorPaymentsTable. Fix UnitAssessmentsTable "Next Milestone" to use assessmentSchedule/vendorPayments. | medium | 1h | ✅ COMPLETE |
+| 242-4 | Testing: Verify dialog flow, assessment billing, vendor payments, backward compat, BugBot fixes | high | 1h | ✅ COMPLETE |
+
+**Issue**: #242  
+**Theme**: Assessment milestones (funding) and vendor milestones (execution) are distinct workflows.  
+**Status**: ✅ COMPLETE — PR #243 approved. BugBot fixes: transaction delete vendor_N lookup, duplicate assessment lock, payment fallback doc ID chain.
+
+---
+
+### ⚙️ Sprint E: Admin & Settings (6-8 hours)
 *System administration features*
 
 | # | Title | Priority | Est |
 |---|-------|----------|-----|
-| **194** | Sort Users in List Management table by last name | low | 1h |
 | **182** | Realignment of Settings, List Management and Admin activities | medium | 2h |
 | **106** | Client-specific backup in Settings | medium | 2h |
 | **102** | Admin client for non-client activities | low | 2h |
@@ -87,6 +116,7 @@
 **Theme**: Administrative tools for system management  
 **Risk**: Low  
 **Dependencies**: None  
+**Note**: #194 (Sort Users by last name) completed and closed (Mar 1, 2026)  
 
 ---
 
@@ -271,10 +301,12 @@
 | **68** | Budget Entry Calculator | low | 2h |
 | **165** | Budget Projection & Runway Graphs | feature | 6-8h |
 | **176** | Budget Dashboard Card redesign | enhancement | 2h |
+| **238** | iPad/tablet screen set | far-future | TBD |
 
 **Theme**: New capabilities requiring design decisions  
 **Risk**: Varies  
 **Dependencies**: Requires planning before implementation  
+**Note**: #238 (iPad/tablet) is far-future backlog — no current iPad users, but foldable phone trends may increase relevance over time  
 
 ---
 
@@ -283,6 +315,7 @@
 
 | # | Title | Priority | Next Deadline | Notes |
 |---|-------|----------|---------------|-------|
+| **231** | Adding a new user role for a new client doesn't grant access | low | None | `propertyAccess` map not updated when assigning user to a second client. Manual workaround available via Firebase Console. Address in a future cleanup sprint. |
 | **79** | HTTP 502 timeout on Email All completion | low | None | Cosmetic — emails send successfully, just shows error at end. Workaround: dismiss error. Fix: make endpoint return immediately, rely on polling. |
 | **12** | Transaction Link Not Found modal needs formatting | low | None | Custom error modal needed instead of raw Node error. No functional impact. |
 | **122** | Convert email to Gmail OAuth | low | None | App passwords still supported, no deprecation date. OAuth adds complexity without current benefit. #171 (Error Monitor) catches auth failures proactively. Revisit if Google announces deprecation. |
@@ -731,5 +764,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 14, 2026 — Sprint NRM ✅ COMPLETE (PR #240, merged March 14). Sprint D ✅ COMPLETE (D1 PR #236, D2 PR #237).*  
+*Updated: March 14, 2026 — Sprint 235 ✅ COMPLETE (PR #241). Sprint 242 updated: added Assessment Collection Dialog, advisory target dates, replaced ProjectFormModal checkbox (8-10h). #235, #197 closed. #211, #228 closed.*  
 *Last Review: March 14, 2026*
