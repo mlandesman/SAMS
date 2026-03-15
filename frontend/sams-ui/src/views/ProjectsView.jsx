@@ -807,9 +807,11 @@ function ProjectsView() {
     if (selectedProjectId) {
       await loadProjectDetails(selectedProjectId);
     }
-    // If project just became approved and has no assessment schedule yet, pop the dialog
+    // If project just became approved and has no assessment schedule yet, pop the dialog.
+    // Skip when user explicitly chose "No Assessment Required" (reserve-funded) — don't re-trigger on bid changes.
     const hasAssessmentSchedule = updatedProject?.assessmentSchedule?.length > 0;
-    if (updatedProject?.status === 'approved' && !hasAssessmentSchedule) {
+    const hasExplicitNoAssessment = updatedProject?.noAssessmentRequired === true;
+    if (updatedProject?.status === 'approved' && !hasAssessmentSchedule && !hasExplicitNoAssessment) {
       setIsBidsModalOpen(false);
       setAssessmentDialogProject(updatedProject);
     }
