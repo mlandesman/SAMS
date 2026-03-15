@@ -482,6 +482,7 @@ async function getProjectBillsForUnit(db, clientId, unitId) {
           billType: 'project',
           projectId,
           projectName,
+          billDocId: billDoc.id,
           milestone: billData.milestone || `Milestone ${milestoneIndex + 1}`,
           milestoneIndex,
           billedDate,

@@ -1450,6 +1450,7 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
   const txnId = await createTransaction(clientId, txnData, { batch });
 
   const amountCentavos = Math.round(amountPesos * 100);
+  const milestoneIdx = paymentData.milestoneIndex != null ? Number(paymentData.milestoneIndex) : null;
   const vendorPaymentEntry = {
     transactionId: txnId,
     amount: amountCentavos,
@@ -1457,13 +1458,15 @@ export async function recordVendorPayment(clientId, projectId, paymentData, user
     vendor: paymentData.vendor || 'Vendor',
     vendorId: resolvedVendorId,
     description: paymentData.description || '',
-    milestoneIndex: paymentData.milestoneIndex != null ? Number(paymentData.milestoneIndex) : null,
+    milestoneIndex: milestoneIdx,
     recordedBy: userId,
     recordedAt: getNow().toISOString()
   };
 
+  // Single source of truth: vendor milestone status is derived from vendorPayments, not stored in installments
   batch.update(projectRef, {
-    vendorPayments: admin.firestore.FieldValue.arrayUnion(vendorPaymentEntry)
+    vendorPayments: admin.firestore.FieldValue.arrayUnion(vendorPaymentEntry),
+    'metadata.updatedAt': getNow().toISOString()
   });
 
   await batch.commit();

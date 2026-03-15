@@ -1829,6 +1829,7 @@ export class UnifiedPaymentWrapper {
         result.project.billsAffected.push({
           billPeriod: displayPeriod,
           billId: originalBill?.billId ?? billToUse.billId,
+          billDocId: originalBill?.billDocId ?? billToUse?.billDocId,
           projectId: originalBill?.projectId ?? billToUse.projectId,
           projectName: originalBill?.projectName ?? billToUse.projectName,
           milestone: originalBill?.milestone ?? billToUse.milestone,
@@ -2386,7 +2387,9 @@ export class UnifiedPaymentWrapper {
     for (const billData of projectBills) {
       const projectId = billData.projectId;
       const milestoneIndex = billData.milestoneIndex;
-      const billRef = this.db.doc(`clients/${clientId}/projects/${projectId}/bills/${milestoneIndex}`);
+      // Sprint 242: assessment bills use doc ID assessment_N; support legacy numeric N
+      const billDocId = billData.billDocId ?? `assessment_${milestoneIndex}`;
+      const billRef = this.db.doc(`clients/${clientId}/projects/${projectId}/bills/${billDocId}`);
 
       const billDoc = await billRef.get();
       if (!billDoc.exists) {
