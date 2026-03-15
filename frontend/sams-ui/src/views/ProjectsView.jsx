@@ -808,7 +808,8 @@ function ProjectsView() {
       await loadProjectDetails(selectedProjectId);
     }
     // If project just became approved and has no assessment schedule yet, pop the dialog
-    if (updatedProject?.status === 'approved' && !updatedProject?.assessmentSchedule) {
+    const hasAssessmentSchedule = updatedProject?.assessmentSchedule?.length > 0;
+    if (updatedProject?.status === 'approved' && !hasAssessmentSchedule) {
       setIsBidsModalOpen(false);
       setAssessmentDialogProject(updatedProject);
     }

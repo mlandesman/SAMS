@@ -631,7 +631,8 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
     }
   }
 
-  // If assessmentSchedule is being set/updated on an already-approved project, lock amounts
+  // If assessmentSchedule is being set/updated on an already-approved project, lock amounts.
+  // Use merged cost (not existingData alone) so concurrent totalCost + assessmentSchedule updates work.
   const mergedForAssessment = { ...existingData, ...otherUpdates };
   const projectCost = mergedForAssessment.totalCost ?? 0;
   if (otherUpdates.assessmentSchedule && Array.isArray(otherUpdates.assessmentSchedule) && otherUpdates.assessmentSchedule.length > 0 && projectCost > 0) {

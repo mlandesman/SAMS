@@ -240,7 +240,8 @@ function UnitRow({
  *
  * @param {object} props
  * @param {object} props.allocationSnapshot - { allocations: { unitId: centavos }, inputs: { participation: { unitId: 'in'|'out' } } }
- * @param {array} props.installments - [{ milestone, percentOfTotal }]
+ * @param {array} props.installments - [{ milestone, percentOfTotal }] — vendor payment milestones from bid
+ * @param {array} props.assessmentSchedule - [{ label, percentOfTotal, status }] — unit billing schedule (when present, used for next-milestone)
  * @param {array} props.units - Unit objects with owner info (for owner names)
  * @param {object} props.unitCollections - Per-unit billed/paid from project bills (PM7): { unitId: { billed, paid } } in centavos
  * @param {boolean} props.noAssessmentRequired - Project funded from reserve; no unit billing

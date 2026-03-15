@@ -64,12 +64,12 @@ function AssessmentCollectionDialog({ isOpen, onClose, project, clientId, onSave
       setPercentError(`Percentages must sum to 100% (currently ${sum}%)`);
       return false;
     }
+    setPercentError('');
     const hasEmptyLabel = phases.some((p) => !String(p.label || '').trim());
     if (hasEmptyLabel) {
       setError('All phase labels are required');
       return false;
     }
-    setPercentError('');
     setError('');
     return true;
   };
