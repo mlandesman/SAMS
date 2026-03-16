@@ -51,13 +51,14 @@
 | ~~5~~ | ~~**NRM**~~ | ~~Normalize Unit-User References~~ | ~~16-24h~~ | ~~#133 [DEBT]~~ ✅ COMPLETE (Mar 14, 2026, PR #240, ~15h actual) |
 | ~~6~~ | ~~**235**~~ | ~~Project Assessment Bypass + Flag Cleanup~~ | ~~8-10h~~ | ~~#235, #197~~ ✅ COMPLETE (PR #241, March 14, 2026) |
 | ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
-| 8 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 9 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 10 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
-| 11 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 12 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
+| 8 | **MOBILE-OWNER-UX** | Mobile Owner UX Refactor | 16-22h | #244 — 3-card dashboard, bottom tabs, Unit + HOA sub-dashboards |
+| 9 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
+| 10 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 11 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
+| 12 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| 13 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint 242 ✅ COMPLETE (PR #243). Next: Mobile Owner UX Refactor sprint (~20-26h) or Sprint WA (WhatsApp Notifications). External user deployment proceeding in parallel. Roadmap ordering subject to change based on operational needs and scrum reviews.
+**Current Focus**: Sprint MOBILE-OWNER-UX (#244) 🚀 IN PROGRESS — 3-card dashboard, bottom tab nav, Unit + HOA sub-dashboards for owner/manager mobile experience. External user deployment proceeding in parallel. Roadmap ordering subject to change based on operational needs and scrum reviews.
 
 **Mobile PWA Future Enhancements** (carry to Sprint G):
 - Budget card: live budget data integration (#176)
@@ -152,4 +153,4 @@
 
 ---
 
-*Last Updated: March 14, 2026 — Sprint 242 ✅ COMPLETE (PR #243). Assessment Collection Dialog, assessmentSchedule[], vendor milestone separation, bill doc ID fallback chain.*
+*Last Updated: March 16, 2026 — Sprint MOBILE-OWNER-UX (#244) added at position 8 and kicked off. 3-card dashboard, bottom tabs, Unit + HOA sub-dashboards for owner mobile experience.*

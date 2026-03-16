@@ -102,6 +102,34 @@
 
 ---
 
+### 📱 Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor (16-22 hours)
+*Refactor mobile PWA for unit owners/managers: focused 3-card dashboard, bottom tab nav, sub-dashboards*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| MOB-1 | Bottom tab navigation for owners (Home, My Unit, HOA, More). Update PWANavigation + Layout for role-based tabs. | high | 2-3h |
+| MOB-2 | 3-card main dashboard: Unit Status (amount due, days past due), HOA Status (bank balances + month-over-month trend, collection rate, polls, projects), Exchange Rates (USD-MXN prominent). | high | 3-4h |
+| MOB-3 | Unit Sub-Dashboard: account summary, payment info (no "grace period"), fee schedule, recent transactions (full transparency), stored statements. | high | 4-5h |
+| MOB-4 | HOA Sub-Dashboard: financial health (bank balances + trend via asOfDate endpoint), collection rate %, active polls, active projects, budget summary. | high | 4-5h |
+| MOB-5 | More menu + route cleanup. New routes guarded for unitOwner role. | medium | 1-2h |
+| MOB-6 | Polish + integration testing. Both MTC and AVII clients. Admin/maintenance regression. | high | 2-3h |
+
+**Issue**: #244  
+**Theme**: Owner-facing mobile experience — focused dashboard, self-service data, field-ready  
+**Risk**: LOW — mobile-only changes, no backend modifications, no financial logic. All existing endpoints.  
+**Dependencies**: Sprint MOBILE-OWNER-V1 ✅, Sprint NRM ✅  
+**Status**: 🚀 IN PROGRESS
+
+**Key Design Decisions**:
+- Exchange rates HIGH prominence (reduces payment errors)
+- "Days past due" wording (never "grace period")
+- HOA card headline = bank balances (not collection rate) with month-over-month trend
+- Collection rate: percentage only, no individual names
+- Full transaction transparency for owners
+- No backend changes needed
+
+---
+
 ### ⚙️ Sprint E: Admin & Settings (6-8 hours)
 *System administration features*
 
@@ -764,5 +792,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 14, 2026 — Sprint 235 ✅ COMPLETE (PR #241). Sprint 242 updated: added Assessment Collection Dialog, advisory target dates, replaced ProjectFormModal checkbox (8-10h). #235, #197 closed. #211, #228 closed.*  
-*Last Review: March 14, 2026*
+*Updated: March 16, 2026 — Sprint MOBILE-OWNER-UX added (#244, 16-22h). Sprint 242 ✅ COMPLETE (PR #243). Sprint 235 ✅ COMPLETE (PR #241).*  
+*Last Review: March 16, 2026*
