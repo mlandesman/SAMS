@@ -18,6 +18,9 @@ import StatementPdfViewer from './components/owner/StatementPdfViewer';
 import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
+import UnitSubDashboard from './components/owner/UnitSubDashboard';
+import HOADashboard from './components/owner/HOADashboard';
+import MoreMenu from './components/owner/MoreMenu';
 import UserDebugger from './components/UserDebugger';
 import StaticTest from './components/StaticTest';
 import AuthDebugMinimal from './components/AuthDebugMinimal.jsx'; // Temporary debug
@@ -263,6 +266,38 @@ function App() {
                   <ProtectedRoute>
                     <RoleProtectedRoute requiredRole="unitOwner">
                       <MyUnitReport />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Owner/Manager bottom tab routes */}
+              <Route 
+                path="/unit-dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <UnitSubDashboard />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/hoa" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <HOADashboard />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/more" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <MoreMenu />
                     </RoleProtectedRoute>
                   </ProtectedRoute>
                 } 

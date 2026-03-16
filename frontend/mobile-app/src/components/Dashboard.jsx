@@ -45,6 +45,7 @@ import { hasWaterBills } from '../utils/clientFeatures.js';
 import { VERSION } from '../utils/versionUtils.js';
 import CompactCard from './dashboard/CompactCard.jsx';
 import ExpandableCard from './dashboard/ExpandableCard.jsx';
+import OwnerDashboard3Cards from './owner/OwnerDashboard3Cards.jsx';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -94,6 +95,12 @@ const Dashboard = () => {
   const isAdmin = samsUser?.globalRole === 'admin';
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
+  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
+  const isOwnerOrManager = samsUser?.globalRole === 'unitOwner' ||
+    (clientAccess && Object.keys(clientAccess).length > 0 &&
+     Object.values(clientAccess).some(access =>
+       access.role === 'unitOwner' || access.role === 'unitManager'
+     ));
   const userRole = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : 'Owner');
 
   // Format past due details for ExpandableCard
@@ -142,7 +149,13 @@ const Dashboard = () => {
           )}
         </Box>
 
-        {/* === COMPACT CARDS GRID (2 columns) === */}
+        {/* Owner/Manager: 3-card focused dashboard */}
+        {isOwnerOrManager && !isAdminOrSuperAdmin && (
+          <OwnerDashboard3Cards />
+        )}
+
+        {/* === COMPACT CARDS GRID (2 columns) — Admin only === */}
+        {isAdminOrSuperAdmin && (
         <Box 
           sx={{ 
             display: 'grid',
@@ -281,6 +294,7 @@ const Dashboard = () => {
             onClick={() => navigate('/about')}
           />
         </Box>
+        )}
 
         {/* === FULL-WIDTH EXPANDABLE CARDS (Admin Only) === */}
         {isAdminOrSuperAdmin && (
@@ -334,8 +348,8 @@ const Dashboard = () => {
           </Box>
         )}
 
-        {/* Quick Actions for Non-Admins */}
-        {!isAdminOrSuperAdmin && (
+        {/* Quick Actions for Non-Admins (legacy 8-card flow — hidden when 3-card shown) */}
+        {!isAdminOrSuperAdmin && !isOwnerOrManager && (
           <Box sx={{ maxWidth: 400, mx: 'auto', mt: 2 }}>
             <Button
               fullWidth

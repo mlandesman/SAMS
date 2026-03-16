@@ -97,6 +97,12 @@ const Layout = ({ children }) => {
         return 'About';
       case '/transactions':
         return 'Transactions';
+      case '/unit-dashboard':
+        return 'My Unit';
+      case '/hoa':
+        return 'HOA';
+      case '/more':
+        return 'More';
       case '/tareas':
         return 'Tareas';
       case '/propane-reading':
@@ -260,11 +266,8 @@ const Layout = ({ children }) => {
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [
-                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-                { label: 'Current Status', icon: <StatusIcon />, path: '/my-report' },
-                { label: 'Transactions', icon: <TransactionsIcon />, path: '/transactions' },
-                { label: 'Statement of Account', icon: <PdfIcon />, path: '/statement' },
-                { label: 'About', icon: <AboutIcon />, path: '/about' },
+                // Owner/Manager: bottom tabs cover Home, My Unit, HOA, More — hamburger keeps unit selector + Logout only
+                // No duplicate nav items; secondary access via More tab
               ]
           ).map((item) => (
             <ListItem key={item.path} disablePadding>
