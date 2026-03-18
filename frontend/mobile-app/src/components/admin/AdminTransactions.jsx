@@ -23,32 +23,12 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
-import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
-import { LoadingSpinner } from '../common';
+import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
+import { formatTransactionDate } from '../../utils/transactionDisplay.js';
+import { LoadingSpinner, DetailRow } from '../common';
 
 const API_BASE_URL = config.api.baseUrl;
 const PAGE_SIZE = 50;
-
-const centavosToPesos = (centavos) => (centavos || 0) / 100;
-
-const formatDate = (dateValue) => {
-  if (!dateValue) return '—';
-  if (typeof dateValue === 'object' && dateValue !== null) {
-    return dateValue.unambiguous_long_date || dateValue.display || dateValue.ISO_8601 || '—';
-  }
-  return String(dateValue);
-};
-
-const DetailRow = ({ label, value }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.75, gap: 2 }}>
-    <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 600, flexShrink: 0 }}>
-      {label}
-    </Typography>
-    <Typography variant="caption" sx={{ fontWeight: 500, color: '#333', textAlign: 'right', wordBreak: 'break-word' }}>
-      {value}
-    </Typography>
-  </Box>
-);
 
 const AdminTransactions = () => {
   const { currentClient } = useAuth();
@@ -216,7 +196,7 @@ const AdminTransactions = () => {
                   >
                     <Box sx={{ flex: '0 0 72px', mr: 1 }}>
                       <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
-                        {formatDate(tx.date)}
+                        {formatTransactionDate(tx.date)}
                       </Typography>
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>

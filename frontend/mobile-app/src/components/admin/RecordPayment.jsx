@@ -121,7 +121,8 @@ const RecordPayment = () => {
     try {
       setLoading(true);
       setError(null);
-      const amt = overrideAmount !== undefined ? overrideAmount : (parseFloat(amount) || null);
+      const parsed = parseFloat(amount);
+      const amt = overrideAmount !== undefined ? overrideAmount : (isNaN(parsed) ? null : parsed);
       const previewData = await unifiedPaymentAPI.previewUnifiedPayment(clientId, selectedUnitId, {
         amount: amt,
         paymentDate,
@@ -368,7 +369,10 @@ const RecordPayment = () => {
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            onBlur={() => fetchPreview(parseFloat(amount) || null)}
+            onBlur={() => {
+              const parsed = parseFloat(amount);
+              fetchPreview(isNaN(parsed) ? null : parsed);
+            }}
             helperText={`Suggested: ${formatPesosForDisplay(suggestedAmount)}`}
             sx={{ mb: 2 }}
             inputProps={{ min: 0, step: 0.01 }}
