@@ -55,13 +55,9 @@ body {
 
 /* Reset to dark text for cards/papers (white/light backgrounds) */
 .mobile-content .MuiCard-root,
-.mobile-content .MuiCard-root *,
 .mobile-content .MuiPaper-root,
-.mobile-content .MuiPaper-root *,
 .mobile-content .MuiAlert-root,
-.mobile-content .MuiAlert-root *,
-.mobile-content .MuiDialog-paper,
-.mobile-content .MuiDialog-paper * {
+.mobile-content .MuiDialog-paper {
   color: rgba(0, 0, 0, 0.87);
 }
 
@@ -111,23 +107,14 @@ body {
   color: #fff;
 }
 
-.mobile-content .MuiCard-root .MuiTypography-root,
-.mobile-content .MuiPaper-root .MuiTypography-root,
-.mobile-content .MuiAlert-root .MuiTypography-root {
-  color: rgba(0, 0, 0, 0.87);
-}
-
 /* Same for mobile-dashboard-content */
 .mobile-dashboard-content {
   color: #fff;
 }
 
 .mobile-dashboard-content .MuiCard-root,
-.mobile-dashboard-content .MuiCard-root *,
 .mobile-dashboard-content .MuiPaper-root,
-.mobile-dashboard-content .MuiPaper-root *,
-.mobile-dashboard-content .MuiAlert-root,
-.mobile-dashboard-content .MuiAlert-root * {
+.mobile-dashboard-content .MuiAlert-root {
   color: rgba(0, 0, 0, 0.87);
 }
 
@@ -139,11 +126,6 @@ body {
 
 .mobile-dashboard-content .MuiTypography-root {
   color: #fff;
-}
-
-.mobile-dashboard-content .MuiCard-root .MuiTypography-root,
-.mobile-dashboard-content .MuiPaper-root .MuiTypography-root {
-  color: rgba(0, 0, 0, 0.87);
 }
 
 /* Touch-friendly buttons */
