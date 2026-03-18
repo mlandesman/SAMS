@@ -60,6 +60,13 @@
             "242"
           ],
           "text": "Separate assessment milestones from vendor payment milestones. Assessment Collection Dialog on project approval (No Assessment, 100% Upfront, Split Phases). Vendor payment milestone tracking with milestoneIndex. Bill doc ID namespacing (assessment_N/vendor_N)."
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "244"
+          ],
+          "text": "Mobile Owner UX Refactor: 3-card dashboard (Unit Status, HOA Status, Exchange Rates), bottom tab nav, Unit/HOA sub-dashboards, self-service email & password update (MOB-7), SoA as single source of truth via UnitStatementContext, shared hooks (usePriorMonthBalance, usePollsProjects, useHoaConfig)"
         }
       ]
     },
