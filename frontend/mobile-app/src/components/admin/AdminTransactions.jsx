@@ -35,7 +35,7 @@ const AdminTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedRowKey, setExpandedRowKey] = useState(null);
   const [selectedYear, setSelectedYear] = useState(getMexicoDate().getFullYear());
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'income' | 'expense'
 
@@ -84,8 +84,10 @@ const AdminTransactions = () => {
     }
   };
 
-  const toggleExpanded = (id) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+  const getRowKey = (tx, idx) => tx.id ?? `idx-${idx}`;
+
+  const toggleExpanded = (rowKey) => {
+    setExpandedRowKey((prev) => (prev === rowKey ? null : rowKey));
   };
 
   const handleTypeFilter = (_, value) => {
@@ -171,13 +173,14 @@ const AdminTransactions = () => {
           <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
             {displayedTransactions.map((tx, idx) => {
               const amount = centavosToPesos(tx.amount);
-              const isExpanded = expandedId === tx.id;
+              const rowKey = getRowKey(tx, idx);
+              const isExpanded = expandedRowKey === rowKey;
               const isExpense = tx.type === 'expense';
 
               return (
-                <Box key={tx.id || idx}>
+                <Box key={rowKey}>
                   <Box
-                    onClick={() => toggleExpanded(tx.id)}
+                    onClick={() => toggleExpanded(rowKey)}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
