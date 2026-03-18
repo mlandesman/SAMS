@@ -79,7 +79,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       propertyAccess: userData.propertyAccess ? Object.keys(userData.propertyAccess) : []
     });
     
-    // Ensure user has required fields
+    // Ensure user has required fields (include profile and notifications for Manage Profile)
     const completeUserData = {
       id: uid,
       uid: uid,
@@ -91,7 +91,13 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
       createdAt: formatDateField(userData.createdAt),
-      lastLogin: formatDateField(getNow())
+      lastLogin: formatDateField(getNow()),
+      profile: userData.profile || {},
+      notifications: userData.notifications || {},
+      basicInfo: {
+        fullName: userData.name || name || email,
+        phone: userData.profile?.phone || ''
+      }
     };
     
     // Use sanitizeUserData properly by passing req.user as requesting user

@@ -14,10 +14,8 @@ import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
-import { formatCurrency, pesosToCentavos } from '@shared/utils/currencyUtils.js';
+import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
-
-const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
 
 const OwnerDashboard3Cards = () => {
   const navigate = useNavigate();
@@ -152,10 +150,13 @@ const OwnerDashboard3Cards = () => {
   const daysPastDue = dueDateObj && now > dueDateObj
     ? Math.max(0, Math.floor((now - dueDateObj) / (24 * 60 * 60 * 1000)))
     : 0;
+  const isPastDue = daysPastDue > 0;
 
-  const currentTotal = accountBalances?.total ?? 0;
-  const priorTotal = priorMonthBalance ?? 0;
-  const delta = currentTotal - priorTotal;
+  const totalCreditBalances = hoaDuesStatus?.totalCreditBalances ?? 0; // pesos
+  const currentTotal = accountBalances?.total ?? 0; // pesos (bank + cash)
+  const netTotal = Math.max(0, currentTotal - totalCreditBalances); // Bank + Cash - Credit Balances
+  const priorTotal = priorMonthBalance ?? 0; // pesos (bank + cash only, no prior-month credit data)
+  const delta = currentTotal - priorTotal; // Bank + Cash vs Bank + Cash (prior) — credits not comparable
   const hasLateFees = hoaConfig && hoaConfig.penaltyRate > 0;
   const lateFeeDate = hasLateFees && dueDateObj && hoaConfig.penaltyDays != null
     ? (() => {
@@ -169,13 +170,13 @@ const OwnerDashboard3Cards = () => {
     {
       title: 'Unit Status',
       icon: UnitIcon,
-      color: amountDue > 0 ? '#dc2626' : '#059669',
+      color: amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669',
       loading: unitLoading,
       onClick: () => navigate('/unit-dashboard'),
       content: (
         <>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: amountDue > 0 ? '#dc2626' : '#059669', mb: 0.5 }}>
-            {amountDue > 0 ? formatPesoDisplay(amountDue) : (creditBalance > 0 ? formatPesoDisplay(creditBalance) : formatPesoDisplay(0))}
+          <Typography variant="h5" sx={{ fontWeight: 700, color: amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669', mb: 0.5 }}>
+            {amountDue > 0 ? formatPesosForDisplay(amountDue) : (creditBalance > 0 ? formatPesosForDisplay(creditBalance) : formatPesosForDisplay(0))}
           </Typography>
           {amountDue > 0 && (
             <Typography variant="body2" color="text.secondary">
@@ -188,7 +189,9 @@ const OwnerDashboard3Cards = () => {
             </Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount > 0 && (
-            <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>Next: {formatPesoDisplay(nextPaymentAmount)}</Typography>
+            <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>
+              Next: {formatPesosForDisplay(nextPaymentAmount)} due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
+            </Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount <= 0 && (
             <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>Current</Typography>
@@ -210,10 +213,10 @@ const OwnerDashboard3Cards = () => {
       content: (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Bank + Cash total
+            Bank + Cash − Credit Balances
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 0.5 }}>
-            {formatPesoDisplay(currentTotal)}
+            {formatPesosForDisplay(netTotal)}
           </Typography>
           {!priorLoading && priorTotal != null && (
             <Typography
@@ -223,7 +226,7 @@ const OwnerDashboard3Cards = () => {
                 mb: 0.5,
               }}
             >
-              {delta >= 0 ? 'Up' : 'Down'} {formatPesoDisplay(Math.abs(delta))} from last month
+              {delta >= 0 ? 'Up' : 'Down'} {formatPesosForDisplay(Math.abs(delta))} from last month
             </Typography>
           )}
           <Typography variant="body2" color="text.secondary">

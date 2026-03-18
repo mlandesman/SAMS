@@ -29,7 +29,7 @@ import { userAPI } from '../services/api.js';
 import { getVersionInfo } from '../utils/versionUtils';
 
 const UserProfileManager = ({ open, onClose }) => {
-  const { samsUser, firebaseUser } = useAuth();
+  const { samsUser, firebaseUser, refetchProfile } = useAuth();
   const navigate = useNavigate();
   const versionInfo = getVersionInfo();
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ const UserProfileManager = ({ open, onClose }) => {
   // Profile form state
   const [profileForm, setProfileForm] = useState({
     name: samsUser?.basicInfo?.fullName || samsUser?.fullName || samsUser?.name || '',
-    phone: samsUser?.basicInfo?.phone || samsUser?.phone || '',
+    phone: samsUser?.basicInfo?.phone || samsUser?.profile?.phone || samsUser?.phone || '',
     notifications: {
       email: samsUser?.notifications?.email || true,
       sms: samsUser?.notifications?.sms || false,
@@ -63,7 +63,7 @@ const UserProfileManager = ({ open, onClose }) => {
     if (open && samsUser) {
       setProfileForm({
         name: samsUser?.basicInfo?.fullName || samsUser?.fullName || samsUser?.name || '',
-        phone: samsUser?.basicInfo?.phone || samsUser?.phone || '',
+        phone: samsUser?.basicInfo?.phone || samsUser?.profile?.phone || samsUser?.phone || '',
         notifications: {
           email: samsUser?.notifications?.email ?? true,
           sms: samsUser?.notifications?.sms ?? false,
@@ -87,6 +87,7 @@ const UserProfileManager = ({ open, onClose }) => {
         },
         notifications: profileForm.notifications
       });
+      await refetchProfile?.();
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {

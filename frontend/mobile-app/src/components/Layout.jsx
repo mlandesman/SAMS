@@ -191,24 +191,11 @@ const Layout = ({ children }) => {
             </Typography>
             {roleLabel && (
               <Chip
-                label={roleLabel}
+                label={!isAdmin && selectedUnitId ? `Unit ${selectedUnitId} - ${roleLabel}` : roleLabel}
                 size="small"
                 color={isAdminOrSuperAdmin ? 'primary' : 'secondary'}
                 sx={{
                   backgroundColor: isAdminOrSuperAdmin ? undefined : 'rgba(255,255,255,0.2)',
-                  color: 'inherit',
-                  fontWeight: 600,
-                  fontSize: '0.7rem',
-                  height: 24,
-                }}
-              />
-            )}
-            {!isAdmin && selectedUnitId && (
-              <Chip
-                label={`Unit ${selectedUnitId}`}
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
                   color: 'inherit',
                   fontWeight: 600,
                   fontSize: '0.7rem',
@@ -259,7 +246,10 @@ const Layout = ({ children }) => {
                 <FormControl size="small" fullWidth>
                   <Select
                     value={selectedUnitId || ''}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedUnitId(e.target.value);
+                      setDrawerOpen(false);
+                    }}
                     displayEmpty
                     sx={{ fontWeight: 600, fontSize: '0.9rem' }}
                     renderValue={(val) => val ? `Unit ${val}` : 'Select Unit'}
