@@ -102,11 +102,6 @@ body {
   color: rgba(0, 0, 0, 0.6);
 }
 
-/* Typography on gradient: white (card/paper override below) */
-.mobile-content .MuiTypography-root {
-  color: #fff;
-}
-
 /* Same for mobile-dashboard-content */
 .mobile-dashboard-content {
   color: #fff;
@@ -122,10 +117,6 @@ body {
 .mobile-dashboard-content .MuiStepper-root .MuiStepLabel-root,
 .mobile-dashboard-content .MuiStepper-root .MuiStepLabel-label {
   color: #fff !important;
-}
-
-.mobile-dashboard-content .MuiTypography-root {
-  color: #fff;
 }
 
 /* Touch-friendly buttons */

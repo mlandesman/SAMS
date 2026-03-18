@@ -15,9 +15,10 @@ const BudgetDetail = () => {
   const { currentClient } = useAuth();
   const { selectedClient } = useClients();
   const { budgetStatus, loading, error } = useBudgetStatus();
+  const currentClientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
   let fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth;
-  if (fiscalYearStartMonth == null && currentClient === 'AVII') {
+  if (fiscalYearStartMonth == null && currentClientId === 'AVII') {
     fiscalYearStartMonth = 7;
   } else if (fiscalYearStartMonth == null) {
     fiscalYearStartMonth = 1;
