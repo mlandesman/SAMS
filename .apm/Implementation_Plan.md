@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.15.0 | **Deployed:** March 10, 2026  
-**Last Updated:** March 16, 2026 — Sprint MOBILE-OWNER-UX (#244) 🚀 IN PROGRESS. Sprint 242 ✅ COMPLETE (PR #243). Sprint NRM ✅ COMPLETE (PR #240). Sprint 235 ✅ COMPLETE (PR #241). Sprint D ✅ COMPLETE. Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233).  
+**Last Updated:** March 18, 2026 — Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). Sprint 242 ✅ COMPLETE (PR #243). Sprint NRM ✅ COMPLETE (PR #240). Sprint 235 ✅ COMPLETE (PR #241). Sprint D ✅ COMPLETE. Sprint PASSKEY-AUTH ✅ COMPLETE (PR #233).  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -24,6 +24,24 @@ All planning and backlog management is maintained in the Agile documentation:
 ---
 
 ## Last Completed Sprint
+
+**Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor** — #244 ✅ COMPLETE (PR #245, merged March 18, 2026)
+
+| Task | Title | Est | Actual | Status |
+|------|-------|-----|--------|--------|
+| MOB-1 | Bottom tab navigation (Home, My Unit, HOA, More) for owner/manager | 2-3h | ~2h | ✅ COMPLETE |
+| MOB-2 | 3-card main dashboard (Unit Status, HOA Status, Exchange Rates) | 3-4h | ~3h | ✅ COMPLETE |
+| MOB-3 | Unit Sub-Dashboard (account summary, transactions, statements) | 4-5h | ~4h | ✅ COMPLETE |
+| MOB-4 | HOA Sub-Dashboard (bank balances, polls, projects, budget) | 4-5h | ~4h | ✅ COMPLETE |
+| MOB-5 | More menu + route cleanup | 1-2h | ~1h | ✅ COMPLETE |
+| MOB-6 | Polish + integration testing | 2-3h | ~3h | ✅ COMPLETE |
+| MOB-7 | Self-service email & password (backend routes + frontend fix) | 1-2h | ~2h | ✅ COMPLETE |
+
+**Estimated**: 18-24h | **Actual**: ~19h | **Quality**: ⭐⭐⭐⭐⭐ (BugBot fixes applied, shared hooks refactor, SoA single source of truth)
+
+**Impact**: Complete owner/manager mobile experience. SoA as single source of truth via UnitStatementContext (skipHtml backend param). Self-service email/password. Shared hooks (usePriorMonthBalance, usePollsProjects, useHoaConfig) establish clean template for Admin mobile sprint. 43 files changed (+1,686/-413).
+
+---
 
 **Sprint 242: Separate Assessment vs Vendor Payment Milestones** — #242 ✅ COMPLETE (PR #243, approved March 14, 2026)
 

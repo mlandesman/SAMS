@@ -102,8 +102,8 @@
 
 ---
 
-### 📱 Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor (16-22 hours)
-*Refactor mobile PWA for unit owners/managers: focused 3-card dashboard, bottom tab nav, sub-dashboards*
+### 📱 Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor (18-24 hours)
+*Refactor mobile PWA for unit owners/managers: focused 3-card dashboard, bottom tab nav, sub-dashboards, self-service profile*
 
 | Task | Title | Priority | Est |
 |------|-------|----------|-----|
@@ -113,12 +113,13 @@
 | MOB-4 | HOA Sub-Dashboard: financial health (bank balances + trend via asOfDate endpoint), collection rate %, active polls, active projects, budget summary. | high | 4-5h |
 | MOB-5 | More menu + route cleanup. New routes guarded for unitOwner role. | medium | 1-2h |
 | MOB-6 | Polish + integration testing. Both MTC and AVII clients. Admin/maintenance regression. | high | 2-3h |
+| MOB-7 | Fix self-service profile: restore `PUT /email` and `PUT /password` backend routes to active `user.js`, fix API paths in `UserProfileManager.jsx` (use `config.api.baseUrl + /auth/user/...`), add duplicate email validation. | high | 1-2h |
 
 **Issue**: #244  
 **Theme**: Owner-facing mobile experience — focused dashboard, self-service data, field-ready  
-**Risk**: LOW — mobile-only changes, no backend modifications, no financial logic. All existing endpoints.  
+**Risk**: LOW — mobile-only changes, minimal backend (restoring existing route logic). All existing endpoints.  
 **Dependencies**: Sprint MOBILE-OWNER-V1 ✅, Sprint NRM ✅  
-**Status**: 🚀 IN PROGRESS
+**Status**: ✅ COMPLETE (PR #245, merged March 18, 2026)
 
 **Key Design Decisions**:
 - Exchange rates HIGH prominence (reduces payment errors)
@@ -126,7 +127,7 @@
 - HOA card headline = bank balances (not collection rate) with month-over-month trend
 - Collection rate: percentage only, no individual names
 - Full transaction transparency for owners
-- No backend changes needed
+- Self-service email change safe post-NRM (unit references use UIDs, not emails)
 
 ---
 
@@ -792,5 +793,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 16, 2026 — Sprint MOBILE-OWNER-UX added (#244, 16-22h). Sprint 242 ✅ COMPLETE (PR #243). Sprint 235 ✅ COMPLETE (PR #241).*  
-*Last Review: March 16, 2026*
+*Updated: March 18, 2026 — Sprint MOBILE-OWNER-UX extended with MOB-7 (self-service profile fix, 18-24h total). Sprint 242 ✅ COMPLETE (PR #243). Sprint 235 ✅ COMPLETE (PR #241).*  
+*Last Review: March 18, 2026*
