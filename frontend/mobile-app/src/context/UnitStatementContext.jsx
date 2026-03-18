@@ -16,7 +16,7 @@ import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
 import { getMexicoDateTime } from '../utils/timezone.js';
 
-const UnitStatementContext = createContext({});
+const UnitStatementContext = createContext(undefined);
 
 export const useUnitStatement = () => {
   const context = useContext(UnitStatementContext);
