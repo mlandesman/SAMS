@@ -6,7 +6,7 @@
 
 import { config } from '../config/index.js';
 import { auth } from './firebase.js';
-import { pesosToCentavos, centavosToPesos } from '@shared/utils/currencyUtils.js';
+import { pesosToCentavos } from '@shared/utils/currencyUtils.js';
 
 /**
  * Convert preview response from centavos to pesos

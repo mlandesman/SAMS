@@ -3,7 +3,7 @@
  * Sprint MOBILE-ADMIN-UX (ADM-4)
  * Step 1: Select Unit → Step 2: Review Bills → Step 3: Enter Payment → Step 4: Confirm
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -64,6 +64,7 @@ const RecordPayment = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const unitChangeSuppressRef = useRef(false);
 
   useEffect(() => {
     if (clientId) loadInitialData();
@@ -71,6 +72,7 @@ const RecordPayment = () => {
 
   useEffect(() => {
     if (selectedUnitId && clientId) {
+      unitChangeSuppressRef.current = true;
       setExcludedBills([]);
       setWaivedPenalties([]);
       fetchPreview(null);
@@ -128,7 +130,7 @@ const RecordPayment = () => {
       });
       setPreview(previewData);
 
-      if (overrideAmount === undefined && !amount) {
+      if (overrideAmount == null && !amount) {
         const totalDue = previewData.billPayments?.reduce((sum, b) => {
           if (excludedBills.includes(b.billPeriod)) return sum;
           const remaining = b.remainingDue ?? b.totalDue ?? 0;
@@ -166,6 +168,10 @@ const RecordPayment = () => {
   };
 
   useEffect(() => {
+    if (unitChangeSuppressRef.current) {
+      unitChangeSuppressRef.current = false;
+      return;
+    }
     if (selectedUnitId && clientId) {
       const amt = parseFloat(amount);
       fetchPreview(isNaN(amt) ? null : amt);
