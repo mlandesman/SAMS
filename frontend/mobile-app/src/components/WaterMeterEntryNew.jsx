@@ -30,6 +30,7 @@ import {
   getAllWashSummary,
   getCurrentFiscalPeriod 
 } from '../utils/waterReadingHelpers';
+import { getMexicoDateTime } from '../utils/timezone.js';
 import { LoadingSpinner } from './common';
 
 const WaterMeterEntryNew = () => {
@@ -114,7 +115,7 @@ const WaterMeterEntryNew = () => {
           buildingMeter: currentReadings.buildingMeter,
           commonArea: currentReadings.commonArea,
           period: selectedPeriod?.period,
-          timestamp: new Date().toISOString()
+          timestamp: getMexicoDateTime().toISOString()
         };
         console.log(`💾 Saving unsaved changes to localStorage (debounced):`, { key: unsavedDataKey, data: dataToSave });
         localStorage.setItem(unsavedDataKey, JSON.stringify(dataToSave));

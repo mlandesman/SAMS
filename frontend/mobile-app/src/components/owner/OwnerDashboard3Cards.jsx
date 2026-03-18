@@ -119,8 +119,10 @@ const OwnerDashboard3Cards = () => {
   // HOA config for late fee line (penaltyRate > 0 = has late fees)
   useEffect(() => {
     if (!currentClient) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) return;
     let cancelled = false;
-    auth.currentUser?.getIdToken?.().then((t) => {
+    user.getIdToken().then((t) => {
       if (cancelled) return;
       return fetch(`${config.api.baseUrl}/clients/${currentClient}/config/hoaDues`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },

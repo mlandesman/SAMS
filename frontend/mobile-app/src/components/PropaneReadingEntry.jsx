@@ -28,6 +28,7 @@ import propaneReadingService, {
   formatFiscalPeriodForDisplay 
 } from '../services/propaneReadingService.js';
 import { getCurrentFiscalPeriod, getPreviousFiscalPeriod } from '../utils/fiscalYearUtils.js';
+import { getMexicoDateTime } from '../utils/timezone.js';
 import NumericKeypad from './NumericKeypad.jsx';
 import { LoadingSpinner } from './common';
 
@@ -141,7 +142,7 @@ const PropaneReadingEntry = () => {
           const dataToSave = {
             readings: readingsToSave, // Only save non-empty values
             period: selectedPeriod.period,
-            timestamp: new Date().toISOString()
+            timestamp: getMexicoDateTime().toISOString()
           };
           console.log(`💾 Saving unsaved changes to localStorage (debounced):`, { 
             key: unsavedDataKey, 

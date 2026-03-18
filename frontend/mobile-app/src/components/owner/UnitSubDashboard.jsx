@@ -79,7 +79,9 @@ const UnitSubDashboard = () => {
   // HOA config for late fee
   useEffect(() => {
     if (!clientId) return;
-    auth.currentUser?.getIdToken?.().then((t) =>
+    const user = auth.currentUser;
+    if (!user?.getIdToken) return;
+    user.getIdToken().then((t) =>
       fetch(`${config.api.baseUrl}/clients/${clientId}/config/hoaDues`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })

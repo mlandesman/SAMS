@@ -54,13 +54,15 @@ const HOADashboard = () => {
   // Prior month balance
   useEffect(() => {
     if (!clientId) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) return;
     const now = getMexicoDateTime();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDayPrev = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
     const asOfDate = lastDayPrev.toISOString().split('T')[0];
     let cancelled = false;
     setPriorLoading(true);
-    auth.currentUser?.getIdToken?.().then((t) =>
+    user.getIdToken().then((t) =>
       fetch(`${config.api.baseUrl}/clients/${clientId}/balances/current?asOfDate=${asOfDate}`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })
@@ -80,9 +82,11 @@ const HOADashboard = () => {
   // Polls and projects
   useEffect(() => {
     if (!clientId) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) return;
     let cancelled = false;
     setPollsProjectsLoading(true);
-    auth.currentUser?.getIdToken?.().then((t) => {
+    user.getIdToken().then((t) => {
       if (cancelled) return;
       const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
       return Promise.all([
@@ -113,9 +117,11 @@ const HOADashboard = () => {
   // Budget data
   useEffect(() => {
     if (!clientId) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) return;
     let cancelled = false;
     setBudgetLoading(true);
-    auth.currentUser?.getIdToken?.().then((t) =>
+    user.getIdToken().then((t) =>
       fetch(`${config.api.baseUrl}/reports/${clientId}/budget-actual/data?language=english`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })
