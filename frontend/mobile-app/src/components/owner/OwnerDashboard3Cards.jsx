@@ -13,20 +13,11 @@ import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
-import { getMexicoDateTime } from '../../utils/timezone.js';
+import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
+import { formatCurrency, pesosToCentavos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
-const formatPeso = (amount) =>
-  typeof amount === 'number' && !isNaN(amount)
-    ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : '$0.00';
-
-const formatDueDate = (dateStr) => {
-  if (!dateStr) return null;
-  const d = typeof dateStr === 'string' ? new Date(dateStr + 'T12:00:00') : new Date(dateStr);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
+const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
 
 const OwnerDashboard3Cards = () => {
   const navigate = useNavigate();
@@ -102,25 +93,22 @@ const OwnerDashboard3Cards = () => {
         fetch(`${config.api.baseUrl}/vote/clients/${currentClient}/polls`, { headers }),
         fetch(`${config.api.baseUrl}/clients/${currentClient}/projects`, { headers }),
       ]);
-    }).then(([pollsRes, projectsRes]) => {
+    }).then(async ([pollsRes, projectsRes]) => {
       if (cancelled) return;
-      let pCount = 0;
-      let projCount = 0;
-      if (pollsRes?.ok) {
-        pollsRes.json().then((j) => {
-          const list = j?.data || j?.polls || j || [];
-          const arr = Array.isArray(list) ? list : Object.values(list);
-          pCount = arr.filter((p) => p?.status === 'published').length;
-          if (!cancelled) setPollsCount(pCount);
-        }).catch(() => {});
+      const [pollsJson, projectsJson] = await Promise.all([
+        pollsRes?.ok ? pollsRes.json().catch(() => null) : Promise.resolve(null),
+        projectsRes?.ok ? projectsRes.json().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      if (pollsJson) {
+        const list = pollsJson?.data || pollsJson?.polls || pollsJson || [];
+        const arr = Array.isArray(list) ? list : Object.values(list);
+        setPollsCount(arr.filter((p) => p?.status === 'published').length);
       }
-      if (projectsRes?.ok) {
-        projectsRes.json().then((j) => {
-          const list = j?.data || j?.projects || j || [];
-          const arr = Array.isArray(list) ? list : Object.values(list);
-          projCount = arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress').length;
-          if (!cancelled) setProjectsCount(projCount);
-        }).catch(() => {});
+      if (projectsJson) {
+        const list = projectsJson?.data || projectsJson?.projects || projectsJson || [];
+        const arr = Array.isArray(list) ? list : Object.values(list);
+        setProjectsCount(arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress').length);
       }
     }).catch(() => {}).finally(() => {
       if (!cancelled) setPollsProjectsLoading(false);
@@ -185,11 +173,11 @@ const OwnerDashboard3Cards = () => {
       content: (
         <>
           <Typography variant="h5" sx={{ fontWeight: 700, color: amountDue > 0 ? '#dc2626' : '#059669', mb: 0.5 }}>
-            {amountDue > 0 ? formatPeso(amountDue) : (creditBalance > 0 ? formatPeso(creditBalance) : formatPeso(0))}
+            {amountDue > 0 ? formatPesoDisplay(amountDue) : (creditBalance > 0 ? formatPesoDisplay(creditBalance) : formatPesoDisplay(0))}
           </Typography>
           {amountDue > 0 && (
             <Typography variant="body2" color="text.secondary">
-              Due {formatDueDate(dueDate) || '(date not set)'}
+              Due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
             </Typography>
           )}
           {daysPastDue > 0 && (
@@ -198,7 +186,7 @@ const OwnerDashboard3Cards = () => {
             </Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount > 0 && (
-            <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>Next: {formatPeso(nextPaymentAmount)}</Typography>
+            <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>Next: {formatPesoDisplay(nextPaymentAmount)}</Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount <= 0 && (
             <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>Current</Typography>
@@ -223,7 +211,7 @@ const OwnerDashboard3Cards = () => {
             Bank + Cash total
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 0.5 }}>
-            {formatPeso(currentTotal)}
+            {formatPesoDisplay(currentTotal)}
           </Typography>
           {!priorLoading && priorTotal != null && (
             <Typography
@@ -233,7 +221,7 @@ const OwnerDashboard3Cards = () => {
                 mb: 0.5,
               }}
             >
-              {delta >= 0 ? 'Up' : 'Down'} {formatPeso(Math.abs(delta))} from last month
+              {delta >= 0 ? 'Up' : 'Down'} {formatPesoDisplay(Math.abs(delta))} from last month
             </Typography>
           )}
           <Typography variant="body2" color="text.secondary">

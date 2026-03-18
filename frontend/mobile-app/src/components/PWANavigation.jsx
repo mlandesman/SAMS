@@ -17,21 +17,16 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 
+import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
+
 const PWANavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { samsUser } = useAuth();
   
-  // Backend returns propertyAccess, but support clientAccess for backwards compatibility
-  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
-  
   const isAdmin = samsUser?.globalRole === 'admin' || samsUser?.globalRole === 'superAdmin';
   const isMaintenance = samsUser?.globalRole === 'maintenance';
-  const isOwnerOrManager = samsUser?.globalRole === 'unitOwner' || 
-    (clientAccess && Object.keys(clientAccess).length > 0 &&
-     Object.values(clientAccess).some(access => 
-       access.role === 'unitOwner' || access.role === 'unitManager'
-     ));
+  const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
 
   // Don't show navigation on auth screen
   if (location.pathname === '/auth' || location.pathname === '/test') {

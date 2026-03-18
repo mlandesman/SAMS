@@ -98,4 +98,24 @@ export function logMexicoTime() {
   // console.log(`📅 Mexico date string: ${getMexicoDateString()}`);
 }
 
+/**
+ * Format a date string for display (America/Cancun, no timezone drift).
+ * Parses YYYY-MM-DD with noon anchor to avoid UTC-midnight shift in western timezones.
+ * @param {string|Date} dateInput - Date string (YYYY-MM-DD) or Date object
+ * @returns {string} Formatted date (e.g., "Mar 17, 2026") or "—" if invalid
+ */
+export function formatDateForDisplay(dateInput) {
+  if (!dateInput) return '—';
+  const d = typeof dateInput === 'string'
+    ? new Date(dateInput + 'T12:00:00')
+    : (dateInput instanceof Date ? dateInput : new Date(dateInput));
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: MEXICO_TIMEZONE
+  });
+}
+
 export { MEXICO_TIMEZONE };

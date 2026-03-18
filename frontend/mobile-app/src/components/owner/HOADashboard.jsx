@@ -26,21 +26,11 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
-import { getMexicoDateTime } from '../../utils/timezone.js';
+import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
+import { formatCurrency, centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
-const formatPeso = (amount) =>
-  typeof amount === 'number' && !isNaN(amount)
-    ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : '$0.00';
-
-const centavosToPesos = (c) => (c || 0) / 100;
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
-  const d = typeof dateStr === 'string' ? new Date(dateStr) : new Date(dateStr);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
+const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
 
 const HOADashboard = () => {
   const { currentClient } = useAuth();
@@ -99,20 +89,23 @@ const HOADashboard = () => {
         fetch(`${config.api.baseUrl}/vote/clients/${clientId}/polls`, { headers }),
         fetch(`${config.api.baseUrl}/clients/${clientId}/projects`, { headers }),
       ]);
-    }).then(([pR, projR]) => {
+    }).then(async ([pR, projR]) => {
       if (cancelled) return;
-      if (pR?.ok) pR.json().then((j) => {
-        const list = j?.data || j?.polls || j || [];
+      const [pollsJson, projectsJson] = await Promise.all([
+        pR?.ok ? pR.json().catch(() => null) : Promise.resolve(null),
+        projR?.ok ? projR.json().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      if (pollsJson) {
+        const list = pollsJson?.data || pollsJson?.polls || pollsJson || [];
         const arr = Array.isArray(list) ? list : Object.values(list);
-        const published = arr.filter((p) => p?.status === 'published');
-        if (!cancelled) setPolls(published);
-      }).catch(() => {});
-      if (projR?.ok) projR.json().then((j) => {
-        const list = j?.data || j?.projects || j || [];
+        setPolls(arr.filter((p) => p?.status === 'published'));
+      }
+      if (projectsJson) {
+        const list = projectsJson?.data || projectsJson?.projects || projectsJson || [];
         const arr = Array.isArray(list) ? list : Object.values(list);
-        const active = arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress');
-        if (!cancelled) setProjects(active);
-      }).catch(() => {});
+        setProjects(arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress'));
+      }
     }).catch(() => {}).finally(() => { if (!cancelled) setPollsProjectsLoading(false); });
     return () => { cancelled = true; };
   }, [clientId]);
@@ -162,12 +155,12 @@ const HOADashboard = () => {
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Financial Health</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 1 }}>
-            {formatPeso(currentTotal)}
+            {formatPesoDisplay(currentTotal)}
           </Typography>
           {!priorLoading && priorTotal != null && (
             <Typography variant="body2" sx={{ color: delta >= 0 ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {delta >= 0 ? <UpIcon fontSize="small" /> : <DownIcon fontSize="small" />}
-              {delta >= 0 ? 'Up' : 'Down'} {formatPeso(Math.abs(delta))} from last month
+              {delta >= 0 ? 'Up' : 'Down'} {formatPesoDisplay(Math.abs(delta))} from last month
             </Typography>
           )}
           {accounts.length > 0 && (
@@ -176,7 +169,7 @@ const HOADashboard = () => {
                 <Box key={acc.id || acc.name} display="flex" justifyContent="space-between" py={0.5}>
                   <Typography variant="body2" color="text.secondary">{acc.name || acc.id || 'Account'}</Typography>
                   <Typography variant="body2" fontWeight={500}>
-                    {formatPeso(Math.round((acc.balance || 0) / 100))}
+                    {formatPesoDisplay(Math.round((acc.balance || 0) / 100))}
                   </Typography>
                 </Box>
               ))}
@@ -202,7 +195,7 @@ const HOADashboard = () => {
                 <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
                   <ListItemText
                     primary={p.title || p.question || 'Poll'}
-                    secondary={p.closingDate ? `Closes ${formatDate(p.closingDate)}` : null}
+                    secondary={p.closingDate ? `Closes ${formatDateForDisplay(p.closingDate)}` : null}
                     primaryTypographyProps={{ variant: 'body2' }}
                     secondaryTypographyProps={{ variant: 'caption' }}
                   />
@@ -237,7 +230,7 @@ const HOADashboard = () => {
                     />
                     <Chip label={p.status || '—'} size="small" sx={{ fontSize: '0.7rem', mr: 0.5 }} />
                     <Typography variant="body2" fontWeight={500}>
-                      {formatPeso(Math.round((p.totalCost || p.cost || 0) / 100))}
+                      {formatPesoDisplay(Math.round((p.totalCost || p.cost || 0) / 100))}
                     </Typography>
                     {projectExpanded === p.id ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                   </ListItem>
@@ -280,13 +273,13 @@ const HOADashboard = () => {
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Expense Budget YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {formatPeso(centavosToPesos(budgetData.expenses?.totals?.totalYtdBudget || 0))}
+                  {formatPesoDisplay(centavosToPesos(budgetData.expenses?.totals?.totalYtdBudget || 0))}
                 </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Expense Actual YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {formatPeso(centavosToPesos(budgetData.expenses?.totals?.totalYtdActual || 0))}
+                  {formatPesoDisplay(centavosToPesos(budgetData.expenses?.totals?.totalYtdActual || 0))}
                 </Typography>
               </Box>
               {top5ByVariance.length > 0 && (
@@ -305,11 +298,11 @@ const HOADashboard = () => {
                         const absPesos = Math.abs(diffPesos);
                         const isOver = c.diff > 0;
                         const diffColor = c.diff === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
-                        const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPeso(absPesos)}` : `<${formatPeso(absPesos)}`);
+                        const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesoDisplay(absPesos)}` : `<${formatPesoDisplay(absPesos)}`);
                         return (
                           <tr key={c.id}>
                             <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
-                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatPeso(centavosToPesos(c.ytdActual || 0))}</td>
+                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatPesoDisplay(centavosToPesos(c.ytdActual || 0))}</td>
                             <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
                           </tr>
                         );

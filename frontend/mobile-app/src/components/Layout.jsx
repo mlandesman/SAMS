@@ -40,6 +40,7 @@ import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 import InstallBanner from './InstallBanner.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
+import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
@@ -47,12 +48,7 @@ const Layout = ({ children }) => {
   const { user, logout, isAdmin, samsUser } = useAuth();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
 
-  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
-  const isOwnerOrManager = samsUser?.globalRole === 'unitOwner' ||
-    (clientAccess && Object.keys(clientAccess).length > 0 &&
-     Object.values(clientAccess).some(access =>
-       access.role === 'unitOwner' || access.role === 'unitManager'
-     ));
+  const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
   const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (isOwnerOrManager ? 'Owner' : null));

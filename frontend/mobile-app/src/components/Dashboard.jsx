@@ -42,6 +42,7 @@ import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
+import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
 import { VERSION } from '../utils/versionUtils.js';
 import CompactCard from './dashboard/CompactCard.jsx';
 import ExpandableCard from './dashboard/ExpandableCard.jsx';
@@ -95,12 +96,7 @@ const Dashboard = () => {
   const isAdmin = samsUser?.globalRole === 'admin';
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
-  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
-  const isOwnerOrManager = samsUser?.globalRole === 'unitOwner' ||
-    (clientAccess && Object.keys(clientAccess).length > 0 &&
-     Object.values(clientAccess).some(access =>
-       access.role === 'unitOwner' || access.role === 'unitManager'
-     ));
+  const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
 
   // Format past due details for ExpandableCard
   const pastDueDetails = (hoaDuesStatus.pastDueDetails || []).map(unit => ({

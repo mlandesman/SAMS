@@ -31,18 +31,10 @@ import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
-import { getMexicoDateTime } from '../../utils/timezone.js';
+import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
+import { formatCurrency, pesosToCentavos } from '@shared/utils/currencyUtils.js';
 
-const formatPeso = (amount) =>
-  typeof amount === 'number' && !isNaN(amount)
-    ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : '$0.00';
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
-  const d = typeof dateStr === 'string' ? new Date(dateStr + 'T12:00:00') : new Date(dateStr);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
+const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
@@ -158,7 +150,7 @@ const UnitSubDashboard = () => {
     ? (() => {
         const d = new Date(dueDateObj);
         d.setDate(d.getDate() + (hoaConfig.penaltyDays || 0));
-        return formatDate(d.toISOString().split('T')[0]);
+        return formatDateForDisplay(d.toISOString().split('T')[0]);
       })()
     : null;
 
@@ -186,7 +178,7 @@ const UnitSubDashboard = () => {
           ) : (
             <>
               <Typography variant="h5" sx={{ color: amountDue > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-                {formatPeso(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
+                {formatPesoDisplay(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
               </Typography>
               {amountDue > 0 && (
                 <Typography variant="body2" color="text.secondary">Amount due</Typography>
@@ -209,8 +201,8 @@ const UnitSubDashboard = () => {
             </Box>
           ) : (
             <>
-              <Typography variant="body1" fontWeight={600}>{formatPeso(amountDue)}</Typography>
-              <Typography variant="body2" color="text.secondary">Due {formatDate(dueDate)}</Typography>
+              <Typography variant="body1" fontWeight={600}>{formatPesoDisplay(amountDue)}</Typography>
+              <Typography variant="body2" color="text.secondary">Due {formatDateForDisplay(dueDate)}</Typography>
               {daysPastDue > 0 && (
                 <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600 }}>{daysPastDue} days past due</Typography>
               )}
@@ -236,7 +228,7 @@ const UnitSubDashboard = () => {
               <LoadingSpinner size="small" />
             </Box>
           ) : nextPaymentAmount > 0 ? (
-            <Typography variant="body2">Next payment: {formatPeso(nextPaymentAmount)}</Typography>
+            <Typography variant="body2">Next payment: {formatPesoDisplay(nextPaymentAmount)}</Typography>
           ) : (
             <Typography variant="body2" color="text.secondary">No upcoming fees</Typography>
           )}
@@ -266,7 +258,7 @@ const UnitSubDashboard = () => {
                     <ListItem key={i} disablePadding sx={{ py: 0.5 }}>
                       <ListItemText
                         primary={item.description || 'Transaction'}
-                        secondary={formatDate(item.date)}
+                        secondary={formatDateForDisplay(item.date)}
                         primaryTypographyProps={{ variant: 'body2' }}
                         secondaryTypographyProps={{ variant: 'caption' }}
                       />
@@ -275,7 +267,7 @@ const UnitSubDashboard = () => {
                         fontWeight={600}
                         sx={{ color: isPayment ? '#059669' : '#dc2626' }}
                       >
-                        {isPayment ? '+' : '-'}{formatPeso(amt)}
+                        {isPayment ? '+' : '-'}{formatPesoDisplay(amt)}
                       </Typography>
                     </ListItem>
                   );
