@@ -63,8 +63,8 @@ const AdminDashboard = () => {
 
   // Account Balances: MoM trend (bank+cash vs prior month bank+cash)
   const currentTotal = accountBalances?.total ?? 0;
-  const priorTotal = priorMonthBalance ?? 0;
-  const delta = currentTotal - priorTotal;
+  const hasPriorMonthBalance = priorMonthBalance != null;
+  const delta = hasPriorMonthBalance ? (currentTotal - priorMonthBalance) : 0;
 
   // Format past due details for ExpandableCard
   const pastDueDetails = (hoaDuesStatus.pastDueDetails || []).map((unit) => ({
@@ -96,7 +96,7 @@ const AdminDashboard = () => {
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 0.5 }}>
             {formatPesosForDisplay(currentTotal)}
           </Typography>
-          {!priorLoading && priorTotal != null && (
+          {!priorLoading && hasPriorMonthBalance && (
             <Typography
               variant="body2"
               sx={{ color: delta >= 0 ? '#059669' : '#dc2626', mb: 0.5 }}

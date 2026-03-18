@@ -47,6 +47,10 @@ const AdminTransactions = () => {
     if (clientId) fetchTransactions();
   }, [clientId, selectedYear]);
 
+  useEffect(() => {
+    setExpandedRowKey(null);
+  }, [selectedYear, typeFilter, transactions]);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);

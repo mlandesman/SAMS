@@ -11,6 +11,31 @@ import { getOwnerInfo } from './unitUtils';
 import { numberToSpanishWords } from './numberToWords';
 
 /**
+ * Build a descriptive "For" line from the transaction's allocations array.
+ * Excludes credit balance rows. Falls back to transaction.category if no allocations.
+ */
+function buildCategoryFromAllocations(transaction) {
+  const allocations = transaction.allocations;
+  if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
+    return transaction.categoryName || transaction.category || 'Payment';
+  }
+
+  const categories = allocations
+    .filter(a => {
+      const name = (a.categoryName || a.category || '').toLowerCase();
+      return !name.includes('credit') && !name.includes('crédito');
+    })
+    .map(a => a.categoryName || a.category)
+    .filter(Boolean);
+
+  if (categories.length === 0) {
+    return transaction.categoryName || transaction.category || 'Payment';
+  }
+
+  return [...new Set(categories)].join(', ');
+}
+
+/**
  * Generate and display a Digital Receipt for a given transaction ID
  * 
  * @param {string} transactionId - The transaction ID to generate receipt for
@@ -157,7 +182,7 @@ export const generateReceipt = async (transactionId, options) => {
       checkNumber: transaction.checkNumber || null,
       notes: transaction.notes || '',
       description: transaction.description || transaction.category || 'Payment',
-      category: transaction.category || 'HOA Dues',
+      category: buildCategoryFromAllocations(transaction),
       
       // Receipt formatting
       type: transaction.type || 'income',

@@ -96,8 +96,8 @@ const DigitalReceipt = ({
   });
 
   const defaultClient = {
-    name: clientData?.basicInfo?.displayName || 'No Client Name Specified',
-    logoUrl: '/sandyland-logo.png'  // Use local logo from public folder
+    name: clientData?.name || clientData?.basicInfo?.displayName || clientData?.basicInfo?.fullName || 'No Client Name Specified',
+    logoUrl: '/sandyland-logo.png'
   };
 
   // Use provided data - NO DEFAULTS for transaction data
@@ -374,7 +374,8 @@ const DigitalReceipt = ({
         className="receipt-image"
         style={{
           width: '600px',
-          height: '900px',
+          minHeight: '900px',
+          height: 'auto',
           position: showPreview ? 'relative' : 'absolute',
           top: showPreview ? 'auto' : '-9999px'
         }}

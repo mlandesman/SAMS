@@ -52,13 +52,16 @@
 | ~~6~~ | ~~**235**~~ | ~~Project Assessment Bypass + Flag Cleanup~~ | ~~8-10h~~ | ~~#235, #197~~ ✅ COMPLETE (PR #241, March 14, 2026) |
 | ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
-| 9 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 10 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 11 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
-| 12 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 13 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
+| 9 | **MOBILE-ADMIN-UX** | Admin Mobile UX Refactor | 20-27h | #247 — Dashboard, Transactions, UPC Payment, Budget |
+| 10 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
+| 11 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 12 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
+| 13 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| 14 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE — merged March 18, 2026. Beta deployment in progress. Next candidates: Admin Mobile UX or Sprint WA (#178). Roadmap ordering subject to change based on operational needs and scrum reviews.
+**Current Focus**: Sprint MOBILE-ADMIN-UX (#247) — Admin Mobile UX Refactor. Leverages shared hooks and patterns from MOBILE-OWNER-UX. Beta deployment of Owner UX in parallel. Roadmap ordering subject to change based on operational needs and scrum reviews.
+
+**Schedule Note (Mar 18, 2026 — Hotfixes)**: Three hotfixes committed directly to main ahead of production deployment: (1) Digital Receipt re-enabled — Send Receipt button was permanently disabled due to `.unit` vs `.unitId` field name mismatch in TransactionsView; client name resolved from `basicInfo`; allocations array now used for "For" field; receipt layout no longer clips footer. (2) Mobile role label — title bar chip showed "Owner" for all users; now correctly shows "Manager" when the selected unit's assignment role is `unitManager`. (3) `propertyAccess` role bug — `addUnitRoleAssignment` was hardcoding `role: 'user'`; now derives from actual unit assignment role.
 
 **Mobile PWA Future Enhancements** (carry to Sprint G):
 - Budget card: live budget data integration (#176)
@@ -107,6 +110,9 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| Hotfixes (Digital Receipt, Role Label, propertyAccess) | Mar 18, 2026 | Direct to main — Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug |
+| MOBILE-OWNER-UX (Mobile Owner UX Refactor) | Mar 18, 2026 | #244 (PR #245) — 7 tasks (MOB-1–MOB-7), ~19h, shared hooks refactor |
+| 242 (Separate Assessment vs Vendor Milestones) | Mar 14, 2026 | #242 (PR #243) — 7 tasks, 16 files, +632/-128 lines |
 | 235 (Project Assessment Bypass + Flag Cleanup) | Mar 14, 2026 | #235, #197 (PR #241) — 5 tasks, 10 files, +526/-21 lines |
 | NRM (Normalize Unit-User References) | Mar 14, 2026 | #133 (PR #240) — 7 tasks (NRM1-NRM7), 17 files, ~15h |
 | D (PWA/Mobile Enhancements) | Mar 12, 2026 | #184 (PR #236), #109 (PR #237). D3 (#133) → Sprint NRM |
@@ -153,4 +159,4 @@
 
 ---
 
-*Last Updated: March 18, 2026 — Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). 3-card dashboard, bottom tabs, Unit + HOA sub-dashboards, self-service profile (MOB-7), shared hooks refactor. Beta deployment in progress.*
+*Last Updated: March 18, 2026 — Hotfixes committed to main: Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug. Sprint MOBILE-ADMIN-UX (#247) approved at position 9. MOBILE-OWNER-UX and 242 added to completion log.*

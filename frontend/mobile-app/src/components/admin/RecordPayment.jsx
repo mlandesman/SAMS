@@ -73,6 +73,8 @@ const RecordPayment = () => {
   useEffect(() => {
     if (selectedUnitId && clientId) {
       unitChangeSuppressRef.current = true;
+      setPreview(null);
+      setAmount('');
       setExcludedBills([]);
       setWaivedPenalties([]);
       fetchPreview(null);
