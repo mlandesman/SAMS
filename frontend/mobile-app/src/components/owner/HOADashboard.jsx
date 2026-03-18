@@ -24,9 +24,11 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../../hooks/useDashboardData.js';
+import { usePriorMonthBalance } from '../../hooks/usePriorMonthBalance.js';
+import { usePollsProjects } from '../../hooks/usePollsProjects.js';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
-import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
+import { formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay, formatCurrency, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
@@ -38,87 +40,13 @@ const HOADashboard = () => {
     loading: dashLoading,
   } = useDashboardData();
 
-  const [priorMonthBalance, setPriorMonthBalance] = useState(null);
-  const [priorLoading, setPriorLoading] = useState(false);
-  const [polls, setPolls] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [pollsProjectsLoading, setPollsProjectsLoading] = useState(false);
+  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const { priorMonthBalance, priorLoading } = usePriorMonthBalance(clientId);
+  const { polls, projects, loading: pollsProjectsLoading } = usePollsProjects(clientId);
+
   const [budgetData, setBudgetData] = useState(null);
   const [budgetLoading, setBudgetLoading] = useState(false);
   const [projectExpanded, setProjectExpanded] = useState(null);
-
-  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-
-  // Prior month balance
-  useEffect(() => {
-    if (!clientId) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) {
-      setPriorLoading(false);
-      return;
-    }
-    const now = getMexicoDateTime();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastDayPrev = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
-    const asOfDate = lastDayPrev.toISOString().split('T')[0];
-    let cancelled = false;
-    setPriorLoading(true);
-    tokenPromise.then((t) =>
-      fetch(`${config.api.baseUrl}/clients/${clientId}/balances/current?asOfDate=${asOfDate}`, {
-        headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-      })
-    ).then((r) => (r?.ok ? r.json() : null)).then((res) => {
-      if (cancelled) return;
-      if (res?.success && res?.data) {
-        const bank = res.data.bankBalance || 0;
-        const cash = res.data.cashBalance || 0;
-        setPriorMonthBalance(Math.round((bank + cash) / 100));
-      } else {
-        setPriorMonthBalance(0);
-      }
-    }).catch(() => { if (!cancelled) setPriorMonthBalance(0); }).finally(() => { if (!cancelled) setPriorLoading(false); });
-    return () => { cancelled = true; };
-  }, [clientId]);
-
-  // Polls and projects
-  useEffect(() => {
-    if (!clientId) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) {
-      setPollsProjectsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setPollsProjectsLoading(true);
-    tokenPromise.then((t) => {
-      if (cancelled) return;
-      const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
-      return Promise.all([
-        fetch(`${config.api.baseUrl}/vote/clients/${clientId}/polls`, { headers }),
-        fetch(`${config.api.baseUrl}/clients/${clientId}/projects`, { headers }),
-      ]);
-    }).then(async ([pR, projR]) => {
-      if (cancelled) return;
-      const [pollsJson, projectsJson] = await Promise.all([
-        pR?.ok ? pR.json().catch(() => null) : Promise.resolve(null),
-        projR?.ok ? projR.json().catch(() => null) : Promise.resolve(null),
-      ]);
-      if (cancelled) return;
-      if (pollsJson) {
-        const list = pollsJson?.data || pollsJson?.polls || pollsJson || [];
-        const arr = Array.isArray(list) ? list : Object.values(list);
-        setPolls(arr.filter((p) => p?.status === 'published'));
-      }
-      if (projectsJson) {
-        const list = projectsJson?.data || projectsJson?.projects || projectsJson || [];
-        const arr = Array.isArray(list) ? list : Object.values(list);
-        setProjects(arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress'));
-      }
-    }).catch(() => {}).finally(() => { if (!cancelled) setPollsProjectsLoading(false); });
-    return () => { cancelled = true; };
-  }, [clientId]);
 
   // Budget data
   useEffect(() => {

@@ -3,7 +3,7 @@
  * Replaces 8-card grid with focused: Unit Status, HOA Status, Exchange Rates
  * Sprint MOBILE-OWNER-UX (MOB-2)
  */
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import { Home as UnitIcon, Groups as HOAIcon, CurrencyExchange as CurrencyIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -11,8 +11,9 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
-import { config } from '../../config/index.js';
-import { auth } from '../../services/firebase';
+import { usePriorMonthBalance } from '../../hooks/usePriorMonthBalance.js';
+import { usePollsProjects } from '../../hooks/usePollsProjects.js';
+import { useHoaConfig } from '../../hooks/useHoaConfig.js';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
@@ -29,120 +30,10 @@ const OwnerDashboard3Cards = () => {
     loading: dashLoading,
   } = useDashboardData();
 
-  const [priorMonthBalance, setPriorMonthBalance] = useState(null);
-  const [priorLoading, setPriorLoading] = useState(false);
-  const [pollsCount, setPollsCount] = useState(0);
-  const [projectsCount, setProjectsCount] = useState(0);
-  const [pollsProjectsLoading, setPollsProjectsLoading] = useState(false);
-  const [hoaConfig, setHoaConfig] = useState(null);
-
-  // Prior month balance for HOA trend
-  useEffect(() => {
-    if (!currentClient) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) {
-      setPriorLoading(false);
-      return;
-    }
-    const now = getMexicoDateTime();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastDayPrevMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
-    const asOfDate = lastDayPrevMonth.toISOString().split('T')[0];
-
-    let cancelled = false;
-    setPriorLoading(true);
-    tokenPromise.then((t) => {
-      if (cancelled) return;
-      return fetch(
-        `${config.api.baseUrl}/clients/${currentClient}/balances/current?asOfDate=${asOfDate}`,
-        { headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } }
-      );
-    }).then((r) => r?.ok ? r.json() : null).then((res) => {
-      if (cancelled) return;
-      if (res?.success && res?.data) {
-        const bank = res.data.bankBalance || 0;
-        const cash = res.data.cashBalance || 0;
-        setPriorMonthBalance(Math.round((bank + cash) / 100));
-      } else {
-        setPriorMonthBalance(0);
-      }
-    }).catch(() => {
-      if (!cancelled) setPriorMonthBalance(0);
-    }).finally(() => {
-      if (!cancelled) setPriorLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [currentClient]);
-
-  // Polls and projects count
-  useEffect(() => {
-    if (!currentClient) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) {
-      setPollsProjectsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setPollsProjectsLoading(true);
-    tokenPromise.then((t) => {
-      if (cancelled) return;
-      const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
-      return Promise.all([
-        fetch(`${config.api.baseUrl}/vote/clients/${currentClient}/polls`, { headers }),
-        fetch(`${config.api.baseUrl}/clients/${currentClient}/projects`, { headers }),
-      ]);
-    }).then(async ([pollsRes, projectsRes]) => {
-      if (cancelled) return;
-      const [pollsJson, projectsJson] = await Promise.all([
-        pollsRes?.ok ? pollsRes.json().catch(() => null) : Promise.resolve(null),
-        projectsRes?.ok ? projectsRes.json().catch(() => null) : Promise.resolve(null),
-      ]);
-      if (cancelled) return;
-      if (pollsJson) {
-        const list = pollsJson?.data || pollsJson?.polls || pollsJson || [];
-        const arr = Array.isArray(list) ? list : Object.values(list);
-        setPollsCount(arr.filter((p) => p?.status === 'published').length);
-      }
-      if (projectsJson) {
-        const list = projectsJson?.data || projectsJson?.projects || projectsJson || [];
-        const arr = Array.isArray(list) ? list : Object.values(list);
-        setProjectsCount(arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress').length);
-      }
-    }).catch(() => {}).finally(() => {
-      if (!cancelled) setPollsProjectsLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [currentClient]);
-
-  // HOA config for late fee line (penaltyRate > 0 = has late fees)
-  useEffect(() => {
-    if (!currentClient) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) return;
-    let cancelled = false;
-    tokenPromise.then((t) => {
-      if (cancelled) return;
-      return fetch(`${config.api.baseUrl}/clients/${currentClient}/config/hoaDues`, {
-        headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-      });
-    }).then((r) => (r?.ok ? r.json() : null)).then((res) => {
-      if (!cancelled && res?.data) {
-        const d = res.data;
-        setHoaConfig({
-          penaltyDays: d.penaltyDays ?? 10,
-          penaltyRate: d.penaltyRate ?? 0,
-        });
-      } else if (!cancelled) {
-        setHoaConfig({ penaltyDays: 10, penaltyRate: 0 });
-      }
-    }).catch(() => {
-      if (!cancelled) setHoaConfig({ penaltyDays: 10, penaltyRate: 0 });
-    });
-    return () => { cancelled = true; };
-  }, [currentClient]);
+  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const { priorMonthBalance, priorLoading } = usePriorMonthBalance(clientId);
+  const { pollsCount, projectsCount, loading: pollsProjectsLoading } = usePollsProjects(clientId);
+  const { hoaConfig } = useHoaConfig(clientId);
 
   const dueDate = unitData?.nextPaymentDueDate || unitData?.summary?.nextPaymentDueDate;
   const amountDue = unitData?.amountDue ?? 0;

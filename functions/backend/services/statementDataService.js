@@ -2647,17 +2647,14 @@ export function buildDashboardSummary(rawData, ownerNames = '') {
   if (duesFromDues?.nextPaymentDueDate) {
     const d = duesFromDues.nextPaymentDueDate;
     nextPaymentDueDate = d instanceof Date
-      ? dashboardDateService.formatForFrontend(d).iso
+      ? dashboardDateService.formatForFrontend(d).ISO_8601
       : null;
     nextPaymentAmount = duesFromDues.nextPaymentAmount ?? null;
   }
   if (!nextPaymentDueDate) {
     const np = rawData?.nextPaymentDueDate;
     if (np) {
-      const dateVal = typeof np === 'string' ? np : (np instanceof Date ? np : null);
-      nextPaymentDueDate = dateVal
-        ? (dateVal instanceof Date ? dashboardDateService.formatForFrontend(dateVal).iso : dateVal)
-        : null;
+      nextPaymentDueDate = dashboardDateService.formatForFrontend(np).ISO_8601;
       nextPaymentAmount = typeof rawData?.nextPaymentAmount === 'number' ? rawData.nextPaymentAmount : null;
     }
   }
@@ -2708,9 +2705,9 @@ export function buildDashboardSummary(rawData, ownerNames = '') {
     nextPaymentAmount,
     lastPayment: lastPayment
       ? {
-          date: lastPayment.date instanceof Date
-            ? dashboardDateService.formatForFrontend(lastPayment.date).iso
-            : (typeof lastPayment.date === 'string' ? lastPayment.date : null),
+          date: lastPayment.date
+            ? dashboardDateService.formatForFrontend(lastPayment.date).ISO_8601
+            : null,
           amount: roundPesos(lastPayment.payment || 0)
         }
       : null,
@@ -3408,7 +3405,10 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     // Issue #144b: Include unfiltered transactions for Next Payment calculation
     allTransactions: rawData.allTransactions || [],
     // Issue #144b: Pre-calculated next payment date and amount from UPC billsPaid
-    nextPaymentDueDate: rawData.nextPaymentDueDate || null,
+    // Use DateService.ISO_8601 (YYYY-MM-DD) for date-only fields - ready for frontend display
+    nextPaymentDueDate: rawData.nextPaymentDueDate
+      ? dashboardDateService.formatForFrontend(rawData.nextPaymentDueDate).ISO_8601
+      : null,
     nextPaymentAmount: rawData.nextPaymentAmount ?? null,
     creditInfo: {
       // Use credit balance from API response (already calculated by getter in creditService)

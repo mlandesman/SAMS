@@ -28,8 +28,8 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
-import { config } from '../../config/index.js';
-import { auth, db } from '../../services/firebase';
+import { useHoaConfig } from '../../hooks/useHoaConfig.js';
+import { db } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 
@@ -42,9 +42,9 @@ const UnitSubDashboard = () => {
   const [transactionsExpanded, setTransactionsExpanded] = useState(true);
   const [storedStatements, setStoredStatements] = useState([]);
   const [storedLoading, setStoredLoading] = useState(false);
-  const [hoaConfig, setHoaConfig] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const { hoaConfig } = useHoaConfig(clientId);
 
   // Stored statements
   const fetchStoredStatements = useCallback(async () => {
@@ -73,22 +73,6 @@ const UnitSubDashboard = () => {
   useEffect(() => {
     fetchStoredStatements();
   }, [fetchStoredStatements]);
-
-  // HOA config for late fee
-  useEffect(() => {
-    if (!clientId) return;
-    const user = auth.currentUser;
-    const tokenPromise = user?.getIdToken?.();
-    if (!tokenPromise) return;
-    tokenPromise.then((t) =>
-      fetch(`${config.api.baseUrl}/clients/${clientId}/config/hoaDues`, {
-        headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-      })
-    ).then((r) => (r?.ok ? r.json() : null)).then((res) => {
-      const d = res?.data || {};
-      setHoaConfig({ penaltyDays: d.penaltyDays ?? 10, penaltyRate: d.penaltyRate ?? 0 });
-    }).catch(() => setHoaConfig({ penaltyDays: 10, penaltyRate: 0 }));
-  }, [clientId]);
 
   if (!currentClient || !selectedUnitId) {
     return (

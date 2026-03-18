@@ -107,6 +107,17 @@ export function roundCentavos(centavos) {
 }
 
 /**
+ * Format pesos for display (amounts from API in pesos)
+ * Converts pesos to centavos and formats via formatCurrency
+ *
+ * @param {number} pesos - Amount in pesos (e.g., 2961.00)
+ * @returns {string} Formatted currency string (e.g., "$2,961.00")
+ */
+export function formatPesosForDisplay(pesos) {
+  return formatCurrency(pesosToCentavos(pesos ?? 0));
+}
+
+/**
  * Round a pesos value to 2 decimal places
  * Use this ONLY for display rounding when centavosToPesos() precision is insufficient.
  * Prefer working in centavos integers to avoid this.
