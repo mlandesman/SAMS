@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './hooks/useAuthStable.jsx';
 import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
+import { UnitStatementProvider } from './context/UnitStatementContext.jsx';
 import AuthScreen from './components/AuthScreen';
 import ClientSelect from './components/ClientSelect';
 import ExpenseForm from './components/ExpenseForm';
@@ -111,6 +112,7 @@ function App() {
       <AuthProvider>
         <Router>
           <SelectedUnitProvider>
+          <UnitStatementProvider>
           <Layout>
             <Routes>
               <Route path="/auth" element={<AuthScreen />} />
@@ -350,6 +352,7 @@ function App() {
               <Route path="*" element={<Navigate to="/auth" replace />} />
             </Routes>
           </Layout>
+          </UnitStatementProvider>
           </SelectedUnitProvider>
         </Router>
       </AuthProvider>

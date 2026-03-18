@@ -9,7 +9,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Divider,
   Button,
   List,
   ListItem,
@@ -38,45 +37,16 @@ const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0))
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
-  const { currentClient, firebaseUser } = useAuth();
+  const { currentClient } = useAuth();
   const { selectedUnitId } = useSelectedUnit();
   const { data: unitData, loading: unitLoading, error: unitError } = useUnitAccountStatus(currentClient, selectedUnitId);
 
-  const [statementData, setStatementData] = useState(null);
-  const [statementLoading, setStatementLoading] = useState(false);
   const [transactionsExpanded, setTransactionsExpanded] = useState(true);
   const [storedStatements, setStoredStatements] = useState([]);
   const [storedLoading, setStoredLoading] = useState(false);
   const [hoaConfig, setHoaConfig] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-
-  // Fetch statement data for transactions
-  const fetchStatementData = useCallback(async () => {
-    if (!clientId || !selectedUnitId) return;
-    setStatementLoading(true);
-    try {
-      const user = auth.currentUser || firebaseUser;
-      if (!user) throw new Error('Not authenticated');
-      const token = await user.getIdToken();
-      const res = await fetch(
-        `${config.api.baseUrl}/reports/${clientId}/statement/data?unitId=${selectedUnitId}&language=english`,
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setStatementData(json.data || json);
-    } catch (err) {
-      console.error('Statement data fetch error:', err);
-      setStatementData(null);
-    } finally {
-      setStatementLoading(false);
-    }
-  }, [clientId, selectedUnitId, firebaseUser]);
-
-  useEffect(() => {
-    fetchStatementData();
-  }, [fetchStatementData]);
 
   // Stored statements
   const fetchStoredStatements = useCallback(async () => {
@@ -154,7 +124,7 @@ const UnitSubDashboard = () => {
       })()
     : null;
 
-  const lineItems = statementData?.lineItems || [];
+  const lineItems = unitData?.lineItems || [];
   const nonFuture = lineItems.filter((i) => !i.isFuture);
   const recentTx = nonFuture.slice(-10).reverse();
 
@@ -245,7 +215,7 @@ const UnitSubDashboard = () => {
             </Button>
           </Box>
           <Collapse in={transactionsExpanded}>
-            {statementLoading ? (
+            {unitLoading ? (
               <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
             ) : recentTx.length === 0 ? (
               <Typography variant="body2" color="text.secondary">No transactions</Typography>

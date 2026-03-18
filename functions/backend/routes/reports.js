@@ -383,6 +383,7 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
     const language = req.query.language || 'english';
+    const skipHtml = req.query.skipHtml === 'true';
     
     if (!unitId) {
       return res.status(400).json({ 
@@ -403,10 +404,10 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
       }
     });
 
-    // Generate statement data (always produces both languages - Issue #146)
     const statement = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
-      language
+      language,
+      skipHtml
     });
     
     res.json({ success: true, data: statement });

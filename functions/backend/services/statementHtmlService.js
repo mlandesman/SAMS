@@ -823,6 +823,24 @@ function generatePropaneTableHtml(level, thresholds, language) {
 export async function generateStatementData(api, clientId, unitId, options = {}) {
   // Get statement data (language-agnostic - same data for both languages)
   const data = await getStatementData(api, clientId, unitId, options.fiscalYear);
+
+  if (options.skipHtml) {
+    return {
+      summary: data.summary,
+      lineItems: data.lineItems,
+      statementInfo: data.statementInfo,
+      unitInfo: data.unitInfo,
+      clientInfo: data.clientInfo,
+      nextPaymentDueDate: data.nextPaymentDueDate || null,
+      nextPaymentAmount: data.nextPaymentAmount ?? null,
+      creditInfo: data.creditInfo,
+      projectsData: data.projectsData,
+      duesFrequency: data.statementInfo?.duesFrequency || 'monthly',
+      ytdMonthsPaid: data.statementInfo?.ytdMonthsPaid ?? 0,
+      ytdTotal: data.statementInfo?.ytdTotal ?? 12,
+    };
+  }
+
   // Read responsive CSS file
   const cssPath = path.join(__dirname, '../templates/reports/reportCommon.css');
   const reportCommonCss = fs.readFileSync(cssPath, 'utf8');
