@@ -67,6 +67,11 @@
             "244"
           ],
           "text": "Mobile Owner UX Refactor: 3-card dashboard (Unit Status, HOA Status, Exchange Rates), bottom tab nav, Unit/HOA sub-dashboards, self-service email & password update (MOB-7), SoA as single source of truth via UnitStatementContext, shared hooks (usePriorMonthBalance, usePollsProjects, useHoaConfig)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix unitRoleAssignment defaulting to role 'user' instead of actual assignment role when adding unit access for a new client, causing 403 permission errors"
         }
       ]
     },
