@@ -1453,6 +1453,9 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
           <h3>Edit User</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
+        <div style={{ padding: '4px 20px', backgroundColor: '#f5f5f5', borderBottom: '1px solid #e0e0e0', fontSize: '12px', color: '#666', fontFamily: 'monospace' }}>
+          UID: {user?.id || user?.uid || '—'}
+        </div>
 
         <form onSubmit={handleSubmit} className="user-form">
           {/* Basic Info Row */}

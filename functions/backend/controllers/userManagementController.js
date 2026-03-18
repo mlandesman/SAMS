@@ -1280,7 +1280,8 @@ export async function addUnitRoleAssignment(req, res) {
     // Initialize client access if it doesn't exist
     if (!updatedClientAccess[clientId]) {
       updatedClientAccess[clientId] = {
-        role: 'user', // Default role
+        role: role,
+        unitId: unitId,
         unitAssignments: [],
         addedDate: getNow().toISOString(),
         addedBy: assigningUser.email
@@ -1311,6 +1312,12 @@ export async function addUnitRoleAssignment(req, res) {
         addedBy: assigningUser.email
       });
     }
+
+    // Keep top-level role/unitId in sync with the highest-privilege assignment
+    // unitOwner > unitManager (owner can do everything manager can)
+    const allRoles = updatedClientAccess[clientId].unitAssignments.map(a => a.role);
+    updatedClientAccess[clientId].role = allRoles.includes('unitOwner') ? 'unitOwner' : 'unitManager';
+    updatedClientAccess[clientId].unitId = updatedClientAccess[clientId].unitAssignments[0].unitId;
 
     // Update user record
     await db.collection('users').doc(userId).update({
@@ -1410,9 +1417,14 @@ export async function removeUnitRoleAssignment(req, res) {
       assignment => assignment.unitId !== unitId
     );
 
-    // If no unit assignments left, keep the client access but remove the array
     if (updatedClientAccess[clientId].unitAssignments.length === 0) {
-      delete updatedClientAccess[clientId].unitAssignments;
+      // No assignments left — remove the client access entirely
+      delete updatedClientAccess[clientId];
+    } else {
+      // Keep top-level role/unitId in sync with remaining assignments
+      const allRoles = updatedClientAccess[clientId].unitAssignments.map(a => a.role);
+      updatedClientAccess[clientId].role = allRoles.includes('unitOwner') ? 'unitOwner' : 'unitManager';
+      updatedClientAccess[clientId].unitId = updatedClientAccess[clientId].unitAssignments[0].unitId;
     }
 
     // Update user record
