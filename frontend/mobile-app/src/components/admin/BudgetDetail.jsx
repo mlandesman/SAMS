@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useClients } from '../../hooks/useClients.jsx';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus.js';
 import { getCurrentFiscalPeriod } from '../../utils/fiscalYearUtils.js';
-import { formatCurrency, formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
+import { formatCurrency } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
 const BudgetDetail = () => {
@@ -131,11 +131,13 @@ const BudgetDetail = () => {
                 </thead>
                 <tbody>
                   {topCategories.map((c) => {
-                    const diffPesos = centavosToPesos(c.diff);
-                    const absPesos = Math.abs(diffPesos);
-                    const isOver = c.diff > 0;
-                    const diffColor = c.diff === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
-                    const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesosForDisplay(absPesos)}` : `<${formatPesosForDisplay(absPesos)}`);
+                    const diffCentavos = c.diff || 0;
+                    const absDiffCentavos = Math.abs(diffCentavos);
+                    const isOver = diffCentavos > 0;
+                    const diffColor = diffCentavos === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
+                    const diffLabel = diffCentavos === 0
+                      ? '—'
+                      : (isOver ? `>${formatCurrency(absDiffCentavos)}` : `<${formatCurrency(absDiffCentavos)}`);
                     return (
                       <tr key={c.id}>
                         <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
