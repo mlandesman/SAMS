@@ -302,7 +302,7 @@ const RecordPayment = () => {
             </Select>
           </FormControl>
           {loading && <LoadingSpinner size="small" />}
-          {preview && (
+          {canProceedStep0 && (
             <Button variant="contained" fullWidth onClick={() => setActiveStep(1)} sx={{ mt: 2 }}>
               Continue to Review Bills
             </Button>
