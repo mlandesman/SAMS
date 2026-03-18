@@ -5,6 +5,7 @@
 import React from 'react';
 import { Box, Typography, Card, CardContent, LinearProgress } from '@mui/material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useClients } from '../../hooks/useClients.jsx';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus.js';
 import { getCurrentFiscalPeriod } from '../../utils/fiscalYearUtils.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
@@ -12,9 +13,15 @@ import { LoadingSpinner } from '../common';
 
 const BudgetDetail = () => {
   const { currentClient } = useAuth();
+  const { selectedClient } = useClients();
   const { budgetStatus, loading, error } = useBudgetStatus();
 
-  const fiscalYearStartMonth = currentClient?.configuration?.fiscalYearStartMonth ?? 1;
+  let fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth;
+  if (fiscalYearStartMonth == null && currentClient === 'AVII') {
+    fiscalYearStartMonth = 7;
+  } else if (fiscalYearStartMonth == null) {
+    fiscalYearStartMonth = 1;
+  }
   const fiscalPeriod = getCurrentFiscalPeriod(undefined, fiscalYearStartMonth);
   const percentElapsed = fiscalPeriod ? (fiscalPeriod.month / 12) * 100 : 0;
   const fiscalYearLabel = fiscalPeriod ? `FY ${fiscalPeriod.year}` : '—';
