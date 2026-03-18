@@ -27,8 +27,8 @@ import {
   Description as StatementIcon,
   Assessment as StatusIcon,
   Info as AboutIcon,
-  Add as AddIcon,
   PictureAsPdf as PdfIcon,
+  TrendingUp as BudgetIcon,
   Home as HomeIcon,
   DownloadForOffline as InstallIcon,
   Contacts as ContactsIcon,
@@ -51,7 +51,8 @@ const Layout = ({ children }) => {
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
-  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (isOwnerOrManager ? 'Owner' : null));
+  const selectedUnitRole = availableUnits?.find(u => u.unitId === selectedUnitId)?.role;
+  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (selectedUnitRole === 'unitManager' ? 'Manager' : (isOwnerOrManager ? 'Owner' : null)));
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -118,6 +119,12 @@ const Layout = ({ children }) => {
         return 'Lectura de Agua';
       case '/unit-directory':
         return 'Unit Directory';
+      case '/admin/transactions':
+        return 'Transactions';
+      case '/admin/record-payment':
+        return 'Record Payment';
+      case '/admin/budget':
+        return 'Budget';
       default:
         if (location.pathname.startsWith('/expense/')) {
           return 'Add Expense';
@@ -271,8 +278,8 @@ const Layout = ({ children }) => {
           {(isAdminOrSuperAdmin
             ? [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-                { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
                 { label: 'Unit Directory', icon: <ContactsIcon />, path: '/unit-directory' },
+                { label: 'Budget', icon: <BudgetIcon />, path: '/admin/budget' },
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [
