@@ -36,6 +36,7 @@ const AdminTransactions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRowKey, setExpandedRowKey] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedYear, setSelectedYear] = useState(getMexicoDate().getFullYear());
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'income' | 'expense'
 
@@ -49,6 +50,7 @@ const AdminTransactions = () => {
 
   useEffect(() => {
     setExpandedRowKey(null);
+    setVisibleCount(PAGE_SIZE);
   }, [selectedYear, typeFilter, transactions]);
 
   const fetchTransactions = async () => {
@@ -103,8 +105,8 @@ const AdminTransactions = () => {
     return tx.type === typeFilter;
   });
 
-  const displayedTransactions = filteredTransactions.slice(0, PAGE_SIZE);
-  const hasMore = filteredTransactions.length > PAGE_SIZE;
+  const displayedTransactions = filteredTransactions.slice(0, visibleCount);
+  const hasMore = filteredTransactions.length > visibleCount;
 
   if (loading) {
     return (
@@ -267,9 +269,18 @@ const AdminTransactions = () => {
       )}
 
       {hasMore && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, textAlign: 'center' }}>
-          Showing first {PAGE_SIZE} of {filteredTransactions.length} transactions
-        </Typography>
+        <Box sx={{ mt: 2 }}>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+          >
+            Load More
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
+            Showing {displayedTransactions.length} of {filteredTransactions.length} transactions
+          </Typography>
+        </Box>
       )}
     </Box>
   );
