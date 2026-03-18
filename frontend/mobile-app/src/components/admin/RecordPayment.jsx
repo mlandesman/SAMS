@@ -36,14 +36,6 @@ import { getFirstOwnerLastName } from '../../utils/unitContactUtils.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
-const PENALTY_WAIVER_REASONS = [
-  'Property sale',
-  'Board decision',
-  'Administrative',
-  'Payment plan',
-  'Custom',
-];
-
 const RecordPayment = () => {
   const navigate = useNavigate();
   const { currentClient } = useAuth();
@@ -174,7 +166,7 @@ const RecordPayment = () => {
   };
 
   useEffect(() => {
-    if (selectedUnitId && preview && (excludedBills.length > 0 || waivedPenalties.length > 0)) {
+    if (selectedUnitId && clientId) {
       const amt = parseFloat(amount);
       fetchPreview(isNaN(amt) ? null : amt);
     }

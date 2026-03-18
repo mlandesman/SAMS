@@ -77,10 +77,15 @@ function convertPreviewFromCentavos(data) {
     return a.billPeriod.localeCompare(b.billPeriod);
   });
 
+  const totalDue = allBills.reduce(
+    (sum, b) => sum + (b.remainingDue ?? b.totalDue ?? 0),
+    0
+  );
+
   return {
     ...data,
     currentCreditBalance: data.currentCreditBalance || 0,
-    totalDue: (data.hoa?.totalPaid || 0) + (data.water?.totalPaid || 0),
+    totalDue,
     totalAvailableFunds: data.totalAvailableFunds || 0,
     creditUsed: data.credit?.used || 0,
     newCreditBalance: data.credit?.final || 0,
