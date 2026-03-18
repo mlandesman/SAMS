@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useClients } from '../../hooks/useClients.jsx';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus.js';
 import { getCurrentFiscalPeriod } from '../../utils/fiscalYearUtils.js';
-import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
+import { formatCurrency, formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
 const BudgetDetail = () => {
@@ -47,6 +47,7 @@ const BudgetDetail = () => {
   const variance = budgetStatus?.expenseVariance ?? 0;
   const statusText = budgetStatus?.statusText ?? '—';
   const statusColor = budgetStatus?.statusColor ?? '#6b7280';
+  const topCategories = budgetStatus?.topCategories ?? [];
 
   return (
     <Box sx={{ p: 2, pb: 10 }}>
@@ -81,7 +82,7 @@ const BudgetDetail = () => {
                 YTD Budget
               </Typography>
               <Typography variant="body1" fontWeight={600}>
-                {formatPesosForDisplay(ytdBudget)}
+                {formatCurrency(ytdBudget)}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -89,7 +90,7 @@ const BudgetDetail = () => {
                 YTD Actual
               </Typography>
               <Typography variant="body1" fontWeight={600}>
-                {formatPesosForDisplay(ytdActual)}
+                {formatCurrency(ytdActual)}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -101,7 +102,7 @@ const BudgetDetail = () => {
                 fontWeight={600}
                 sx={{ color: variance >= 0 ? '#059669' : '#dc2626' }}
               >
-                {variance >= 0 ? '+' : ''}{formatPesosForDisplay(variance)}
+                {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
               </Typography>
             </Box>
           </Box>
@@ -114,6 +115,39 @@ const BudgetDetail = () => {
               {statusText}
             </Typography>
           </Box>
+
+          {topCategories.length > 0 && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                Top Categories Budget vs Actual
+              </Typography>
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>Category</th>
+                    <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>Actual YTD</th>
+                    <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>vs Budget</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topCategories.map((c) => {
+                    const diffPesos = centavosToPesos(c.diff);
+                    const absPesos = Math.abs(diffPesos);
+                    const isOver = c.diff > 0;
+                    const diffColor = c.diff === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
+                    const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesosForDisplay(absPesos)}` : `<${formatPesosForDisplay(absPesos)}`);
+                    return (
+                      <tr key={c.id}>
+                        <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatCurrency(c.ytdActual || 0)}</td>
+                        <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Box>
+            </Box>
+          )}
         </CardContent>
       </Card>
     </Box>

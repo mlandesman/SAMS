@@ -140,7 +140,8 @@ const RecordPayment = () => {
         }, 0) ?? 0;
         const credit = previewData.currentCreditBalance ?? 0;
         const defaultAmt = Math.max(0, totalDue - credit);
-        setAmount(defaultAmt > 0 ? String(defaultAmt) : '');
+        // When credit covers total due, default to "0" so user can pay from credit only
+        setAmount(String(defaultAmt));
       }
     } catch (err) {
       setError(err.message || 'Failed to load preview');
@@ -251,7 +252,11 @@ const RecordPayment = () => {
       return sum + (remaining - (waived?.amount || 0));
     }, 0) ?? 0;
   const creditBalance = preview?.currentCreditBalance ?? 0;
+  const creditUsed = preview?.creditUsed ?? 0;
+  const creditRemaining = preview?.newCreditBalance ?? 0;
+  const creditAdded = preview?.overpayment ?? 0;
   const suggestedAmount = Math.max(0, totalDue - creditBalance);
+  const creditCoversTotal = creditBalance > 0 && creditBalance >= totalDue;
 
   if (loadingData) {
     return (
@@ -363,9 +368,15 @@ const RecordPayment = () => {
       {/* Step 3: Enter Payment */}
       {activeStep === 2 && (
         <Box>
+          {creditBalance > 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Credit balance: {formatPesosForDisplay(creditBalance)}
+              {creditCoversTotal && ' — covers total due. Enter 0 to pay from credit only.'}
+            </Typography>
+          )}
           <TextField
             fullWidth
-            label="Amount (MXN)"
+            label="Cash amount (MXN)"
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -373,10 +384,35 @@ const RecordPayment = () => {
               const parsed = parseFloat(amount);
               fetchPreview(isNaN(parsed) ? null : parsed);
             }}
-            helperText={`Suggested: ${formatPesosForDisplay(suggestedAmount)}`}
+            helperText={
+              creditCoversTotal
+                ? 'Enter 0 to apply credit only (no cash deposit)'
+                : `Suggested: ${formatPesosForDisplay(suggestedAmount)}`
+            }
+            placeholder={creditCoversTotal ? '0' : undefined}
             sx={{ mb: 2 }}
             inputProps={{ min: 0, step: 0.01 }}
           />
+          {creditBalance > 0 && (creditUsed > 0 || creditAdded > 0) && (
+            <Card variant="outlined" sx={{ mb: 2, bgcolor: 'action.hover' }}>
+              <CardContent sx={{ py: 1.5, '& .MuiTypography-root': { fontSize: '0.875rem' } }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Cash payment:</strong> {formatPesosForDisplay(parseFloat(amount) || 0)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Credit applied to bills:</strong> {formatPesosForDisplay(creditUsed)}
+                </Typography>
+                {creditAdded > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Overpayment to credit:</strong> {formatPesosForDisplay(creditAdded)}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 600 }}>
+                  Projected credit balance: {formatPesosForDisplay(creditRemaining)}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
           <TextField
             fullWidth
             label="Payment Date"
@@ -440,11 +476,21 @@ const RecordPayment = () => {
                 {selectedUnitId}
               </Typography>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
-                Amount
+                Cash payment
               </Typography>
               <Typography variant="body1" fontWeight={600}>
                 {formatPesosForDisplay(parseFloat(amount) || 0)}
               </Typography>
+              {creditUsed > 0 && (
+                <>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
+                    Credit applied to bills
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="success.main">
+                    {formatPesosForDisplay(creditUsed)}
+                  </Typography>
+                </>
+              )}
               <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
                 Date · Method · Account
               </Typography>

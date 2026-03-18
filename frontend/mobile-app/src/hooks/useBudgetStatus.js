@@ -33,12 +33,27 @@ export function useBudgetStatus() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const budgetData = await res.json();
+      const resJson = await res.json();
+      const budgetData = resJson?.data ?? resJson;
 
-      const exp = budgetData.expenses?.totals || {};
-      const ytdBudget = exp.totalYtdBudget || 0;
-      const ytdActual = Math.abs(exp.totalYtdActual || 0);
+      const exp = budgetData?.expenses || {};
+      const totals = exp.totals || {};
+      const ytdBudget = totals.totalYtdBudget || 0;
+      const ytdActual = Math.abs(totals.totalYtdActual || 0);
       const variance = ytdBudget - ytdActual;
+
+      const categories = exp.categories || [];
+      const expenseCategories = categories
+        .filter((c) => (c.type || '').toLowerCase() === 'expense')
+        .map((c) => {
+          const actual = c.ytdActual ?? 0;
+          const budget = c.ytdBudget ?? 0;
+          const diff = actual - budget;
+          return { ...c, diff, absDiff: Math.abs(diff) };
+        });
+      const top5ByVariance = [...expenseCategories]
+        .sort((a, b) => b.absDiff - a.absDiff)
+        .slice(0, 5);
 
       setData({
         statusText: variance >= 0 ? 'On Track' : 'Over Budget',
@@ -46,6 +61,7 @@ export function useBudgetStatus() {
         expenseYtdBudget: ytdBudget,
         expenseYtdActual: ytdActual,
         expenseVariance: variance,
+        topCategories: top5ByVariance,
       });
     } catch (err) {
       console.error('Budget status fetch error:', err);
