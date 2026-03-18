@@ -793,5 +793,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 18, 2026 — Sprint MOBILE-OWNER-UX extended with MOB-7 (self-service profile fix, 18-24h total). Sprint 242 ✅ COMPLETE (PR #243). Sprint 235 ✅ COMPLETE (PR #241).*  
+*Updated: March 18, 2026 — Hotfixes to main: Digital Receipt re-enabled (button/client name/allocations/layout), mobile role label fix (Manager vs Owner), propertyAccess role bug. Sprint MOBILE-ADMIN-UX (#247) approved. Sprint MOBILE-OWNER-UX ✅ COMPLETE (PR #245).*  
 *Last Review: March 18, 2026*

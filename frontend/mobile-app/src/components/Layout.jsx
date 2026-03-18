@@ -51,7 +51,8 @@ const Layout = ({ children }) => {
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
-  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (isOwnerOrManager ? 'Owner' : null));
+  const selectedUnitRole = availableUnits?.find(u => u.unitId === selectedUnitId)?.role;
+  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (selectedUnitRole === 'unitManager' ? 'Manager' : (isOwnerOrManager ? 'Owner' : null)));
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);

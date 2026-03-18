@@ -58,12 +58,14 @@
 | 12 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
 | 13 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE — merged March 18, 2026. Beta deployment in progress. Next candidates: Admin Mobile UX or Sprint WA (#178). Roadmap ordering subject to change based on operational needs and scrum reviews.
+**Current Focus**: Sprint MOBILE-ADMIN-UX (#247) — Admin Mobile UX Refactor (in progress on feature branch). Beta deployment of Owner UX active with test users. Production deployment imminent with hotfixes (Digital Receipt, role label, propertyAccess). Roadmap ordering subject to change based on operational needs and scrum reviews.
 
 **Mobile PWA Future Enhancements** (carry to Sprint G):
 - Budget card: live budget data integration (#176)
 - Projects card: live project status data
 - Vote Needed card: new card for open polls requiring user action
+
+**Schedule Note (Mar 18, 2026 — Hotfixes)**: Three hotfixes committed to main ahead of production deployment: (1) Digital Receipt re-enabled — Send Receipt button was disabled due to `.unit` vs `.unitId` field name mismatch; client name resolved from `basicInfo`; allocations array used for "For" field; receipt layout cutoff fixed. (2) Mobile role label — title bar showed "Owner" for all users; now correctly shows "Manager" for `unitManager` assignments. (3) `propertyAccess` role bug — `addUnitRoleAssignment` was hardcoding `role: 'user'`; now derives from actual unit assignment role.
 
 **Schedule Note (Mar 14, 2026 — Sprint 242)**: Sprint 242 ✅ COMPLETE (PR #243). Assessment milestones decoupled from vendor payment milestones. AssessmentCollectionDialog pops on bid selection. Bill doc IDs: assessment_N, vendor_N, legacy N. Vendor status derived from vendorPayments. BugBot fixes: transaction delete vendor_N lookup, duplicate assessment lock, payment fallback doc ID chain. 16 files changed (+632/-128).
 
@@ -107,6 +109,9 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| Hotfixes (Digital Receipt, Role Label, propertyAccess) | Mar 18, 2026 | Direct to main — Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug |
+| MOBILE-OWNER-UX (Mobile Owner UX Refactor) | Mar 18, 2026 | #244 (PR #245) — 7 tasks (MOB-1–MOB-7), shared hooks refactor, SoA single source |
+| 242 (Separate Assessment vs Vendor Milestones) | Mar 14, 2026 | #242 (PR #243) — 7 tasks, 16 files, +632/-128 lines |
 | 235 (Project Assessment Bypass + Flag Cleanup) | Mar 14, 2026 | #235, #197 (PR #241) — 5 tasks, 10 files, +526/-21 lines |
 | NRM (Normalize Unit-User References) | Mar 14, 2026 | #133 (PR #240) — 7 tasks (NRM1-NRM7), 17 files, ~15h |
 | D (PWA/Mobile Enhancements) | Mar 12, 2026 | #184 (PR #236), #109 (PR #237). D3 (#133) → Sprint NRM |
@@ -153,4 +158,4 @@
 
 ---
 
-*Last Updated: March 18, 2026 — Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). 3-card dashboard, bottom tabs, Unit + HOA sub-dashboards, self-service profile (MOB-7), shared hooks refactor. Beta deployment in progress.*
+*Last Updated: March 18, 2026 — Hotfixes committed to main: Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug. Sprint MOBILE-ADMIN-UX (#247) approved. Completion log updated with MOBILE-OWNER-UX, 242, and hotfixes. Production deployment imminent.*

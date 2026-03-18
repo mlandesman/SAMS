@@ -1518,10 +1518,10 @@ function TransactionsView() {
           </button>
         )}
         <button 
-          className={`action-item ${!selectedTransaction || !selectedTransaction.unit ? 'disabled' : ''}`}
+          className={`action-item ${!selectedTransaction || !(selectedTransaction.unitId || selectedTransaction.unit) ? 'disabled' : ''}`}
           onClick={handleGenerateReceipt}
-          disabled={!selectedTransaction || !selectedTransaction.unit || isGeneratingReceipt}
-          title={!selectedTransaction ? 'Select a transaction' : !selectedTransaction.unit ? 'Transaction must have a Unit ID' : 'Generate digital receipt'}
+          disabled={!selectedTransaction || !(selectedTransaction.unitId || selectedTransaction.unit) || isGeneratingReceipt}
+          title={!selectedTransaction ? 'Select a transaction' : !(selectedTransaction.unitId || selectedTransaction.unit) ? 'Transaction must have a Unit ID' : 'Generate digital receipt'}
         >
           {isGeneratingReceipt ? (
             <LoadingSpinner variant="logo" size="small" color="white" show={true} />
@@ -2064,7 +2064,7 @@ function TransactionsView() {
               transactionData={receiptTransactionData}
               clientData={{
                 id: selectedClient?.id,
-                name: selectedClient?.name || 'Client Name Not Available',
+                name: selectedClient?.basicInfo?.fullName || selectedClient?.basicInfo?.displayName || selectedClient?.name || selectedClient?.id,
                 logoUrl: selectedClient?.logoUrl || '/sandyland-logo.png'
               }}
               showPreview={true}
