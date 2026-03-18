@@ -40,12 +40,18 @@ import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 import InstallBanner from './InstallBanner.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
+import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, samsUser } = useAuth();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
+
+  const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
+  const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
+  const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
+  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (isOwnerOrManager ? 'Owner' : null));
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -97,6 +103,12 @@ const Layout = ({ children }) => {
         return 'About';
       case '/transactions':
         return 'Transactions';
+      case '/unit-dashboard':
+        return 'My Unit';
+      case '/hoa':
+        return 'HOA';
+      case '/more':
+        return 'More';
       case '/tareas':
         return 'Tareas';
       case '/propane-reading':
@@ -177,12 +189,13 @@ const Layout = ({ children }) => {
             >
               {getPageTitle()}
             </Typography>
-            {!isAdmin && selectedUnitId && (
+            {roleLabel && (
               <Chip
-                label={`Unit ${selectedUnitId}`}
+                label={!isAdmin && selectedUnitId ? `Unit ${selectedUnitId} - ${roleLabel}` : roleLabel}
                 size="small"
+                color={isAdminOrSuperAdmin ? 'primary' : 'secondary'}
                 sx={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  backgroundColor: isAdminOrSuperAdmin ? undefined : 'rgba(255,255,255,0.2)',
                   color: 'inherit',
                   fontWeight: 600,
                   fontSize: '0.7rem',
@@ -233,7 +246,10 @@ const Layout = ({ children }) => {
                 <FormControl size="small" fullWidth>
                   <Select
                     value={selectedUnitId || ''}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedUnitId(e.target.value);
+                      setDrawerOpen(false);
+                    }}
                     displayEmpty
                     sx={{ fontWeight: 600, fontSize: '0.9rem' }}
                     renderValue={(val) => val ? `Unit ${val}` : 'Select Unit'}
@@ -252,7 +268,7 @@ const Layout = ({ children }) => {
         )}
 
         <List>
-          {(isAdmin
+          {(isAdminOrSuperAdmin
             ? [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
                 { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
@@ -260,11 +276,8 @@ const Layout = ({ children }) => {
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [
-                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-                { label: 'Current Status', icon: <StatusIcon />, path: '/my-report' },
-                { label: 'Transactions', icon: <TransactionsIcon />, path: '/transactions' },
-                { label: 'Statement of Account', icon: <PdfIcon />, path: '/statement' },
-                { label: 'About', icon: <AboutIcon />, path: '/about' },
+                // Owner/Manager: bottom tabs cover Home, My Unit, HOA, More — hamburger keeps unit selector + Logout only
+                // No duplicate nav items; secondary access via More tab
               ]
           ).map((item) => (
             <ListItem key={item.path} disablePadding>

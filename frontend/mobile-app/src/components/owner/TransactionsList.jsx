@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   Alert,
   Button,
   Card,
@@ -18,6 +17,7 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
+import { LoadingSpinner } from '../common';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -96,8 +96,7 @@ const TransactionsList = () => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <CircularProgress size={40} sx={{ mb: 2 }} />
-        <Typography variant="body2" color="text.secondary">Loading transactions...</Typography>
+        <LoadingSpinner size="medium" message="Loading transactions..." />
       </Box>
     );
   }

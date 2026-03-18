@@ -7,7 +7,6 @@ import {
   Chip,
   Fab,
   Backdrop,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,7 +28,9 @@ import propaneReadingService, {
   formatFiscalPeriodForDisplay 
 } from '../services/propaneReadingService.js';
 import { getCurrentFiscalPeriod, getPreviousFiscalPeriod } from '../utils/fiscalYearUtils.js';
+import { getMexicoDateTime } from '../utils/timezone.js';
 import NumericKeypad from './NumericKeypad.jsx';
+import { LoadingSpinner } from './common';
 
 const PROPANE_TEXT = {
   title: 'Lectura de Tanques de Gas',
@@ -141,7 +142,7 @@ const PropaneReadingEntry = () => {
           const dataToSave = {
             readings: readingsToSave, // Only save non-empty values
             period: selectedPeriod.period,
-            timestamp: new Date().toISOString()
+            timestamp: getMexicoDateTime().toISOString()
           };
           console.log(`💾 Saving unsaved changes to localStorage (debounced):`, { 
             key: unsavedDataKey, 
@@ -416,7 +417,7 @@ const PropaneReadingEntry = () => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <CircularProgress size={40} />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }

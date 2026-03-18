@@ -28,7 +28,8 @@ export const useDashboardData = () => {
     collectionRate: 0,
     overdueCount: 0,
     pastDueAmount: 0,
-    pastDueDetails: [] // Array of { unitId, owner, amountDue }
+    pastDueDetails: [], // Array of { unitId, owner, amountDue }
+    totalCreditBalances: 0
   });
   
   const [exchangeRates, setExchangeRates] = useState({
@@ -207,7 +208,8 @@ export const useDashboardData = () => {
               pastDueAmount: 0,
               pastDueDetails: [],
               monthsElapsed: fiscalMonth,
-              unitsCount: 0
+              unitsCount: 0,
+              totalCreditBalances: 0
             });
             return;
           }
@@ -256,7 +258,8 @@ export const useDashboardData = () => {
             pastDueAmount: 0,
             pastDueDetails: [],
             monthsElapsed: fiscalMonth,
-            unitsCount: 0
+            unitsCount: 0,
+            totalCreditBalances: 0
           });
           return;
         }
@@ -441,7 +444,8 @@ export const useDashboardData = () => {
           pastDueDetails: pastDueDetails || [], // Detailed past due information (matching desktop)
           monthsElapsed: fiscalMonth,
           unitsCount: unitsCount,
-          prePaid: Math.round(prePaidAmount) // Add pre-paid for future use
+          prePaid: Math.round(prePaidAmount), // Add pre-paid for future use
+          totalCreditBalances: Math.round(totalCreditBalances) // Sum of unit credit balances (centavos)
         });
         
       } catch (err) {
@@ -458,7 +462,8 @@ export const useDashboardData = () => {
           pastDueAmount: 0,
           pastDueDetails: [],
           monthsElapsed: 0,
-          unitsCount: 0
+          unitsCount: 0,
+          totalCreditBalances: 0
         });
       } finally {
         setLoading(prev => ({ ...prev, dues: false }));

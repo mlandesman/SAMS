@@ -4,9 +4,9 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.16.1",
-  "buildDate": "2026-03-14T22:16:21.515Z",
-  "buildTimestamp": 1773526581515,
-  "environment": "staging",
+  "buildDate": "2026-03-18T15:11:38.533Z",
+  "buildTimestamp": 1773846698534,
+  "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
   "developers": [
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "ce8e879",
-    "branch": "feature/sprint-242-milestone-separation",
-    "lastCommitDate": "2026-03-14 16:06:35 -0500"
+    "hash": "6b45364",
+    "branch": "feature/sprint-mobile-owner-ux",
+    "lastCommitDate": "2026-03-18 09:46:44 -0500"
   },
   "build": {
-    "timestamp": "2026-03-14T22:16:21.515Z",
-    "environment": "staging",
+    "timestamp": "2026-03-18T15:11:38.533Z",
+    "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260314.1716"
+    "buildNumber": "260318.1011"
   },
   "deployment": {
-    "target": "staging",
-    "date": "2026-03-14T22:16:21.515Z",
+    "target": "development",
+    "date": "2026-03-18T15:11:38.533Z",
     "automated": true
   },
   "releaseNotes": {

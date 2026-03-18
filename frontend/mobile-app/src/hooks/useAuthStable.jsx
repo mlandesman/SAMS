@@ -223,6 +223,18 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   }, []);
 
+  const refetchProfile = useCallback(async () => {
+    if (!firebaseUser) return null;
+    try {
+      const { user } = await userAPI.getProfile();
+      setSamsUser(user);
+      return user;
+    } catch (err) {
+      console.error('❌ STABLE AUTH: Refetch profile failed', err);
+      return null;
+    }
+  }, [firebaseUser]);
+
   // Auto-persist client selection for single-client users
   useEffect(() => {
     if (samsUser && currentClient && !samsUser.preferredClient) {
@@ -267,6 +279,7 @@ export const AuthProvider = ({ children }) => {
     loginWithPasskey,
     logout,
     clearError,
+    refetchProfile,
   }), [
     firebaseUser,
     samsUser,
@@ -280,7 +293,8 @@ export const AuthProvider = ({ children }) => {
     login,
     loginWithPasskey,
     logout,
-    clearError
+    clearError,
+    refetchProfile
   ]);
 
   return (

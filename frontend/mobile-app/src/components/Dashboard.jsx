@@ -42,9 +42,11 @@ import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import { hasWaterBills } from '../utils/clientFeatures.js';
+import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
 import { VERSION } from '../utils/versionUtils.js';
 import CompactCard from './dashboard/CompactCard.jsx';
 import ExpandableCard from './dashboard/ExpandableCard.jsx';
+import OwnerDashboard3Cards from './owner/OwnerDashboard3Cards.jsx';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ const Dashboard = () => {
   const isAdmin = samsUser?.globalRole === 'admin';
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
-  const userRole = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : 'Owner');
+  const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
 
   // Format past due details for ExpandableCard
   const pastDueDetails = (hoaDuesStatus.pastDueDetails || []).map(unit => ({
@@ -115,19 +117,8 @@ const Dashboard = () => {
   return (
     <Box className="mobile-dashboard" sx={{ minHeight: '100vh' }}>
       <Box className="mobile-dashboard-content" sx={{ p: 2, pb: 10 }}>
-        {/* Header */}
+        {/* Header — title and role chip moved to Layout top bar */}
         <Box mb={2} textAlign="center">
-          <Typography variant="h5" sx={{ fontWeight: 600, color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-            Dashboard
-          </Typography>
-          <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center" my={1}>
-            <Chip 
-              label={userRole} 
-              color={isAdminOrSuperAdmin ? 'primary' : 'secondary'} 
-              size="small" 
-              sx={{ fontWeight: 600 }}
-            />
-          </Box>
           {currentClient && (
             <ClientSwitcher 
               currentClient={currentClient}
@@ -142,7 +133,13 @@ const Dashboard = () => {
           )}
         </Box>
 
-        {/* === COMPACT CARDS GRID (2 columns) === */}
+        {/* Owner/Manager: 3-card focused dashboard */}
+        {isOwnerOrManager && !isAdminOrSuperAdmin && (
+          <OwnerDashboard3Cards />
+        )}
+
+        {/* === COMPACT CARDS GRID (2 columns) — Admin only === */}
+        {isAdminOrSuperAdmin && (
         <Box 
           sx={{ 
             display: 'grid',
@@ -281,6 +278,7 @@ const Dashboard = () => {
             onClick={() => navigate('/about')}
           />
         </Box>
+        )}
 
         {/* === FULL-WIDTH EXPANDABLE CARDS (Admin Only) === */}
         {isAdminOrSuperAdmin && (
@@ -334,8 +332,8 @@ const Dashboard = () => {
           </Box>
         )}
 
-        {/* Quick Actions for Non-Admins */}
-        {!isAdminOrSuperAdmin && (
+        {/* Quick Actions for Non-Admins (legacy 8-card flow — hidden when 3-card shown) */}
+        {!isAdminOrSuperAdmin && !isOwnerOrManager && (
           <Box sx={{ maxWidth: 400, mx: 'auto', mt: 2 }}>
             <Button
               fullWidth

@@ -7,7 +7,6 @@ import {
   Chip,
   Fab,
   Backdrop,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,6 +30,8 @@ import {
   getAllWashSummary,
   getCurrentFiscalPeriod 
 } from '../utils/waterReadingHelpers';
+import { getMexicoDateTime } from '../utils/timezone.js';
+import { LoadingSpinner } from './common';
 
 const WaterMeterEntryNew = () => {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ const WaterMeterEntryNew = () => {
           buildingMeter: currentReadings.buildingMeter,
           commonArea: currentReadings.commonArea,
           period: selectedPeriod?.period,
-          timestamp: new Date().toISOString()
+          timestamp: getMexicoDateTime().toISOString()
         };
         console.log(`💾 Saving unsaved changes to localStorage (debounced):`, { key: unsavedDataKey, data: dataToSave });
         localStorage.setItem(unsavedDataKey, JSON.stringify(dataToSave));
@@ -543,7 +544,7 @@ const WaterMeterEntryNew = () => {
         alignItems: 'center', 
         minHeight: '50vh' 
       }}>
-        <CircularProgress size={40} />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }
@@ -850,7 +851,7 @@ const WaterMeterEntryNew = () => {
       {/* Loading Overlay */}
       <Backdrop open={saving} sx={{ color: '#fff', zIndex: 1300 }}>
         <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress color="inherit" size={40} />
+          <LoadingSpinner size="medium" />
           <Typography variant="body1" sx={{ mt: 2 }}>
             {saving ? 'Guardando datos...' : 'Cargando...'}
           </Typography>

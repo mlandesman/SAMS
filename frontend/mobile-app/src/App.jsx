@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './hooks/useAuthStable.jsx';
 import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
+import { UnitStatementProvider } from './context/UnitStatementContext.jsx';
 import AuthScreen from './components/AuthScreen';
 import ClientSelect from './components/ClientSelect';
 import ExpenseForm from './components/ExpenseForm';
@@ -18,6 +19,9 @@ import StatementPdfViewer from './components/owner/StatementPdfViewer';
 import ExchangeRateTools from './components/ExchangeRateTools';
 import UnitOwnerFinancialReport from './components/UnitOwnerFinancialReport';
 import MyUnitReport from './components/MyUnitReport';
+import UnitSubDashboard from './components/owner/UnitSubDashboard';
+import HOADashboard from './components/owner/HOADashboard';
+import MoreMenu from './components/owner/MoreMenu';
 import UserDebugger from './components/UserDebugger';
 import StaticTest from './components/StaticTest';
 import AuthDebugMinimal from './components/AuthDebugMinimal.jsx'; // Temporary debug
@@ -108,6 +112,7 @@ function App() {
       <AuthProvider>
         <Router>
           <SelectedUnitProvider>
+          <UnitStatementProvider>
           <Layout>
             <Routes>
               <Route path="/auth" element={<AuthScreen />} />
@@ -268,6 +273,38 @@ function App() {
                 } 
               />
               
+              {/* Owner/Manager bottom tab routes */}
+              <Route 
+                path="/unit-dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <UnitSubDashboard />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/hoa" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <HOADashboard />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/more" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="unitOwner">
+                      <MoreMenu />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              
               <Route 
                 path="/statement" 
                 element={
@@ -315,6 +352,7 @@ function App() {
               <Route path="*" element={<Navigate to="/auth" replace />} />
             </Routes>
           </Layout>
+          </UnitStatementProvider>
           </SelectedUnitProvider>
         </Router>
       </AuthProvider>

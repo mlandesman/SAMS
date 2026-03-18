@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Alert,
-  CircularProgress,
   Slide,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +12,7 @@ import ClientSelector from './ClientSelector.jsx';
 import ExpenseForm from './ExpenseForm.jsx';
 import ExpenseConfirmation from './ExpenseConfirmation.jsx';
 import './ExpenseEntry.css';
+import { LoadingSpinner } from '../common';
 
 const ExpenseEntryScreen = () => {
   const { samsUser, currentClient, isAuthenticated, loading: authLoading } = useAuth();
@@ -88,10 +88,7 @@ const ExpenseEntryScreen = () => {
         minHeight="calc(100vh - 140px)"
         p={3}
       >
-        <CircularProgress size={48} sx={{ mb: 2 }} />
-        <Typography variant="body1" color="text.secondary">
-          Loading your account...
-        </Typography>
+        <LoadingSpinner size="large" message="Loading your account..." />
       </Box>
     );
   }

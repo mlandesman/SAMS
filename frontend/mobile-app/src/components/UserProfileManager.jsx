@@ -25,10 +25,12 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { userAPI } from '../services/api.js';
+import { auth } from '../services/firebase';
 import { getVersionInfo } from '../utils/versionUtils';
 
 const UserProfileManager = ({ open, onClose }) => {
-  const { samsUser, firebaseUser } = useAuth();
+  const { samsUser, firebaseUser, refetchProfile } = useAuth();
   const navigate = useNavigate();
   const versionInfo = getVersionInfo();
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ const UserProfileManager = ({ open, onClose }) => {
   // Profile form state
   const [profileForm, setProfileForm] = useState({
     name: samsUser?.basicInfo?.fullName || samsUser?.fullName || samsUser?.name || '',
-    phone: samsUser?.basicInfo?.phone || samsUser?.phone || '',
+    phone: samsUser?.basicInfo?.phone || samsUser?.profile?.phone || samsUser?.phone || '',
     notifications: {
       email: samsUser?.notifications?.email || true,
       sms: samsUser?.notifications?.sms || false,
@@ -46,9 +48,9 @@ const UserProfileManager = ({ open, onClose }) => {
     }
   });
 
-  // Email form state
+  // Email form state — prefer samsUser (from profile API) so we show Firestore value after email change
   const [emailForm, setEmailForm] = useState({
-    newEmail: firebaseUser?.email || samsUser?.email || '',
+    newEmail: samsUser?.email || firebaseUser?.email || '',
   });
 
   // Password form state
@@ -62,7 +64,7 @@ const UserProfileManager = ({ open, onClose }) => {
     if (open && samsUser) {
       setProfileForm({
         name: samsUser?.basicInfo?.fullName || samsUser?.fullName || samsUser?.name || '',
-        phone: samsUser?.basicInfo?.phone || samsUser?.phone || '',
+        phone: samsUser?.basicInfo?.phone || samsUser?.profile?.phone || samsUser?.phone || '',
         notifications: {
           email: samsUser?.notifications?.email ?? true,
           sms: samsUser?.notifications?.sms ?? false,
@@ -70,7 +72,7 @@ const UserProfileManager = ({ open, onClose }) => {
         }
       });
       setEmailForm({
-        newEmail: firebaseUser?.email || samsUser?.email || '',
+        newEmail: samsUser?.email || firebaseUser?.email || '',
       });
     }
   }, [open, samsUser, firebaseUser]);
@@ -79,32 +81,16 @@ const UserProfileManager = ({ open, onClose }) => {
     try {
       setLoading(true);
       setError('');
-      
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const token = await firebaseUser.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/user/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      await userAPI.updateProfile({
+        basicInfo: {
+          fullName: profileForm.name,
+          phone: profileForm.phone
         },
-        body: JSON.stringify({
-          basicInfo: {
-            fullName: profileForm.name,
-            phone: profileForm.phone
-          },
-          notifications: profileForm.notifications
-        })
+        notifications: profileForm.notifications
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
-      }
-
+      await refetchProfile?.();
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
-      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -121,26 +107,11 @@ const UserProfileManager = ({ open, onClose }) => {
     try {
       setLoading(true);
       setError('');
-      
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const token = await firebaseUser.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/user/email`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(emailForm)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update email');
-      }
-
+      await userAPI.updateEmail(emailForm.newEmail);
+      await auth.currentUser?.reload?.();
+      await refetchProfile?.();
       setSuccess('Email updated successfully! Please verify your new email.');
       setTimeout(() => setSuccess(''), 3000);
-      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -162,27 +133,10 @@ const UserProfileManager = ({ open, onClose }) => {
 
       setLoading(true);
       setError('');
-      
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const token = await firebaseUser.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/user/password`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ newPassword: passwordForm.newPassword })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update password');
-      }
-
+      await userAPI.updatePassword(passwordForm.newPassword);
       setSuccess('Password updated successfully!');
       setPasswordForm({ newPassword: '', confirmPassword: '' });
       setTimeout(() => setSuccess(''), 3000);
-      
     } catch (err) {
       setError(err.message);
     } finally {
