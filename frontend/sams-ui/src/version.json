@@ -2,7 +2,7 @@
   "appName": "Sandyland Association Management System",
   "build": {
     "timestamp": "2025-07-02T17:35:12.809Z",
-    "environment": "development",
+    "environment": "staging",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
     "buildNumber": "250702.1235"
@@ -12,14 +12,14 @@
   "companyName": "Sandyland Properties",
   "copyright": "2026",
   "deployment": {
-    "target": "development",
+    "target": "staging",
     "date": "2025-07-02T17:35:12.809Z",
     "automated": true
   },
   "developers": [
     "Michael Landesman"
   ],
-  "environment": "development",
+  "environment": "staging",
   "features": [
     "PWA Support",
     "Multi-Client Management",

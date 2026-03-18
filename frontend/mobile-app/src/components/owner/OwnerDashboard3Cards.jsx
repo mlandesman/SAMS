@@ -40,7 +40,8 @@ const OwnerDashboard3Cards = () => {
   useEffect(() => {
     if (!currentClient) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) {
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) {
       setPriorLoading(false);
       return;
     }
@@ -51,7 +52,7 @@ const OwnerDashboard3Cards = () => {
 
     let cancelled = false;
     setPriorLoading(true);
-    user.getIdToken().then((t) => {
+    tokenPromise.then((t) => {
       if (cancelled) return;
       return fetch(
         `${config.api.baseUrl}/clients/${currentClient}/balances/current?asOfDate=${asOfDate}`,
@@ -78,13 +79,14 @@ const OwnerDashboard3Cards = () => {
   useEffect(() => {
     if (!currentClient) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) {
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) {
       setPollsProjectsLoading(false);
       return;
     }
     let cancelled = false;
     setPollsProjectsLoading(true);
-    user.getIdToken().then((t) => {
+    tokenPromise.then((t) => {
       if (cancelled) return;
       const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
       return Promise.all([
@@ -118,9 +120,10 @@ const OwnerDashboard3Cards = () => {
   useEffect(() => {
     if (!currentClient) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) return;
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) return;
     let cancelled = false;
-    user.getIdToken().then((t) => {
+    tokenPromise.then((t) => {
       if (cancelled) return;
       return fetch(`${config.api.baseUrl}/clients/${currentClient}/config/hoaDues`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },

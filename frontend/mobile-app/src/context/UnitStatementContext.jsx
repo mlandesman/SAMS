@@ -16,11 +16,11 @@ import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
 import { getMexicoDateTime } from '../utils/timezone.js';
 
-const UnitStatementContext = createContext(undefined);
+const UnitStatementContext = createContext(null);
 
 export const useUnitStatement = () => {
   const context = useContext(UnitStatementContext);
-  if (!context) {
+  if (context === null || context === undefined) {
     throw new Error('useUnitStatement must be used within a UnitStatementProvider');
   }
   return context;
@@ -123,7 +123,7 @@ export const UnitStatementProvider = ({ children }) => {
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (getCancelled) => {
     if (!clientId || !selectedUnitId) {
       setRawStatement(null);
       setAccountData(null);
@@ -138,52 +138,26 @@ export const UnitStatementProvider = ({ children }) => {
     try {
       const url = `${API_BASE_URL}/reports/${clientId}/statement/data?unitId=${selectedUnitId}&skipHtml=true`;
       const json = await fetchWithAuth(url);
+      if (getCancelled?.()) return;
       const raw = json.data || json;
       setRawStatement(raw);
       setAccountData(deriveAccountData(raw));
     } catch (err) {
+      if (getCancelled?.()) return;
       setError(err?.message || 'Failed to load statement data');
       setRawStatement(null);
       setAccountData(null);
     } finally {
-      setLoading(false);
+      if (!getCancelled?.()) setLoading(false);
     }
   }, [clientId, selectedUnitId]);
 
   useEffect(() => {
     let cancelled = false;
-
-    if (!clientId || !selectedUnitId) {
-      setRawStatement(null);
-      setAccountData(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    (async () => {
-      try {
-        const url = `${API_BASE_URL}/reports/${clientId}/statement/data?unitId=${selectedUnitId}&skipHtml=true`;
-        const json = await fetchWithAuth(url);
-        if (cancelled) return;
-        const raw = json.data || json;
-        setRawStatement(raw);
-        setAccountData(deriveAccountData(raw));
-      } catch (err) {
-        if (cancelled) return;
-        setError(err?.message || 'Failed to load statement data');
-        setRawStatement(null);
-        setAccountData(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
+    const getCancelled = () => cancelled;
+    refresh(getCancelled).catch(() => {});
     return () => { cancelled = true; };
-  }, [clientId, selectedUnitId]);
+  }, [refresh]);
 
   const value = useMemo(() => ({
     accountData,

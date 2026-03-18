@@ -268,7 +268,7 @@ const Layout = ({ children }) => {
         )}
 
         <List>
-          {(isAdmin
+          {(isAdminOrSuperAdmin
             ? [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
                 { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },

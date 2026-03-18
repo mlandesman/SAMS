@@ -31,9 +31,7 @@ import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
-import { formatCurrency, pesosToCentavos } from '@shared/utils/currencyUtils.js';
-
-const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
+import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
@@ -80,8 +78,9 @@ const UnitSubDashboard = () => {
   useEffect(() => {
     if (!clientId) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) return;
-    user.getIdToken().then((t) =>
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) return;
+    tokenPromise.then((t) =>
       fetch(`${config.api.baseUrl}/clients/${clientId}/config/hoaDues`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })
@@ -134,80 +133,51 @@ const UnitSubDashboard = () => {
     navigate('/statement');
   };
 
+  const isPastDue = daysPastDue > 0;
+  const amountColor = amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669';
+
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      {/* Section A: Account Summary — Net balance: positive = you owe, negative = credit */}
+      {/* Section A: Account Summary — Combined: amount due, due date, scheduled payment */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Account Summary</Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Net balance (red = you owe; green = credit)
-          </Typography>
           {!unitReady ? (
             <Box display="flex" justifyContent="center" py={2}>
               <LoadingSpinner size="small" />
             </Box>
           ) : (
             <>
-              <Typography variant="h5" sx={{ color: amountDue > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-                {formatPesoDisplay(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
+              <Typography variant="h5" sx={{ color: amountColor, fontWeight: 700, mb: 0.5 }}>
+                {formatPesosForDisplay(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
               </Typography>
-              {amountDue > 0 && (
-                <Typography variant="body2" color="text.secondary">Amount due</Typography>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section B: Payment Info — Amount currently due and its due date */}
-      <Card sx={{ mb: 2, borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Payment Info</Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Amount due now • Due date (— = not set)
-          </Typography>
-          {!unitReady ? (
-            <Box display="flex" justifyContent="center" py={2}>
-              <LoadingSpinner size="small" />
-            </Box>
-          ) : (
-            <>
-              <Typography variant="body1" fontWeight={600}>{formatPesoDisplay(amountDue)}</Typography>
-              <Typography variant="body2" color="text.secondary">Due {formatDateForDisplay(dueDate)}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
+              </Typography>
               {daysPastDue > 0 && (
-                <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600 }}>{daysPastDue} days past due</Typography>
+                <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>{daysPastDue} days past due</Typography>
               )}
               {hasLateFees && lateFeeDate && (
-                <Typography variant="caption" color="text.secondary" display="block">
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
                   Late fees apply after {lateFeeDate}
                 </Typography>
               )}
+              {nextPaymentAmount > 0 && (
+                <>
+                  <Typography variant="body2" sx={{ color: '#1f2937', mt: 1 }}>
+                    {formatPesosForDisplay(nextPaymentAmount)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Scheduled payment amount
+                  </Typography>
+                </>
+              )}
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Section C: Fee Schedule — Next upcoming HOA dues amount */}
-      <Card sx={{ mb: 2, borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Fee Schedule</Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            Next HOA dues amount (when known)
-          </Typography>
-          {!unitReady ? (
-            <Box display="flex" justifyContent="center" py={2}>
-              <LoadingSpinner size="small" />
-            </Box>
-          ) : nextPaymentAmount > 0 ? (
-            <Typography variant="body2">Next payment: {formatPesoDisplay(nextPaymentAmount)}</Typography>
-          ) : (
-            <Typography variant="body2" color="text.secondary">No upcoming fees</Typography>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section D: Recent Transactions */}
+      {/* Recent Transactions */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
@@ -239,7 +209,7 @@ const UnitSubDashboard = () => {
                         fontWeight={600}
                         sx={{ color: isPayment ? '#059669' : '#dc2626' }}
                       >
-                        {isPayment ? '+' : '-'}{formatPesoDisplay(amt)}
+                        {isPayment ? '+' : '-'}{formatPesosForDisplay(amt)}
                       </Typography>
                     </ListItem>
                   );
@@ -253,7 +223,7 @@ const UnitSubDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Section E: Stored Statements */}
+      {/* Stored Statements */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>

@@ -27,10 +27,8 @@ import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
-import { formatCurrency, centavosToPesos, pesosToCentavos } from '@shared/utils/currencyUtils.js';
+import { formatPesosForDisplay, formatCurrency, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
-
-const formatPesoDisplay = (pesos) => formatCurrency(pesosToCentavos(pesos ?? 0));
 
 const HOADashboard = () => {
   const { currentClient } = useAuth();
@@ -55,14 +53,18 @@ const HOADashboard = () => {
   useEffect(() => {
     if (!clientId) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) return;
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) {
+      setPriorLoading(false);
+      return;
+    }
     const now = getMexicoDateTime();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDayPrev = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
     const asOfDate = lastDayPrev.toISOString().split('T')[0];
     let cancelled = false;
     setPriorLoading(true);
-    user.getIdToken().then((t) =>
+    tokenPromise.then((t) =>
       fetch(`${config.api.baseUrl}/clients/${clientId}/balances/current?asOfDate=${asOfDate}`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })
@@ -83,10 +85,14 @@ const HOADashboard = () => {
   useEffect(() => {
     if (!clientId) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) return;
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) {
+      setPollsProjectsLoading(false);
+      return;
+    }
     let cancelled = false;
     setPollsProjectsLoading(true);
-    user.getIdToken().then((t) => {
+    tokenPromise.then((t) => {
       if (cancelled) return;
       const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
       return Promise.all([
@@ -118,10 +124,14 @@ const HOADashboard = () => {
   useEffect(() => {
     if (!clientId) return;
     const user = auth.currentUser;
-    if (!user?.getIdToken) return;
+    const tokenPromise = user?.getIdToken?.();
+    if (!tokenPromise) {
+      setBudgetLoading(false);
+      return;
+    }
     let cancelled = false;
     setBudgetLoading(true);
-    user.getIdToken().then((t) =>
+    tokenPromise.then((t) =>
       fetch(`${config.api.baseUrl}/reports/${clientId}/budget-actual/data?language=english`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       })
@@ -139,9 +149,11 @@ const HOADashboard = () => {
     );
   }
 
-  const currentTotal = accountBalances?.total ?? 0;
-  const priorTotal = priorMonthBalance ?? 0;
-  const delta = currentTotal - priorTotal;
+  const totalCreditBalances = hoaDuesStatus?.totalCreditBalances ?? 0; // pesos
+  const currentTotal = accountBalances?.total ?? 0; // pesos (bank + cash)
+  const netTotal = Math.max(0, currentTotal - totalCreditBalances); // Bank + Cash − Credit Balances
+  const priorTotal = priorMonthBalance ?? 0; // bank + cash only (no prior-month credit data)
+  const delta = currentTotal - priorTotal; // Bank + Cash vs Bank + Cash (prior) — credits not comparable
   const accounts = accountBalances?.accounts || [];
   const collectionRate = Math.round(hoaDuesStatus?.collectionRate ?? 0);
 
@@ -156,31 +168,40 @@ const HOADashboard = () => {
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      {/* Section A: Financial Health */}
+      {/* Financial Health — Bank, Cash, Credit Balances, total less credits */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Financial Health</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 1 }}>
-            {formatPesoDisplay(currentTotal)}
+            {formatPesosForDisplay(netTotal)}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Bank + Cash − Credit Balances
           </Typography>
           {!priorLoading && priorTotal != null && (
-            <Typography variant="body2" sx={{ color: delta >= 0 ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" sx={{ color: delta >= 0 ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
               {delta >= 0 ? <UpIcon fontSize="small" /> : <DownIcon fontSize="small" />}
-              {delta >= 0 ? 'Up' : 'Down'} {formatPesoDisplay(Math.abs(delta))} from last month
+              {delta >= 0 ? 'Up' : 'Down'} {formatPesosForDisplay(Math.abs(delta))} from last month
             </Typography>
           )}
-          {accounts.length > 0 && (
-            <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-              {accounts.map((acc) => (
-                <Box key={acc.id || acc.name} display="flex" justifyContent="space-between" py={0.5}>
-                  <Typography variant="body2" color="text.secondary">{acc.name || acc.id || 'Account'}</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatPesoDisplay(Math.round((acc.balance || 0) / 100))}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
+          <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+            {accounts.map((acc) => (
+              <Box key={acc.id || acc.name} display="flex" justifyContent="space-between" py={0.5}>
+                <Typography variant="body2" color="text.secondary">{acc.name || acc.id || 'Account'}</Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {formatPesosForDisplay(Math.round((acc.balance || 0) / 100))}
+                </Typography>
+              </Box>
+            ))}
+            {totalCreditBalances > 0 && (
+              <Box display="flex" justifyContent="space-between" py={0.5}>
+                <Typography variant="body2" color="text.secondary">Credit Balances</Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {formatPesosForDisplay(totalCreditBalances)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Collection: {collectionRate}%
           </Typography>
@@ -236,7 +257,7 @@ const HOADashboard = () => {
                     />
                     <Chip label={p.status || '—'} size="small" sx={{ fontSize: '0.7rem', mr: 0.5 }} />
                     <Typography variant="body2" fontWeight={500}>
-                      {formatPesoDisplay(Math.round((p.totalCost || p.cost || 0) / 100))}
+                      {formatPesosForDisplay(Math.round((p.totalCost || p.cost || 0) / 100))}
                     </Typography>
                     {projectExpanded === p.id ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                   </ListItem>
@@ -279,13 +300,13 @@ const HOADashboard = () => {
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Expense Budget YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {formatPesoDisplay(centavosToPesos(budgetData.expenses?.totals?.totalYtdBudget || 0))}
+                  {formatCurrency(budgetData.expenses?.totals?.totalYtdBudget || 0)}
                 </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Expense Actual YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
-                  {formatPesoDisplay(centavosToPesos(budgetData.expenses?.totals?.totalYtdActual || 0))}
+                  {formatCurrency(budgetData.expenses?.totals?.totalYtdActual || 0)}
                 </Typography>
               </Box>
               {top5ByVariance.length > 0 && (
@@ -304,11 +325,11 @@ const HOADashboard = () => {
                         const absPesos = Math.abs(diffPesos);
                         const isOver = c.diff > 0;
                         const diffColor = c.diff === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
-                        const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesoDisplay(absPesos)}` : `<${formatPesoDisplay(absPesos)}`);
+                        const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesosForDisplay(absPesos)}` : `<${formatPesosForDisplay(absPesos)}`);
                         return (
                           <tr key={c.id}>
                             <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
-                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatPesoDisplay(centavosToPesos(c.ytdActual || 0))}</td>
+                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatCurrency(c.ytdActual || 0)}</td>
                             <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
                           </tr>
                         );

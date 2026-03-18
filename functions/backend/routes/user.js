@@ -80,10 +80,11 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
     });
     
     // Ensure user has required fields (include profile and notifications for Manage Profile)
+    // Prefer userData.email (Firestore) over token email — token can be stale after email change
     const completeUserData = {
       id: uid,
       uid: uid,
-      email: email,
+      email: userData.email || email,
       name: userData.name || name || email,
       globalRole: userData.globalRole || 'user',
       propertyAccess: userData.propertyAccess || {},
@@ -157,6 +158,91 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
   } catch (error) {
     logError('Error updating user profile:', error);
     res.status(500).json({ error: 'Failed to update profile', details: error.message });
+  }
+});
+
+/**
+ * Update user email (self-service)
+ * PUT /auth/user/email
+ */
+router.put('/email', authenticateUserWithProfile, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { uid } = req.user;
+    const { newEmail } = req.body;
+
+    if (!newEmail || typeof newEmail !== 'string') {
+      return res.status(400).json({ error: 'newEmail is required' });
+    }
+
+    const emailTrimmed = newEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    try {
+      await admin.auth().getUserByEmail(emailTrimmed);
+      return res.status(400).json({ error: 'Email already in use' });
+    } catch (authErr) {
+      if (authErr.code !== 'auth/user-not-found') {
+        logError('Error checking email availability:', authErr);
+        return res.status(500).json({ error: 'Failed to verify email availability' });
+      }
+    }
+
+    await admin.auth().updateUser(uid, { email: emailTrimmed });
+
+    const db = await getDb();
+    await db.collection('users').doc(uid).update({
+      email: emailTrimmed,
+      lastProfileUpdate: getNow()
+    });
+
+    logInfo('User email updated successfully:', uid);
+    res.json({ success: true, message: 'Email updated successfully' });
+  } catch (error) {
+    logError('Error updating email:', error);
+    res.status(500).json({ error: 'Failed to update email', details: error.message });
+  }
+});
+
+/**
+ * Update user password (self-service)
+ * PUT /auth/user/password
+ */
+router.put('/password', authenticateUserWithProfile, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { uid } = req.user;
+    const { newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'newPassword is required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    await admin.auth().updateUser(uid, { password: newPassword });
+
+    const db = await getDb();
+    await db.collection('users').doc(uid).update({
+      lastProfileUpdate: getNow()
+    });
+
+    logInfo('User password updated successfully:', uid);
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    logError('Error updating password:', error);
+    res.status(500).json({ error: 'Failed to update password', details: error.message });
   }
 });
 

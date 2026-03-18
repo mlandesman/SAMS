@@ -8,6 +8,9 @@
  *
  * nextPaymentDueDate is derived from SoA lineItems, guaranteeing
  * mobile cards match the Statement of Account exactly.
+ *
+ * @param {string} [_clientId] - Ignored; context uses currentClient. Kept for API compatibility.
+ * @param {string} [_unitId] - Ignored; context uses selectedUnitId. Kept for API compatibility.
  */
 import { useUnitStatement } from '../context/UnitStatementContext.jsx';
 

@@ -112,6 +112,11 @@ const PWANavigation = () => {
     );
   }
 
+  // Users who are not admin, maintenance, or owner/manager: no bottom nav
+  if (!isAdmin && !isMaintenance && !isOwnerOrManager) {
+    return null;
+  }
+
   // Admin: existing 2-tab layout (Dashboard, Add Expense)
   const adminNavItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
