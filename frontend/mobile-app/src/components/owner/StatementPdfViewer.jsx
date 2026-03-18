@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   Alert,
   Button,
   ToggleButton,
@@ -27,6 +26,7 @@ import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
+import { LoadingSpinner } from '../common';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -228,8 +228,7 @@ const StatementPdfViewer = () => {
 
           {storedLoading ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
-              <CircularProgress size={16} />
-              <Typography variant="caption" color="text.secondary">Loading...</Typography>
+              <LoadingSpinner size="small" message="Loading..." />
             </Box>
           ) : storedOptions.length === 0 ? (
             <Typography variant="caption" color="text.secondary">
@@ -305,8 +304,7 @@ const StatementPdfViewer = () => {
       {/* Loading spinner for generation */}
       {loading && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <CircularProgress size={40} sx={{ mb: 2 }} />
-          <Typography variant="body2" color="text.secondary">Generating statement...</Typography>
+          <LoadingSpinner size="medium" message="Generating statement..." />
         </Box>
       )}
 

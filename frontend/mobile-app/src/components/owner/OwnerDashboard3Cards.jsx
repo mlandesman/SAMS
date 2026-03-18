@@ -4,7 +4,7 @@
  * Sprint MOBILE-OWNER-UX (MOB-2)
  */
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
+import { Box, Typography, Card, CardContent } from '@mui/material';
 import { Home as UnitIcon, Groups as HOAIcon, CurrencyExchange as CurrencyIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
@@ -14,6 +14,7 @@ import { useUnitAccountStatus } from '../../hooks/useUnitAccountStatus';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDateTime } from '../../utils/timezone.js';
+import { LoadingSpinner } from '../common';
 
 const formatPeso = (amount) =>
   typeof amount === 'number' && !isNaN(amount)
@@ -49,6 +50,11 @@ const OwnerDashboard3Cards = () => {
   // Prior month balance for HOA trend
   useEffect(() => {
     if (!currentClient) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) {
+      setPriorLoading(false);
+      return;
+    }
     const now = getMexicoDateTime();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDayPrevMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
@@ -56,8 +62,7 @@ const OwnerDashboard3Cards = () => {
 
     let cancelled = false;
     setPriorLoading(true);
-    const token = auth.currentUser?.getIdToken?.();
-    token?.().then((t) => {
+    user.getIdToken().then((t) => {
       if (cancelled) return;
       return fetch(
         `${config.api.baseUrl}/clients/${currentClient}/balances/current?asOfDate=${asOfDate}`,
@@ -83,10 +88,14 @@ const OwnerDashboard3Cards = () => {
   // Polls and projects count
   useEffect(() => {
     if (!currentClient) return;
+    const user = auth.currentUser;
+    if (!user?.getIdToken) {
+      setPollsProjectsLoading(false);
+      return;
+    }
     let cancelled = false;
     setPollsProjectsLoading(true);
-    const token = auth.currentUser?.getIdToken?.();
-    token?.().then((t) => {
+    user.getIdToken().then((t) => {
       if (cancelled) return;
       const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
       return Promise.all([
@@ -146,6 +155,8 @@ const OwnerDashboard3Cards = () => {
 
   const dueDate = unitData?.nextPaymentDueDate || unitData?.summary?.nextPaymentDueDate;
   const amountDue = unitData?.amountDue ?? 0;
+  const creditBalance = unitData?.creditBalance ?? 0;
+  const nextPaymentAmount = unitData?.nextPaymentAmount ?? 0;
   const now = getMexicoDateTime();
   const dueDateObj = dueDate ? new Date(dueDate + 'T12:00:00') : null;
   const daysPastDue = dueDateObj && now > dueDateObj
@@ -174,17 +185,22 @@ const OwnerDashboard3Cards = () => {
       content: (
         <>
           <Typography variant="h5" sx={{ fontWeight: 700, color: amountDue > 0 ? '#dc2626' : '#059669', mb: 0.5 }}>
-            {formatPeso(amountDue)}
+            {amountDue > 0 ? formatPeso(amountDue) : (creditBalance > 0 ? formatPeso(creditBalance) : formatPeso(0))}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Due {formatDueDate(dueDate) || '—'}
-          </Typography>
+          {amountDue > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Due {formatDueDate(dueDate) || '(date not set)'}
+            </Typography>
+          )}
           {daysPastDue > 0 && (
             <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mt: 0.5 }}>
               {daysPastDue} days past due
             </Typography>
           )}
-          {!daysPastDue && amountDue <= 0 && (
+          {!daysPastDue && amountDue <= 0 && nextPaymentAmount > 0 && (
+            <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>Next: {formatPeso(nextPaymentAmount)}</Typography>
+          )}
+          {!daysPastDue && amountDue <= 0 && nextPaymentAmount <= 0 && (
             <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>Current</Typography>
           )}
           {hasLateFees && lateFeeDate && (
@@ -203,6 +219,9 @@ const OwnerDashboard3Cards = () => {
       onClick: () => navigate('/hoa'),
       content: (
         <>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Bank + Cash total
+          </Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 0.5 }}>
             {formatPeso(currentTotal)}
           </Typography>
@@ -283,7 +302,7 @@ const OwnerDashboard3Cards = () => {
             </Box>
             {c.loading ? (
               <Box display="flex" justifyContent="center" py={2}>
-                <CircularProgress size={28} sx={{ color: c.color }} />
+                <LoadingSpinner size="small" />
               </Box>
             ) : (
               c.content

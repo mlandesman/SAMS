@@ -7,7 +7,6 @@ import {
   Chip,
   Fab,
   Backdrop,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -30,6 +29,7 @@ import propaneReadingService, {
 } from '../services/propaneReadingService.js';
 import { getCurrentFiscalPeriod, getPreviousFiscalPeriod } from '../utils/fiscalYearUtils.js';
 import NumericKeypad from './NumericKeypad.jsx';
+import { LoadingSpinner } from './common';
 
 const PROPANE_TEXT = {
   title: 'Lectura de Tanques de Gas',
@@ -416,7 +416,7 @@ const PropaneReadingEntry = () => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <CircularProgress size={40} />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }

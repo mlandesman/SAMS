@@ -14,7 +14,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  CircularProgress,
   Alert,
   Collapse,
 } from '@mui/material';
@@ -24,6 +23,7 @@ import {
   PictureAsPdf as PdfIcon,
   NoteAdd as GenerateIcon,
 } from '@mui/icons-material';
+import { LoadingSpinner } from '../common';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
@@ -135,14 +135,6 @@ const UnitSubDashboard = () => {
     );
   }
 
-  if (unitLoading && !unitData) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (unitError) {
     return (
       <Box sx={{ p: 3 }}>
@@ -151,6 +143,7 @@ const UnitSubDashboard = () => {
     );
   }
 
+  const unitReady = !unitLoading && unitData;
   const dueDate = unitData?.nextPaymentDueDate || unitData?.summary?.nextPaymentDueDate;
   const amountDue = unitData?.amountDue ?? 0;
   const creditBalance = unitData?.creditBalance ?? 0;
@@ -179,49 +172,72 @@ const UnitSubDashboard = () => {
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
-      {/* Section A: Account Summary */}
+      {/* Section A: Account Summary — Net balance: positive = you owe, negative = credit */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Account Summary</Typography>
-          <Typography variant="h5" sx={{ color: amountDue > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-            {formatPeso(amountDue > 0 ? amountDue : (creditBalance > 0 ? -creditBalance : 0))}
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Net balance (red = you owe; green = credit)
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {amountDue > 0 ? 'Amount due' : creditBalance > 0 ? 'Credit balance' : 'Current'}
-          </Typography>
-          {creditBalance > 0 && amountDue <= 0 && (
-            <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>
-              Credit: {formatPeso(creditBalance)}
-            </Typography>
+          {!unitReady ? (
+            <Box display="flex" justifyContent="center" py={2}>
+              <LoadingSpinner size="small" />
+            </Box>
+          ) : (
+            <>
+              <Typography variant="h5" sx={{ color: amountDue > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
+                {formatPeso(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
+              </Typography>
+              {amountDue > 0 && (
+                <Typography variant="body2" color="text.secondary">Amount due</Typography>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Section B: Payment Info */}
+      {/* Section B: Payment Info — Amount currently due and its due date */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Payment Info</Typography>
-          <Typography variant="body1" fontWeight={600}>{formatPeso(amountDue)}</Typography>
-          <Typography variant="body2" color="text.secondary">Due {formatDate(dueDate)}</Typography>
-          {daysPastDue > 0 && (
-            <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600 }}>{daysPastDue} days past due</Typography>
-          )}
-          {hasLateFees && lateFeeDate && (
-            <Typography variant="caption" color="text.secondary" display="block">
-              Late fees apply after {lateFeeDate}
-            </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Amount due now • Due date (— = not set)
+          </Typography>
+          {!unitReady ? (
+            <Box display="flex" justifyContent="center" py={2}>
+              <LoadingSpinner size="small" />
+            </Box>
+          ) : (
+            <>
+              <Typography variant="body1" fontWeight={600}>{formatPeso(amountDue)}</Typography>
+              <Typography variant="body2" color="text.secondary">Due {formatDate(dueDate)}</Typography>
+              {daysPastDue > 0 && (
+                <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600 }}>{daysPastDue} days past due</Typography>
+              )}
+              {hasLateFees && lateFeeDate && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Late fees apply after {lateFeeDate}
+                </Typography>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Section C: Fee Schedule */}
+      {/* Section C: Fee Schedule — Next upcoming HOA dues amount */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Fee Schedule</Typography>
-          {nextPaymentAmount > 0 && (
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+            Next HOA dues amount (when known)
+          </Typography>
+          {!unitReady ? (
+            <Box display="flex" justifyContent="center" py={2}>
+              <LoadingSpinner size="small" />
+            </Box>
+          ) : nextPaymentAmount > 0 ? (
             <Typography variant="body2">Next payment: {formatPeso(nextPaymentAmount)}</Typography>
-          )}
-          {!nextPaymentAmount && (
+          ) : (
             <Typography variant="body2" color="text.secondary">No upcoming fees</Typography>
           )}
         </CardContent>
@@ -238,7 +254,7 @@ const UnitSubDashboard = () => {
           </Box>
           <Collapse in={transactionsExpanded}>
             {statementLoading ? (
-              <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} /></Box>
+              <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
             ) : recentTx.length === 0 ? (
               <Typography variant="body2" color="text.secondary">No transactions</Typography>
             ) : (
@@ -278,7 +294,7 @@ const UnitSubDashboard = () => {
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
           {storedLoading ? (
-            <Box display="flex" justifyContent="center" py={1}><CircularProgress size={20} /></Box>
+            <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
           ) : storedStatements.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No stored statements</Typography>
           ) : (

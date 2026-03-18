@@ -9,7 +9,6 @@ import {
   IconButton,
   Chip,
   Alert,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,6 +28,7 @@ import {
   LocalOffer
 } from '@mui/icons-material';
 import { clientAPI } from '../../services/api';
+import { LoadingSpinner } from '../common';
 
 const DocumentViewer = ({
   clientId,
@@ -238,7 +238,7 @@ const DocumentViewer = ({
           <DialogActions>
             <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
             <Button onClick={handleDelete} color="error" disabled={deleting}>
-              {deleting ? <CircularProgress size={20} /> : 'Delete'}
+              {deleting ? <LoadingSpinner size="small" /> : 'Delete'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -399,7 +399,7 @@ const DocumentViewer = ({
         <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} color="error" disabled={deleting}>
-            {deleting ? <CircularProgress size={20} /> : 'Delete'}
+            {deleting ? <LoadingSpinner size="small" /> : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

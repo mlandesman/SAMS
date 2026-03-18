@@ -13,7 +13,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  CircularProgress,
   Collapse,
   Button,
 } from '@mui/material';
@@ -28,6 +27,7 @@ import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDateTime } from '../../utils/timezone.js';
+import { LoadingSpinner } from '../common';
 
 const formatPeso = (amount) =>
   typeof amount === 'number' && !isNaN(amount)
@@ -147,8 +147,13 @@ const HOADashboard = () => {
   const collectionRate = Math.round(hoaDuesStatus?.collectionRate ?? 0);
 
   const expenseCats = budgetData?.expenses?.categories || [];
-  const sortedBySpend = [...expenseCats].sort((a, b) => Math.abs(b.ytdActual || 0) - Math.abs(a.ytdActual || 0));
-  const top5 = sortedBySpend.slice(0, 5);
+  const withDiff = expenseCats.map((c) => {
+    const actual = c.ytdActual ?? 0;
+    const budget = c.ytdBudget ?? 0;
+    const diff = actual - budget;
+    return { ...c, diff, absDiff: Math.abs(diff) };
+  });
+  const top5ByVariance = [...withDiff].sort((a, b) => b.absDiff - a.absDiff).slice(0, 5);
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
@@ -188,7 +193,7 @@ const HOADashboard = () => {
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Active Polls</Typography>
           {pollsProjectsLoading ? (
-            <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} /></Box>
+            <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : polls.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No active polls</Typography>
           ) : (
@@ -214,7 +219,7 @@ const HOADashboard = () => {
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Active Projects</Typography>
           {pollsProjectsLoading ? (
-            <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} /></Box>
+            <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : projects.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No active projects</Typography>
           ) : (
@@ -259,43 +264,58 @@ const HOADashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Section D: Budget Summary */}
+      {/* Section D: Budget Summary — Expense categories only (not income) */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Budget Summary</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Expense spending only (excludes income)
+          </Typography>
           {budgetLoading ? (
-            <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} /></Box>
+            <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : !budgetData ? (
             <Typography variant="body2" color="text.secondary">No budget data</Typography>
           ) : (
             <>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Budget YTD</Typography>
+                <Typography variant="body2">Expense Budget YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatPeso(centavosToPesos(budgetData.expenses?.totals?.totalYtdBudget || 0))}
                 </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Actual YTD</Typography>
+                <Typography variant="body2">Expense Actual YTD</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatPeso(centavosToPesos(budgetData.expenses?.totals?.totalYtdActual || 0))}
                 </Typography>
               </Box>
-              {top5.length > 0 && (
+              {top5ByVariance.length > 0 && (
                 <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Top categories</Typography>
-                  {top5.map((c) => {
-                    const v = c.variance ?? 0;
-                    const color = v >= 0 ? '#059669' : '#dc2626';
-                    return (
-                      <Box key={c.id} display="flex" justifyContent="space-between" alignItems="center" py={0.25}>
-                        <Typography variant="caption">{c.name || c.id}</Typography>
-                        <Typography variant="caption" sx={{ color }}>
-                          {formatPeso(centavosToPesos(c.ytdActual || 0))} / {formatPeso(centavosToPesos(c.ytdBudget || 0))}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
+                  <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>Top Categories</th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>Actual YTD</th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>vs Budget</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {top5ByVariance.map((c) => {
+                        const diffPesos = centavosToPesos(c.diff);
+                        const absPesos = Math.abs(diffPesos);
+                        const isOver = c.diff > 0;
+                        const diffColor = c.diff === 0 ? '#6b7280' : (isOver ? '#dc2626' : '#059669');
+                        const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPeso(absPesos)}` : `<${formatPeso(absPesos)}`);
+                        return (
+                          <tr key={c.id}>
+                            <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
+                            <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatPeso(centavosToPesos(c.ytdActual || 0))}</td>
+                            <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </Box>
                 </Box>
               )}
             </>

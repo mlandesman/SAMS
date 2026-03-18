@@ -4,6 +4,10 @@
  * Fetches dashboard-summary data for a given client + unit.
  * Falls back to full statement data + derivation if dashboard-summary fails.
  *
+ * Due dates: Backend (statementDataService) calculates nextPaymentDueDate for Monthly/Quarterly
+ * from UPC billsPaid. If blank, deriveFromFullStatement uses first charge with balance>0 or isFuture.
+ * For always-on due dates, ensure backend returns nextPaymentDueDate; client config has billing frequency.
+ *
  * @param {string|null} clientId
  * @param {string|null} unitId
  * @returns {{ data: object|null, loading: boolean, error: string|null }}

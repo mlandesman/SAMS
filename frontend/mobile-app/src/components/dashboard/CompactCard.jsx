@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress } from '@mui/material';
+import { LoadingSpinner } from '../common';
 
 const CompactCard = ({ 
   icon: Icon, 
@@ -100,7 +101,7 @@ const CompactCard = ({
         {/* Content */}
         {loading ? (
           <Box display="flex" justifyContent="center" py={1}>
-            <CircularProgress size={24} sx={{ color }} />
+            <LoadingSpinner size="small" />
           </Box>
         ) : (
           <>

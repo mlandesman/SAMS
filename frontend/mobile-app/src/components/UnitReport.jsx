@@ -14,7 +14,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   Alert,
   Button,
   Dialog,
@@ -32,6 +31,7 @@ import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
 import { getMexicoDate } from '../utils/timezone.js';
 import './UnitReport.css';
+import { LoadingSpinner } from './common';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -113,8 +113,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <CircularProgress size={40} sx={{ mb: 2 }} />
-        <Typography variant="body2" color="text.secondary">Loading your financial report...</Typography>
+        <LoadingSpinner size="medium" message="Loading your financial report..." />
       </Box>
     );
   }

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Box } from '@mui/material';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { LoadingSpinner } from './common';
 
 const UnitOwnerFinancialReport = () => {
   const { samsUser, currentClient } = useAuth();
@@ -92,7 +94,7 @@ const UnitOwnerFinancialReport = () => {
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }

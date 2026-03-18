@@ -7,7 +7,6 @@ import {
   Chip,
   Fab,
   Backdrop,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,6 +30,7 @@ import {
   getAllWashSummary,
   getCurrentFiscalPeriod 
 } from '../utils/waterReadingHelpers';
+import { LoadingSpinner } from './common';
 
 const WaterMeterEntryNew = () => {
   const navigate = useNavigate();
@@ -543,7 +543,7 @@ const WaterMeterEntryNew = () => {
         alignItems: 'center', 
         minHeight: '50vh' 
       }}>
-        <CircularProgress size={40} />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }
@@ -850,7 +850,7 @@ const WaterMeterEntryNew = () => {
       {/* Loading Overlay */}
       <Backdrop open={saving} sx={{ color: '#fff', zIndex: 1300 }}>
         <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress color="inherit" size={40} />
+          <LoadingSpinner size="medium" />
           <Typography variant="body1" sx={{ mt: 2 }}>
             {saving ? 'Guardando datos...' : 'Cargando...'}
           </Typography>

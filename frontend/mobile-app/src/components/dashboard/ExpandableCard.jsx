@@ -14,9 +14,9 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  CircularProgress,
   Alert,
 } from '@mui/material';
+import { LoadingSpinner } from '../common';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -101,7 +101,7 @@ const ExpandableCard = ({
         {/* Content */}
         {loading ? (
           <Box display="flex" justifyContent="center" py={2}>
-            <CircularProgress size={28} sx={{ color }} />
+            <LoadingSpinner size="small" />
           </Box>
         ) : error ? (
           <Box textAlign="center" py={1}>

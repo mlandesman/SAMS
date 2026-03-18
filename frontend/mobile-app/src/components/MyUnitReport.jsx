@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import UnitReport from './UnitReport.jsx';
+import { LoadingSpinner } from './common';
 
 const MyUnitReport = () => {
   const { selectedUnitId, availableUnits } = useSelectedUnit();
@@ -38,10 +39,7 @@ const MyUnitReport = () => {
         alignItems: 'center',
         minHeight: '60vh',
       }}>
-        <CircularProgress size={40} sx={{ mb: 2 }} />
-        <Typography variant="body2" color="text.secondary">
-          Loading your unit information...
-        </Typography>
+        <LoadingSpinner size="medium" message="Loading your unit information..." />
       </Box>
     );
   }

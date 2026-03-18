@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { userAPI } from '../services/api.js';
 import { getVersionInfo } from '../utils/versionUtils';
 
 const UserProfileManager = ({ open, onClose }) => {
@@ -79,32 +80,15 @@ const UserProfileManager = ({ open, onClose }) => {
     try {
       setLoading(true);
       setError('');
-      
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const token = await firebaseUser.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/user/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      await userAPI.updateProfile({
+        basicInfo: {
+          fullName: profileForm.name,
+          phone: profileForm.phone
         },
-        body: JSON.stringify({
-          basicInfo: {
-            fullName: profileForm.name,
-            phone: profileForm.phone
-          },
-          notifications: profileForm.notifications
-        })
+        notifications: profileForm.notifications
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
-      }
-
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
-      
     } catch (err) {
       setError(err.message);
     } finally {

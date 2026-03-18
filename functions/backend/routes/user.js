@@ -113,6 +113,48 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
 });
 
 /**
+ * Update user profile (self-service: name, phone, notifications)
+ * PUT /auth/user/profile
+ */
+router.put('/profile', authenticateUserWithProfile, async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { uid } = req.user;
+    const { basicInfo, notifications } = req.body;
+
+    const db = await getDb();
+    const userDoc = await db.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    const updateData = { lastProfileUpdate: getNow() };
+
+    if (basicInfo) {
+      if (basicInfo.fullName !== undefined) updateData.name = basicInfo.fullName;
+      if (basicInfo.phone !== undefined) {
+        const current = userDoc.data();
+        updateData.profile = { ...(current.profile || {}), phone: basicInfo.phone };
+      }
+    }
+
+    if (notifications !== undefined) updateData.notifications = notifications;
+
+    await db.collection('users').doc(uid).update(updateData);
+
+    logDebug('User profile updated successfully:', uid);
+    res.json({ success: true, message: 'Profile updated successfully' });
+  } catch (error) {
+    logError('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update profile', details: error.message });
+  }
+});
+
+/**
  * Get all users (SuperAdmin only)
  * GET /api/user/list
  * 

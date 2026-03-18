@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Alert,
-  CircularProgress,
   Grid,
   FormControl,
   InputLabel,
@@ -21,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { clientAPI } from '../../services/api';
 import DocumentViewer from './DocumentViewer';
+import { LoadingSpinner } from '../common';
 
 const DocumentList = ({
   clientId,
@@ -134,7 +134,7 @@ const DocumentList = ({
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
+        <LoadingSpinner size="medium" />
       </Box>
     );
   }

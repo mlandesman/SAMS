@@ -7,7 +7,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   Alert,
   List,
   ListItem,
@@ -20,6 +19,7 @@ import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useClients } from '../hooks/useClients.jsx';
 import { config } from '../config/index.js';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { LoadingSpinner } from './common';
 
 const formatContact = (owners, managers) => {
   const o = normalizeOwners(owners || []);
@@ -82,8 +82,7 @@ const UnitDirectory = () => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '40vh', p: 3 }}>
-        <CircularProgress size={40} sx={{ mb: 2 }} />
-        <Typography variant="body2" color="text.secondary">Loading unit directory...</Typography>
+        <LoadingSpinner size="medium" message="Loading unit directory..." />
       </Box>
     );
   }

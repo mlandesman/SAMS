@@ -44,8 +44,18 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, samsUser } = useAuth();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
+
+  const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess || {};
+  const isOwnerOrManager = samsUser?.globalRole === 'unitOwner' ||
+    (clientAccess && Object.keys(clientAccess).length > 0 &&
+     Object.values(clientAccess).some(access =>
+       access.role === 'unitOwner' || access.role === 'unitManager'
+     ));
+  const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
+  const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
+  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (isOwnerOrManager ? 'Owner' : null));
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -183,6 +193,20 @@ const Layout = ({ children }) => {
             >
               {getPageTitle()}
             </Typography>
+            {roleLabel && (
+              <Chip
+                label={roleLabel}
+                size="small"
+                color={isAdminOrSuperAdmin ? 'primary' : 'secondary'}
+                sx={{
+                  backgroundColor: isAdminOrSuperAdmin ? undefined : 'rgba(255,255,255,0.2)',
+                  color: 'inherit',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  height: 24,
+                }}
+              />
+            )}
             {!isAdmin && selectedUnitId && (
               <Chip
                 label={`Unit ${selectedUnitId}`}

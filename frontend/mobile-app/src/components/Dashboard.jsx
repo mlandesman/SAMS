@@ -101,7 +101,6 @@ const Dashboard = () => {
      Object.values(clientAccess).some(access =>
        access.role === 'unitOwner' || access.role === 'unitManager'
      ));
-  const userRole = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : 'Owner');
 
   // Format past due details for ExpandableCard
   const pastDueDetails = (hoaDuesStatus.pastDueDetails || []).map(unit => ({
@@ -122,19 +121,8 @@ const Dashboard = () => {
   return (
     <Box className="mobile-dashboard" sx={{ minHeight: '100vh' }}>
       <Box className="mobile-dashboard-content" sx={{ p: 2, pb: 10 }}>
-        {/* Header */}
+        {/* Header — title and role chip moved to Layout top bar */}
         <Box mb={2} textAlign="center">
-          <Typography variant="h5" sx={{ fontWeight: 600, color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-            Dashboard
-          </Typography>
-          <Box display="flex" gap={1} flexWrap="wrap" justifyContent="center" my={1}>
-            <Chip 
-              label={userRole} 
-              color={isAdminOrSuperAdmin ? 'primary' : 'secondary'} 
-              size="small" 
-              sx={{ fontWeight: 600 }}
-            />
-          </Box>
           {currentClient && (
             <ClientSwitcher 
               currentClient={currentClient}
