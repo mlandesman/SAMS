@@ -1197,8 +1197,8 @@ export async function sendStatementEmail(clientId, unitId, fiscalYear, user, aut
     } else if (statementResult) {
       // Extract from statementResult (fallback if emailContent not provided)
       balanceDue = statementResult.summary?.closingBalance || 0;
-      creditBalance = statementResult.emailContent?.creditBalance || 0;
-      netAmount = balanceDue - creditBalance;
+      creditBalance = 0;
+      netAmount = balanceDue;
       
       // Extract bank payment info from client config
       const bankDetails = clientData.feeStructure?.bankDetails || {};

@@ -152,21 +152,11 @@ export function generateStatementEmailHtml(data, language = 'es') {
                 ` : `
                 <!-- Positive balance = payment due -->
                 <tr>
-                  <td style="padding: 5px 0;">${labels.balanceDue}</td>
-                  <td style="text-align: right; padding: 5px 0; font-weight: bold;">${formatCurrency(balanceDue)}</td>
-                </tr>
-                ${creditBalance > 0 ? `
-                <tr>
-                  <td style="padding: 5px 0;">${labels.credit}</td>
-                  <td style="text-align: right; padding: 5px 0; color: #28a745;">(${formatCurrency(creditBalance)})</td>
-                </tr>
-                ` : ''}
-                <tr>
                   <td colspan="2" style="padding: 10px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd;">
                     <table width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td style="font-weight: bold; font-size: 16px;">${labels.netAmount}</td>
-                        <td style="text-align: right; font-weight: bold; font-size: 16px; color: ${brandColor};">${formatCurrency(netAmount)}</td>
+                        <td style="font-weight: bold; font-size: 16px;">${labels.balanceDue}</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 16px; color: ${brandColor};">${formatCurrency(balanceDue)}</td>
                       </tr>
                     </table>
                   </td>

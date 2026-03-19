@@ -984,8 +984,8 @@ async function buildStatementHtml(data, reportCommonCss, language, options, t, c
   const emailContent = {
     // Financial data
     balanceDue: actualClosingBalance,
-    creditBalance: accountCreditBalance,
-    netAmount: actualClosingBalance - accountCreditBalance,
+    creditBalance: 0,
+    netAmount: actualClosingBalance,
     // Unit info
     unitNumber: unitId,
     ownerNames: (data.unitInfo?.owners || []).map(o => typeof o === 'string' ? o : (o?.name || '')).filter(Boolean).join(', ') || 'Owner',
