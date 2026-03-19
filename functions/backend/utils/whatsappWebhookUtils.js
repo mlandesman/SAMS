@@ -24,14 +24,6 @@ export function normalizePhone(phone) {
 }
 
 /**
- * Verify Meta webhook challenge (GET)
- * @param {string} mode - hub.mode
- * @param {string} token - hub.verify_token
- * @param {string} challenge - hub.challenge
- * @param {string} expectedToken - From WHATSAPP_VERIFY_TOKEN secret
- * @returns {{ valid: boolean, challenge?: string }}
- */
-/**
  * Verify Meta webhook POST signature (X-Hub-Signature-256).
  * @param {Buffer} rawBody - Exact request body bytes Meta signed
  * @param {string|undefined} signatureHeader - X-Hub-Signature-256 header value
@@ -59,6 +51,14 @@ export function verifyMetaWebhookSignature(rawBody, signatureHeader, appSecret) 
   }
 }
 
+/**
+ * Verify Meta webhook challenge (GET).
+ * @param {string} mode - hub.mode
+ * @param {string} token - hub.verify_token
+ * @param {string} challenge - hub.challenge
+ * @param {string} expectedToken - From WHATSAPP_VERIFY_TOKEN secret
+ * @returns {{ valid: boolean, challenge?: string }}
+ */
 export function verifyWebhookChallenge(mode, token, challenge, expectedToken) {
   if (mode !== 'subscribe') {
     logWarn('WhatsApp webhook: invalid hub.mode', { mode });
