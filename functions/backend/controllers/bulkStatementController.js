@@ -275,9 +275,14 @@ export async function bulkGenerateStatements(req, res) {
     const fiscalConfig = await getClientFiscalYearConfig(clientId);
     const fiscalYearStartMonth = fiscalConfig.fiscalYearStartMonth;
     
-    // Determine fiscal year
+    // Determine fiscal year — when scheduler passes calendarMonth/calendarYear (prior month),
+    // use those so fiscal year matches the statement period, not today's date.
+    // Critical at FY boundaries: July 1 run for June statement must use the old FY.
     const currentDate = getNow();
-    const fiscalYear = requestedFiscalYear || getFiscalYear(currentDate, fiscalYearStartMonth);
+    const effectiveDate = (overrideCalendarYear && overrideCalendarMonth)
+      ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 15)
+      : currentDate;
+    const fiscalYear = requestedFiscalYear || getFiscalYear(effectiveDate, fiscalYearStartMonth);
     
     // Get all units
     const units = await getAllUnits(clientId);
