@@ -58,16 +58,20 @@
 | ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
 | ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
-| 10 | **DOC-LIB** | HOA Document Library | 10-14h | NEW — Admin + unit-level user uploads, access-controlled document storage |
-| 11 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 12 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 13 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
-| 14 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 15 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
+| 10 | **AUTO-STMT** | Automated Monthly Statements | 4-6h | NEW — Scheduled Cloud Function: generate SoA for all units on 1st of month, both languages, store + index. **Deadline: before Apr 1** |
+| 11 | **WA-BACKEND** | WhatsApp Backend Integration | 6-8h | #178 (partial) — Service, webhook, Firestore logging, send endpoint. No frontend. |
+| 12 | **DOC-LIB** | HOA Document Library | 17-25h | NEW — Admin + unit-level user uploads, access-controlled document storage (PRD parked) |
+| 13 | **WA-FRONTEND** | WhatsApp Frontend + Module Integration | 4-6h | #178 (remainder) — Admin UI, content templates, module triggers |
+| 14 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 15 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
+| 16 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| 17 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint DOC-LIB — HOA Document Library (PRD in development). Two-tier document storage: (1) Admin-managed HOA documents (Rules & Regs, Bank Statements, Official Letters, Newsletters) visible to all owners/managers, (2) Unit-level user uploads (management agreements, contracts) shared between owners and managers of that unit only, hidden from other units. Desktop and Mobile interfaces. v1.18.0 deployed with complete Owner + Admin mobile UX, Digital Receipts, and hotfixes. Beta users actively testing.
+**Current Focus**: Sprint AUTO-STMT — Automated Monthly Statement Generation. Must deploy before April 1, 2026 to generate March statements. Then Sprint WA-BACKEND — WhatsApp backend integration (service, webhook, logging). DOC-LIB PRD parked for future planning. v1.18.0 deployed. Beta users actively testing mobile apps.
 
-**Schedule Note (Mar 19, 2026 — v1.18.0 Deployed)**: Production deployment of v1.18.0 includes Sprint MOBILE-ADMIN-UX (#247), Sprint MOBILE-OWNER-UX (#244), Digital Receipt restoration, mobile role label fix, and propertyAccess role bug fix. Both Owner and Admin mobile UX fully operational. Beta users testing. Next sprint: HOA Document Library (DOC-LIB) — two-tier document storage with admin-managed HOA documents and unit-level user uploads with access control. PRD in development.
+**Schedule Note (Mar 19, 2026 — Sprint Planning)**: Scrum review reprioritized roadmap: (1) Sprint AUTO-STMT (4-6h, deadline Apr 1) — monthly scheduled SoA generation for mobile app. (2) Sprint WA-BACKEND (6-8h) — WhatsApp Cloud API backend only (Meta platform already configured, cURL verified). (3) Sprint DOC-LIB (17-25h) — parked, PRD template created. WhatsApp sprint split into WA-BACKEND (service/webhook/logging) and WA-FRONTEND (UI/templates/triggers). Mobile PWA resting during beta testing.
+
+**Schedule Note (Mar 19, 2026 — v1.18.0 Deployed)**: Production deployment of v1.18.0 includes Sprint MOBILE-ADMIN-UX (#247), Sprint MOBILE-OWNER-UX (#244), Digital Receipt restoration, mobile role label fix, and propertyAccess role bug fix. Both Owner and Admin mobile UX fully operational. Beta users testing.
 
 **Schedule Note (Mar 18, 2026 — Hotfixes)**: Three hotfixes committed directly to main ahead of production deployment: (1) Digital Receipt re-enabled — Send Receipt button was permanently disabled due to `.unit` vs `.unitId` field name mismatch in TransactionsView; client name resolved from `basicInfo`; allocations array now used for "For" field; receipt layout no longer clips footer. (2) Mobile role label — title bar chip showed "Owner" for all users; now correctly shows "Manager" when the selected unit's assignment role is `unitManager`. (3) `propertyAccess` role bug — `addUnitRoleAssignment` was hardcoding `role: 'user'`; now derives from actual unit assignment role.
 
@@ -168,4 +172,4 @@
 
 ---
 
-*Last Updated: March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE. Sprint DOC-LIB (HOA Document Library) inserted at position 10 as next sprint. PRD in development.*
+*Last Updated: March 19, 2026 — Roadmap reprioritized: AUTO-STMT (monthly statements, deadline Apr 1) → WA-BACKEND (WhatsApp service/webhook) → DOC-LIB (parked). WhatsApp split into backend + frontend sprints. v1.18.0 deployed with all mobile UX.*

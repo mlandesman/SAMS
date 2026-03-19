@@ -823,5 +823,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE. Sprint DOC-LIB (HOA Document Library) next — PRD in development. Two-tier storage: admin HOA docs + unit-level user uploads with access control.*  
+*Updated: March 19, 2026 — Roadmap reprioritized: Sprint AUTO-STMT (monthly SoA generation, deadline Apr 1) next, then Sprint WA-BACKEND (WhatsApp service/webhook/logging, backend only). DOC-LIB PRD parked. WhatsApp #178 split into WA-BACKEND + WA-FRONTEND. v1.18.0 deployed with MOBILE-ADMIN-UX + MOBILE-OWNER-UX.*  
 *Last Review: March 19, 2026*

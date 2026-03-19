@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.18.0 | **Deployed:** March 19, 2026  
-**Last Updated:** March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE (merged from feature branch). Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). Hotfixes: Digital Receipt re-enabled, mobile role label, propertyAccess role bug. Next: HOA Document Library sprint (PRD in development).  
+**Last Updated:** March 19, 2026 — Roadmap reprioritized. Next: Sprint AUTO-STMT (monthly SoA generation, deadline Apr 1), then Sprint WA-BACKEND (WhatsApp Cloud API backend). DOC-LIB PRD parked. WhatsApp #178 split into backend + frontend sprints.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
