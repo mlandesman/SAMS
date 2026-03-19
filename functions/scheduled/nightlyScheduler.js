@@ -7,6 +7,7 @@
  * - Exchange Rate Download ✅ Ready
  * - Sync to Dev ✅ Ready
  * - Credit Auto-Pay Report Email (TASK-90 Phase 2) ✅ Monthly on the 25th
+ * - Monthly Statement Generation (Sprint AUTO-STMT) ✅ Monthly on the 1st
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -16,6 +17,7 @@ import { getNow } from '../backend/services/DateService.js';
 import { updateExchangeRates } from '../src/exchangeRatesUpdater.js';
 import { syncLatestRatesToDev } from '../src/syncToDevDatabase.js';
 import { runScheduledCreditAutoPayReports } from '../backend/controllers/creditAutoPayReportController.js';
+import { generateMonthlyStatements } from '../backend/services/scheduledStatementService.js';
 
 /**
  * Main nightly scheduler function
@@ -24,10 +26,10 @@ import { runScheduledCreditAutoPayReports } from '../backend/controllers/creditA
 export const nightlyScheduler = onSchedule({
   schedule: '0 3 * * *',  // 3:00 AM daily
   timeZone: 'America/Cancun',
-  memory: '1GiB',
-  timeoutSeconds: 540,  // 9 minutes max
+  memory: '2GiB',
+  timeoutSeconds: 900,  // 15 minutes max (monthly statement generation needs more time)
   retryCount: 1,
-  secrets: ['GMAIL_APP_PASSWORD']  // Required for credit auto-pay email reports
+  secrets: ['GMAIL_APP_PASSWORD']
 }, async (event) => {
   console.log('🌙 [NIGHTLY] Starting scheduled tasks');
   const startTime = Date.now();
@@ -121,6 +123,40 @@ export const nightlyScheduler = onSchedule({
     console.log(`⏭️ [NIGHTLY] Skipping credit auto-pay reports (day ${dayOfMonth}); runs on day 25 only.`);
   }
   
+  // ═══════════════════════════════════════════════════════════════
+  // TASK 5: Monthly Statement Generation (Sprint AUTO-STMT)
+  // Runs on the 1st of each month — generates prior month statements
+  // for all clients, all units, both English and Spanish
+  // ═══════════════════════════════════════════════════════════════
+  if (dayOfMonth === 1) {
+    try {
+      console.log('📄 [NIGHTLY] Generating monthly statements (day 1)...');
+      const stmtResult = await generateMonthlyStatements();
+      results.tasks.monthlyStatements = {
+        status: stmtResult.error ? 'partial_failure' : 'success',
+        period: stmtResult.statementPeriod,
+        clients: stmtResult.clients?.length || 0,
+        totalUnits: stmtResult.totalUnits,
+        generated: stmtResult.totalGenerated,
+        skipped: stmtResult.totalSkipped,
+        failed: stmtResult.totalFailed,
+        durationMs: stmtResult.durationMs
+      };
+      console.log(`✅ [NIGHTLY] Monthly statements complete: ${stmtResult.totalGenerated} generated, ${stmtResult.totalSkipped} skipped, ${stmtResult.totalFailed} failed`);
+    } catch (error) {
+      console.error('❌ [NIGHTLY] Monthly statement generation failed:', error);
+      results.tasks.monthlyStatements = { status: 'failed', error: error.message };
+      results.errors.push({ task: 'monthlyStatements', error: error.message });
+    }
+  } else {
+    results.tasks.monthlyStatements = {
+      status: 'skipped',
+      reason: 'Monthly task; only runs on day 1 (America/Cancun)',
+      dayOfMonth
+    };
+    console.log(`⏭️ [NIGHTLY] Skipping monthly statements (day ${dayOfMonth}); runs on day 1 only.`);
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // Log results to Firestore
   // ═══════════════════════════════════════════════════════════════
