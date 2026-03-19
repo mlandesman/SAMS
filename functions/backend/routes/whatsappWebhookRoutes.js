@@ -2,7 +2,7 @@
  * WhatsApp Cloud API Webhook Routes
  *
  * GET: Meta verification challenge
- * POST: Inbound messages and status updates (returns 200 immediately, processes async)
+ * POST: Validates X-Hub-Signature-256, then processes and responds 200 (await completes work before response).
  *
  * Task: WA-BACKEND-1 (WhatsApp Webhook)
  */
@@ -11,10 +11,12 @@ import { Router } from 'express';
 import { getDb } from '../firebase.js';
 import {
   verifyWebhookChallenge,
+  verifyMetaWebhookSignature,
   parseInboundMessages,
   parseStatusUpdates,
   detectOptOut,
-  matchPhoneToUser,
+  buildUserPhoneLookupMap,
+  matchPhoneInLookupMap,
   writeRawWebhookEvent,
   writeNormalizedMessage,
   applyOptOut,
@@ -43,9 +45,26 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /whatsapp-webhook - Inbound messages and status updates
- * Returns 200 immediately; processes payload asynchronously.
  */
 router.post('/', async (req, res) => {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    logError('WhatsApp webhook: WHATSAPP_APP_SECRET is not configured');
+    return res.status(503).json({ error: 'Webhook misconfigured' });
+  }
+
+  const rawBody = req.rawBody;
+  if (!Buffer.isBuffer(rawBody) || rawBody.length === 0) {
+    logWarn('WhatsApp webhook: missing raw body (cannot verify signature)');
+    return res.status(403).end();
+  }
+
+  const sigHeader = req.get('x-hub-signature-256');
+  if (!verifyMetaWebhookSignature(rawBody, sigHeader, appSecret)) {
+    logWarn('WhatsApp webhook: signature verification failed');
+    return res.status(403).end();
+  }
+
   const payload = req.body;
 
   if (!payload || typeof payload !== 'object') {
@@ -58,17 +77,18 @@ router.post('/', async (req, res) => {
     return res.status(200).end();
   }
 
-  // Return 200 immediately per Meta requirements
-  res.status(200).end();
-
-  // Process asynchronously (fire-and-forget)
-  void processWebhookPayload(payload).catch((err) => {
+  try {
+    await processWebhookPayload(payload);
+    return res.status(200).end();
+  } catch (err) {
     logError('WhatsApp webhook processing failed', { error: err.message, stack: err.stack });
-  });
+    return res.status(500).end();
+  }
 });
 
 function buildStatusRecord(st) {
   const ts = st.timestamp ? new Date(parseInt(st.timestamp, 10) * 1000) : null;
+  const status = st.status || '';
   return {
     messageId: st.messageId,
     direction: 'outbound',
@@ -76,10 +96,10 @@ function buildStatusRecord(st) {
     waId: st.recipientId,
     text: null,
     type: 'status',
-    status: st.status,
-    timestampSent: null,
-    timestampDelivered: st.status === 'delivered' || st.status === 'read' ? ts : null,
-    timestampRead: st.status === 'read' ? ts : null,
+    status,
+    timestampSent: status === 'sent' || status === 'failed' ? ts : null,
+    timestampDelivered: status === 'delivered' || status === 'read' ? ts : null,
+    timestampRead: status === 'read' ? ts : null,
     userId: null,
     fullName: null,
     optOutDetected: false,
@@ -94,6 +114,7 @@ function buildStatusRecord(st) {
  */
 async function processWebhookPayload(payload) {
   const db = await getDb();
+  const phoneLookup = await buildUserPhoneLookupMap(db);
   const entries = payload.entry || [];
   let messageCount = 0;
   let statusCount = 0;
@@ -112,7 +133,7 @@ async function processWebhookPayload(payload) {
           for (const msg of inboundMessages) {
             messageCount++;
             const phoneNorm = normalizePhone(msg.waId || msg.from);
-            const match = await matchPhoneToUser(phoneNorm, db);
+            const match = matchPhoneInLookupMap(phoneNorm, phoneLookup);
             const optOutDetected = detectOptOut(msg.text);
 
             const record = {

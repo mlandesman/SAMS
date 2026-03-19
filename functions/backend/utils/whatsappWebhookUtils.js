@@ -5,6 +5,7 @@
  * Task: WA-BACKEND-1 (WhatsApp Webhook)
  */
 
+import crypto from 'crypto';
 import { getNow } from '../services/DateService.js';
 import { logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -29,6 +30,34 @@ export function normalizePhone(phone) {
  * @param {string} expectedToken - From WHATSAPP_VERIFY_TOKEN secret
  * @returns {{ valid: boolean, challenge?: string }}
  */
+/**
+ * Verify Meta webhook POST signature (X-Hub-Signature-256).
+ * @param {Buffer} rawBody - Exact request body bytes Meta signed
+ * @param {string|undefined} signatureHeader - X-Hub-Signature-256 header value
+ * @param {string} appSecret - Meta App Secret (Firebase secret WHATSAPP_APP_SECRET)
+ * @returns {boolean}
+ */
+export function verifyMetaWebhookSignature(rawBody, signatureHeader, appSecret) {
+  if (!appSecret || typeof appSecret !== 'string' || !signatureHeader || !Buffer.isBuffer(rawBody)) {
+    return false;
+  }
+  const sig = String(signatureHeader).trim();
+  const prefix = 'sha256=';
+  if (!sig.startsWith(prefix)) {
+    return false;
+  }
+  const receivedHex = sig.slice(prefix.length);
+  const expectedHex = crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  if (receivedHex.length !== expectedHex.length) {
+    return false;
+  }
+  try {
+    return crypto.timingSafeEqual(Buffer.from(receivedHex, 'hex'), Buffer.from(expectedHex, 'hex'));
+  } catch {
+    return false;
+  }
+}
+
 export function verifyWebhookChallenge(mode, token, challenge, expectedToken) {
   if (mode !== 'subscribe') {
     logWarn('WhatsApp webhook: invalid hub.mode', { mode });
@@ -103,13 +132,14 @@ export function detectOptOut(text) {
 }
 
 /**
- * Match normalized phone to a SAMS user. Returns userId and fullName.
- * @param {string} normalizedPhone - Digits-only phone
+ * One Firestore scan per webhook batch: map normalized phone digits -> { userId, fullName }.
+ * First user wins if duplicate phones exist; logs a warning on collision.
  * @param {FirebaseFirestore.Firestore} db
- * @returns {Promise<{ userId: string, fullName: string } | null>}
+ * @returns {Promise<Map<string, { userId: string, fullName: string }>>}
  */
-export async function matchPhoneToUser(normalizedPhone, db) {
-  if (!normalizedPhone || !db) return null;
+export async function buildUserPhoneLookupMap(db) {
+  const map = new Map();
+  if (!db) return map;
 
   const usersSnap = await db.collection('users').get();
   for (const doc of usersSnap.docs) {
@@ -119,14 +149,34 @@ export async function matchPhoneToUser(normalizedPhone, db) {
     if (!userPhone) continue;
 
     const userPhoneNorm = normalizePhone(userPhone);
-    if (userPhoneNorm && userPhoneNorm === normalizedPhone) {
-      const firstName = (profile.firstName || '').trim();
-      const lastName = (profile.lastName || '').trim();
-      const fullName = `${firstName} ${lastName}`.trim() || (data.name || '').trim();
-      return { userId: doc.id, fullName };
+    if (!userPhoneNorm) continue;
+
+    const firstName = (profile.firstName || '').trim();
+    const lastName = (profile.lastName || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim() || (data.name || '').trim();
+    const entry = { userId: doc.id, fullName };
+
+    if (map.has(userPhoneNorm)) {
+      logWarn('WhatsApp phone lookup: duplicate profile.phone after normalize; keeping first user', {
+        phoneNorm: userPhoneNorm,
+        keptUserId: map.get(userPhoneNorm).userId,
+        skippedUserId: doc.id,
+      });
+      continue;
     }
+    map.set(userPhoneNorm, entry);
   }
-  return null;
+  return map;
+}
+
+/**
+ * @param {string} normalizedPhone
+ * @param {Map<string, { userId: string, fullName: string }>} lookupMap
+ * @returns {{ userId: string, fullName: string } | null}
+ */
+export function matchPhoneInLookupMap(normalizedPhone, lookupMap) {
+  if (!normalizedPhone || !lookupMap) return null;
+  return lookupMap.get(normalizedPhone) || null;
 }
 
 /**

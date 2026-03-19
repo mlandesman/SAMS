@@ -4,53 +4,51 @@ task_ref: WA-BACKEND-1
 status: Completed
 ad_hoc_delegation: false
 compatibility_issues: false
-important_findings: false
+important_findings: true
 ---
 
 # Task Log: WA-BACKEND-1 — WhatsApp Webhook
 
 ## Summary
 
-Implemented the WhatsApp Cloud API webhook for SAMS: single `/whatsapp-webhook` endpoint (GET for Meta verification, POST for inbound messages and status updates). Events are parsed, persisted to Firestore (`whatsappWebhookEvents`, `whatsappMessages`), phones matched to users (userId + fullName), STOP/opt-out detected with `notifications.sms = false` update.
+Implemented the WhatsApp Cloud API webhook for SAMS: single `/whatsapp-webhook` endpoint (GET for Meta verification, POST with **X-Hub-Signature-256** validation using `WHATSAPP_APP_SECRET`). Events are parsed, persisted to Firestore (`whatsappWebhookEvents`, `whatsappMessages`), phones matched via **one users scan per webhook batch** (lookup map), STOP/opt-out updates `notifications.sms`. POST **awaits** processing before 200 to avoid Cloud Functions background truncation.
 
 ## Details
 
-- **Modular helpers** in `functions/backend/utils/whatsappWebhookUtils.js`: `verifyWebhookChallenge`, `parseInboundMessages`, `parseStatusUpdates`, `detectOptOut`, `matchPhoneToUser`, `writeRawWebhookEvent`, `writeNormalizedMessage`, `applyOptOut`, `normalizePhone`
-- **Routes** in `functions/backend/routes/whatsappWebhookRoutes.js`: GET returns challenge when verify token matches; POST returns 200 immediately, processes payload asynchronously
-- **Phone matching**: Fetches users, normalizes phones (digits only), matches to `profile.phone`. Stores `userId` and `fullName` on message (per Michael: not clientId/unitId)
-- **STOP keywords**: `stop`, `unsubscribe`, `cancel`, `baja`, `alto` (case-insensitive)
-- **WHATSAPP_VERIFY_TOKEN**: Added to api secrets array; value `sams-wa-verify-2026` already set in environment
-- **Firebase Hosting**: Rewrites for `/whatsapp-webhook` and `/whatsapp-webhook/**` added to both desktop and mobile targets
+- **Helpers** (`functions/backend/utils/whatsappWebhookUtils.js`): `verifyWebhookChallenge`, `verifyMetaWebhookSignature`, `parseInboundMessages`, `parseStatusUpdates`, `detectOptOut`, `buildUserPhoneLookupMap`, `matchPhoneInLookupMap`, `writeRawWebhookEvent`, `writeNormalizedMessage`, `applyOptOut`, `normalizePhone`
+- **Routes**: GET challenge; POST requires raw body + valid HMAC; 403 on bad/missing signature; 503 if `WHATSAPP_APP_SECRET` unset
+- **Raw body**: `express.json` `verify` in `functions/backend/index.js` sets `req.rawBody` for paths ending `/whatsapp-webhook`
+- **Secrets** (Firebase / `.env`, **never commit values**): `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` (Meta App Secret from app dashboard)
+- **Status timestamps**: `buildStatusRecord` sets `timestampSent` for `sent`/`failed`, `timestampDelivered` for `delivered`/`read`, `timestampRead` for `read`
+- **Firebase Hosting**: Rewrites for `/whatsapp-webhook` (desktop + mobile)
 
 ## Output
 
-### Files Created
-- `functions/backend/utils/whatsappWebhookUtils.js` — webhook helper module
-- `functions/backend/routes/whatsappWebhookRoutes.js` — Express routes
-
-### Files Modified
-- `functions/backend/index.js` — mount `/whatsapp-webhook` (public)
-- `functions/index.js` — add WHATSAPP_VERIFY_TOKEN to secrets
-- `firebase.json` — rewrites for desktop and mobile hosting
+### Files Created / Modified
+- `functions/backend/utils/whatsappWebhookUtils.js`, `functions/backend/routes/whatsappWebhookRoutes.js`, `functions/backend/routes/whatsappWebhookTestPayloads.json` (placeholders only)
+- `functions/backend/index.js` — raw body capture for webhook
+- `functions/index.js` — secrets: `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`
 
 ### Firestore Collections
-- `whatsappWebhookEvents` — raw POST payloads with eventType, timestampReceived
-- `whatsappMessages` — normalized records: messageId, direction, phone, waId, text, type, status, timestamps, userId, fullName, optOutDetected, rawEventRef
+- `whatsappWebhookEvents`, `whatsappMessages` (unchanged purpose)
 
 ## Test Results
 
-- **GET verification**: Tested locally — `curl "http://localhost:5099/whatsapp-webhook?hub.mode=subscribe&hub.verify_token=sams-wa-verify-2026&hub.challenge=test-challenge-123"` returns `test-challenge-123` (HTTP 200)
-- **Invalid token**: Returns 403 (not tested in this run; logic verified)
-- **POST**: Returns 200 immediately for valid `whatsapp_business_account` payload
-- **Firestore writes**: Require deployed environment or emulator; not tested in this session
+- **GET verification**: Use `hub.verify_token=<value from secret WHATSAPP_VERIFY_TOKEN>` (do not document actual value in git)
+- **POST**: Requires `X-Hub-Signature-256: sha256=<hmac>` over exact raw JSON bytes using `WHATSAPP_APP_SECRET`
+- Local: set both env vars; compute HMAC for curl body or use Meta’s delivery
 
 ## Issues
 
 None
 
+## Important Findings
+
+- **Deploy:** Run `firebase functions:secrets:set WHATSAPP_APP_SECRET` with Meta App Secret (App settings → Basic). Redeploy `api` after binding the secret.
+- **BugBot follow-ups addressed:** signature validation, await-before-response, no plaintext verify token in repo docs, single phone lookup per batch, `sent` status timestamp.
+
 ## Next Steps
 
-1. Deploy functions and hosting
-2. Configure Meta Developer Console: Callback URL `https://sams.sandyland.com.mx/whatsapp-webhook`, Verify token `sams-wa-verify-2026`
-3. Subscribe to webhook fields: `messages`, `message_status`
-4. Test: (a) send message from phone to business number, (b) send STOP, (c) send outbound message and verify status events
+1. Set `WHATSAPP_APP_SECRET` in Firebase; deploy functions + hosting
+2. Meta Console: callback URL + verify token from secrets only
+3. Regression test inbound message, STOP, outbound status

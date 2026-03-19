@@ -117,7 +117,16 @@ app.use((req, res, next) => {
   // Only parse JSON content type
   const contentType = (req.headers['content-type'] || '').toLowerCase();
   if (contentType.includes('application/json')) {
-    express.json({ limit: '50mb' })(req, res, next);
+    express.json({
+      limit: '50mb',
+      verify: (req, res, buf) => {
+        // Raw bytes required for Meta X-Hub-Signature-256 (WhatsApp webhook)
+        const pathOnly = (req.originalUrl || req.url || '').split('?')[0];
+        if (pathOnly.endsWith('/whatsapp-webhook')) {
+          req.rawBody = buf;
+        }
+      },
+    })(req, res, next);
   } else {
     next();
   }

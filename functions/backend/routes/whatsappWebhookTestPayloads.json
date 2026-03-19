@@ -1,6 +1,6 @@
 {
-  "_comment": "Sample payloads for local testing. Use curl to POST to http://localhost:5001/whatsapp-webhook",
-  "verification_get": "GET /whatsapp-webhook?hub.mode=subscribe&hub.verify_token=sams-wa-verify-2026&hub.challenge=test-challenge-123",
+  "_comment": "Sample payloads for local testing. Signature: compute HMAC-SHA256 of raw JSON body with WHATSAPP_APP_SECRET; header X-Hub-Signature-256: sha256=<hex>. GET verification uses WHATSAPP_VERIFY_TOKEN from secrets (never commit values).",
+  "verification_get": "GET /whatsapp-webhook?hub.mode=subscribe&hub.verify_token=<WHATSAPP_VERIFY_TOKEN>&hub.challenge=test-challenge-123",
   "inbound_message": {
     "object": "whatsapp_business_account",
     "entry": [{
