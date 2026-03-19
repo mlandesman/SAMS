@@ -25,10 +25,10 @@ function getFirebaseApiKey() {
   return FIREBASE_API_KEYS[projectId] || FIREBASE_API_KEYS['sandyland-management-system'];
 }
 
-function getApiBaseUrl() {
+export function getApiBaseUrl() {
   if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
   if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod') {
-    return 'https://api.sams.sandyland.com.mx';
+    return 'https://sams.sandyland.com.mx';
   }
   return 'http://localhost:5001';
 }

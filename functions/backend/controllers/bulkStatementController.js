@@ -14,7 +14,7 @@ import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js'
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { sendStatementEmail } from './emailService.js';
-
+import { getApiBaseUrl } from '../services/internalApiClient.js';
 import axios from 'axios';
 import { resolveOwners, getFirstOwnerName, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 
@@ -284,7 +284,7 @@ export async function bulkGenerateStatements(req, res) {
     console.log(`   Found ${units.length} units`);
     
     // Create authenticated API client
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    const baseURL = getApiBaseUrl();
     const authToken = req.headers.authorization?.replace('Bearer ', '');
     
     if (!authToken) {
