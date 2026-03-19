@@ -127,6 +127,14 @@
           "function": "api"
         },
         {
+          "source": "/whatsapp-webhook",
+          "function": "api"
+        },
+        {
+          "source": "/whatsapp-webhook/**",
+          "function": "api"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -256,6 +264,14 @@
         },
         {
           "source": "/vote/**",
+          "function": "api"
+        },
+        {
+          "source": "/whatsapp-webhook",
+          "function": "api"
+        },
+        {
+          "source": "/whatsapp-webhook/**",
           "function": "api"
         },
         {

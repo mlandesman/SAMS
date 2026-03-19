@@ -3,12 +3,19 @@
 # Run before creating a PR to catch common issues.
 # Usage: bash scripts/pre-pr-checks.sh [base-branch]
 #
-# Checks:
+# Frontend (when frontend/**/*.js|jsx|ts|tsx changed):
 #   1. new Date() violations (timezone rule)
 #   2. Dead files (created on branch but never imported)
 #   3. Unused imports in changed files
 #   4. navigate() targets vs App.jsx routes
 #   5. CommonJS in frontend code
+#
+# Backend (when functions/**/*.js changed, excluding tests/archive):
+#   1. new Date() with no arguments (use getNow() / DateService for "now")
+#   2. CommonJS (require/module.exports) in changed backend files
+#   3. firebase.json: if changed, remind rewrites (desktop + mobile) for new routes
+#
+# After push: BugBot / GitHub Copilot review runs on the PR — poll every ~5 minutes if needed.
 
 set -euo pipefail
 
@@ -17,6 +24,7 @@ ISSUES_FOUND=0
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
 GREEN='\033[0;32m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 warn() { echo -e "${YELLOW}⚠  $1${NC}"; ISSUES_FOUND=$((ISSUES_FOUND + 1)); }
@@ -28,12 +36,87 @@ header() { echo -e "\n${NC}━━━ $1 ━━━${NC}"; }
 CHANGED_FILES=$(git diff --name-only --diff-filter=d "$BASE_BRANCH"...HEAD 2>/dev/null || git diff --name-only --diff-filter=d "$BASE_BRANCH" HEAD)
 NEW_FILES=$(git diff --name-only --diff-filter=A "$BASE_BRANCH"...HEAD 2>/dev/null || git diff --name-only --diff-filter=A "$BASE_BRANCH" HEAD)
 FRONTEND_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^frontend/.*\.(js|jsx|ts|tsx)$' || true)
+CHANGED_BACKEND=$(echo "$CHANGED_FILES" | grep -E '^functions/.*\.js$' | grep -v '_archive' | grep -v '/testing/' | grep -v '\.test\.' || true)
+# Date()/ESM discipline: scan backend implementation only (root functions/index.js has legacy health checks)
+CHANGED_BACKEND_IMPL=$(echo "$CHANGED_FILES" | grep -E '^functions/backend/.*\.js$' | grep -v '_archive' | grep -v '/testing/' | grep -v '\.test\.' || true)
+FIREBASE_JSON_CHANGED=$(echo "$CHANGED_FILES" | grep -Fx 'firebase.json' || true)
 
-if [ -z "$FRONTEND_CHANGES" ]; then
-  echo "No frontend changes detected. Skipping checks."
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  SAMS Pre-PR Quality Gate  (base: ${BASE_BRANCH})${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "Changed files (this branch vs $BASE_BRANCH): $(echo "$CHANGED_FILES" | grep -c . || echo 0) tracked"
+if [ -n "$FRONTEND_CHANGES" ]; then
+  echo "  → Frontend JS/TS to scan: $(echo "$FRONTEND_CHANGES" | grep -c . || echo 0)"
+fi
+if [ -n "$CHANGED_BACKEND" ]; then
+  echo "  → Functions JS to scan: $(echo "$CHANGED_BACKEND" | grep -c . || echo 0) (Date/CJS: backend/*.js only)"
+fi
+if [ -n "$FIREBASE_JSON_CHANGED" ]; then
+  echo "  → firebase.json: modified (verify hosting rewrites)"
+fi
+
+if [ -z "$FRONTEND_CHANGES" ] && [ -z "$CHANGED_BACKEND" ] && [ -z "$FIREBASE_JSON_CHANGED" ]; then
+  echo ""
+  echo "No frontend, functions/*.js, or firebase.json changes detected vs $BASE_BRANCH."
+  echo "Nothing to scan. (Staged-only changes? Commit first, or diff may be empty.)"
   exit 0
 fi
 
+# ━━━ BACKEND (functions) ━━━
+if [ -n "$CHANGED_BACKEND_IMPL" ]; then
+  header "Backend (functions/backend): new Date() with empty args (use getNow() for \"now\")"
+  # Literal new Date() only; new Date(ts) for external Unix timestamps is allowed
+  DATE_BACKEND=$(echo "$CHANGED_BACKEND_IMPL" | xargs grep -n 'new Date()' 2>/dev/null | grep -v 'node_modules' || true)
+  if [ -n "$DATE_BACKEND" ]; then
+    fail "Found new Date() in functions/backend — use getNow() for current time:"
+    echo "$DATE_BACKEND" | head -20
+  else
+    pass "No bare new Date() in changed functions/backend files"
+  fi
+
+  header "Backend (functions/backend): CommonJS (require / module.exports)"
+  CJS_BACKEND=$(echo "$CHANGED_BACKEND_IMPL" | xargs grep -nE '(^|\s)(require\(|module\.exports)' 2>/dev/null | grep -v 'node_modules' || true)
+  if [ -n "$CJS_BACKEND" ]; then
+    fail "CommonJS in backend (use ES modules):"
+    echo "$CJS_BACKEND" | head -15
+  else
+    pass "No CommonJS violations in changed functions/backend files"
+  fi
+elif [ -n "$CHANGED_BACKEND" ]; then
+  header "Backend"
+  echo "  (Skipped Date/CJS scan: no functions/backend/*.js in this diff — e.g. only functions/index.js)"
+fi
+
+if [ -n "$FIREBASE_JSON_CHANGED" ]; then
+  header "firebase.json"
+  if grep -q 'whatsapp-webhook' firebase.json 2>/dev/null; then
+    WH_COUNT=$(grep -o 'whatsapp-webhook' firebase.json 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${WH_COUNT:-0}" -ge 4 ]; then
+      pass "whatsapp-webhook: 4 rewrite entries (desktop + mobile, exact + /**)"
+    else
+      warn "Expected 4 whatsapp-webhook rewrites in firebase.json (found ${WH_COUNT:-0})"
+    fi
+  else
+    warn "firebase.json changed — confirm new API routes have matching rewrites on desktop AND mobile"
+  fi
+fi
+
+if [ -z "$FRONTEND_CHANGES" ]; then
+  header "Summary (backend / config only)"
+  if [ "$ISSUES_FOUND" -gt 0 ]; then
+    echo -e "${RED}Found $ISSUES_FOUND potential issue(s). Fix before PR.${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}Backend pre-PR checks passed.${NC}"
+  echo ""
+  echo "Before merge / prod deploy, manually confirm:"
+  echo "  - functions/index.js secrets[] includes any new Firebase secrets (e.g. WHATSAPP_VERIFY_TOKEN)"
+  echo "  - New Express app.use() paths have firebase.json rewrites (see SAMS-Docs/SAMS Guides/Firebase_Hosting_Route_Requirements.md)"
+  echo "  - After push: open PR and wait for BugBot / Copilot review (~5 min cycles)"
+  exit 0
+fi
+
+echo ""
 echo "Pre-PR Quality Gate — checking $(echo "$FRONTEND_CHANGES" | wc -l | tr -d ' ') frontend files against $BASE_BRANCH"
 
 # ━━━ CHECK 1: new Date() violations ━━━
@@ -110,5 +193,6 @@ else
   echo "  - State reset when context deps change (selectedUnitId, currentClient)"
   echo "  - Data unit consistency in fallback chains (centavos vs pesos)"
   echo "  - Role/permission alignment between component visibility and route access"
+  echo "  - After push: BugBot / Copilot PR review — poll every ~5 minutes until clean"
   exit 0
 fi

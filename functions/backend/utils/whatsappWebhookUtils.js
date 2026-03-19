@@ -1,0 +1,181 @@
+/**
+ * WhatsApp Cloud API Webhook Utilities
+ *
+ * Modular helpers for parsing, matching, and persisting webhook events.
+ * Task: WA-BACKEND-1 (WhatsApp Webhook)
+ */
+
+import { getNow } from '../services/DateService.js';
+import { logInfo, logWarn, logError } from '../../shared/logger.js';
+
+const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'cancel', 'baja', 'alto'];
+
+/**
+ * Normalize phone to E.164-like form for matching (digits only, optional + prefix)
+ * @param {string} phone - Raw phone from webhook
+ * @returns {string} Normalized phone (digits only)
+ */
+export function normalizePhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  const digits = phone.replace(/\D/g, '');
+  return digits || '';
+}
+
+/**
+ * Verify Meta webhook challenge (GET)
+ * @param {string} mode - hub.mode
+ * @param {string} token - hub.verify_token
+ * @param {string} challenge - hub.challenge
+ * @param {string} expectedToken - From WHATSAPP_VERIFY_TOKEN secret
+ * @returns {{ valid: boolean, challenge?: string }}
+ */
+export function verifyWebhookChallenge(mode, token, challenge, expectedToken) {
+  if (mode !== 'subscribe') {
+    logWarn('WhatsApp webhook: invalid hub.mode', { mode });
+    return { valid: false };
+  }
+  if (!expectedToken || token !== expectedToken) {
+    logWarn('WhatsApp webhook: verify token mismatch');
+    return { valid: false };
+  }
+  if (!challenge) {
+    logWarn('WhatsApp webhook: missing hub.challenge');
+    return { valid: false };
+  }
+  logInfo('WhatsApp webhook: verification successful');
+  return { valid: true, challenge };
+}
+
+/**
+ * Parse inbound user messages from webhook value
+ * @param {object} value - value from changes[].value
+ * @returns {Array<object>} Normalized message objects
+ */
+export function parseInboundMessages(value) {
+  const messages = value?.messages || [];
+  const contacts = (value?.contacts || []).reduce((acc, c) => {
+    if (c?.wa_id) acc[c.wa_id] = c;
+    return acc;
+  }, {});
+
+  return messages.map((msg) => {
+    const contact = contacts[msg.from] || {};
+    const profile = contact.profile || {};
+    return {
+      messageId: msg.id,
+      from: msg.from,
+      waId: msg.from,
+      timestamp: msg.timestamp,
+      type: msg.type || 'unknown',
+      text: msg.text?.body || msg.caption || '',
+      profileName: profile.name || '',
+    };
+  });
+}
+
+/**
+ * Parse outbound status updates from webhook value
+ * @param {object} value - value from changes[].value
+ * @returns {Array<object>} Normalized status objects
+ */
+export function parseStatusUpdates(value) {
+  const statuses = value?.statuses || [];
+  return statuses.map((s) => ({
+    messageId: s.id,
+    recipientId: s.recipient_id,
+    status: s.status || 'unknown',
+    timestamp: s.timestamp,
+    conversation: s.conversation || null,
+    pricing: s.pricing || null,
+    error: s.errors?.[0] || null,
+  }));
+}
+
+/**
+ * Detect STOP/opt-out keywords (case-insensitive)
+ * @param {string} text - Message text
+ * @returns {boolean}
+ */
+export function detectOptOut(text) {
+  if (!text || typeof text !== 'string') return false;
+  const normalized = text.trim().toLowerCase();
+  return OPT_OUT_KEYWORDS.some((kw) => normalized === kw || normalized.startsWith(`${kw} `));
+}
+
+/**
+ * Match normalized phone to a SAMS user. Returns userId and fullName.
+ * @param {string} normalizedPhone - Digits-only phone
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<{ userId: string, fullName: string } | null>}
+ */
+export async function matchPhoneToUser(normalizedPhone, db) {
+  if (!normalizedPhone || !db) return null;
+
+  const usersSnap = await db.collection('users').get();
+  for (const doc of usersSnap.docs) {
+    const data = doc.data();
+    const profile = data.profile || {};
+    const userPhone = typeof profile.phone === 'string' ? profile.phone.trim() : '';
+    if (!userPhone) continue;
+
+    const userPhoneNorm = normalizePhone(userPhone);
+    if (userPhoneNorm && userPhoneNorm === normalizedPhone) {
+      const firstName = (profile.firstName || '').trim();
+      const lastName = (profile.lastName || '').trim();
+      const fullName = `${firstName} ${lastName}`.trim() || (data.name || '').trim();
+      return { userId: doc.id, fullName };
+    }
+  }
+  return null;
+}
+
+/**
+ * Write raw webhook POST payload to Firestore
+ * @param {object} payload - Raw JSON body
+ * @param {string} eventType - e.g. 'messages', 'message_status'
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<string>} Document ID
+ */
+export async function writeRawWebhookEvent(payload, eventType, db) {
+  const ref = await db.collection('whatsappWebhookEvents').add({
+    eventType,
+    rawPayload: payload,
+    timestampReceived: getNow(),
+    createdAt: getNow(),
+  });
+  return ref.id;
+}
+
+/**
+ * Write normalized message/status to whatsappMessages
+ * @param {object} record - Normalized record
+ * @param {string|null} rawEventId - Reference to whatsappWebhookEvents doc
+ * @param {FirebaseFirestore.Firestore} db
+ * @returns {Promise<string>} Document ID
+ */
+export async function writeNormalizedMessage(record, rawEventId, db) {
+  const doc = {
+    ...record,
+    rawEventRef: rawEventId ? db.doc(`whatsappWebhookEvents/${rawEventId}`) : null,
+    timestampCreated: getNow(),
+  };
+  const ref = await db.collection('whatsappMessages').add(doc);
+  return ref.id;
+}
+
+/**
+ * Update user notifications.sms to false (opt-out)
+ * @param {string} userId
+ * @param {FirebaseFirestore.Firestore} db
+ */
+export async function applyOptOut(userId, db) {
+  if (!userId || !db) return;
+  try {
+    await db.collection('users').doc(userId).update({
+      'notifications.sms': false,
+    });
+    logInfo('WhatsApp opt-out applied', { userId });
+  } catch (err) {
+    logError('WhatsApp opt-out update failed', { userId, error: err.message });
+  }
+}

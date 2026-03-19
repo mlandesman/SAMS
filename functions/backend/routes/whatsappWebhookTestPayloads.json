@@ -1,0 +1,44 @@
+{
+  "_comment": "Sample payloads for local testing. Use curl to POST to http://localhost:5001/whatsapp-webhook",
+  "verification_get": "GET /whatsapp-webhook?hub.mode=subscribe&hub.verify_token=sams-wa-verify-2026&hub.challenge=test-challenge-123",
+  "inbound_message": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "969950456204182",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15551234567", "phone_number_id": "969950456204182" },
+          "contacts": [{ "profile": { "name": "Test User" }, "wa_id": "5215512345678" }],
+          "messages": [{
+            "id": "wamid.test123",
+            "from": "5215512345678",
+            "timestamp": "1710864000",
+            "type": "text",
+            "text": { "body": "Hello from test" }
+          }]
+        }
+      }]
+    }]
+  },
+  "status_update": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "969950456204182",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15551234567", "phone_number_id": "969950456204182" },
+          "statuses": [{
+            "id": "wamid.sent123",
+            "recipient_id": "5215512345678",
+            "status": "delivered",
+            "timestamp": "1710864010"
+          }]
+        }
+      }]
+    }]
+  }
+}

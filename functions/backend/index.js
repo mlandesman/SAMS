@@ -28,6 +28,7 @@ import translateRoutes from './routes/translateRoutes.js'; // Import translation
 import { authenticateUserWithProfile } from './middleware/clientAuth.js'; // Import authentication middleware
 import voteRoutes from './routes/voteRoutes.js'; // Import polling & vote routes
 import systemErrorRoutes from './routes/systemRoutes.js';
+import whatsappWebhookRoutes from './routes/whatsappWebhookRoutes.js';
 
 // New comment for testing
 
@@ -211,6 +212,9 @@ initializeApp().catch(console.error);
 logDebug('Mounting system routes (public)');
 app.use('/system/exchange-rates', exchangeRatesRoutes); // Move to /system path (public)
 app.use('/system/version', versionRoutes); // Clean architecture (public)
+
+// WhatsApp webhook (public - Meta verification and inbound POST)
+app.use('/whatsapp-webhook', whatsappWebhookRoutes);
 
 // System error monitor API (authenticated, domain-specific route)
 app.use('/error-reporting', systemErrorRoutes);
