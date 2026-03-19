@@ -202,20 +202,32 @@ async function generatePdfForUnit(api, clientId, unitId, fiscalYear, language) {
  * generateStatementData already returns htmlEn + htmlEs — this avoids fetching data twice.
  */
 async function generatePdfsForUnitBothLanguages(api, clientId, unitId, fiscalYear) {
+  let result;
   try {
-    const result = await generateStatementData(api, clientId, unitId, { fiscalYear, language: 'english' });
+    result = await generateStatementData(api, clientId, unitId, { fiscalYear, language: 'english' });
+  } catch (error) {
+    const errorMessage = error.response 
+      ? `HTTP ${error.response.status}: ${error.response.statusText} - ${error.response.data?.error || error.message}`
+      : error.message;
+    console.error(`   Error fetching statement data for ${unitId}:`, errorMessage);
+    return {
+      english: { success: false, error: errorMessage },
+      spanish: { success: false, error: errorMessage }
+    };
+  }
 
-    const pdfs = {};
-    for (const lang of ['english', 'spanish']) {
-      const isSpanish = lang === 'spanish';
-      const html = isSpanish ? result.htmlEs : result.htmlEn;
-      const meta = isSpanish ? result.metaEs : result.metaEn;
+  const pdfs = {};
+  for (const lang of ['english', 'spanish']) {
+    const isSpanish = lang === 'spanish';
+    const html = isSpanish ? result.htmlEs : result.htmlEn;
+    const meta = isSpanish ? result.metaEs : result.metaEn;
 
-      if (!html) {
-        pdfs[lang] = { success: false, error: `No ${lang} HTML returned` };
-        continue;
-      }
+    if (!html) {
+      pdfs[lang] = { success: false, error: `No ${lang} HTML returned` };
+      continue;
+    }
 
+    try {
       const pdfBuffer = await generatePdf(html, {
         footerMeta: {
           statementId: meta?.statementId,
@@ -224,18 +236,12 @@ async function generatePdfsForUnitBothLanguages(api, clientId, unitId, fiscalYea
         }
       });
       pdfs[lang] = { success: true, pdfBuffer, meta };
+    } catch (error) {
+      console.error(`   Error generating ${lang} PDF for ${unitId}:`, error.message);
+      pdfs[lang] = { success: false, error: error.message };
     }
-    return pdfs;
-  } catch (error) {
-    const errorMessage = error.response 
-      ? `HTTP ${error.response.status}: ${error.response.statusText} - ${error.response.data?.error || error.message}`
-      : error.message;
-    console.error(`   Error generating PDFs for ${unitId}:`, errorMessage);
-    return {
-      english: { success: false, error: errorMessage },
-      spanish: { success: false, error: errorMessage }
-    };
   }
+  return pdfs;
 }
 
 
@@ -425,9 +431,11 @@ export async function bulkGenerateStatements(req, res) {
             continue;
           }
 
-          const statementDate = new Date(pdfResult.meta?.statementDate || currentDate);
-          const calendarYear = overrideCalendarYear || statementDate.getFullYear();
-          const calendarMonth = overrideCalendarMonth || (statementDate.getMonth() + 1);
+          const calendarYear = overrideCalendarYear || (new Date(pdfResult.meta?.statementDate || currentDate)).getFullYear();
+          const calendarMonth = overrideCalendarMonth || ((new Date(pdfResult.meta?.statementDate || currentDate)).getMonth() + 1);
+          const statementDate = (overrideCalendarYear && overrideCalendarMonth)
+            ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 1)
+            : new Date(pdfResult.meta?.statementDate || currentDate);
 
           let fiscalMonth;
           if (calendarMonth >= fiscalYearStartMonth) {
