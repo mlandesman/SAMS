@@ -121,14 +121,42 @@ export function parseStatusUpdates(value) {
 }
 
 /**
+ * Strip leading/trailing punctuation and odd whitespace so "STOP.", "STOP!", "…baja" match keywords.
+ * @param {string} s
+ * @returns {string}
+ */
+export function normalizeOptOutText(s) {
+  let t = s.trim().toLowerCase();
+  // Trailing: periods, bangs, commas, CJK/full stops, ellipsis, etc.
+  t = t.replace(/[\s\u00A0.!?…,;:。、，]+$/gu, '').trim();
+  t = t.replace(/^[\s\u00A0.!?…,;:。、，]+/gu, '').trim();
+  return t;
+}
+
+/**
+ * First whitespace-delimited token with non-letter/digit stripped from both ends (handles "UNSUBSCRIBE,").
+ * @param {string} text
+ * @returns {string}
+ */
+export function firstWordForOptOut(text) {
+  const raw = (text.trim().toLowerCase().split(/\s+/)[0] || '');
+  return raw.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+}
+
+/**
  * Detect STOP/opt-out keywords (case-insensitive)
  * @param {string} text - Message text
  * @returns {boolean}
  */
 export function detectOptOut(text) {
   if (!text || typeof text !== 'string') return false;
-  const normalized = text.trim().toLowerCase();
-  return OPT_OUT_KEYWORDS.some((kw) => normalized === kw || normalized.startsWith(`${kw} `));
+  const normalized = normalizeOptOutText(text);
+  if (!normalized) return false;
+  if (OPT_OUT_KEYWORDS.some((kw) => normalized === kw || normalized.startsWith(`${kw} `))) {
+    return true;
+  }
+  const firstToken = firstWordForOptOut(text);
+  return OPT_OUT_KEYWORDS.some((kw) => firstToken === kw);
 }
 
 /**

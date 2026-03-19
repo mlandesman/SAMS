@@ -115,6 +115,8 @@ function buildStatusRecord(st) {
 async function processWebhookPayload(payload) {
   const db = await getDb();
   const phoneLookup = await buildUserPhoneLookupMap(db);
+  // One Firestore doc per HTTP POST (full payload), not per change/entry
+  const rawEventId = await writeRawWebhookEvent(payload, 'webhook_post', db);
   const entries = payload.entry || [];
   let messageCount = 0;
   let statusCount = 0;
@@ -126,8 +128,6 @@ async function processWebhookPayload(payload) {
       const value = change.value;
 
       if ((field === 'messages' || field === 'message_status') && value) {
-        const rawEventId = await writeRawWebhookEvent(payload, field, db);
-
         if (field === 'messages') {
           const inboundMessages = parseInboundMessages(value);
           for (const msg of inboundMessages) {
