@@ -5,7 +5,7 @@
  * Storage Structure:
  * - Storage: clients/{clientId}/accountStatements/{fiscalYear}/{YYYY-MM-{unitId}-{LANG}.PDF
  *   where LANG is ES (Spanish) or EN (English)
- * - Metadata: clients/{clientId}/accountStatements/{uuid} (flattened path)
+ * - Metadata: clients/{clientId}/accountStatements/{unitId}-{YYYY}-{MM}-{language} (deterministic path)
  */
 
 import { getDb, getApp } from '../firebase.js';
@@ -14,7 +14,7 @@ import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js'
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { sendStatementEmail } from './emailService.js';
-import { randomUUID } from 'crypto';
+
 import axios from 'axios';
 import { resolveOwners, getFirstOwnerName, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 
@@ -111,17 +111,18 @@ async function uploadToStorage(pdfBuffer, storagePath) {
 
 /**
  * Store statement metadata in Firestore
- * Flattened path: clients/{clientId}/accountStatements/{uuid}
+ * Deterministic path: clients/{clientId}/accountStatements/{unitId}-{YYYY}-{MM}-{language}
+ * Using set() so re-generating the same unit/month/language naturally overwrites.
  */
 async function storeStatementMetadata(clientId, metadata) {
   const db = await getDb();
-  const statementId = randomUUID();
+  const docId = `${metadata.unitId}-${metadata.calendarYear}-${String(metadata.calendarMonth).padStart(2, '0')}-${metadata.language}`;
   const metadataRef = db.collection('clients').doc(clientId)
-    .collection('accountStatements').doc(statementId);
+    .collection('accountStatements').doc(docId);
   
   await metadataRef.set(metadata);
   
-  return statementId;
+  return docId;
 }
 
 /**
@@ -241,7 +242,7 @@ export async function getBulkStatementProgress(req, res) {
  * Uses Firestore-based progress tracking for reliable polling
  */
 export async function bulkGenerateStatements(req, res) {
-  const { clientId, fiscalYear: requestedFiscalYear, language = 'english' } = req.body;
+  const { clientId, fiscalYear: requestedFiscalYear, language = 'english', calendarMonth: overrideCalendarMonth, calendarYear: overrideCalendarYear } = req.body;
   
   try {
     const user = req.user;
@@ -370,10 +371,10 @@ export async function bulkGenerateStatements(req, res) {
           continue;
         }
         
-        // Get statement date from metadata
+        // Get calendar month/year — prefer explicit override (from scheduler), else derive from statement date
         const statementDate = new Date(pdfResult.meta?.statementDate || currentDate);
-        const calendarYear = statementDate.getFullYear();
-        const calendarMonth = statementDate.getMonth() + 1;
+        const calendarYear = overrideCalendarYear || statementDate.getFullYear();
+        const calendarMonth = overrideCalendarMonth || (statementDate.getMonth() + 1);
         
         // Calculate fiscal month
         let fiscalMonth;

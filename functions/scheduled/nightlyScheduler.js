@@ -136,13 +136,11 @@ export const nightlyScheduler = onSchedule({
         status: stmtResult.error ? 'partial_failure' : 'success',
         period: stmtResult.statementPeriod,
         clients: stmtResult.clients?.length || 0,
-        totalUnits: stmtResult.totalUnits,
         generated: stmtResult.totalGenerated,
-        replaced: stmtResult.totalReplaced,
         failed: stmtResult.totalFailed,
         durationMs: stmtResult.durationMs
       };
-      console.log(`✅ [NIGHTLY] Monthly statements complete: ${stmtResult.totalGenerated} generated (${stmtResult.totalReplaced} replaced), ${stmtResult.totalFailed} failed`);
+      console.log(`✅ [NIGHTLY] Monthly statements complete: ${stmtResult.totalGenerated} generated, ${stmtResult.totalFailed} failed`);
     } catch (error) {
       console.error('❌ [NIGHTLY] Monthly statement generation failed:', error);
       results.tasks.monthlyStatements = { status: 'failed', error: error.message };

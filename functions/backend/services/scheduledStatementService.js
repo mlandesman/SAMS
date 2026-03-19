@@ -4,6 +4,10 @@
  * Orchestrates monthly statement generation by calling the existing
  * bulkGenerateStatements controller for each client × language combination.
  * No duplication of generation, upload, or indexing logic.
+ * 
+ * Overwrite safety: The controller uses deterministic Firestore doc IDs
+ * ({unitId}-{YYYY}-{MM}-{language}) and deterministic Storage paths,
+ * so re-generating naturally overwrites without pre-deletion.
  */
 
 import { getDb } from '../firebase.js';
@@ -19,26 +23,9 @@ async function getActiveClients() {
     .map(doc => doc.id);
 }
 
-async function deleteExistingStatements(clientId, calendarYear, calendarMonth, language) {
-  const db = await getDb();
-  const snapshot = await db.collection('clients').doc(clientId)
-    .collection('accountStatements')
-    .where('calendarYear', '==', calendarYear)
-    .where('calendarMonth', '==', calendarMonth)
-    .where('language', '==', language)
-    .get();
-
-  if (snapshot.empty) return 0;
-
-  const batch = db.batch();
-  snapshot.docs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-  return snapshot.size;
-}
-
-function createMockReqRes(clientId, language, authToken) {
+function createMockReqRes(clientId, language, authToken, calendarMonth, calendarYear) {
   const req = {
-    body: { clientId, language },
+    body: { clientId, language, calendarMonth, calendarYear },
     headers: { authorization: `Bearer ${authToken}` },
     user: {
       uid: 'system-scheduler',
@@ -62,6 +49,22 @@ function createMockReqRes(clientId, language, authToken) {
 }
 
 /**
+ * Determine the statement period (prior month).
+ * Running on April 1 → generates March statements (calendarMonth=3, calendarYear=2026).
+ * Running on January 1 → generates December of the prior year.
+ */
+function getStatementPeriod(now, targetYear, targetMonth) {
+  if (targetYear && targetMonth) {
+    return { calendarYear: targetYear, calendarMonth: targetMonth };
+  }
+  const month = now.getMonth(); // 0-based: Jan=0, Apr=3
+  if (month === 0) {
+    return { calendarYear: now.getFullYear() - 1, calendarMonth: 12 };
+  }
+  return { calendarYear: now.getFullYear(), calendarMonth: month };
+}
+
+/**
  * Generate monthly statements for all clients and units.
  * Calls bulkGenerateStatements for each client × language — no duplicated logic.
  */
@@ -69,23 +72,17 @@ export async function generateMonthlyStatements(options = {}) {
   const { dryRun = false, targetYear, targetMonth } = options;
   const now = getNow();
 
-  let statementYear, statementMonth;
-  if (targetYear && targetMonth) {
-    statementYear = targetYear;
-    statementMonth = targetMonth;
-  } else {
-    statementYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-    statementMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-  }
+  const { calendarYear, calendarMonth } = getStatementPeriod(now, targetYear, targetMonth);
 
-  const period = `${statementYear}-${String(statementMonth).padStart(2, '0')}`;
+  const period = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}`;
   console.log(`📄 [MONTHLY-STMT] Generating statements for ${period}`);
 
   const summary = {
     statementPeriod: period,
+    calendarYear,
+    calendarMonth,
     clients: [],
     totalGenerated: 0,
-    totalReplaced: 0,
     totalFailed: 0,
     durationMs: 0
   };
@@ -115,19 +112,13 @@ export async function generateMonthlyStatements(options = {}) {
   const languages = ['english', 'spanish'];
 
   for (const clientId of clients) {
-    const clientResult = { clientId, generated: 0, replaced: 0, failed: 0 };
+    const clientResult = { clientId, generated: 0, failed: 0 };
 
     for (const language of languages) {
       const langLabel = language === 'spanish' ? 'ES' : 'EN';
 
       try {
-        const deleted = await deleteExistingStatements(clientId, statementYear, statementMonth, language);
-        if (deleted > 0) {
-          console.log(`   ♻️ [${clientId}/${langLabel}] Deleted ${deleted} prior statement(s)`);
-          clientResult.replaced += deleted;
-        }
-
-        const { req, res, getResult } = createMockReqRes(clientId, language, authToken);
+        const { req, res, getResult } = createMockReqRes(clientId, language, authToken, calendarMonth, calendarYear);
         await bulkGenerateStatements(req, res);
         const result = getResult();
 
@@ -148,12 +139,11 @@ export async function generateMonthlyStatements(options = {}) {
     }
 
     summary.totalGenerated += clientResult.generated;
-    summary.totalReplaced += clientResult.replaced;
     summary.totalFailed += clientResult.failed;
     summary.clients.push(clientResult);
   }
 
   summary.durationMs = Date.now() - startTime;
-  console.log(`\n📄 [MONTHLY-STMT] Complete in ${Math.round(summary.durationMs / 1000)}s: ${summary.totalGenerated} generated (${summary.totalReplaced} replaced), ${summary.totalFailed} failed`);
+  console.log(`\n📄 [MONTHLY-STMT] Complete in ${Math.round(summary.durationMs / 1000)}s: ${summary.totalGenerated} generated, ${summary.totalFailed} failed`);
   return summary;
 }
