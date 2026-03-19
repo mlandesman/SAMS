@@ -119,11 +119,19 @@ function buildStatusRecord(st) {
 async function processWebhookPayload(payload) {
   const db = await getDb();
   const phoneLookup = await buildUserPhoneLookupMap(db);
-  // One Firestore doc per HTTP POST (full payload), not per change/entry
-  const rawEventId = await writeRawWebhookEvent(payload, 'webhook_post', db);
+  let rawEventId = null;
+  try {
+    rawEventId = await writeRawWebhookEvent(payload, 'webhook_post', db);
+  } catch (err) {
+    logError('WhatsApp webhook: writeRawWebhookEvent failed (continuing; normalized rows may lack rawEventRef)', {
+      error: err.message,
+    });
+  }
+
   const entries = payload.entry || [];
   let messageCount = 0;
   let statusCount = 0;
+  let writeFailures = 0;
 
   for (const entry of entries) {
     const changes = entry.changes || [];
@@ -156,8 +164,17 @@ async function processWebhookPayload(payload) {
               optOutDetected,
             };
 
-            await writeNormalizedMessage(record, rawEventId, db);
+            try {
+              await writeNormalizedMessage(record, rawEventId, db);
+            } catch (err) {
+              writeFailures++;
+              logError('WhatsApp webhook: writeNormalizedMessage failed (inbound, continuing batch)', {
+                messageId: msg.messageId,
+                error: err.message,
+              });
+            }
 
+            // Still attempt opt-out if detected (compliance); applyOptOut has internal error handling
             if (optOutDetected && match?.userId) {
               await applyOptOut(match.userId, db);
             }
@@ -168,7 +185,16 @@ async function processWebhookPayload(payload) {
         for (const st of statuses) {
           statusCount++;
           const record = buildStatusRecord(st);
-          await writeNormalizedMessage(record, rawEventId, db);
+          try {
+            await writeNormalizedMessage(record, rawEventId, db);
+          } catch (err) {
+            writeFailures++;
+            logError('WhatsApp webhook: writeNormalizedMessage failed (status, continuing batch)', {
+              messageId: st.messageId,
+              status: st.status,
+              error: err.message,
+            });
+          }
         }
       } else if (field) {
         logInfo('WhatsApp webhook: unhandled change field', { field });
@@ -180,6 +206,7 @@ async function processWebhookPayload(payload) {
     entries: entries.length,
     messages: messageCount,
     statuses: statusCount,
+    writeFailures,
   });
 }
 
