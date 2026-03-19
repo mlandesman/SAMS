@@ -131,6 +131,36 @@
 
 ---
 
+### 📱 Sprint MOBILE-ADMIN-UX: Admin Mobile UX Refactor (20-27 hours)
+*Restructure admin mobile experience: focused dashboard, transactions view, UPC payment received, budget detail*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| ADM-1 | Dashboard restructure: 3-card layout (Account Balances w/ MoM trend, Collection Status w/ past-due expand, Exchange Rates). Bottom nav: Home, Transactions, Record Payment, Add Expense. Hamburger: Unit Directory, Budget, About. | high | 3-4h |
+| ADM-2 | Sub-dashboard: enhanced Past Due Units (tap for SoA preview), Water Bills Past Due (conditional), Polls/Projects summary (reuse `usePollsProjects`). | high | 2-3h |
+| ADM-3 | Admin Transactions view: all-units transactions from `/clients/:clientId/transactions`, year filter, type filter (Income/Expense/All), expandable rows with split allocations. | high | 4-5h |
+| ADM-4 | UPC Payment Received (mobile): step-based flow (Select Unit -> Review Bills/Preview -> Enter Payment -> Confirm). Port `unifiedPaymentAPI.js` to mobile auth. Mobile-friendly penalty waiver (toggle, not right-click). | high | 8-10h |
+| ADM-5 | Budget Detail view: FY period, % elapsed, YTD budget vs actual, variance. Accessible from hamburger or Budget card tap. | medium | 1-2h |
+| ADM-6 | Keep existing Add Expense: no changes to ExpenseForm/useExpenseForm. | — | 0h |
+| ADM-7 | Integration + BugBot: polish, regression testing (both MTC and AVII), BugBot cycle until clean. | high | 2-3h |
+
+**Issue**: #247  
+**Theme**: Admin-facing mobile experience — field-ready dashboard, transaction review, payment recording  
+**Risk**: HIGH for ADM-4 (UPC form complexity), MEDIUM for ADM-3 (large result sets), LOW for ADM-1/2/5  
+**Dependencies**: Sprint MOBILE-OWNER-UX ✅ (shared hooks, patterns, SoA context)  
+**Status**: APPROVED — Ready for implementation
+
+**Reusable from Owner Sprint**:
+- `usePriorMonthBalance`, `usePollsProjects`, `useHoaConfig`, `useBudgetStatus`, `useDashboardData` hooks
+- `CompactCard`/`ExpandableCard` components
+- `TransactionsList.jsx` as template (needs all-units + filtering adaptation)
+- Backend endpoints: no backend changes needed (all endpoints exist)
+
+**Key Files to Create**: `components/admin/AdminDashboard.jsx`, `components/admin/AdminTransactions.jsx`, `components/admin/RecordPayment.jsx`, `components/admin/BudgetDetail.jsx`, `services/unifiedPaymentAPI.js`  
+**Key Files to Modify**: `Dashboard.jsx`, `PWANavigation.jsx`, `Layout.jsx`, `App.jsx`
+
+---
+
 ### ⚙️ Sprint E: Admin & Settings (6-8 hours)
 *System administration features*
 
@@ -793,5 +823,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 18, 2026 — Hotfixes to main: Digital Receipt re-enabled (button/client name/allocations/layout), mobile role label fix (Manager vs Owner), propertyAccess role bug. Sprint MOBILE-ADMIN-UX (#247) approved. Sprint MOBILE-OWNER-UX ✅ COMPLETE (PR #245).*  
+*Updated: March 18, 2026 — Hotfixes: Digital Receipt re-enabled (field name mismatch, client name, allocations, layout). Mobile role label fix (Manager vs Owner). propertyAccess role bug fix. Sprint MOBILE-ADMIN-UX (#247) added. Sprint MOBILE-OWNER-UX ✅ COMPLETE (PR #245).*  
 *Last Review: March 18, 2026*

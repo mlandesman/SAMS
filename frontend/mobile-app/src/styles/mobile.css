@@ -49,6 +49,74 @@ body {
   padding: 0 env(safe-area-inset-right) calc(80px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
   padding-top: calc(64px + env(safe-area-inset-top)); /* App bar height + safe area */
   position: relative;
+  /* High-contrast: white text on blue gradient background */
+  color: #fff;
+}
+
+/* Reset to dark text for cards/papers (white/light backgrounds) */
+.mobile-content .MuiCard-root,
+.mobile-content .MuiPaper-root,
+.mobile-content .MuiAlert-root,
+.mobile-content .MuiDialog-paper {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.mobile-content .MuiCard-root .MuiInputLabel-root,
+.mobile-content .MuiCard-root .MuiFormHelperText-root,
+.mobile-content .MuiPaper-root .MuiInputLabel-root,
+.mobile-content .MuiPaper-root .MuiFormHelperText-root {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Stepper, Typography, labels on gradient: white */
+.mobile-content .MuiStepper-root,
+.mobile-content .MuiStepper-root .MuiStepLabel-root,
+.mobile-content .MuiStepper-root .MuiStepLabel-label {
+  color: #fff !important;
+}
+
+.mobile-content .MuiStepper-root .MuiStepIcon-root {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.mobile-content .MuiStepper-root .MuiStepIcon-root.Mui-active,
+.mobile-content .MuiStepper-root .MuiStepIcon-root.Mui-completed {
+  color: #fff;
+}
+
+.mobile-content .MuiStepper-root .MuiStepConnector-line {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Form labels and helper text on gradient (outside cards): white */
+.mobile-content .MuiInputLabel-root,
+.mobile-content .MuiFormHelperText-root,
+.mobile-content .MuiFormControlLabel-label {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Override: labels inside cards stay dark */
+.mobile-content .MuiCard-root .MuiInputLabel-root,
+.mobile-content .MuiCard-root .MuiFormHelperText-root,
+.mobile-content .MuiCard-root .MuiFormControlLabel-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Same for mobile-dashboard-content */
+.mobile-dashboard-content {
+  color: #fff;
+}
+
+.mobile-dashboard-content .MuiCard-root,
+.mobile-dashboard-content .MuiPaper-root,
+.mobile-dashboard-content .MuiAlert-root {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.mobile-dashboard-content .MuiStepper-root,
+.mobile-dashboard-content .MuiStepper-root .MuiStepLabel-root,
+.mobile-dashboard-content .MuiStepper-root .MuiStepLabel-label {
+  color: #fff !important;
 }
 
 /* Touch-friendly buttons */

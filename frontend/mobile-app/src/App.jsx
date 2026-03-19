@@ -34,6 +34,9 @@ import ExpenseEntryScreen from './components/expense/ExpenseEntryScreen';
 import ExchangeRatesView from './components/ExchangeRatesView.jsx';
 import AboutScreen from './components/AboutScreen';
 import UnitDirectory from './components/UnitDirectory';
+import AdminTransactions from './components/admin/AdminTransactions';
+import RecordPayment from './components/admin/RecordPayment';
+import BudgetDetail from './components/admin/BudgetDetail';
 import TareasMenu from './components/TareasMenu';
 import PropaneReadingEntry from './components/PropaneReadingEntry';
 import WaterMeterEntryNew from './components/WaterMeterEntryNew';
@@ -217,6 +220,36 @@ function App() {
               />
               
               {/* Admin-only Routes */}
+              <Route 
+                path="/admin/transactions" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="admin">
+                      <AdminTransactions />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/record-payment" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="admin">
+                      <RecordPayment />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/budget" 
+                element={
+                  <ProtectedRoute>
+                    <RoleProtectedRoute requiredRole="admin">
+                      <BudgetDetail />
+                    </RoleProtectedRoute>
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/expense-entry" 
                 element={

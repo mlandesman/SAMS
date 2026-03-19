@@ -9,6 +9,32 @@
 import { getTransactionById } from '../api/hoaDuesService';
 import { getOwnerInfo } from './unitUtils';
 import { numberToSpanishWords } from './numberToWords';
+import { getMexicoDateTime, MEXICO_TIMEZONE } from './timezone';
+
+/**
+ * Build a descriptive "For" line from the transaction's allocations array.
+ * Excludes credit balance rows. Falls back to transaction.category if no allocations.
+ */
+function buildCategoryFromAllocations(transaction) {
+  const allocations = transaction.allocations;
+  if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
+    return transaction.categoryName || transaction.category || 'Payment';
+  }
+
+  const categories = allocations
+    .filter(a => {
+      const name = (a.categoryName || a.category || '').toLowerCase();
+      return !name.includes('credit') && !name.includes('crédito');
+    })
+    .map(a => a.categoryName || a.category)
+    .filter(Boolean);
+
+  if (categories.length === 0) {
+    return transaction.categoryName || transaction.category || 'Payment';
+  }
+
+  return [...new Set(categories)].join(', ');
+}
 
 function buildCategoryFromAllocations(transaction) {
   if (!transaction.allocations || !Array.isArray(transaction.allocations) || transaction.allocations.length === 0) {
@@ -136,12 +162,12 @@ export const generateReceipt = async (transactionId, options) => {
       } else if (typeof rawDate === 'string') {
         // For string dates, parse and format in Cancun timezone to avoid shifts
         try {
-          const dateObj = new Date(rawDate + 'T12:00:00'); // Noon to avoid timezone issues
+          const dateObj = getMexicoDateTime(rawDate); // Noon strategy handled in shared helper
           formattedDate = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-            timeZone: 'America/Cancun'
+            timeZone: MEXICO_TIMEZONE
           });
         } catch {
           formattedDate = rawDate; // Use raw string as fallback
@@ -153,11 +179,11 @@ export const generateReceipt = async (transactionId, options) => {
       }
     } else {
       // No date provided, use current date in Cancun timezone
-      formattedDate = new Date().toLocaleDateString('en-US', {
+      formattedDate = getMexicoDateTime().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: 'America/Cancun'
+        timeZone: MEXICO_TIMEZONE
       });
     }
 
@@ -190,7 +216,7 @@ export const generateReceipt = async (transactionId, options) => {
       
       // Additional metadata
       clientId: selectedClient.id,
-      generatedAt: new Date().toISOString() // Convert to string
+      generatedAt: getMexicoDateTime().toISOString() // Convert to string
     };
 
     // 5. Validate critical receipt data

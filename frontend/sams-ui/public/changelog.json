@@ -1,6 +1,42 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Mobile Admin UX sprint: admin home/dashboard split, admin transactions view, record payment flow, and budget detail screens for mobile app"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Mobile admin BugBot hardening: reset state on unit/filter changes, preserve semantic card colors, stabilize preview refresh logic, and add Load More for transactions beyond first 50 rows"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Re-enable Digital Receipt - button disabled due to .unit vs .unitId mismatch, client name from basicInfo, allocations in For field, layout cutoff fix"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Mobile title bar role label now shows Manager when unit assignment is unitManager (was hardcoded to Owner)"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Fix propertyAccess role bug - addUnitRoleAssignment now derives role from unit assignment instead of hardcoding 'user'"
+        },
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Admin Edit User modal now displays UID in status bar for debugging"
+        }
+      ]
+    },
+    {
       "version": "1.17.0",
       "date": "2026-03-18",
       "changes": [

@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.15.0 | **Deployed:** March 10, 2026  
-**Last Updated:** March 18, 2026 — Hotfixes to main: Digital Receipt re-enabled (button, client name, allocations, layout), mobile role label (Manager vs Owner), propertyAccess role bug fix. Sprint MOBILE-ADMIN-UX (#247) approved. Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245).  
+**Last Updated:** March 18, 2026 — Digital Receipt hotfix (re-enabled Send Receipt button, client name fix, allocations in For field, layout cutoff fix). Mobile Owner role label hotfix (Manager vs Owner). Sprint MOBILE-ADMIN-UX (#247) approved. Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). propertyAccess role bug fixed in userManagementController.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -448,7 +448,7 @@ No active blockers.
 | Item | Notes |
 |------|-------|
 | **Unit owner/manager denormalization** | ✅ RESOLVED — Sprint NRM (#133, PR #240, March 14, 2026). Unit documents now store `{userId}` references. All services resolve user data at query time. |
-| **Digital Receipts** | ✅ OPERATIONAL (March 18, 2026). Send Receipt button re-enabled (`.unit` vs `.unitId` mismatch). Client name resolved from `basicInfo`. Allocations array used for "For" field. Receipt layout no longer clips footer. Full flow: select transaction → Send Receipt → preview → email. |
+| **Digital Receipts** | ✅ OPERATIONAL (March 18, 2026). Send Receipt button re-enabled (was broken by `.unit` vs `.unitId` field name mismatch). Client name resolved from `basicInfo`. Allocations array used for "For" field. Receipt layout no longer clips footer. Full flow: select transaction → Send Receipt → preview modal → email with image attachment. |
 | **Dashboard content cache** | Lightweight `dashboard-summary` endpoint exists; consider adding a cache layer for Dashboard content in a future sprint to improve load time. |
 
 ---

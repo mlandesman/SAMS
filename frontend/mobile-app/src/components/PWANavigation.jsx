@@ -13,6 +13,8 @@ import {
   Dashboard as DashboardIcon,
   Add as AddIcon,
   Assignment as TaskIcon,
+  Receipt as ReceiptIcon,
+  Payments as PaymentIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -117,10 +119,12 @@ const PWANavigation = () => {
     return null;
   }
 
-  // Admin: existing 2-tab layout (Dashboard, Add Expense)
+  // Admin: 4-tab layout (Home, Transactions, Record Payment, Add Expense)
   const adminNavItems = [
-    { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { label: 'Add Expense', icon: <AddIcon />, path: '/expense-entry' },
+    { label: 'Home', icon: <DashboardIcon />, path: '/' },
+    { label: 'Transactions', icon: <ReceiptIcon />, path: '/admin/transactions' },
+    { label: 'Payment', icon: <PaymentIcon />, path: '/admin/record-payment' },
+    { label: 'Expense', icon: <AddIcon />, path: '/expense-entry' },
   ];
 
   const navItems = adminNavItems;
