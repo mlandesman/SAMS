@@ -431,46 +431,52 @@ export async function bulkGenerateStatements(req, res) {
             continue;
           }
 
-          const calendarYear = overrideCalendarYear || (new Date(pdfResult.meta?.statementDate || currentDate)).getFullYear();
-          const calendarMonth = overrideCalendarMonth || ((new Date(pdfResult.meta?.statementDate || currentDate)).getMonth() + 1);
-          const statementDate = (overrideCalendarYear && overrideCalendarMonth)
-            ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 1)
-            : new Date(pdfResult.meta?.statementDate || currentDate);
+          try {
+            const calendarYear = overrideCalendarYear || (new Date(pdfResult.meta?.statementDate || currentDate)).getFullYear();
+            const calendarMonth = overrideCalendarMonth || ((new Date(pdfResult.meta?.statementDate || currentDate)).getMonth() + 1);
+            const statementDate = (overrideCalendarYear && overrideCalendarMonth)
+              ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 1)
+              : new Date(pdfResult.meta?.statementDate || currentDate);
 
-          let fiscalMonth;
-          if (calendarMonth >= fiscalYearStartMonth) {
-            fiscalMonth = calendarMonth - fiscalYearStartMonth;
-          } else {
-            fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth;
+            let fiscalMonth;
+            if (calendarMonth >= fiscalYearStartMonth) {
+              fiscalMonth = calendarMonth - fiscalYearStartMonth;
+            } else {
+              fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth;
+            }
+
+            const langCode = lang.toLowerCase() === 'spanish' ? 'ES' : 'EN';
+            const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
+            const storagePath = `clients/${clientId}/accountStatements/${fiscalYear}/${fileName}`;
+            const storageUrl = await uploadToStorage(pdfResult.pdfBuffer, storagePath);
+
+            const reportGenerated = getNow();
+            const metadata = {
+              unitId,
+              date: statementDate,
+              calendarYear,
+              calendarMonth,
+              fiscalYear,
+              fiscalMonth,
+              language: lang,
+              storagePath,
+              fileName,
+              reportGenerated,
+              generatedBy: user.email || user.uid,
+              storageUrl,
+              isPublic: true
+            };
+
+            await storeStatementMetadata(clientId, metadata);
+
+            console.log(`   ✅ ${unitId}: ${fileName} (${Math.round(pdfResult.pdfBuffer.length / 1024)} KB)`);
+            results.generated++;
+            results.statements.push({ unitId, unitNumber, status: 'success', fileName, storagePath, storageUrl });
+          } catch (langError) {
+            console.error(`   ❌ ${unitId} (${lang}): ${langError.message}`);
+            results.failed++;
+            results.statements.push({ unitId, unitNumber, status: 'failed', error: langError.message });
           }
-
-          const langCode = lang.toLowerCase() === 'spanish' ? 'ES' : 'EN';
-          const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
-          const storagePath = `clients/${clientId}/accountStatements/${fiscalYear}/${fileName}`;
-          const storageUrl = await uploadToStorage(pdfResult.pdfBuffer, storagePath);
-
-          const reportGenerated = getNow();
-          const metadata = {
-            unitId,
-            date: statementDate,
-            calendarYear,
-            calendarMonth,
-            fiscalYear,
-            fiscalMonth,
-            language: lang,
-            storagePath,
-            fileName,
-            reportGenerated,
-            generatedBy: user.email || user.uid,
-            storageUrl,
-            isPublic: true
-          };
-
-          await storeStatementMetadata(clientId, metadata);
-
-          console.log(`   ✅ ${unitId}: ${fileName} (${Math.round(pdfResult.pdfBuffer.length / 1024)} KB)`);
-          results.generated++;
-          results.statements.push({ unitId, unitNumber, status: 'success', fileName, storagePath, storageUrl });
         }
 
         await new Promise(resolve => setTimeout(resolve, 200));
