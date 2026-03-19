@@ -109,33 +109,27 @@ export async function generateMonthlyStatements(options = {}) {
     return summary;
   }
 
-  const languages = ['english', 'spanish'];
-
   for (const clientId of clients) {
     const clientResult = { clientId, generated: 0, failed: 0 };
 
-    for (const language of languages) {
-      const langLabel = language === 'spanish' ? 'ES' : 'EN';
+    try {
+      const { req, res, getResult } = createMockReqRes(clientId, 'both', authToken, calendarMonth, calendarYear);
+      await bulkGenerateStatements(req, res);
+      const result = getResult();
 
-      try {
-        const { req, res, getResult } = createMockReqRes(clientId, language, authToken, calendarMonth, calendarYear);
-        await bulkGenerateStatements(req, res);
-        const result = getResult();
-
-        if (result.statusCode === 200 && result.data?.success) {
-          const generated = result.data.data?.generated || 0;
-          const failed = result.data.data?.failed || 0;
-          clientResult.generated += generated;
-          clientResult.failed += failed;
-          console.log(`   ✅ [${clientId}/${langLabel}] ${generated} generated, ${failed} failed`);
-        } else {
-          clientResult.failed++;
-          console.error(`   ❌ [${clientId}/${langLabel}] HTTP ${result.statusCode}: ${result.data?.error || 'Unknown error'}`);
-        }
-      } catch (error) {
+      if (result.statusCode === 200 && result.data?.success) {
+        const generated = result.data.data?.generated || 0;
+        const failed = result.data.data?.failed || 0;
+        clientResult.generated += generated;
+        clientResult.failed += failed;
+        console.log(`   ✅ [${clientId}] ${generated} generated (EN+ES), ${failed} failed`);
+      } else {
         clientResult.failed++;
-        console.error(`   ❌ [${clientId}/${langLabel}] ${error.message}`);
+        console.error(`   ❌ [${clientId}] HTTP ${result.statusCode}: ${result.data?.error || 'Unknown error'}`);
       }
+    } catch (error) {
+      clientResult.failed++;
+      console.error(`   ❌ [${clientId}] ${error.message}`);
     }
 
     summary.totalGenerated += clientResult.generated;
