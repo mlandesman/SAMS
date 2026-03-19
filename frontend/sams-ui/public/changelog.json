@@ -10,6 +10,13 @@
             "249"
           ],
           "text": "Automated monthly statement generation — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month, deterministic doc IDs for safe overwrites, dual-language optimization, per-language error isolation"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "255"
+          ],
+          "text": "Fix statement email double-counting credit balance — email now shows a single Balance Due line using the SoA closing balance directly, eliminating the incorrect credit subtraction that reduced the displayed amount"
         }
       ]
     },
