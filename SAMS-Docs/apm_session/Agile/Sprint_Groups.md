@@ -220,14 +220,19 @@
 ### 📱 Sprint WA: WhatsApp Business Notifications (6-8 hours)
 *Payment confirmations, poll alerts, task reminders via WhatsApp Business Cloud API*
 
-| # | Title | Priority | Est |
-|---|-------|----------|-----|
-| **178** | WhatsApp Business Notifications — Payment Reminders, Polls, Task Alerts | medium | 6-8h |
+| Task | Title | Priority | Est | Status |
+|------|-------|----------|-----|--------|
+| WA-1 | WhatsApp webhook endpoint (GET verification + POST handler) | medium | 2h | Assigned |
+| WA-2 | Parse inbound messages + status updates, Firestore logging | medium | 2-3h | Pending |
+| WA-3 | Phone matching, STOP detection, opt-out handling | medium | 1-2h | Pending |
+| WA-4 | Firebase Hosting rewrites, secrets, deployment + Meta setup | medium | 1h | ✅ COMPLETE |
 
+**Issue**: #178 (partial)  
 **Theme**: Communication channel — replaces digital receipts requirement with WhatsApp payment confirmations  
 **Risk**: Medium (external dependency on Meta template approval)  
-**Dependencies**: Meta/WhatsApp account setup complete (done outside SAMS in ChatGPT). No SAMS code yet.  
-**Status**: Planned — deferred in favor of MOBILE-OWNER-V1
+**Dependencies**: Meta/WhatsApp account setup complete (done outside SAMS in ChatGPT). cURL outbound verified.  
+**Status**: ✅ COMPLETE — PR #253 merged March 19, 2026  
+**Archive**: `Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`
 
 **Why WhatsApp**:
 - Replaces the entire digital receipts feature requirement — payment confirmations sent via WhatsApp
@@ -824,5 +829,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: Sprint WA-BACKEND (WhatsApp service/webhook/logging, backend only). DOC-LIB PRD parked. WhatsApp #178 split into WA-BACKEND + WA-FRONTEND. v1.18.0 deployed with MOBILE-ADMIN-UX + MOBILE-OWNER-UX.*  
+*Updated: March 19, 2026 — Sprint WA-BACKEND complete (PR #253). WhatsApp webhook + statement email fix. Next: WA-FRONTEND or DOC-LIB. v1.18.0 deployed.*  
 *Last Review: March 19, 2026*

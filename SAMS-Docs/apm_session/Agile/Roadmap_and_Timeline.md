@@ -60,7 +60,7 @@
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
 | ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
 | ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
-| 11 | **WA-BACKEND** | WhatsApp Backend Integration | 6-8h | #178 (partial) — Service, webhook, Firestore logging, send endpoint. No frontend. |
+| ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend Integration~~ | ~~6-8h~~ | ~~#178 (partial)~~ ✅ COMPLETE (PR #253, March 19, 2026) |
 | 12 | **DOC-LIB** | HOA Document Library | 17-25h | NEW — Admin + unit-level user uploads, access-controlled document storage (PRD parked) |
 | 13 | **WA-FRONTEND** | WhatsApp Frontend + Module Integration | 4-6h | #178 (remainder) — Admin UI, content templates, module triggers |
 | 14 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
@@ -68,7 +68,7 @@
 | 16 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
 | 17 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint AUTO-STMT complete (PR #250, merged March 19). Next: Sprint WA-BACKEND — WhatsApp backend integration (service, webhook, logging). DOC-LIB PRD parked for future planning. v1.18.0 deployed. Beta users actively testing mobile apps.
+**Current Focus**: Sprint WA-BACKEND complete (PR #253). Next: Deploy (set WHATSAPP_APP_SECRET, configure Meta webhook), then DOC-LIB (parked) or WA-FRONTEND. v1.18.0 deployed. Beta users actively testing mobile apps.
 
 **Schedule Note (Mar 19, 2026 — Sprint AUTO-STMT Complete)**: Automated monthly statement generation merged (PR #250, 10 commits). Nightly scheduler TASK 5 generates prior-month SoA PDFs (EN+ES) for all units on 1st of each month. 40 PDFs in 398s. Deterministic doc IDs prevent duplicates. 6 BugBot issues fixed (month mismatch, fiscal year boundary, error isolation). Ready for functions-only deploy before April 1.
 
@@ -125,6 +125,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| WA-BACKEND (WhatsApp Webhook) | Mar 19, 2026 | #178 (partial) — PR #253, webhook + Firestore logging, opt-out. Co-deployed: #255 statement email fix |
 | MOBILE-ADMIN-UX (Admin Mobile UX Refactor) | Mar 19, 2026 | #247 — 7 tasks (ADM-1–ADM-7), ~21h, deployed v1.18.0 |
 | Hotfixes (Digital Receipt, Role Label, propertyAccess) | Mar 18, 2026 | Direct to main — Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug |
 | MOBILE-OWNER-UX (Mobile Owner UX Refactor) | Mar 18, 2026 | #244 (PR #245) — 7 tasks (MOB-1–MOB-7), ~19h, shared hooks refactor |

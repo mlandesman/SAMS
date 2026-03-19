@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.18.0 | **Deployed:** March 19, 2026  
-**Last Updated:** March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: Sprint WA-BACKEND (WhatsApp Cloud API backend). DOC-LIB PRD parked. WhatsApp #178 split into backend + frontend sprints.  
+**Last Updated:** March 19, 2026 — Sprint WA-BACKEND complete (PR #253). WhatsApp webhook + statement email fix. Archive: Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -23,7 +23,31 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ---
 
+## Current Sprint
+
+*Next: Sprint DOC-LIB (parked) or WA-FRONTEND — see Roadmap.*
+
+---
+
 ## Last Completed Sprint
+
+**Sprint WA-BACKEND: WhatsApp Webhook** — #178 (partial) ✅ COMPLETE (PR #253, March 19, 2026)
+
+| Task | Title | Est | Status |
+|------|-------|-----|--------|
+| WA-1 | WhatsApp webhook endpoint (GET verification + POST handler) | 2h | ✅ COMPLETE |
+| WA-2 | Parse inbound messages + status updates, Firestore logging | 2-3h | ✅ COMPLETE |
+| WA-3 | Phone matching, STOP detection, opt-out handling | 1-2h | ✅ COMPLETE |
+| WA-4 | Firebase Hosting rewrites, secrets, deployment + Meta setup | 1h | ✅ COMPLETE |
+
+**Estimated**: 6-8h | **Quality**: ⭐⭐⭐⭐  
+**Impact**: Webhook at `/whatsapp-webhook`; HMAC verification; Firestore `whatsappWebhookEvents`, `whatsappMessages`; opt-out → `notifications.sms`. Co-deployed: statement email fix (#255).  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`  
+**Prod verification**: Set WHATSAPP_APP_SECRET, deploy, configure Meta webhook.
+
+---
+
+## Recently Completed Sprints
 
 **Sprint AUTO-STMT: Automated Monthly Statement Generation** — #249 ✅ COMPLETE (PR #250, merged March 19, 2026)
 
@@ -40,8 +64,6 @@ All planning and backlog management is maintained in the Agile documentation:
 **Impact**: Automated monthly SoA generation. 40 PDFs (20 units × 2 languages) in 398s. Deterministic overwrites. Per-language error isolation. Deadline (Apr 1) met with margin.
 
 ---
-
-## Recently Completed Sprints
 
 **Sprint MOBILE-ADMIN-UX: Admin Mobile UX Refactor** — #247 ✅ COMPLETE (deployed v1.18.0, March 19, 2026)
 

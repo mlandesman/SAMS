@@ -17,6 +17,13 @@
             "255"
           ],
           "text": "Fix statement email double-counting credit balance — email now shows a single Balance Due line using the SoA closing balance directly, eliminating the incorrect credit subtraction that reduced the displayed amount"
+        },
+        {
+          "type": "feat",
+          "issues": [
+            "178"
+          ],
+          "text": "WhatsApp Cloud API webhook — GET verification, POST with X-Hub-Signature-256, Firestore logging (whatsappWebhookEvents, whatsappMessages), phone matching, STOP/opt-out detection, notifications.sms update"
         }
       ]
     },
