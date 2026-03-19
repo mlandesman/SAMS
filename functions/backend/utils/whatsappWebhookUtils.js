@@ -208,7 +208,7 @@ export function matchPhoneInLookupMap(normalizedPhone, lookupMap) {
 /**
  * Write raw webhook POST payload to Firestore
  * @param {object} payload - Raw JSON body
- * @param {string} eventType - e.g. 'messages', 'message_status'
+ * @param {string} eventType - Stored on raw doc (e.g. 'webhook_post')
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<string>} Document ID
  */

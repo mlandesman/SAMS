@@ -139,45 +139,45 @@ async function processWebhookPayload(payload) {
       const field = change.field;
       const value = change.value;
 
-      if ((field === 'messages' || field === 'message_status') && value) {
-        if (field === 'messages') {
-          const inboundMessages = parseInboundMessages(value);
-          for (const msg of inboundMessages) {
-            messageCount++;
-            const phoneNorm = normalizePhone(msg.waId || msg.from);
-            const match = matchPhoneInLookupMap(phoneNorm, phoneLookup);
-            const optOutDetected = detectOptOut(msg.text);
+      // WhatsApp Cloud API: webhook field is always "messages" for this subscription.
+      // The same `value` may include `messages` (inbound user traffic) and/or `statuses` (outbound delivery).
+      if (field === 'messages' && value) {
+        const inboundMessages = parseInboundMessages(value);
+        for (const msg of inboundMessages) {
+          messageCount++;
+          const phoneNorm = normalizePhone(msg.waId || msg.from);
+          const match = matchPhoneInLookupMap(phoneNorm, phoneLookup);
+          const optOutDetected = detectOptOut(msg.text);
 
-            const record = {
+          const record = {
+            messageId: msg.messageId,
+            direction: 'inbound',
+            phone: msg.from,
+            waId: msg.waId,
+            text: msg.text,
+            type: msg.type,
+            status: null,
+            timestampSent: msg.timestamp ? new Date(parseInt(msg.timestamp, 10) * 1000) : null,
+            timestampDelivered: null,
+            timestampRead: null,
+            userId: match?.userId || null,
+            fullName: match?.fullName || null,
+            optOutDetected,
+          };
+
+          try {
+            await writeNormalizedMessage(record, rawEventId, db);
+          } catch (err) {
+            writeFailures++;
+            logError('WhatsApp webhook: writeNormalizedMessage failed (inbound, continuing batch)', {
               messageId: msg.messageId,
-              direction: 'inbound',
-              phone: msg.from,
-              waId: msg.waId,
-              text: msg.text,
-              type: msg.type,
-              status: null,
-              timestampSent: msg.timestamp ? new Date(parseInt(msg.timestamp, 10) * 1000) : null,
-              timestampDelivered: null,
-              timestampRead: null,
-              userId: match?.userId || null,
-              fullName: match?.fullName || null,
-              optOutDetected,
-            };
+              error: err.message,
+            });
+          }
 
-            try {
-              await writeNormalizedMessage(record, rawEventId, db);
-            } catch (err) {
-              writeFailures++;
-              logError('WhatsApp webhook: writeNormalizedMessage failed (inbound, continuing batch)', {
-                messageId: msg.messageId,
-                error: err.message,
-              });
-            }
-
-            // Still attempt opt-out if detected (compliance); applyOptOut has internal error handling
-            if (optOutDetected && match?.userId) {
-              await applyOptOut(match.userId, db);
-            }
+          // Still attempt opt-out if detected (compliance); applyOptOut has internal error handling
+          if (optOutDetected && match?.userId) {
+            await applyOptOut(match.userId, db);
           }
         }
 
