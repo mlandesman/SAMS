@@ -5,6 +5,16 @@
       "date": null,
       "changes": [
         {
+          "type": "feat",
+          "issues": [],
+          "text": "Mobile Admin UX sprint: admin home/dashboard split, admin transactions view, record payment flow, and budget detail screens for mobile app"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Mobile admin BugBot hardening: reset state on unit/filter changes, preserve semantic card colors, stabilize preview refresh logic, and add Load More for transactions beyond first 50 rows"
+        },
+        {
           "type": "fix",
           "issues": [],
           "text": "Re-enable Digital Receipt - button disabled due to .unit vs .unitId mismatch, client name from basicInfo, allocations in For field, layout cutoff fix"
