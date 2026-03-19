@@ -87,7 +87,11 @@ export const authenticateUserWithProfile = async (req, res, next) => {
       },
       getPropertyAccess: (clientId) => {
         // Support both field names for backwards compatibility
-        return samsProfile?.propertyAccess?.[clientId] || samsProfile?.clientAccess?.[clientId] || null;
+        const access = samsProfile?.propertyAccess?.[clientId] || samsProfile?.clientAccess?.[clientId] || null;
+        if (!access && samsProfile?.globalRole === 'superAdmin') {
+          return { role: 'admin', unitId: null };
+        }
+        return access;
       },
       hasPropertyAccess: (clientId) => {
         if (req.user.isSuperAdmin()) return true;

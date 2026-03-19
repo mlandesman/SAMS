@@ -5,7 +5,7 @@
  * Storage Structure:
  * - Storage: clients/{clientId}/accountStatements/{fiscalYear}/{YYYY-MM-{unitId}-{LANG}.PDF
  *   where LANG is ES (Spanish) or EN (English)
- * - Metadata: clients/{clientId}/accountStatements/{uuid} (flattened path)
+ * - Metadata: clients/{clientId}/accountStatements/{unitId}-{YYYY}-{MM}-{language} (deterministic path)
  */
 
 import { getDb, getApp } from '../firebase.js';
@@ -14,7 +14,7 @@ import { getFiscalYear, getFiscalYearBounds } from '../utils/fiscalYearUtils.js'
 import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { sendStatementEmail } from './emailService.js';
-import { randomUUID } from 'crypto';
+import { getApiBaseUrl } from '../services/internalApiClient.js';
 import axios from 'axios';
 import { resolveOwners, getFirstOwnerName, buildUserCacheForUnits } from '../utils/unitContactUtils.js';
 
@@ -111,17 +111,18 @@ async function uploadToStorage(pdfBuffer, storagePath) {
 
 /**
  * Store statement metadata in Firestore
- * Flattened path: clients/{clientId}/accountStatements/{uuid}
+ * Deterministic path: clients/{clientId}/accountStatements/{unitId}-{YYYY}-{MM}-{language}
+ * Using set() so re-generating the same unit/month/language naturally overwrites.
  */
 async function storeStatementMetadata(clientId, metadata) {
   const db = await getDb();
-  const statementId = randomUUID();
+  const docId = `${metadata.unitId}-${metadata.calendarYear}-${String(metadata.calendarMonth).padStart(2, '0')}-${metadata.language}`;
   const metadataRef = db.collection('clients').doc(clientId)
-    .collection('accountStatements').doc(statementId);
+    .collection('accountStatements').doc(docId);
   
   await metadataRef.set(metadata);
   
-  return statementId;
+  return docId;
 }
 
 /**
@@ -163,7 +164,7 @@ async function clearBulkProgress(clientId) {
 }
 
 /**
- * Generate PDF for a single unit
+ * Generate PDF for a single unit (single language)
  */
 async function generatePdfForUnit(api, clientId, unitId, fiscalYear, language) {
   try {
@@ -184,7 +185,6 @@ async function generatePdfForUnit(api, clientId, unitId, fiscalYear, language) {
     
     return { success: true, pdfBuffer, meta: htmlMeta };
   } catch (error) {
-    // Enhanced error logging
     const errorMessage = error.response 
       ? `HTTP ${error.response.status}: ${error.response.statusText} - ${error.response.data?.error || error.message}`
       : error.message;
@@ -195,6 +195,53 @@ async function generatePdfForUnit(api, clientId, unitId, fiscalYear, language) {
     }
     return { success: false, error: errorMessage };
   }
+}
+
+/**
+ * Generate PDFs for both languages from a single data fetch.
+ * generateStatementData already returns htmlEn + htmlEs — this avoids fetching data twice.
+ */
+async function generatePdfsForUnitBothLanguages(api, clientId, unitId, fiscalYear) {
+  let result;
+  try {
+    result = await generateStatementData(api, clientId, unitId, { fiscalYear, language: 'english' });
+  } catch (error) {
+    const errorMessage = error.response 
+      ? `HTTP ${error.response.status}: ${error.response.statusText} - ${error.response.data?.error || error.message}`
+      : error.message;
+    console.error(`   Error fetching statement data for ${unitId}:`, errorMessage);
+    return {
+      english: { success: false, error: errorMessage },
+      spanish: { success: false, error: errorMessage }
+    };
+  }
+
+  const pdfs = {};
+  for (const lang of ['english', 'spanish']) {
+    const isSpanish = lang === 'spanish';
+    const html = isSpanish ? result.htmlEs : result.htmlEn;
+    const meta = isSpanish ? result.metaEs : result.metaEn;
+
+    if (!html) {
+      pdfs[lang] = { success: false, error: `No ${lang} HTML returned` };
+      continue;
+    }
+
+    try {
+      const pdfBuffer = await generatePdf(html, {
+        footerMeta: {
+          statementId: meta?.statementId,
+          generatedAt: meta?.generatedAt,
+          language: meta?.language
+        }
+      });
+      pdfs[lang] = { success: true, pdfBuffer, meta };
+    } catch (error) {
+      console.error(`   Error generating ${lang} PDF for ${unitId}:`, error.message);
+      pdfs[lang] = { success: false, error: error.message };
+    }
+  }
+  return pdfs;
 }
 
 
@@ -241,7 +288,7 @@ export async function getBulkStatementProgress(req, res) {
  * Uses Firestore-based progress tracking for reliable polling
  */
 export async function bulkGenerateStatements(req, res) {
-  const { clientId, fiscalYear: requestedFiscalYear, language = 'english' } = req.body;
+  const { clientId, fiscalYear: requestedFiscalYear, language = 'english', calendarMonth: overrideCalendarMonth, calendarYear: overrideCalendarYear } = req.body;
   
   try {
     const user = req.user;
@@ -274,16 +321,21 @@ export async function bulkGenerateStatements(req, res) {
     const fiscalConfig = await getClientFiscalYearConfig(clientId);
     const fiscalYearStartMonth = fiscalConfig.fiscalYearStartMonth;
     
-    // Determine fiscal year
+    // Determine fiscal year — when scheduler passes calendarMonth/calendarYear (prior month),
+    // use those so fiscal year matches the statement period, not today's date.
+    // Critical at FY boundaries: July 1 run for June statement must use the old FY.
     const currentDate = getNow();
-    const fiscalYear = requestedFiscalYear || getFiscalYear(currentDate, fiscalYearStartMonth);
+    const effectiveDate = (overrideCalendarYear && overrideCalendarMonth)
+      ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 15)
+      : currentDate;
+    const fiscalYear = requestedFiscalYear || getFiscalYear(effectiveDate, fiscalYearStartMonth);
     
     // Get all units
     const units = await getAllUnits(clientId);
     console.log(`   Found ${units.length} units`);
     
     // Create authenticated API client
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:5001';
+    const baseURL = getApiBaseUrl();
     const authToken = req.headers.authorization?.replace('Bearer ', '');
     
     if (!authToken) {
@@ -352,79 +404,81 @@ export async function bulkGenerateStatements(req, res) {
       await saveProgress(i + 1, 'processing', formatMessage('Generating statement for', unitId, ownerName));
       
       try {
-        // Generate PDF (this calls generateStatementData which takes 15-30 seconds)
         console.log(`   ⏳ Calling generateStatementData() for ${unitId}...`);
-        const pdfResult = await generatePdfForUnit(api, clientId, unitId, fiscalYear, language);
+
+        // Determine which languages to generate
+        const isBothLanguages = language === 'both';
+        const languagesToStore = isBothLanguages ? ['english', 'spanish'] : [language];
+
+        let pdfsByLanguage;
+        if (isBothLanguages) {
+          pdfsByLanguage = await generatePdfsForUnitBothLanguages(api, clientId, unitId, fiscalYear);
+        } else {
+          const singleResult = await generatePdfForUnit(api, clientId, unitId, fiscalYear, language);
+          pdfsByLanguage = { [language]: singleResult };
+        }
+
         const unitElapsed = Math.round((Date.now() - unitStartTime) / 1000);
         console.log(`   ✅ Unit ${unitId} completed in ${unitElapsed}s`);
-        
-        if (!pdfResult.success) {
-          console.log(`   ❌ ${unitId}: ${pdfResult.error}`);
-          results.failed++;
-          results.statements.push({
-            unitId,
-            unitNumber,
-            status: 'failed',
-            error: pdfResult.error
-          });
-          continue;
+
+        for (const lang of languagesToStore) {
+          const pdfResult = pdfsByLanguage[lang];
+
+          if (!pdfResult?.success) {
+            console.log(`   ❌ ${unitId} (${lang}): ${pdfResult?.error || 'unknown error'}`);
+            results.failed++;
+            results.statements.push({ unitId, unitNumber, status: 'failed', error: pdfResult?.error });
+            continue;
+          }
+
+          try {
+            const calendarYear = overrideCalendarYear || (new Date(pdfResult.meta?.statementDate || currentDate)).getFullYear();
+            const calendarMonth = overrideCalendarMonth || ((new Date(pdfResult.meta?.statementDate || currentDate)).getMonth() + 1);
+            const statementDate = (overrideCalendarYear && overrideCalendarMonth)
+              ? new Date(overrideCalendarYear, overrideCalendarMonth - 1, 1)
+              : new Date(pdfResult.meta?.statementDate || currentDate);
+
+            let fiscalMonth;
+            if (calendarMonth >= fiscalYearStartMonth) {
+              fiscalMonth = calendarMonth - fiscalYearStartMonth;
+            } else {
+              fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth;
+            }
+
+            const langCode = lang.toLowerCase() === 'spanish' ? 'ES' : 'EN';
+            const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
+            const storagePath = `clients/${clientId}/accountStatements/${fiscalYear}/${fileName}`;
+            const storageUrl = await uploadToStorage(pdfResult.pdfBuffer, storagePath);
+
+            const reportGenerated = getNow();
+            const metadata = {
+              unitId,
+              date: statementDate,
+              calendarYear,
+              calendarMonth,
+              fiscalYear,
+              fiscalMonth,
+              language: lang,
+              storagePath,
+              fileName,
+              reportGenerated,
+              generatedBy: user.email || user.uid,
+              storageUrl,
+              isPublic: true
+            };
+
+            await storeStatementMetadata(clientId, metadata);
+
+            console.log(`   ✅ ${unitId}: ${fileName} (${Math.round(pdfResult.pdfBuffer.length / 1024)} KB)`);
+            results.generated++;
+            results.statements.push({ unitId, unitNumber, status: 'success', fileName, storagePath, storageUrl });
+          } catch (langError) {
+            console.error(`   ❌ ${unitId} (${lang}): ${langError.message}`);
+            results.failed++;
+            results.statements.push({ unitId, unitNumber, status: 'failed', error: langError.message });
+          }
         }
-        
-        // Get statement date from metadata
-        const statementDate = new Date(pdfResult.meta?.statementDate || currentDate);
-        const calendarYear = statementDate.getFullYear();
-        const calendarMonth = statementDate.getMonth() + 1;
-        
-        // Calculate fiscal month
-        let fiscalMonth;
-        if (calendarMonth >= fiscalYearStartMonth) {
-          fiscalMonth = calendarMonth - fiscalYearStartMonth;
-        } else {
-          fiscalMonth = 12 - fiscalYearStartMonth + calendarMonth;
-        }
-        
-        // Get language code for filename
-        const langCode = (language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-        
-        // Create filename and path
-        const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
-        const storagePath = `clients/${clientId}/accountStatements/${fiscalYear}/${fileName}`;
-        
-        // Upload to Storage (now makes public and returns signed URL)
-        const storageUrl = await uploadToStorage(pdfResult.pdfBuffer, storagePath);
-        
-        // Store metadata
-        const reportGenerated = getNow();
-        const metadata = {
-          unitId,
-          date: statementDate,
-          calendarYear,
-          calendarMonth,
-          fiscalYear,
-          fiscalMonth,
-          language,
-          storagePath,
-          fileName,
-          reportGenerated,
-          generatedBy: user.email || user.uid,
-          storageUrl,
-          isPublic: true // Mark as publicly accessible
-        };
-        
-        await storeStatementMetadata(clientId, metadata);
-        
-        console.log(`   ✅ ${unitId}: ${fileName} (${Math.round(pdfResult.pdfBuffer.length / 1024)} KB)`);
-        results.generated++;
-        results.statements.push({
-          unitId,
-          unitNumber,
-          status: 'success',
-          fileName,
-          storagePath,
-          storageUrl
-        });
-        
-        // Small delay to avoid overwhelming the system
+
         await new Promise(resolve => setTimeout(resolve, 200));
         
       } catch (error) {
