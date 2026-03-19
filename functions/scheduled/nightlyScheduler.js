@@ -6,7 +6,7 @@
  * - Backup (TASK-73) ✅ Ready
  * - Exchange Rate Download ✅ Ready
  * - Sync to Dev ✅ Ready
- * - Credit Auto-Pay Report Email (TASK-90 Phase 2) ✅ Ready
+ * - Credit Auto-Pay Report Email (TASK-90 Phase 2) ✅ Monthly on the 25th
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -92,21 +92,33 @@ export const nightlyScheduler = onSchedule({
 
   // ═══════════════════════════════════════════════════════════════
   // TASK 4: Credit Auto-Pay Report Email (TASK-90 Phase 2)
+  // Runs monthly on the 25th (Cancun time)
   // ═══════════════════════════════════════════════════════════════
-  try {
-    console.log('📧 [NIGHTLY] Sending credit auto-pay reports...');
-    const reportResult = await runScheduledCreditAutoPayReports();
-    results.tasks.creditAutoPayReport = { 
-      status: 'success', 
-      sent: reportResult.summary.sent,
-      skipped: reportResult.summary.skipped,
-      failed: reportResult.summary.failed
+  const nowCancun = getNow();
+  const dayOfMonth = nowCancun.getDate();
+  if (dayOfMonth === 25) {
+    try {
+      console.log('📧 [NIGHTLY] Sending monthly credit auto-pay reports (day 25)...');
+      const reportResult = await runScheduledCreditAutoPayReports();
+      results.tasks.creditAutoPayReport = {
+        status: 'success',
+        sent: reportResult.summary.sent,
+        skipped: reportResult.summary.skipped,
+        failed: reportResult.summary.failed
+      };
+      console.log(`✅ [NIGHTLY] Credit auto-pay reports complete: ${reportResult.summary.sent} sent, ${reportResult.summary.skipped} skipped`);
+    } catch (error) {
+      console.error('❌ [NIGHTLY] Credit auto-pay report failed:', error);
+      results.tasks.creditAutoPayReport = { status: 'failed', error: error.message };
+      results.errors.push({ task: 'creditAutoPayReport', error: error.message });
+    }
+  } else {
+    results.tasks.creditAutoPayReport = {
+      status: 'skipped',
+      reason: 'Monthly task; only runs on day 25 (America/Cancun)',
+      dayOfMonth
     };
-    console.log(`✅ [NIGHTLY] Credit auto-pay reports complete: ${reportResult.summary.sent} sent, ${reportResult.summary.skipped} skipped`);
-  } catch (error) {
-    console.error('❌ [NIGHTLY] Credit auto-pay report failed:', error);
-    results.tasks.creditAutoPayReport = { status: 'failed', error: error.message };
-    results.errors.push({ task: 'creditAutoPayReport', error: error.message });
+    console.log(`⏭️ [NIGHTLY] Skipping credit auto-pay reports (day ${dayOfMonth}); runs on day 25 only.`);
   }
   
   // ═══════════════════════════════════════════════════════════════
