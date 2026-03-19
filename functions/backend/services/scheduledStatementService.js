@@ -91,21 +91,22 @@ async function getAllUnits(clientId) {
   );
 }
 
-async function statementExists(clientId, unitId, calendarYear, calendarMonth, language) {
+async function deleteExistingStatements(clientId, unitId, calendarYear, calendarMonth, language) {
   const db = await getDb();
-  const langCode = language === 'spanish' ? 'ES' : 'EN';
-  const fileName = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${unitId}-${langCode}.PDF`;
-
   const snapshot = await db.collection('clients').doc(clientId)
     .collection('accountStatements')
     .where('unitId', '==', unitId)
     .where('calendarYear', '==', calendarYear)
     .where('calendarMonth', '==', calendarMonth)
     .where('language', '==', language)
-    .limit(1)
     .get();
 
-  return !snapshot.empty;
+  if (snapshot.empty) return 0;
+
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+  return snapshot.size;
 }
 
 /**
@@ -127,7 +128,7 @@ export async function generateMonthlyStatements(options = {}) {
     clients: [],
     totalUnits: 0,
     totalGenerated: 0,
-    totalSkipped: 0,
+    totalReplaced: 0,
     totalFailed: 0,
     durationMs: 0
   };
@@ -157,7 +158,7 @@ export async function generateMonthlyStatements(options = {}) {
       clientId,
       units: 0,
       generated: 0,
-      skipped: 0,
+      replaced: 0,
       failed: 0,
       errors: []
     };
@@ -189,13 +190,6 @@ export async function generateMonthlyStatements(options = {}) {
         const langCode = language === 'spanish' ? 'ES' : 'EN';
 
         try {
-          const exists = await statementExists(clientId, unitId, statementYear, statementMonth, language);
-          if (exists) {
-            clientResult.skipped++;
-            summary.totalSkipped++;
-            continue;
-          }
-
           if (dryRun) {
             console.log(`   [DRY] Would generate ${unitId}-${langCode}`);
             clientResult.generated++;
@@ -225,6 +219,12 @@ export async function generateMonthlyStatements(options = {}) {
             fiscalMonth = statementMonth - fiscalYearStartMonth;
           } else {
             fiscalMonth = 12 - fiscalYearStartMonth + statementMonth;
+          }
+
+          const deleted = await deleteExistingStatements(clientId, unitId, statementYear, statementMonth, language);
+          if (deleted > 0) {
+            console.log(`   ♻️ ${unitId}-${langCode}: replaced ${deleted} prior statement(s)`);
+            clientResult.replaced = (clientResult.replaced || 0) + deleted;
           }
 
           await storeStatementMetadata(clientId, {
@@ -258,12 +258,13 @@ export async function generateMonthlyStatements(options = {}) {
       }
     }
 
+    summary.totalReplaced += clientResult.replaced || 0;
     summary.clients.push(clientResult);
-    console.log(`   [${clientId}] Done: ${clientResult.generated} generated, ${clientResult.skipped} skipped, ${clientResult.failed} failed`);
+    console.log(`   [${clientId}] Done: ${clientResult.generated} generated (${clientResult.replaced || 0} replaced), ${clientResult.failed} failed`);
   }
 
   summary.durationMs = Date.now() - startTime;
-  console.log(`\n📄 [MONTHLY-STMT] Complete in ${Math.round(summary.durationMs / 1000)}s: ${summary.totalGenerated} generated, ${summary.totalSkipped} skipped, ${summary.totalFailed} failed`);
+  console.log(`\n📄 [MONTHLY-STMT] Complete in ${Math.round(summary.durationMs / 1000)}s: ${summary.totalGenerated} generated (${summary.totalReplaced} replaced), ${summary.totalFailed} failed`);
 
   return summary;
 }
