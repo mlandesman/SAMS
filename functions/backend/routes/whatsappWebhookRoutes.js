@@ -2,7 +2,8 @@
  * WhatsApp Cloud API Webhook Routes
  *
  * GET: Meta verification challenge
- * POST: Validates X-Hub-Signature-256, then processes and responds 200 (await completes work before response).
+ * POST: Validates X-Hub-Signature-256, awaits processing, then always 200 on valid signed payloads
+ * (Meta retries non-200 for days — 500 caused duplicate whatsappWebhookEvents / messages).
  *
  * Task: WA-BACKEND-1 (WhatsApp Webhook)
  */
@@ -79,11 +80,14 @@ router.post('/', async (req, res) => {
 
   try {
     await processWebhookPayload(payload);
-    return res.status(200).end();
   } catch (err) {
-    logError('WhatsApp webhook processing failed', { error: err.message, stack: err.stack });
-    return res.status(500).end();
+    // Always ack 200 after verify — Meta retries 4xx/5xx for days; partial writes + retries duplicate raw events.
+    logError('WhatsApp webhook processing failed (acked 200 to Meta)', {
+      error: err.message,
+      stack: err.stack,
+    });
   }
+  return res.status(200).end();
 });
 
 function buildStatusRecord(st) {
