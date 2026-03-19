@@ -36,22 +36,6 @@ function buildCategoryFromAllocations(transaction) {
   return [...new Set(categories)].join(', ');
 }
 
-function buildCategoryFromAllocations(transaction) {
-  if (!transaction.allocations || !Array.isArray(transaction.allocations) || transaction.allocations.length === 0) {
-    return transaction.category || 'HOA Dues';
-  }
-  const categories = transaction.allocations
-    .filter(a => {
-      const cat = (a.categoryName || a.category || '').toLowerCase();
-      return cat !== 'credit' && cat !== 'crédito';
-    })
-    .map(a => a.categoryName || a.category)
-    .filter(Boolean);
-  const unique = [...new Set(categories)];
-  if (unique.length === 0) return transaction.category || 'HOA Dues';
-  return unique.join(', ');
-}
-
 /**
  * Generate and display a Digital Receipt for a given transaction ID
  * 
