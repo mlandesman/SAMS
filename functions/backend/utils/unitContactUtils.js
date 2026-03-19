@@ -10,7 +10,8 @@
 
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
-function getDisplayNameFromUser(userData = {}) {
+/** Exported for reuse (e.g. WhatsApp webhook phone → user display name). */
+export function getDisplayNameFromUser(userData = {}) {
   const profile = userData.profile || {};
   const firstName = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
   const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
@@ -21,7 +22,8 @@ function getDisplayNameFromUser(userData = {}) {
   return '';
 }
 
-function getPhoneFromUser(userData = {}) {
+/** Exported for reuse (e.g. WhatsApp webhook phone matching). */
+export function getPhoneFromUser(userData = {}) {
   const profile = userData.profile || {};
   return typeof profile.phone === 'string' ? profile.phone.trim() : '';
 }

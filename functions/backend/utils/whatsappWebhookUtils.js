@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import { getNow } from '../services/DateService.js';
 import { logInfo, logWarn, logError } from '../../shared/logger.js';
+import { getDisplayNameFromUser, getPhoneFromUser } from './unitContactUtils.js';
 
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'cancel', 'baja', 'alto'];
 
@@ -172,16 +173,13 @@ export async function buildUserPhoneLookupMap(db) {
   const usersSnap = await db.collection('users').get();
   for (const doc of usersSnap.docs) {
     const data = doc.data();
-    const profile = data.profile || {};
-    const userPhone = typeof profile.phone === 'string' ? profile.phone.trim() : '';
+    const userPhone = getPhoneFromUser(data);
     if (!userPhone) continue;
 
     const userPhoneNorm = normalizePhone(userPhone);
     if (!userPhoneNorm) continue;
 
-    const firstName = (profile.firstName || '').trim();
-    const lastName = (profile.lastName || '').trim();
-    const fullName = `${firstName} ${lastName}`.trim() || (data.name || '').trim();
+    const fullName = getDisplayNameFromUser(data);
     const entry = { userId: doc.id, fullName };
 
     if (map.has(userPhoneNorm)) {
