@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.18.0 | **Deployed:** March 19, 2026  
-**Last Updated:** March 19, 2026 — Roadmap reprioritized. Next: Sprint AUTO-STMT (monthly SoA generation, deadline Apr 1), then Sprint WA-BACKEND (WhatsApp Cloud API backend). DOC-LIB PRD parked. WhatsApp #178 split into backend + frontend sprints.  
+**Last Updated:** March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: Sprint WA-BACKEND (WhatsApp Cloud API backend). DOC-LIB PRD parked. WhatsApp #178 split into backend + frontend sprints.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,25 +25,31 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Last Completed Sprint
 
-**Sprint MOBILE-ADMIN-UX: Admin Mobile UX Refactor** — #247 ✅ COMPLETE (deployed v1.18.0, March 19, 2026)
+**Sprint AUTO-STMT: Automated Monthly Statement Generation** — #249 ✅ COMPLETE (PR #250, merged March 19, 2026)
 
 | Task | Title | Est | Actual | Status |
 |------|-------|-----|--------|--------|
-| ADM-1 | Dashboard restructure: 3-card layout, bottom nav, hamburger menu | 3-4h | ~3h | ✅ COMPLETE |
-| ADM-2 | Sub-dashboard: Past Due Units, Water Bills Past Due, Polls/Projects | 2-3h | ~2h | ✅ COMPLETE |
-| ADM-3 | Admin Transactions view with year/type filters, expandable allocations | 4-5h | ~4h | ✅ COMPLETE |
-| ADM-4 | UPC Payment Received (mobile step-based flow) | 8-10h | ~8h | ✅ COMPLETE |
-| ADM-5 | Budget Detail view (FY period, YTD budget vs actual, variance) | 1-2h | ~1h | ✅ COMPLETE |
-| ADM-6 | Keep existing Add Expense (no changes) | — | 0h | ✅ COMPLETE |
-| ADM-7 | Integration + BugBot: polish, regression testing | 2-3h | ~3h | ✅ COMPLETE |
+| STMT-1 | scheduledStatementService — orchestrate monthly generation | 2h | ~2h | ✅ COMPLETE |
+| STMT-2 | bulkStatementController — deterministic IDs, overrides, dual-language | 2h | ~4h | ✅ COMPLETE |
+| STMT-3 | clientAuth superAdmin fix + internalApiClient shared URL | 0.5h | ~0.5h | ✅ COMPLETE |
+| STMT-4 | nightlyScheduler TASK 5 integration | 0.5h | ~0.5h | ✅ COMPLETE |
+| STMT-5 | BugBot review cycles (6 issues fixed across 6 commits) | — | ~3h | ✅ COMPLETE |
+
+**Estimated**: 4-6h | **Actual**: ~10h | **Quality**: ⭐⭐⭐⭐⭐ (10 commits, 10 BugBot review rounds, 0 open issues)
+
+**Impact**: Automated monthly SoA generation. 40 PDFs (20 units × 2 languages) in 398s. Deterministic overwrites. Per-language error isolation. Deadline (Apr 1) met with margin.
+
+---
+
+## Recently Completed Sprints
+
+**Sprint MOBILE-ADMIN-UX: Admin Mobile UX Refactor** — #247 ✅ COMPLETE (deployed v1.18.0, March 19, 2026)
 
 **Estimated**: 20-27h | **Actual**: ~21h | **Quality**: ⭐⭐⭐⭐ (11 commits, 6 BugBot rounds)
 
 **Impact**: Complete admin mobile experience. Field-ready dashboard, transaction review, UPC payment recording, budget detail. Reused shared hooks and patterns from MOBILE-OWNER-UX sprint.
 
 ---
-
-## Recently Completed Sprints
 
 **Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor** — #244 ✅ COMPLETE (PR #245, merged March 18, 2026)
 

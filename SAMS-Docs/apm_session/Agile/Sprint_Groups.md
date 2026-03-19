@@ -784,7 +784,8 @@
 
 ## Notes
 
-1. **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185
+1. **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250
+2. **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185
 2. **Sprint CX**: ✅ COMPLETE (Feb 15) - Currency discipline: #181, #180, #179 — PR #183
 2. **Sprint F**: ✅ COMPLETE (Feb 6) - Tech debt: #124, #52, #146, #63, #155 — PRs #172-#177
 2. **Sprint Cleanup-1**: ✅ COMPLETE (Feb 5) - UI consistency + logging cleanup, 59 files changed, PR #170 merged
@@ -823,5 +824,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 19, 2026 — Roadmap reprioritized: Sprint AUTO-STMT (monthly SoA generation, deadline Apr 1) next, then Sprint WA-BACKEND (WhatsApp service/webhook/logging, backend only). DOC-LIB PRD parked. WhatsApp #178 split into WA-BACKEND + WA-FRONTEND. v1.18.0 deployed with MOBILE-ADMIN-UX + MOBILE-OWNER-UX.*  
+*Updated: March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: Sprint WA-BACKEND (WhatsApp service/webhook/logging, backend only). DOC-LIB PRD parked. WhatsApp #178 split into WA-BACKEND + WA-FRONTEND. v1.18.0 deployed with MOBILE-ADMIN-UX + MOBILE-OWNER-UX.*  
 *Last Review: March 19, 2026*

@@ -29,6 +29,7 @@
 - ✅ Digital Receipts — transaction-based receipt generation and email delivery
 - ✅ Project assessment bypass — reserve-funded projects skip special assessment billing
 - ✅ Assessment vs vendor milestone separation — independent billing and payment tracking
+- ✅ Automated monthly statements — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month
 
 ---
 
@@ -58,7 +59,7 @@
 | ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
 | ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
-| 10 | **AUTO-STMT** | Automated Monthly Statements | 4-6h | NEW — Scheduled Cloud Function: generate SoA for all units on 1st of month, both languages, store + index. **Deadline: before Apr 1** |
+| ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
 | 11 | **WA-BACKEND** | WhatsApp Backend Integration | 6-8h | #178 (partial) — Service, webhook, Firestore logging, send endpoint. No frontend. |
 | 12 | **DOC-LIB** | HOA Document Library | 17-25h | NEW — Admin + unit-level user uploads, access-controlled document storage (PRD parked) |
 | 13 | **WA-FRONTEND** | WhatsApp Frontend + Module Integration | 4-6h | #178 (remainder) — Admin UI, content templates, module triggers |
@@ -67,7 +68,9 @@
 | 16 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
 | 17 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint AUTO-STMT — Automated Monthly Statement Generation. Must deploy before April 1, 2026 to generate March statements. Then Sprint WA-BACKEND — WhatsApp backend integration (service, webhook, logging). DOC-LIB PRD parked for future planning. v1.18.0 deployed. Beta users actively testing mobile apps.
+**Current Focus**: Sprint AUTO-STMT complete (PR #250, merged March 19). Next: Sprint WA-BACKEND — WhatsApp backend integration (service, webhook, logging). DOC-LIB PRD parked for future planning. v1.18.0 deployed. Beta users actively testing mobile apps.
+
+**Schedule Note (Mar 19, 2026 — Sprint AUTO-STMT Complete)**: Automated monthly statement generation merged (PR #250, 10 commits). Nightly scheduler TASK 5 generates prior-month SoA PDFs (EN+ES) for all units on 1st of each month. 40 PDFs in 398s. Deterministic doc IDs prevent duplicates. 6 BugBot issues fixed (month mismatch, fiscal year boundary, error isolation). Ready for functions-only deploy before April 1.
 
 **Schedule Note (Mar 19, 2026 — Sprint Planning)**: Scrum review reprioritized roadmap: (1) Sprint AUTO-STMT (4-6h, deadline Apr 1) — monthly scheduled SoA generation for mobile app. (2) Sprint WA-BACKEND (6-8h) — WhatsApp Cloud API backend only (Meta platform already configured, cURL verified). (3) Sprint DOC-LIB (17-25h) — parked, PRD template created. WhatsApp sprint split into WA-BACKEND (service/webhook/logging) and WA-FRONTEND (UI/templates/triggers). Mobile PWA resting during beta testing.
 
@@ -172,4 +175,4 @@
 
 ---
 
-*Last Updated: March 19, 2026 — Roadmap reprioritized: AUTO-STMT (monthly statements, deadline Apr 1) → WA-BACKEND (WhatsApp service/webhook) → DOC-LIB (parked). WhatsApp split into backend + frontend sprints. v1.18.0 deployed with all mobile UX.*
+*Last Updated: March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: WA-BACKEND (WhatsApp service/webhook) → DOC-LIB (parked). v1.18.0 deployed with all mobile UX. AUTO-STMT ready for functions-only deploy before Apr 1.*

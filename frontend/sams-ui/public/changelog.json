@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "249"
+          ],
+          "text": "Automated monthly statement generation — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month, deterministic doc IDs for safe overwrites, dual-language optimization, per-language error isolation"
+        }
+      ]
+    },
+    {
       "version": "1.18.0",
       "date": "2026-03-19",
       "changes": [
