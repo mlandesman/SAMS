@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.15.0 | **Deployed:** March 10, 2026  
-**Last Updated:** March 18, 2026 — Digital Receipt hotfix (re-enabled Send Receipt button, client name fix, allocations in For field, layout cutoff fix). Mobile Owner role label hotfix (Manager vs Owner). Sprint MOBILE-ADMIN-UX (#247) approved. Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). propertyAccess role bug fixed in userManagementController.  
+**Version:** v1.18.0 | **Deployed:** March 19, 2026  
+**Last Updated:** March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE (merged from feature branch). Sprint MOBILE-OWNER-UX (#244) ✅ COMPLETE (PR #245). Hotfixes: Digital Receipt re-enabled, mobile role label, propertyAccess role bug. Next: HOA Document Library sprint (PRD in development).  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,21 +25,31 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Last Completed Sprint
 
-**Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor** — #244 ✅ COMPLETE (PR #245, merged March 18, 2026)
+**Sprint MOBILE-ADMIN-UX: Admin Mobile UX Refactor** — #247 ✅ COMPLETE (deployed v1.18.0, March 19, 2026)
 
 | Task | Title | Est | Actual | Status |
 |------|-------|-----|--------|--------|
-| MOB-1 | Bottom tab navigation (Home, My Unit, HOA, More) for owner/manager | 2-3h | ~2h | ✅ COMPLETE |
-| MOB-2 | 3-card main dashboard (Unit Status, HOA Status, Exchange Rates) | 3-4h | ~3h | ✅ COMPLETE |
-| MOB-3 | Unit Sub-Dashboard (account summary, transactions, statements) | 4-5h | ~4h | ✅ COMPLETE |
-| MOB-4 | HOA Sub-Dashboard (bank balances, polls, projects, budget) | 4-5h | ~4h | ✅ COMPLETE |
-| MOB-5 | More menu + route cleanup | 1-2h | ~1h | ✅ COMPLETE |
-| MOB-6 | Polish + integration testing | 2-3h | ~3h | ✅ COMPLETE |
-| MOB-7 | Self-service email & password (backend routes + frontend fix) | 1-2h | ~2h | ✅ COMPLETE |
+| ADM-1 | Dashboard restructure: 3-card layout, bottom nav, hamburger menu | 3-4h | ~3h | ✅ COMPLETE |
+| ADM-2 | Sub-dashboard: Past Due Units, Water Bills Past Due, Polls/Projects | 2-3h | ~2h | ✅ COMPLETE |
+| ADM-3 | Admin Transactions view with year/type filters, expandable allocations | 4-5h | ~4h | ✅ COMPLETE |
+| ADM-4 | UPC Payment Received (mobile step-based flow) | 8-10h | ~8h | ✅ COMPLETE |
+| ADM-5 | Budget Detail view (FY period, YTD budget vs actual, variance) | 1-2h | ~1h | ✅ COMPLETE |
+| ADM-6 | Keep existing Add Expense (no changes) | — | 0h | ✅ COMPLETE |
+| ADM-7 | Integration + BugBot: polish, regression testing | 2-3h | ~3h | ✅ COMPLETE |
 
-**Estimated**: 18-24h | **Actual**: ~19h | **Quality**: ⭐⭐⭐⭐⭐ (BugBot fixes applied, shared hooks refactor, SoA single source of truth)
+**Estimated**: 20-27h | **Actual**: ~21h | **Quality**: ⭐⭐⭐⭐ (11 commits, 6 BugBot rounds)
 
-**Impact**: Complete owner/manager mobile experience. SoA as single source of truth via UnitStatementContext (skipHtml backend param). Self-service email/password. Shared hooks (usePriorMonthBalance, usePollsProjects, useHoaConfig) establish clean template for Admin mobile sprint. 43 files changed (+1,686/-413).
+**Impact**: Complete admin mobile experience. Field-ready dashboard, transaction review, UPC payment recording, budget detail. Reused shared hooks and patterns from MOBILE-OWNER-UX sprint.
+
+---
+
+## Recently Completed Sprints
+
+**Sprint MOBILE-OWNER-UX: Mobile Owner UX Refactor** — #244 ✅ COMPLETE (PR #245, merged March 18, 2026)
+
+**Estimated**: 18-24h | **Actual**: ~19h | **Quality**: ⭐⭐⭐⭐⭐
+
+**Impact**: Complete owner/manager mobile experience. SoA as single source of truth via UnitStatementContext (skipHtml backend param). Self-service email/password. Shared hooks (usePriorMonthBalance, usePollsProjects, useHoaConfig). 43 files changed (+1,686/-413).
 
 ---
 

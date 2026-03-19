@@ -4,8 +4,8 @@
 
 ---
 
-## Production Status: v1.15.0
-**Deployed:** March 10, 2026 | **Sprint PASSKEY-AUTH: Passkey Authentication**
+## Production Status: v1.18.0
+**Deployed:** March 19, 2026 | **Sprints MOBILE-OWNER-UX + MOBILE-ADMIN-UX + Hotfixes**
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)
@@ -24,6 +24,11 @@
 - ✅ Admin passkey management — invite, list, revoke credentials
 - ✅ Normalized unit-user references — UID-based storage, single source of truth for user data
 - ✅ Mobile PWA Unit Directory — admin contact list with tappable phone/email
+- ✅ Mobile Owner/Manager UX — 3-card dashboard, sub-dashboards, self-service profile, SoA single source of truth
+- ✅ Mobile Admin UX — field-ready dashboard, transactions, UPC payment recording, budget detail
+- ✅ Digital Receipts — transaction-based receipt generation and email delivery
+- ✅ Project assessment bypass — reserve-funded projects skip special assessment billing
+- ✅ Assessment vs vendor milestone separation — independent billing and payment tracking
 
 ---
 
@@ -52,14 +57,17 @@
 | ~~6~~ | ~~**235**~~ | ~~Project Assessment Bypass + Flag Cleanup~~ | ~~8-10h~~ | ~~#235, #197~~ ✅ COMPLETE (PR #241, March 14, 2026) |
 | ~~7~~ | ~~**242**~~ | ~~Separate Assessment vs Vendor Milestones~~ | ~~8-10h~~ | ~~#242~~ ✅ COMPLETE (PR #243, March 14, 2026) |
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
-| 9 | **MOBILE-ADMIN-UX** | Admin Mobile UX Refactor | 20-27h | #247 — Dashboard, Transactions, UPC Payment, Budget |
-| 10 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
-| 11 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 12 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
-| 13 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 14 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
+| ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
+| 10 | **DOC-LIB** | HOA Document Library | 10-14h | NEW — Admin + unit-level user uploads, access-controlled document storage |
+| 11 | **WA** | WhatsApp Notifications | 6-8h | #178 — Payment confirmations, poll alerts, task notices |
+| 12 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
+| 13 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
+| 14 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
+| 15 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint MOBILE-ADMIN-UX (#247) — Admin Mobile UX Refactor. Leverages shared hooks and patterns from MOBILE-OWNER-UX. Beta deployment of Owner UX in parallel. Roadmap ordering subject to change based on operational needs and scrum reviews.
+**Current Focus**: Sprint DOC-LIB — HOA Document Library (PRD in development). Two-tier document storage: (1) Admin-managed HOA documents (Rules & Regs, Bank Statements, Official Letters, Newsletters) visible to all owners/managers, (2) Unit-level user uploads (management agreements, contracts) shared between owners and managers of that unit only, hidden from other units. Desktop and Mobile interfaces. v1.18.0 deployed with complete Owner + Admin mobile UX, Digital Receipts, and hotfixes. Beta users actively testing.
+
+**Schedule Note (Mar 19, 2026 — v1.18.0 Deployed)**: Production deployment of v1.18.0 includes Sprint MOBILE-ADMIN-UX (#247), Sprint MOBILE-OWNER-UX (#244), Digital Receipt restoration, mobile role label fix, and propertyAccess role bug fix. Both Owner and Admin mobile UX fully operational. Beta users testing. Next sprint: HOA Document Library (DOC-LIB) — two-tier document storage with admin-managed HOA documents and unit-level user uploads with access control. PRD in development.
 
 **Schedule Note (Mar 18, 2026 — Hotfixes)**: Three hotfixes committed directly to main ahead of production deployment: (1) Digital Receipt re-enabled — Send Receipt button was permanently disabled due to `.unit` vs `.unitId` field name mismatch in TransactionsView; client name resolved from `basicInfo`; allocations array now used for "For" field; receipt layout no longer clips footer. (2) Mobile role label — title bar chip showed "Owner" for all users; now correctly shows "Manager" when the selected unit's assignment role is `unitManager`. (3) `propertyAccess` role bug — `addUnitRoleAssignment` was hardcoding `role: 'user'`; now derives from actual unit assignment role.
 
@@ -110,6 +118,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| MOBILE-ADMIN-UX (Admin Mobile UX Refactor) | Mar 19, 2026 | #247 — 7 tasks (ADM-1–ADM-7), ~21h, deployed v1.18.0 |
 | Hotfixes (Digital Receipt, Role Label, propertyAccess) | Mar 18, 2026 | Direct to main — Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug |
 | MOBILE-OWNER-UX (Mobile Owner UX Refactor) | Mar 18, 2026 | #244 (PR #245) — 7 tasks (MOB-1–MOB-7), ~19h, shared hooks refactor |
 | 242 (Separate Assessment vs Vendor Milestones) | Mar 14, 2026 | #242 (PR #243) — 7 tasks, 16 files, +632/-128 lines |
@@ -159,4 +168,4 @@
 
 ---
 
-*Last Updated: March 18, 2026 — Hotfixes committed to main: Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug. Sprint MOBILE-ADMIN-UX (#247) approved at position 9. MOBILE-OWNER-UX and 242 added to completion log.*
+*Last Updated: March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE. Sprint DOC-LIB (HOA Document Library) inserted at position 10 as next sprint. PRD in development.*

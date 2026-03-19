@@ -148,7 +148,7 @@
 **Theme**: Admin-facing mobile experience — field-ready dashboard, transaction review, payment recording  
 **Risk**: HIGH for ADM-4 (UPC form complexity), MEDIUM for ADM-3 (large result sets), LOW for ADM-1/2/5  
 **Dependencies**: Sprint MOBILE-OWNER-UX ✅ (shared hooks, patterns, SoA context)  
-**Status**: APPROVED — Ready for implementation
+**Status**: ✅ COMPLETE — deployed v1.18.0, March 19, 2026
 
 **Reusable from Owner Sprint**:
 - `usePriorMonthBalance`, `usePollsProjects`, `useHoaConfig`, `useBudgetStatus`, `useDashboardData` hooks
@@ -823,5 +823,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 18, 2026 — Hotfixes: Digital Receipt re-enabled (field name mismatch, client name, allocations, layout). Mobile role label fix (Manager vs Owner). propertyAccess role bug fix. Sprint MOBILE-ADMIN-UX (#247) added. Sprint MOBILE-OWNER-UX ✅ COMPLETE (PR #245).*  
-*Last Review: March 18, 2026*
+*Updated: March 19, 2026 — v1.18.0 deployed. Sprint MOBILE-ADMIN-UX (#247) ✅ COMPLETE. Sprint DOC-LIB (HOA Document Library) next — PRD in development. Two-tier storage: admin HOA docs + unit-level user uploads with access control.*  
+*Last Review: March 19, 2026*
