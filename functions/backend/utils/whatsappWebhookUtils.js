@@ -207,20 +207,24 @@ export function matchPhoneInLookupMap(normalizedPhone, lookupMap) {
 }
 
 /**
- * Generate sortable document ID (timestamp-based, same format as transactionId).
- * Format: YYYY-MM-DD_HHmmss_ms — sortable by time, unique via milliseconds + retry.
+ * Generate sortable, globally unique document ID (timestamp + random suffix).
+ * Prefix matches transactionId (Cancun) for time ordering; suffix avoids collisions
+ * across concurrent Cloud Functions instances (unlike process-local dedupe only).
+ * Format: YYYY-MM-DD_HHmmss_ms_xxxxxxxx
  * @returns {Promise<string>}
  */
 export async function generateWhatsAppDocId() {
-  return databaseFieldMappings.generateTransactionId();
+  const base = await databaseFieldMappings.generateTransactionId();
+  const suffix = crypto.randomBytes(4).toString('hex');
+  return `${base}_${suffix}`;
 }
 
 /**
- * Write raw webhook POST payload to Firestore
+ * Write raw webhook POST payload to Firestore (typically once per HTTP POST).
  * @param {object} payload - Raw JSON body
  * @param {string} eventType - Stored on raw doc (e.g. 'webhook_post')
  * @param {FirebaseFirestore.Firestore} db
- * @param {string} docId - Timestamp-based doc ID (same as whatsappMessages for lookup)
+ * @param {string} docId - Timestamp-based doc ID for this raw event
  * @returns {Promise<void>}
  */
 export async function writeRawWebhookEvent(payload, eventType, db, docId) {
@@ -235,17 +239,18 @@ export async function writeRawWebhookEvent(payload, eventType, db, docId) {
 /**
  * Write normalized message/status to whatsappMessages
  * @param {object} record - Normalized record
- * @param {string} docId - Timestamp-based doc ID (same as whatsappWebhookEvents for lookup)
+ * @param {string} messageDocId - Sortable ID for this message/status row
+ * @param {string|null} rawEventDocId - ID of whatsappWebhookEvents doc for this POST (null if raw write failed)
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<void>}
  */
-export async function writeNormalizedMessage(record, docId, db) {
+export async function writeNormalizedMessage(record, messageDocId, rawEventDocId, db) {
   const doc = {
     ...record,
-    rawEventRef: db.doc(`whatsappWebhookEvents/${docId}`),
+    rawEventRef: rawEventDocId ? db.doc(`whatsappWebhookEvents/${rawEventDocId}`) : null,
     timestampCreated: getNow(),
   };
-  await db.collection('whatsappMessages').doc(docId).set(doc);
+  await db.collection('whatsappMessages').doc(messageDocId).set(doc);
 }
 
 /**

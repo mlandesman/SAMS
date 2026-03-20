@@ -121,6 +121,18 @@ async function processWebhookPayload(payload) {
   const db = await getDb();
   const phoneLookup = await buildUserPhoneLookupMap(db);
 
+  // One raw doc per POST (dedupes storage/writes). Isolated try/catch so normalized rows
+  // still persist if raw write fails (WA-BACKEND resilience).
+  let rawPostDocId = null;
+  try {
+    rawPostDocId = await generateWhatsAppDocId();
+    await writeRawWebhookEvent(payload, 'webhook_post', db, rawPostDocId);
+  } catch (err) {
+    logError('WhatsApp webhook: writeRawWebhookEvent failed (normalized rows will omit rawEventRef)', {
+      error: err.message,
+    });
+  }
+
   const entries = payload.entry || [];
   let messageCount = 0;
   let statusCount = 0;
@@ -159,12 +171,11 @@ async function processWebhookPayload(payload) {
           };
 
           try {
-            const docId = await generateWhatsAppDocId();
-            await writeRawWebhookEvent(payload, 'webhook_post', db, docId);
-            await writeNormalizedMessage(record, docId, db);
+            const messageDocId = await generateWhatsAppDocId();
+            await writeNormalizedMessage(record, messageDocId, rawPostDocId, db);
           } catch (err) {
             writeFailures++;
-            logError('WhatsApp webhook: write failed (inbound, continuing batch)', {
+            logError('WhatsApp webhook: writeNormalizedMessage failed (inbound, continuing batch)', {
               messageId: msg.messageId,
               error: err.message,
             });
@@ -181,12 +192,11 @@ async function processWebhookPayload(payload) {
           statusCount++;
           const record = buildStatusRecord(st);
           try {
-            const docId = await generateWhatsAppDocId();
-            await writeRawWebhookEvent(payload, 'webhook_post', db, docId);
-            await writeNormalizedMessage(record, docId, db);
+            const messageDocId = await generateWhatsAppDocId();
+            await writeNormalizedMessage(record, messageDocId, rawPostDocId, db);
           } catch (err) {
             writeFailures++;
-            logError('WhatsApp webhook: write failed (status, continuing batch)', {
+            logError('WhatsApp webhook: writeNormalizedMessage failed (status, continuing batch)', {
               messageId: st.messageId,
               status: st.status,
               error: err.message,
