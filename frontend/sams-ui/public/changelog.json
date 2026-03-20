@@ -24,6 +24,13 @@
             "178"
           ],
           "text": "WhatsApp Cloud API webhook — GET verification, POST with X-Hub-Signature-256, Firestore logging (whatsappWebhookEvents, whatsappMessages), phone matching, STOP/opt-out detection, notifications.sms update"
+        },
+        {
+          "type": "maint",
+          "issues": [
+            "256"
+          ],
+          "text": "WhatsApp webhook Firestore: sortable doc IDs (transactionId-style prefix + random suffix), same docId in whatsappWebhookEvents and whatsappMessages per message/status row, raw write isolated from normalized (no dangling rawEventRef); AboutModal dead code cleanup; updateVersion.js comment tidy (localhost→prod workflow unchanged)"
         }
       ]
     },
