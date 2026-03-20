@@ -220,11 +220,12 @@ export async function generateWhatsAppDocId() {
 }
 
 /**
- * Write raw webhook POST payload to Firestore (typically once per HTTP POST).
+ * Write raw webhook POST payload to Firestore at whatsappWebhookEvents/{docId}.
+ * Paired with whatsappMessages/{docId} using the same docId for 1:1 lookup.
  * @param {object} payload - Raw JSON body
  * @param {string} eventType - Stored on raw doc (e.g. 'webhook_post')
  * @param {FirebaseFirestore.Firestore} db
- * @param {string} docId - Timestamp-based doc ID for this raw event
+ * @param {string} docId - Same ID as the corresponding whatsappMessages doc
  * @returns {Promise<void>}
  */
 export async function writeRawWebhookEvent(payload, eventType, db, docId) {
@@ -237,10 +238,11 @@ export async function writeRawWebhookEvent(payload, eventType, db, docId) {
 }
 
 /**
- * Write normalized message/status to whatsappMessages
+ * Write normalized message/status to whatsappMessages/{messageDocId}.
+ * When rawEventDocId equals messageDocId, raw payload and normalized row share the same Firestore doc ID.
  * @param {object} record - Normalized record
- * @param {string} messageDocId - Sortable ID for this message/status row
- * @param {string|null} rawEventDocId - ID of whatsappWebhookEvents doc for this POST (null if raw write failed)
+ * @param {string} messageDocId - Sortable ID (same as raw doc when pairing succeeded)
+ * @param {string|null} rawEventDocId - Pass messageDocId after successful raw write; null if raw write failed (no dangling ref)
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<void>}
  */

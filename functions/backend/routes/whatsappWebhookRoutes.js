@@ -115,24 +115,31 @@ function buildStatusRecord(st) {
 }
 
 /**
+ * Same docId in whatsappWebhookEvents and whatsappMessages for 1:1 pairing.
+ * Raw write is isolated: if it fails, normalized row still saves with rawEventRef null (no dangling ref).
+ */
+async function persistWhatsAppWebhookRow(payload, record, db, rawFailureContext) {
+  const docId = await generateWhatsAppDocId();
+  let rawEventDocId = null;
+  try {
+    await writeRawWebhookEvent(payload, 'webhook_post', db, docId);
+    rawEventDocId = docId;
+  } catch (err) {
+    logError('WhatsApp webhook: writeRawWebhookEvent failed (continuing; normalized rows may lack rawEventRef)', {
+      ...rawFailureContext,
+      docId,
+      error: err.message,
+    });
+  }
+  await writeNormalizedMessage(record, docId, rawEventDocId, db);
+}
+
+/**
  * Process webhook payload: parse, persist, match phones, detect opt-out.
  */
 async function processWebhookPayload(payload) {
   const db = await getDb();
   const phoneLookup = await buildUserPhoneLookupMap(db);
-
-  // One raw doc per POST (dedupes storage/writes). Isolated try/catch so normalized rows
-  // still persist if raw write fails (WA-BACKEND resilience).
-  let rawPostDocId = null;
-  try {
-    const id = await generateWhatsAppDocId();
-    await writeRawWebhookEvent(payload, 'webhook_post', db, id);
-    rawPostDocId = id; // only after successful write — avoids dangling rawEventRef if .set() throws
-  } catch (err) {
-    logError('WhatsApp webhook: writeRawWebhookEvent failed (normalized rows will omit rawEventRef)', {
-      error: err.message,
-    });
-  }
 
   const entries = payload.entry || [];
   let messageCount = 0;
@@ -172,11 +179,10 @@ async function processWebhookPayload(payload) {
           };
 
           try {
-            const messageDocId = await generateWhatsAppDocId();
-            await writeNormalizedMessage(record, messageDocId, rawPostDocId, db);
+            await persistWhatsAppWebhookRow(payload, record, db, { messageId: msg.messageId });
           } catch (err) {
             writeFailures++;
-            logError('WhatsApp webhook: writeNormalizedMessage failed (inbound, continuing batch)', {
+            logError('WhatsApp webhook: persist row failed (inbound, continuing batch)', {
               messageId: msg.messageId,
               error: err.message,
             });
@@ -193,11 +199,13 @@ async function processWebhookPayload(payload) {
           statusCount++;
           const record = buildStatusRecord(st);
           try {
-            const messageDocId = await generateWhatsAppDocId();
-            await writeNormalizedMessage(record, messageDocId, rawPostDocId, db);
+            await persistWhatsAppWebhookRow(payload, record, db, {
+              messageId: st.messageId,
+              status: st.status,
+            });
           } catch (err) {
             writeFailures++;
-            logError('WhatsApp webhook: writeNormalizedMessage failed (status, continuing batch)', {
+            logError('WhatsApp webhook: persist row failed (status, continuing batch)', {
               messageId: st.messageId,
               status: st.status,
               error: err.message,
