@@ -156,11 +156,19 @@ export const getEnvironmentStyles = () => {
 };
 
 /**
- * Check if current environment is development
+ * Check if running in development (Vite dev server or localhost).
+ * Do not use version.json `environment` — it may reflect a stale local stamp.
  * @returns {boolean}
  */
 export const isDevelopment = () => {
-  return getVersionInfo().environment === 'development';
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    return true;
+  }
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1';
+  }
+  return false;
 };
 
 /**

@@ -4,9 +4,9 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.19.0",
-  "buildDate": "2026-03-19T22:48:09.099Z",
-  "buildTimestamp": 1773960489099,
-  "environment": "development",
+  "buildDate": "2026-03-20T21:30:43.612Z",
+  "buildTimestamp": 1774042243615,
+  "environment": "staging",
   "gitBranch": "main",
   "gitCommit": "local",
   "developers": [
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "bee3c59",
-    "branch": "main",
-    "lastCommitDate": "2026-03-19 17:45:54 -0500"
+    "hash": "5d46bfa",
+    "branch": "feature/whatsapp-firestore-docids",
+    "lastCommitDate": "2026-03-20 15:00:02 -0500"
   },
   "build": {
-    "timestamp": "2026-03-19T22:48:09.099Z",
-    "environment": "development",
+    "timestamp": "2026-03-20T21:30:43.612Z",
+    "environment": "staging",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260319.1748"
+    "buildNumber": "260320.1630"
   },
   "deployment": {
-    "target": "development",
-    "date": "2026-03-19T22:48:09.099Z",
+    "target": "staging",
+    "date": "2026-03-20T21:30:43.612Z",
     "automated": true
   },
   "releaseNotes": {

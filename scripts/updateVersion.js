@@ -51,9 +51,6 @@ class VersionManager {
       return process.env.REACT_APP_ENVIRONMENT;
     }
 
-    // Check NODE_ENV
-    const nodeEnv = process.env.NODE_ENV || 'development';
-    
     // Check for CI/CD environment variables
     if (process.env.VERCEL_ENV) {
       switch (process.env.VERCEL_ENV) {
@@ -70,7 +67,10 @@ class VersionManager {
       return 'staging'; // Default for CI environments
     }
 
-    return nodeEnv;
+    // Local/ad-hoc `node scripts/updateVersion.js`: default staging — never stamp
+    // "development" into committed version.json (deploy pipelines set REACT_APP_ENVIRONMENT / CI).
+    // Use REACT_APP_ENVIRONMENT=development when you intentionally need that label.
+    return 'staging';
   }
 
   /**
