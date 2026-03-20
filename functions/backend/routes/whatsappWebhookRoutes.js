@@ -125,8 +125,9 @@ async function processWebhookPayload(payload) {
   // still persist if raw write fails (WA-BACKEND resilience).
   let rawPostDocId = null;
   try {
-    rawPostDocId = await generateWhatsAppDocId();
-    await writeRawWebhookEvent(payload, 'webhook_post', db, rawPostDocId);
+    const id = await generateWhatsAppDocId();
+    await writeRawWebhookEvent(payload, 'webhook_post', db, id);
+    rawPostDocId = id; // only after successful write — avoids dangling rawEventRef if .set() throws
   } catch (err) {
     logError('WhatsApp webhook: writeRawWebhookEvent failed (normalized rows will omit rawEventRef)', {
       error: err.message,
