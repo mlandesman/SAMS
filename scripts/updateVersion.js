@@ -51,7 +51,9 @@ class VersionManager {
       return process.env.REACT_APP_ENVIRONMENT;
     }
 
-    // Check for CI/CD environment variables
+    // NODE_ENV: localhost / local builds (defaults to development when unset)
+    const nodeEnv = process.env.NODE_ENV || 'development';
+
     if (process.env.VERCEL_ENV) {
       switch (process.env.VERCEL_ENV) {
         case 'production': return 'production';
@@ -60,17 +62,13 @@ class VersionManager {
       }
     }
 
-    // Check for other common CI environments
     if (process.env.CI) {
       if (process.env.GITHUB_REF === 'refs/heads/main') return 'production';
       if (process.env.GITHUB_REF === 'refs/heads/staging') return 'staging';
       return 'staging'; // Default for CI environments
     }
 
-    // Local/ad-hoc `node scripts/updateVersion.js`: default staging — never stamp
-    // "development" into committed version.json (deploy pipelines set REACT_APP_ENVIRONMENT / CI).
-    // Use REACT_APP_ENVIRONMENT=development when you intentionally need that label.
-    return 'staging';
+    return nodeEnv;
   }
 
   /**
