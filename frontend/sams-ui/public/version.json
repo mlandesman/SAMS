@@ -3,9 +3,9 @@
   "shortName": "SAMS",
   "companyName": "Sandyland Properties",
   "copyright": "2025",
-  "version": "1.19.0",
-  "buildDate": "2026-03-20T21:35:49.540Z",
-  "buildTimestamp": 1774042549540,
+  "version": "1.19.1",
+  "buildDate": "2026-03-20T23:31:27.705Z",
+  "buildTimestamp": 1774049487708,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "eab25a6",
-    "branch": "feature/whatsapp-firestore-docids",
-    "lastCommitDate": "2026-03-20 16:30:48 -0500"
+    "hash": "80fe971",
+    "branch": "main",
+    "lastCommitDate": "2026-03-20 18:31:13 -0500"
   },
   "build": {
-    "timestamp": "2026-03-20T21:35:49.540Z",
+    "timestamp": "2026-03-20T23:31:27.705Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260320.1635"
+    "buildNumber": "260320.1831"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-03-20T21:35:49.540Z",
+    "date": "2026-03-20T23:31:27.705Z",
     "automated": true
   },
   "releaseNotes": {
