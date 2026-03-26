@@ -217,28 +217,27 @@
 
 ---
 
-### 📱 Sprint WA: WhatsApp Business Notifications (6-8 hours)
-*Payment confirmations, poll alerts, task reminders via WhatsApp Business Cloud API*
+### ⏸️ Sprint WA: WhatsApp Business Notifications — PAUSED (partial backend)
+*Payment confirmations, poll alerts, task reminders via WhatsApp Business Cloud API — **on hold** until Meta / WhatsApp Business setup unblocks*
 
 | Task | Title | Priority | Est | Status |
 |------|-------|----------|-----|--------|
-| WA-1 | WhatsApp webhook endpoint (GET verification + POST handler) | medium | 2h | Assigned |
-| WA-2 | Parse inbound messages + status updates, Firestore logging | medium | 2-3h | Pending |
-| WA-3 | Phone matching, STOP detection, opt-out handling | medium | 1-2h | Pending |
-| WA-4 | Firebase Hosting rewrites, secrets, deployment + Meta setup | medium | 1h | ✅ COMPLETE |
+| WA-1 | WhatsApp webhook endpoint (GET verification + POST handler) | medium | 2h | ✅ In code (PR #253) |
+| WA-2 | Parse inbound messages + status updates, Firestore logging | medium | 2-3h | ✅ In code (PR #253) |
+| WA-3 | Phone matching, STOP detection, opt-out handling | medium | 1-2h | ✅ In code (PR #253) |
+| WA-4 | Firebase Hosting rewrites, secrets, deployment | medium | 1h | ✅ In code (where applicable) |
+| WA-5 | Meta / WhatsApp Business app & phone — live templates, production sends | medium | TBD | ⏸️ **Blocked externally** (not a SAMS code defect) |
 
-**Issue**: #178 (partial)  
-**Theme**: Communication channel — replaces digital receipts requirement with WhatsApp payment confirmations  
-**Risk**: Medium (external dependency on Meta template approval)  
-**Dependencies**: Meta/WhatsApp account setup complete (done outside SAMS in ChatGPT). cURL outbound verified.  
-**Status**: ✅ COMPLETE — PR #253 merged March 19, 2026  
-**Archive**: `Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`
+**Issue**: #178 — **remains partial** until Meta side completes; do not treat as closed for end-to-end WhatsApp.  
+**Theme**: Communication channel — eventual replacement for parts of the digital-receipts story  
+**Risk**: **High calendar risk** — third-party console work burned multi-day capacity (Mar 18–20, 2026); same class of risk when resumed  
+**Dependencies**: Meta Business Manager / WhatsApp Business account verification and policy steps (tracked outside Cursor)  
+**Status**: ⏸️ **PAUSED** — March 20, 2026 PO decision after ~2 days blocked on Meta. Webhook verification path proven in code; **full scaffolding and module wiring deferred** to a future sprint after unblock.  
+**Archive**: `Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/` (historical completion log for PR #253 merge; **operational “done” not claimed**)
 
-**Why WhatsApp**:
-- Replaces the entire digital receipts feature requirement — payment confirmations sent via WhatsApp
-- Supports Projects (bid notifications), Voting (poll alerts), and Payments (confirmation messages)
-- Each integration point is production-driven: Projects needed data collection, Voting needed approval documentation, Payments next
-- Meta app "SAMS Notifications" created, phone number available, templates designed — backend/frontend integration remaining
+**Why WhatsApp** (unchanged intent):
+- Payment confirmations, poll alerts, project-related notices
+- **Not production-live** for owners until Meta + WA-FRONTEND + module triggers land
 
 ---
 
@@ -431,6 +430,15 @@
 ---
 
 ## Completed Sprints Archive
+
+### ⏸️ WA-BACKEND (WhatsApp webhook code) — merged, **not** end-to-end complete
+*PR #253 merged March 19, 2026 — webhook GET/POST, Firestore logging, opt-out scaffolding in repo*
+
+**Honest outcome**: Code merged; **Meta / WhatsApp Business setup blocked** (external). **Sprint WA paused** March 20, 2026 — see active **Sprint WA** section above. **WA-FRONTEND** (#178 remainder) and “wire to all communications modules” **deferred** until Meta unblocks.  
+**Do not communicate** “WhatsApp is live” to stakeholders — only “webhook code exists.”  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`
+
+---
 
 ### 📊 Sprint Recon: Bank Reconciliation Tools ✅ COMPLETE
 *Historical balance lookup for monthly account reconciliation*
@@ -790,6 +798,8 @@
 ## Notes
 
 1. **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250
+12. **Production v1.19.1** (Mar 20, 2026): SoA **email** preamble fix #255 — PDF/data were always correct; email body had double-counted credit; now uses closing balance only.
+13. **Sprint WA / WA-BACKEND**: ⏸️ PAUSED (Mar 20, 2026) — webhook code in main (PR #253); Meta/WhatsApp Business setup blocked externally (not a code defect); WA-FRONTEND deferred until unblock.
 2. **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185
 2. **Sprint CX**: ✅ COMPLETE (Feb 15) - Currency discipline: #181, #180, #179 — PR #183
 2. **Sprint F**: ✅ COMPLETE (Feb 6) - Tech debt: #124, #52, #146, #63, #155 — PRs #172-#177
@@ -829,5 +839,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 19, 2026 — Sprint WA-BACKEND complete (PR #253). WhatsApp webhook + statement email fix. Next: WA-FRONTEND or DOC-LIB. v1.18.0 deployed.*  
-*Last Review: March 19, 2026*
+*Updated: March 20, 2026 — Production **v1.19.1**; SoA email credit fix (#255). WhatsApp **paused** (Meta blocked); WA-FRONTEND deferred. Next: **DOC-LIB** or **Polling-2+** (no Meta dependency).*  
+*Last Review: March 20, 2026*

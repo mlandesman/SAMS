@@ -1,6 +1,39 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "257"
+          ],
+          "text": "Digital receipt email: AVII template used wrong placeholder format ({{Token}} instead of __Token__) — all variables now substitute correctly; added validateTemplateFullyProcessed() fast-fail guard that blocks sending if any unreplaced template variables remain"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "257"
+          ],
+          "text": "Receipt email client logos missing: frontend and backend looked for logoUrl (top-level) instead of branding.logoUrl where the upload route stores it — both MTC and AVII logos now render in receipt emails"
+        }
+      ]
+    },
+    {
+      "version": "1.19.1",
+      "date": "2026-03-20",
+      "changes": [
+        {
+          "type": "maint",
+          "issues": [
+            "255"
+          ],
+          "text": "SoA statement email — fix double-counting credit in HTML preamble (#255): single Balance Due from SoA closing balance; PDF and statement data were already correct"
+        }
+      ]
+    },
+    {
       "version": "1.19.0",
       "date": "2026-03-19",
       "changes": [
@@ -10,13 +43,6 @@
             "249"
           ],
           "text": "Automated monthly statement generation — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month, deterministic doc IDs for safe overwrites, dual-language optimization, per-language error isolation"
-        },
-        {
-          "type": "fix",
-          "issues": [
-            "255"
-          ],
-          "text": "Fix statement email double-counting credit balance — email now shows a single Balance Due line using the SoA closing balance directly, eliminating the incorrect credit subtraction that reduced the displayed amount"
         },
         {
           "type": "feat",

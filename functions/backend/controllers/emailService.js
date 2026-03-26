@@ -147,20 +147,37 @@ function createGmailTransporter() {
 }
 
 /**
- * Process email template with receipt data
- * @param {string} template - HTML template string
+ * Process receipt email template by replacing __Token__ placeholders with actual values.
+ *
+ * TEMPLATE FORMAT: Firestore templates at clients/{clientId}/config/emailTemplates
+ * must use double-underscore placeholders: __TokenName__
+ * Do NOT use {{TokenName}} — that format is for water bill templates only
+ * (processed by processWaterBillTemplate).
+ *
+ * Supported tokens:
+ *   __OwnerName__      — recipient name (receiptData.receivedFrom)
+ *   __UnitNumber__     — unit identifier (receiptData.unitId or .unitNumber)
+ *   __Amount__         — formatted currency amount (auto-formatted from receiptData.amount)
+ *   __Date__           — transaction date string
+ *   __TransactionId__  — receipt/transaction number
+ *   __Category__       — transaction category label
+ *   __PaymentMethod__  — payment method description
+ *   __Notes__          — free-text transaction notes
+ *   __ClientLogoUrl__  — client logo image URL
+ *   __ClientName__     — client display name
+ *   __Signature__      — replaced separately after this function returns
+ *
+ * @param {string} template - HTML template string with __Token__ placeholders
  * @param {object} receiptData - Receipt data for template substitution
  * @returns {string} Processed HTML template
  */
 function processEmailTemplate(template, receiptData) {
-  // PROPER ERROR HANDLING: Template should be required
   if (!template) {
-    throw new Error('Email template body is missing from client configuration. Please configure email templates in Firebase console under clients/[clientId]/email/receiptEmail');
+    throw new Error('Email template body is missing from client configuration. Please configure email templates in Firebase console under clients/[clientId]/config/emailTemplates');
   }
 
   let processedTemplate = template;
   
-  // Replace template variables
   const replacements = {
     '__OwnerName__': receiptData.receivedFrom || 'Valued Customer',
     '__UnitNumber__': receiptData.unitId || receiptData.unitNumber || 'N/A',
@@ -181,6 +198,37 @@ function processEmailTemplate(template, receiptData) {
   });
   
   return processedTemplate;
+}
+
+/**
+ * Validate that a processed template contains no unreplaced placeholder variables.
+ * Catches both __Token__ (receipt format) and {{Token}} (wrong format for receipts).
+ * Throws before an email is sent with raw template markup visible to the recipient.
+ *
+ * @param {string} html - Fully processed HTML body
+ * @param {string} context - Label for error messages (e.g. 'receipt email for AVII')
+ * @throws {Error} If any unreplaced placeholders remain
+ */
+function validateTemplateFullyProcessed(html, context) {
+  const unreplaced = [];
+
+  const doubleUnderscoreMatches = html.match(/__[A-Z][A-Za-z]+__/g);
+  if (doubleUnderscoreMatches) {
+    unreplaced.push(...new Set(doubleUnderscoreMatches));
+  }
+
+  const handlebarsMatches = html.match(/\{\{(?!#if|\/if|else|#if )([A-Z][A-Za-z]+)\}\}/g);
+  if (handlebarsMatches) {
+    unreplaced.push(...new Set(handlebarsMatches));
+  }
+
+  if (unreplaced.length > 0) {
+    throw new Error(
+      `Template validation failed for ${context}: unreplaced variables found: ${unreplaced.join(', ')}. ` +
+      'Receipt templates must use __Token__ format (double underscores). ' +
+      'Check the Firestore template at clients/{clientId}/config/emailTemplates.'
+    );
+  }
 }
 
 /**
@@ -262,7 +310,7 @@ async function sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientD
       const db = await getDb();
       const clientDoc = await db.collection('clients').doc(clientId).get();
       const clientConfig = clientDoc.exists ? clientDoc.data() : {};
-      clientLogoUrl = clientConfig.logoUrl || '';
+      clientLogoUrl = clientConfig.branding?.logoUrl || clientConfig.logoUrl || '';
       clientName = clientConfig.name || clientConfig.basicInfo?.fullName || 'Client Name';
     }
     
@@ -321,6 +369,8 @@ async function sendReceiptEmail(clientId, receiptData, receiptImageBlob, clientD
       }
     }
     htmlBody = htmlBody.replace('__Signature__', signatureHtml);
+
+    validateTemplateFullyProcessed(htmlBody, `receipt email for ${clientId}`);
     
     // Create email transporter
     const transporter = createGmailTransporter();

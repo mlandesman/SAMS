@@ -4,8 +4,8 @@
 
 ---
 
-## Production Status: v1.18.0
-**Deployed:** March 19, 2026 | **Sprints MOBILE-OWNER-UX + MOBILE-ADMIN-UX + Hotfixes**
+## Production Status: v1.19.1
+**Deployed:** March 20, 2026 | **Prior:** v1.18.0 mobile UX + hotfixes (Mar 19); **v1.19.x** adds automated monthly SoA (#249), WhatsApp webhook code (#178 partial, **not live** until Meta unblocks), and **SoA email preamble fix #255** (credit no longer double-counted in email body; PDF unchanged)
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)
@@ -60,7 +60,7 @@
 | ~~8~~ | ~~**MOBILE-OWNER-UX**~~ | ~~Mobile Owner UX Refactor~~ | ~~18-24h~~ | ~~#244~~ ✅ COMPLETE (PR #245, March 18, 2026) |
 | ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
 | ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
-| ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend Integration~~ | ~~6-8h~~ | ~~#178 (partial)~~ ✅ COMPLETE (PR #253, March 19, 2026) |
+| ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend (code only)~~ | ~~6-8h~~ | ~~#178 (partial)~~ ⏸️ **PAUSED** — PR #253 merged Mar 19; **Meta/WhatsApp Business blocked** externally (Mar 20, 2026); not E2E complete |
 | 12 | **DOC-LIB** | HOA Document Library | 17-25h | NEW — Admin + unit-level user uploads, access-controlled document storage (PRD parked) |
 | 13 | **WA-FRONTEND** | WhatsApp Frontend + Module Integration | 4-6h | #178 (remainder) — Admin UI, content templates, module triggers |
 | 14 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
@@ -68,11 +68,13 @@
 | 16 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
 | 17 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
 
-**Current Focus**: Sprint WA-BACKEND complete (PR #253). Next: Deploy (set WHATSAPP_APP_SECRET, configure Meta webhook), then DOC-LIB (parked) or WA-FRONTEND. v1.18.0 deployed. Beta users actively testing mobile apps.
+**Current Focus**: **Production v1.19.1** (Mar 20, 2026). WhatsApp **paused** — do not schedule WA-FRONTEND until Meta Business / WhatsApp setup unblocks; next engineering theme should have **zero Meta dependency** (e.g. **DOC-LIB** or **Polling-2+**). Beta users testing mobile apps.
 
 **Schedule Note (Mar 19, 2026 — Sprint AUTO-STMT Complete)**: Automated monthly statement generation merged (PR #250, 10 commits). Nightly scheduler TASK 5 generates prior-month SoA PDFs (EN+ES) for all units on 1st of each month. 40 PDFs in 398s. Deterministic doc IDs prevent duplicates. 6 BugBot issues fixed (month mismatch, fiscal year boundary, error isolation). Ready for functions-only deploy before April 1.
 
-**Schedule Note (Mar 19, 2026 — Sprint Planning)**: Scrum review reprioritized roadmap: (1) Sprint AUTO-STMT (4-6h, deadline Apr 1) — monthly scheduled SoA generation for mobile app. (2) Sprint WA-BACKEND (6-8h) — WhatsApp Cloud API backend only (Meta platform already configured, cURL verified). (3) Sprint DOC-LIB (17-25h) — parked, PRD template created. WhatsApp sprint split into WA-BACKEND (service/webhook/logging) and WA-FRONTEND (UI/templates/triggers). Mobile PWA resting during beta testing.
+**Schedule Note (Mar 20, 2026 — WhatsApp paused + v1.19.1)**: PO shut down Meta/WhatsApp Business console work after ~2 days blocked — **external dependency**, not SAMS code. Webhook verification works in code (PR #253); **channel not production-live**. **Sprint WA** marked paused in `Sprint_Groups.md`. **v1.19.1** deployed: SoA **email** body fix #255 (credit double-count in preamble only; statement PDF/data were correct).
+
+**Schedule Note (Mar 19, 2026 — Sprint Planning)**: Scrum review reprioritized roadmap: (1) Sprint AUTO-STMT (4-6h, deadline Apr 1) — monthly scheduled SoA generation for mobile app. (2) Sprint WA-BACKEND (6-8h) — WhatsApp Cloud API backend in code (later: Meta blockage invalidated “platform ready” assumption). (3) Sprint DOC-LIB (17-25h) — parked, PRD template created. WhatsApp split: WA-BACKEND vs WA-FRONTEND. Mobile PWA resting during beta testing.
 
 **Schedule Note (Mar 19, 2026 — v1.18.0 Deployed)**: Production deployment of v1.18.0 includes Sprint MOBILE-ADMIN-UX (#247), Sprint MOBILE-OWNER-UX (#244), Digital Receipt restoration, mobile role label fix, and propertyAccess role bug fix. Both Owner and Admin mobile UX fully operational. Beta users testing.
 
@@ -114,6 +116,7 @@
 
 | Version | Date | Issue | Notes |
 |---------|------|-------|-------|
+| v1.19.1 | Mar 20, 2026 | #255 | SoA email preamble: credit balance was double-counted in HTML body; PDF unchanged — now single Balance Due from closing balance |
 | v1.11.1 | Jan 30, 2026 | SoA skip logic for non-WaterBills clients | Agent shortcut caused edge case bug |
 | v1.11.2 | Jan 31, 2026 | SoA fix for water-only payments | Edge case: water bill payment without HOA Dues |
 
@@ -125,7 +128,8 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
-| WA-BACKEND (WhatsApp Webhook) | Mar 19, 2026 | #178 (partial) — PR #253, webhook + Firestore logging, opt-out. Co-deployed: #255 statement email fix |
+| v1.19.1 production deploy | Mar 20, 2026 | #255 SoA email preamble credit fix; affirms v1.19.0 feature set in production |
+| WA-BACKEND (WhatsApp webhook — code only, paused) | Mar 19–20, 2026 | #178 partial — PR #253 merged; Meta/WhatsApp Business **blocked**; E2E not claimed |
 | MOBILE-ADMIN-UX (Admin Mobile UX Refactor) | Mar 19, 2026 | #247 — 7 tasks (ADM-1–ADM-7), ~21h, deployed v1.18.0 |
 | Hotfixes (Digital Receipt, Role Label, propertyAccess) | Mar 18, 2026 | Direct to main — Digital Receipt re-enabled, mobile role label fix, propertyAccess role bug |
 | MOBILE-OWNER-UX (Mobile Owner UX Refactor) | Mar 18, 2026 | #244 (PR #245) — 7 tasks (MOB-1–MOB-7), ~19h, shared hooks refactor |
@@ -176,4 +180,4 @@
 
 ---
 
-*Last Updated: March 19, 2026 — Sprint AUTO-STMT complete (PR #250). Next: WA-BACKEND (WhatsApp service/webhook) → DOC-LIB (parked). v1.18.0 deployed with all mobile UX. AUTO-STMT ready for functions-only deploy before Apr 1.*
+*Last Updated: March 20, 2026 — **v1.19.1** production. WhatsApp **paused** (Meta). Next: DOC-LIB or Polling-2+ (no Meta). See Sprint_Groups Sprint WA.*

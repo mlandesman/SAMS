@@ -2065,7 +2065,7 @@ function TransactionsView() {
               clientData={{
                 id: selectedClient?.id,
                 name: selectedClient?.basicInfo?.fullName || selectedClient?.basicInfo?.displayName || selectedClient?.name || selectedClient?.id,
-                logoUrl: selectedClient?.logoUrl || '/sandyland-logo.png'
+                logoUrl: selectedClient?.branding?.logoUrl || selectedClient?.logoUrl || '/sandyland-logo.png'
               }}
               showPreview={true}
               onImageGenerated={(blob) => {

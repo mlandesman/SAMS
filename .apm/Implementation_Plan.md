@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.18.0 | **Deployed:** March 19, 2026  
-**Last Updated:** March 19, 2026 — Sprint WA-BACKEND complete (PR #253). WhatsApp webhook + statement email fix. Archive: Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/  
+**Version:** v1.19.1 | **Deployed:** March 20, 2026 (production)  
+**Last Updated:** March 20, 2026 — Production **v1.19.1** (#255 SoA email fix). WhatsApp: PR #253 code merged; **Sprint WA paused** (Meta/WhatsApp Business blocked externally). Archive: `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,25 +25,28 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Next: Sprint DOC-LIB (parked) or WA-FRONTEND — see Roadmap.*
+*No active sprint — **pick next theme without Meta dependency** (e.g. DOC-LIB or Polling-2+). **WA-FRONTEND / #178 remainder deferred** until WhatsApp Business setup unblocks. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md).*
 
 ---
 
-## Last Completed Sprint
+## Last Completed (shipping)
 
-**Sprint WA-BACKEND: WhatsApp Webhook** — #178 (partial) ✅ COMPLETE (PR #253, March 19, 2026)
+**Hotfix: Statement of Account email preamble — #255** — deployed **v1.19.1**, March 20, 2026
 
-| Task | Title | Est | Status |
-|------|-------|-----|--------|
-| WA-1 | WhatsApp webhook endpoint (GET verification + POST handler) | 2h | ✅ COMPLETE |
-| WA-2 | Parse inbound messages + status updates, Firestore logging | 2-3h | ✅ COMPLETE |
-| WA-3 | Phone matching, STOP detection, opt-out handling | 1-2h | ✅ COMPLETE |
-| WA-4 | Firebase Hosting rewrites, secrets, deployment + Meta setup | 1h | ✅ COMPLETE |
+**Problem**: SoA PDF and data were correct; the **HTML email body** double-counted credit (incorrect Balance Due in preamble).  
+**Fix**: Single balance line from SoA closing balance — no duplicate credit subtraction.  
+**Quality**: Targeted email-template / preamble logic only (low blast radius once identified).
 
-**Estimated**: 6-8h | **Quality**: ⭐⭐⭐⭐  
-**Impact**: Webhook at `/whatsapp-webhook`; HMAC verification; Firestore `whatsappWebhookEvents`, `whatsappMessages`; opt-out → `notifications.sms`. Co-deployed: statement email fix (#255).  
-**Archive**: `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`  
-**Prod verification**: Set WHATSAPP_APP_SECRET, deploy, configure Meta webhook.
+---
+
+## WhatsApp — honest status (not “last sprint complete”)
+
+**PR #253** (merged March 19, 2026): Webhook GET/POST, HMAC, Firestore `whatsappWebhookEvents` / `whatsappMessages`, phone match + STOP → `notifications.sms` — **in codebase**.
+
+**Operational**: **Meta / WhatsApp Business setup blocked** (external, ~2 days Mar 18–20) — PO paused work March 20, 2026. **Do not** tell stakeholders WhatsApp is live. **WA-FRONTEND** and module triggers remain future work after unblock.
+
+**Archive** (merge-era log): `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`  
+**When resumed**: `WHATSAPP_APP_SECRET`, hosting rewrites, Meta webhook URL — after Business Manager / WABA path is clear.
 
 ---
 
