@@ -375,6 +375,33 @@ const parseDate = (dateInput) => {
 };
 
 /**
+ * Parse transaction `date` from API for comparisons (filters, exports).
+ * Matches desktop TransactionsView.jsx quick/advanced date filter handling.
+ * @param {any} dateValue - transaction.date (string, DateService object, Firestore-shaped object)
+ * @returns {Date|null}
+ */
+const parseTransactionDate = (dateValue) => {
+  if (dateValue == null) return null;
+  if (typeof dateValue === 'object' && dateValue.timestamp) {
+    return dateValue.timestamp._seconds
+      ? new Date(dateValue.timestamp._seconds * 1000)
+      : new Date(dateValue.timestamp);
+  }
+  if (typeof dateValue === 'object' && dateValue !== null) {
+    if (typeof dateValue.iso === 'string') {
+      return parseDate(dateValue.iso);
+    }
+    if (typeof dateValue.ISO_8601 === 'string') {
+      return parseDate(dateValue.ISO_8601);
+    }
+  }
+  if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+    return parseDate(String(dateValue));
+  }
+  return null;
+};
+
+/**
  * Create a date in Cancun timezone
  * @param {number} year - Year
  * @param {number} month - Month (1-12, NOT 0-11)
@@ -415,6 +442,7 @@ export {
   defaultDateService,
   getNow,
   parseDate,
+  parseTransactionDate,
   createDate,
   addDays,
   toISOString

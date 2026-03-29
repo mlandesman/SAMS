@@ -1,27 +1,18 @@
 /**
- * Date ranges for mobile transaction filters (America/Cancun via getMexicoDate / getMexicoDateString).
+ * Mobile transaction date windows — Luxon in America/Cancun (same as functions/shared/services/DateService).
+ * Admin preset matching uses parseTransactionDate / parseDate from DateService (desktop TransactionsView parity).
  */
-import { getMexicoDateString } from './timezone.js';
+import { DateTime } from 'luxon';
+import { parseDate, parseTransactionDate } from '@sams/date-service';
 
-/** @returns {{ y: number, m: number, d: number }} */
-function parseMexicoYmd() {
-  const s = getMexicoDateString();
-  const [y, m, d] = s.split('-').map((n) => parseInt(n, 10));
-  return { y, m, d };
+const CANCUN = 'America/Cancun';
+
+function cancunNow() {
+  return DateTime.now().setZone(CANCUN);
 }
 
-function pad2(n) {
-  return String(n).padStart(2, '0');
-}
-
-/** Last calendar day (1–31) for month M (1–12) in year Y (no Date() — pre-PR / timezone rule). */
-function daysInMonth(y, m) {
-  const monthLengths = [31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (m === 2) {
-    const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-    return leap ? 29 : 28;
-  }
-  return monthLengths[m - 1];
+function toYmd(dt) {
+  return dt.toFormat('yyyy-MM-dd');
 }
 
 /**
@@ -37,9 +28,10 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
     };
   }
 
-  const { y, m, d } = parseMexicoYmd();
+  const now = cancunNow();
 
   if (datePreset === 'currentYear') {
+    const y = now.year;
     return {
       startDate: `${y}-01-01`,
       endDate: `${y}-12-31`,
@@ -47,25 +39,15 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
   }
 
   if (datePreset === 'currentMonth') {
-    const dim = daysInMonth(y, m);
-    return {
-      startDate: `${y}-${pad2(m)}-01`,
-      endDate: `${y}-${pad2(m)}-${pad2(dim)}`,
-    };
+    const start = now.startOf('month');
+    const end = now.endOf('month');
+    return { startDate: toYmd(start), endDate: toYmd(end) };
   }
 
   if (datePreset === 'prior3Months') {
-    let startY = y;
-    let startM = m - 2;
-    while (startM < 1) {
-      startM += 12;
-      startY -= 1;
-    }
-    const endDim = daysInMonth(y, m);
-    return {
-      startDate: `${startY}-${pad2(startM)}-01`,
-      endDate: `${y}-${pad2(m)}-${pad2(endDim)}`,
-    };
+    const start = now.minus({ months: 2 }).startOf('month');
+    const end = now.endOf('month');
+    return { startDate: toYmd(start), endDate: toYmd(end) };
   }
 
   return {
@@ -74,12 +56,9 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
   };
 }
 
-/** No matches (admin chip when calendar range does not overlap loaded year). */
+/** No overlap with loaded year (admin preset). */
 const EMPTY_RANGE = { start: '9999-01-01', end: '9999-01-02' };
 
-/**
- * Clip [start,end] YYYY-MM-DD to fiscal calendar year; empty overlap → EMPTY_RANGE.
- */
 function intersectRangeWithSelectedYear(start, end, selectedYear) {
   const ys = `${selectedYear}-01-01`;
   const ye = `${selectedYear}-12-31`;
@@ -91,8 +70,7 @@ function intersectRangeWithSelectedYear(start, end, selectedYear) {
 }
 
 /**
- * Admin client-side preset range (intersect with already-fetched year). Null = no extra date filter.
- * `currentYear` is null — same window as the API fetch (no narrowing); badge handled in UI.
+ * Admin client-side preset range (intersect with already-fetched calendar year).
  * @param {number} selectedYear
  * @param {null | 'currentMonth' | 'prior3Months' | 'currentYear'} datePreset
  * @returns {{ start: string, end: string } | null}
@@ -100,41 +78,31 @@ function intersectRangeWithSelectedYear(start, end, selectedYear) {
 export function getAdminPresetDateRange(selectedYear, datePreset) {
   if (!datePreset || datePreset === 'currentYear') return null;
 
-  const { y, m } = parseMexicoYmd();
+  const now = cancunNow();
 
   if (datePreset === 'currentMonth') {
-    const dim = daysInMonth(y, m);
-    const start = `${y}-${pad2(m)}-01`;
-    const end = `${y}-${pad2(m)}-${pad2(dim)}`;
+    const start = toYmd(now.startOf('month'));
+    const end = toYmd(now.endOf('month'));
     return intersectRangeWithSelectedYear(start, end, selectedYear);
   }
 
   if (datePreset === 'prior3Months') {
-    let startY = y;
-    let startM = m - 2;
-    while (startM < 1) {
-      startM += 12;
-      startY -= 1;
-    }
-    const endDim = daysInMonth(y, m);
-    const start = `${startY}-${pad2(startM)}-01`;
-    const end = `${y}-${pad2(m)}-${pad2(endDim)}`;
+    const start = toYmd(now.minus({ months: 2 }).startOf('month'));
+    const end = toYmd(now.endOf('month'));
     return intersectRangeWithSelectedYear(start, end, selectedYear);
   }
 
   return null;
 }
 
-/** Compare YYYY-MM-DD strings lexicographically. */
-export function dateStringInRange(dateStr, start, end) {
-  if (!dateStr || typeof dateStr !== 'string') return false;
-  const day = dateStr.slice(0, 10);
-  return day >= start && day <= end;
-}
-
-/** Admin: optional date preset on top of year-scoped fetch. */
+/** Admin: optional date preset on top of year-scoped fetch (desktop-style Date comparison). */
 export function transactionMatchesAdminDatePreset(txDate, selectedYear, datePreset) {
   const range = getAdminPresetDateRange(selectedYear, datePreset);
   if (!range) return true;
-  return dateStringInRange(txDate, range.start, range.end);
+  const txD = parseTransactionDate(txDate);
+  if (!txD || Number.isNaN(txD.getTime())) return false;
+  const startD = parseDate(range.start);
+  const endD = parseDate(`${range.end}T23:59:59.999`);
+  if (!startD || !endD || Number.isNaN(startD.getTime()) || Number.isNaN(endD.getTime())) return false;
+  return txD >= startD && txD <= endD;
 }
