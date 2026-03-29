@@ -73,7 +73,6 @@ export function transactionMatchesSearch(tx, q) {
     tx.unitId,
     tx.accountName,
     formatTransactionDate(tx.date),
-    String(tx.amount ?? ''),
     amountStr,
   ];
   if (Array.isArray(tx.allocations)) {

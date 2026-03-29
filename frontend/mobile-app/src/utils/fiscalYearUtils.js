@@ -9,6 +9,19 @@ import { getMexicoDateTime } from './timezone.js';
 const CANCUN = 'America/Cancun';
 
 /**
+ * Resolve first month of fiscal year from client config (mobile: BudgetDetail, transaction views).
+ * @param {object|null|undefined} selectedClient - from useClients()
+ * @param {string|undefined} clientId - current client id
+ * @returns {number} 1–12
+ */
+export function resolveFiscalYearStartMonth(selectedClient, clientId) {
+  const fromConfig = selectedClient?.configuration?.fiscalYearStartMonth;
+  if (fromConfig != null) return fromConfig;
+  if (clientId === 'AVII') return 7;
+  return 1;
+}
+
+/**
  * Calendar date range for a fiscal year label (e.g. AVII FY 2026 → 2025-07-01 … 2026-06-30).
  * @param {number} fiscalYear - Fiscal year number shown on chips
  * @param {number} fiscalYearStartMonth - 1–12 (1 = calendar year)

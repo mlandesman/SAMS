@@ -7,7 +7,7 @@ import { Box, Typography, Card, CardContent, LinearProgress, Button } from '@mui
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useClients } from '../../hooks/useClients.jsx';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus.js';
-import { getCurrentFiscalPeriod } from '../../utils/fiscalYearUtils.js';
+import { getCurrentFiscalPeriod, resolveFiscalYearStartMonth } from '../../utils/fiscalYearUtils.js';
 import { formatCurrency } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
@@ -18,12 +18,7 @@ const BudgetDetail = () => {
   const { budgetStatus, loading, error } = useBudgetStatus();
   const currentClientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  let fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth;
-  if (fiscalYearStartMonth == null && currentClientId === 'AVII') {
-    fiscalYearStartMonth = 7;
-  } else if (fiscalYearStartMonth == null) {
-    fiscalYearStartMonth = 1;
-  }
+  const fiscalYearStartMonth = resolveFiscalYearStartMonth(selectedClient, currentClientId);
   const fiscalPeriod = getCurrentFiscalPeriod(undefined, fiscalYearStartMonth);
   const percentElapsed = fiscalPeriod ? (fiscalPeriod.month / 12) * 100 : 0;
   const fiscalYearLabel = fiscalPeriod ? `FY ${fiscalPeriod.year}` : '—';

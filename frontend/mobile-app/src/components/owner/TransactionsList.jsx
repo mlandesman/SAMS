@@ -32,7 +32,7 @@ import { useClients } from '../../hooks/useClients.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
-import { getFiscalYear } from '../../utils/fiscalYearUtils.js';
+import { getFiscalYear, resolveFiscalYearStartMonth } from '../../utils/fiscalYearUtils.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { filterMobileOwnerTransactions } from '../../utils/transactionMobileFilters.js';
@@ -76,12 +76,10 @@ const TransactionsList = () => {
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  const fiscalYearStartMonth = useMemo(() => {
-    let m = selectedClient?.configuration?.fiscalYearStartMonth;
-    if (m == null && clientId === 'AVII') m = 7;
-    else if (m == null) m = 1;
-    return m;
-  }, [selectedClient, clientId]);
+  const fiscalYearStartMonth = useMemo(
+    () => resolveFiscalYearStartMonth(selectedClient, clientId),
+    [selectedClient, clientId]
+  );
 
   const currentFiscalYear = useMemo(
     () => getFiscalYear(getMexicoDate(), fiscalYearStartMonth),
