@@ -59,7 +59,7 @@ export default function TransactionAttachmentsDialog({ open, onClose, clientId, 
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load attachments');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
 
