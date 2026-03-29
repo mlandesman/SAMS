@@ -29,12 +29,13 @@ import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
-import { transactionMatchesSearch } from '../../utils/transactionMobileFilters.js';
+import { filterMobileOwnerTransactions } from '../../utils/transactionMobileFilters.js';
+import { useMobileTransactionFilterOptions } from '../../hooks/useMobileTransactionFilterOptions.js';
 import { LoadingSpinner, DetailRow } from '../common';
 import { getOwnerTransactionFetchRange } from '../../utils/transactionMobileDateRanges.js';
 import {
   getTransactionDocumentCount,
-  getTransactionDocumentIds,
+  openQueuedTransactionAttachments,
 } from '../../utils/transactionAttachments.js';
 import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
 
@@ -112,44 +113,19 @@ const TransactionsList = () => {
     if (clientId) fetchTransactions();
   }, [clientId, fetchTransactions]);
 
-  const vendorOptions = useMemo(() => {
-    const set = new Set();
-    transactions.forEach((tx) => {
-      const v = tx.vendorName || tx.description;
-      if (v) set.add(v);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [transactions]);
+  const { vendorOptions, categoryOptions, unitOptions } = useMobileTransactionFilterOptions(transactions);
 
-  const categoryOptions = useMemo(() => {
-    const set = new Set();
-    transactions.forEach((tx) => {
-      if (tx.categoryName) set.add(tx.categoryName);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [transactions]);
-
-  const unitOptions = useMemo(() => {
-    const set = new Set();
-    transactions.forEach((tx) => {
-      if (tx.unitId) set.add(String(tx.unitId));
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [transactions]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-      if (!transactionMatchesSearch(tx, searchText)) return false;
-      if (vendorFilter) {
-        const v = tx.vendorName || tx.description || '';
-        if (v !== vendorFilter) return false;
-      }
-      if (categoryFilter && (tx.categoryName || '') !== categoryFilter) return false;
-      if (unitFilter && String(tx.unitId || '') !== unitFilter) return false;
-      return true;
-    });
-  }, [transactions, typeFilter, searchText, vendorFilter, categoryFilter, unitFilter]);
+  const filteredTransactions = useMemo(
+    () =>
+      filterMobileOwnerTransactions(transactions, {
+        typeFilter,
+        searchText,
+        vendorFilter,
+        categoryFilter,
+        unitFilter,
+      }),
+    [transactions, typeFilter, searchText, vendorFilter, categoryFilter, unitFilter]
+  );
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
@@ -168,10 +144,7 @@ const TransactionsList = () => {
 
   const openAttachments = (tx, e) => {
     if (e) e.stopPropagation();
-    const ids = getTransactionDocumentIds(tx.documents);
-    if (!ids.length) return;
-    setAttachmentIds(ids);
-    setAttachmentOpen(true);
+    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen);
   };
 
   const handleYearClick = (y) => {

@@ -23,3 +23,11 @@ export function getTransactionDocumentIds(documents) {
 export function getTransactionDocumentCount(documents) {
   return getTransactionDocumentIds(documents).length;
 }
+
+/** Wire attachment dialog state from a transaction row (shared owner/admin pattern). */
+export function openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen) {
+  const ids = getTransactionDocumentIds(tx.documents);
+  if (!ids.length) return;
+  setAttachmentIds(ids);
+  setAttachmentOpen(true);
+}

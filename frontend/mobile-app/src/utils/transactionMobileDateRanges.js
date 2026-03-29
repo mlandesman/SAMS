@@ -1,7 +1,7 @@
 /**
  * Date ranges for mobile transaction filters (America/Cancun via getMexicoDate / getMexicoDateString).
  */
-import { getMexicoDate, getMexicoDateString } from './timezone.js';
+import { getMexicoDateString } from './timezone.js';
 
 /** @returns {{ y: number, m: number, d: number }} */
 function parseMexicoYmd() {
@@ -74,33 +74,39 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
   };
 }
 
+/** No matches (admin chip when calendar range does not overlap loaded year). */
+const EMPTY_RANGE = { start: '9999-01-01', end: '9999-01-02' };
+
+/**
+ * Clip [start,end] YYYY-MM-DD to fiscal calendar year; empty overlap → EMPTY_RANGE.
+ */
+function intersectRangeWithSelectedYear(start, end, selectedYear) {
+  const ys = `${selectedYear}-01-01`;
+  const ye = `${selectedYear}-12-31`;
+  if (end < ys || start > ye) return EMPTY_RANGE;
+  const clippedStart = start > ys ? start : ys;
+  const clippedEnd = end < ye ? end : ye;
+  if (clippedStart > clippedEnd) return EMPTY_RANGE;
+  return { start: clippedStart, end: clippedEnd };
+}
+
 /**
  * Admin client-side preset range (intersect with already-fetched year). Null = no extra date filter.
+ * `currentYear` is null — same window as the API fetch (no narrowing); badge handled in UI.
  * @param {number} selectedYear
  * @param {null | 'currentMonth' | 'prior3Months' | 'currentYear'} datePreset
  * @returns {{ start: string, end: string } | null}
  */
 export function getAdminPresetDateRange(selectedYear, datePreset) {
-  if (!datePreset) return null;
+  if (!datePreset || datePreset === 'currentYear') return null;
 
   const { y, m } = parseMexicoYmd();
 
-  if (datePreset === 'currentYear') {
-    return {
-      start: `${selectedYear}-01-01`,
-      end: `${selectedYear}-12-31`,
-    };
-  }
-
   if (datePreset === 'currentMonth') {
-    if (y !== selectedYear) {
-      return { start: '9999-01-01', end: '9999-01-02' };
-    }
     const dim = daysInMonth(y, m);
-    return {
-      start: `${y}-${pad2(m)}-01`,
-      end: `${y}-${pad2(m)}-${pad2(dim)}`,
-    };
+    const start = `${y}-${pad2(m)}-01`;
+    const end = `${y}-${pad2(m)}-${pad2(dim)}`;
+    return intersectRangeWithSelectedYear(start, end, selectedYear);
   }
 
   if (datePreset === 'prior3Months') {
@@ -111,10 +117,9 @@ export function getAdminPresetDateRange(selectedYear, datePreset) {
       startY -= 1;
     }
     const endDim = daysInMonth(y, m);
-    return {
-      start: `${startY}-${pad2(startM)}-01`,
-      end: `${y}-${pad2(m)}-${pad2(endDim)}`,
-    };
+    const start = `${startY}-${pad2(startM)}-01`;
+    const end = `${y}-${pad2(m)}-${pad2(endDim)}`;
+    return intersectRangeWithSelectedYear(start, end, selectedYear);
   }
 
   return null;
