@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -8,10 +8,20 @@ import {
   CardContent,
   Collapse,
   Chip,
+  TextField,
+  InputAdornment,
+  MenuItem,
+  ToggleButton,
+  ToggleButtonGroup,
+  Badge,
+  IconButton,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { config } from '../../config/index.js';
@@ -19,9 +29,22 @@ import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
+import { transactionMatchesSearch } from '../../utils/transactionMobileFilters.js';
 import { LoadingSpinner, DetailRow } from '../common';
+import { getOwnerTransactionFetchRange } from '../../utils/transactionMobileDateRanges.js';
+import {
+  getTransactionDocumentCount,
+  getTransactionDocumentIds,
+} from '../../utils/transactionAttachments.js';
+import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
 
 const API_BASE_URL = config.api.baseUrl;
+
+const DATE_PRESETS = [
+  { id: 'currentMonth', label: 'This month' },
+  { id: 'prior3Months', label: 'Prior 3 mo' },
+  { id: 'currentYear', label: 'This year' },
+];
 
 const TransactionsList = () => {
   const { currentClient, firebaseUser } = useAuth();
@@ -29,15 +52,28 @@ const TransactionsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(() => getMexicoDate().getFullYear());
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchText, setSearchText] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const [datePreset, setDatePreset] = useState(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const [attachmentIds, setAttachmentIds] = useState([]);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const currentYear = getMexicoDate().getFullYear();
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
 
-  useEffect(() => {
-    if (clientId) fetchTransactions();
-  }, [clientId]);
+  const { startDate, endDate } = useMemo(
+    () => getOwnerTransactionFetchRange(selectedYear, datePreset),
+    [selectedYear, datePreset]
+  );
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
+    if (!clientId) return;
     try {
       setLoading(true);
       setError(null);
@@ -46,14 +82,12 @@ const TransactionsList = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const startDate = `${currentYear}-01-01`;
-      const endDate = `${currentYear}-12-31`;
       const url = `${API_BASE_URL}/clients/${clientId}/transactions?startDate=${startDate}&endDate=${endDate}`;
 
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -64,7 +98,7 @@ const TransactionsList = () => {
       }
 
       const data = await response.json();
-      const txList = Array.isArray(data) ? data : (data.transactions || []);
+      const txList = Array.isArray(data) ? data : data.transactions || [];
       setTransactions(txList);
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -72,10 +106,90 @@ const TransactionsList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, firebaseUser, startDate, endDate]);
+
+  useEffect(() => {
+    if (clientId) fetchTransactions();
+  }, [clientId, fetchTransactions]);
+
+  const vendorOptions = useMemo(() => {
+    const set = new Set();
+    transactions.forEach((tx) => {
+      const v = tx.vendorName || tx.description;
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set();
+    transactions.forEach((tx) => {
+      if (tx.categoryName) set.add(tx.categoryName);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
+
+  const unitOptions = useMemo(() => {
+    const set = new Set();
+    transactions.forEach((tx) => {
+      if (tx.unitId) set.add(String(tx.unitId));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [transactions]);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      if (!transactionMatchesSearch(tx, searchText)) return false;
+      if (vendorFilter) {
+        const v = tx.vendorName || tx.description || '';
+        if (v !== vendorFilter) return false;
+      }
+      if (categoryFilter && (tx.categoryName || '') !== categoryFilter) return false;
+      if (unitFilter && String(tx.unitId || '') !== unitFilter) return false;
+      return true;
+    });
+  }, [transactions, typeFilter, searchText, vendorFilter, categoryFilter, unitFilter]);
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (searchText.trim()) n += 1;
+    if (typeFilter !== 'all') n += 1;
+    if (vendorFilter) n += 1;
+    if (categoryFilter) n += 1;
+    if (unitFilter) n += 1;
+    if (datePreset) n += 1;
+    return n;
+  }, [searchText, typeFilter, vendorFilter, categoryFilter, unitFilter, datePreset]);
 
   const toggleExpanded = (id) => {
-    setExpandedId(prev => prev === id ? null : id);
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const openAttachments = (tx, e) => {
+    if (e) e.stopPropagation();
+    const ids = getTransactionDocumentIds(tx.documents);
+    if (!ids.length) return;
+    setAttachmentIds(ids);
+    setAttachmentOpen(true);
+  };
+
+  const handleYearClick = (y) => {
+    setDatePreset(null);
+    setSelectedYear(y);
+  };
+
+  const handleTypeFilter = (_, value) => {
+    if (value != null) setTypeFilter(value);
+  };
+
+  const clearAllFilters = () => {
+    setSearchText('');
+    setVendorFilter('');
+    setCategoryFilter('');
+    setUnitFilter('');
+    setDatePreset(null);
+    setTypeFilter('all');
   };
 
   if (loading) {
@@ -96,26 +210,143 @@ const TransactionsList = () => {
   }
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, pb: 10 }}>
+      <TextField
+        size="small"
+        fullWidth
+        placeholder="Search transactions…"
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        sx={{ mb: 1.5 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" color="action" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+        <Badge badgeContent={activeFilterCount} color="primary" invisible={activeFilterCount === 0}>
+          <Chip
+            icon={<FilterListIcon />}
+            label="Filters"
+            onClick={() => setFiltersExpanded((v) => !v)}
+            variant={filtersExpanded ? 'filled' : 'outlined'}
+            color={filtersExpanded ? 'primary' : 'default'}
+          />
+        </Badge>
+        {activeFilterCount > 0 && (
+          <Button size="small" onClick={clearAllFilters}>Clear all</Button>
+        )}
+      </Box>
+
+      <Collapse in={filtersExpanded}>
+        <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Date range</Typography>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            {DATE_PRESETS.map((p) => (
+              <Chip
+                key={p.id}
+                size="small"
+                label={p.label}
+                onClick={() => setDatePreset(datePreset === p.id ? null : p.id)}
+                color={datePreset === p.id ? 'secondary' : 'default'}
+                variant={datePreset === p.id ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
+          <TextField
+            select
+            size="small"
+            label="Vendor"
+            value={vendorFilter}
+            onChange={(e) => setVendorFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {vendorOptions.map((v) => (
+              <MenuItem key={v} value={v}>{v}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Category"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {categoryOptions.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Unit"
+            value={unitFilter}
+            onChange={(e) => setUnitFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {unitOptions.map((u) => (
+              <MenuItem key={u} value={u}>{u}</MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      </Collapse>
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>Year</Typography>
+        {yearOptions.map((y) => (
+          <Chip
+            key={y}
+            label={y}
+            size="small"
+            onClick={() => handleYearClick(y)}
+            color={!datePreset && selectedYear === y ? 'primary' : 'default'}
+            variant={!datePreset && selectedYear === y ? 'filled' : 'outlined'}
+          />
+        ))}
+      </Box>
+
+      <ToggleButtonGroup
+        value={typeFilter}
+        exclusive
+        onChange={handleTypeFilter}
+        size="small"
+        fullWidth
+        sx={{ mb: 2, '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
+      >
+        <ToggleButton value="all">All</ToggleButton>
+        <ToggleButton value="income">Income</ToggleButton>
+        <ToggleButton value="expense">Expense</ToggleButton>
+      </ToggleButtonGroup>
+
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
-        {currentYear} Fiscal Year — {transactions.length} transactions
+        Showing {filteredTransactions.length} of {transactions.length} transactions
+        {datePreset ? ` · ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || ''}` : ` · ${selectedYear}`}
       </Typography>
 
-      {transactions.length === 0 ? (
+      {filteredTransactions.length === 0 ? (
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-              No transactions found for {currentYear}.
+              No transactions match your filters.
             </Typography>
           </CardContent>
         </Card>
       ) : (
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-            {transactions.map((tx, idx) => {
+            {filteredTransactions.map((tx, idx) => {
               const amount = centavosToPesos(tx.amount);
               const isExpanded = expandedId === tx.id;
               const isExpense = tx.type === 'expense';
+              const docCount = getTransactionDocumentCount(tx.documents);
 
               return (
                 <Box key={tx.id || idx}>
@@ -127,7 +358,7 @@ const TransactionsList = () => {
                       px: 2,
                       py: 1.5,
                       minHeight: 56,
-                      borderBottom: (idx < transactions.length - 1 || isExpanded) ? '1px solid #f0f0f0' : 'none',
+                      borderBottom: (idx < filteredTransactions.length - 1 || isExpanded) ? '1px solid #f0f0f0' : 'none',
                       cursor: 'pointer',
                       '&:active': { backgroundColor: '#f5f5f5' },
                       WebkitTapHighlightColor: 'rgba(25, 118, 210, 0.08)',
@@ -144,22 +375,37 @@ const TransactionsList = () => {
                         {tx.vendorName || tx.description || tx.notes || '—'}
                       </Typography>
                     </Box>
-                    <Box sx={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                      {docCount > 0 && (
+                        <IconButton
+                          size="small"
+                          aria-label={`${docCount} attachments`}
+                          onClick={(e) => openAttachments(tx, e)}
+                          sx={{ p: 0.5 }}
+                        >
+                          <Badge badgeContent={docCount} color="primary" max={99}>
+                            <AttachFileIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                          </Badge>
+                        </IconButton>
+                      )}
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: 600,
                           color: isExpense ? '#d32f2f' : '#2e7d32',
+                          textAlign: 'right',
+                          minWidth: 72,
                         }}
                       >
-                        {isExpense ? '-' : ''}{formatPesosForDisplay(amount)}
+                        {isExpense ? '-' : '+'}
+                        {formatPesosForDisplay(Math.abs(amount))}
                       </Typography>
                       {isExpanded ? <ExpandLessIcon sx={{ fontSize: 18, color: '#999' }} /> : <ExpandMoreIcon sx={{ fontSize: 18, color: '#999' }} />}
                     </Box>
                   </Box>
 
                   <Collapse in={isExpanded}>
-                    <Box sx={{ px: 2, py: 1.5, backgroundColor: '#fafafa', borderBottom: idx < transactions.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                    <Box sx={{ px: 2, py: 1.5, backgroundColor: '#fafafa', borderBottom: idx < filteredTransactions.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
                       {tx.categoryName && (
                         <DetailRow label="Category" value={tx.categoryName} />
                       )}
@@ -174,6 +420,16 @@ const TransactionsList = () => {
                       )}
                       {tx.notes && (
                         <DetailRow label="Notes" value={tx.notes} />
+                      )}
+                      {docCount > 0 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Attachments ({docCount})
+                          </Typography>
+                          <IconButton size="small" aria-label="Open attachments" onClick={(e) => openAttachments(tx, e)}>
+                            <AttachFileIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       )}
                       {tx.type && (
                         <Chip
@@ -191,6 +447,16 @@ const TransactionsList = () => {
           </CardContent>
         </Card>
       )}
+
+      <TransactionAttachmentsDialog
+        open={attachmentOpen}
+        onClose={() => {
+          setAttachmentOpen(false);
+          setAttachmentIds([]);
+        }}
+        clientId={clientId}
+        documentIds={attachmentIds}
+      />
     </Box>
   );
 };

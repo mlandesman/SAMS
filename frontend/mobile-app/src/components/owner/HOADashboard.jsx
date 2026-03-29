@@ -3,7 +3,7 @@
  * Single scrollable page: Financial Health, Active Polls, Active Projects, Budget Summary
  * Sprint MOBILE-OWNER-UX (MOB-4)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -47,6 +47,7 @@ const HOADashboard = () => {
   const [budgetData, setBudgetData] = useState(null);
   const [budgetLoading, setBudgetLoading] = useState(false);
   const [projectExpanded, setProjectExpanded] = useState(null);
+  const [showAllBudgetCategories, setShowAllBudgetCategories] = useState(false);
 
   // Budget data
   useEffect(() => {
@@ -85,14 +86,20 @@ const HOADashboard = () => {
   const accounts = accountBalances?.accounts || [];
   const collectionRate = Math.round(hoaDuesStatus?.collectionRate ?? 0);
 
-  const expenseCats = budgetData?.expenses?.categories || [];
-  const withDiff = expenseCats.map((c) => {
-    const actual = c.ytdActual ?? 0;
-    const budget = c.ytdBudget ?? 0;
-    const diff = actual - budget;
-    return { ...c, diff, absDiff: Math.abs(diff) };
-  });
-  const top5ByVariance = [...withDiff].sort((a, b) => b.absDiff - a.absDiff).slice(0, 5);
+  const allSortedByVariance = useMemo(() => {
+    const expenseCats = budgetData?.expenses?.categories || [];
+    const withDiff = expenseCats.map((c) => {
+      const actual = c.ytdActual ?? 0;
+      const budget = c.ytdBudget ?? 0;
+      const diff = actual - budget;
+      return { ...c, diff, absDiff: Math.abs(diff) };
+    });
+    return [...withDiff].sort((a, b) => b.absDiff - a.absDiff);
+  }, [budgetData]);
+
+  const displayBudgetCats = showAllBudgetCategories
+    ? allSortedByVariance
+    : allSortedByVariance.slice(0, 5);
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
@@ -237,7 +244,7 @@ const HOADashboard = () => {
                   {formatCurrency(budgetData.expenses?.totals?.totalYtdActual || 0)}
                 </Typography>
               </Box>
-              {top5ByVariance.length > 0 && (
+              {allSortedByVariance.length > 0 && (
                 <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
                   <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                     <thead>
@@ -248,7 +255,7 @@ const HOADashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {top5ByVariance.map((c) => {
+                      {displayBudgetCats.map((c) => {
                         const diffPesos = centavosToPesos(c.diff);
                         const absPesos = Math.abs(diffPesos);
                         const isOver = c.diff > 0;
@@ -264,6 +271,15 @@ const HOADashboard = () => {
                       })}
                     </tbody>
                   </Box>
+                  {allSortedByVariance.length > 5 && (
+                    <Button
+                      size="small"
+                      sx={{ mt: 1 }}
+                      onClick={() => setShowAllBudgetCategories((v) => !v)}
+                    >
+                      {showAllBudgetCategories ? 'Show less' : 'More'}
+                    </Button>
+                  )}
                 </Box>
               )}
             </>
