@@ -16,8 +16,8 @@ export const parseDate = (dateInput) => {
 
 /**
  * Parse transaction `date` field from API responses.
- * Handles: timestamp objects (with _seconds), object fields like iso / ISO_8601 /
- * unambiguous_long_date / display (aligned with transactionDisplay), plain strings.
+ * Handles: nested `timestamp` with _seconds, bare Firestore `{ _seconds, _nanoseconds }`,
+ * object fields like iso / ISO_8601 / unambiguous_long_date / display, plain strings.
  * Matches desktop TransactionsView.jsx date handling.
  * @param {any} dateValue - transaction.date in any API shape
  * @returns {Date|null}
@@ -28,6 +28,11 @@ export const parseTransactionDate = (dateValue) => {
     return dateValue.timestamp._seconds
       ? new Date(dateValue.timestamp._seconds * 1000)
       : new Date(dateValue.timestamp);
+  }
+  if (typeof dateValue === 'object' && dateValue !== null && typeof dateValue._seconds === 'number') {
+    const nanoMs =
+      typeof dateValue._nanoseconds === 'number' ? Math.floor(dateValue._nanoseconds / 1e6) : 0;
+    return new Date(dateValue._seconds * 1000 + nanoMs);
   }
   if (typeof dateValue === 'object' && dateValue !== null) {
     if (typeof dateValue.iso === 'string') return parseDate(dateValue.iso);
