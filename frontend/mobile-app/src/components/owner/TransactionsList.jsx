@@ -61,7 +61,8 @@ const TransactionsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(() => getFiscalYear(getMexicoDate(), 1));
+  /** User year chip; scoped to clientId so a new client uses fiscal default immediately (no wrong first fetch). */
+  const [yearPick, setYearPick] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
@@ -92,18 +93,21 @@ const TransactionsList = () => {
     [currentFiscalYear]
   );
 
-  useEffect(() => {
-    if (!clientId) return;
-    setSelectedYear(getFiscalYear(getMexicoDate(), fiscalYearStartMonth));
-  }, [clientId, fiscalYearStartMonth]);
+  const selectedYear = useMemo(() => {
+    if (!clientId) return null;
+    if (yearPick != null && yearPick.clientId === clientId) return yearPick.year;
+    return getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
+  }, [clientId, fiscalYearStartMonth, yearPick]);
 
-  const { startDate, endDate } = useMemo(
-    () => getOwnerTransactionFetchRange(selectedYear, datePreset, fiscalYearStartMonth),
-    [selectedYear, datePreset, fiscalYearStartMonth]
-  );
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedYear == null) {
+      return { startDate: null, endDate: null };
+    }
+    return getOwnerTransactionFetchRange(selectedYear, datePreset, fiscalYearStartMonth);
+  }, [selectedYear, datePreset, fiscalYearStartMonth]);
 
   const fetchTransactions = useCallback(async () => {
-    if (!clientId) return;
+    if (!clientId || !startDate || !endDate) return;
     try {
       setLoading(true);
       setError(null);
@@ -139,8 +143,8 @@ const TransactionsList = () => {
   }, [clientId, firebaseUser, startDate, endDate]);
 
   useEffect(() => {
-    if (clientId) fetchTransactions();
-  }, [clientId, fetchTransactions]);
+    if (clientId && startDate && endDate) fetchTransactions();
+  }, [clientId, startDate, endDate, fetchTransactions]);
 
   useEffect(() => {
     setVendorFilter('');
@@ -184,7 +188,7 @@ const TransactionsList = () => {
 
   const handleYearClick = (y) => {
     setDatePreset(null);
-    setSelectedYear(y);
+    if (clientId) setYearPick({ clientId, year: y });
   };
 
   const handleTypeFilter = (_, value) => {
@@ -335,7 +339,7 @@ const TransactionsList = () => {
 
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
         Showing {filteredTransactions.length} of {transactions.length} transactions
-        {datePreset ? ` · ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || ''}` : ` · ${selectedYear}`}
+        {datePreset ? ` · ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || ''}` : selectedYear != null ? ` · ${selectedYear}` : ''}
       </Typography>
 
       {filteredTransactions.length === 0 ? (

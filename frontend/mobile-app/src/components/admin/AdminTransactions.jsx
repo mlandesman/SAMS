@@ -65,7 +65,7 @@ const AdminTransactions = () => {
   const [error, setError] = useState(null);
   const [expandedRowKey, setExpandedRowKey] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [selectedYear, setSelectedYear] = useState(() => getFiscalYear(getMexicoDate(), 1));
+  const [yearPick, setYearPick] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
@@ -96,18 +96,21 @@ const AdminTransactions = () => {
     [currentFiscalYear]
   );
 
-  useEffect(() => {
-    if (!clientId) return;
-    setSelectedYear(getFiscalYear(getMexicoDate(), fiscalYearStartMonth));
-  }, [clientId, fiscalYearStartMonth]);
+  const selectedYear = useMemo(() => {
+    if (!clientId) return null;
+    if (yearPick != null && yearPick.clientId === clientId) return yearPick.year;
+    return getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
+  }, [clientId, fiscalYearStartMonth, yearPick]);
 
-  const { startDate, endDate } = useMemo(
-    () => getFiscalYearDateRange(selectedYear, fiscalYearStartMonth),
-    [selectedYear, fiscalYearStartMonth]
-  );
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedYear == null) {
+      return { startDate: null, endDate: null };
+    }
+    return getFiscalYearDateRange(selectedYear, fiscalYearStartMonth);
+  }, [selectedYear, fiscalYearStartMonth]);
 
   const fetchTransactions = useCallback(async () => {
-    if (!clientId) return;
+    if (!clientId || !startDate || !endDate) return;
     try {
       setLoading(true);
       setError(null);
@@ -143,8 +146,8 @@ const AdminTransactions = () => {
   }, [clientId, startDate, endDate]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (clientId && startDate && endDate) fetchTransactions();
+  }, [clientId, startDate, endDate, fetchTransactions]);
 
   useEffect(() => {
     setExpandedRowKey(null);
@@ -159,30 +162,29 @@ const AdminTransactions = () => {
 
   const { vendorOptions, categoryOptions, unitOptions } = useMobileTransactionFilterOptions(transactions);
 
-  const filteredTransactions = useMemo(
-    () =>
-      filterMobileAdminTransactions(transactions, {
-        typeFilter,
-        searchText,
-        vendorFilter,
-        categoryFilter,
-        unitFilter,
-        selectedYear,
-        datePreset,
-        fiscalYearStartMonth,
-      }),
-    [
-      transactions,
+  const filteredTransactions = useMemo(() => {
+    if (selectedYear == null) return [];
+    return filterMobileAdminTransactions(transactions, {
       typeFilter,
       searchText,
       vendorFilter,
       categoryFilter,
       unitFilter,
-      datePreset,
       selectedYear,
+      datePreset,
       fiscalYearStartMonth,
-    ]
-  );
+    });
+  }, [
+    transactions,
+    typeFilter,
+    searchText,
+    vendorFilter,
+    categoryFilter,
+    unitFilter,
+    datePreset,
+    selectedYear,
+    fiscalYearStartMonth,
+  ]);
 
   const activeFilterCount = useMemo(() => {
     let n = 0;
@@ -221,7 +223,7 @@ const AdminTransactions = () => {
 
   const handleYearClick = (y) => {
     setDatePreset(null);
-    setSelectedYear(y);
+    if (clientId) setYearPick({ clientId, year: y });
   };
 
   const displayedTransactions = filteredTransactions.slice(0, visibleCount);
@@ -367,7 +369,7 @@ const AdminTransactions = () => {
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
         Showing {filteredTransactions.length} of {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
         {' · '}
-        {selectedYear}
+        {selectedYear ?? '—'}
         {typeFilter !== 'all' ? ` · ${typeFilter}` : ''}
       </Typography>
 
@@ -375,7 +377,7 @@ const AdminTransactions = () => {
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-              No transactions match your filters for {selectedYear}
+              No transactions match your filters for {selectedYear ?? '—'}
               {typeFilter !== 'all' ? ` (${typeFilter} only)` : ''}.
             </Typography>
           </CardContent>
