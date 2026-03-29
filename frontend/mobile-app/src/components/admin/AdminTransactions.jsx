@@ -195,6 +195,11 @@ const AdminTransactions = () => {
     setDatePreset(null);
   };
 
+  const handleYearClick = (y) => {
+    setDatePreset(null);
+    setSelectedYear(y);
+  };
+
   const displayedTransactions = filteredTransactions.slice(0, visibleCount);
   const hasMore = filteredTransactions.length > visibleCount;
 
@@ -314,7 +319,7 @@ const AdminTransactions = () => {
           <Chip
             key={y}
             label={y}
-            onClick={() => setSelectedYear(y)}
+            onClick={() => handleYearClick(y)}
             color={selectedYear === y ? 'primary' : 'default'}
             variant={selectedYear === y ? 'filled' : 'outlined'}
             sx={{ fontWeight: selectedYear === y ? 600 : 400 }}
