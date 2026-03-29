@@ -34,11 +34,15 @@ function transactionUnitMatchesFilter(tx, unitFilter) {
   const filterNorm = extractUnitIdForFilter(unitFilter);
   if (filterNorm == null) return true;
 
-  const txUnit =
-    tx.unitId ??
-    tx.unit ??
-    tx.unitNumber ??
-    (tx.unit && typeof tx.unit === 'object' && (tx.unit.unitId ?? tx.unit.id));
+  let txUnit = tx.unitId ?? tx.unitNumber;
+  if (txUnit == null || txUnit === '') {
+    const u = tx.unit;
+    if (u != null && typeof u === 'object') {
+      txUnit = u.unitId ?? u.id;
+    } else {
+      txUnit = u;
+    }
+  }
 
   const hasTxUnit = txUnit != null && txUnit !== '';
   const transactionUnitMatches = hasTxUnit && extractUnitIdForFilter(txUnit) === filterNorm;
