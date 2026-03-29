@@ -278,6 +278,19 @@ const TransactionsList = () => {
               />
             ))}
           </Box>
+          <Typography variant="caption" color="text.secondary">Type</Typography>
+          <ToggleButtonGroup
+            value={typeFilter}
+            exclusive
+            onChange={handleTypeFilter}
+            size="small"
+            fullWidth
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="income">Income</ToggleButton>
+            <ToggleButton value="expense">Expense</ToggleButton>
+          </ToggleButtonGroup>
           <TextField
             select
             size="small"
@@ -319,19 +332,6 @@ const TransactionsList = () => {
           </TextField>
         </Box>
       </Collapse>
-
-      <ToggleButtonGroup
-        value={typeFilter}
-        exclusive
-        onChange={handleTypeFilter}
-        size="small"
-        fullWidth
-        sx={{ mb: 2, '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
-      >
-        <ToggleButton value="all">All</ToggleButton>
-        <ToggleButton value="income">Income</ToggleButton>
-        <ToggleButton value="expense">Expense</ToggleButton>
-      </ToggleButtonGroup>
 
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
         Showing {filteredTransactions.length} of {transactions.length} transactions
