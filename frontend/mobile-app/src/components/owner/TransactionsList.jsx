@@ -394,8 +394,7 @@ const TransactionsList = () => {
                           minWidth: 72,
                         }}
                       >
-                        {isExpense ? '-' : '+'}
-                        {formatPesosForDisplay(Math.abs(amount))}
+                        {`${isExpense ? '-' : '+'}${formatPesosForDisplay(Math.abs(amount))}`}
                       </Typography>
                       {isExpanded ? <ExpandLessIcon sx={{ fontSize: 18, color: '#999' }} /> : <ExpandMoreIcon sx={{ fontSize: 18, color: '#999' }} />}
                     </Box>

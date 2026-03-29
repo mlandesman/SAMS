@@ -439,8 +439,7 @@ const AdminTransactions = () => {
                           minWidth: 72,
                         }}
                       >
-                        {isExpense ? '-' : '+'}
-                        {formatPesosForDisplay(Math.abs(amount))}
+                        {`${isExpense ? '-' : '+'}${formatPesosForDisplay(Math.abs(amount))}`}
                       </Typography>
                       {isExpanded ? (
                         <ExpandLessIcon sx={{ fontSize: 18, color: '#999' }} />
