@@ -24,43 +24,30 @@ export function transactionMatchesSearch(tx, q) {
   return hay.some((s) => s.includes(raw));
 }
 
-/** Owner list: client-side filters only (date window comes from API). */
-export function filterMobileOwnerTransactions(transactions, filters) {
+/** Shared type / search / vendor / category / unit checks (owner + admin). */
+export function transactionMatchesBaseMobileFilters(tx, filters) {
   const { typeFilter, searchText, vendorFilter, categoryFilter, unitFilter } = filters;
-  return transactions.filter((tx) => {
-    if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-    if (!transactionMatchesSearch(tx, searchText)) return false;
-    if (vendorFilter) {
-      const v = tx.vendorName || tx.description || '';
-      if (v !== vendorFilter) return false;
-    }
-    if (categoryFilter && (tx.categoryName || '') !== categoryFilter) return false;
-    if (unitFilter && String(tx.unitId || '') !== unitFilter) return false;
-    return true;
-  });
+  if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+  if (!transactionMatchesSearch(tx, searchText)) return false;
+  if (vendorFilter) {
+    const v = tx.vendorName || tx.description || '';
+    if (v !== vendorFilter) return false;
+  }
+  if (categoryFilter && (tx.categoryName || '') !== categoryFilter) return false;
+  if (unitFilter && String(tx.unitId || '') !== unitFilter) return false;
+  return true;
 }
 
-/** Admin list: same as owner plus optional date preset within loaded year. */
+/** Owner list: client-side filters only (date window comes from API). */
+export function filterMobileOwnerTransactions(transactions, filters) {
+  return transactions.filter((tx) => transactionMatchesBaseMobileFilters(tx, filters));
+}
+
+/** Admin list: base filters plus optional date preset within loaded year. */
 export function filterMobileAdminTransactions(transactions, filters) {
-  const {
-    typeFilter,
-    searchText,
-    vendorFilter,
-    categoryFilter,
-    unitFilter,
-    selectedYear,
-    datePreset,
-  } = filters;
+  const { selectedYear, datePreset } = filters;
   return transactions.filter((tx) => {
-    if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
-    if (!transactionMatchesSearch(tx, searchText)) return false;
-    if (vendorFilter) {
-      const v = tx.vendorName || tx.description || '';
-      if (v !== vendorFilter) return false;
-    }
-    if (categoryFilter && (tx.categoryName || '') !== categoryFilter) return false;
-    if (unitFilter && String(tx.unitId || '') !== unitFilter) return false;
-    if (!transactionMatchesAdminDatePreset(tx.date, selectedYear, datePreset)) return false;
-    return true;
+    if (!transactionMatchesBaseMobileFilters(tx, filters)) return false;
+    return transactionMatchesAdminDatePreset(tx.date, selectedYear, datePreset);
   });
 }

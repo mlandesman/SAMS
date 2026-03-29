@@ -31,14 +31,15 @@ export default function TransactionAttachmentsDialog({ open, onClose, clientId, 
       setItems([]);
       setError('');
       setPreviewId(null);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
+    setLoading(true);
+    setError('');
     (async () => {
       try {
-        setLoading(true);
-        setError('');
         const results = await Promise.all(
           documentIds.map(async (id) => {
             try {
@@ -58,12 +59,13 @@ export default function TransactionAttachmentsDialog({ open, onClose, clientId, 
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load attachments');
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      setLoading(false);
     };
   }, [open, clientId, idsKey]);
 
