@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "258"
+          ],
+          "text": "Mobile transaction UX polish: fiscal-year-aware filters (vendor, category, unit, date presets), text search, transaction attachment viewing with single-doc shortcut, budget category expand/collapse, double-negative fix on expense amounts"
+        }
+      ]
+    },
+    {
       "version": "1.19.2",
       "date": "2026-03-26",
       "changes": [
