@@ -1,9 +1,9 @@
 /**
- * Mobile transaction date windows — Luxon in America/Cancun (same as functions/shared/services/DateService).
- * Admin preset matching uses parseTransactionDate / parseDate from DateService (desktop TransactionsView parity).
+ * Mobile transaction date windows — Luxon in America/Cancun (aligned with DateService timezone).
+ * Admin preset matching uses parseTransactionDate / parseDate from local dateUtils (no server bundle).
  */
 import { DateTime } from 'luxon';
-import { parseDate, parseTransactionDate } from '@sams/date-service';
+import { parseDate, parseTransactionDate } from './dateUtils';
 
 const CANCUN = 'America/Cancun';
 

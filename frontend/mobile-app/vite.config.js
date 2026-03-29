@@ -85,8 +85,6 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@shared': fileURLToPath(new URL('../../shared', import.meta.url)),
-      '@sams/date-service': fileURLToPath(new URL('../../functions/shared/services/DateService.js', import.meta.url)),
-      'firebase-admin': fileURLToPath(new URL('./src/shims/firebase-admin-stub.js', import.meta.url)),
     }
   },
   server: {
