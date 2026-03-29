@@ -18,6 +18,9 @@ import {
   MenuItem,
   Badge,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -25,11 +28,14 @@ import {
   Search as SearchIcon,
   FilterList as FilterListIcon,
   AttachFile as AttachFileIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useClients } from '../../hooks/useClients.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
+import { getFiscalYear, getFiscalYearDateRange } from '../../utils/fiscalYearUtils.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { LoadingSpinner, DetailRow } from '../common';
@@ -40,6 +46,7 @@ import {
   openQueuedTransactionAttachments,
 } from '../../utils/transactionAttachments.js';
 import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
+import DocumentViewer from '../documents/DocumentViewer';
 
 const API_BASE_URL = config.api.baseUrl;
 const PAGE_SIZE = 50;
@@ -52,12 +59,13 @@ const ADMIN_DATE_PRESETS = [
 
 const AdminTransactions = () => {
   const { currentClient } = useAuth();
+  const { selectedClient } = useClients();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRowKey, setExpandedRowKey] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [selectedYear, setSelectedYear] = useState(() => getMexicoDate().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(() => getFiscalYear(getMexicoDate(), 1));
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
@@ -67,10 +75,36 @@ const AdminTransactions = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [attachmentIds, setAttachmentIds] = useState([]);
+  const [singleDocPreviewId, setSingleDocPreviewId] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
-  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+
+  const fiscalYearStartMonth = useMemo(() => {
+    let m = selectedClient?.configuration?.fiscalYearStartMonth;
+    if (m == null && clientId === 'AVII') m = 7;
+    else if (m == null) m = 1;
+    return m;
+  }, [selectedClient, clientId]);
+
+  const currentFiscalYear = useMemo(
+    () => getFiscalYear(getMexicoDate(), fiscalYearStartMonth),
+    [fiscalYearStartMonth]
+  );
+
+  const yearOptions = useMemo(
+    () => [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2],
+    [currentFiscalYear]
+  );
+
+  useEffect(() => {
+    if (!clientId) return;
+    setSelectedYear(getFiscalYear(getMexicoDate(), fiscalYearStartMonth));
+  }, [clientId, fiscalYearStartMonth]);
+
+  const { startDate, endDate } = useMemo(
+    () => getFiscalYearDateRange(selectedYear, fiscalYearStartMonth),
+    [selectedYear, fiscalYearStartMonth]
+  );
 
   const fetchTransactions = useCallback(async () => {
     if (!clientId) return;
@@ -82,8 +116,6 @@ const AdminTransactions = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
       const url = `${API_BASE_URL}/clients/${clientId}/transactions?startDate=${startDate}&endDate=${endDate}`;
 
       const response = await fetch(url, {
@@ -108,7 +140,7 @@ const AdminTransactions = () => {
     } finally {
       setLoading(false);
     }
-  }, [clientId, selectedYear]);
+  }, [clientId, startDate, endDate]);
 
   useEffect(() => {
     fetchTransactions();
@@ -137,6 +169,7 @@ const AdminTransactions = () => {
         unitFilter,
         selectedYear,
         datePreset,
+        fiscalYearStartMonth,
       }),
     [
       transactions,
@@ -147,6 +180,7 @@ const AdminTransactions = () => {
       unitFilter,
       datePreset,
       selectedYear,
+      fiscalYearStartMonth,
     ]
   );
 
@@ -173,7 +207,7 @@ const AdminTransactions = () => {
 
   const openAttachments = (tx, e) => {
     if (e) e.stopPropagation();
-    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen);
+    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen, setSingleDocPreviewId);
   };
 
   const clearExtraFilters = () => {
@@ -249,6 +283,19 @@ const AdminTransactions = () => {
 
       <Collapse in={filtersExpanded}>
         <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Year</Typography>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            {yearOptions.map((y) => (
+              <Chip
+                key={y}
+                label={y}
+                size="small"
+                onClick={() => handleYearClick(y)}
+                color={selectedYear === y ? 'primary' : 'default'}
+                variant={selectedYear === y ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
           <Typography variant="caption" color="text.secondary">Date range (within year)</Typography>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {ADMIN_DATE_PRESETS.map((p) => (
@@ -303,19 +350,6 @@ const AdminTransactions = () => {
           </TextField>
         </Box>
       </Collapse>
-
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        {yearOptions.map((y) => (
-          <Chip
-            key={y}
-            label={y}
-            onClick={() => handleYearClick(y)}
-            color={selectedYear === y ? 'primary' : 'default'}
-            variant={selectedYear === y ? 'filled' : 'outlined'}
-            sx={{ fontWeight: selectedYear === y ? 600 : 400 }}
-          />
-        ))}
-      </Box>
 
       <Box sx={{ mb: 2 }}>
         <ToggleButtonGroup
@@ -394,18 +428,6 @@ const AdminTransactions = () => {
                       )}
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                      {docCount > 0 && (
-                        <IconButton
-                          size="small"
-                          aria-label={`${docCount} attachments`}
-                          onClick={(e) => openAttachments(tx, e)}
-                          sx={{ p: 0.5 }}
-                        >
-                          <Badge badgeContent={docCount} color="primary" max={99}>
-                            <AttachFileIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
-                          </Badge>
-                        </IconButton>
-                      )}
                       <Typography
                         variant="body2"
                         sx={{
@@ -447,7 +469,9 @@ const AdminTransactions = () => {
                             Attachments ({docCount})
                           </Typography>
                           <IconButton size="small" aria-label="Open attachments" onClick={(e) => openAttachments(tx, e)}>
-                            <AttachFileIcon fontSize="small" />
+                            <Badge badgeContent={docCount} color="primary" max={99}>
+                              <AttachFileIcon fontSize="small" />
+                            </Badge>
                           </IconButton>
                         </Box>
                       )}
@@ -482,6 +506,34 @@ const AdminTransactions = () => {
           </Typography>
         </Box>
       )}
+
+      <Dialog
+        open={Boolean(singleDocPreviewId)}
+        onClose={() => setSingleDocPreviewId(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ pr: 5 }}>
+          Attachment
+          <IconButton
+            aria-label="close"
+            onClick={() => setSingleDocPreviewId(null)}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {singleDocPreviewId && (
+            <DocumentViewer
+              clientId={clientId}
+              documentId={singleDocPreviewId}
+              showDelete={false}
+              compact={false}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <TransactionAttachmentsDialog
         open={attachmentOpen}

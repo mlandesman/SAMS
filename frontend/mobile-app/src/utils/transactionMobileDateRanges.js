@@ -1,9 +1,12 @@
 /**
  * Mobile transaction date windows — Luxon in America/Cancun (aligned with DateService timezone).
  * Admin preset matching uses parseTransactionDate / parseDate from local dateUtils (no server bundle).
+ * Fiscal year bounds from getFiscalYearDateRange (per-client fiscalYearStartMonth).
  */
 import { DateTime } from 'luxon';
 import { parseDate, parseTransactionDate } from './dateUtils';
+import { getFiscalYear, getFiscalYearDateRange } from './fiscalYearUtils.js';
+import { getMexicoDate } from './timezone.js';
 
 const CANCUN = 'America/Cancun';
 
@@ -16,26 +19,23 @@ function toYmd(dt) {
 }
 
 /**
- * Owner fetch window: full selected year, or preset range (overrides year chips).
- * @param {number} selectedYear
+ * Owner fetch window: full selected fiscal year, or preset range (overrides year chips).
+ * @param {number} selectedYear - Fiscal year from chips
  * @param {null | 'currentMonth' | 'prior3Months' | 'currentYear'} datePreset
+ * @param {number} fiscalYearStartMonth
  */
-export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
+export function getOwnerTransactionFetchRange(selectedYear, datePreset, fiscalYearStartMonth) {
+  const fyDefault = () => getFiscalYearDateRange(selectedYear, fiscalYearStartMonth);
+
   if (!datePreset) {
-    return {
-      startDate: `${selectedYear}-01-01`,
-      endDate: `${selectedYear}-12-31`,
-    };
+    return fyDefault();
   }
 
   const now = cancunNow();
 
   if (datePreset === 'currentYear') {
-    const y = now.year;
-    return {
-      startDate: `${y}-01-01`,
-      endDate: `${y}-12-31`,
-    };
+    const y = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
+    return getFiscalYearDateRange(y, fiscalYearStartMonth);
   }
 
   if (datePreset === 'currentMonth') {
@@ -45,24 +45,19 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
   }
 
   if (datePreset === 'prior3Months') {
-    // Three full calendar months before the current month (no overlap with "This month")
     const end = now.minus({ months: 1 }).endOf('month');
     const start = end.minus({ months: 2 }).startOf('month');
     return { startDate: toYmd(start), endDate: toYmd(end) };
   }
 
-  return {
-    startDate: `${selectedYear}-01-01`,
-    endDate: `${selectedYear}-12-31`,
-  };
+  return fyDefault();
 }
 
-/** No overlap with loaded year (admin preset). */
+/** No overlap with loaded fiscal year (admin preset). */
 const EMPTY_RANGE = { start: '9999-01-01', end: '9999-01-02' };
 
-function intersectRangeWithSelectedYear(start, end, selectedYear) {
-  const ys = `${selectedYear}-01-01`;
-  const ye = `${selectedYear}-12-31`;
+function intersectRangeWithSelectedFiscalYear(start, end, selectedYear, fiscalYearStartMonth) {
+  const { startDate: ys, endDate: ye } = getFiscalYearDateRange(selectedYear, fiscalYearStartMonth);
   if (end < ys || start > ye) return EMPTY_RANGE;
   const clippedStart = start > ys ? start : ys;
   const clippedEnd = end < ye ? end : ye;
@@ -71,12 +66,13 @@ function intersectRangeWithSelectedYear(start, end, selectedYear) {
 }
 
 /**
- * Admin client-side preset range (intersect with already-fetched calendar year).
+ * Admin client-side preset range (intersect with already-fetched fiscal year).
  * @param {number} selectedYear
  * @param {null | 'currentMonth' | 'prior3Months' | 'currentYear'} datePreset
+ * @param {number} fiscalYearStartMonth
  * @returns {{ start: string, end: string } | null}
  */
-export function getAdminPresetDateRange(selectedYear, datePreset) {
+export function getAdminPresetDateRange(selectedYear, datePreset, fiscalYearStartMonth) {
   if (!datePreset || datePreset === 'currentYear') return null;
 
   const now = cancunNow();
@@ -84,21 +80,31 @@ export function getAdminPresetDateRange(selectedYear, datePreset) {
   if (datePreset === 'currentMonth') {
     const start = toYmd(now.startOf('month'));
     const end = toYmd(now.endOf('month'));
-    return intersectRangeWithSelectedYear(start, end, selectedYear);
+    return intersectRangeWithSelectedFiscalYear(start, end, selectedYear, fiscalYearStartMonth);
   }
 
   if (datePreset === 'prior3Months') {
     const endDt = now.minus({ months: 1 }).endOf('month');
     const startDt = endDt.minus({ months: 2 }).startOf('month');
-    return intersectRangeWithSelectedYear(toYmd(startDt), toYmd(endDt), selectedYear);
+    return intersectRangeWithSelectedFiscalYear(
+      toYmd(startDt),
+      toYmd(endDt),
+      selectedYear,
+      fiscalYearStartMonth
+    );
   }
 
   return null;
 }
 
 /** Admin: optional date preset on top of year-scoped fetch (desktop-style Date comparison). */
-export function transactionMatchesAdminDatePreset(txDate, selectedYear, datePreset) {
-  const range = getAdminPresetDateRange(selectedYear, datePreset);
+export function transactionMatchesAdminDatePreset(
+  txDate,
+  selectedYear,
+  datePreset,
+  fiscalYearStartMonth
+) {
+  const range = getAdminPresetDateRange(selectedYear, datePreset, fiscalYearStartMonth);
   if (!range) return true;
   const txD = parseTransactionDate(txDate);
   if (!txD || Number.isNaN(txD.getTime())) return false;

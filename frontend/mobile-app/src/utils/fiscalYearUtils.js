@@ -3,7 +3,32 @@
  * Copied from SAMS desktop to ensure consistency
  */
 
+import { DateTime } from 'luxon';
 import { getMexicoDateTime } from './timezone.js';
+
+const CANCUN = 'America/Cancun';
+
+/**
+ * Calendar date range for a fiscal year label (e.g. AVII FY 2026 → 2025-07-01 … 2026-06-30).
+ * @param {number} fiscalYear - Fiscal year number shown on chips
+ * @param {number} fiscalYearStartMonth - 1–12 (1 = calendar year)
+ * @returns {{ startDate: string, endDate: string }} YYYY-MM-DD
+ */
+export function getFiscalYearDateRange(fiscalYear, fiscalYearStartMonth) {
+  if (fiscalYearStartMonth === 1) {
+    return { startDate: `${fiscalYear}-01-01`, endDate: `${fiscalYear}-12-31` };
+  }
+  const startCalendarYear = fiscalYear - 1;
+  const startMonth = String(fiscalYearStartMonth).padStart(2, '0');
+  const startDate = `${startCalendarYear}-${startMonth}-01`;
+  const endCalendarMonth = fiscalYearStartMonth - 1;
+  const endDt = DateTime.fromObject(
+    { year: fiscalYear, month: endCalendarMonth, day: 1 },
+    { zone: CANCUN }
+  ).endOf('month');
+  const endDate = endDt.toFormat('yyyy-MM-dd');
+  return { startDate, endDate };
+}
 
 /**
  * Get current fiscal year for a given date

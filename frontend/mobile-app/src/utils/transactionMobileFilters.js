@@ -42,11 +42,16 @@ export function filterMobileOwnerTransactions(transactions, filters) {
   return transactions.filter((tx) => transactionMatchesBaseMobileFilters(tx, filters));
 }
 
-/** Admin list: base filters plus optional date preset within loaded year. */
+/** Admin list: base filters plus optional date preset within loaded fiscal year. */
 export function filterMobileAdminTransactions(transactions, filters) {
-  const { selectedYear, datePreset } = filters;
+  const { selectedYear, datePreset, fiscalYearStartMonth } = filters;
   return transactions.filter((tx) => {
     if (!transactionMatchesBaseMobileFilters(tx, filters)) return false;
-    return transactionMatchesAdminDatePreset(tx.date, selectedYear, datePreset);
+    return transactionMatchesAdminDatePreset(
+      tx.date,
+      selectedYear,
+      datePreset,
+      fiscalYearStartMonth
+    );
   });
 }

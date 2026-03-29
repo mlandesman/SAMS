@@ -15,6 +15,9 @@ import {
   ToggleButtonGroup,
   Badge,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -22,11 +25,14 @@ import {
   Search as SearchIcon,
   FilterList as FilterListIcon,
   AttachFile as AttachFileIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useClients } from '../../hooks/useClients.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
+import { getFiscalYear } from '../../utils/fiscalYearUtils.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { filterMobileOwnerTransactions } from '../../utils/transactionMobileFilters.js';
@@ -38,6 +44,7 @@ import {
   openQueuedTransactionAttachments,
 } from '../../utils/transactionAttachments.js';
 import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
+import DocumentViewer from '../documents/DocumentViewer';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -49,11 +56,12 @@ const DATE_PRESETS = [
 
 const TransactionsList = () => {
   const { currentClient, firebaseUser } = useAuth();
+  const { selectedClient } = useClients();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(() => getMexicoDate().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(() => getFiscalYear(getMexicoDate(), 1));
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [vendorFilter, setVendorFilter] = useState('');
@@ -63,14 +71,35 @@ const TransactionsList = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [attachmentIds, setAttachmentIds] = useState([]);
+  const [singleDocPreviewId, setSingleDocPreviewId] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
-  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+
+  const fiscalYearStartMonth = useMemo(() => {
+    let m = selectedClient?.configuration?.fiscalYearStartMonth;
+    if (m == null && clientId === 'AVII') m = 7;
+    else if (m == null) m = 1;
+    return m;
+  }, [selectedClient, clientId]);
+
+  const currentFiscalYear = useMemo(
+    () => getFiscalYear(getMexicoDate(), fiscalYearStartMonth),
+    [fiscalYearStartMonth]
+  );
+
+  const yearOptions = useMemo(
+    () => [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2],
+    [currentFiscalYear]
+  );
+
+  useEffect(() => {
+    if (!clientId) return;
+    setSelectedYear(getFiscalYear(getMexicoDate(), fiscalYearStartMonth));
+  }, [clientId, fiscalYearStartMonth]);
 
   const { startDate, endDate } = useMemo(
-    () => getOwnerTransactionFetchRange(selectedYear, datePreset),
-    [selectedYear, datePreset]
+    () => getOwnerTransactionFetchRange(selectedYear, datePreset, fiscalYearStartMonth),
+    [selectedYear, datePreset, fiscalYearStartMonth]
   );
 
   const fetchTransactions = useCallback(async () => {
@@ -150,7 +179,7 @@ const TransactionsList = () => {
 
   const openAttachments = (tx, e) => {
     if (e) e.stopPropagation();
-    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen);
+    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen, setSingleDocPreviewId);
   };
 
   const handleYearClick = (y) => {
@@ -223,6 +252,19 @@ const TransactionsList = () => {
 
       <Collapse in={filtersExpanded}>
         <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Year</Typography>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            {yearOptions.map((y) => (
+              <Chip
+                key={y}
+                label={y}
+                size="small"
+                onClick={() => handleYearClick(y)}
+                color={!datePreset && selectedYear === y ? 'primary' : 'default'}
+                variant={!datePreset && selectedYear === y ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
           <Typography variant="caption" color="text.secondary">Date range</Typography>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {DATE_PRESETS.map((p) => (
@@ -277,20 +319,6 @@ const TransactionsList = () => {
           </TextField>
         </Box>
       </Collapse>
-
-      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ width: '100%' }}>Year</Typography>
-        {yearOptions.map((y) => (
-          <Chip
-            key={y}
-            label={y}
-            size="small"
-            onClick={() => handleYearClick(y)}
-            color={!datePreset && selectedYear === y ? 'primary' : 'default'}
-            variant={!datePreset && selectedYear === y ? 'filled' : 'outlined'}
-          />
-        ))}
-      </Box>
 
       <ToggleButtonGroup
         value={typeFilter}
@@ -355,18 +383,6 @@ const TransactionsList = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                      {docCount > 0 && (
-                        <IconButton
-                          size="small"
-                          aria-label={`${docCount} attachments`}
-                          onClick={(e) => openAttachments(tx, e)}
-                          sx={{ p: 0.5 }}
-                        >
-                          <Badge badgeContent={docCount} color="primary" max={99}>
-                            <AttachFileIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
-                          </Badge>
-                        </IconButton>
-                      )}
                       <Typography
                         variant="body2"
                         sx={{
@@ -406,7 +422,9 @@ const TransactionsList = () => {
                             Attachments ({docCount})
                           </Typography>
                           <IconButton size="small" aria-label="Open attachments" onClick={(e) => openAttachments(tx, e)}>
-                            <AttachFileIcon fontSize="small" />
+                            <Badge badgeContent={docCount} color="primary" max={99}>
+                              <AttachFileIcon fontSize="small" />
+                            </Badge>
                           </IconButton>
                         </Box>
                       )}
@@ -426,6 +444,34 @@ const TransactionsList = () => {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={Boolean(singleDocPreviewId)}
+        onClose={() => setSingleDocPreviewId(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ pr: 5 }}>
+          Attachment
+          <IconButton
+            aria-label="close"
+            onClick={() => setSingleDocPreviewId(null)}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {singleDocPreviewId && (
+            <DocumentViewer
+              clientId={clientId}
+              documentId={singleDocPreviewId}
+              showDelete={false}
+              compact={false}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <TransactionAttachmentsDialog
         open={attachmentOpen}
