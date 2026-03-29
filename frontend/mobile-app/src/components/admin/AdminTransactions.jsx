@@ -153,12 +153,13 @@ const AdminTransactions = () => {
   const activeFilterCount = useMemo(() => {
     let n = 0;
     if (searchText.trim()) n += 1;
+    if (typeFilter !== 'all') n += 1;
     if (vendorFilter) n += 1;
     if (categoryFilter) n += 1;
     if (unitFilter) n += 1;
     if (datePreset) n += 1;
     return n;
-  }, [searchText, vendorFilter, categoryFilter, unitFilter, datePreset]);
+  }, [searchText, typeFilter, vendorFilter, categoryFilter, unitFilter, datePreset]);
 
   const getRowKey = (tx, idx) => tx.id ?? `idx-${idx}`;
 
@@ -181,6 +182,7 @@ const AdminTransactions = () => {
     setCategoryFilter('');
     setUnitFilter('');
     setDatePreset(null);
+    setTypeFilter('all');
   };
 
   const handleYearClick = (y) => {

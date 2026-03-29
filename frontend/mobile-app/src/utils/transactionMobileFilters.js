@@ -14,7 +14,6 @@ export function transactionMatchesSearch(tx, q) {
     tx.notes,
     tx.unitId,
     tx.accountName,
-    tx.date,
     formatTransactionDate(tx.date),
     String(tx.amount ?? ''),
     amountStr,
