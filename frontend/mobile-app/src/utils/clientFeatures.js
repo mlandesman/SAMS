@@ -18,7 +18,7 @@ export const hasWaterBills = (selectedClient, menuConfig = []) => {
   if (menuConfig && menuConfig.length > 0) {
     const hasWaterBills = menuConfig.some(item => item.activity === 'WaterBills');
     if (hasWaterBills) {
-      console.log('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(menu config)');
+      console.debug('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(menu config)');
       return true;
     }
   }
@@ -29,18 +29,18 @@ export const hasWaterBills = (selectedClient, menuConfig = []) => {
       activity.activity === 'WaterBills'
     );
     if (hasWaterBills) {
-      console.log('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(legacy config)');
+      console.debug('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(legacy config)');
       return true;
     }
   }
   
   // Method 3: Check client ID as fallback (AVII has water bills)
   if (selectedClient.id === 'AVII') {
-    console.log('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(client ID fallback)');
+    console.debug('🔍 [clientFeatures] Water bills enabled for client:', selectedClient.id, '(client ID fallback)');
     return true;
   }
   
-  console.log('🔍 [clientFeatures] Water bills not available for client:', selectedClient.id);
+  console.debug('🔍 [clientFeatures] Water bills not available for client:', selectedClient.id);
   return false;
 };
 

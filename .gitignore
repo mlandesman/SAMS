@@ -190,6 +190,14 @@ SAMS-Docs/apm_session/*
 SAMS-Docs/apm_session/Agile/*
 !SAMS-Docs/apm_session/Agile/Sprint_Groups.md
 !SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md
+# Task completion log — single sprint handoff (avoid un-ignoring entire Task_Completion_Logs/)
+!SAMS-Docs/apm_session/Memory/
+SAMS-Docs/apm_session/Memory/*
+!SAMS-Docs/apm_session/Memory/Task_Completion_Logs/
+SAMS-Docs/apm_session/Memory/Task_Completion_Logs/*
+!SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Sprint_2026-03-29.md
+!SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Revisions_2026-03-29.md
+!SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_PR259_Manager_Completion_2026-03-29.md
 # Keep implementation plan versioned
 !.apm/Implementation_Plan.md
 backend.OLD/

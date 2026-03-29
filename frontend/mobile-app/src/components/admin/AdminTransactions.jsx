@@ -1,8 +1,7 @@
 /**
- * Admin Transactions View — All units, year/type filters, expandable rows
- * Sprint MOBILE-ADMIN-UX (ADM-3)
+ * Admin Transactions View — filters, search, attachments, expandable rows
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -14,46 +13,106 @@ import {
   Chip,
   ToggleButton,
   ToggleButtonGroup,
+  TextField,
+  InputAdornment,
+  MenuItem,
+  Badge,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  AttachFile as AttachFileIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useClients } from '../../hooks/useClients.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
+import {
+  getFiscalYear,
+  getFiscalYearDateRange,
+  resolveFiscalYearStartMonth,
+} from '../../utils/fiscalYearUtils.js';
 import { formatPesosForDisplay, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { formatTransactionDate } from '../../utils/transactionDisplay.js';
 import { LoadingSpinner, DetailRow } from '../common';
+import { filterMobileAdminTransactions } from '../../utils/transactionMobileFilters.js';
+import { useMobileTransactionFilterOptions } from '../../hooks/useMobileTransactionFilterOptions.js';
+import {
+  getTransactionDocumentCount,
+  openQueuedTransactionAttachments,
+} from '../../utils/transactionAttachments.js';
+import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
+import DocumentViewer from '../documents/DocumentViewer';
 
 const API_BASE_URL = config.api.baseUrl;
 const PAGE_SIZE = 50;
 
+/** Admin data is already year-scoped; only presets that narrow within the year. */
+const ADMIN_DATE_PRESETS = [
+  { id: 'currentMonth', label: 'This month' },
+  { id: 'prior3Months', label: 'Prior 3 mo' },
+];
+
 const AdminTransactions = () => {
   const { currentClient } = useAuth();
+  const { selectedClient } = useClients();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRowKey, setExpandedRowKey] = useState(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [selectedYear, setSelectedYear] = useState(getMexicoDate().getFullYear());
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'income' | 'expense'
+  const [yearPick, setYearPick] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchText, setSearchText] = useState('');
+  const [vendorFilter, setVendorFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [unitFilter, setUnitFilter] = useState('');
+  const [datePreset, setDatePreset] = useState(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const [attachmentIds, setAttachmentIds] = useState([]);
+  const [singleDocPreviewId, setSingleDocPreviewId] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
-  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
 
-  useEffect(() => {
-    if (clientId) fetchTransactions();
-  }, [clientId, selectedYear]);
+  const fiscalYearStartMonth = useMemo(
+    () => resolveFiscalYearStartMonth(selectedClient, clientId),
+    [selectedClient, clientId]
+  );
 
-  useEffect(() => {
-    setExpandedRowKey(null);
-    setVisibleCount(PAGE_SIZE);
-  }, [selectedYear, typeFilter, transactions]);
+  const currentFiscalYear = useMemo(
+    () => getFiscalYear(getMexicoDate(), fiscalYearStartMonth),
+    [fiscalYearStartMonth]
+  );
 
-  const fetchTransactions = async () => {
+  const yearOptions = useMemo(
+    () => [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2],
+    [currentFiscalYear]
+  );
+
+  const selectedYear = useMemo(() => {
+    if (!clientId) return null;
+    if (yearPick != null && yearPick.clientId === clientId) return yearPick.year;
+    return getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
+  }, [clientId, fiscalYearStartMonth, yearPick]);
+
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedYear == null) {
+      return { startDate: null, endDate: null };
+    }
+    return getFiscalYearDateRange(selectedYear, fiscalYearStartMonth);
+  }, [selectedYear, fiscalYearStartMonth]);
+
+  const fetchTransactions = useCallback(async () => {
+    if (!clientId || !startDate || !endDate) return;
     try {
       setLoading(true);
       setError(null);
@@ -62,8 +121,6 @@ const AdminTransactions = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
       const url = `${API_BASE_URL}/clients/${clientId}/transactions?startDate=${startDate}&endDate=${endDate}`;
 
       const response = await fetch(url, {
@@ -88,7 +145,59 @@ const AdminTransactions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, startDate, endDate]);
+
+  useEffect(() => {
+    if (clientId && startDate && endDate) fetchTransactions();
+  }, [clientId, startDate, endDate, fetchTransactions]);
+
+  useEffect(() => {
+    setExpandedRowKey(null);
+    setVisibleCount(PAGE_SIZE);
+  }, [selectedYear, typeFilter, transactions, searchText, vendorFilter, categoryFilter, unitFilter, datePreset]);
+
+  useEffect(() => {
+    setVendorFilter('');
+    setCategoryFilter('');
+    setUnitFilter('');
+  }, [selectedYear, datePreset]);
+
+  const { vendorOptions, categoryOptions, unitOptions } = useMobileTransactionFilterOptions(transactions);
+
+  const filteredTransactions = useMemo(() => {
+    if (selectedYear == null) return [];
+    return filterMobileAdminTransactions(transactions, {
+      typeFilter,
+      searchText,
+      vendorFilter,
+      categoryFilter,
+      unitFilter,
+      selectedYear,
+      datePreset,
+      fiscalYearStartMonth,
+    });
+  }, [
+    transactions,
+    typeFilter,
+    searchText,
+    vendorFilter,
+    categoryFilter,
+    unitFilter,
+    datePreset,
+    selectedYear,
+    fiscalYearStartMonth,
+  ]);
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (searchText.trim()) n += 1;
+    if (typeFilter !== 'all') n += 1;
+    if (vendorFilter) n += 1;
+    if (categoryFilter) n += 1;
+    if (unitFilter) n += 1;
+    if (datePreset) n += 1;
+    return n;
+  }, [searchText, typeFilter, vendorFilter, categoryFilter, unitFilter, datePreset]);
 
   const getRowKey = (tx, idx) => tx.id ?? `idx-${idx}`;
 
@@ -100,10 +209,24 @@ const AdminTransactions = () => {
     if (value != null) setTypeFilter(value);
   };
 
-  const filteredTransactions = transactions.filter((tx) => {
-    if (typeFilter === 'all') return true;
-    return tx.type === typeFilter;
-  });
+  const openAttachments = (tx, e) => {
+    if (e) e.stopPropagation();
+    openQueuedTransactionAttachments(tx, setAttachmentIds, setAttachmentOpen, setSingleDocPreviewId);
+  };
+
+  const clearExtraFilters = () => {
+    setSearchText('');
+    setVendorFilter('');
+    setCategoryFilter('');
+    setUnitFilter('');
+    setDatePreset(null);
+    setTypeFilter('all');
+  };
+
+  const handleYearClick = (y) => {
+    setDatePreset(null);
+    if (clientId) setYearPick({ clientId, year: y });
+  };
 
   const displayedTransactions = filteredTransactions.slice(0, visibleCount);
   const hasMore = filteredTransactions.length > visibleCount;
@@ -131,45 +254,132 @@ const AdminTransactions = () => {
 
   return (
     <Box sx={{ p: 2, pb: 10 }}>
-      {/* Year filter chips */}
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        {yearOptions.map((y) => (
+      <TextField
+        size="small"
+        fullWidth
+        placeholder="Search transactions…"
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        sx={{ mb: 1.5 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" color="action" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+        <Badge badgeContent={activeFilterCount} color="primary" invisible={activeFilterCount === 0}>
           <Chip
-            key={y}
-            label={y}
-            onClick={() => setSelectedYear(y)}
-            color={selectedYear === y ? 'primary' : 'default'}
-            variant={selectedYear === y ? 'filled' : 'outlined'}
-            sx={{ fontWeight: selectedYear === y ? 600 : 400 }}
+            icon={<FilterListIcon />}
+            label="Filters"
+            onClick={() => setFiltersExpanded((v) => !v)}
+            variant={filtersExpanded ? 'filled' : 'outlined'}
+            color={filtersExpanded ? 'primary' : 'default'}
           />
-        ))}
+        </Badge>
+        {activeFilterCount > 0 && (
+          <Button size="small" onClick={clearExtraFilters}>Clear all</Button>
+        )}
       </Box>
 
-      {/* Type filter toggle */}
-      <Box sx={{ mb: 2 }}>
-        <ToggleButtonGroup
-          value={typeFilter}
-          exclusive
-          onChange={handleTypeFilter}
-          size="small"
-          fullWidth
-          sx={{ '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
-        >
-          <ToggleButton value="all">All</ToggleButton>
-          <ToggleButton value="income">Income</ToggleButton>
-          <ToggleButton value="expense">Expense</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
+      <Collapse in={filtersExpanded}>
+        <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Year</Typography>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            {yearOptions.map((y) => (
+              <Chip
+                key={y}
+                label={y}
+                size="small"
+                onClick={() => handleYearClick(y)}
+                color={selectedYear === y ? 'primary' : 'default'}
+                variant={selectedYear === y ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary">Date range (within year)</Typography>
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            {ADMIN_DATE_PRESETS.map((p) => (
+              <Chip
+                key={p.id}
+                size="small"
+                label={p.label}
+                onClick={() => setDatePreset(datePreset === p.id ? null : p.id)}
+                color={datePreset === p.id ? 'secondary' : 'default'}
+                variant={datePreset === p.id ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary">Type</Typography>
+          <ToggleButtonGroup
+            value={typeFilter}
+            exclusive
+            onChange={handleTypeFilter}
+            size="small"
+            fullWidth
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="income">Income</ToggleButton>
+            <ToggleButton value="expense">Expense</ToggleButton>
+          </ToggleButtonGroup>
+          <TextField
+            select
+            size="small"
+            label="Vendor"
+            value={vendorFilter}
+            onChange={(e) => setVendorFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {vendorOptions.map((v) => (
+              <MenuItem key={v} value={v}>{v}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Category"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {categoryOptions.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Unit"
+            value={unitFilter}
+            onChange={(e) => setUnitFilter(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            {unitOptions.map((u) => (
+              <MenuItem key={u} value={u}>{u}</MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      </Collapse>
 
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
-        {selectedYear} — {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+        Showing {filteredTransactions.length} of {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+        {' · '}
+        {selectedYear ?? '—'}
+        {typeFilter !== 'all' ? ` · ${typeFilter}` : ''}
       </Typography>
 
       {filteredTransactions.length === 0 ? (
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-              No transactions found for {selectedYear}
+              No transactions match your filters for {selectedYear ?? '—'}
               {typeFilter !== 'all' ? ` (${typeFilter} only)` : ''}.
             </Typography>
           </CardContent>
@@ -182,6 +392,7 @@ const AdminTransactions = () => {
               const rowKey = getRowKey(tx, idx);
               const isExpanded = expandedRowKey === rowKey;
               const isExpense = tx.type === 'expense';
+              const docCount = getTransactionDocumentCount(tx.documents);
 
               return (
                 <Box key={rowKey}>
@@ -218,15 +429,17 @@ const AdminTransactions = () => {
                         </Typography>
                       )}
                     </Box>
-                    <Box sx={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: 600,
                           color: isExpense ? '#d32f2f' : '#2e7d32',
+                          textAlign: 'right',
+                          minWidth: 72,
                         }}
                       >
-                        {isExpense ? '-' : '+'}{formatPesosForDisplay(amount)}
+                        {`${isExpense ? '-' : '+'}${formatPesosForDisplay(Math.abs(amount))}`}
                       </Typography>
                       {isExpanded ? (
                         <ExpandLessIcon sx={{ fontSize: 18, color: '#999' }} />
@@ -251,6 +464,18 @@ const AdminTransactions = () => {
                       {tx.accountName && <DetailRow label="Account" value={tx.accountName} />}
                       {tx.paymentMethod && <DetailRow label="Payment Method" value={tx.paymentMethod} />}
                       {tx.notes && <DetailRow label="Notes" value={tx.notes} />}
+                      {docCount > 0 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Attachments ({docCount})
+                          </Typography>
+                          <IconButton size="small" aria-label="Open attachments" onClick={(e) => openAttachments(tx, e)}>
+                            <Badge badgeContent={docCount} color="primary" max={99}>
+                              <AttachFileIcon fontSize="small" />
+                            </Badge>
+                          </IconButton>
+                        </Box>
+                      )}
                       {tx.type && (
                         <Chip
                           label={tx.type}
@@ -282,6 +507,44 @@ const AdminTransactions = () => {
           </Typography>
         </Box>
       )}
+
+      <Dialog
+        open={Boolean(singleDocPreviewId)}
+        onClose={() => setSingleDocPreviewId(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ pr: 5 }}>
+          Attachment
+          <IconButton
+            aria-label="close"
+            onClick={() => setSingleDocPreviewId(null)}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {singleDocPreviewId && (
+            <DocumentViewer
+              clientId={clientId}
+              documentId={singleDocPreviewId}
+              showDelete={false}
+              compact={false}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <TransactionAttachmentsDialog
+        open={attachmentOpen}
+        onClose={() => {
+          setAttachmentOpen(false);
+          setAttachmentIds([]);
+        }}
+        clientId={clientId}
+        documentIds={attachmentIds}
+      />
     </Box>
   );
 };
