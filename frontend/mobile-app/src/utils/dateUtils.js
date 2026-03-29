@@ -16,7 +16,8 @@ export const parseDate = (dateInput) => {
 
 /**
  * Parse transaction `date` field from API responses.
- * Handles: timestamp objects (with _seconds), {iso: string}, {ISO_8601: string}, plain strings.
+ * Handles: timestamp objects (with _seconds), object fields like iso / ISO_8601 /
+ * unambiguous_long_date / display (aligned with transactionDisplay), plain strings.
  * Matches desktop TransactionsView.jsx date handling.
  * @param {any} dateValue - transaction.date in any API shape
  * @returns {Date|null}
@@ -31,6 +32,10 @@ export const parseTransactionDate = (dateValue) => {
   if (typeof dateValue === 'object' && dateValue !== null) {
     if (typeof dateValue.iso === 'string') return parseDate(dateValue.iso);
     if (typeof dateValue.ISO_8601 === 'string') return parseDate(dateValue.ISO_8601);
+    if (typeof dateValue.unambiguous_long_date === 'string') {
+      return parseDate(dateValue.unambiguous_long_date);
+    }
+    if (typeof dateValue.display === 'string') return parseDate(dateValue.display);
   }
   if (typeof dateValue === 'string' || typeof dateValue === 'number') {
     return parseDate(String(dateValue));

@@ -45,8 +45,9 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset) {
   }
 
   if (datePreset === 'prior3Months') {
-    const start = now.minus({ months: 2 }).startOf('month');
-    const end = now.endOf('month');
+    // Three full calendar months before the current month (no overlap with "This month")
+    const end = now.minus({ months: 1 }).endOf('month');
+    const start = end.minus({ months: 2 }).startOf('month');
     return { startDate: toYmd(start), endDate: toYmd(end) };
   }
 
@@ -87,9 +88,9 @@ export function getAdminPresetDateRange(selectedYear, datePreset) {
   }
 
   if (datePreset === 'prior3Months') {
-    const start = toYmd(now.minus({ months: 2 }).startOf('month'));
-    const end = toYmd(now.endOf('month'));
-    return intersectRangeWithSelectedYear(start, end, selectedYear);
+    const endDt = now.minus({ months: 1 }).endOf('month');
+    const startDt = endDt.minus({ months: 2 }).startOf('month');
+    return intersectRangeWithSelectedYear(toYmd(startDt), toYmd(endDt), selectedYear);
   }
 
   return null;
