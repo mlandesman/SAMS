@@ -53,8 +53,8 @@ export function getOwnerTransactionFetchRange(selectedYear, datePreset, fiscalYe
   return fyDefault();
 }
 
-/** No overlap with loaded fiscal year (admin preset). */
-const EMPTY_RANGE = { start: '9999-01-01', end: '9999-01-02' };
+/** No overlap with loaded fiscal year (admin preset) — same keys as getFiscalYearDateRange. */
+const EMPTY_RANGE = { startDate: '9999-01-01', endDate: '9999-01-02' };
 
 function intersectRangeWithSelectedFiscalYear(start, end, selectedYear, fiscalYearStartMonth) {
   const { startDate: ys, endDate: ye } = getFiscalYearDateRange(selectedYear, fiscalYearStartMonth);
@@ -62,7 +62,7 @@ function intersectRangeWithSelectedFiscalYear(start, end, selectedYear, fiscalYe
   const clippedStart = start > ys ? start : ys;
   const clippedEnd = end < ye ? end : ye;
   if (clippedStart > clippedEnd) return EMPTY_RANGE;
-  return { start: clippedStart, end: clippedEnd };
+  return { startDate: clippedStart, endDate: clippedEnd };
 }
 
 /**
@@ -70,7 +70,7 @@ function intersectRangeWithSelectedFiscalYear(start, end, selectedYear, fiscalYe
  * @param {number} selectedYear
  * @param {null | 'currentMonth' | 'prior3Months' | 'currentYear'} datePreset
  * @param {number} fiscalYearStartMonth
- * @returns {{ start: string, end: string } | null}
+ * @returns {{ startDate: string, endDate: string } | null}
  */
 export function getAdminPresetDateRange(selectedYear, datePreset, fiscalYearStartMonth) {
   if (!datePreset || datePreset === 'currentYear') return null;
@@ -108,8 +108,8 @@ export function transactionMatchesAdminDatePreset(
   if (!range) return true;
   const txD = parseTransactionDate(txDate);
   if (!txD || Number.isNaN(txD.getTime())) return false;
-  const startD = parseDate(range.start);
-  const endD = parseDate(`${range.end}T23:59:59.999`);
+  const startD = parseDate(range.startDate);
+  const endD = parseDate(`${range.endDate}T23:59:59.999`);
   if (!startD || !endD || Number.isNaN(startD.getTime()) || Number.isNaN(endD.getTime())) return false;
   return txD >= startD && txD <= endD;
 }

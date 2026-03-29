@@ -1,5 +1,5 @@
 ---
-memory_log_path: /Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Sprint_2026-03-29.md
+memory_log_path: SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Sprint_2026-03-29.md
 task: Sprint MOBILE-TX-UX
 github_issue: https://github.com/mlandesman/SAMS/issues/258
 github_pr: https://github.com/mlandesman/SAMS/pull/259

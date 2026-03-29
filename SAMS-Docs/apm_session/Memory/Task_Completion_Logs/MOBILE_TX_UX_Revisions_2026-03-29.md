@@ -1,5 +1,5 @@
 ---
-memory_log_path: /Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Revisions_2026-03-29.md
+memory_log_path: SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_Revisions_2026-03-29.md
 task: MOBILE-TX-UX Revisions (post–PR #259 test)
 assignment: SAMS-Docs/apm_session/Memory/Task_Assignments/Sprint_MOBILE_TX_UX_Revisions.md
 ---
