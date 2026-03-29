@@ -365,6 +365,15 @@ export const clientAPI = {
   },
 
   /**
+   * Get a single document (metadata + download URL)
+   */
+  async getDocument(clientId, documentId) {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/clients/${clientId}/documents/${documentId}`, { headers });
+    return handleResponse(response);
+  },
+
+  /**
    * Get documents for a client
    */
   async getDocuments(clientId, filters = {}) {

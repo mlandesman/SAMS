@@ -2,27 +2,23 @@
  * Budget Detail View — Fiscal year, YTD budget vs actual, variance
  * Sprint MOBILE-ADMIN-UX (ADM-5)
  */
-import React from 'react';
-import { Box, Typography, Card, CardContent, LinearProgress } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Card, CardContent, LinearProgress, Button } from '@mui/material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useClients } from '../../hooks/useClients.jsx';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus.js';
-import { getCurrentFiscalPeriod } from '../../utils/fiscalYearUtils.js';
+import { getCurrentFiscalPeriod, resolveFiscalYearStartMonth } from '../../utils/fiscalYearUtils.js';
 import { formatCurrency } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 
 const BudgetDetail = () => {
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const { currentClient } = useAuth();
   const { selectedClient } = useClients();
   const { budgetStatus, loading, error } = useBudgetStatus();
   const currentClientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  let fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth;
-  if (fiscalYearStartMonth == null && currentClientId === 'AVII') {
-    fiscalYearStartMonth = 7;
-  } else if (fiscalYearStartMonth == null) {
-    fiscalYearStartMonth = 1;
-  }
+  const fiscalYearStartMonth = resolveFiscalYearStartMonth(selectedClient, currentClientId);
   const fiscalPeriod = getCurrentFiscalPeriod(undefined, fiscalYearStartMonth);
   const percentElapsed = fiscalPeriod ? (fiscalPeriod.month / 12) * 100 : 0;
   const fiscalYearLabel = fiscalPeriod ? `FY ${fiscalPeriod.year}` : '—';
@@ -49,6 +45,8 @@ const BudgetDetail = () => {
   const statusText = budgetStatus?.statusText ?? '—';
   const statusColor = budgetStatus?.statusColor ?? '#6b7280';
   const topCategories = budgetStatus?.topCategories ?? [];
+  const allCategories = budgetStatus?.allCategories ?? topCategories;
+  const categoryRows = showAllCategories ? allCategories : topCategories;
 
   return (
     <Box sx={{ p: 2, pb: 10 }}>
@@ -117,7 +115,7 @@ const BudgetDetail = () => {
             </Typography>
           </Box>
 
-          {topCategories.length > 0 && (
+          {allCategories.length > 0 && (
             <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                 Top Categories Budget vs Actual
@@ -131,7 +129,7 @@ const BudgetDetail = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {topCategories.map((c) => {
+                  {categoryRows.map((c) => {
                     const diffCentavos = c.diff || 0;
                     const absDiffCentavos = Math.abs(diffCentavos);
                     const isOver = diffCentavos > 0;
@@ -149,6 +147,15 @@ const BudgetDetail = () => {
                   })}
                 </tbody>
               </Box>
+              {allCategories.length > 5 && (
+                <Button
+                  size="small"
+                  sx={{ mt: 1 }}
+                  onClick={() => setShowAllCategories((v) => !v)}
+                >
+                  {showAllCategories ? 'Show less' : 'More'}
+                </Button>
+              )}
             </Box>
           )}
         </CardContent>

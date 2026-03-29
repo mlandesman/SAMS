@@ -51,9 +51,7 @@ export function useBudgetStatus() {
           const diff = actual - budget;
           return { ...c, diff, absDiff: Math.abs(diff) };
         });
-      const top5ByVariance = [...expenseCategories]
-        .sort((a, b) => b.absDiff - a.absDiff)
-        .slice(0, 5);
+      const sortedByVariance = [...expenseCategories].sort((a, b) => b.absDiff - a.absDiff);
 
       setData({
         statusText: variance >= 0 ? 'On Track' : 'Over Budget',
@@ -61,7 +59,8 @@ export function useBudgetStatus() {
         expenseYtdBudget: ytdBudget,
         expenseYtdActual: ytdActual,
         expenseVariance: variance,
-        topCategories: top5ByVariance,
+        topCategories: sortedByVariance.slice(0, 5),
+        allCategories: sortedByVariance,
       });
     } catch (err) {
       console.error('Budget status fetch error:', err);
