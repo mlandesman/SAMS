@@ -113,6 +113,12 @@ const TransactionsList = () => {
     if (clientId) fetchTransactions();
   }, [clientId, fetchTransactions]);
 
+  useEffect(() => {
+    setVendorFilter('');
+    setCategoryFilter('');
+    setUnitFilter('');
+  }, [selectedYear, datePreset]);
+
   const { vendorOptions, categoryOptions, unitOptions } = useMobileTransactionFilterOptions(transactions);
 
   const filteredTransactions = useMemo(

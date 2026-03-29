@@ -44,10 +44,10 @@ import TransactionAttachmentsDialog from '../transactions/TransactionAttachments
 const API_BASE_URL = config.api.baseUrl;
 const PAGE_SIZE = 50;
 
-const DATE_PRESETS = [
+/** Admin data is already year-scoped; only presets that narrow within the year. */
+const ADMIN_DATE_PRESETS = [
   { id: 'currentMonth', label: 'This month' },
   { id: 'prior3Months', label: 'Prior 3 mo' },
-  { id: 'currentYear', label: 'This year' },
 ];
 
 const AdminTransactions = () => {
@@ -119,6 +119,12 @@ const AdminTransactions = () => {
     setVisibleCount(PAGE_SIZE);
   }, [selectedYear, typeFilter, transactions, searchText, vendorFilter, categoryFilter, unitFilter, datePreset]);
 
+  useEffect(() => {
+    setVendorFilter('');
+    setCategoryFilter('');
+    setUnitFilter('');
+  }, [selectedYear, datePreset]);
+
   const { vendorOptions, categoryOptions, unitOptions } = useMobileTransactionFilterOptions(transactions);
 
   const filteredTransactions = useMemo(
@@ -150,7 +156,7 @@ const AdminTransactions = () => {
     if (vendorFilter) n += 1;
     if (categoryFilter) n += 1;
     if (unitFilter) n += 1;
-    if (datePreset && datePreset !== 'currentYear') n += 1;
+    if (datePreset) n += 1;
     return n;
   }, [searchText, vendorFilter, categoryFilter, unitFilter, datePreset]);
 
@@ -243,7 +249,7 @@ const AdminTransactions = () => {
         <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           <Typography variant="caption" color="text.secondary">Date range (within year)</Typography>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-            {DATE_PRESETS.map((p) => (
+            {ADMIN_DATE_PRESETS.map((p) => (
               <Chip
                 key={p.id}
                 size="small"
