@@ -2183,6 +2183,9 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
     return await deleteTransaction(clientId, transactionId);
     
   } catch (error) {
+    if (error?.message?.includes('cleared/reconciled')) {
+      throw error;
+    }
     logError('❌ Error deleting transaction with documents:', error);
     return false;
   }
