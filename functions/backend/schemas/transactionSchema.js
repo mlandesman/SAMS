@@ -173,6 +173,12 @@ export const transactionSchema = {
       type: 'object',
       required: false,
       description: 'Additional metadata for special transaction types'
+    },
+    
+    clearedDate: {
+      type: ['string', 'null'],
+      required: false,
+      description: 'Date when transaction was cleared/reconciled against bank statement (ISO YYYY-MM-DD). Null or absent = not cleared.'
     }
   },
   

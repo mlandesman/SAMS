@@ -286,7 +286,8 @@ function checkUserPermission(role, permission, unitId, req) {
       'reports.view', 'reports.generate',
       'units.view', 'units.edit',
       'users.view', 'users.manage',
-      'expenses.create', 'expenses.view', 'expenses.edit'
+      'expenses.create', 'expenses.view', 'expenses.edit',
+      'accounts.manage'
     ],
     superAdmin: [
       'system.admin', 'system.config', 'system.maintenance',
@@ -296,7 +297,8 @@ function checkUserPermission(role, permission, unitId, req) {
       'reports.view', 'reports.generate',
       'units.view', 'units.edit', 'units.create', 'units.delete',
       'users.view', 'users.manage', 'users.create', 'users.delete',
-      'expenses.create', 'expenses.view', 'expenses.edit'
+      'expenses.create', 'expenses.view', 'expenses.edit',
+      'accounts.manage'
     ],
     unitOwner: [
       'accounts.view',

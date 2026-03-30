@@ -656,6 +656,10 @@ async function updateTransaction(clientId, txnId, newData) {
     }
     const originalData = originalDoc.data();
     
+    if (originalData.clearedDate) {
+      throw new Error('Cannot modify a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+    }
+    
     // Prepare update data with conversions (using validated data)
     const normalizedData = {
       ...validation.data
@@ -826,6 +830,9 @@ async function updateTransaction(clientId, txnId, newData) {
 
     return true;
   } catch (error) {
+    if (error?.message?.includes('cleared/reconciled')) {
+      throw error;
+    }
     logError('❌ Error updating transaction:', error);
     return false;
   }
@@ -853,6 +860,10 @@ async function deleteTransaction(clientId, txnId) {
       throw new Error(`Transaction ${txnId} not found`);
     }
     const originalData = originalDoc.data();
+    
+    if (originalData.clearedDate) {
+      throw new Error('Cannot delete a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+    }
     
     logDebug(`📄 [BACKEND] Transaction data:`, {
       id: txnId,
@@ -1502,6 +1513,9 @@ async function deleteTransaction(clientId, txnId) {
 
     return true;
   } catch (error) {
+    if (error?.message?.includes('cleared/reconciled')) {
+      throw error;
+    }
     logError('❌ Error deleting transaction:', error);
     return false;
   }

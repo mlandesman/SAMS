@@ -18,6 +18,7 @@ import projectsRoutes from './projects.js';
 import waterRoutes from './waterRoutes.js';
 import configRoutes from './config.js';
 import yearEndRoutes from './yearEnd.js';
+import reconciliationsRoutes from './reconciliations.js';
 
 // Test route
 router.get('/test', (req, res) => {
@@ -197,5 +198,13 @@ router.use('/:clientId/year-end', (req, res, next) => {
   
   next();
 }, yearEndRoutes);
+
+// Bank reconciliation sessions
+router.use('/:clientId/reconciliations', (req, res, next) => {
+  const clientId = req.params.clientId;
+  req.originalParams = req.originalParams || {};
+  req.originalParams.clientId = clientId;
+  next();
+}, reconciliationsRoutes);
 
 export default router;
