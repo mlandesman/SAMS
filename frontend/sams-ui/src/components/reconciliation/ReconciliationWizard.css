@@ -1,0 +1,145 @@
+.recon-wizard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.recon-wizard {
+  background: #1e1e2e;
+  color: #e8e8ef;
+  border-radius: 12px;
+  max-width: 960px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  border: 1px solid #333;
+}
+
+.recon-wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #333;
+}
+
+.recon-wizard-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.recon-wizard-steps {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 0.85rem;
+  color: #888;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.recon-wizard-steps span.active {
+  color: #7cb7ff;
+  font-weight: 600;
+}
+
+.recon-wizard-body {
+  padding: 20px;
+}
+
+.recon-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+
+.recon-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.recon-form-grid input,
+.recon-form-grid select {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #12121a;
+  color: #eee;
+}
+
+.recon-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recon-actions button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.recon-actions button.primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.recon-actions button.secondary {
+  background: #333;
+  color: #ddd;
+}
+
+.recon-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recon-table-wrap {
+  overflow: auto;
+  max-height: 360px;
+  border: 1px solid #333;
+  border-radius: 8px;
+}
+
+.recon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.recon-table th,
+.recon-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.recon-table tr.match-ok {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.recon-table tr.match-warn {
+  background: rgba(234, 179, 8, 0.12);
+}
+
+.recon-error {
+  color: #f87171;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.recon-muted {
+  color: #888;
+  font-size: 0.85rem;
+}
