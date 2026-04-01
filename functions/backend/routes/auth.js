@@ -90,11 +90,17 @@ router.post('/reset-password', async (req, res) => {
 
     // Send email notification with temporary password
     try {
+      const clientKeys = Object.keys(userData.propertyAccess || {});
+      const primaryClient = clientKeys[0] || 'System';
+      const clientRole = userData.propertyAccess?.[primaryClient]?.role || userData.globalRole || 'user';
+
       const emailResult = await sendPasswordNotification({
         email: normalizedEmail,
         name: userData.name || 'User',
-        temporaryPassword: temporaryPassword,
-        isReset: true
+        password: temporaryPassword,
+        clientName: primaryClient,
+        role: clientRole,
+        createdBy: 'Password Reset Request'
       });
 
       console.log(`✅ Password reset successful for ${normalizedEmail}, email sent: ${emailResult?.success}`);
