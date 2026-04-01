@@ -30,6 +30,7 @@
 - ✅ Project assessment bypass — reserve-funded projects skip special assessment billing
 - ✅ Assessment vs vendor milestone separation — independent billing and payment tracking
 - ✅ Automated monthly statements — nightly scheduler generates SoA PDFs (EN+ES) for all units on 1st of month
+- ✅ Mobile transaction UX — fiscal-year-aware filters, text search, attachment viewing, budget expand
 
 ---
 
@@ -61,14 +62,26 @@
 | ~~9~~ | ~~**MOBILE-ADMIN-UX**~~ | ~~Admin Mobile UX Refactor~~ | ~~20-27h~~ | ~~#247~~ ✅ COMPLETE (deployed v1.18.0, March 19, 2026) |
 | ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
 | ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend (code only)~~ | ~~6-8h~~ | ~~#178 (partial)~~ ⏸️ **PAUSED** — PR #253 merged Mar 19; **Meta/WhatsApp Business blocked** externally (Mar 20, 2026); not E2E complete |
-| 12 | **DOC-LIB** | HOA Document Library | 17-25h | NEW — Admin + unit-level user uploads, access-controlled document storage (PRD parked) |
-| 13 | **WA-FRONTEND** | WhatsApp Frontend + Module Integration | 4-6h | #178 (remainder) — Admin UI, content templates, module triggers |
-| 14 | **Polling-2+** | Notifications + Committee Filters | 6-8h | Polling-2 tasks + #207 (committee-based vote filtering) |
-| 15 | **E** | Admin & Settings | 6-8h | #182, #106, #102, #50, #159 |
-| 16 | **UC** | Unified Client Architecture | 24-30h | Epic #54 — expand beyond HOA to non-HOA client types (#200-#206) |
-| 17 | **G** | Future Features | TBD | #157, #138, #148, #121, #96, #53, #68, #165, #176, #238 |
+| ~~12~~ | ~~**MOBILE-TX-UX**~~ | ~~Mobile Transaction UX Polish~~ | ~~9-13h~~ | ~~#258~~ ✅ COMPLETE (PR #259, merged March 29, 2026) |
+| 13 | **BUGFIX-ONBOARD** | Owner Onboarding Bug Fixes | 6-8h | #246, #231, #260, #251, #254 |
+| 14 | **BANK-RECON** | Bank Reconciliation System | 19-27h | ScotiaBank CSV + BBVA XLSX import, automated matching, reconciliation UI, statement acceptance (PRD v2.1) |
+| --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
+| 15-16 | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; enable Karyn/Wilfredo (Epic #54 lite) |
+| --- | **DEBT-2** | Bug/Polish Pass | 4-6h | #169, #214, #96, owner feedback bugs |
+| 17 | **REPORTS-V2** | Board & Owner Reports | 10-14h | Formalized PDF reports replacing CSV exports; Sandyland branding |
+| 18 | **PROJECT-VIEWS** | Better Project Presentation | 4-6h | Proposed/Active/Completed tabs; timeline visualization |
+| 19 | **VOTING-ADV** | Advanced Voting | 6-8h | #207 committee filters, #198 vote subsets, email reminders, auto-close |
+| 20 | **BUDGET-PROJ** | Budget Projection Graphs | 6-8h | #165 year-end projections, trend analysis |
+| 21 | **TASK-MGMT** | Task Assignment & Tracking | 16-24h | New module: PRD + Phase 1; maintenance tasks, mobile-first |
+| 22 | **ADMIN-SETTINGS** | Admin & Settings (Sprint E) | 6-8h | #182, #106, #102, #50, #159 |
 
-**Current Focus**: **Production v1.19.1** (Mar 20, 2026). WhatsApp **paused** — do not schedule WA-FRONTEND until Meta Business / WhatsApp setup unblocks; next engineering theme should have **zero Meta dependency** (e.g. **DOC-LIB** or **Polling-2+**). Beta users testing mobile apps.
+**Deferred**: DOC-LIB (after Sprint 22), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
+
+**Current Focus**: **Production v1.19.1** (Mar 20, 2026). Sprint **MOBILE-TX-UX** completed Mar 29. **Roadmap Reset** (Mar 29): DOC-LIB deprioritized, Bank Reconciliation and UC-LITE added, bug/debt sprints interleaved. Next sprint: **BUGFIX-ONBOARD**. Owner onboarding active (Mark Eifler, Robert Rosania on MTC; expanding this week). WhatsApp **paused**.
+
+**Schedule Note (Mar 29, 2026 — Roadmap Reset)**: Scrum review with Co-Product Owner reset the entire roadmap. DOC-LIB deprioritized (Google Drive works, no user demand). WhatsApp remains paused (Meta blocked). Bank Reconciliation added at position 14 (biggest daily time drain, PRD v2.0 ready). UC-LITE added at positions 15-16 (real non-HOA clients: Karyn 3 houses + 4 condos, Wilfredo/Monica 2 condos). Bug/debt interlude sprints (DEBT-1, DEBT-2) inserted between major features. Reports, Project Views, Advanced Voting, Budget Projections, Task Management sequenced by operational value. Sprint sequence: 13 BUGFIX-ONBOARD, 14 BANK-RECON, DEBT-1, 15-16 UC-LITE, DEBT-2, 17 REPORTS-V2, 18 PROJECT-VIEWS, 19 VOTING-ADV, 20 BUDGET-PROJ, 21 TASK-MGMT, 22 ADMIN-SETTINGS.
+
+**Schedule Note (Mar 29, 2026 — Sprint MOBILE-TX-UX)**: Sprint MOBILE-TX-UX ✅ COMPLETE (PR #259, 21 files, +1768/-105). Fiscal-year-aware transaction filters (vendor, category, unit, date presets), text search, attachment viewing with single-doc shortcut, budget "More" expand, double-negative fix, console cleanup. Revisions after MA review: fiscal year per-client config, year chips into filter accordion, attachment UI refinement (paperclip in detail only, single-doc direct open), aria-hidden fix (single dialog pattern). Split transaction allocation-aware category/unit matching (desktop parity). #258 closed.
 
 **Schedule Note (Mar 19, 2026 — Sprint AUTO-STMT Complete)**: Automated monthly statement generation merged (PR #250, 10 commits). Nightly scheduler TASK 5 generates prior-month SoA PDFs (EN+ES) for all units on 1st of each month. 40 PDFs in 398s. Deterministic doc IDs prevent duplicates. 6 BugBot issues fixed (month mismatch, fiscal year boundary, error isolation). Ready for functions-only deploy before April 1.
 
@@ -180,4 +193,4 @@
 
 ---
 
-*Last Updated: March 20, 2026 — **v1.19.1** production. WhatsApp **paused** (Meta). Next: DOC-LIB or Polling-2+ (no Meta). See Sprint_Groups Sprint WA.*
+*Last Updated: March 29, 2026 — **Roadmap Reset**. DOC-LIB deprioritized. BANK-RECON + UC-LITE added. Next: BUGFIX-ONBOARD. See Sprint_Groups.md.*

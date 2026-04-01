@@ -3,22 +3,162 @@
 
 ## Active Sprint Categories
 
-### 🗳️ Sprint Polling-2+: Notifications, Automation & Committee Filters (6-8 hours)
+### 🐛 Sprint BUGFIX-ONBOARD: Owner Onboarding Bug Fixes (6-8 hours)
+*Fix bugs that degrade the owner onboarding experience before expanding MTC/AVII deployments*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **246** | Adding Owner/Manager only shows users already assigned to that ClientId | bug | 2h |
+| **231** | Adding a new user role for a new client doesn't grant access | bug | 2h |
+| **260** | Water Consumption Mini Graph scrolls off page in SoA | bug | 1h |
+| **251** | Mobile PWA SoA has two paths with different experiences | bug | 1-2h |
+| **254** | checkExchangeRatesHealth uses new Date() (DateService violation) | tech-debt | 0.5h |
+
+**Theme**: Eliminate bugs that block or confuse unit owners during onboarding  
+**Risk**: Low — individual bug fixes, no shared engine changes  
+**Dependencies**: None  
+**Status**: Planned — **NEXT SPRINT** (roadmap position 13)
+
+---
+
+### 🏦 Sprint BANK-RECON: Bank Reconciliation System (19-27 hours)
+*CSV/XLSX import, automated matching, reconciliation UI, and statement acceptance — ScotiaBank + BBVA*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| RECON-1 | Data model: `clearedDate` on transactions, reconciliation session collection | high | 2h |
+| RECON-2 | ScotiaBank CSV parser (no header, 14 columns, reference-number grouping) | high | 3-4h |
+| RECON-3 | BBVA XLSX parser (single-row transactions, no normalization needed) | high | 2-3h |
+| RECON-4 | Scotia normalization engine (group by reference number, sum amounts) | high | 2-3h |
+| RECON-5 | Deterministic matching algorithm (pre-filter, normalize, exact, date-drift, fee-adjusted) | high | 4-5h |
+| RECON-6 | Reconciliation UI (enhance existing Reconcile Accounts modal — session setup, side-by-side, resolution actions) | high | 4-6h |
+| RECON-7 | Statement acceptance, locking, reconciliation report PDF generation | medium | 2-3h |
+
+**PRD**: `Agile/PRDs/SAMS_Reconciliation_PRD_v2_Simplified.md` (authoritative scope) + `PRDs/SAMS_Reconciliation_PRD_v1_1.md` section 7 (matching algorithm detail)  
+**Theme**: Replace manual line-by-line bank statement comparison with automated matching  
+**Risk**: MEDIUM (adds `clearedDate` field to transactions, new reconciliation collection)  
+**Dependencies**: Sprint BUGFIX-ONBOARD complete  
+**Status**: Planned — roadmap position 14
+
+**Key Design Decisions**:
+- Transactions get ONE new field: `clearedDate` (null = uncleared, date = cleared)
+- Match map lives in reconciliation session, NOT on individual transactions
+- Existing "Reconcile Accounts" modal enhanced — not greenfield UI
+- Two clearing paths: auto-matched (CSV import) and manually justified (admin marks with reason)
+- Bank is ALWAYS right — SAMS corrected to match bank, never vice versa
+- Both recording eras handled: pre-Dec 2025 (bank fees as separate transactions) and post-Dec 2025 (fees in split total)
+- Scotia normalization groups by reference number BEFORE matching (primary pattern, not edge case)
+- Statement acceptance = locking event; must balance to $0 difference before accepting
+- Reconciliation report PDF generated on acceptance, stored alongside bank statement PDF
+
+**Reference Data**: Sample ScotiaBank CSV + PDF at `~/Desktop/Scotiabank Recon/`. AVII account structure in `test-results/AVII.json`.
+
+---
+
+### 🔧 Sprint DEBT-1: Tech Debt Interlude (4-6 hours)
+*Clean up accumulated tech debt between major features*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **220** | Replace payment-type credit reversal checks with metadata flag | tech-debt | 2h |
+| **223** | Credit Balance History modal UI improvements | bug | 1-2h |
+| **166** | Refactor email services to use shared reportEmailUtils | tech-debt | 1-2h |
+
+**Theme**: Code quality and consistency  
+**Risk**: Low  
+**Dependencies**: After BANK-RECON  
+**Status**: Planned — roadmap interlude after sprint 14
+
+---
+
+### 🏗️ Sprint UC-LITE: Non-HOA Client Support (3-4h investigate + 8-12h implement)
+*Enable non-HOA clients (single-unit owners, portfolio managers) on SAMS*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| UC-INV-1 | Create test non-HOA client in dev, configure activities without HOADues/WaterBills | high | 1h |
+| UC-INV-2 | Trace all code paths: dashboard, transactions, budgets, reports, UPC | high | 2-3h |
+| UC-INV-3 | Document what breaks and what works; scope UC-LITE fixes | high | 1h |
+| UC-LITE-1 | Fix identified HOA assumptions (dashboard cards, BvA, UPC skip logic) | high | 4-6h |
+| UC-LITE-2 | Test with Karyn's portfolio data model (3 houses, 4 condos) | high | 2-3h |
+| UC-LITE-3 | Integration testing, regression check | medium | 2-3h |
+
+**Epic**: #54 — Unified Multi-Asset Client Architecture  
+**Theme**: Extend SAMS from HOA-only to support single-unit and portfolio clients  
+**Risk**: MEDIUM (may reveal structural HOA assumptions requiring larger refactor)  
+**Dependencies**: After DEBT-1; `hasActivity()` in `clientFeatures.js` already gates features  
+**Status**: Planned — roadmap position 15-16  
+**Escalation**: If investigation reveals structural issues beyond activity gating, escalate to full UC epic (#200-#206)
+
+**Real clients waiting**: Karyn (3 houses + 4 condos, full management), Wilfredo/Monica (2 condos)
+
+---
+
+### 🔧 Sprint DEBT-2: Bug/Polish Pass (4-6 hours)
+*Address accumulated bugs and quality-of-life improvements*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **169** | Enhance or eliminate auditLog functionality | tech-debt | 2h |
+| **214** | Prompt for sending SoA after posting a payment | enhancement | 1-2h |
+| **96** | Dashboard Account Balances Card — deduct Credit Balances | enhancement | 1-2h |
+| TBD | Bugs surfaced by owner feedback during onboarding | varies | TBD |
+
+**Theme**: Quality of life improvements  
+**Risk**: Low  
+**Dependencies**: After UC-LITE  
+**Status**: Planned — roadmap interlude after sprint 15-16
+
+---
+
+### 📊 Sprint REPORTS-V2: Formalized Board & Owner Reports (10-14 hours)
+*Replace CSV-export-and-manipulate with repeatable, branded reports*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| RPT-1 | Board Report: financial summary, collection rates, budget status, project status, bank balances | high | 4-5h |
+| RPT-2 | Owner Report: account status, payment history, upcoming charges | high | 3-4h |
+| RPT-3 | PDF generation with Sandyland branding | medium | 2-3h |
+| RPT-4 | On-demand + scheduled delivery options | medium | 2-3h |
+
+**Theme**: Professional, repeatable financial reporting for board meetings and owner communications  
+**Risk**: Low (read-only reports, no engine changes)  
+**Dependencies**: After DEBT-2  
+**Status**: Planned — roadmap position 17
+
+---
+
+### 🏗️ Sprint PROJECT-VIEWS: Better Special Project Presentation (4-6 hours)
+*Improve project lifecycle visibility with filtered views*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| PV-1 | Proposed / Active / Completed tabs with lifecycle filtering | medium | 2-3h |
+| PV-2 | Project timeline/progress visualization | medium | 2-3h |
+
+**Theme**: Better project visibility — data exists from PM-Finance sprints, this is presentation work  
+**Risk**: Low (frontend-only)  
+**Dependencies**: After REPORTS-V2  
+**Status**: Planned — roadmap position 18
+
+---
+
+### 🗳️ Sprint VOTING-ADV: Advanced Voting + Committee Filters (6-8 hours)
 *Email reminders, scheduled closing, and committee-based vote filtering*
 
 | Task/# | Title | Priority | Est |
 |--------|-------|----------|-----|
-| N1 | Email notifications: Reminders at 1d/close | low | 2h |
-| N2 | Scheduled close: Cloud Function to auto-close at deadline | low | 2h |
-| N3 | WhatsApp integration hooks (when WhatsApp added) | backlog | 2h |
+| N1 | Email notifications: Reminders at 1d/close | medium | 2h |
+| N2 | Scheduled close: Cloud Function to auto-close at deadline | medium | 2h |
 | **207** | Committee-based vote filtering (board, vigilance, budget committee) | medium | 4h |
+| **198** | Voting module subsets for sending vote requests | medium | 2h |
 
 **Theme**: Automation, notifications, and committee-scoped voting  
 **Risk**: Low-Medium (#207 requires committee membership data model)  
 **Dependencies**: Polling-1 complete  
-**Status**: Planned — roadmap position after PM-Finance
+**Status**: Planned — roadmap position 19
 
-**Note**: Mobile voting screens no longer needed — email links work on any device. #207 adds the ability to restrict polls to specific committees (Board, Vigilance, Budget) rather than all units.
+**Note**: Mobile voting screens no longer needed — email links work on any device. #207 adds the ability to restrict polls to specific committees (Board, Vigilance, Budget) rather than all units. WhatsApp integration hooks (N3) deferred until Meta unblocks.
 
 ---
 
@@ -158,6 +298,30 @@
 
 **Key Files to Create**: `components/admin/AdminDashboard.jsx`, `components/admin/AdminTransactions.jsx`, `components/admin/RecordPayment.jsx`, `components/admin/BudgetDetail.jsx`, `services/unifiedPaymentAPI.js`  
 **Key Files to Modify**: `Dashboard.jsx`, `PWANavigation.jsx`, `Layout.jsx`, `App.jsx`
+
+---
+
+### ✅ Sprint MOBILE-TX-UX: Mobile Transaction UX Polish (9-13 hours) — COMPLETE
+*Fiscal-year-aware transaction filters, search, attachment viewing, budget expand*
+
+| Task | Title | Priority | Est | Status |
+|------|-------|----------|-----|--------|
+| MTX-1 | Owner TransactionsList — text search, vendor/category/unit filters, date range presets, type toggle, year chips | high | 3-4h | ✅ COMPLETE |
+| MTX-2 | Admin AdminTransactions — text search, vendor/category/unit filters, date range presets | high | 2-3h | ✅ COMPLETE |
+| MTX-3 | Transaction attachment viewing — paperclip in detail, DocumentViewer integration, single-doc shortcut | high | 2-3h | ✅ COMPLETE |
+| MTX-4 | Fix double-negative sign on expense amounts | medium | 0.5h | ✅ COMPLETE |
+| MTX-5 | Budget "More" — show all categories instead of top 5 | medium | 1-2h | ✅ COMPLETE |
+
+**Issue**: #258 (closed)
+**PR**: #259 (merged March 29, 2026)
+**Theme**: Mobile transaction experience — filters, search, attachments, budget expand
+**Risk**: LOW — mobile-only changes, no backend modifications
+**Dependencies**: Sprint MOBILE-ADMIN-UX ✅, Sprint MOBILE-OWNER-UX ✅
+**Status**: ✅ COMPLETE — PR #259 merged March 29, 2026
+
+**Post-Review Revisions**: Fiscal year per-client config (`resolveFiscalYearStartMonth`), year chips moved into filter accordion, attachment UI (paperclip in detail only, single-doc direct open), single-dialog pattern (no aria-hidden warnings), `clientFeatures` logs to `console.debug`, split transaction allocation-aware filtering.
+**Architecture**: Local `dateUtils.js` (Luxon, no server DateService in bundle) per MA instruction.
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Sprint_MOBILE_TX_UX_2026-03-29/`
 
 ---
 
@@ -350,6 +514,41 @@
 
 ---
 
+### 📊 Sprint BUDGET-PROJ: Budget Projection Graphs (6-8 hours)
+*Year-end projections and trend analysis for budget planning*
+
+| Task/# | Title | Priority | Est |
+|--------|-------|----------|-----|
+| **165** | Budget Projection & Runway Graphs — year-end projection based on YTD actuals vs budget | medium | 4-5h |
+| BP-1 | Trend analysis / variance forecasting | medium | 2-3h |
+
+**Theme**: "Where we are" is ready; "where we'll likely end up" is currently manual  
+**Risk**: Low (read-only visualization, no engine changes)  
+**Dependencies**: After VOTING-ADV  
+**Status**: Planned — roadmap position 20
+
+---
+
+### 📋 Sprint TASK-MGMT: Task Assignment & Tracking (16-24 hours)
+*New module for scheduled and one-off maintenance tasks*
+
+| Task | Title | Priority | Est |
+|------|-------|----------|-----|
+| TM-0 | PRD creation (no existing PRD) | high | 3-4h |
+| TM-1 | Data model: tasks, assignments, schedules | high | 2-3h |
+| TM-2 | Backend: task CRUD, assignment, completion, notifications | high | 4-6h |
+| TM-3 | Mobile-first UI for maintenance workers | high | 4-6h |
+| TM-4 | Admin UI for task creation and tracking | medium | 3-4h |
+| TM-5 | Integration testing | medium | 2-3h |
+
+**Theme**: Task assignment, communication, and completion tracking for maintenance workers  
+**Risk**: MEDIUM (new module, requires PRD design phase)  
+**Dependencies**: After BUDGET-PROJ  
+**Status**: Planned — roadmap position 21  
+**Serves**: Both HOA maintenance (meter readings, drain cleaning, pump maintenance) and property management (Karyn's houses/condos)
+
+---
+
 ### 🔮 Sprint G: Future Features (Backlog)
 *Larger features for future consideration*
 
@@ -359,10 +558,8 @@
 | **138** | Bulk Edit for Transactions | backlog | 4h |
 | **148** | Water Bill Post-Payment Correction | backlog | 3h |
 | **121** | Config Setting allowPartialPayments | backlog | 2h |
-| **96** | Dashboard Account Balances Card — deduct Credit Balances | enhancement | 2h |
 | **53** | Manual Account Adjustments | enhancement | 4h |
 | **68** | Budget Entry Calculator | low | 2h |
-| **165** | Budget Projection & Runway Graphs | feature | 6-8h |
 | **176** | Budget Dashboard Card redesign | enhancement | 2h |
 | **238** | iPad/tablet screen set | far-future | TBD |
 
@@ -839,5 +1036,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 20, 2026 — Production **v1.19.1**; SoA email credit fix (#255). WhatsApp **paused** (Meta blocked); WA-FRONTEND deferred. Next: **DOC-LIB** or **Polling-2+** (no Meta dependency).*  
-*Last Review: March 20, 2026*
+*Updated: March 29, 2026 — **Roadmap Reset**. Sprint MOBILE-TX-UX ✅ COMPLETE (PR #259). DOC-LIB deprioritized (Google Drive works). WhatsApp **paused** (Meta blocked). Refreshed roadmap: BUGFIX-ONBOARD → BANK-RECON → DEBT-1 → UC-LITE → DEBT-2 → REPORTS-V2 → PROJECT-VIEWS → VOTING-ADV → BUDGET-PROJ → TASK-MGMT → ADMIN-SETTINGS. Bank Reconciliation PRD v2.0 added. UC-LITE targets real non-HOA clients (Karyn, Wilfredo).*  
+*Last Review: March 29, 2026*

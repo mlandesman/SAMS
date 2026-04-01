@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes, faFileInvoice } from '@fortawesome/free-solid-svg-icons';
 import { getAccounts } from '../../api/client';
 import { fetchTransactions } from '../../utils/fetchTransactions';
 import { getSession } from '../../api/reconciliation';
@@ -6,6 +8,7 @@ import SessionSetup from './SessionSetup';
 import MatchingReview from './MatchingReview';
 import ExceptionResolver from './ExceptionResolver';
 import AcceptStatement from './AcceptStatement';
+import '../AccountReconciliation.css';
 import './ReconciliationWizard.css';
 
 export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
@@ -50,12 +53,23 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
     (session?.unmatchedTransactions?.length || 0) > 0;
 
   return (
-    <div className="recon-wizard-overlay" role="dialog" aria-modal="true">
-      <div className="recon-wizard">
-        <div className="recon-wizard-header">
-          <h2>Bank statement reconciliation</h2>
-          <button type="button" className="secondary" onClick={onClose}>
-            Close
+    <div
+      className="account-reconciliation-overlay recon-wizard-overlay-z"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="account-reconciliation-modal recon-wizard-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="account-reconciliation-header">
+          <h2 className="account-reconciliation-title">
+            <FontAwesomeIcon icon={faFileInvoice} style={{ marginRight: '10px' }} />
+            Bank statement reconciliation
+          </h2>
+          <button type="button" className="account-reconciliation-close" onClick={onClose} aria-label="Close">
+            <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
         <div className="recon-wizard-steps">
@@ -67,9 +81,9 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
           <span>→</span>
           <span className={step === 4 ? 'active' : ''}>4 Accept</span>
         </div>
-        <div className="recon-wizard-body">
+        <div className="account-reconciliation-content recon-wizard-body-inner">
           {reportUrl && (
-            <p>
+            <p className="recon-success-link">
               <strong>Done.</strong>{' '}
               <a href={reportUrl} target="_blank" rel="noreferrer">
                 Download reconciliation report (PDF)
@@ -94,12 +108,16 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
               {!session && <p className="recon-muted">Loading…</p>}
               {session && <MatchingReview session={session} />}
               <div className="recon-actions">
-                <button type="button" className="secondary" onClick={() => setStep(1)}>
+                <button
+                  type="button"
+                  className="account-reconciliation-cancel"
+                  onClick={() => setStep(1)}
+                >
                   Back
                 </button>
                 <button
                   type="button"
-                  className="primary"
+                  className="account-reconciliation-submit"
                   disabled={!session}
                   onClick={() => setStep(3)}
                 >
@@ -118,12 +136,16 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
                 onResolved={loadSession}
               />
               <div className="recon-actions">
-                <button type="button" className="secondary" onClick={() => setStep(2)}>
+                <button
+                  type="button"
+                  className="account-reconciliation-cancel"
+                  onClick={() => setStep(2)}
+                >
                   Back
                 </button>
                 <button
                   type="button"
-                  className="primary"
+                  className="account-reconciliation-submit"
                   disabled={hasUnmatched}
                   onClick={() => setStep(4)}
                 >

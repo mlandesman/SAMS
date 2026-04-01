@@ -2,6 +2,13 @@
 
 # SAMS Project Startup Script
 # This script starts both the backend and frontend servers for the SAMS project
+#
+# If the script appears to hang right after "Node.js is installed", the next step runs
+# `npm -v`. Fix: run `npm -v` in this terminal; if it hangs, try:
+#   npm config set update-notifier false
+#   or reinstall Node / repair ~/.npm-global shims (see `type npm` and `which npm`).
+# If it hangs during "Starting backend", `lsof`/`kill_port` can be slow on some macOS setups;
+# run: lsof -i :5001
 
 MAIN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BACKEND_DIR="$MAIN_DIR/backend"
@@ -114,12 +121,14 @@ if ! command -v node &> /dev/null; then
 fi
 echo "✅ Node.js $(node -v) is installed"
 
-# Check if npm is installed
+# Check if npm is installed (if `npm -v` hangs here, fix npm — see start_sams.sh header comment)
+echo "   Checking npm..."
 if ! command -v npm &> /dev/null; then
   echo "❌ npm is not installed. Please install npm and try again."
   exit 1
 fi
-echo "✅ npm $(npm -v) is installed"
+NPM_VER="$(npm -v)"
+echo "✅ npm ${NPM_VER} is installed"
 
 # Check if Firebase CLI is installed - not needed for production mode
 echo "💡 Using production Firebase (no emulators needed)"

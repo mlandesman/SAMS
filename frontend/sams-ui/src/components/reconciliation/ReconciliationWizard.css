@@ -1,145 +1,235 @@
-.recon-wizard-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+/**
+ * Bank statement reconciliation wizard — visual parity with AccountReconciliation.css
+ * (light modal, blue/cream gradient header, readable inputs on white).
+ */
+
+/* Stack above other modals; same backdrop as account reconciliation */
+.recon-wizard-overlay-z.account-reconciliation-overlay {
   z-index: 10050;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
 }
 
-.recon-wizard {
-  background: #1e1e2e;
-  color: #e8e8ef;
-  border-radius: 12px;
+.recon-wizard-modal.account-reconciliation-modal {
   max-width: 960px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: auto;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
-  border: 1px solid #333;
 }
 
-.recon-wizard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #333;
-}
-
-.recon-wizard-header h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
+/* Step indicator between header and body */
 .recon-wizard-steps {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  font-size: 0.85rem;
-  color: #888;
-  border-bottom: 1px solid #2a2a3a;
+  padding: 12px 24px;
+  font-size: 13px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .recon-wizard-steps span.active {
-  color: #7cb7ff;
+  color: #0863bf;
   font-weight: 600;
 }
 
-.recon-wizard-body {
-  padding: 20px;
+.recon-stats-line {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.recon-wizard-body-inner {
+  padding: 0;
+}
+
+/* Form fields: dark text on white (fixes grey-on-white browser defaults) */
+.recon-field-input,
+.recon-wizard-modal select.recon-field-input,
+.recon-wizard-modal input[type='date'].recon-field-input,
+.recon-wizard-modal input[type='file'].recon-field-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 16px;
+  color: #111827;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.recon-wizard-modal select.recon-field-input {
+  cursor: pointer;
+}
+
+.recon-wizard-modal input[type='date'].recon-field-input {
+  font-family: inherit;
+  min-height: 40px;
+}
+
+.recon-wizard-modal input[type='file'].recon-field-input {
+  padding: 8px;
+  font-size: 14px;
+}
+
+.recon-field-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.recon-wizard-modal select option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.recon-accept-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-top: 4px;
+}
+
+.recon-accept-diff-input {
+  max-width: 240px;
+}
+
+.recon-exception-line {
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+/* Number fields: match balance-input from Account Reconciliation, full width in grid */
+.recon-wizard-modal .recon-amount-field.balance-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  color: #111827;
+  background-color: #ffffff;
 }
 
 .recon-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 16px;
+  gap: 14px 18px;
 }
 
 .recon-form-grid label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
 }
 
-.recon-form-grid input,
-.recon-form-grid select {
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #444;
-  background: #12121a;
-  color: #eee;
-}
-
+/* Actions: same as account reconciliation modal */
 .recon-actions {
-  margin-top: 20px;
   display: flex;
   gap: 10px;
+  margin-top: 24px;
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-.recon-actions button {
-  padding: 10px 16px;
-  border-radius: 8px;
+.recon-actions button.account-reconciliation-cancel,
+.recon-actions button.account-reconciliation-submit {
+  padding: 10px 20px;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.recon-actions button.primary {
-  background: #3b82f6;
-  color: #fff;
-}
-
-.recon-actions button.secondary {
-  background: #333;
-  color: #ddd;
-}
-
-.recon-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* Table (review / matching) */
 .recon-table-wrap {
   overflow: auto;
   max-height: 360px;
-  border: 1px solid #333;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
+  background: #fff;
 }
 
 .recon-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 14px;
 }
 
 .recon-table th,
 .recon-table td {
-  padding: 8px 10px;
+  padding: 12px;
   text-align: left;
-  border-bottom: 1px solid #2a2a3a;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.recon-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
 }
 
 .recon-table tr.match-ok {
-  background: rgba(34, 197, 94, 0.12);
+  background: #f0fdf4;
 }
 
 .recon-table tr.match-warn {
-  background: rgba(234, 179, 8, 0.12);
+  background: #fffbeb;
+}
+
+/* Muted / error copy — align with account modal */
+.recon-muted {
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
 }
 
 .recon-error {
-  color: #f87171;
-  margin-top: 8px;
-  font-size: 0.9rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 
-.recon-muted {
-  color: #888;
-  font-size: 0.85rem;
+/* Exception resolver cards */
+.recon-exception-card {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.recon-exception-card .recon-field-input {
+  margin-top: 8px;
+  max-width: min(100%, 420px);
+}
+
+.recon-exception-row {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recon-wizard-body-inner h4 {
+  margin: 16px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.recon-success-link a {
+  color: #0863bf;
+  font-weight: 500;
 }

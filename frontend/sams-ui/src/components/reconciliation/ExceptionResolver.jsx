@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '@shared/utils/currencyUtils';
 import { resolveException } from '../../api/reconciliation';
 
 export default function ExceptionResolver({ clientId, session, transactions, onResolved }) {
@@ -66,22 +67,26 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
 
   return (
     <div>
-      <p className="recon-muted">Every unmatched bank line must be paired with a SAMS transaction, or justified.</p>
-      {error && <div className="recon-error">{error}</div>}
+      <p className="account-reconciliation-instructions">
+        Every unmatched bank line must be paired with a SAMS transaction, or justified.
+      </p>
+      {error && <div className="account-reconciliation-error">{error}</div>}
 
       <h4>Unmatched bank (normalized)</h4>
-      {unmatchedBank.length === 0 && <p className="recon-muted">None</p>}
+      {unmatchedBank.length === 0 && <p className="account-reconciliation-instructions">None</p>}
       {unmatchedBank.map((nid) => {
         const nr = normById[nid];
         return (
-          <div key={nid} style={{ marginBottom: 12, padding: 10, background: '#12121a', borderRadius: 8 }}>
-            <div>
-              {nr ? `${nr.date} · ${nr.type} · ${nr.amount} · ${nr.description}` : nid}
+          <div key={nid} className="recon-exception-card">
+            <div className="recon-exception-line">
+              {nr
+                ? `${nr.date} · ${nr.type} · ${formatCurrency(nr.amount, 'MXN')} · ${nr.description}`
+                : nid}
             </div>
             <select
+              className="recon-field-input"
               value={pairTxn[nid] || ''}
               onChange={(e) => setPairTxn((p) => ({ ...p, [nid]: e.target.value }))}
-              style={{ marginTop: 8, minWidth: 280 }}
             >
               <option value="">Select transaction…</option>
               {txnOptions.map((t) => (
@@ -92,8 +97,8 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
             </select>
             <button
               type="button"
-              className="primary"
-              style={{ marginLeft: 8 }}
+              className="account-reconciliation-submit"
+              style={{ marginTop: 8 }}
               disabled={busy}
               onClick={() => matchBankRow(nid)}
             >
@@ -103,16 +108,21 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
         );
       })}
 
-      <h4 style={{ marginTop: 20 }}>Unmatched SAMS transactions</h4>
-      {unmatchedTxn.length === 0 && <p className="recon-muted">None</p>}
+      <h4>Unmatched SAMS transactions</h4>
+      {unmatchedTxn.length === 0 && <p className="account-reconciliation-instructions">None</p>}
       {unmatchedTxn.map((tid) => {
         const t = txnById[tid];
         return (
-          <div key={tid} style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div key={tid} className="recon-exception-row">
             <span>
               {tid} {t ? `· ${t.date?.display || ''} · ${t.amount}` : ''}
             </span>
-            <button type="button" className="secondary" disabled={busy} onClick={() => justifyTxn(tid)}>
+            <button
+              type="button"
+              className="account-reconciliation-cancel"
+              disabled={busy}
+              onClick={() => justifyTxn(tid)}
+            >
               Justify
             </button>
           </div>

@@ -4,8 +4,8 @@
   "companyName": "Sandyland Properties",
   "copyright": "2025",
   "version": "1.20.0",
-  "buildDate": "2026-03-29T21:22:41.556Z",
-  "buildTimestamp": 1774819361559,
+  "buildDate": "2026-04-01T00:45:42.635Z",
+  "buildTimestamp": 1775004342635,
   "environment": "development",
   "gitBranch": "main",
   "gitCommit": "local",
@@ -22,20 +22,20 @@
     "Statement of Account Reports"
   ],
   "git": {
-    "hash": "baadabe",
-    "branch": "main",
-    "lastCommitDate": "2026-03-29 16:17:00 -0500"
+    "hash": "dacb2f5",
+    "branch": "feature/bank-recon",
+    "lastCommitDate": "2026-03-29 20:20:34 -0500"
   },
   "build": {
-    "timestamp": "2026-03-29T21:22:41.556Z",
+    "timestamp": "2026-04-01T00:45:42.635Z",
     "environment": "development",
     "nodeVersion": "v22.15.0",
     "platform": "darwin",
-    "buildNumber": "260329.1622"
+    "buildNumber": "260331.1945"
   },
   "deployment": {
     "target": "development",
-    "date": "2026-03-29T21:22:41.556Z",
+    "date": "2026-04-01T00:45:42.635Z",
     "automated": true
   },
   "releaseNotes": {

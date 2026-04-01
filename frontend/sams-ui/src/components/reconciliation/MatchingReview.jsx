@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { formatCurrency } from '@shared/utils/currencyUtils';
 
 export default function MatchingReview({ session }) {
   const matchMap = session?.matchMap || [];
@@ -16,7 +17,11 @@ export default function MatchingReview({ session }) {
       return (
         <tr key={`${m.normalizedRowId}-${m.transactionId}`} className={cls}>
           <td>{m.matchType}</td>
-          <td>{nr ? `${nr.date} ${nr.type} ${nr.amount}` : m.normalizedRowId}</td>
+          <td>
+            {nr
+              ? `${nr.date} ${nr.type} ${formatCurrency(nr.amount, 'MXN')}`
+              : m.normalizedRowId}
+          </td>
           <td>{m.transactionId}</td>
         </tr>
       );
@@ -25,10 +30,10 @@ export default function MatchingReview({ session }) {
 
   return (
     <div>
-      <p className="recon-muted">
+      <p className="account-reconciliation-instructions">
         Review automatic matches. Unmatched items are resolved in the next step.
       </p>
-      <p>
+      <p className="recon-stats-line">
         <strong>Bank rows:</strong> {stats.bankRowCount ?? '—'} &nbsp;|&nbsp;
         <strong>Normalized:</strong> {stats.normalizedRowCount ?? '—'}
       </p>

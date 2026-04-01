@@ -1,6 +1,39 @@
 {
   "releases": [
     {
+      "version": "1.21.0",
+      "date": "2026-04-01",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [],
+          "text": "Bank Reconciliation module — ScotiaBank CSV and BBVA XLSX parsers, transaction normalization, deterministic matching engine, reconciliation wizard UI (session setup, matching review, exception resolver, accept statement), cleared-transaction tracking via clearedDate field, reconciliation PDF report generation"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "261"
+          ],
+          "text": "User role display — migrated users showed as Manager instead of Owner due to legacy role values (owner→unitOwner), missing top-level propertyAccess.role/unitId, and legacy {name,email} entries in unit documents; data repair script (fix-migration-roles.js) applied to both Dev and Prod"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Forgot Password flow restored — added self-service reset UI to desktop LoginForm and mobile AuthScreen, fixed backend passing temporaryPassword instead of password to email service, populated email template with actual user property/role data instead of undefined"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Password change after reset — profile API now returns mustChangePassword flag so PasswordChangeModal triggers on login; PUT /user/profile now persists mustChangePassword=false and accountState=active after successful password change"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Dev restore script (restore-dev-from-prod.sh) — fixed wait loop to track specific Firestore import operation by name instead of matching any recent completed operation, preventing premature user deletion/re-import race condition"
+        }
+      ]
+    },
+    {
       "version": "1.20.0",
       "date": "2026-03-29",
       "changes": [

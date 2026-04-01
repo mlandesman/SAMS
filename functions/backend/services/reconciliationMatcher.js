@@ -1,30 +1,62 @@
 import { DateTime } from 'luxon';
-import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 
-const TOL = 0.01;
+/** Compare integer centavos (same storage as SAMS transactions). */
+const TOL_CENTAVOS = 0;
 const MS_PER_DAY = 86400000;
 
-function txnDateToMillis(txn) {
-  const d = txn.date;
-  if (d && typeof d.toDate === 'function') return d.toDate().getTime();
-  if (d instanceof Date) return d.getTime();
-  if (typeof d === 'string') return DateTime.fromISO(d, { zone: 'America/Cancun' }).toMillis();
-  return NaN;
-}
+/**
+ * Scotia Movimientos / SPEI (business accounts): bank CARGO often includes transfer fee + IVA
+ * ($5.00 + $0.80) while SAMS may only record the principal until fee lines are split.
+ * Not used for BBVA — e.g. MTC uses a personal BBVA account without this SPEI/factura fee pattern.
+ */
+export const SCOTIABANK_SPEI_FEE_GAP_CENTAVOS = 580;
+
+/** Max |bank − SAMS cash| for a suggested rounding match (UI can "adjust to bank" via small allocation). */
+export const ROUNDING_TOLERANCE_CENTAVOS = 2;
 
 function bankDateToMillis(isoDate) {
   return DateTime.fromISO(String(isoDate), { zone: 'America/Cancun' }).startOf('day').toMillis();
 }
 
-function daysBetween(bankIso, txn) {
-  const a = bankDateToMillis(bankIso);
-  const b = txnDateToMillis(txn);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return 999;
-  return Math.abs(a - b) / MS_PER_DAY;
+/**
+ * Same calendar day as SAMS UI / Cancun business date — start of day in America/Cancun.
+ * Must match bankDateToMillis semantics so "same day" means dd ≈ 0, not raw UTC vs Cancun.
+ */
+function txnCancunStartOfDayMillis(txn) {
+  const d = txn.date;
+  if (d && typeof d.toDate === 'function') {
+    const iso = DateTime.fromJSDate(d.toDate(), { zone: 'America/Cancun' }).toISODate();
+    if (!iso) return NaN;
+    return DateTime.fromISO(iso, { zone: 'America/Cancun' }).startOf('day').toMillis();
+  }
+  if (d instanceof Date) {
+    const iso = DateTime.fromJSDate(d, { zone: 'America/Cancun' }).toISODate();
+    if (!iso) return NaN;
+    return DateTime.fromISO(iso, { zone: 'America/Cancun' }).startOf('day').toMillis();
+  }
+  if (typeof d === 'string') {
+    return DateTime.fromISO(String(d), { zone: 'America/Cancun' }).startOf('day').toMillis();
+  }
+  return NaN;
 }
 
-function absPesosFromCentavos(centavos) {
-  return Math.abs(centavosToPesos(centavos || 0));
+function txnCancunSortKey(txn) {
+  const d = txn.date;
+  if (d && typeof d.toDate === 'function') {
+    return DateTime.fromJSDate(d.toDate(), { zone: 'America/Cancun' }).toISODate() || '';
+  }
+  if (d instanceof Date) {
+    return DateTime.fromJSDate(d, { zone: 'America/Cancun' }).toISODate() || '';
+  }
+  if (typeof d === 'string') return String(d).slice(0, 10);
+  return '';
+}
+
+function daysBetween(bankIso, txn) {
+  const a = bankDateToMillis(bankIso);
+  const b = txnCancunStartOfDayMillis(txn);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 999;
+  return Math.abs(a - b) / MS_PER_DAY;
 }
 
 function typeMatchesBank(bankType, txn) {
@@ -43,25 +75,37 @@ function typeMatchesBank(bankType, txn) {
   return false;
 }
 
-function txnTotalPesos(txn) {
-  let cents = txn.amount || 0;
-  if (txn.allocations?.length) {
-    for (const a of txn.allocations) {
-      if (a && typeof a.amount === 'number') cents += a.amount;
-    }
-  }
-  return centavosToPesos(cents);
+/**
+ * Centavos to compare to the bank statement. SAMS is **cash-based**: `txn.amount` is the
+ * movement the bank would see. `allocations` are internal (category splits, credit balance
+ * application, etc.) and must not be summed with `amount` for reconciliation.
+ */
+function txnMatchCentavos(txn) {
+  return Math.round(txn.amount || 0);
 }
 
-function amountsClose(a, b) {
-  return Math.abs(a - b) <= TOL;
+function amountsCloseCentavos(a, b) {
+  return Math.abs(a - b) <= TOL_CENTAVOS;
 }
 
 /**
- * @param {object[]} normalizedRows — id, date, amount (pesos), type, ...
+ * @param {object[]} normalizedRows — id, date, amount (integer centavos), type, ...
  * @param {object[]} samsTransactions — raw Firestore-shaped: id, amount centavos, type, date, accountId, clearedDate, allocations?
+ * @param {object} [options]
+ * @param {'scotiabank'|'bbva'|null} [options.bankFormat] — enables Scotia-only rules (SPEI fee gap).
+ * @param {number} [options.roundingToleranceCentavos=2] — match when cash amounts differ by 1…N centavos (rounding).
  */
-export function runMatchingAlgorithm(normalizedRows, samsTransactions) {
+export function runMatchingAlgorithm(normalizedRows, samsTransactions, options = {}) {
+  const { bankFormat } = options;
+  const roundingTol = Math.max(
+    0,
+    Number.isFinite(options.roundingToleranceCentavos)
+      ? options.roundingToleranceCentavos
+      : ROUNDING_TOLERANCE_CENTAVOS
+  );
+  const scotiabankSpeiGap =
+    bankFormat === 'scotiabank' ? SCOTIABANK_SPEI_FEE_GAP_CENTAVOS : null;
+
   const matches = [];
   const usedTxn = new Set();
   const usedNorm = new Set();
@@ -75,18 +119,37 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions) {
       t.accountId
   );
 
-  const stats = { exact: 0, dateDrift: 0, feeAdjusted: 0, unmatched: 0 };
+  const stats = {
+    exact: 0,
+    dateDrift: 0,
+    roundingExact: 0,
+    roundingDrift: 0,
+    speiFeeGapExact: 0,
+    speiFeeGapDrift: 0,
+    feeAdjusted: 0,
+    unmatched: 0
+  };
 
   function tryExact(maxDays) {
-    for (const nr of pool) {
+    const poolSorted = [...pool].sort(
+      (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
+    );
+    const txnsSorted = [...txns].sort(
+      (a, b) => txnCancunSortKey(a).localeCompare(txnCancunSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    for (const nr of poolSorted) {
       if (usedNorm.has(nr.id)) continue;
-      for (const txn of txns) {
+      for (const txn of txnsSorted) {
         if (usedTxn.has(txn.id)) continue;
         if (txn.accountId !== nr._accountId) continue;
         if (!typeMatchesBank(nr.type, txn)) continue;
-        const tp = txnTotalPesos(txn);
-        const cmp = nr.type === 'CARGO' ? Math.abs(tp) : tp;
-        if (!amountsClose(cmp, nr.amount)) continue;
+        const tc = txnMatchCentavos(txn);
+        const bankCentavos = nr.amount;
+        if (nr.type === 'CARGO') {
+          if (!amountsCloseCentavos(Math.abs(tc), bankCentavos)) continue;
+        } else {
+          if (!amountsCloseCentavos(tc, bankCentavos)) continue;
+        }
         const dd = daysBetween(nr.date, txn);
         if (dd > maxDays) continue;
         matches.push({
@@ -106,6 +169,91 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions) {
   tryExact(1);
   tryExact(7);
 
+  /**
+   * Bank vs SAMS cash differs by 1…roundingTol centavos (display/rounding noise).
+   * `roundingDeltaCentavos` = bank normalized amount minus |SAMS cash| in the same direction as ABONO/CARGO
+   * (positive ⇒ bank line larger than SAMS magnitude — UI can "adjust to bank" later).
+   */
+  function tryRounding(maxDays) {
+    if (roundingTol < 1) return;
+    const poolSorted = [...pool].sort(
+      (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
+    );
+    const txnsSorted = [...txns].sort(
+      (a, b) => txnCancunSortKey(a).localeCompare(txnCancunSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    for (const nr of poolSorted) {
+      if (usedNorm.has(nr.id)) continue;
+      for (const txn of txnsSorted) {
+        if (usedTxn.has(txn.id)) continue;
+        if (txn.accountId !== nr._accountId) continue;
+        if (!typeMatchesBank(nr.type, txn)) continue;
+        const tc = txnMatchCentavos(txn);
+        const bankCentavos = nr.amount;
+        const samsComparable = nr.type === 'CARGO' ? Math.abs(tc) : tc;
+        const diff = Math.abs(bankCentavos - samsComparable);
+        if (diff < 1 || diff > roundingTol) continue;
+        const dd = daysBetween(nr.date, txn);
+        if (dd > maxDays) continue;
+        const roundingDeltaCentavos = bankCentavos - samsComparable;
+        matches.push({
+          normalizedRowId: nr.id,
+          transactionId: txn.id,
+          matchType: 'auto-rounding',
+          roundingDeltaCentavos
+        });
+        if (maxDays <= 1) stats.roundingExact += 1;
+        else stats.roundingDrift += 1;
+        usedTxn.add(txn.id);
+        usedNorm.add(nr.id);
+        break;
+      }
+    }
+  }
+
+  tryRounding(1);
+  tryRounding(7);
+
+  /** Scotia: CARGO bank total exceeds |txn.amount| by exactly 580¢ (fee+IVA not in SAMS yet). */
+  function trySpeiFeeGap(maxDays) {
+    if (scotiabankSpeiGap == null) return;
+    const poolSorted = [...pool].sort(
+      (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
+    );
+    const txnsSorted = [...txns].sort(
+      (a, b) => txnCancunSortKey(a).localeCompare(txnCancunSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    for (const nr of poolSorted) {
+      if (usedNorm.has(nr.id)) continue;
+      if (nr.type !== 'CARGO') continue;
+      for (const txn of txnsSorted) {
+        if (usedTxn.has(txn.id)) continue;
+        if (txn.accountId !== nr._accountId) continue;
+        if (!typeMatchesBank(nr.type, txn)) continue;
+        const tc = txnMatchCentavos(txn);
+        const bankCentavos = nr.amount;
+        const absTxn = Math.abs(tc);
+        if (Math.abs(bankCentavos - absTxn) !== scotiabankSpeiGap) continue;
+        const dd = daysBetween(nr.date, txn);
+        if (dd > maxDays) continue;
+        matches.push({
+          normalizedRowId: nr.id,
+          transactionId: txn.id,
+          matchType: 'auto-spei-fee-gap',
+          speiFeeGapCentavos: scotiabankSpeiGap
+        });
+        if (maxDays <= 1) stats.speiFeeGapExact += 1;
+        else stats.speiFeeGapDrift += 1;
+        usedTxn.add(txn.id);
+        usedNorm.add(nr.id);
+        break;
+      }
+    }
+  }
+
+  trySpeiFeeGap(1);
+  trySpeiFeeGap(7);
+
   // Fee-adjusted: subset of 2–5 transactions, same account, date within ±1 day of bank row
   for (const nr of pool) {
     if (usedNorm.has(nr.id)) continue;
@@ -120,21 +268,21 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions) {
 
     if (candidates.length < 2) continue;
 
-    const target = nr.amount;
+    const targetCentavos = nr.amount;
     const ids = candidates.map((t) => t.id);
-    const pesos = candidates.map((t) => absPesosFromCentavos(t.amount));
+    const absCentavos = candidates.map((t) => Math.abs(txnMatchCentavos(t)));
 
     let found = null;
     const n = candidates.length;
     function search(startIdx, depthLeft, sum, picked) {
       if (found) return;
       if (depthLeft === 0) {
-        if (amountsClose(sum, target)) found = [...picked];
+        if (amountsCloseCentavos(sum, targetCentavos)) found = [...picked];
         return;
       }
       for (let i = startIdx; i < n; i++) {
         picked.push(ids[i]);
-        search(i + 1, depthLeft - 1, sum + pesos[i], picked);
+        search(i + 1, depthLeft - 1, sum + absCentavos[i], picked);
         picked.pop();
         if (found) return;
       }

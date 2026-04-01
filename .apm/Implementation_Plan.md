@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.19.1 | **Deployed:** March 20, 2026 (production)  
-**Last Updated:** March 20, 2026 — Production **v1.19.1** (#255 SoA email fix). WhatsApp: PR #253 code merged; **Sprint WA paused** (Meta/WhatsApp Business blocked externally). Archive: `SAMS-Docs/apm_session/Memory/Archive/WhatsApp_Webhook_WA-BACKEND_2026-03-19/`  
+**Last Updated:** March 29, 2026 — **Roadmap Reset**. Sprint MOBILE-TX-UX complete (PR #259). DOC-LIB deprioritized. BANK-RECON and UC-LITE added. Next sprint: **BUGFIX-ONBOARD** (#246, #231, #260, #251, #254). WhatsApp paused (Meta blocked). See Roadmap_and_Timeline.md for full refreshed sequence.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,17 +25,17 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*No active sprint — **pick next theme without Meta dependency** (e.g. DOC-LIB or Polling-2+). **WA-FRONTEND / #178 remainder deferred** until WhatsApp Business setup unblocks. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md).*
+*No active sprint. Next sprint: **BUGFIX-ONBOARD** — fix bugs blocking/degrading owner onboarding (#246, #231, #260, #251, #254). Then **BANK-RECON** (Bank Reconciliation, PRD v2.0). DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for refreshed sprint sequence (positions 13-22).*
 
 ---
 
 ## Last Completed (shipping)
 
-**Hotfix: Statement of Account email preamble — #255** — deployed **v1.19.1**, March 20, 2026
+**Sprint MOBILE-TX-UX — #258** — PR #259 merged March 29, 2026
 
-**Problem**: SoA PDF and data were correct; the **HTML email body** double-counted credit (incorrect Balance Due in preamble).  
-**Fix**: Single balance line from SoA closing balance — no duplicate credit subtraction.  
-**Quality**: Targeted email-template / preamble logic only (low blast radius once identified).
+**Scope**: Mobile transaction UX polish — fiscal-year-aware filters (vendor, category, unit, date presets), text search, transaction attachment viewing with single-doc shortcut, budget category expand/collapse, double-negative fix, console cleanup.  
+**Quality**: ⭐⭐⭐⭐ — 21 files, +1768/-105 lines. MA review drove fiscal year fix, attachment UI refinement, and DateService architecture correction (local `dateUtils.js` instead of cross-boundary import). BugBot clear. Pre-PR checks pass.  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Sprint_MOBILE_TX_UX_2026-03-29/`
 
 ---
 

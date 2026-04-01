@@ -22,29 +22,40 @@ export default function AcceptStatement({ clientId, session, onDone, onCancel })
 
   return (
     <div>
-      <p>
-        <strong>Bank ending (from setup):</strong> {session?.endingBalance}
+      <p className="account-reconciliation-instructions">
+        <strong style={{ color: '#374151' }}>Bank ending (from setup):</strong>{' '}
+        <span style={{ fontFamily: "'Courier New', monospace", fontWeight: 600 }}>{session?.endingBalance}</span>
       </p>
-      <p className="recon-muted">
+      <p className="account-reconciliation-instructions">
         Confirm <strong>difference</strong> is zero before accepting (adjust SAMS elsewhere if needed). Cleared
         date will be set to the statement period end.
       </p>
-      <label>
+      <label className="recon-accept-label">
         Difference (pesos, must be 0)
         <input
+          className="balance-input recon-amount-field recon-accept-diff-input"
           type="number"
           step="0.01"
           value={diff}
           onChange={(e) => setDiff(e.target.value)}
-          style={{ display: 'block', marginTop: 6, padding: 8, maxWidth: 200 }}
         />
       </label>
-      {error && <div className="recon-error">{error}</div>}
+      {error && <div className="account-reconciliation-error">{error}</div>}
       <div className="recon-actions">
-        <button type="button" className="secondary" onClick={onCancel} disabled={busy}>
+        <button
+          type="button"
+          className="account-reconciliation-cancel"
+          onClick={onCancel}
+          disabled={busy}
+        >
           Back
         </button>
-        <button type="button" className="primary" onClick={run} disabled={busy}>
+        <button
+          type="button"
+          className="account-reconciliation-submit"
+          onClick={run}
+          disabled={busy}
+        >
           {busy ? 'Accepting…' : 'Accept statement'}
         </button>
       </div>

@@ -354,14 +354,18 @@ export async function runMatch(clientId, sessionId) {
   );
 
   const withAccount = attachAccountForMatching(normalizedRows, session.accountId);
-  const result = runMatchingAlgorithm(withAccount, rawTxns);
+  const result = runMatchingAlgorithm(withAccount, rawTxns, {
+    bankFormat: session.bankFormat || null
+  });
 
   const matchMap = result.matches.map((m) => ({
     transactionId: m.transactionId,
     normalizedRowId: m.normalizedRowId,
     matchType: m.matchType,
     justification: null,
-    relatedTransactionIds: m.feeGroupTransactionIds?.slice(1) || m.relatedTransactionIds || []
+    relatedTransactionIds: m.feeGroupTransactionIds?.slice(1) || m.relatedTransactionIds || [],
+    ...(m.speiFeeGapCentavos != null ? { speiFeeGapCentavos: m.speiFeeGapCentavos } : {}),
+    ...(m.roundingDeltaCentavos != null ? { roundingDeltaCentavos: m.roundingDeltaCentavos } : {})
   }));
 
   await ref.update({

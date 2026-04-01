@@ -1,8 +1,11 @@
 /**
  * Group Scotia raw rows by reference number; BBVA is 1:1 passthrough.
+ * Amounts are INTEGER CENTAVOS (same as Firestore transactions).
  */
 
-function parseAmount(n) {
+import { pesosToCentavos } from '../../shared/utils/currencyUtils.js';
+
+function parseAmountPesos(n) {
   const x = Number(n);
   return Number.isFinite(x) ? x : 0;
 }
@@ -23,16 +26,24 @@ export function normalizeScotiabankRows(bankRows) {
   const normalizedRows = [];
 
   for (const [, group] of byRef) {
-    const sum = group.reduce((acc, r) => acc + parseAmount(r.amount), 0);
+    const sumCentavos = group.reduce(
+      (acc, r) => acc + pesosToCentavos(parseAmountPesos(r.amount)),
+      0
+    );
     let primary = group[0];
     for (const r of group) {
-      if (parseAmount(r.amount) > parseAmount(primary.amount)) primary = r;
+      if (
+        pesosToCentavos(parseAmountPesos(r.amount)) >
+        pesosToCentavos(parseAmountPesos(primary.amount))
+      ) {
+        primary = r;
+      }
     }
     const firstByDate = [...group].sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
 
     normalizedRows.push({
       date: firstByDate.date,
-      amount: sum,
+      amount: sumCentavos,
       type: primary.type,
       description: primary.description || '',
       sourceRowIds: group.map((r) => r.id),
@@ -52,7 +63,7 @@ export function normalizeRowsForSession(bankFormat, bankRows) {
   if (bankFormat === 'bbva') {
     return bankRows.map((row) => ({
       date: row.date,
-      amount: parseAmount(row.amount),
+      amount: pesosToCentavos(parseAmountPesos(row.amount)),
       type: row.type,
       description: row.description || '',
       sourceRowIds: [row.id],

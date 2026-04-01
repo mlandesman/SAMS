@@ -86,14 +86,18 @@ export default function SessionSetup({ clientId, accounts, onComplete, onCancel 
 
   return (
     <div>
-      <p className="recon-muted">
+      <p className="account-reconciliation-instructions">
         Select the bank account, statement period, opening/closing balances from the statement, then upload
         the bank file ({bankFormat === 'bbva' ? 'XLSX' : 'CSV'}).
       </p>
       <div className="recon-form-grid">
         <label>
           Account
-          <select value={accountId} onChange={(e) => handleAccountChange(e.target.value)}>
+          <select
+            className="recon-field-input"
+            value={accountId}
+            onChange={(e) => handleAccountChange(e.target.value)}
+          >
             {bankAccounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -103,22 +107,37 @@ export default function SessionSetup({ clientId, accounts, onComplete, onCancel 
         </label>
         <label>
           Bank format
-          <select value={bankFormat} onChange={(e) => setBankFormat(e.target.value)}>
+          <select
+            className="recon-field-input"
+            value={bankFormat}
+            onChange={(e) => setBankFormat(e.target.value)}
+          >
             <option value="scotiabank">ScotiaBank (CSV)</option>
             <option value="bbva">BBVA (XLSX)</option>
           </select>
         </label>
         <label>
           Period start
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input
+            className="recon-field-input"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </label>
         <label>
           Period end
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input
+            className="recon-field-input"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </label>
         <label>
           Opening balance (statement)
           <input
+            className="balance-input recon-amount-field"
             type="number"
             step="0.01"
             value={openingBalance}
@@ -128,6 +147,7 @@ export default function SessionSetup({ clientId, accounts, onComplete, onCancel 
         <label>
           Ending balance (statement)
           <input
+            className="balance-input recon-amount-field"
             type="number"
             step="0.01"
             value={endingBalance}
@@ -137,6 +157,7 @@ export default function SessionSetup({ clientId, accounts, onComplete, onCancel 
         <label style={{ gridColumn: '1 / -1' }}>
           Bank movements file
           <input
+            className="recon-field-input"
             type="file"
             accept={bankFormat === 'bbva' ? '.xlsx,.xls' : '.csv'}
             onChange={(e) => setBankFile(e.target.files?.[0] || null)}
@@ -144,15 +165,30 @@ export default function SessionSetup({ clientId, accounts, onComplete, onCancel 
         </label>
         <label style={{ gridColumn: '1 / -1' }}>
           Statement PDF (optional)
-          <input type="file" accept=".pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+          <input
+            className="recon-field-input"
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+          />
         </label>
       </div>
-      {error && <div className="recon-error">{error}</div>}
+      {error && <div className="account-reconciliation-error">{error}</div>}
       <div className="recon-actions">
-        <button type="button" className="secondary" onClick={onCancel} disabled={busy}>
+        <button
+          type="button"
+          className="account-reconciliation-cancel"
+          onClick={onCancel}
+          disabled={busy}
+        >
           Cancel
         </button>
-        <button type="button" className="primary" onClick={run} disabled={busy}>
+        <button
+          type="button"
+          className="account-reconciliation-submit"
+          onClick={run}
+          disabled={busy}
+        >
           {busy ? 'Working…' : 'Import & match'}
         </button>
       </div>
