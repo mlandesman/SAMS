@@ -20,6 +20,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { passkeyService } from '../services/passkeyService';
+import { config } from '../config/index.js';
 
 const AuthScreen = () => {
   const navigate = useNavigate();
@@ -34,6 +35,10 @@ const AuthScreen = () => {
   const [showPasswordField, setShowPasswordField] = useState(!supportsPasskeys);
   const [formError, setFormError] = useState('');
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Redirect if already authenticated - STABLE VERSION
   useEffect(() => {
@@ -90,6 +95,33 @@ const AuthScreen = () => {
       return false;
     }
     return true;
+  };
+
+  const handleForgotPassword = async () => {
+    const targetEmail = resetEmail.trim();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setResetStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+    setIsResetting(true);
+    setResetStatus(null);
+    try {
+      const res = await fetch(`${config.api.baseUrl}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetStatus({ type: 'success', message: data.message || 'A temporary password has been sent to your email.' });
+      } else {
+        setResetStatus({ type: 'error', message: data.error || 'Password reset failed. Please try again.' });
+      }
+    } catch {
+      setResetStatus({ type: 'error', message: 'Network error. Please check your connection and try again.' });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handlePasskeyLogin = async (event) => {
@@ -322,15 +354,53 @@ const AuthScreen = () => {
               </Button>
             )}
             
-            {/* Can't sign in - Only show after login failure */}
             {hasLoginFailed && (
               <Box sx={{ textAlign: 'center', pt: 1, borderTop: '1px solid #eee' }}>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                   Can&apos;t sign in?
                 </Typography>
-                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                  Contact your administrator to reset your access.
-                </Typography>
+                {!showResetForm ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    onClick={() => { setShowResetForm(true); setResetEmail(formData.email); setResetStatus(null); }}
+                    sx={{ textTransform: 'none', fontSize: '14px' }}
+                  >
+                    Forgot Password?
+                  </Button>
+                ) : (
+                  <>
+                    <TextField
+                      fullWidth
+                      type="email"
+                      label="Email for password reset"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      size="small"
+                      autoComplete="email"
+                      sx={{ mb: 1 }}
+                    />
+                    <Button
+                      variant="contained"
+                      size="small"
+                      fullWidth
+                      onClick={handleForgotPassword}
+                      disabled={isResetting}
+                      sx={{ textTransform: 'none', fontSize: '14px', mb: 1 }}
+                    >
+                      {isResetting ? 'Sending...' : 'Send Reset Email'}
+                    </Button>
+                    {resetStatus && (
+                      <Alert severity={resetStatus.type === 'success' ? 'success' : 'error'} sx={{ mb: 1, textAlign: 'left' }}>
+                        {resetStatus.message}
+                      </Alert>
+                    )}
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                      A temporary password will be emailed to you. You&apos;ll be asked to change it on your next login.
+                    </Typography>
+                  </>
+                )}
               </Box>
             )}
           </form>

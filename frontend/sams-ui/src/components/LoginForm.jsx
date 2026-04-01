@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVersionInfo } from '../utils/versionUtils';
 import { passkeyService } from '../services/passkeyService';
 import { getAuthInstance } from '../firebaseClient';
+import { config } from '../config/index.js';
 import '../styles/SandylandModalTheme.css';
 import './LoginForm.css';
 
@@ -17,6 +18,10 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoginFailed, setHasLoginFailed] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState(null);
+  const [isResetting, setIsResetting] = useState(false);
   const { login, loginWithPasskey, error, setError } = useAuth();
   const versionInfo = useVersionInfo();
   const supportsPasskeys = passkeyService.supportsPasskeys();
@@ -26,6 +31,33 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
       setShowPasswordField(true);
     }
   }, [supportsPasskeys]);
+
+  const handleForgotPassword = async () => {
+    const targetEmail = resetEmail.trim();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setResetStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+    setIsResetting(true);
+    setResetStatus(null);
+    try {
+      const res = await fetch(`${config.api.baseUrl}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetStatus({ type: 'success', message: data.message || 'A temporary password has been sent to your email.' });
+      } else {
+        setResetStatus({ type: 'error', message: data.error || 'Password reset failed. Please try again.' });
+      }
+    } catch {
+      setResetStatus({ type: 'error', message: 'Network error. Please check your connection and try again.' });
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handlePasskeyLogin = async (e) => {
     e.preventDefault();
@@ -161,7 +193,43 @@ const LoginForm = ({ onLoginSuccess, onShowPasskeyPrompt }) => {
           {hasLoginFailed && (
             <div className="forgot-password-section">
               <p className="forgot-password-text">Can&apos;t sign in?</p>
-              <p className="forgot-password-help">Contact your administrator to reset your access.</p>
+              {!showResetForm ? (
+                <button
+                  type="button"
+                  className="forgot-password-button"
+                  onClick={() => { setShowResetForm(true); setResetEmail(email); setResetStatus(null); }}
+                >
+                  Forgot Password?
+                </button>
+              ) : (
+                <>
+                  <input
+                    type="email"
+                    className="login-form-input"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                  />
+                  <button
+                    type="button"
+                    className="forgot-password-button"
+                    onClick={handleForgotPassword}
+                    disabled={isResetting}
+                    style={{ marginTop: '0.5rem' }}
+                  >
+                    {isResetting ? 'Sending...' : 'Send Reset Email'}
+                  </button>
+                  {resetStatus && (
+                    <div className={resetStatus.type === 'success' ? 'success-message' : 'error-message'} style={{ marginTop: '0.5rem' }}>
+                      {resetStatus.message}
+                    </div>
+                  )}
+                  <p className="forgot-password-help">
+                    A temporary password will be emailed to you. You&apos;ll be asked to change it on your next login.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
