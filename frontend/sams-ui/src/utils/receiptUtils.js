@@ -121,11 +121,23 @@ export const generateReceipt = async (transactionId, options) => {
       if (unitData) {
         const rawOwnerInfo = getOwnerInfo(unitData);
         
-        // Convert to the format expected by DigitalReceipt
+        // Collect emails from ALL owners and managers (resolved by backend API)
+        const allEmails = [];
+        const addEmails = (contacts) => {
+          if (!Array.isArray(contacts)) return;
+          contacts.forEach(c => {
+            if (c && typeof c === 'object' && c.email) {
+              allEmails.push(c.email);
+            }
+          });
+        };
+        addEmails(unitData.owners);
+        addEmails(unitData.managers);
+
         ownerInfo = {
           name: `${rawOwnerInfo.firstName} ${rawOwnerInfo.lastName}`.trim() || 'Unit Owner',
-          emails: rawOwnerInfo.email ? [rawOwnerInfo.email] : [],
-          phone: '' // Phone not available in current data structure
+          emails: allEmails,
+          phone: ''
         };
       }
     }
