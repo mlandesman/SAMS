@@ -1,6 +1,43 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": "pending",
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "263"
+          ],
+          "text": "Transaction edit shifted date back 1 day due to timezone mismatch — update path now uses timezone-aware dateService.parseFromFrontend() matching the create path"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "262"
+          ],
+          "text": "Digital receipt emails now include all unit owners and managers (deduplicated) instead of only the first owner"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "261"
+          ],
+          "text": "User role display fixed — migrated users showed as Manager instead of Owner due to legacy role values; data repair script applied to Dev and Prod"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Forgot Password flow restored — self-service reset UI on desktop and mobile, backend param fix, email populated with real user data; deactivated accounts blocked from self-service reactivation"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Password change after reset — profile API returns mustChangePassword flag, PasswordChangeModal triggers on login and clears flag after successful change"
+        }
+      ]
+    },
+    {
       "version": "1.20.0",
       "date": "2026-03-29",
       "changes": [
