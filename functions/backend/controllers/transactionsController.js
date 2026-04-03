@@ -682,9 +682,13 @@ async function updateTransaction(clientId, txnId, newData) {
       logDebug(`✅ Converted ${normalizedData.allocations.length} allocation amounts to centavos for update`);
     }
     
-    // Convert dates to timestamps
+    // Convert dates to timestamps (must match createTransaction's timezone handling)
     if (validation.data.date) {
-      normalizedData.date = toFirestoreTimestamp(validation.data.date);
+      if (typeof validation.data.date === 'string') {
+        normalizedData.date = dateService.parseFromFrontend(validation.data.date);
+      } else {
+        normalizedData.date = toFirestoreTimestamp(validation.data.date);
+      }
     }
     
     // Resolve field relationships (ID→name priority for updates)
