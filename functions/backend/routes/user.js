@@ -91,6 +91,7 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       preferredClient: userData.preferredClient || null,
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
+      mustChangePassword: userData.mustChangePassword || false,
       createdAt: formatDateField(userData.createdAt),
       lastLogin: formatDateField(getNow()),
       profile: userData.profile || {},
@@ -130,7 +131,7 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
     }
 
     const { uid } = req.user;
-    const { basicInfo, notifications } = req.body;
+    const { basicInfo, notifications, mustChangePassword } = req.body;
 
     const db = await getDb();
     const userDoc = await db.collection('users').doc(uid).get();
@@ -150,6 +151,14 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
     }
 
     if (notifications !== undefined) updateData.notifications = notifications;
+
+    if (mustChangePassword === false) {
+      const currentData = userDoc.data();
+      updateData.mustChangePassword = false;
+      if (currentData.accountState === 'pending_password_change') {
+        updateData.accountState = 'active';
+      }
+    }
 
     await db.collection('users').doc(uid).update(updateData);
 
