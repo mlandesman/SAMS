@@ -153,8 +153,11 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
     if (notifications !== undefined) updateData.notifications = notifications;
 
     if (mustChangePassword === false) {
+      const currentData = userDoc.data();
       updateData.mustChangePassword = false;
-      updateData.accountState = 'active';
+      if (currentData.accountState === 'pending_password_change') {
+        updateData.accountState = 'active';
+      }
     }
 
     await db.collection('users').doc(uid).update(updateData);

@@ -68,6 +68,10 @@ router.post('/reset-password', async (req, res) => {
     const userData = userDoc.exists ? userDoc.data() : userQuery.docs[0].data();
     const userId = userDoc.exists ? userDoc.id : userQuery.docs[0].id;
 
+    if (userData.isActive === false || userData.canLogin === false) {
+      return res.status(403).json({ error: 'This account has been deactivated. Please contact your administrator.' });
+    }
+
     // Generate temporary password
     const temporaryPassword = generateSecurePassword();
 
@@ -83,7 +87,6 @@ router.post('/reset-password', async (req, res) => {
       mustChangePassword: true,
       lastPasswordResetDate: getNow().toISOString(),
       passwordResetBy: 'forgot-password-request',
-      isActive: true,
       lastModifiedDate: getNow().toISOString(),
       lastModifiedBy: 'system'
     });
