@@ -121,18 +121,19 @@ export const generateReceipt = async (transactionId, options) => {
       if (unitData) {
         const rawOwnerInfo = getOwnerInfo(unitData);
         
-        // Collect emails from ALL owners and managers (resolved by backend API)
-        const allEmails = [];
+        // Collect unique emails from ALL owners and managers (resolved by backend API)
+        const emailSet = new Set();
         const addEmails = (contacts) => {
           if (!Array.isArray(contacts)) return;
           contacts.forEach(c => {
             if (c && typeof c === 'object' && c.email) {
-              allEmails.push(c.email);
+              emailSet.add(c.email);
             }
           });
         };
         addEmails(unitData.owners);
         addEmails(unitData.managers);
+        const allEmails = [...emailSet];
 
         ownerInfo = {
           name: `${rawOwnerInfo.firstName} ${rawOwnerInfo.lastName}`.trim() || 'Unit Owner',

@@ -131,7 +131,7 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
     }
 
     const { uid } = req.user;
-    const { basicInfo, notifications, mustChangePassword, accountState } = req.body;
+    const { basicInfo, notifications, mustChangePassword } = req.body;
 
     const db = await getDb();
     const userDoc = await db.collection('users').doc(uid).get();
@@ -154,7 +154,7 @@ router.put('/profile', authenticateUserWithProfile, async (req, res) => {
 
     if (mustChangePassword === false) {
       updateData.mustChangePassword = false;
-      updateData.accountState = accountState || 'active';
+      updateData.accountState = 'active';
     }
 
     await db.collection('users').doc(uid).update(updateData);
