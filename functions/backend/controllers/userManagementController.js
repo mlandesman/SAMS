@@ -26,6 +26,16 @@ function generateSecurePassword() {
   return password;
 }
 
+const SYSTEM_SCHEDULER_UID = 'system-scheduler';
+
+/** Synthetic Firebase user used by scheduled jobs (internalApiClient); not a person — no temp-password emails. */
+function isSystemSchedulerAccount(userId, userData) {
+  if (userId === SYSTEM_SCHEDULER_UID) return true;
+  if (userData?.isSystemAccount === true) return true;
+  const em = (userData?.email || '').trim().toLowerCase();
+  return em === 'system@sams.sandyland.com.mx';
+}
+
 /**
  * Add person to unit's arrays based on their role
  * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
@@ -676,6 +686,19 @@ export async function updateUser(req, res) {
     }
 
     const currentUserData = userDoc.data();
+
+    if (isSystemSchedulerAccount(userId, currentUserData)) {
+      if (resetPassword) {
+        return res.status(400).json({
+          error: 'Password reset is not available for the system scheduler account (internal use only).'
+        });
+      }
+      if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+        return res.status(400).json({
+          error: 'Login cannot be toggled for the system scheduler account (internal use only).'
+        });
+      }
+    }
 
     // Users can update their own basic profile
     if (userId === updatingUser.uid) {
