@@ -3,7 +3,11 @@ import { DateTime } from 'luxon';
 import { getDb, toFirestoreTimestamp, getApp } from '../firebase.js';
 import { getNow } from '../services/DateService.js';
 import { parseBankFile } from '../services/bankParsers/index.js';
-import { normalizeRowsForSession } from '../services/reconciliationNormalizer.js';
+import {
+  normalizeRowsForSession,
+  filterBankRowsByStatementPeriod,
+  normalizedRowInStatementPeriod
+} from '../services/reconciliationNormalizer.js';
 import {
   runMatchingAlgorithm,
   attachAccountForMatching
@@ -14,17 +18,8 @@ import {
   applyTransactionAutoFix
 } from '../services/reconciliationAutoFixService.js';
 import { generateAndUploadReconciliationReport } from '../services/reconciliationReportService.js';
+import { getStorageBucketName } from '../utils/storageBucketName.js';
 const TOLERANCE = 0.01;
-
-function getStorageBucketName() {
-  if (process.env.GCLOUD_PROJECT === 'sams-sandyland-prod' || process.env.NODE_ENV === 'production') {
-    return 'sams-sandyland-prod.firebasestorage.app';
-  }
-  if (process.env.NODE_ENV === 'staging') {
-    return 'sams-staging-6cdcd.firebasestorage.app';
-  }
-  return 'sandyland-management-system.firebasestorage.app';
-}
 
 async function deleteQueryInBatches(query, batchSize = 400) {
   const db = await getDb();
@@ -267,11 +262,25 @@ export async function importBankFile(clientId, sessionId, files, _user) {
     throw new Error('bankFile is required');
   }
 
-  const { bankRows, errors } = await parseBankFile(
+  const { bankRows: parsedRows, errors: parseErrors } = await parseBankFile(
     bankFile.buffer,
     session.bankFormat,
     bankFile.originalname
   );
+
+  const beforeFilter = parsedRows.length;
+  const bankRows = filterBankRowsByStatementPeriod(parsedRows, session.startDate, session.endDate);
+  const errors = [...parseErrors];
+  if (beforeFilter > bankRows.length) {
+    errors.push(
+      `Excluded ${beforeFilter - bankRows.length} bank line(s) outside statement period ${session.startDate}–${session.endDate}.`
+    );
+  }
+  if (bankRows.length === 0) {
+    throw new Error(
+      `No bank movements fall within ${session.startDate}–${session.endDate}. Adjust the period or use a file that covers these dates.`
+    );
+  }
 
   await deleteQueryInBatches(ref.collection('bankRows'));
   await deleteQueryInBatches(ref.collection('normalizedRows'));
@@ -352,6 +361,9 @@ export async function runMatch(clientId, sessionId) {
   const normSnap = await ref.collection('normalizedRows').get();
   const normalizedRows = [];
   normSnap.forEach((d) => normalizedRows.push({ id: d.id, ...d.data() }));
+  const normalizedRowsInPeriod = normalizedRows.filter((nr) =>
+    normalizedRowInStatementPeriod(nr, session.startDate, session.endDate)
+  );
 
   const rawTxns = await fetchTransactionsForMatching(
     clientId,
@@ -360,12 +372,12 @@ export async function runMatch(clientId, sessionId) {
     session.endDate
   );
 
-  const withAccount = attachAccountForMatching(normalizedRows, session.accountId);
+  const withAccount = attachAccountForMatching(normalizedRowsInPeriod, session.accountId);
   const result = runMatchingAlgorithm(withAccount, rawTxns, {
     bankFormat: session.bankFormat || null
   });
 
-  const normById = Object.fromEntries(normalizedRows.map((r) => [r.id, r]));
+  const normById = Object.fromEntries(normalizedRowsInPeriod.map((r) => [r.id, r]));
 
   /**
    * Auto-fix SAMS cash + allocations for rounding / SPEI (see reconciliationAutoFixService).
@@ -511,11 +523,11 @@ export async function excludeFromReconciliation(clientId, sessionId, body) {
 
   if (type === 'bank') {
     if (!normalizedRowId) throw new Error('normalizedRowId required for bank exclusion');
-    exclusions.push({ kind: 'bank', id: normalizedRowId, reason: r, at: new Date().toISOString() });
+    exclusions.push({ kind: 'bank', id: normalizedRowId, reason: r, at: getNow().toISOString() });
     unmatchedBankRows = unmatchedBankRows.filter((id) => id !== normalizedRowId);
   } else if (type === 'sams') {
     if (!transactionId) throw new Error('transactionId required for SAMS exclusion');
-    exclusions.push({ kind: 'sams', id: transactionId, reason: r, at: new Date().toISOString() });
+    exclusions.push({ kind: 'sams', id: transactionId, reason: r, at: getNow().toISOString() });
     unmatchedTransactions = unmatchedTransactions.filter((id) => id !== transactionId);
   } else {
     throw new Error('type must be "bank" or "sams"');
@@ -547,10 +559,16 @@ export async function getWorkbench(clientId, sessionId) {
   const normList = session.normalizedRows || [];
   const normById = Object.fromEntries(normList.map((row) => [row.id, row]));
 
-  const unmatchedBankDetails = (session.unmatchedBankRows || []).map((id) => {
-    const row = normById[id];
-    return row ? { ...row } : { id, missing: true };
-  });
+  const unmatchedBankDetails = (session.unmatchedBankRows || [])
+    .map((id) => {
+      const row = normById[id];
+      return row ? { ...row } : { id, missing: true };
+    })
+    .filter(
+      (row) =>
+        row.missing ||
+        normalizedRowInStatementPeriod(row, session.startDate, session.endDate)
+    );
 
   const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));
   const excludedSamsIds = new Set(

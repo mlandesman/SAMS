@@ -5,6 +5,28 @@
 
 import { pesosToCentavos } from '../../shared/utils/currencyUtils.js';
 
+/**
+ * ISO YYYY-MM-DD inclusive bounds (string compare).
+ */
+export function bankRowDateInStatementPeriod(rowDate, startDate, endDate) {
+  if (!startDate || !endDate) return true;
+  if (rowDate == null || rowDate === '') return false;
+  const d = String(rowDate).slice(0, 10);
+  return d >= startDate && d <= endDate;
+}
+
+/** Parser rows (pre-normalization): drop anything outside the reconciliation period. */
+export function filterBankRowsByStatementPeriod(bankRows, startDate, endDate) {
+  if (!Array.isArray(bankRows)) return [];
+  if (!startDate || !endDate) return bankRows;
+  return bankRows.filter((row) => bankRowDateInStatementPeriod(row?.date, startDate, endDate));
+}
+
+/** Normalized row (has .date ISO) — same period rule for matching / workbench. */
+export function normalizedRowInStatementPeriod(row, startDate, endDate) {
+  return bankRowDateInStatementPeriod(row?.date, startDate, endDate);
+}
+
 function parseAmountPesos(n) {
   const x = Number(n);
   return Number.isFinite(x) ? x : 0;
