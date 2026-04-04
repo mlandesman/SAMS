@@ -21,6 +21,13 @@ import { generateAndUploadReconciliationReport } from '../services/reconciliatio
 import { getStorageBucketName } from '../utils/storageBucketName.js';
 const TOLERANCE = 0.01;
 
+/**
+ * SAMS transactions loaded for pairing extend this many days **before** statement start and **after**
+ * statement end (America/Cancun). Bank lines stay strictly within the session period; SAMS can lag
+ * (weekends, SPEI settlement) so we widen the register query only.
+ */
+const SAMS_MATCHING_SLACK_DAYS = 7;
+
 async function deleteQueryInBatches(query, batchSize = 400) {
   const db = await getDb();
   while (true) {
@@ -70,10 +77,10 @@ function findAccount(accounts, accountId) {
 async function fetchTransactionsForMatching(clientId, accountId, startIso, endIso) {
   const db = await getDb();
   const start = DateTime.fromISO(startIso, { zone: 'America/Cancun' })
-    .minus({ days: 7 })
+    .minus({ days: SAMS_MATCHING_SLACK_DAYS })
     .startOf('day');
   const end = DateTime.fromISO(endIso, { zone: 'America/Cancun' })
-    .plus({ days: 7 })
+    .plus({ days: SAMS_MATCHING_SLACK_DAYS })
     .endOf('day');
 
   const snap = await db

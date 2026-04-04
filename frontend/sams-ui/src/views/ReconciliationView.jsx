@@ -424,7 +424,9 @@ export default function ReconciliationView() {
               <div className="recon-col recon-col-sams">
                 <h3>Available SAMS transactions</h3>
                 <p className="recon-hint">
-                  Uncleared · statement window ±7 days · select one to pair with the bank row.
+                  Uncleared SAMS lines in this bank account — dates from{' '}
+                  <strong>7 days before</strong> period start through <strong>7 days after</strong>{' '}
+                  period end (weekend/settlement lag). Select one to pair with the bank row.
                 </p>
                 <div className="recon-sams-actions">
                   <button
