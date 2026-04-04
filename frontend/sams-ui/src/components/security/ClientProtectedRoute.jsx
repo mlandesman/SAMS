@@ -114,7 +114,8 @@ function checkPermission(role, permission) {
       'reports.view', 'reports.generate',
       'units.view', 'units.edit',
       'users.view', 'users.manage',
-      'expenses.create', 'expenses.view', 'expenses.edit'
+      'expenses.create', 'expenses.view', 'expenses.edit',
+      'accounts.manage'
     ],
     unitOwner: [
       'dashboard.view',

@@ -48,9 +48,8 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
 
   if (!isOpen) return null;
 
-  const hasUnmatched =
-    (session?.unmatchedBankRows?.length || 0) > 0 ||
-    (session?.unmatchedTransactions?.length || 0) > 0;
+  // Bank-first: only unmatched *bank* lines block progress. SAMS-only rows can stay open (not on statement).
+  const hasUnmatchedBank = (session?.unmatchedBankRows?.length || 0) > 0;
 
   return (
     <div
@@ -106,7 +105,7 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
           {step === 2 && sessionId && !reportUrl && (
             <>
               {!session && <p className="recon-muted">Loading…</p>}
-              {session && <MatchingReview session={session} />}
+              {session && <MatchingReview session={session} transactions={transactions} />}
               <div className="recon-actions">
                 <button
                   type="button"
@@ -146,14 +145,17 @@ export default function ReconciliationWizard({ isOpen, onClose, clientId }) {
                 <button
                   type="button"
                   className="account-reconciliation-submit"
-                  disabled={hasUnmatched}
+                  disabled={hasUnmatchedBank}
                   onClick={() => setStep(4)}
                 >
                   Continue to acceptance
                 </button>
               </div>
-              {hasUnmatched && (
-                <p className="recon-error">Resolve all unmatched items before continuing.</p>
+              {hasUnmatchedBank && (
+                <p className="recon-error">
+                  Match every bank line above before continuing. Unmatched SAMS-only rows can remain (not on this
+                  statement).
+                </p>
               )}
             </>
           )}

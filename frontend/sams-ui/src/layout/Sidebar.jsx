@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
@@ -84,6 +84,7 @@ const getVisibleMenuItems = (user, items, selectedClient) => {
 };
 
 function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityChange prop
+  const { pathname } = useLocation();
   const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
   const { samsUser } = useAuth(); // Get user for role checking
 
@@ -172,6 +173,16 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
               </li>
             );
           })
+        )}
+        {samsUser && isAdmin(samsUser, selectedClient?.id) && (
+          <li className={pathname === '/reconciliation' ? 'active' : ''}>
+            <Link
+              to="/reconciliation"
+              onClick={() => onActivityChange && onActivityChange('reconciliation')}
+            >
+              Bank reconciliation
+            </Link>
+          </li>
         )}
         <li className="change-client-button" onClick={onChangeClientClick}>
           Change Client

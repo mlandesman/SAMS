@@ -24,6 +24,7 @@ import ClientProtectedRoute from './components/security/ClientProtectedRoute';
 import AuthGuard from './components/guards/AuthGuard';
 import ExchangeRatesView from './views/ExchangeRatesView';
 import AddExpenseView from './views/AddExpenseView';
+import ReconciliationView from './views/ReconciliationView';
 import WaterBillsViewV3 from './views/WaterBillsViewV3';
 import PropaneView from './components/propane/PropaneView';
 import PublicVotingPage from './views/PublicVotingPage';
@@ -278,6 +279,11 @@ function AppContent() {
                   <Route path="/add-expense" element={
                     <ClientProtectedRoute requiredPermission="transactions.create">
                       <AddExpenseView />
+                    </ClientProtectedRoute>
+                  } />
+                  <Route path="/reconciliation" element={
+                    <ClientProtectedRoute requiredPermission="accounts.manage">
+                      <ReconciliationView />
                     </ClientProtectedRoute>
                   } />
                   {/* Dynamic route for activities from the client configuration */}

@@ -1,3 +1,7 @@
+/**
+ * TODO (Transactions): add Cleared / Non-Cleared / All filter using `transaction.clearedDate`
+ * (bank reconciliation). Helps find uncleared rows when reconciling month-end balances.
+ */
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 

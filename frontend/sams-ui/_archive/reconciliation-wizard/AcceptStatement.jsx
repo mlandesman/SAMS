@@ -27,8 +27,10 @@ export default function AcceptStatement({ clientId, session, onDone, onCancel })
         <span style={{ fontFamily: "'Courier New', monospace", fontWeight: 600 }}>{session?.endingBalance}</span>
       </p>
       <p className="account-reconciliation-instructions">
-        Confirm <strong>difference</strong> is zero before accepting (adjust SAMS elsewhere if needed). Cleared
-        date will be set to the statement period end.
+        Confirm <strong>difference</strong> is zero before accepting (opening → activity → ending vs SAMS;
+        adjust elsewhere if needed). <strong>Cleared</strong> date is set on each SAMS row that was matched or
+        justified in this session (period end). Register lines with no bank line stay uncleared unless you
+        justified them in step 3.
       </p>
       <label className="recon-accept-label">
         Difference (pesos, must be 0)

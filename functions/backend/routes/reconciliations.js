@@ -14,7 +14,10 @@ import {
   importBankFile,
   runMatch,
   resolveException,
-  acceptSession
+  acceptSession,
+  manualPairSession,
+  excludeFromReconciliation,
+  getWorkbench
 } from '../controllers/reconciliationController.js';
 
 const router = express.Router();
@@ -49,6 +52,42 @@ router.post('/', requirePermission('accounts.manage'), async (req, res) => {
     res.status(201).json({ success: true, session });
   } catch (error) {
     console.error('reconciliations create:', error);
+    res.status(400).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+router.get('/:sessionId/workbench', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const data = await getWorkbench(cid, req.params.sessionId);
+    res.json(data);
+  } catch (error) {
+    console.error('reconciliations workbench:', error);
+    res.status(error.message?.includes('not found') ? 404 : 500).json({
+      success: false,
+      error: error.message || 'Server error'
+    });
+  }
+});
+
+router.post('/:sessionId/manual-pair', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const result = await manualPairSession(cid, req.params.sessionId, req.body || {});
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('reconciliations manual-pair:', error);
+    res.status(400).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+router.post('/:sessionId/exclude', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const result = await excludeFromReconciliation(cid, req.params.sessionId, req.body || {});
+    res.json(result);
+  } catch (error) {
+    console.error('reconciliations exclude:', error);
     res.status(400).json({ success: false, error: error.message || 'Server error' });
   }
 });

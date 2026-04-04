@@ -1,0 +1,310 @@
+.reconciliation-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+}
+
+.recon-page-header h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recon-page-sub {
+  color: #5c6570;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+  max-width: 52rem;
+}
+
+.recon-page-sub code {
+  font-size: 0.85em;
+}
+
+.recon-page-muted,
+.recon-page-access {
+  padding: 1.5rem;
+}
+
+.recon-page-error {
+  background: #fdecea;
+  color: #611a15;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.recon-setup-panel {
+  background: #f8fafb;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.recon-setup-panel h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.recon-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.recon-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.recon-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .recon-span-2 {
+    grid-column: span 1;
+  }
+}
+
+.recon-field-input {
+  font: inherit;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.recon-primary-btn {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  background: #0f766e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.recon-primary-btn:hover:not(:disabled) {
+  background: #0d9488;
+}
+
+.recon-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.recon-secondary-btn {
+  font: inherit;
+  padding: 0.45rem 0.85rem;
+  background: #fff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.recon-secondary-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.recon-workbench-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.recon-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .recon-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recon-col {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.75rem;
+  min-height: 200px;
+}
+
+.recon-col h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.recon-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.recon-sams-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.recon-table-scroll {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.recon-wb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.recon-wb-table th,
+.recon-wb-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.recon-wb-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.recon-wb-table tbody tr {
+  cursor: pointer;
+}
+
+.recon-wb-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.recon-wb-table tbody tr.selected {
+  background: #ecfdf5;
+}
+
+.recon-wb-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.recon-actions-cell {
+  white-space: nowrap;
+}
+
+.recon-icon-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #475569;
+  margin-right: 0.15rem;
+}
+
+.recon-icon-btn:hover {
+  color: #0f766e;
+}
+
+.recon-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.recon-summary-bar label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.recon-diff-input {
+  font: inherit;
+  width: 7rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.recon-success {
+  margin-top: 0.75rem;
+}
+
+.recon-success a {
+  color: #0f766e;
+  font-weight: 500;
+}
+
+.recon-loading-panel {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.recon-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.recon-modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+
+.recon-modal h4 {
+  margin: 0 0 0.65rem;
+}
+
+.recon-modal .recon-field-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.recon-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

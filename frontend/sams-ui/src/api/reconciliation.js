@@ -121,3 +121,41 @@ export async function acceptSession(clientId, sessionId, body = {}) {
   if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
   return j;
 }
+
+export async function getWorkbench(clientId, sessionId) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/workbench`,
+    { headers: await authHeaderJson() }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}
+
+export async function manualPair(clientId, sessionId, normalizedRowId, transactionId, justification = null) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/manual-pair`,
+    {
+      method: 'POST',
+      headers: await authHeaderJson(),
+      body: JSON.stringify({ normalizedRowId, transactionId, justification })
+    }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}
+
+export async function excludeReconciliationItem(clientId, sessionId, payload) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/exclude`,
+    {
+      method: 'POST',
+      headers: await authHeaderJson(),
+      body: JSON.stringify(payload)
+    }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}

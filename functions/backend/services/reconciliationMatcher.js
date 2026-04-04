@@ -103,6 +103,8 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
       ? options.roundingToleranceCentavos
       : ROUNDING_TOLERANCE_CENTAVOS
   );
+  // Scotia: SPEI fee+IVA gap (580¢). per Michael: apply same rule for any client on Scotia format —
+  // other clients are extremely unlikely to hit an exact 580¢ mismatch except true SPEI fees.
   const scotiabankSpeiGap =
     bankFormat === 'scotiabank' ? SCOTIABANK_SPEI_FEE_GAP_CENTAVOS : null;
 
@@ -200,7 +202,17 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
           normalizedRowId: nr.id,
           transactionId: txn.id,
           matchType: 'auto-rounding',
-          roundingDeltaCentavos
+          roundingDeltaCentavos,
+          // Auto-fix SAMS only for CARGO (expense); ABONO rounding stays match-only (manual edit if needed)
+          ...(nr.type === 'CARGO'
+            ? {
+                autoFix: 'rounding',
+                fixData: {
+                  bankAmountCentavos: bankCentavos,
+                  deltaCentavos: roundingDeltaCentavos
+                }
+              }
+            : {})
         });
         if (maxDays <= 1) stats.roundingExact += 1;
         else stats.roundingDrift += 1;
@@ -214,46 +226,11 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
   tryRounding(1);
   tryRounding(7);
 
-  /** Scotia: CARGO bank total exceeds |txn.amount| by exactly 580¢ (fee+IVA not in SAMS yet). */
-  function trySpeiFeeGap(maxDays) {
-    if (scotiabankSpeiGap == null) return;
-    const poolSorted = [...pool].sort(
-      (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
-    );
-    const txnsSorted = [...txns].sort(
-      (a, b) => txnCancunSortKey(a).localeCompare(txnCancunSortKey(b)) || String(a.id).localeCompare(String(b.id))
-    );
-    for (const nr of poolSorted) {
-      if (usedNorm.has(nr.id)) continue;
-      if (nr.type !== 'CARGO') continue;
-      for (const txn of txnsSorted) {
-        if (usedTxn.has(txn.id)) continue;
-        if (txn.accountId !== nr._accountId) continue;
-        if (!typeMatchesBank(nr.type, txn)) continue;
-        const tc = txnMatchCentavos(txn);
-        const bankCentavos = nr.amount;
-        const absTxn = Math.abs(tc);
-        if (Math.abs(bankCentavos - absTxn) !== scotiabankSpeiGap) continue;
-        const dd = daysBetween(nr.date, txn);
-        if (dd > maxDays) continue;
-        matches.push({
-          normalizedRowId: nr.id,
-          transactionId: txn.id,
-          matchType: 'auto-spei-fee-gap',
-          speiFeeGapCentavos: scotiabankSpeiGap
-        });
-        if (maxDays <= 1) stats.speiFeeGapExact += 1;
-        else stats.speiFeeGapDrift += 1;
-        usedTxn.add(txn.id);
-        usedNorm.add(nr.id);
-        break;
-      }
-    }
-  }
-
-  trySpeiFeeGap(1);
-  trySpeiFeeGap(7);
-
+  /**
+   * Fee-adjusted (2–5 txns summing to bank) runs **before** Scotia SPEI gap.
+   * Otherwise: bank line = principal + 580¢ with SAMS split into principal + separate -580¢ fee
+   * would be matched by SPEI gap to the principal only, leaving the fee txn orphaned.
+   */
   // Fee-adjusted: subset of 2–5 transactions, same account, date within ±1 day of bank row
   for (const nr of pool) {
     if (usedNorm.has(nr.id)) continue;
@@ -305,6 +282,54 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
       });
     }
   }
+
+  /**
+   * Scotia: CARGO bank total exceeds |txn.amount| by exactly 580¢ (fee+IVA not in SAMS yet).
+   * Controller applies SAMS update (split + fee lines) per UnifiedExpenseEntry “Add Bank Fees” pattern.
+   */
+  function trySpeiFeeGap(maxDays) {
+    if (scotiabankSpeiGap == null) return;
+    const poolSorted = [...pool].sort(
+      (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
+    );
+    const txnsSorted = [...txns].sort(
+      (a, b) => txnCancunSortKey(a).localeCompare(txnCancunSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    for (const nr of poolSorted) {
+      if (usedNorm.has(nr.id)) continue;
+      if (nr.type !== 'CARGO') continue;
+      for (const txn of txnsSorted) {
+        if (usedTxn.has(txn.id)) continue;
+        if (txn.accountId !== nr._accountId) continue;
+        if (!typeMatchesBank(nr.type, txn)) continue;
+        const tc = txnMatchCentavos(txn);
+        const bankCentavos = nr.amount;
+        const absTxn = Math.abs(tc);
+        if (Math.abs(bankCentavos - absTxn) !== scotiabankSpeiGap) continue;
+        const dd = daysBetween(nr.date, txn);
+        if (dd > maxDays) continue;
+        matches.push({
+          normalizedRowId: nr.id,
+          transactionId: txn.id,
+          matchType: 'auto-spei-fee-gap',
+          speiFeeGapCentavos: scotiabankSpeiGap,
+          autoFix: 'spei-fee',
+          fixData: {
+            bankAmountCentavos: bankCentavos,
+            gapCentavos: scotiabankSpeiGap
+          }
+        });
+        if (maxDays <= 1) stats.speiFeeGapExact += 1;
+        else stats.speiFeeGapDrift += 1;
+        usedTxn.add(txn.id);
+        usedNorm.add(nr.id);
+        break;
+      }
+    }
+  }
+
+  trySpeiFeeGap(1);
+  trySpeiFeeGap(7);
 
   const unmatchedBankRows = pool.filter((nr) => !usedNorm.has(nr.id)).map((nr) => nr.id);
   const unmatchedTransactions = txns.filter((t) => !usedTxn.has(t.id)).map((t) => t.id);

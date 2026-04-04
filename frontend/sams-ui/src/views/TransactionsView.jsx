@@ -5,7 +5,6 @@ import AdvancedFilterModal from '../components/AdvancedFilterModal';
 import DigitalReceipt from '../components/DigitalReceipt';
 import NotificationModal from '../components/NotificationModal';
 import AccountReconciliation from '../components/AccountReconciliation';
-import ReconciliationWizard from '../components/reconciliation/ReconciliationWizard';
 import { useNotification } from '../hooks/useNotification';
 import { getUnits } from '../api/units';
 import { getCategories } from '../api/categories';
@@ -115,7 +114,6 @@ function TransactionsView() {
   
   // Account reconciliation modal state
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
-  const [showBankReconWizard, setShowBankReconWizard] = useState(false);
   const [showHistoricalBalanceModal, setShowHistoricalBalanceModal] = useState(false);
   const [historicalBalanceDate, setHistoricalBalanceDate] = useState(getMexicoDateString());
   const [historicalBalanceResult, setHistoricalBalanceResult] = useState(null);
@@ -1456,6 +1454,14 @@ function TransactionsView() {
     }
   }, [location.state, navigate]);
 
+  // Highlight a transaction row when navigated from bank reconciliation (or similar)
+  useEffect(() => {
+    const hid = location.state?.highlightTransactionId;
+    if (!hid) return;
+    setTransactionToFind(hid);
+    navigate('.', { replace: true, state: {} });
+  }, [location.state, navigate]);
+
   return (
     <div className="view-container">
       <ActivityActionBar>
@@ -1520,7 +1526,7 @@ function TransactionsView() {
               <FontAwesomeIcon icon={faCheckDouble} />
               <span>Quick balance adjustment</span>
             </button>
-            <button className="action-item" onClick={() => setShowBankReconWizard(true)}>
+            <button className="action-item" onClick={() => navigate('/reconciliation')}>
               <FontAwesomeIcon icon={faFileInvoice} />
               <span>Bank statement reconciliation</span>
             </button>
@@ -2222,19 +2228,6 @@ function TransactionsView() {
         }}
         onSuccess={handleReconciliationSuccess}
       />
-
-      {selectedClient?.id && (
-        <ReconciliationWizard
-          isOpen={showBankReconWizard}
-          onClose={() => {
-            setShowBankReconWizard(false);
-            if (selectedClient?.id) {
-              setIsRefreshing(true);
-            }
-          }}
-          clientId={selectedClient.id}
-        />
-      )}
 
       {/* Global Notification Modal - renders at root level to avoid z-index issues */}
       <NotificationModal

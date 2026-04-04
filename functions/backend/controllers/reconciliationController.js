@@ -8,6 +8,11 @@ import {
   runMatchingAlgorithm,
   attachAccountForMatching
 } from '../services/reconciliationMatcher.js';
+import {
+  buildSpeiFeeFixUpdate,
+  buildRoundingFixUpdate,
+  applyTransactionAutoFix
+} from '../services/reconciliationAutoFixService.js';
 import { generateAndUploadReconciliationReport } from '../services/reconciliationReportService.js';
 const TOLERANCE = 0.01;
 
@@ -148,6 +153,7 @@ export async function createSession(clientId, data, user) {
     bankPdfUrl: null,
     bankFileUrl: null,
     reconciliationReportUrl: null,
+    reconciliationExclusions: [],
     created: now,
     updated: now,
     createdBy: user?.uid || user?.email || 'unknown'
@@ -172,7 +178,8 @@ export async function getSession(clientId, sessionId, options = {}) {
     ...base,
     stats: {
       bankRowCount: bankSnap.data().count,
-      normalizedRowCount: normSnap.data().count
+      normalizedRowCount: normSnap.data().count,
+      ...(base.matchStats && typeof base.matchStats === 'object' ? base.matchStats : {})
     }
   };
 
@@ -358,6 +365,34 @@ export async function runMatch(clientId, sessionId) {
     bankFormat: session.bankFormat || null
   });
 
+  const normById = Object.fromEntries(normalizedRows.map((r) => [r.id, r]));
+
+  /**
+   * Auto-fix SAMS cash + allocations for rounding / SPEI (see reconciliationAutoFixService).
+   * `clearedDate` is still set only on Accept — here we only align txn.amount with the bank.
+   * A transaction is "consumed" for matching by being in matchMap; clearedDate locks edits later.
+   */
+  for (const m of result.matches) {
+    if (!m.autoFix) continue;
+    const nr = normById[m.normalizedRowId];
+    if (!nr) throw new Error(`Normalized row ${m.normalizedRowId} missing for auto-fix`);
+    const tref = db.doc(`clients/${clientId}/transactions/${m.transactionId}`);
+    const tdoc = await tref.get();
+    if (!tdoc.exists) throw new Error(`Transaction ${m.transactionId} not found for auto-fix`);
+    const txn = tdoc.data();
+    let patch;
+    if (m.autoFix === 'spei-fee') {
+      patch = await buildSpeiFeeFixUpdate(clientId, txn, nr.amount);
+    } else if (m.autoFix === 'rounding') {
+      const delta = m.fixData?.deltaCentavos ?? m.roundingDeltaCentavos;
+      patch = await buildRoundingFixUpdate(clientId, txn, nr.amount, delta);
+    } else {
+      continue;
+    }
+    const applied = await applyTransactionAutoFix(clientId, m.transactionId, patch);
+    if (!applied.ok) throw new Error(applied.error || 'Auto-fix failed');
+  }
+
   const matchMap = result.matches.map((m) => ({
     transactionId: m.transactionId,
     normalizedRowId: m.normalizedRowId,
@@ -365,18 +400,33 @@ export async function runMatch(clientId, sessionId) {
     justification: null,
     relatedTransactionIds: m.feeGroupTransactionIds?.slice(1) || m.relatedTransactionIds || [],
     ...(m.speiFeeGapCentavos != null ? { speiFeeGapCentavos: m.speiFeeGapCentavos } : {}),
-    ...(m.roundingDeltaCentavos != null ? { roundingDeltaCentavos: m.roundingDeltaCentavos } : {})
+    ...(m.roundingDeltaCentavos != null ? { roundingDeltaCentavos: m.roundingDeltaCentavos } : {}),
+    ...(m.autoFix ? { autoFix: m.autoFix, samsAutoFixApplied: true } : {})
   }));
+
+  const matchStats = {
+    exact: result.stats.exact,
+    dateDrift: result.stats.dateDrift,
+    roundingExact: result.stats.roundingExact,
+    roundingDrift: result.stats.roundingDrift,
+    speiFeeGapExact: result.stats.speiFeeGapExact,
+    speiFeeGapDrift: result.stats.speiFeeGapDrift,
+    feeAdjusted: result.stats.feeAdjusted,
+    matchedCount: result.matches.length,
+    unmatchedBankCount: result.unmatchedBankRows.length,
+    unmatchedTxnCount: result.unmatchedTransactions.length
+  };
 
   await ref.update({
     matchMap,
+    matchStats,
     unmatchedBankRows: result.unmatchedBankRows,
     unmatchedTransactions: result.unmatchedTransactions,
     status: 'reviewing',
     updated: admin.firestore.Timestamp.now()
   });
 
-  return { success: true, ...result, matchMap };
+  return { success: true, ...result, matchMap, matchStats };
 }
 
 export async function resolveException(clientId, sessionId, body) {
@@ -427,6 +477,134 @@ export async function resolveException(clientId, sessionId, body) {
   return { success: true, matchMap, unmatchedBankRows, unmatchedTransactions };
 }
 
+/**
+ * Manual pair — same as resolveException manual-match (normalizedRowId + transactionId).
+ * Does not set clearedDate; session matchMap only until Accept.
+ */
+export async function manualPairSession(clientId, sessionId, body) {
+  return resolveException(clientId, sessionId, {
+    action: 'manual-match',
+    normalizedRowId: body.normalizedRowId,
+    transactionId: body.transactionId,
+    justification: body.justification || null
+  });
+}
+
+/**
+ * Exclude a bank line or SAMS txn from this session with a stored reason (no window.prompt).
+ */
+export async function excludeFromReconciliation(clientId, sessionId, body) {
+  const db = await getDb();
+  const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error('Reconciliation session not found');
+  const session = doc.data();
+  if (session.accepted) throw new Error('Session already accepted');
+
+  const { type, normalizedRowId, transactionId, reason } = body || {};
+  const r = String(reason || '').trim();
+  if (!r) throw new Error('reason is required');
+
+  const exclusions = [...(session.reconciliationExclusions || [])];
+  let unmatchedBankRows = [...(session.unmatchedBankRows || [])];
+  let unmatchedTransactions = [...(session.unmatchedTransactions || [])];
+
+  if (type === 'bank') {
+    if (!normalizedRowId) throw new Error('normalizedRowId required for bank exclusion');
+    exclusions.push({ kind: 'bank', id: normalizedRowId, reason: r, at: new Date().toISOString() });
+    unmatchedBankRows = unmatchedBankRows.filter((id) => id !== normalizedRowId);
+  } else if (type === 'sams') {
+    if (!transactionId) throw new Error('transactionId required for SAMS exclusion');
+    exclusions.push({ kind: 'sams', id: transactionId, reason: r, at: new Date().toISOString() });
+    unmatchedTransactions = unmatchedTransactions.filter((id) => id !== transactionId);
+  } else {
+    throw new Error('type must be "bank" or "sams"');
+  }
+
+  await ref.update({
+    reconciliationExclusions: exclusions,
+    unmatchedBankRows,
+    unmatchedTransactions,
+    updated: admin.firestore.Timestamp.now()
+  });
+
+  return {
+    success: true,
+    reconciliationExclusions: exclusions,
+    unmatchedBankRows,
+    unmatchedTransactions
+  };
+}
+
+/**
+ * Workbench payload: unmatched bank rows (read-only), uncleared SAMS pool (statement window ±7 days),
+ * matched items, session stats. Single source of truth remains the session document.
+ */
+export async function getWorkbench(clientId, sessionId) {
+  const session = await getSession(clientId, sessionId, { includeRows: true });
+  if (!session) throw new Error('Reconciliation session not found');
+
+  const normList = session.normalizedRows || [];
+  const normById = Object.fromEntries(normList.map((row) => [row.id, row]));
+
+  const unmatchedBankDetails = (session.unmatchedBankRows || []).map((id) => {
+    const row = normById[id];
+    return row ? { ...row } : { id, missing: true };
+  });
+
+  const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));
+  const excludedSamsIds = new Set(
+    (session.reconciliationExclusions || [])
+      .filter((e) => e.kind === 'sams')
+      .map((e) => e.id)
+  );
+
+  const pool = await fetchTransactionsForMatching(
+    clientId,
+    session.accountId,
+    session.startDate,
+    session.endDate
+  );
+
+  const availableSamsTransactions = pool.filter((t) => {
+    if (t.clearedDate) return false;
+    if (matchedTxnIds.has(t.id)) return false;
+    if (excludedSamsIds.has(t.id)) return false;
+    return true;
+  });
+
+  const bankUnmatchedTotalCentavos = unmatchedBankDetails.reduce((sum, row) => {
+    if (row.missing || row.amount == null) return sum;
+    return sum + (typeof row.amount === 'number' ? row.amount : 0);
+  }, 0);
+
+  const samsAvailableTotalCentavos = availableSamsTransactions.reduce(
+    (sum, t) => sum + Math.round(t.amount || 0),
+    0
+  );
+
+  return {
+    success: true,
+    session,
+    unmatchedBankDetails,
+    availableSamsTransactions,
+    matchedItems: session.matchMap || [],
+    reconciliationExclusions: session.reconciliationExclusions || [],
+    stats: {
+      ...(session.matchStats || {}),
+      bankUnmatchedTotalCentavos,
+      samsAvailableTotalCentavos,
+      unmatchedBankLineCount: unmatchedBankDetails.length,
+      availableSamsCount: availableSamsTransactions.length
+    }
+  };
+}
+
+/**
+ * Sets `clearedDate` (ISO YYYY-MM-DD = session end) on every transaction in matchMap.
+ * There is no separate “cleared flag”: uncleared = clearedDate absent; cleared = present.
+ * Matching consumes rows for pairing only; this call applies the bank recon lock for the period.
+ */
 export async function acceptSession(clientId, sessionId, user, options = {}) {
   const db = await getDb();
   const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
@@ -437,8 +615,12 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
 
   const unmatchedB = session.unmatchedBankRows || [];
   const unmatchedT = session.unmatchedTransactions || [];
-  if (unmatchedB.length > 0 || unmatchedT.length > 0) {
-    throw new Error('Resolve all unmatched bank rows and SAMS transactions before accepting');
+  // Bank-first (check-register) semantics: every imported bank line must be paired or explained.
+  // Unmatched SAMS rows are allowed — they are register activity not on this statement; they stay uncleared.
+  if (unmatchedB.length > 0) {
+    throw new Error(
+      'Every bank statement line must be matched before accepting (unmatched SAMS lines can remain)'
+    );
   }
 
   const diff = Number(session.differenceAmount || 0);

@@ -68,11 +68,14 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
   return (
     <div>
       <p className="account-reconciliation-instructions">
-        Every unmatched bank line must be paired with a SAMS transaction, or justified.
+        <strong>Bank-first (check register):</strong> each imported bank line must be paired with a SAMS
+        transaction (like ticking a line in Quicken). That marks agreement with the statement for that cash
+        movement. SAMS-only items below do <em>not</em> block acceptance—they stay uncleared if they are not on
+        this statement.
       </p>
       {error && <div className="account-reconciliation-error">{error}</div>}
 
-      <h4>Unmatched bank (normalized)</h4>
+      <h4>Unmatched bank lines (required — clear these)</h4>
       {unmatchedBank.length === 0 && <p className="account-reconciliation-instructions">None</p>}
       {unmatchedBank.map((nid) => {
         const nr = normById[nid];
@@ -91,7 +94,8 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
               <option value="">Select transaction…</option>
               {txnOptions.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.id} · {t.date?.display || t.date} · {t.categoryName || ''} · {t.amount}
+                  {t.id} · {t.date?.display || t.date} · {t.categoryName || ''} ·{' '}
+                  {formatCurrency(t.amount || 0, 'MXN')}
                 </option>
               ))}
             </select>
@@ -108,14 +112,24 @@ export default function ExceptionResolver({ clientId, session, transactions, onR
         );
       })}
 
-      <h4>Unmatched SAMS transactions</h4>
+      <h4>Unmatched SAMS transactions (optional)</h4>
+      {unmatchedTxn.length > 0 && (
+        <p className="account-reconciliation-instructions">
+          These did not match any bank line in this file. You can leave them open for a later statement, or
+          use <strong>Justify</strong> with a note if you want them marked cleared when you accept (e.g. timing
+          difference).
+        </p>
+      )}
       {unmatchedTxn.length === 0 && <p className="account-reconciliation-instructions">None</p>}
       {unmatchedTxn.map((tid) => {
         const t = txnById[tid];
         return (
           <div key={tid} className="recon-exception-row">
             <span>
-              {tid} {t ? `· ${t.date?.display || ''} · ${t.amount}` : ''}
+              {tid}{' '}
+              {t
+                ? `· ${t.date?.display || ''} · ${formatCurrency(t.amount || 0, 'MXN')}`
+                : ''}
             </span>
             <button
               type="button"
