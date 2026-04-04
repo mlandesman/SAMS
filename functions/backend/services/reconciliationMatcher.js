@@ -303,9 +303,11 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
         if (txn.accountId !== nr._accountId) continue;
         if (!typeMatchesBank(nr.type, txn)) continue;
         const tc = txnMatchCentavos(txn);
-        const bankCentavos = nr.amount;
+        // Bank line = principal + 580¢ (fee+IVA); SAMS may still show principal only.
+        // Do NOT use |bank − SAMS|: that also matches bank = principal − 580¢, which is not SPEI auto-fix.
+        const bankCentavos = Math.abs(Math.round(nr.amount || 0));
         const absTxn = Math.abs(tc);
-        if (Math.abs(bankCentavos - absTxn) !== scotiabankSpeiGap) continue;
+        if (bankCentavos - absTxn !== scotiabankSpeiGap) continue;
         const dd = daysBetween(nr.date, txn);
         if (dd > maxDays) continue;
         matches.push({

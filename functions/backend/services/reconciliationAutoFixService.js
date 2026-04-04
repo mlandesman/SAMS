@@ -46,8 +46,11 @@ export async function buildSpeiFeeFixUpdate(clientId, txn, bankCentavos) {
     throw new Error('SPEI auto-fix applies to expense (negative amount) only');
   }
   const principalAbs = Math.abs(Math.round(txn.amount || 0));
-  if (principalAbs + GAP_CENTAVOS !== bankCentavos) {
-    throw new Error('SPEI fix: bank amount must equal |SAMS| + 580¢');
+  const bankMag = Math.abs(Math.round(bankCentavos || 0));
+  if (principalAbs + GAP_CENTAVOS !== bankMag) {
+    throw new Error(
+      `SPEI fix: bank amount must equal |SAMS| + ${GAP_CENTAVOS}¢ (bank=${bankMag}¢ |SAMS|=${principalAbs}¢)`
+    );
   }
 
   if (txn.allocations?.length > 0) {
