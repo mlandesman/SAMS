@@ -693,9 +693,9 @@ export async function updateUser(req, res) {
           error: 'Password reset is not available for the system scheduler account (internal use only).'
         });
       }
-      if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
+      if (canLogin === true && currentUserData.canLogin === false) {
         return res.status(400).json({
-          error: 'Login cannot be toggled for the system scheduler account (internal use only).'
+          error: 'Interactive login cannot be enabled for the system scheduler account (internal use only).'
         });
       }
     }
@@ -830,7 +830,19 @@ export async function updateUser(req, res) {
 
     // Handle canLogin toggle (enable/disable Firebase Auth)
     if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
-      if (canLogin) {
+      if (isSystemSchedulerAccount(userId, currentUserData) && canLogin === false) {
+        // Firestore-only: show "cannot login" in admin UI. Do NOT disable Firebase Auth —
+        // internalApiClient uses createCustomToken + signInWithCustomToken for this UID.
+        updateData.canLogin = false;
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.system_scheduler_canlogin_false',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: 'System scheduler marked canLogin=false (Firestore only)',
+          notes: `Firestore canLogin cleared by ${updatingUser.email}; Auth user left enabled for scheduled jobs`
+        });
+      } else if (canLogin) {
         // Promoting contact to user - enable Auth and send password reset
         await admin.auth().updateUser(userId, { disabled: false });
         
@@ -860,7 +872,7 @@ export async function updateUser(req, res) {
           friendlyName: `${currentUserData.name} promoted to login user`,
           notes: `Contact promoted to login user by ${updatingUser.email}`
         });
-      } else {
+      } else if (!isSystemSchedulerAccount(userId, currentUserData)) {
         // Demoting user to contact - disable Auth
         await admin.auth().updateUser(userId, { disabled: true });
         updateData.canLogin = false;
