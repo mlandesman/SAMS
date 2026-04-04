@@ -26,6 +26,16 @@ function generateSecurePassword() {
   return password;
 }
 
+const SYSTEM_SCHEDULER_UID = 'system-scheduler';
+
+/** Synthetic Firebase user used by scheduled jobs (internalApiClient); not a person — no temp-password emails. */
+function isSystemSchedulerAccount(userId, userData) {
+  if (userId === SYSTEM_SCHEDULER_UID) return true;
+  if (userData?.isSystemAccount === true) return true;
+  const em = (userData?.email || '').trim().toLowerCase();
+  return em === 'system@sams.sandyland.com.mx';
+}
+
 /**
  * Add person to unit's arrays based on their role
  * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
@@ -677,6 +687,19 @@ export async function updateUser(req, res) {
 
     const currentUserData = userDoc.data();
 
+    if (isSystemSchedulerAccount(userId, currentUserData)) {
+      if (resetPassword) {
+        return res.status(400).json({
+          error: 'Password reset is not available for the system scheduler account (internal use only).'
+        });
+      }
+      if (canLogin === true && currentUserData.canLogin === false) {
+        return res.status(400).json({
+          error: 'Interactive login cannot be enabled for the system scheduler account (internal use only).'
+        });
+      }
+    }
+
     // Users can update their own basic profile
     if (userId === updatingUser.uid) {
       // Allow self-update of basic fields only
@@ -807,7 +830,19 @@ export async function updateUser(req, res) {
 
     // Handle canLogin toggle (enable/disable Firebase Auth)
     if (canLogin !== undefined && canLogin !== currentUserData.canLogin) {
-      if (canLogin) {
+      if (isSystemSchedulerAccount(userId, currentUserData) && canLogin === false) {
+        // Firestore-only: show "cannot login" in admin UI. Do NOT disable Firebase Auth —
+        // internalApiClient uses createCustomToken + signInWithCustomToken for this UID.
+        updateData.canLogin = false;
+        await writeAuditLog({
+          module: 'user_management',
+          action: 'user.system_scheduler_canlogin_false',
+          parentPath: '/users',
+          docId: userId,
+          friendlyName: 'System scheduler marked canLogin=false (Firestore only)',
+          notes: `Firestore canLogin cleared by ${updatingUser.email}; Auth user left enabled for scheduled jobs`
+        });
+      } else if (canLogin) {
         // Promoting contact to user - enable Auth and send password reset
         await admin.auth().updateUser(userId, { disabled: false });
         
@@ -837,7 +872,7 @@ export async function updateUser(req, res) {
           friendlyName: `${currentUserData.name} promoted to login user`,
           notes: `Contact promoted to login user by ${updatingUser.email}`
         });
-      } else {
+      } else if (!isSystemSchedulerAccount(userId, currentUserData)) {
         // Demoting user to contact - disable Auth
         await admin.auth().updateUser(userId, { disabled: true });
         updateData.canLogin = false;
