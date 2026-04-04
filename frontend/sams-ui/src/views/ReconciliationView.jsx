@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileInvoice, faLink, faBan, faEye, faEdit } from '@fortawesome/free-solid-svg-icons';
@@ -66,14 +66,24 @@ export default function ReconciliationView() {
   const [reportUrl, setReportUrl] = useState(null);
 
   const canUse = isAdmin(samsUser, clientId);
+  const prevClientIdRef = useRef(undefined);
 
   useEffect(() => {
+    if (
+      prevClientIdRef.current !== undefined &&
+      clientId !== undefined &&
+      prevClientIdRef.current !== clientId
+    ) {
+      setSearchParams({}, { replace: true });
+    }
+    prevClientIdRef.current = clientId;
+
     setWb(null);
     setReportUrl(null);
     setSelectedBankId(null);
     setSelectedTxnId(null);
     setError('');
-  }, [clientId]);
+  }, [clientId, setSearchParams]);
 
   useEffect(() => {
     if (!clientId || !canUse) return;

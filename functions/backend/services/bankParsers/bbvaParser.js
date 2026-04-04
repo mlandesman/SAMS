@@ -104,7 +104,6 @@ export async function parseBBVAXLSX(fileBuffer) {
   }
 
   const bankRows = [];
-  let rowIndex = headerRowNum;
 
   for (let r = headerRowNum + 1; r <= sheet.rowCount; r++) {
     const row = sheet.getRow(r);

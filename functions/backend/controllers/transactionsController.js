@@ -638,28 +638,26 @@ async function createTransaction(clientId, data, options = {}) {
 
 // Update a transaction
 async function updateTransaction(clientId, txnId, newData) {
+  // VALIDATION + guards outside main try so cleared/reconciled throws propagate (boolean contract for catch below)
+  const validation = validateDocument('transactions', newData, 'update');
+  if (!validation.isValid) {
+    logError('❌ Transaction update validation failed:', validation.errors);
+    return false;
+  }
+
+  const db = await getDb();
+  const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+  const originalDoc = await txnRef.get();
+  if (!originalDoc.exists) {
+    logError(`❌ Transaction ${txnId} not found for update`);
+    return false;
+  }
+  const originalData = originalDoc.data();
+  if (originalData.clearedDate) {
+    throw new Error('Cannot modify a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+  }
+
   try {
-    // VALIDATION: Check update data against schema - REJECT any legacy fields
-    const validation = validateDocument('transactions', newData, 'update');
-    if (!validation.isValid) {
-      logError('❌ Transaction update validation failed:', validation.errors);
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-    
-    const db = await getDb();
-    const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
-    
-    // Get the original transaction
-    const originalDoc = await txnRef.get();
-    if (!originalDoc.exists) {
-      throw new Error(`Transaction ${txnId} not found`);
-    }
-    const originalData = originalDoc.data();
-    
-    if (originalData.clearedDate) {
-      throw new Error('Cannot modify a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
-    }
-    
     // Prepare update data with conversions (using validated data)
     const normalizedData = {
       ...validation.data
@@ -834,9 +832,6 @@ async function updateTransaction(clientId, txnId, newData) {
 
     return true;
   } catch (error) {
-    if (error?.message?.includes('cleared/reconciled')) {
-      throw error;
-    }
     logError('❌ Error updating transaction:', error);
     return false;
   }
@@ -852,23 +847,20 @@ async function deleteTransaction(clientId, txnId) {
     transactionId: txnId,
     timestamp: getNow().toISOString()
   });
-  
+
+  const db = await getDb();
+  const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+  const originalDoc = await txnRef.get();
+  if (!originalDoc.exists) {
+    logDebug(`❌ [BACKEND] Transaction ${txnId} not found`);
+    return false;
+  }
+  const originalData = originalDoc.data();
+  if (originalData.clearedDate) {
+    throw new Error('Cannot delete a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+  }
+
   try {
-    const db = await getDb();
-    const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
-    
-    // Get the original transaction before deleting
-    const originalDoc = await txnRef.get();
-    if (!originalDoc.exists) {
-      logDebug(`❌ [BACKEND] Transaction ${txnId} not found`);
-      throw new Error(`Transaction ${txnId} not found`);
-    }
-    const originalData = originalDoc.data();
-    
-    if (originalData.clearedDate) {
-      throw new Error('Cannot delete a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
-    }
-    
     logDebug(`📄 [BACKEND] Transaction data:`, {
       id: txnId,
       category: originalData.category,
@@ -1517,9 +1509,6 @@ async function deleteTransaction(clientId, txnId) {
 
     return true;
   } catch (error) {
-    if (error?.message?.includes('cleared/reconciled')) {
-      throw error;
-    }
     logError('❌ Error deleting transaction:', error);
     return false;
   }
@@ -2102,19 +2091,21 @@ async function getTransactionDocuments(clientId, transactionId) {
  * Delete transaction with cascading document cleanup
  */
 async function deleteTransactionWithDocuments(clientId, transactionId) {
-  try {
-    const db = await getDb();
-    
-    // Get transaction with its document references
-    const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
-    const txnDoc = await txnRef.get();
+  const db = await getDb();
+  const txnRef = db.doc(`clients/${clientId}/transactions/${transactionId}`);
+  const txnDoc = await txnRef.get();
 
-    if (!txnDoc.exists) {
-      logWarn(`Transaction ${transactionId} not found`);
-      return false;
-    }
-    
-    const txnData = txnDoc.data();
+  if (!txnDoc.exists) {
+    logWarn(`Transaction ${transactionId} not found`);
+    return false;
+  }
+
+  const txnData = txnDoc.data();
+  if (txnData.clearedDate) {
+    throw new Error('Cannot delete a cleared/reconciled transaction. It was accepted in a bank reconciliation.');
+  }
+
+  try {
     // Handle documents field - it could be an array or object, ensure it's always an array
     let documentsFromTxn = txnData.documents || [];
     if (!Array.isArray(documentsFromTxn)) {
@@ -2185,11 +2176,7 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
     
     // Now delete the transaction using the existing deleteTransaction function
     return await deleteTransaction(clientId, transactionId);
-    
   } catch (error) {
-    if (error?.message?.includes('cleared/reconciled')) {
-      throw error;
-    }
     logError('❌ Error deleting transaction with documents:', error);
     return false;
   }
