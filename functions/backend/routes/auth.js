@@ -8,6 +8,7 @@ import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
+import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ router.post('/reset-password', async (req, res) => {
     const userId = userDoc.exists ? userDoc.id : userQuery.docs[0].id;
 
     // Internal scheduler account — not a login identity; do not send temp passwords
-    if (userRecord.uid === 'system-scheduler' || userData.isSystemAccount === true) {
+    if (isSystemSchedulerAccount(userRecord.uid, userData)) {
       return res.status(403).json({
         error: 'Password reset is not available for this account. Contact your administrator.'
       });

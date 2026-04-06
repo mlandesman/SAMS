@@ -10,6 +10,7 @@ import { getDb } from '../firebase.js';
 import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
+import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
@@ -24,16 +25,6 @@ function generateSecurePassword() {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
-}
-
-const SYSTEM_SCHEDULER_UID = 'system-scheduler';
-
-/** Synthetic Firebase user used by scheduled jobs (internalApiClient); not a person — no temp-password emails. */
-function isSystemSchedulerAccount(userId, userData) {
-  if (userId === SYSTEM_SCHEDULER_UID) return true;
-  if (userData?.isSystemAccount === true) return true;
-  const em = (userData?.email || '').trim().toLowerCase();
-  return em === 'system@sams.sandyland.com.mx';
 }
 
 /**
