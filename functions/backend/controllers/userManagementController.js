@@ -693,7 +693,7 @@ export async function updateUser(req, res) {
           error: 'Password reset is not available for the system scheduler account (internal use only).'
         });
       }
-      if (canLogin === true && currentUserData.canLogin === false) {
+      if (canLogin === true) {
         return res.status(400).json({
           error: 'Interactive login cannot be enabled for the system scheduler account (internal use only).'
         });
