@@ -68,6 +68,13 @@ router.post('/reset-password', async (req, res) => {
     const userData = userDoc.exists ? userDoc.data() : userQuery.docs[0].data();
     const userId = userDoc.exists ? userDoc.id : userQuery.docs[0].id;
 
+    // Internal scheduler account — not a login identity; do not send temp passwords
+    if (userRecord.uid === 'system-scheduler' || userData.isSystemAccount === true) {
+      return res.status(403).json({
+        error: 'Password reset is not available for this account. Contact your administrator.'
+      });
+    }
+
     if (userData.isActive === false || userData.canLogin === false) {
       return res.status(403).json({ error: 'This account has been deactivated. Please contact your administrator.' });
     }
