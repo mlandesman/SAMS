@@ -18,6 +18,11 @@ import {
 import { getMexicoDateString } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
+
+/** Normalized bank rows and workbench SAMS txns use integer centavos (Firestore storage). Shared formatCurrency divides by 100. */
+function formatWorkbenchCentavos(centavos) {
+  return formatCurrency(Math.round(Number(centavos) || 0), 'MXN');
+}
 import { isAdmin } from '../utils/userRoles';
 import './ReconciliationView.css';
 
@@ -409,7 +414,7 @@ export default function ReconciliationView() {
                           </td>
                           <td>{row.date || '—'}</td>
                           <td>{row.type || '—'}</td>
-                          <td className="num">{formatCurrency(row.amount || 0, 'MXN')}</td>
+                          <td className="num">{formatWorkbenchCentavos(row.amount)}</td>
                           <td>{row.description || '—'}</td>
                           <td>
                             <button
@@ -484,7 +489,7 @@ export default function ReconciliationView() {
                           </td>
                           <td>{t.date?.display || t.date?.unambiguous_long_date || '—'}</td>
                           <td>{t.type || '—'}</td>
-                          <td className="num">{formatCurrency(t.amount || 0, 'MXN')}</td>
+                          <td className="num">{formatWorkbenchCentavos(t.amount)}</td>
                           <td>{t.categoryName || t.category || '—'}</td>
                           <td className="recon-actions-cell">
                             <button

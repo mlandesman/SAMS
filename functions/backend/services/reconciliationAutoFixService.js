@@ -11,6 +11,9 @@
 
 import admin from 'firebase-admin';
 import { getDb } from '../firebase.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
+import { updateTransaction } from '../controllers/transactionsController.js';
+import { writeAuditLog } from '../utils/auditLogger.js';
 
 const GAP_CENTAVOS = 580;
 const COMMISSION_CENTAVOS = 500;
@@ -23,6 +26,13 @@ const BANK_FEE_CATEGORY_NAMES = {
 
 /** Rounding variance line — match a client category name when possible */
 const ROUNDING_ADJUSTMENT_CATEGORY_NAME = 'Bank: Adjustments';
+
+/**
+ * Same explanation on fee/adjustment allocation rows and on the supplemental audit log after
+ * `updateTransaction` (the CRUD path already writes a generic "Updated transaction record" entry).
+ */
+const RECON_AUTOFIX_AUDIT_EXPLANATION =
+  'Reconciliation auto-fix: SAMS cash aligned to bank (SPEI fee or rounding); account balance adjusted via standard transaction update.';
 
 async function resolveCategoryId(clientId, categoryName) {
   if (!categoryName) return null;
@@ -77,13 +87,13 @@ export async function buildSpeiFeeFixUpdate(clientId, txn, bankCentavos) {
       categoryId: commissionCat,
       categoryName: BANK_FEE_CATEGORY_NAMES.commission,
       amount: -COMMISSION_CENTAVOS,
-      notes: 'Bank transfer fee (reconciliation auto-fix)'
+      notes: `Bank transfer fee. ${RECON_AUTOFIX_AUDIT_EXPLANATION}`
     },
     {
       categoryId: ivaCat,
       categoryName: BANK_FEE_CATEGORY_NAMES.iva,
       amount: -IVA_CENTAVOS,
-      notes: 'Bank transfer IVA (reconciliation auto-fix)'
+      notes: `Bank transfer IVA. ${RECON_AUTOFIX_AUDIT_EXPLANATION}`
     }
   ];
 
@@ -138,7 +148,7 @@ export async function buildRoundingFixUpdate(clientId, txn, bankCentavos, deltaC
         categoryId: adjCat,
         categoryName: ROUNDING_ADJUSTMENT_CATEGORY_NAME,
         amount: -d,
-        notes: 'Centavo rounding vs bank (reconciliation auto-fix)'
+        notes: `Centavo rounding vs bank. ${RECON_AUTOFIX_AUDIT_EXPLANATION}`
       }
     ];
     const sumAlloc = allocations.reduce((s, a) => s + a.amount, 0);
@@ -171,7 +181,7 @@ export async function buildRoundingFixUpdate(clientId, txn, bankCentavos, deltaC
     categoryId: adjCat,
     categoryName: ROUNDING_ADJUSTMENT_CATEGORY_NAME,
     amount: -d,
-    notes: 'Centavo rounding vs bank (reconciliation auto-fix)'
+    notes: `Centavo rounding vs bank. ${RECON_AUTOFIX_AUDIT_EXPLANATION}`
   });
   const sumAlloc = existing.reduce((s, a) => s + a.amount, 0);
   if (sumAlloc !== newAmountCentavos) {
@@ -194,16 +204,61 @@ function appendReconNote(notes, suffix) {
 }
 
 /**
- * Apply updates in Firestore (transaction not cleared).
+ * Convert an internal auto-fix patch (amounts in integer centavos, Firestore `updated`) into the
+ * payload shape expected by `updateTransaction` (amounts in pesos; no `updated` — CRUD sets it).
+ */
+function autoFixPatchToUpdateBody(patch) {
+  const { updated: _skipUpdated, ...rest } = patch;
+  const body = { ...rest };
+  if (body.amount !== undefined) {
+    body.amount = centavosToPesos(Math.round(Number(body.amount)));
+  }
+  if (Array.isArray(body.allocations)) {
+    body.allocations = body.allocations.map((line) => {
+      const amt = line.amount;
+      const converted =
+        typeof amt === 'number' && amt !== 0 ? centavosToPesos(Math.round(amt)) : amt;
+      return { ...line, amount: converted };
+    });
+  }
+  return body;
+}
+
+/**
+ * Apply updates via `updateTransaction` so validation, account balance, and audit logging stay
+ * on the single CRUD path (no duplicate Firestore/balance logic).
+ *
  * @returns {{ ok: boolean, error?: string }}
  */
 export async function applyTransactionAutoFix(clientId, transactionId, patch) {
-  const db = await getDb();
-  const ref = db.doc(`clients/${clientId}/transactions/${transactionId}`);
-  const doc = await ref.get();
-  if (!doc.exists) return { ok: false, error: 'Transaction not found' };
-  const data = doc.data();
-  if (data.clearedDate) return { ok: false, error: 'Transaction already cleared' };
-  await ref.update(patch);
-  return { ok: true };
+  try {
+    const body = autoFixPatchToUpdateBody(patch);
+    const ok = await updateTransaction(clientId, transactionId, body);
+    if (!ok) {
+      return {
+        ok: false,
+        error: 'Transaction update failed (not found, validation error, or server error)'
+      };
+    }
+
+    const auditOk = await writeAuditLog({
+      module: 'transactions',
+      action: 'update',
+      parentPath: `clients/${clientId}/transactions/${transactionId}`,
+      docId: transactionId,
+      friendlyName: patch.categoryName || body.categoryName || 'Transaction',
+      notes: RECON_AUTOFIX_AUDIT_EXPLANATION
+    });
+    if (!auditOk) {
+      console.error('❌ Failed to write reconciliation auto-fix audit log.');
+    }
+
+    return { ok: true };
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (msg.includes('Cannot modify a cleared/reconciled transaction')) {
+      return { ok: false, error: 'Transaction already cleared' };
+    }
+    return { ok: false, error: msg };
+  }
 }
