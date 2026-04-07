@@ -838,7 +838,8 @@ async function updateTransaction(clientId, txnId, newData) {
 }
 
 // Delete a transaction with conditional HOA Dues cleanup
-async function deleteTransaction(clientId, txnId) {
+// Optional preloadedSnapshot: same-document snapshot from a caller that already read the txn (avoids duplicate get).
+async function deleteTransaction(clientId, txnId, preloadedSnapshot = null) {
   logDebug(`🚀 [BACKEND] deleteTransaction called: clientId=${clientId}, txnId=${txnId}`);
   
   // 🔍 BACKEND DELETE: Entry point logging
@@ -850,7 +851,11 @@ async function deleteTransaction(clientId, txnId) {
 
   const db = await getDb();
   const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
-  const originalDoc = await txnRef.get();
+  const usePreload =
+    preloadedSnapshot &&
+    preloadedSnapshot.exists &&
+    preloadedSnapshot.ref.path === txnRef.path;
+  const originalDoc = usePreload ? preloadedSnapshot : await txnRef.get();
   if (!originalDoc.exists) {
     logDebug(`❌ [BACKEND] Transaction ${txnId} not found`);
     return false;
@@ -2174,8 +2179,8 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
       await Promise.all(documentDeletionPromises);
     }
     
-    // Now delete the transaction using the existing deleteTransaction function
-    return await deleteTransaction(clientId, transactionId);
+    // Now delete the transaction using the existing deleteTransaction function (reuse txn read)
+    return await deleteTransaction(clientId, transactionId, txnDoc);
   } catch (error) {
     logError('❌ Error deleting transaction with documents:', error);
     return false;
