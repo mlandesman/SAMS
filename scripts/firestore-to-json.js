@@ -6,12 +6,12 @@ import path from 'path';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const useProd = args.includes('--prod');
 const firestorePathArg = args.find(arg => !arg.startsWith('--'));
 
-// Initialize Firebase with appropriate environment
-const env = useProd ? 'prod' : 'dev';
-const { db } = await initializeFirebase(env, { useADC: useProd });
+// Determine environment: --prod flag OR FIRESTORE_ENV=prod
+const useProd = args.includes('--prod') || process.env.FIRESTORE_ENV === 'prod';
+const env = useProd ? 'prod' : (process.env.FIRESTORE_ENV || 'dev');
+const { db } = await initializeFirebase(env, { useADC: useProd || process.env.USE_ADC === 'true' });
 
 if (useProd) {
   console.log('\x1b[31m🔴 Connected to PRODUCTION database (read-only)\x1b[0m\n');

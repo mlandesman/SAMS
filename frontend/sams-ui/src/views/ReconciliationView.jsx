@@ -436,7 +436,7 @@ export default function ReconciliationView() {
                 <p className="recon-hint">
                   Uncleared SAMS lines in this bank account — dates from{' '}
                   <strong>7 days before</strong> period start through <strong>7 days after</strong>{' '}
-                  period end (weekend/settlement lag). Select one to pair with the bank row.
+                  period end (same register window as Import &amp; Match). Select one to pair with the bank row.
                 </p>
                 <div className="recon-sams-actions">
                   <button

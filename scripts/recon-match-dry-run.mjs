@@ -7,22 +7,23 @@
  *   node scripts/recon-match-dry-run.mjs <path-to-scotia.csv> [clientId] [accountId] [--from=YYYY-MM-DD] [--report] [--full-report]
  *
  * --report (default content): **misses only** — summary match counts, then unmatched bank lines
- *   (with nearest SAMS among *remaining* unmatched txns), then unmatched SAMS detail. No duplicate
+ *   (nearest SAMS among *remaining* unmatched txns: **≤30 days** date shift and **≤100000¢** amount gap), then unmatched SAMS detail. No duplicate
  *   listings of matched rows across sections.
  * --full-report: legacy A–E listing (all bank rows, all SAMS pool, every match detail).
  *
  * Writes: ../test-results/recon_<misses|dry_run>_...
  *
- * Default --from=2025-05-01: wide window for extended Scotia exports; override as needed.
+ * Default --from=2025-07-01: AVII fiscal year start (May–Jun 2025 not in SAMS). Override with
+ * --from=YYYY-MM-DD for wider exports. Upper bound is always CSV / query window through latest bank date.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { DateTime } from 'luxon';
 import { centavosToPesos } from '../shared/utils/currencyUtils.js';
-import { getDb, toFirestoreTimestamp } from '../backend/firebase.js';
 import { parseScotiabankCSV } from '../backend/services/bankParsers/scotiabankParser.js';
 import { normalizeRowsForSession } from '../backend/services/reconciliationNormalizer.js';
+import { fetchTransactionsForMatching } from '../backend/services/reconciliationMatchingPool.js';
 import {
   runMatchingAlgorithm,
   attachAccountForMatching
@@ -31,29 +32,11 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_TEST_RESULTS = join(__dirname, '..', 'test-results');
 
-async function fetchTransactionsForMatching(clientId, accountId, startIso, endIso) {
-  const db = await getDb();
-  const start = DateTime.fromISO(startIso, { zone: 'America/Cancun' })
-    .minus({ days: 7 })
-    .startOf('day');
-  const end = DateTime.fromISO(endIso, { zone: 'America/Cancun' })
-    .plus({ days: 7 })
-    .endOf('day');
+/** Nearest-by-amount hints only include SAMS rows at most this many calendar days from the bank line. */
+const MAX_NEAREST_CANDIDATE_DAY_SHIFT = 30;
 
-  const snap = await db
-    .collection(`clients/${clientId}/transactions`)
-    .where('date', '>=', toFirestoreTimestamp(start.toJSDate()))
-    .where('date', '<=', toFirestoreTimestamp(end.toJSDate()))
-    .get();
-
-  const out = [];
-  snap.forEach((doc) => {
-    const d = doc.data();
-    if (d.accountId !== accountId) return;
-    out.push({ id: doc.id, ...d });
-  });
-  return out;
-}
+/** Max |bank − SAMS cash| in centavos for nearest-candidate hints (100000¢ = $1,000 MXN). */
+const MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF = 100000;
 
 function bankDateRange(bankRows) {
   let min = null;
@@ -107,13 +90,18 @@ function amountDiffBankVsTxn(nrType, bankCentavos, txnCentavos) {
   return Math.abs(txnCentavos - bankCentavos);
 }
 
-/** Top N SAMS rows by type+amount closeness. Pass only the txn pool you want (e.g. unmatched only). */
+/**
+ * Top N SAMS rows by type+amount closeness among txns within {@link MAX_NEAREST_CANDIDATE_DAY_SHIFT} days
+ * and {@link MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF} centavos of the bank line (same diff metric as matcher).
+ * Pass only the txn pool you want (e.g. unmatched only).
+ */
 function nearestSamsForBank(nr, txns, n = 5) {
   const scored = [];
   for (const t of txns) {
     if (!typeMatchesBank(nr.type, t)) continue;
     const tc = txnMatchCentavos(t);
     const diff = amountDiffBankVsTxn(nr.type, nr.amount, tc);
+    if (diff > MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF) continue;
     const dBank = nr.date;
     const dTxn = txnDateIsoCancun(t);
     const dayDiff =
@@ -122,6 +110,7 @@ function nearestSamsForBank(nr, txns, n = 5) {
             DateTime.fromISO(dBank).diff(DateTime.fromISO(dTxn), 'days').days
           )
         : 999;
+    if (dayDiff > MAX_NEAREST_CANDIDATE_DAY_SHIFT) continue;
     scored.push({ t, diff, dayDiff, tc });
   }
   scored.sort((a, b) => a.diff - b.diff || a.dayDiff - b.dayDiff);
@@ -130,7 +119,7 @@ function nearestSamsForBank(nr, txns, n = 5) {
 
 function parseArgs(argv) {
   const fromArg = argv.find((a) => a.startsWith('--from='));
-  const matchFrom = fromArg ? fromArg.replace(/^--from=/, '').trim() : '2025-05-01';
+  const matchFrom = fromArg ? fromArg.replace(/^--from=/, '').trim() : '2025-07-01';
   const positional = argv.slice(2).filter((a) => !a.startsWith('--'));
   const writeReport = argv.includes('--report');
   const fullReport = argv.includes('--full-report');
@@ -243,7 +232,9 @@ function formatReport({
     lines.push(``);
   }
 
-  lines.push(`## D — Unmatched bank rows (${unmatchedBankRows.length}) + nearest SAMS by amount (same sign rules as matcher)`);
+  lines.push(
+    `## D — Unmatched bank rows (${unmatchedBankRows.length}) + nearest SAMS by amount (same sign rules as matcher; candidates ≤${MAX_NEAREST_CANDIDATE_DAY_SHIFT} days and ≤${MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF}¢ / $${centavosToPesos(MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF).toFixed(2)} MXN apart)`
+  );
   lines.push(``);
   for (const nid of unmatchedBankRows.sort()) {
     const nr = normById[nid];
@@ -254,7 +245,9 @@ function formatReport({
     lines.push(``);
     const near = nearestSamsForBank(nr, uncleared, 5);
     if (near.length === 0) {
-      lines.push(`*No SAMS row with matching income/expense direction for this bank type.*`);
+      lines.push(
+        `*No SAMS row with matching direction within **${MAX_NEAREST_CANDIDATE_DAY_SHIFT}** days and **${MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF}¢** ($${centavosToPesos(MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF).toFixed(2)}) amount gap (or none with matching direction).*`
+      );
     } else {
       lines.push(`| rank | Δcentavos | days apart | SAMS id | SAMS ¢ | note |`);
       lines.push(`| ---: | ---: | ---: | --- | ---: | --- |`);
@@ -337,7 +330,7 @@ function formatMissesReport({
   lines.push(`## Unmatched bank lines (${unmatchedBankRows.length})`);
   lines.push(``);
   lines.push(
-    `Nearest SAMS candidates use **only transactions still unmatched** (so a row here is not “near” a txn already paired to another bank line).`
+    `Nearest SAMS candidates use **only transactions still unmatched** (so a row here is not “near” a txn already paired to another bank line). Only txns **≤${MAX_NEAREST_CANDIDATE_DAY_SHIFT} days** and **≤${MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF}¢** ($${centavosToPesos(MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF).toFixed(2)}) **|bank − SAMS|** from the bank line are considered.`
   );
   lines.push(``);
 
@@ -351,7 +344,7 @@ function formatMissesReport({
     const near = nearestSamsForBank(nr, unmatchedTxnList, 5);
     if (near.length === 0) {
       lines.push(
-        `*No candidate in the **unmatched** SAMS set with the same income/expense direction.*`
+        `*No candidate in the **unmatched** SAMS set with the same direction within **${MAX_NEAREST_CANDIDATE_DAY_SHIFT}** days and **${MAX_NEAREST_CANDIDATE_CENTAVOS_DIFF}¢** amount gap (or none with matching direction).*`
       );
     } else {
       lines.push(`| rank | Δcentavos | days apart | SAMS id | SAMS ¢ | note |`);
