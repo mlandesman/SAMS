@@ -303,7 +303,8 @@ This is an automated message. Please do not reply.
  * Send manual password notification email
  */
 export async function sendPasswordNotification({ email, name, password, clientName, role, createdBy }) {
-  console.log('📧 sendPasswordNotification called with:', { email, name, clientName, role, createdBy, passwordLength: password?.length });
+  const displayName = (name && String(name).trim()) || email || 'User';
+  console.log('📧 sendPasswordNotification called with:', { email, name: displayName, clientName, role, createdBy, passwordLength: password?.length });
   
   try {
     console.log('🔧 Creating Gmail transporter for password notification...');
@@ -333,7 +334,7 @@ export async function sendPasswordNotification({ email, name, password, clientNa
           </div>
           
           <div class="content">
-            <h2>Hi ${name},</h2>
+            <h2>Hi ${displayName},</h2>
             
             <p>Your account for the Sandyland Asset Management System (SAMS) has been created by <strong>${createdBy}</strong>.</p>
             
@@ -388,7 +389,7 @@ export async function sendPasswordNotification({ email, name, password, clientNa
     const textContent = `
 Welcome to Sandyland Asset Management System!
 
-Hi ${name},
+Hi ${displayName},
 
 Your SAMS account has been created by ${createdBy}.
 
