@@ -419,8 +419,30 @@ export async function runMatch(clientId, sessionId) {
     session.endDate
   );
 
+  /** Zero-centavo SAMS lines (credit-balance / non-cash usage) — exclude from matching and pool. */
+  const existingExcl = session.reconciliationExclusions || [];
+  const excludedSamsIds = new Set(
+    existingExcl.filter((e) => e.kind === 'sams').map((e) => String(e.id))
+  );
+  const zeroAutoExclusions = [];
+  for (const t of rawTxns) {
+    const cents = Math.round(Number(t.amount) || 0);
+    if (cents !== 0) continue;
+    const tid = String(t.id);
+    if (excludedSamsIds.has(tid)) continue;
+    excludedSamsIds.add(tid);
+    zeroAutoExclusions.push({
+      kind: 'sams',
+      id: tid,
+      reason: 'Zero amount — non-cash / credit balance usage (auto on match)',
+      at: getNow().toISOString()
+    });
+  }
+  const rawTxnsForMatch = rawTxns.filter((t) => Math.round(Number(t.amount) || 0) !== 0);
+  const reconciliationExclusions = [...existingExcl, ...zeroAutoExclusions];
+
   const withAccount = attachAccountForMatching(normalizedRowsInPeriod, session.accountId);
-  const result = runMatchingAlgorithm(withAccount, rawTxns, {
+  const result = runMatchingAlgorithm(withAccount, rawTxnsForMatch, {
     bankFormat: session.bankFormat || null
   });
 
@@ -481,11 +503,18 @@ export async function runMatch(clientId, sessionId) {
     matchStats,
     unmatchedBankRows: result.unmatchedBankRows,
     unmatchedTransactions: result.unmatchedTransactions,
+    reconciliationExclusions,
     status: 'reviewing',
     updated: admin.firestore.Timestamp.now()
   });
 
-  return { success: true, ...result, matchMap, matchStats };
+  return {
+    success: true,
+    ...result,
+    matchMap,
+    matchStats,
+    zeroAmountAutoExcluded: zeroAutoExclusions.length
+  };
 }
 
 export async function resolveException(clientId, sessionId, body) {

@@ -325,6 +325,16 @@
   font-weight: 400;
 }
 
+.recon-match-totals-delta {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.recon-match-totals-delta-hint {
+  font-weight: 400;
+  color: #475569;
+}
+
 .recon-balance-panel {
   margin-top: 1rem;
   padding: 0.85rem 1rem;

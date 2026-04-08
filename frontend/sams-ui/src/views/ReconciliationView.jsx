@@ -39,6 +39,36 @@ function formatWorkbenchPesos(pesos) {
   return formatCurrency(Math.round(n * 100), 'MXN');
 }
 
+/** YYYY-MM-DD for sorting bank normalized rows. */
+function reconBankRowSortKey(row) {
+  const d = String(row?.date ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : String(row?.date ?? '');
+}
+
+/** YYYY-MM-DD for sorting workbench SAMS txns (Firestore date shapes). */
+function reconTxnSortKey(t) {
+  const d = t?.date;
+  if (d == null) return '';
+  if (typeof d === 'object') {
+    if (typeof d.toDate === 'function') {
+      const dt = d.toDate();
+      return Number.isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10);
+    }
+    const sec = d.seconds ?? d._seconds;
+    if (sec != null) {
+      const dt = new Date(sec * 1000);
+      return Number.isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10);
+    }
+  }
+  if (typeof d === 'string' || typeof d === 'number') {
+    const dt = new Date(d);
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+    const s = String(d).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : String(d);
+  }
+  return '';
+}
+
 /** Workbench pool txns are raw Firestore shapes; list APIs use enriched date objects. */
 function formatWorkbenchSamsDate(t) {
   const d = t?.date;
@@ -205,6 +235,24 @@ export default function ReconciliationView() {
     return m;
   }, [wb]);
 
+  const sortedUnmatchedBankDetails = useMemo(() => {
+    const rows = [...(wb?.unmatchedBankDetails || [])];
+    rows.sort(
+      (a, b) =>
+        reconBankRowSortKey(a).localeCompare(reconBankRowSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    return rows;
+  }, [wb?.unmatchedBankDetails]);
+
+  const sortedAvailableSamsTransactions = useMemo(() => {
+    const rows = [...(wb?.availableSamsTransactions || [])];
+    rows.sort(
+      (a, b) =>
+        reconTxnSortKey(a).localeCompare(reconTxnSortKey(b)) || String(a.id).localeCompare(String(b.id))
+    );
+    return rows;
+  }, [wb?.availableSamsTransactions]);
+
   const selectedBankTypes = useMemo(
     () => [...new Set(selectedBankIds.map((id) => bankRowById[id]?.type).filter(Boolean))],
     [selectedBankIds, bankRowById]
@@ -252,6 +300,17 @@ export default function ReconciliationView() {
     bankTypeUnified &&
     txnTypesOk &&
     bankSumCentavos === txnSumComparable;
+
+  const selectionGapCentavos = useMemo(() => {
+    if (!bankTypeUnified || selectedBankIds.length === 0 || selectedTxnIds.length === 0) return null;
+    return bankSumCentavos - txnSumComparable;
+  }, [
+    bankTypeUnified,
+    selectedBankIds.length,
+    selectedTxnIds.length,
+    bankSumCentavos,
+    txnSumComparable
+  ]);
 
   const toggleBankRow = useCallback((id) => {
     setSelectedBankIds((prev) =>
@@ -548,7 +607,7 @@ export default function ReconciliationView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(wb.unmatchedBankDetails || []).map((row) => (
+                      {sortedUnmatchedBankDetails.map((row) => (
                         <tr
                           key={row.id}
                           className={selectedBankIds.includes(row.id) ? 'selected' : ''}
@@ -594,10 +653,10 @@ export default function ReconciliationView() {
                 <p className="recon-hint">
                   Uncleared SAMS lines in this bank account — dates from{' '}
                   <strong>7 days before</strong> period start through <strong>7 days after</strong>{' '}
-                  period end (same register window as Import &amp; Match). For lines with{' '}
-                  <strong>no bank match</strong> (e.g. $0.00 or off-statement), select{' '}
-                  <strong>one</strong> row and click <strong>Justify selected</strong>, or use the{' '}
-                  <strong>clipboard</strong> icon in the row.
+                  period end (same register window as Import &amp; Match). On each <strong>Import &amp; Match</strong>,{' '}
+                  SAMS lines with <strong>$0.00</strong> are auto-excluded (non-cash / credit-balance usage). For other
+                  lines with <strong>no bank match</strong>, select <strong>one</strong> row and click{' '}
+                  <strong>Justify selected</strong>, or use the <strong>clipboard</strong> icon in the row.
                 </p>
                 <div className="recon-sams-actions">
                   <button
@@ -643,13 +702,49 @@ export default function ReconciliationView() {
                   {bankTypeUnified && (
                     <span className="recon-match-totals-meta"> ({bankTypeUnified})</span>
                   )}
+                  {selectionGapCentavos !== null && (
+                    <span className="recon-match-totals-delta">
+                      {' · '}
+                      Difference:{' '}
+                      <strong>{formatWorkbenchCentavos(Math.abs(selectionGapCentavos))}</strong>
+                      {selectionGapCentavos > 0 && (
+                        <span className="recon-match-totals-delta-hint"> (bank total higher)</span>
+                      )}
+                      {selectionGapCentavos < 0 && (
+                        <span className="recon-match-totals-delta-hint"> (SAMS total higher)</span>
+                      )}
+                      {selectionGapCentavos === 0 && (
+                        <span className="recon-match-totals-delta-hint"> (totals match)</span>
+                      )}
+                    </span>
+                  )}
                   {selectedBankIds.length > 0 &&
                     selectedTxnIds.length > 0 &&
-                    !canMatchSelection && (
+                    bankTypeUnified &&
+                    !txnTypesOk && (
                       <span className="recon-match-totals-warn">
                         {' '}
-                        — same bank type (all CARGO or all ABONO), compatible SAMS types, and matching totals
-                        required.
+                        — one or more selected SAMS rows are not valid for {bankTypeUnified}; comparable total only
+                        includes valid rows.
+                      </span>
+                    )}
+                  {selectedBankIds.length > 0 &&
+                    selectedTxnIds.length > 0 &&
+                    !bankTypeUnified && (
+                      <span className="recon-match-totals-warn">
+                        {' '}
+                        — select bank lines of a single type (all CARGO or all ABONO) to compare totals.
+                      </span>
+                    )}
+                  {selectedBankIds.length > 0 &&
+                    selectedTxnIds.length > 0 &&
+                    bankTypeUnified &&
+                    txnTypesOk &&
+                    !canMatchSelection &&
+                    selectionGapCentavos !== 0 && (
+                      <span className="recon-match-totals-warn">
+                        {' '}
+                        — adjust selection until Difference is $0.00 to enable Match.
                       </span>
                     )}
                 </p>
@@ -666,7 +761,7 @@ export default function ReconciliationView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(wb.availableSamsTransactions || []).map((t) => (
+                      {sortedAvailableSamsTransactions.map((t) => (
                         <tr
                           key={t.id}
                           className={selectedTxnIds.includes(t.id) ? 'selected' : ''}
