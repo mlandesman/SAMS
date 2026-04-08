@@ -234,8 +234,7 @@ export default function ReconciliationView() {
         return s;
       }
       const tc = Math.round(Number(t.amount) || 0);
-      const c = bankTypeUnified === 'CARGO' ? Math.abs(tc) : tc;
-      return s + c;
+      return s + Math.abs(tc);
     }, 0);
     return { txnSumComparable: sum, txnTypesOk: ok && selectedTxnIds.length > 0 };
   }, [wb, selectedTxnIds, bankTypeUnified]);
@@ -736,8 +735,9 @@ export default function ReconciliationView() {
                 className="recon-primary-btn"
                 disabled={
                   busy ||
-                  (wb.unmatchedBankDetails || []).length > 0 ||
-                  (wb.availableSamsTransactions || []).length > 0 ||
+                  (wb.session?.unmatchedBankRows || []).length > 0 ||
+                  (wb.session?.unmatchedTransactions || []).length > 0 ||
+                  Math.abs(Number(diffPesos) || 0) > 0.01 ||
                   wb.session?.accepted
                 }
                 onClick={handleAccept}

@@ -597,7 +597,7 @@ async function manualGroupMatchSession(clientId, sessionId, body) {
       );
     }
     const tc = txnMatchCentavos(t);
-    txnComparableSum += bankType === 'CARGO' ? Math.abs(tc) : tc;
+    txnComparableSum += Math.abs(tc);
   }
 
   const bankSum = sumCentavosFromBankRows(normById, normalizedRowIds);
