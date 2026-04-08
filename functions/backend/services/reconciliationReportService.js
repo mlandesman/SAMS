@@ -30,7 +30,15 @@ export async function generateAndUploadReconciliationReport(params) {
       const extra = m.relatedTransactionIds?.length
         ? ` (+${m.relatedTransactionIds.length} fee)`
         : '';
-      return `<tr><td>${escapeHtml(m.matchType)}</td><td>${escapeHtml(m.normalizedRowId)}</td><td>${escapeHtml(m.transactionId)}${extra}</td><td>${escapeHtml(m.justification || '')}</td></tr>`;
+      const bankCell =
+        m.normalizedRowIds?.length > 1
+          ? escapeHtml(m.normalizedRowIds.join(', '))
+          : escapeHtml(m.normalizedRowId ?? '—');
+      const txnCell =
+        m.transactionIds?.length > 1
+          ? escapeHtml(m.transactionIds.join(', '))
+          : `${escapeHtml(m.transactionId ?? '—')}${extra}`;
+      return `<tr><td>${escapeHtml(m.matchType)}</td><td>${bankCell}</td><td>${txnCell}</td><td>${escapeHtml(m.justification || '')}</td></tr>`;
     })
     .join('');
 

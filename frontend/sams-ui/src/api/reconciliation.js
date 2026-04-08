@@ -132,13 +132,18 @@ export async function getWorkbench(clientId, sessionId) {
   return j;
 }
 
-export async function manualPair(clientId, sessionId, normalizedRowId, transactionId, justification = null) {
+/**
+ * @param {object} payload
+ *   - Many-to-many: { normalizedRowIds: string[], transactionIds: string[], justification? }
+ *   - Legacy 1:1: { normalizedRowId, transactionId, justification? }
+ */
+export async function manualPair(clientId, sessionId, payload) {
   const res = await fetch(
     `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/manual-pair`,
     {
       method: 'POST',
       headers: await authHeaderJson(),
-      body: JSON.stringify({ normalizedRowId, transactionId, justification })
+      body: JSON.stringify(payload || {})
     }
   );
   const j = await res.json().catch(() => ({}));

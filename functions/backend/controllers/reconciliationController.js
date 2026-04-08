@@ -70,7 +70,13 @@ function findAccount(accounts, accountId) {
 function allMatchTransactionIds(matchMap) {
   const ids = new Set();
   for (const m of matchMap || []) {
-    if (m.transactionId) ids.add(m.transactionId);
+    if (m.transactionIds?.length) {
+      for (const x of m.transactionIds) {
+        if (x) ids.add(x);
+      }
+    } else if (m.transactionId) {
+      ids.add(m.transactionId);
+    }
     if (m.relatedTransactionIds?.length) {
       for (const x of m.relatedTransactionIds) ids.add(x);
     }
@@ -79,6 +85,52 @@ function allMatchTransactionIds(matchMap) {
     }
   }
   return [...ids];
+}
+
+/**
+ * SAMS rows still requiring action: in matching window, uncleared, not in matchMap, not excluded.
+ * Mirrors getWorkbench pool logic (Manager: Accept only when fully resolved).
+ */
+async function listUnresolvedSamsInPool(clientId, session) {
+  const pool = await fetchTransactionsForMatching(
+    clientId,
+    session.accountId,
+    session.startDate,
+    session.endDate
+  );
+  const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));
+  const excludedSamsIds = new Set(
+    (session.reconciliationExclusions || [])
+      .filter((e) => e.kind === 'sams')
+      .map((e) => e.id)
+  );
+  return pool.filter(
+    (t) =>
+      !t.clearedDate &&
+      !matchedTxnIds.has(t.id) &&
+      !excludedSamsIds.has(t.id)
+  );
+}
+
+async function loadNormalizedRowsMap(clientId, sessionId) {
+  const db = await getDb();
+  const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
+  const snap = await ref.collection('normalizedRows').get();
+  const map = {};
+  snap.forEach((d) => {
+    map[d.id] = { id: d.id, ...d.data() };
+  });
+  return map;
+}
+
+function sumCentavosFromBankRows(normById, normalizedRowIds) {
+  let sum = 0;
+  for (const id of normalizedRowIds) {
+    const row = normById[id];
+    if (!row || row.amount == null) continue;
+    sum += Math.round(Number(row.amount) || 0);
+  }
+  return sum;
 }
 
 /**
@@ -466,10 +518,99 @@ export async function resolveException(clientId, sessionId, body) {
 }
 
 /**
- * Manual pair — same as resolveException manual-match (normalizedRowId + transactionId).
+ * Manual many-to-many: N bank lines ↔ M SAMS txns when centavo sums match exactly.
+ */
+async function manualGroupMatchSession(clientId, sessionId, body) {
+  const db = await getDb();
+  const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error('Reconciliation session not found');
+  const session = doc.data();
+  if (session.accepted) throw new Error('Session already accepted');
+
+  const rawBank = body.normalizedRowIds;
+  const rawTxn = body.transactionIds;
+  const normalizedRowIds = [...new Set((rawBank || []).map(String).filter(Boolean))];
+  const transactionIds = [...new Set((rawTxn || []).map(String).filter(Boolean))];
+  if (normalizedRowIds.length === 0 || transactionIds.length === 0) {
+    throw new Error('Select at least one bank line and one SAMS transaction');
+  }
+
+  const unmatchedBankRows = new Set(session.unmatchedBankRows || []);
+  const unmatchedTransactions = new Set(session.unmatchedTransactions || []);
+  for (const id of normalizedRowIds) {
+    if (!unmatchedBankRows.has(id)) {
+      throw new Error(`Bank line ${id} is not unmatched in this session`);
+    }
+  }
+  for (const id of transactionIds) {
+    if (!unmatchedTransactions.has(id)) {
+      throw new Error(`SAMS transaction ${id} is not available to match in this session`);
+    }
+  }
+
+  const normById = await loadNormalizedRowsMap(clientId, sessionId);
+  for (const id of normalizedRowIds) {
+    if (!normById[id]) throw new Error(`Normalized bank row ${id} not found`);
+  }
+
+  let txnSum = 0;
+  for (const tid of transactionIds) {
+    const tref = db.doc(`clients/${clientId}/transactions/${tid}`);
+    const tdoc = await tref.get();
+    if (!tdoc.exists) throw new Error(`Transaction ${tid} not found`);
+    const t = tdoc.data();
+    if (t.accountId !== session.accountId) {
+      throw new Error(`Transaction ${tid} is not in this session bank account`);
+    }
+    txnSum += Math.round(Number(t.amount) || 0);
+  }
+
+  const bankSum = sumCentavosFromBankRows(normById, normalizedRowIds);
+  if (bankSum !== txnSum) {
+    throw new Error(
+      `Amounts must match exactly to pair (bank total ${bankSum}¢ vs SAMS total ${txnSum}¢)`
+    );
+  }
+
+  const matchMap = [...(session.matchMap || [])];
+  matchMap.push({
+    normalizedRowIds,
+    transactionIds,
+    normalizedRowId: normalizedRowIds[0],
+    transactionId: transactionIds[0],
+    matchType: 'manual-group',
+    justification: body.justification || null
+  });
+
+  const nextUnmatchedBank = (session.unmatchedBankRows || []).filter((id) => !normalizedRowIds.includes(id));
+  const nextUnmatchedTxn = (session.unmatchedTransactions || []).filter((id) => !transactionIds.includes(id));
+
+  await ref.update({
+    matchMap,
+    unmatchedBankRows: nextUnmatchedBank,
+    unmatchedTransactions: nextUnmatchedTxn,
+    updated: admin.firestore.Timestamp.now()
+  });
+
+  return {
+    success: true,
+    matchMap,
+    unmatchedBankRows: nextUnmatchedBank,
+    unmatchedTransactions: nextUnmatchedTxn
+  };
+}
+
+/**
+ * Manual pair: legacy single id pair, or many-to-many via normalizedRowIds + transactionIds arrays.
  * Does not set clearedDate; session matchMap only until Accept.
  */
-export async function manualPairSession(clientId, sessionId, body) {
+export async function manualPairSession(clientId, sessionId, body = {}) {
+  const rowArr = body.normalizedRowIds;
+  const txnArr = body.transactionIds;
+  if (Array.isArray(rowArr) && rowArr.length > 0 && Array.isArray(txnArr) && txnArr.length > 0) {
+    return manualGroupMatchSession(clientId, sessionId, body);
+  }
   return resolveException(clientId, sessionId, {
     action: 'manual-match',
     normalizedRowId: body.normalizedRowId,
@@ -609,11 +750,19 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
 
   const unmatchedB = session.unmatchedBankRows || [];
   const unmatchedT = session.unmatchedTransactions || [];
-  // Bank-first (check-register) semantics: every imported bank line must be paired or explained.
-  // Unmatched SAMS rows are allowed — they are register activity not on this statement; they stay uncleared.
+  // Every bank line must be matched or excluded; every in-window SAMS line must be matched, justified, or excluded.
   if (unmatchedB.length > 0) {
+    throw new Error('Every bank statement line must be matched or excluded before accepting.');
+  }
+  if (unmatchedT.length > 0) {
     throw new Error(
-      'Every bank statement line must be matched before accepting (unmatched SAMS lines can remain)'
+      'Every SAMS transaction from the initial match pass must be matched, justified, or excluded before accepting.'
+    );
+  }
+  const openPool = await listUnresolvedSamsInPool(clientId, session);
+  if (openPool.length > 0) {
+    throw new Error(
+      `All SAMS lines in the matching window must be matched, justified, or excluded before accepting (${openPool.length} still open).`
     );
   }
 

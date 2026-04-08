@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFileInvoice, faLink, faBan, faEye, faEdit } from '@fortawesome/free-solid-svg-icons';
+import {
+  faFileInvoice,
+  faLink,
+  faBan,
+  faEye,
+  faEdit,
+  faClipboardCheck
+} from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { getAccounts } from '../api/client';
@@ -13,15 +20,43 @@ import {
   manualPair,
   excludeReconciliationItem,
   acceptSession,
-  updateSession
+  updateSession,
+  resolveException
 } from '../api/reconciliation';
-import { getMexicoDateString } from '../utils/timezone';
+import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 
 /** Normalized bank rows and workbench SAMS txns use integer centavos (Firestore storage). Shared formatCurrency divides by 100. */
 function formatWorkbenchCentavos(centavos) {
   return formatCurrency(Math.round(Number(centavos) || 0), 'MXN');
+}
+
+/** Workbench pool txns are raw Firestore shapes; list APIs use enriched date objects. */
+function formatWorkbenchSamsDate(t) {
+  const d = t?.date;
+  if (d == null) return '—';
+  if (typeof d === 'object') {
+    if (d.display) return d.display;
+    if (d.unambiguous_long_date) return d.unambiguous_long_date;
+    if (typeof d.toDate === 'function') {
+      const dt = d.toDate();
+      if (Number.isNaN(dt.getTime())) return '—';
+      return formatDateInMexico(dt) || '—';
+    }
+    const sec = d.seconds ?? d._seconds;
+    if (sec != null) {
+      const dt = new Date(sec * 1000);
+      if (Number.isNaN(dt.getTime())) return '—';
+      return formatDateInMexico(dt) || '—';
+    }
+  }
+  if (typeof d === 'string' || typeof d === 'number') {
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '—';
+    return formatDateInMexico(dt) || '—';
+  }
+  return '—';
 }
 import { isAdmin } from '../utils/userRoles';
 import './ReconciliationView.css';
@@ -63,11 +98,13 @@ export default function ReconciliationView() {
   const [wb, setWb] = useState(null);
   const [diffPesos, setDiffPesos] = useState('0');
 
-  const [selectedBankId, setSelectedBankId] = useState(null);
-  const [selectedTxnId, setSelectedTxnId] = useState(null);
+  const [selectedBankIds, setSelectedBankIds] = useState([]);
+  const [selectedTxnIds, setSelectedTxnIds] = useState([]);
   const [viewTxn, setViewTxn] = useState(null);
   const [excludeModal, setExcludeModal] = useState({ open: false, type: null, id: null });
   const [excludeReason, setExcludeReason] = useState('');
+  const [justifyModal, setJustifyModal] = useState({ open: false, transactionId: null });
+  const [justifyReason, setJustifyReason] = useState('');
   const [reportUrl, setReportUrl] = useState(null);
 
   const canUse = isAdmin(samsUser, clientId);
@@ -85,8 +122,8 @@ export default function ReconciliationView() {
 
     setWb(null);
     setReportUrl(null);
-    setSelectedBankId(null);
-    setSelectedTxnId(null);
+    setSelectedBankIds([]);
+    setSelectedTxnIds([]);
     setError('');
   }, [clientId, setSearchParams]);
 
@@ -136,6 +173,54 @@ export default function ReconciliationView() {
     }
   }, [sessionId, clientId, loadWorkbench]);
 
+  const txnById = useMemo(() => {
+    const m = {};
+    (wb?.availableSamsTransactions || []).forEach((t) => {
+      m[t.id] = t;
+    });
+    return m;
+  }, [wb]);
+
+  const bankRowById = useMemo(() => {
+    const m = {};
+    (wb?.unmatchedBankDetails || []).forEach((r) => {
+      m[r.id] = r;
+    });
+    return m;
+  }, [wb]);
+
+  const bankSumCentavos = useMemo(
+    () =>
+      selectedBankIds.reduce(
+        (s, id) => s + Math.round(Number(bankRowById[id]?.amount) || 0),
+        0
+      ),
+    [selectedBankIds, bankRowById]
+  );
+
+  const txnSumCentavos = useMemo(
+    () =>
+      selectedTxnIds.reduce((s, id) => s + Math.round(Number(txnById[id]?.amount) || 0), 0),
+    [selectedTxnIds, txnById]
+  );
+
+  const canMatchSelection =
+    selectedBankIds.length > 0 &&
+    selectedTxnIds.length > 0 &&
+    bankSumCentavos === txnSumCentavos;
+
+  const toggleBankRow = useCallback((id) => {
+    setSelectedBankIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const toggleTxnRow = useCallback((id) => {
+    setSelectedTxnIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
   const runImportAndMatch = async () => {
     setError('');
     if (!clientId || !accountId || !startDate || !endDate || openingBalance === '' || endingBalance === '') {
@@ -168,19 +253,42 @@ export default function ReconciliationView() {
   };
 
   const handlePair = async () => {
-    if (!clientId || !sessionId || !selectedBankId || !selectedTxnId) {
-      setError('Select a bank row and a SAMS transaction.');
+    if (!clientId || !sessionId || !canMatchSelection) {
+      setError('Select one or more bank lines and SAMS transactions with identical total amounts (centavos).');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      await manualPair(clientId, sessionId, selectedBankId, selectedTxnId);
-      setSelectedBankId(null);
-      setSelectedTxnId(null);
+      await manualPair(clientId, sessionId, {
+        normalizedRowIds: selectedBankIds,
+        transactionIds: selectedTxnIds
+      });
+      setSelectedBankIds([]);
+      setSelectedTxnIds([]);
       await loadWorkbench();
     } catch (e) {
       setError(e.message || 'Pair failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleJustifySubmit = async () => {
+    if (!clientId || !sessionId || !justifyModal.transactionId || !justifyReason.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      await resolveException(clientId, sessionId, {
+        action: 'manual-justify',
+        transactionId: justifyModal.transactionId,
+        justification: justifyReason.trim()
+      });
+      setJustifyModal({ open: false, transactionId: null });
+      setJustifyReason('');
+      await loadWorkbench();
+    } catch (e) {
+      setError(e.message || 'Justify failed');
     } finally {
       setBusy(false);
     }
@@ -224,14 +332,6 @@ export default function ReconciliationView() {
     }
   };
 
-  const txnById = useMemo(() => {
-    const m = {};
-    (wb?.availableSamsTransactions || []).forEach((t) => {
-      m[t.id] = t;
-    });
-    return m;
-  }, [wb]);
-
   if (!selectedClient) {
     return <p className="recon-page-muted">Select a client to use bank reconciliation.</p>;
   }
@@ -252,7 +352,9 @@ export default function ReconciliationView() {
           <FontAwesomeIcon icon={faFileInvoice} /> Bank reconciliation
         </h1>
         <p className="recon-page-sub">
-          Session-only pairing until you accept — SAMS edits from auto-fix (SPEI/rounding) persist;{' '}
+          Auto-match first, then manual <strong>many-to-many</strong> matches (totals must match in centavos), then{' '}
+          <strong>Justify</strong> for SAMS lines with no bank line. When every bank line is resolved and every in-window
+          SAMS line is matched, justified, or excluded — and difference is 0 — use Accept.{' '}
           <code>clearedDate</code> is set only on Accept.
         </p>
       </header>
@@ -384,7 +486,10 @@ export default function ReconciliationView() {
             <div className="recon-two-col">
               <div className="recon-col recon-col-bank">
                 <h3>Unmatched bank lines</h3>
-                <p className="recon-hint">Read-only — select a row, then pair from the right.</p>
+                <p className="recon-hint">
+                  Read-only — select one or more rows (checkbox), then select SAMS line(s) on the right. Match only when
+                  totals are equal.
+                </p>
                 <div className="recon-table-scroll">
                   <table className="recon-wb-table">
                     <thead>
@@ -401,15 +506,18 @@ export default function ReconciliationView() {
                       {(wb.unmatchedBankDetails || []).map((row) => (
                         <tr
                           key={row.id}
-                          className={selectedBankId === row.id ? 'selected' : ''}
-                          onClick={() => setSelectedBankId(row.id)}
+                          className={selectedBankIds.includes(row.id) ? 'selected' : ''}
+                          onClick={(e) => {
+                            if (e.target.closest('button, input, label')) return;
+                            toggleBankRow(row.id);
+                          }}
                         >
                           <td>
                             <input
-                              type="radio"
-                              name="bankPick"
-                              checked={selectedBankId === row.id}
-                              onChange={() => setSelectedBankId(row.id)}
+                              type="checkbox"
+                              checked={selectedBankIds.includes(row.id)}
+                              onChange={() => toggleBankRow(row.id)}
+                              aria-label={`Select bank line ${row.id}`}
                             />
                           </td>
                           <td>{row.date || '—'}</td>
@@ -441,16 +549,17 @@ export default function ReconciliationView() {
                 <p className="recon-hint">
                   Uncleared SAMS lines in this bank account — dates from{' '}
                   <strong>7 days before</strong> period start through <strong>7 days after</strong>{' '}
-                  period end (same register window as Import &amp; Match). Select one to pair with the bank row.
+                  period end (same register window as Import &amp; Match). Select any number of rows; use{' '}
+                  <strong>Justify</strong> if there is no bank line (e.g. $0.00 or off-statement).
                 </p>
                 <div className="recon-sams-actions">
                   <button
                     type="button"
                     className="recon-primary-btn"
-                    disabled={busy || !selectedBankId || !selectedTxnId}
+                    disabled={busy || !canMatchSelection}
                     onClick={handlePair}
                   >
-                    <FontAwesomeIcon icon={faLink} /> Pair selected
+                    <FontAwesomeIcon icon={faLink} /> Match selected
                   </button>
                   <button
                     type="button"
@@ -460,6 +569,16 @@ export default function ReconciliationView() {
                     Add expense
                   </button>
                 </div>
+                <p className="recon-match-totals" aria-live="polite">
+                  Bank selected: <strong>{formatWorkbenchCentavos(bankSumCentavos)}</strong>
+                  {' · '}
+                  SAMS selected: <strong>{formatWorkbenchCentavos(txnSumCentavos)}</strong>
+                  {selectedBankIds.length > 0 &&
+                    selectedTxnIds.length > 0 &&
+                    !canMatchSelection && (
+                      <span className="recon-match-totals-warn"> — totals must match exactly.</span>
+                    )}
+                </p>
                 <div className="recon-table-scroll">
                   <table className="recon-wb-table">
                     <thead>
@@ -476,18 +595,21 @@ export default function ReconciliationView() {
                       {(wb.availableSamsTransactions || []).map((t) => (
                         <tr
                           key={t.id}
-                          className={selectedTxnId === t.id ? 'selected' : ''}
-                          onClick={() => setSelectedTxnId(t.id)}
+                          className={selectedTxnIds.includes(t.id) ? 'selected' : ''}
+                          onClick={(e) => {
+                            if (e.target.closest('button, input, label')) return;
+                            toggleTxnRow(t.id);
+                          }}
                         >
                           <td>
                             <input
-                              type="radio"
-                              name="txnPick"
-                              checked={selectedTxnId === t.id}
-                              onChange={() => setSelectedTxnId(t.id)}
+                              type="checkbox"
+                              checked={selectedTxnIds.includes(t.id)}
+                              onChange={() => toggleTxnRow(t.id)}
+                              aria-label={`Select SAMS transaction ${t.id}`}
                             />
                           </td>
-                          <td>{t.date?.display || t.date?.unambiguous_long_date || '—'}</td>
+                          <td>{formatWorkbenchSamsDate(t)}</td>
                           <td>{t.type || '—'}</td>
                           <td className="num">{formatWorkbenchCentavos(t.amount)}</td>
                           <td>{t.categoryName || t.category || '—'}</td>
@@ -513,6 +635,18 @@ export default function ReconciliationView() {
                               }}
                             >
                               <FontAwesomeIcon icon={faEdit} />
+                            </button>
+                            <button
+                              type="button"
+                              className="recon-icon-btn"
+                              title="Justify (no bank line — cleared on Accept with reason)"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setJustifyModal({ open: true, transactionId: t.id });
+                                setJustifyReason('');
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faClipboardCheck} />
                             </button>
                             <button
                               type="button"
@@ -557,6 +691,7 @@ export default function ReconciliationView() {
                 disabled={
                   busy ||
                   (wb.unmatchedBankDetails || []).length > 0 ||
+                  (wb.stats?.availableSamsCount ?? 0) > 0 ||
                   wb.session?.accepted
                 }
                 onClick={handleAccept}
@@ -572,6 +707,47 @@ export default function ReconciliationView() {
               </p>
             )}
           </section>
+      )}
+
+      {justifyModal.open && (
+        <div
+          className="recon-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setJustifyModal({ open: false, transactionId: null })}
+        >
+          <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
+            <h4>Justify SAMS line (no bank match)</h4>
+            <p className="recon-hint">
+              Use for register-only activity (e.g. $0.00, cash movement, or not on this statement). A written reason is
+              required; the line is marked cleared on Accept like matched lines.
+            </p>
+            <textarea
+              className="recon-field-input"
+              rows={3}
+              placeholder="Justification (required)"
+              value={justifyReason}
+              onChange={(e) => setJustifyReason(e.target.value)}
+            />
+            <div className="recon-modal-actions">
+              <button
+                type="button"
+                className="recon-secondary-btn"
+                onClick={() => setJustifyModal({ open: false, transactionId: null })}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="recon-primary-btn"
+                disabled={!justifyReason.trim()}
+                onClick={handleJustifySubmit}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {excludeModal.open && (

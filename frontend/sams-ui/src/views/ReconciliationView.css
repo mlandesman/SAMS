@@ -308,3 +308,14 @@
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+
+.recon-match-totals {
+  font-size: 0.85rem;
+  color: #374151;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.recon-match-totals-warn {
+  color: #b45309;
+  font-weight: 500;
+}
