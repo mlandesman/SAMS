@@ -390,7 +390,8 @@ export default function ReconciliationView() {
         </h1>
         <p className="recon-page-sub">
           Auto-match first, then manual <strong>many-to-many</strong> matches (totals must match in centavos), then{' '}
-          <strong>Justify</strong> for SAMS lines with no bank line. When every bank line is resolved and every in-window
+          <strong>Justify selected</strong> (or the row clipboard icon) for SAMS lines with no bank line. When every bank
+          line is resolved and every in-window
           SAMS line is matched, justified, or excluded — and difference is 0 — use Accept.{' '}
           <code>clearedDate</code> is set only on Accept.
         </p>
@@ -586,8 +587,10 @@ export default function ReconciliationView() {
                 <p className="recon-hint">
                   Uncleared SAMS lines in this bank account — dates from{' '}
                   <strong>7 days before</strong> period start through <strong>7 days after</strong>{' '}
-                  period end (same register window as Import &amp; Match). Select any number of rows; use{' '}
-                  <strong>Justify</strong> if there is no bank line (e.g. $0.00 or off-statement).
+                  period end (same register window as Import &amp; Match). For lines with{' '}
+                  <strong>no bank match</strong> (e.g. $0.00 or off-statement), select{' '}
+                  <strong>one</strong> row and click <strong>Justify selected</strong>, or use the{' '}
+                  <strong>clipboard</strong> icon in the row.
                 </p>
                 <div className="recon-sams-actions">
                   <button
@@ -597,6 +600,26 @@ export default function ReconciliationView() {
                     onClick={handlePair}
                   >
                     <FontAwesomeIcon icon={faLink} /> Match selected
+                  </button>
+                  <button
+                    type="button"
+                    className="recon-secondary-btn"
+                    disabled={busy || selectedTxnIds.length !== 1}
+                    title={
+                      selectedTxnIds.length === 0
+                        ? 'Select exactly one SAMS row to justify (register-only / no bank line).'
+                        : selectedTxnIds.length > 1
+                          ? 'Select only one row at a time for Justify, or clear extra checkboxes.'
+                          : 'Record a written reason; line is cleared on Accept like a match.'
+                    }
+                    onClick={() => {
+                      const id = selectedTxnIds[0];
+                      if (!id) return;
+                      setJustifyModal({ open: true, transactionId: id });
+                      setJustifyReason('');
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faClipboardCheck} /> Justify selected
                   </button>
                   <button
                     type="button"
@@ -683,6 +706,7 @@ export default function ReconciliationView() {
                             <button
                               type="button"
                               className="recon-icon-btn"
+                              aria-label="Justify: no bank line (cleared on Accept with reason)"
                               title="Justify (no bank line — cleared on Accept with reason)"
                               onClick={(e) => {
                                 e.stopPropagation();
