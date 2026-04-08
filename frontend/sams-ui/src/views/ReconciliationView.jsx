@@ -173,14 +173,6 @@ export default function ReconciliationView() {
     }
   }, [sessionId, clientId, loadWorkbench]);
 
-  const txnById = useMemo(() => {
-    const m = {};
-    (wb?.availableSamsTransactions || []).forEach((t) => {
-      m[t.id] = t;
-    });
-    return m;
-  }, [wb]);
-
   const bankRowById = useMemo(() => {
     const m = {};
     (wb?.unmatchedBankDetails || []).forEach((r) => {
@@ -198,11 +190,11 @@ export default function ReconciliationView() {
     [selectedBankIds, bankRowById]
   );
 
-  const txnSumCentavos = useMemo(
-    () =>
-      selectedTxnIds.reduce((s, id) => s + Math.round(Number(txnById[id]?.amount) || 0), 0),
-    [selectedTxnIds, txnById]
-  );
+  const txnSumCentavos = useMemo(() => {
+    const list = wb?.availableSamsTransactions || [];
+    const byId = Object.fromEntries(list.map((t) => [t.id, t]));
+    return selectedTxnIds.reduce((s, id) => s + Math.round(Number(byId[id]?.amount) || 0), 0);
+  }, [wb, selectedTxnIds]);
 
   const canMatchSelection =
     selectedBankIds.length > 0 &&
@@ -673,7 +665,8 @@ export default function ReconciliationView() {
                 Unmatched bank lines: <strong>{wb.stats?.unmatchedBankLineCount ?? 0}</strong>
               </span>
               <span>
-                Available SAMS: <strong>{wb.stats?.availableSamsCount ?? 0}</strong>
+                Available SAMS:{' '}
+                <strong>{(wb.availableSamsTransactions || []).length}</strong>
               </span>
               <label>
                 Difference (pesos, 0 to accept)
@@ -691,7 +684,7 @@ export default function ReconciliationView() {
                 disabled={
                   busy ||
                   (wb.unmatchedBankDetails || []).length > 0 ||
-                  (wb.stats?.availableSamsCount ?? 0) > 0 ||
+                  (wb.availableSamsTransactions || []).length > 0 ||
                   wb.session?.accepted
                 }
                 onClick={handleAccept}

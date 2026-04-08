@@ -779,6 +779,15 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
   const txnIds = allMatchTransactionIds(matchMap);
   const clearedIso = session.endDate;
 
+  // Generate report before mutating transactions so we never set clearedDate if PDF fails.
+  const reportUrl = await generateAndUploadReconciliationReport({
+    clientId,
+    sessionId,
+    session: { ...session, matchMap },
+    clientDisplayName: clientName,
+    acceptedByEmail: user?.email || ''
+  });
+
   let batch = db.batch();
   let n = 0;
   for (const tid of txnIds) {
@@ -795,14 +804,6 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
     }
   }
   if (n > 0) await batch.commit();
-
-  const reportUrl = await generateAndUploadReconciliationReport({
-    clientId,
-    sessionId,
-    session: { ...session, matchMap },
-    clientDisplayName: clientName,
-    acceptedByEmail: user?.email || ''
-  });
 
   await ref.update({
     accepted: true,

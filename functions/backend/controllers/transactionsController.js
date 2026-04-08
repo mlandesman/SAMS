@@ -2182,6 +2182,10 @@ async function deleteTransactionWithDocuments(clientId, transactionId) {
     // Now delete the transaction using the existing deleteTransaction function (reuse txn read)
     return await deleteTransaction(clientId, transactionId, txnDoc);
   } catch (error) {
+    const msg = String(error?.message || '');
+    if (msg.includes('Cannot delete a cleared/reconciled transaction')) {
+      throw error;
+    }
     logError('❌ Error deleting transaction with documents:', error);
     return false;
   }
