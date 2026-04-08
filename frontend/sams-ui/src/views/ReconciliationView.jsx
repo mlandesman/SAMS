@@ -61,6 +61,23 @@ function formatWorkbenchSamsDate(t) {
 import { isAdmin } from '../utils/userRoles';
 import './ReconciliationView.css';
 
+/** Mirror backend reconciliationMatcher.typeMatchesBank for workbench sum preview */
+function typeMatchesBankWorkbench(bankType, txn) {
+  const t = txn?.type;
+  const amt = Number(txn?.amount) || 0;
+  if (bankType === 'ABONO') {
+    if (t === 'income') return amt > 0;
+    if (t === 'adjustment') return amt > 0;
+    return false;
+  }
+  if (bankType === 'CARGO') {
+    if (t === 'expense') return amt < 0;
+    if (t === 'adjustment') return amt < 0;
+    return false;
+  }
+  return false;
+}
+
 function inferBankFormat(accountName, explicit) {
   if (explicit === 'scotiabank' || explicit === 'bbva') return explicit;
   const n = String(accountName || '').toLowerCase();
@@ -181,6 +198,15 @@ export default function ReconciliationView() {
     return m;
   }, [wb]);
 
+  const selectedBankTypes = useMemo(
+    () => [...new Set(selectedBankIds.map((id) => bankRowById[id]?.type).filter(Boolean))],
+    [selectedBankIds, bankRowById]
+  );
+  const bankTypeUnified =
+    selectedBankTypes.length === 1 && (selectedBankTypes[0] === 'CARGO' || selectedBankTypes[0] === 'ABONO')
+      ? selectedBankTypes[0]
+      : null;
+
   const bankSumCentavos = useMemo(
     () =>
       selectedBankIds.reduce(
@@ -190,16 +216,36 @@ export default function ReconciliationView() {
     [selectedBankIds, bankRowById]
   );
 
-  const txnSumCentavos = useMemo(() => {
+  const { txnSumComparable, txnTypesOk } = useMemo(() => {
     const list = wb?.availableSamsTransactions || [];
     const byId = Object.fromEntries(list.map((t) => [t.id, t]));
-    return selectedTxnIds.reduce((s, id) => s + Math.round(Number(byId[id]?.amount) || 0), 0);
-  }, [wb, selectedTxnIds]);
+    if (!bankTypeUnified) {
+      return { txnSumComparable: 0, txnTypesOk: false };
+    }
+    let ok = true;
+    const sum = selectedTxnIds.reduce((s, id) => {
+      const t = byId[id];
+      if (!t) {
+        ok = false;
+        return s;
+      }
+      if (!typeMatchesBankWorkbench(bankTypeUnified, t)) {
+        ok = false;
+        return s;
+      }
+      const tc = Math.round(Number(t.amount) || 0);
+      const c = bankTypeUnified === 'CARGO' ? Math.abs(tc) : tc;
+      return s + c;
+    }, 0);
+    return { txnSumComparable: sum, txnTypesOk: ok && selectedTxnIds.length > 0 };
+  }, [wb, selectedTxnIds, bankTypeUnified]);
 
   const canMatchSelection =
     selectedBankIds.length > 0 &&
     selectedTxnIds.length > 0 &&
-    bankSumCentavos === txnSumCentavos;
+    bankTypeUnified &&
+    txnTypesOk &&
+    bankSumCentavos === txnSumComparable;
 
   const toggleBankRow = useCallback((id) => {
     setSelectedBankIds((prev) =>
@@ -564,11 +610,18 @@ export default function ReconciliationView() {
                 <p className="recon-match-totals" aria-live="polite">
                   Bank selected: <strong>{formatWorkbenchCentavos(bankSumCentavos)}</strong>
                   {' · '}
-                  SAMS selected: <strong>{formatWorkbenchCentavos(txnSumCentavos)}</strong>
+                  SAMS comparable: <strong>{formatWorkbenchCentavos(txnSumComparable)}</strong>
+                  {bankTypeUnified && (
+                    <span className="recon-match-totals-meta"> ({bankTypeUnified})</span>
+                  )}
                   {selectedBankIds.length > 0 &&
                     selectedTxnIds.length > 0 &&
                     !canMatchSelection && (
-                      <span className="recon-match-totals-warn"> — totals must match exactly.</span>
+                      <span className="recon-match-totals-warn">
+                        {' '}
+                        — same bank type (all CARGO or all ABONO), compatible SAMS types, and matching totals
+                        required.
+                      </span>
                     )}
                 </p>
                 <div className="recon-table-scroll">

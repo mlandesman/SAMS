@@ -59,7 +59,7 @@ function daysBetween(bankIso, txn) {
   return Math.abs(a - b) / MS_PER_DAY;
 }
 
-function typeMatchesBank(bankType, txn) {
+export function typeMatchesBank(bankType, txn) {
   const t = txn.type;
   const amt = txn.amount || 0;
   if (bankType === 'ABONO') {
@@ -80,7 +80,7 @@ function typeMatchesBank(bankType, txn) {
  * movement the bank would see. `allocations` are internal (category splits, credit balance
  * application, etc.) and must not be summed with `amount` for reconciliation.
  */
-function txnMatchCentavos(txn) {
+export function txnMatchCentavos(txn) {
   return Math.round(txn.amount || 0);
 }
 

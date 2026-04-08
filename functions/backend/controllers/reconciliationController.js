@@ -9,7 +9,9 @@ import {
 } from '../services/reconciliationNormalizer.js';
 import {
   runMatchingAlgorithm,
-  attachAccountForMatching
+  attachAccountForMatching,
+  typeMatchesBank,
+  txnMatchCentavos
 } from '../services/reconciliationMatcher.js';
 import {
   buildSpeiFeeFixUpdate,
@@ -538,14 +540,18 @@ async function manualGroupMatchSession(clientId, sessionId, body) {
 
   const unmatchedBankRows = new Set(session.unmatchedBankRows || []);
   const unmatchedTransactions = new Set(session.unmatchedTransactions || []);
+  const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));
+  const pool = await fetchTransactionsForMatching(
+    clientId,
+    session.accountId,
+    session.startDate,
+    session.endDate
+  );
+  const poolIds = new Set(pool.map((t) => t.id));
+
   for (const id of normalizedRowIds) {
     if (!unmatchedBankRows.has(id)) {
       throw new Error(`Bank line ${id} is not unmatched in this session`);
-    }
-  }
-  for (const id of transactionIds) {
-    if (!unmatchedTransactions.has(id)) {
-      throw new Error(`SAMS transaction ${id} is not available to match in this session`);
     }
   }
 
@@ -554,7 +560,29 @@ async function manualGroupMatchSession(clientId, sessionId, body) {
     if (!normById[id]) throw new Error(`Normalized bank row ${id} not found`);
   }
 
-  let txnSum = 0;
+  const bankTypes = [...new Set(normalizedRowIds.map((id) => normById[id]?.type).filter(Boolean))];
+  if (bankTypes.length !== 1) {
+    throw new Error('All selected bank lines must be the same type (all CARGO or all ABONO).');
+  }
+  const bankType = bankTypes[0];
+  if (bankType !== 'CARGO' && bankType !== 'ABONO') {
+    throw new Error(`Unsupported bank line type for manual group: ${bankType}`);
+  }
+
+  for (const id of transactionIds) {
+    const inInitialUnmatched = unmatchedTransactions.has(id);
+    const inPool = poolIds.has(id);
+    if (!inInitialUnmatched && !inPool) {
+      throw new Error(
+        `SAMS transaction ${id} is not in this session window (import pool) or initial unmatched list`
+      );
+    }
+    if (matchedTxnIds.has(id)) {
+      throw new Error(`SAMS transaction ${id} is already matched in this session`);
+    }
+  }
+
+  let txnComparableSum = 0;
   for (const tid of transactionIds) {
     const tref = db.doc(`clients/${clientId}/transactions/${tid}`);
     const tdoc = await tref.get();
@@ -563,13 +591,19 @@ async function manualGroupMatchSession(clientId, sessionId, body) {
     if (t.accountId !== session.accountId) {
       throw new Error(`Transaction ${tid} is not in this session bank account`);
     }
-    txnSum += Math.round(Number(t.amount) || 0);
+    if (!typeMatchesBank(bankType, t)) {
+      throw new Error(
+        `Transaction ${tid} is not compatible with ${bankType} bank lines (check type and amount sign)`
+      );
+    }
+    const tc = txnMatchCentavos(t);
+    txnComparableSum += bankType === 'CARGO' ? Math.abs(tc) : tc;
   }
 
   const bankSum = sumCentavosFromBankRows(normById, normalizedRowIds);
-  if (bankSum !== txnSum) {
+  if (bankSum !== txnComparableSum) {
     throw new Error(
-      `Amounts must match exactly to pair (bank total ${bankSum}¢ vs SAMS total ${txnSum}¢)`
+      `Amounts must match exactly to pair (bank total ${bankSum}¢ vs SAMS comparable total ${txnComparableSum}¢)`
     );
   }
 
