@@ -14,6 +14,7 @@ import { getDb } from '../firebase.js';
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 import { updateTransaction } from '../controllers/transactionsController.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
+import { validateDocument } from '../utils/validateDocument.js';
 
 const GAP_CENTAVOS = 580;
 const COMMISSION_CENTAVOS = 500;
@@ -233,11 +234,16 @@ function autoFixPatchToUpdateBody(patch) {
 export async function applyTransactionAutoFix(clientId, transactionId, patch) {
   try {
     const body = autoFixPatchToUpdateBody(patch);
+    const validation = validateDocument('transactions', body, 'update');
+    if (!validation.isValid) {
+      const detail = (validation.errors || []).join('; ') || 'invalid auto-fix payload';
+      return { ok: false, error: `Validation: ${detail}` };
+    }
     const ok = await updateTransaction(clientId, transactionId, body);
     if (!ok) {
       return {
         ok: false,
-        error: 'Transaction update failed (not found, validation error, or server error)'
+        error: 'Transaction update failed (not found, Firestore error, or other server error)'
       };
     }
 

@@ -41,7 +41,7 @@ function parseDateFromCell(val) {
   const s = cellToString(val).trim();
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  // BBVA México: DD/MM/YYYY in cells (first = day, second = month)
+  // BBVA México: cell text is DD/MM/YYYY (capture[1]=day, [2]=month) → ISO YYYY-MM-DD
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (dmy) {
     const dd = dmy[1].padStart(2, '0');
