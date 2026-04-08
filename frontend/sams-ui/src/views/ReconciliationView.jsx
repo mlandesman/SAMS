@@ -32,6 +32,13 @@ function formatWorkbenchCentavos(centavos) {
   return formatCurrency(Math.round(Number(centavos) || 0), 'MXN');
 }
 
+/** Decimal pesos from API (statement balances, gaps) → display via centavo-based formatter. */
+function formatWorkbenchPesos(pesos) {
+  const n = Number(pesos);
+  if (!Number.isFinite(n)) return '—';
+  return formatCurrency(Math.round(n * 100), 'MXN');
+}
+
 /** Workbench pool txns are raw Firestore shapes; list APIs use enriched date objects. */
 function formatWorkbenchSamsDate(t) {
   const d = t?.date;
@@ -736,6 +743,72 @@ export default function ReconciliationView() {
               </div>
             </div>
 
+            {wb.balanceVsStatement && (
+              <div className="recon-balance-panel">
+                <h4 className="recon-balance-panel-title">Balance check</h4>
+                <div className="recon-balance-grid">
+                  <div>
+                    <span className="recon-balance-label">Statement ending (session)</span>
+                    <strong className="recon-balance-value">
+                      {formatWorkbenchPesos(wb.balanceVsStatement.statementEndingPesos)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="recon-balance-label">SAMS ledger (live)</span>
+                    <strong className="recon-balance-value">
+                      {wb.balanceVsStatement.samsBalancePesos != null
+                        ? formatWorkbenchPesos(wb.balanceVsStatement.samsBalancePesos)
+                        : '—'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="recon-balance-label">Gap (SAMS − statement)</span>
+                    <strong
+                      className={`recon-balance-value${
+                        wb.balanceVsStatement.samsVsStatementGapPesos != null &&
+                        Math.abs(wb.balanceVsStatement.samsVsStatementGapPesos) > 0.01
+                          ? ' recon-balance-gap-warn'
+                          : ''
+                      }`}
+                    >
+                      {wb.balanceVsStatement.samsVsStatementGapPesos != null
+                        ? formatWorkbenchPesos(wb.balanceVsStatement.samsVsStatementGapPesos)
+                        : '—'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="recon-balance-label">Roll-forward from import</span>
+                    <strong className="recon-balance-value">
+                      {formatWorkbenchPesos(wb.balanceVsStatement.impliedEndingFromImportPesos)}
+                    </strong>
+                    <span className="recon-balance-sub">
+                      opening {formatWorkbenchPesos(wb.balanceVsStatement.statementOpeningPesos)} + net
+                      bank lines in period
+                    </span>
+                  </div>
+                  <div>
+                    <span className="recon-balance-label">Import vs entered ending</span>
+                    <strong
+                      className={`recon-balance-value${
+                        Math.abs(wb.balanceVsStatement.importVsEnteredEndingGapPesos || 0) > 0.01
+                          ? ' recon-balance-gap-warn'
+                          : ''
+                      }`}
+                    >
+                      {formatWorkbenchPesos(wb.balanceVsStatement.importVsEnteredEndingGapPesos)}
+                    </strong>
+                    <span className="recon-balance-sub">non-zero → check opening/ending or file</span>
+                  </div>
+                </div>
+                <p className="recon-balance-footnote">
+                  <strong>SAMS ledger</strong> is the stored balance on this bank account <em>right now</em> — it still
+                  includes postings <strong>after</strong> the statement end date if you have entered them. Use the gap
+                  as a guide while you add missing expenses; it should trend toward zero when the books match the
+                  statement period.
+                </p>
+              </div>
+            )}
+
             <div className="recon-summary-bar">
               <span>
                 Unmatched bank lines: <strong>{wb.stats?.unmatchedBankLineCount ?? 0}</strong>
@@ -744,8 +817,12 @@ export default function ReconciliationView() {
                 Available SAMS:{' '}
                 <strong>{(wb.availableSamsTransactions || []).length}</strong>
               </span>
-              <label>
-                Difference (pesos, 0 to accept)
+              <label className="recon-accept-residual-label">
+                <span className="recon-accept-residual-title">Accept residual (pesos)</span>
+                <span className="recon-accept-residual-hint">
+                  Must be 0 to Accept. Use for a small documented adjustment only — not the same as ledger vs statement
+                  above.
+                </span>
                 <input
                   type="number"
                   step="0.01"

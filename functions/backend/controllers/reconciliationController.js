@@ -21,6 +21,7 @@ import {
 import { generateAndUploadReconciliationReport } from '../services/reconciliationReportService.js';
 import { getStorageBucketName } from '../utils/storageBucketName.js';
 import { fetchTransactionsForMatching } from '../services/reconciliationMatchingPool.js';
+import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 const TOLERANCE = 0.01;
 
 async function deleteQueryInBatches(query, batchSize = 400) {
@@ -67,6 +68,22 @@ async function loadClientAccounts(clientId) {
 
 function findAccount(accounts, accountId) {
   return accounts.find((a) => a.id === accountId && a.active !== false);
+}
+
+/** Signed centavo sum for statement period: ABONO increases balance, CARGO decreases (magnitude from normalized rows). */
+function sumSignedBankMovementCentavos(normalizedRows, startDate, endDate) {
+  let s = 0;
+  for (const row of normalizedRows || []) {
+    if (!normalizedRowInStatementPeriod(row, startDate, endDate)) continue;
+    const a = Math.round(Number(row.amount) || 0);
+    if (row.type === 'ABONO') s += a;
+    else if (row.type === 'CARGO') s -= a;
+  }
+  return s;
+}
+
+function roundPesos2(x) {
+  return Math.round(Number(x) * 100) / 100;
 }
 
 function allMatchTransactionIds(matchMap) {
@@ -752,6 +769,29 @@ export async function getWorkbench(clientId, sessionId) {
     0
   );
 
+  const accountsForBalance = await loadClientAccounts(clientId);
+  const accForSession = findAccount(accountsForBalance, session.accountId);
+  const samsBalanceCentavos =
+    accForSession != null ? Math.round(Number(accForSession.balance) || 0) : null;
+  const statementOpeningPesos = roundPesos2(session.openingBalance ?? 0);
+  const statementEndingPesos = roundPesos2(session.endingBalance ?? 0);
+  const samsBalancePesos =
+    samsBalanceCentavos != null ? roundPesos2(centavosToPesos(samsBalanceCentavos)) : null;
+  const samsVsStatementGapPesos =
+    samsBalancePesos != null ? roundPesos2(samsBalancePesos - statementEndingPesos) : null;
+
+  const netBankMovementCentavos = sumSignedBankMovementCentavos(
+    normList,
+    session.startDate,
+    session.endDate
+  );
+  const impliedEndingFromImportPesos = roundPesos2(
+    statementOpeningPesos + centavosToPesos(netBankMovementCentavos)
+  );
+  const importVsEnteredEndingGapPesos = roundPesos2(
+    impliedEndingFromImportPesos - statementEndingPesos
+  );
+
   return {
     success: true,
     session,
@@ -759,6 +799,18 @@ export async function getWorkbench(clientId, sessionId) {
     availableSamsTransactions,
     matchedItems: session.matchMap || [],
     reconciliationExclusions: session.reconciliationExclusions || [],
+    balanceVsStatement: {
+      statementOpeningPesos,
+      statementEndingPesos,
+      samsBalanceCentavos,
+      samsBalancePesos,
+      /** SAMS stored ledger balance minus statement ending you entered (pesos). */
+      samsVsStatementGapPesos,
+      netBankMovementCentavos,
+      impliedEndingFromImportPesos,
+      /** Opening + signed imported bank lines in period − entered statement ending (pesos). */
+      importVsEnteredEndingGapPesos
+    },
     stats: {
       ...(session.matchStats || {}),
       bankUnmatchedTotalCentavos,

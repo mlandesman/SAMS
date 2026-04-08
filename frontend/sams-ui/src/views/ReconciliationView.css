@@ -324,3 +324,74 @@
   color: #6b7280;
   font-weight: 400;
 }
+
+.recon-balance-panel {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.recon-balance-panel-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  color: #0f766e;
+}
+
+.recon-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.65rem 1.25rem;
+}
+
+.recon-balance-label {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.2rem;
+}
+
+.recon-balance-value {
+  display: block;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.recon-balance-gap-warn {
+  color: #b45309;
+}
+
+.recon-balance-sub {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+  line-height: 1.25;
+}
+
+.recon-balance-footnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.recon-accept-residual-label {
+  max-width: 16rem;
+}
+
+.recon-accept-residual-title {
+  font-weight: 600;
+  color: #334155;
+}
+
+.recon-accept-residual-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.3;
+  max-width: 16rem;
+}
