@@ -645,9 +645,17 @@ async function updateTransaction(clientId, txnId, newData) {
     return false;
   }
 
-  const db = await getDb();
-  const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
-  const originalDoc = await txnRef.get();
+  let db;
+  let txnRef;
+  let originalDoc;
+  try {
+    db = await getDb();
+    txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+    originalDoc = await txnRef.get();
+  } catch (readErr) {
+    logError('❌ Firestore read failed in updateTransaction:', readErr);
+    return false;
+  }
   if (!originalDoc.exists) {
     logError(`❌ Transaction ${txnId} not found for update`);
     return false;
@@ -849,13 +857,26 @@ async function deleteTransaction(clientId, txnId, preloadedSnapshot = null) {
     timestamp: getNow().toISOString()
   });
 
-  const db = await getDb();
-  const txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+  let db;
+  let txnRef;
+  try {
+    db = await getDb();
+    txnRef = db.doc(`clients/${clientId}/transactions/${txnId}`);
+  } catch (readErr) {
+    logError('❌ Firestore init failed in deleteTransaction:', readErr);
+    return false;
+  }
   const usePreload =
     preloadedSnapshot &&
     preloadedSnapshot.exists &&
     preloadedSnapshot.ref.path === txnRef.path;
-  const originalDoc = usePreload ? preloadedSnapshot : await txnRef.get();
+  let originalDoc;
+  try {
+    originalDoc = usePreload ? preloadedSnapshot : await txnRef.get();
+  } catch (readErr) {
+    logError('❌ Firestore get failed in deleteTransaction:', readErr);
+    return false;
+  }
   if (!originalDoc.exists) {
     logDebug(`❌ [BACKEND] Transaction ${txnId} not found`);
     return false;
