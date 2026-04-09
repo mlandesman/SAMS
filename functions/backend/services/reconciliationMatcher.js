@@ -7,7 +7,7 @@ const MS_PER_DAY = 86400000;
 /**
  * Scotia Movimientos / SPEI (business accounts): bank CARGO often includes transfer fee + IVA
  * ($5.00 + $0.80) while SAMS may only record the principal until fee lines are split.
- * Not used for BBVA — e.g. MTC uses a personal BBVA account without this SPEI/factura fee pattern.
+ * Same fixed 580¢ check runs for **BBVA** too (rare on MTC, but harmless and future-proof).
  */
 export const SCOTIABANK_SPEI_FEE_GAP_CENTAVOS = 580;
 
@@ -92,7 +92,7 @@ function amountsCloseCentavos(a, b) {
  * @param {object[]} normalizedRows — id, date, amount (integer centavos), type, ...
  * @param {object[]} samsTransactions — raw Firestore-shaped: id, amount centavos, type, date, accountId, clearedDate, allocations?
  * @param {object} [options]
- * @param {'scotiabank'|'bbva'|null} [options.bankFormat] — enables Scotia-only rules (SPEI fee gap).
+ * @param {'scotiabank'|'bbva'|null} [options.bankFormat] — enables 580¢ SPEI fee gap (Scotia + BBVA).
  * @param {number} [options.roundingToleranceCentavos=2] — match when cash amounts differ by 1…N centavos (rounding).
  */
 export function runMatchingAlgorithm(normalizedRows, samsTransactions, options = {}) {
@@ -103,10 +103,11 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
       ? options.roundingToleranceCentavos
       : ROUNDING_TOLERANCE_CENTAVOS
   );
-  // Scotia: SPEI fee+IVA gap (580¢). per Michael: apply same rule for any client on Scotia format —
-  // other clients are extremely unlikely to hit an exact 580¢ mismatch except true SPEI fees.
-  const scotiabankSpeiGap =
-    bankFormat === 'scotiabank' ? SCOTIABANK_SPEI_FEE_GAP_CENTAVOS : null;
+  // 580¢ fee+IVA gap (bank CARGO vs |SAMS|): Scotia and BBVA — fixed gap, false positives unlikely.
+  const speiFeeGapCentavos =
+    bankFormat === 'scotiabank' || bankFormat === 'bbva'
+      ? SCOTIABANK_SPEI_FEE_GAP_CENTAVOS
+      : null;
 
   const matches = [];
   const usedTxn = new Set();
@@ -284,11 +285,11 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
   }
 
   /**
-   * Scotia: CARGO bank total exceeds |txn.amount| by exactly 580¢ (fee+IVA not in SAMS yet).
+   * CARGO bank total exceeds |txn.amount| by exactly 580¢ (fee+IVA not in SAMS yet).
    * Controller applies SAMS update (split + fee lines) per UnifiedExpenseEntry “Add Bank Fees” pattern.
    */
   function trySpeiFeeGap(maxDays) {
-    if (scotiabankSpeiGap == null) return;
+    if (speiFeeGapCentavos == null) return;
     const poolSorted = [...pool].sort(
       (a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))
     );
@@ -307,18 +308,18 @@ export function runMatchingAlgorithm(normalizedRows, samsTransactions, options =
         // Do NOT use |bank − SAMS|: that also matches bank = principal − 580¢, which is not SPEI auto-fix.
         const bankCentavos = Math.abs(Math.round(nr.amount || 0));
         const absTxn = Math.abs(tc);
-        if (bankCentavos - absTxn !== scotiabankSpeiGap) continue;
+        if (bankCentavos - absTxn !== speiFeeGapCentavos) continue;
         const dd = daysBetween(nr.date, txn);
         if (dd > maxDays) continue;
         matches.push({
           normalizedRowId: nr.id,
           transactionId: txn.id,
           matchType: 'auto-spei-fee-gap',
-          speiFeeGapCentavos: scotiabankSpeiGap,
+          speiFeeGapCentavos,
           autoFix: 'spei-fee',
           fixData: {
             bankAmountCentavos: bankCentavos,
-            gapCentavos: scotiabankSpeiGap
+            gapCentavos: speiFeeGapCentavos
           }
         });
         if (maxDays <= 1) stats.speiFeeGapExact += 1;

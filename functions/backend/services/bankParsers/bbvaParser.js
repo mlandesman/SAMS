@@ -81,7 +81,19 @@ export async function parseBBVAXLSX(fileBuffer) {
 
   for (let r = 1; r <= Math.min(30, sheet.rowCount); r++) {
     const row = sheet.getRow(r);
-    liqCol = findColumnIndex(row, ['liq', 'liquidacion', 'liquidación', 'fecha liq']);
+    // Prefer settlement/operation labels; last resort "fecha" matches statement PDF-style exports (FECHA only).
+    liqCol = findColumnIndex(row, [
+      'liq',
+      'liquidacion',
+      'liquidación',
+      'fecha liq',
+      'fecha oper',
+      'fecha de operacion',
+      'fecha de operación',
+      'fecha operacion',
+      'fecha operación',
+      'fecha'
+    ]);
     const operCol = findColumnIndex(row, ['oper', 'fecha oper']);
     amountCol =
       findColumnIndex(row, ['importe', 'monto', 'amount']) ||
