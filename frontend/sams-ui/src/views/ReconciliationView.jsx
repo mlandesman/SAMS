@@ -7,7 +7,9 @@ import {
   faBan,
   faEye,
   faEdit,
-  faClipboardCheck
+  faClipboardCheck,
+  faCoins,
+  faFilePdf
 } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +20,8 @@ import {
   runMatching,
   getWorkbench,
   manualPair,
+  applyMatchGapAdjustment,
+  regenerateReconciliationReport,
   excludeReconciliationItem,
   acceptSession,
   updateSession,
@@ -159,6 +163,8 @@ export default function ReconciliationView() {
   const [excludeReason, setExcludeReason] = useState('');
   const [justifyModal, setJustifyModal] = useState({ open: false, transactionId: null });
   const [justifyReason, setJustifyReason] = useState('');
+  const [gapAdjustModalOpen, setGapAdjustModalOpen] = useState(false);
+  const [gapAdjustJustification, setGapAdjustJustification] = useState('');
   const [reportUrl, setReportUrl] = useState(null);
 
   const canUse = isAdmin(samsUser, clientId);
@@ -211,6 +217,7 @@ export default function ReconciliationView() {
       const data = await getWorkbench(clientId, sessionId);
       setWb(data);
       setDiffPesos(String(data.session?.differenceAmount ?? 0));
+      setReportUrl(data.session?.reconciliationReportUrl || null);
     } catch (e) {
       setError(e.message || 'Failed to load workbench');
       setWb(null);
@@ -312,6 +319,21 @@ export default function ReconciliationView() {
     txnSumComparable
   ]);
 
+  const canApplyGapAdjustment = useMemo(() => {
+    if (wb?.session?.accepted) return false;
+    if (!bankTypeUnified || !txnTypesOk) return false;
+    if (selectedBankIds.length === 0 || selectedTxnIds.length === 0) return false;
+    if (selectionGapCentavos == null) return false;
+    return selectionGapCentavos !== 0;
+  }, [
+    wb?.session?.accepted,
+    bankTypeUnified,
+    txnTypesOk,
+    selectedBankIds.length,
+    selectedTxnIds.length,
+    selectionGapCentavos
+  ]);
+
   const toggleBankRow = useCallback((id) => {
     setSelectedBankIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -377,6 +399,49 @@ export default function ReconciliationView() {
     }
   };
 
+  const handleGapAdjustConfirm = async () => {
+    if (!clientId || !sessionId || !canApplyGapAdjustment || !gapAdjustJustification.trim()) return;
+    const bankSnap = [...selectedBankIds];
+    const txnSnap = [...selectedTxnIds];
+    setBusy(true);
+    setError('');
+    try {
+      const adjRes = await applyMatchGapAdjustment(clientId, sessionId, {
+        normalizedRowIds: bankSnap,
+        transactionIds: txnSnap,
+        justification: gapAdjustJustification.trim()
+      });
+      const newTxnId = adjRes?.transactionId;
+      if (!newTxnId) {
+        throw new Error('Adjustment created but no transaction id was returned.');
+      }
+      setGapAdjustModalOpen(false);
+      setGapAdjustJustification('');
+      const pairTxnIds = [...new Set([...txnSnap.map(String), String(newTxnId)])];
+      try {
+        await manualPair(clientId, sessionId, {
+          normalizedRowIds: bankSnap,
+          transactionIds: pairTxnIds
+        });
+        setSelectedBankIds([]);
+        setSelectedTxnIds([]);
+      } catch (pairErr) {
+        setSelectedBankIds(bankSnap);
+        setSelectedTxnIds(pairTxnIds);
+        setError(
+          pairErr?.message
+            ? `Adjustment was created, but automatic match failed: ${pairErr.message}. The new Bank Adjustments line is selected—use Match selected if totals align.`
+            : 'Adjustment was created, but automatic match failed. Select the new Bank Adjustments line and use Match selected.'
+        );
+      }
+      await loadWorkbench();
+    } catch (e) {
+      setError(e.message || 'Adjustment failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleJustifySubmit = async () => {
     if (!clientId || !sessionId || !justifyModal.transactionId || !justifyReason.trim()) return;
     setBusy(true);
@@ -430,6 +495,21 @@ export default function ReconciliationView() {
       await loadWorkbench();
     } catch (e) {
       setError(e.message || 'Accept failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRegenerateReport = async () => {
+    if (!clientId || !sessionId) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await regenerateReconciliationReport(clientId, sessionId);
+      setReportUrl(res.reconciliationReportUrl || null);
+      await loadWorkbench();
+    } catch (e) {
+      setError(e.message || 'Regenerate report failed');
     } finally {
       setBusy(false);
     }
@@ -670,6 +750,30 @@ export default function ReconciliationView() {
                   <button
                     type="button"
                     className="recon-secondary-btn"
+                    disabled={busy || !canApplyGapAdjustment}
+                    title={
+                      canApplyGapAdjustment
+                        ? 'Create a Bank Adjustments line for the current gap, then automatically match your selected bank and SAMS rows including that new line. Requires justification.'
+                        : wb?.session?.accepted
+                          ? 'Session is already accepted.'
+                          : !bankTypeUnified || selectedBankIds.length === 0 || selectedTxnIds.length === 0
+                            ? 'Select bank and SAMS lines of a single type to compare totals.'
+                            : !txnTypesOk
+                              ? 'All selected SAMS rows must be valid for the bank type (CARGO or ABONO).'
+                              : selectionGapCentavos === 0
+                                ? 'Difference is zero — use Match selected.'
+                                : 'Cannot create adjustment for this selection.'
+                    }
+                    onClick={() => {
+                      setGapAdjustJustification('');
+                      setGapAdjustModalOpen(true);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faCoins} /> Apply bank adjustment
+                  </button>
+                  <button
+                    type="button"
+                    className="recon-secondary-btn"
                     disabled={busy || selectedTxnIds.length !== 1}
                     title={
                       selectedTxnIds.length === 0
@@ -744,7 +848,9 @@ export default function ReconciliationView() {
                     selectionGapCentavos !== 0 && (
                       <span className="recon-match-totals-warn">
                         {' '}
-                        — adjust selection until Difference is $0.00 to enable Match.
+                        — adjust selection until Difference is $0.00 to enable Match, or use{' '}
+                        <strong>Apply bank adjustment</strong> to post the adjustment and immediately match your current
+                        selection (with required justification).
                       </span>
                     )}
                 </p>
@@ -941,14 +1047,93 @@ export default function ReconciliationView() {
                 Accept statement
               </button>
             </div>
-            {reportUrl && (
+            {(reportUrl || wb.session?.reconciliationReportUrl) && (
               <p className="recon-success">
-                <a href={reportUrl} target="_blank" rel="noreferrer">
+                <a
+                  href={reportUrl || wb.session?.reconciliationReportUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Download reconciliation PDF
                 </a>
               </p>
             )}
+            {wb.session &&
+              ((wb.session.matchMap?.length ?? 0) > 0 ||
+                wb.session.accepted ||
+                wb.session.reconciliationReportUrl) && (
+                <p className="recon-hint" style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="recon-secondary-btn"
+                    disabled={busy}
+                    title="Rebuild PDF from this session’s match map, normalized bank rows, and current SAMS transactions (no Accept). Use after report template changes or if transactions were cleared in dev."
+                    onClick={handleRegenerateReport}
+                  >
+                    <FontAwesomeIcon icon={faFilePdf} /> Regenerate report PDF
+                  </button>{' '}
+                  <span className="recon-match-totals-meta">
+                    (from saved session — does not change cleared dates)
+                  </span>
+                </p>
+              )}
           </section>
+      )}
+
+      {gapAdjustModalOpen && (
+        <div
+          className="recon-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (busy) return;
+            setGapAdjustModalOpen(false);
+            setGapAdjustJustification('');
+          }}
+        >
+          <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
+            <h4>Apply bank adjustment</h4>
+            <p className="recon-hint">
+              Creates one <strong>Bank Adjustments</strong> transaction (same category as Accounts → Submit Adjustments)
+              for the signed gap <strong>{formatWorkbenchCentavos(selectionGapCentavos || 0)}</strong>{' '}
+              {selectionGapCentavos > 0 && '(bank total higher)'}
+              {selectionGapCentavos < 0 && '(SAMS total higher)'}
+              {selectionGapCentavos === 0 && ''} on <strong>{bankTypeUnified || '—'}</strong>, dated{' '}
+              <strong>{wb?.session?.endDate || '—'}</strong>. Amount and direction are computed from your selection; a
+              written justification is required (stored on the transaction). After posting, SAMS runs{' '}
+              <strong>Match selected</strong> for the same bank rows, your selected SAMS rows, and the new adjustment
+              line. Checkboxes clear only after that match succeeds (same as clicking Match selected).
+            </p>
+            <textarea
+              className="recon-field-input"
+              rows={3}
+              placeholder="Justification (required)"
+              value={gapAdjustJustification}
+              onChange={(e) => setGapAdjustJustification(e.target.value)}
+            />
+            <div className="recon-modal-actions">
+              <button
+                type="button"
+                className="recon-secondary-btn"
+                disabled={busy}
+                onClick={() => {
+                  setGapAdjustModalOpen(false);
+                  setGapAdjustJustification('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="recon-primary-btn"
+                disabled={busy || !canApplyGapAdjustment || !gapAdjustJustification.trim()}
+                onClick={handleGapAdjustConfirm}
+              >
+                {busy ? 'Working…' : 'Create adjustment'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {justifyModal.open && (

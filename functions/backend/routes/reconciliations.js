@@ -17,7 +17,9 @@ import {
   acceptSession,
   manualPairSession,
   excludeFromReconciliation,
-  getWorkbench
+  getWorkbench,
+  applyMatchGapAdjustment,
+  regenerateReconciliationReport
 } from '../controllers/reconciliationController.js';
 
 const router = express.Router();
@@ -77,6 +79,28 @@ router.post('/:sessionId/manual-pair', requirePermission('accounts.manage'), asy
     res.json({ success: true, ...result });
   } catch (error) {
     console.error('reconciliations manual-pair:', error);
+    res.status(400).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+router.post('/:sessionId/match-gap-adjustment', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const result = await applyMatchGapAdjustment(cid, req.params.sessionId, req.body || {}, req.user);
+    res.json(result);
+  } catch (error) {
+    console.error('reconciliations match-gap-adjustment:', error);
+    res.status(400).json({ success: false, error: error.message || 'Server error' });
+  }
+});
+
+router.post('/:sessionId/regenerate-report', requirePermission('accounts.manage'), async (req, res) => {
+  try {
+    const cid = clientId(req);
+    const result = await regenerateReconciliationReport(cid, req.params.sessionId, req.user);
+    res.json(result);
+  } catch (error) {
+    console.error('reconciliations regenerate-report:', error);
     res.status(400).json({ success: false, error: error.message || 'Server error' });
   }
 });

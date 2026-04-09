@@ -151,6 +151,39 @@ export async function manualPair(clientId, sessionId, payload) {
   return j;
 }
 
+/**
+ * Create a Bank Adjustments transaction for the signed workbench gap (any magnitude / direction).
+ * Server recomputes gap from the session and selected ids. Payload must include `justification` (non-empty).
+ */
+export async function applyMatchGapAdjustment(clientId, sessionId, payload) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/match-gap-adjustment`,
+    {
+      method: 'POST',
+      headers: await authHeaderJson(),
+      body: JSON.stringify(payload || {})
+    }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}
+
+/** Rebuild PDF from saved session + normalized rows + current txn docs (no Accept). */
+export async function regenerateReconciliationReport(clientId, sessionId) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/regenerate-report`,
+    {
+      method: 'POST',
+      headers: await authHeaderJson(),
+      body: JSON.stringify({})
+    }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}
+
 export async function excludeReconciliationItem(clientId, sessionId, payload) {
   const res = await fetch(
     `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}/exclude`,

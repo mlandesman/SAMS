@@ -746,6 +746,150 @@ export async function excludeFromReconciliation(clientId, sessionId, body) {
 }
 
 /**
+ * Create a single Bank Adjustments transaction dated to the session end date (same path as Accounts → reconciliation).
+ * Server recomputes the signed gap from the current session and selected ids (client cannot spoof amount).
+ * Amount may be any size; positive or negative per CARGO/ABONO semantics. Requires a written justification.
+ */
+export async function applyMatchGapAdjustment(clientId, sessionId, body, user) {
+  const justification = String(body?.justification ?? body?.reason ?? '').trim();
+  if (!justification) {
+    throw new Error('Justification is required.');
+  }
+
+  const normalizedRowIds = [...new Set((body?.normalizedRowIds || []).map(String))];
+  const transactionIds = [...new Set((body?.transactionIds || []).map(String))];
+
+  if (normalizedRowIds.length === 0 || transactionIds.length === 0) {
+    throw new Error('Select at least one bank line and one SAMS line.');
+  }
+
+  const session = await getSession(clientId, sessionId, { includeRows: true });
+  if (session.accepted) throw new Error('Session already accepted');
+
+  const unmatchedSet = new Set(session.unmatchedBankRows || []);
+  const normById = Object.fromEntries((session.normalizedRows || []).map((row) => [row.id, row]));
+
+  for (const id of normalizedRowIds) {
+    if (!unmatchedSet.has(id)) {
+      throw new Error(`Bank line is not in the current unmatched set (refresh the workbench).`);
+    }
+    const row = normById[id];
+    if (!row) throw new Error(`Bank line ${id} not found.`);
+    if (!normalizedRowInStatementPeriod(row, session.startDate, session.endDate)) {
+      throw new Error(`Bank line ${id} is outside the statement period.`);
+    }
+  }
+
+  const bankTypes = [...new Set(normalizedRowIds.map((id) => normById[id]?.type).filter(Boolean))];
+  if (bankTypes.length !== 1 || (bankTypes[0] !== 'CARGO' && bankTypes[0] !== 'ABONO')) {
+    throw new Error('Selected bank lines must all be CARGO or all ABONO.');
+  }
+  const bankType = bankTypes[0];
+
+  let bankSum = 0;
+  for (const id of normalizedRowIds) {
+    bankSum += Math.round(Number(normById[id].amount) || 0);
+  }
+
+  const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));
+  const excludedSamsIds = new Set(
+    (session.reconciliationExclusions || []).filter((e) => e.kind === 'sams').map((e) => e.id)
+  );
+
+  const pool = await fetchTransactionsForMatching(
+    clientId,
+    session.accountId,
+    session.startDate,
+    session.endDate
+  );
+  const poolById = Object.fromEntries(pool.map((t) => [t.id, t]));
+
+  for (const tid of transactionIds) {
+    const t = poolById[tid];
+    if (!t) {
+      throw new Error(`SAMS transaction ${tid} is not in the matching window.`);
+    }
+    if (t.clearedDate) {
+      throw new Error(`SAMS transaction ${tid} is already cleared.`);
+    }
+    if (matchedTxnIds.has(tid)) {
+      throw new Error(`SAMS transaction ${tid} is already matched.`);
+    }
+    if (excludedSamsIds.has(tid)) {
+      throw new Error(`SAMS transaction ${tid} is excluded from this session.`);
+    }
+    if (!typeMatchesBank(bankType, t)) {
+      throw new Error(`SAMS transaction ${tid} is not valid for ${bankType}.`);
+    }
+  }
+
+  let txnSum = 0;
+  for (const tid of transactionIds) {
+    txnSum += Math.abs(Math.round(txnMatchCentavos(poolById[tid])));
+  }
+
+  const gap = bankSum - txnSum;
+  if (gap === 0) {
+    throw new Error('Difference is zero — use Match selected or change your selection.');
+  }
+
+  const differencePesos = bankType === 'CARGO' ? -(gap / 100) : gap / 100;
+
+  const asOfDate = session.endDate;
+  if (!asOfDate || !/^\d{4}-\d{2}-\d{2}$/.test(String(asOfDate))) {
+    throw new Error('Session end date is invalid; cannot date the adjustment.');
+  }
+
+  const { createReconciliationAdjustments } = await import('./accountsController.js');
+  const results = await createReconciliationAdjustments(
+    clientId,
+    [
+      {
+        accountId: session.accountId,
+        accountName: session.accountName || 'Bank',
+        samsBalance: 0,
+        actualBalance: 0,
+        difference: differencePesos,
+        asOfDate: String(asOfDate),
+        description: `Bank reconciliation adjustment (${session.accountName || session.accountId})`,
+        notes: `Workbench match-gap: ${gap}¢ (${bankType}). Session ${sessionId}. Bank lines: ${normalizedRowIds.length}, SAMS lines: ${transactionIds.length}. Justification: ${justification}`,
+        extraMetadata: {
+          reconciliationKind: 'workbench-match-gap',
+          reconciliationSessionId: sessionId,
+          matchGapCentavos: gap,
+          bankType,
+          normalizedRowIds,
+          transactionIds,
+          justification,
+          justifiedBy: user?.email || null
+        }
+      }
+    ],
+    user
+  );
+
+  const txnId = results[0]?.transactionId;
+  if (!txnId) {
+    throw new Error('Adjustment was not created.');
+  }
+
+  const db = await getDb();
+  const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
+  await ref.update({
+    adjustmentTransactionIds: admin.firestore.FieldValue.arrayUnion(txnId),
+    updated: admin.firestore.Timestamp.now()
+  });
+
+  return {
+    success: true,
+    transactionId: txnId,
+    gapCentavos: gap,
+    bankType,
+    differencePesos
+  };
+}
+
+/**
  * Workbench payload: unmatched bank rows (read-only), uncleared SAMS pool (statement window ±7 days),
  * matched items, session stats. Single source of truth remains the session document.
  */
@@ -928,6 +1072,39 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
     reconciliationReportUrl: reportUrl,
     updated: admin.firestore.Timestamp.now(),
     adjustmentTransactionIds: options.adjustmentTransactionIds || session.adjustmentTransactionIds || []
+  });
+
+  return { success: true, reconciliationReportUrl: reportUrl };
+}
+
+/**
+ * Rebuild the reconciliation PDF from the saved session document, normalizedRows subcollection,
+ * and current transaction documents. Does not re-run Accept or change clearedDate.
+ * Updates `reconciliationReportUrl` on the session (useful after clearing txns in dev or report template changes).
+ */
+export async function regenerateReconciliationReport(clientId, sessionId, user) {
+  const db = await getDb();
+  const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error('Reconciliation session not found');
+  const session = doc.data();
+  const matchMap = session.matchMap || [];
+
+  const clientRef = db.collection('clients').doc(clientId);
+  const clientDoc = await clientRef.get();
+  const clientName = clientDoc.data()?.basicInfo?.displayName || clientId;
+
+  const reportUrl = await generateAndUploadReconciliationReport({
+    clientId,
+    sessionId,
+    session: { ...session, matchMap },
+    clientDisplayName: clientName,
+    acceptedByEmail: user?.email || 'report-regeneration'
+  });
+
+  await ref.update({
+    reconciliationReportUrl: reportUrl,
+    updated: admin.firestore.Timestamp.now()
   });
 
   return { success: true, reconciliationReportUrl: reportUrl };
