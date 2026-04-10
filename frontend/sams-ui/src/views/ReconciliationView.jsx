@@ -537,29 +537,25 @@ export default function ReconciliationView() {
   return (
     <div className="view-container">
       <ActivityActionBar>
-        {sessionId && wb && (
-          <>
-            <button
-              type="button"
-              className="action-item"
-              onClick={loadWorkbench}
-              disabled={busy}
-            >
-              Refresh
-            </button>
-            <button
-              type="button"
-              className="action-item"
-              onClick={() => {
-                setSessionParam(null);
-                setWb(null);
-              }}
-              disabled={busy}
-            >
-              New Session
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          className="action-item"
+          onClick={loadWorkbench}
+          disabled={busy || !sessionId}
+        >
+          Refresh
+        </button>
+        <button
+          type="button"
+          className="action-item"
+          onClick={() => {
+            setSessionParam(null);
+            setWb(null);
+          }}
+          disabled={busy}
+        >
+          New Session
+        </button>
       </ActivityActionBar>
       <div className="reconciliation-page">
       {busy && busyAction === 'accept' && (
