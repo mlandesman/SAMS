@@ -30,6 +30,8 @@ import {
 import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
+import { isAdmin } from '../utils/userRoles';
+import './ReconciliationView.css';
 
 /** Normalized bank rows and workbench SAMS txns use integer centavos (Firestore storage). Shared formatCurrency divides by 100. */
 function formatWorkbenchCentavos(centavos) {
@@ -99,9 +101,6 @@ function formatWorkbenchSamsDate(t) {
   }
   return '—';
 }
-import { isAdmin } from '../utils/userRoles';
-import './ReconciliationView.css';
-
 /** Mirror backend reconciliationMatcher.typeMatchesBank for workbench sum preview */
 function typeMatchesBankWorkbench(bankType, txn) {
   const t = txn?.type;
@@ -1237,7 +1236,12 @@ export default function ReconciliationView() {
               >
                 Cancel
               </button>
-              <button type="button" className="recon-primary-btn" onClick={handleExclude}>
+              <button
+                type="button"
+                className="recon-primary-btn"
+                disabled={busy || !excludeReason.trim()}
+                onClick={handleExclude}
+              >
                 Save
               </button>
             </div>
