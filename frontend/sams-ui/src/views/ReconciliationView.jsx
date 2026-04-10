@@ -743,6 +743,7 @@ export default function ReconciliationView() {
                               title="Exclude"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setExcludeReason('');
                                 setExcludeModal({ open: true, type: 'bank', id: row.id });
                               }}
                             >
@@ -958,6 +959,7 @@ export default function ReconciliationView() {
                               title="Exclude"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setExcludeReason('');
                                 setExcludeModal({ open: true, type: 'sams', id: t.id });
                               }}
                             >
