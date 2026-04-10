@@ -24,6 +24,64 @@ import { fetchTransactionsForMatching } from '../services/reconciliationMatching
 import { centavosToPesos } from '../../shared/utils/currencyUtils.js';
 const TOLERANCE = 0.01;
 
+function reconDebugLog(stage, payload) {
+  try {
+    console.log(`[recon-debug] ${stage}`, JSON.stringify(payload));
+  } catch {
+    console.log(`[recon-debug] ${stage}`, payload);
+  }
+}
+
+function summarizeBankRows(rows, limit = 8) {
+  return (rows || []).slice(0, limit).map((r) => ({
+    rowIndex: r?.rowIndex ?? null,
+    id: r?.id ?? null,
+    date: r?.date ?? null,
+    type: r?.type ?? null,
+    amount: r?.amount ?? null,
+    description: String(r?.description || '').slice(0, 120)
+  }));
+}
+
+function txnDateIso(txn) {
+  const d = txn?.date;
+  if (d == null) return null;
+  if (typeof d?.toDate === 'function') {
+    const dt = d.toDate();
+    return Number.isNaN(dt?.getTime?.()) ? null : dt.toISOString().slice(0, 10);
+  }
+  const sec = d?.seconds ?? d?._seconds;
+  if (sec != null) {
+    const dt = new Date(Number(sec) * 1000);
+    return Number.isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 10);
+  }
+  if (typeof d === 'string' || typeof d === 'number') {
+    const dt = new Date(d);
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 10);
+    const s = String(d).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  }
+  return null;
+}
+
+function txnInStatementPeriod(txn, startDate, endDate) {
+  const d = txnDateIso(txn);
+  if (!d || !startDate || !endDate) return false;
+  return d >= startDate && d <= endDate;
+}
+
+function summarizeTransactions(txns, limit = 8) {
+  return (txns || []).slice(0, limit).map((t) => ({
+    id: t?.id ?? null,
+    date: txnDateIso(t),
+    type: t?.type ?? null,
+    amount: t?.amount ?? null,
+    accountId: t?.accountId ?? null,
+    clearedDate: t?.clearedDate ?? null,
+    notes: String(t?.notes || t?.description || '').slice(0, 120)
+  }));
+}
+
 async function deleteQueryInBatches(query, batchSize = 400) {
   const db = await getDb();
   while (true) {
@@ -107,8 +165,9 @@ function allMatchTransactionIds(matchMap) {
 }
 
 /**
- * SAMS rows still requiring action: in matching window, uncleared, not in matchMap, not excluded.
- * Mirrors getWorkbench pool logic (Manager: Accept only when fully resolved).
+ * SAMS rows still requiring action for Accept:
+ * in matching window, uncleared, not in matchMap/exclusions, and inside statement period.
+ * We keep ±7 day rows visible in workbench for convenience, but they no longer block Accept.
  */
 async function listUnresolvedSamsInPool(clientId, session) {
   const pool = await fetchTransactionsForMatching(
@@ -127,7 +186,8 @@ async function listUnresolvedSamsInPool(clientId, session) {
     (t) =>
       !t.clearedDate &&
       !matchedTxnIds.has(t.id) &&
-      !excludedSamsIds.has(t.id)
+      !excludedSamsIds.has(t.id) &&
+      txnInStatementPeriod(t, session.startDate, session.endDate)
   );
 }
 
@@ -314,10 +374,33 @@ export async function importBankFile(clientId, sessionId, files, _user) {
     session.bankFormat,
     bankFile.originalname
   );
+  reconDebugLog('import.parse', {
+    clientId,
+    sessionId,
+    bankFormat: session.bankFormat,
+    file: bankFile.originalname,
+    parsedRows: parsedRows.length,
+    parseErrors: parseErrors.length,
+    sampleParsedRows: summarizeBankRows(parsedRows)
+  });
 
   const beforeFilter = parsedRows.length;
   const bankRows = filterBankRowsByStatementPeriod(parsedRows, session.startDate, session.endDate);
   const errors = [...parseErrors];
+  const prevDay = new Date(`${session.startDate}T00:00:00Z`);
+  prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+  const prevDayIso = prevDay.toISOString().slice(0, 10);
+  reconDebugLog('import.filter', {
+    clientId,
+    sessionId,
+    period: { start: session.startDate, end: session.endDate },
+    parsedBeforeFilter: beforeFilter,
+    keptAfterFilter: bankRows.length,
+    droppedOutsidePeriod: beforeFilter - bankRows.length,
+    rowsOnStartDateFromParser: summarizeBankRows(parsedRows.filter((r) => r?.date === session.startDate), 20),
+    rowsOnPrevDateFromParser: summarizeBankRows(parsedRows.filter((r) => r?.date === prevDayIso), 20),
+    sampleKeptRows: summarizeBankRows(bankRows)
+  });
   if (beforeFilter > bankRows.length) {
     errors.push(
       `Excluded ${beforeFilter - bankRows.length} bank line(s) outside statement period ${session.startDate}–${session.endDate}.`
@@ -347,6 +430,18 @@ export async function importBankFile(clientId, sessionId, files, _user) {
   if (count > 0) await batch.commit();
 
   const normalized = normalizeRowsForSession(session.bankFormat, bankRows);
+  reconDebugLog('import.normalize', {
+    clientId,
+    sessionId,
+    bankFormat: session.bankFormat,
+    normalizedRows: normalized.length,
+    netBankMovementCentavos: sumSignedBankMovementCentavos(
+      normalized,
+      session.startDate,
+      session.endDate
+    ),
+    sampleNormalizedRows: summarizeBankRows(normalized)
+  });
   batch = db.batch();
   count = 0;
   for (const nr of normalized) {
@@ -411,6 +506,15 @@ export async function runMatch(clientId, sessionId) {
   const normalizedRowsInPeriod = normalizedRows.filter((nr) =>
     normalizedRowInStatementPeriod(nr, session.startDate, session.endDate)
   );
+  reconDebugLog('match.normalized', {
+    clientId,
+    sessionId,
+    period: { start: session.startDate, end: session.endDate },
+    normalizedTotal: normalizedRows.length,
+    normalizedInPeriod: normalizedRowsInPeriod.length,
+    rowsOnStartDate: summarizeBankRows(normalizedRowsInPeriod.filter((r) => r?.date === session.startDate), 20),
+    sampleNormalizedInPeriod: summarizeBankRows(normalizedRowsInPeriod)
+  });
 
   const rawTxns = await fetchTransactionsForMatching(
     clientId,
@@ -440,10 +544,29 @@ export async function runMatch(clientId, sessionId) {
   }
   const rawTxnsForMatch = rawTxns.filter((t) => Math.round(Number(t.amount) || 0) !== 0);
   const reconciliationExclusions = [...existingExcl, ...zeroAutoExclusions];
+  reconDebugLog('match.pool', {
+    clientId,
+    sessionId,
+    fetchedTxnCount: rawTxns.length,
+    matchableTxnCount: rawTxnsForMatch.length,
+    zeroAutoExcluded: zeroAutoExclusions.length,
+    txnsOnStartDate: summarizeTransactions(rawTxnsForMatch.filter((t) => txnDateIso(t) === session.startDate), 20),
+    sampleTxnsForMatch: summarizeTransactions(rawTxnsForMatch)
+  });
 
   const withAccount = attachAccountForMatching(normalizedRowsInPeriod, session.accountId);
   const result = runMatchingAlgorithm(withAccount, rawTxnsForMatch, {
     bankFormat: session.bankFormat || null
+  });
+  reconDebugLog('match.result', {
+    clientId,
+    sessionId,
+    stats: result.stats,
+    matches: result.matches.length,
+    unmatchedBankRows: result.unmatchedBankRows.length,
+    unmatchedTransactions: result.unmatchedTransactions.length,
+    unmatchedBankSample: result.unmatchedBankRows.slice(0, 20),
+    unmatchedTxnSample: result.unmatchedTransactions.slice(0, 20)
   });
 
   const normById = Object.fromEntries(normalizedRowsInPeriod.map((r) => [r.id, r]));
@@ -964,6 +1087,27 @@ export async function getWorkbench(clientId, sessionId) {
   const importVsEnteredEndingGapPesos = roundPesos2(
     impliedEndingFromImportPesos - statementEndingPesos
   );
+  const unresolvedInPeriodCount = availableSamsTransactions.filter((t) =>
+    txnInStatementPeriod(t, session.startDate, session.endDate)
+  ).length;
+  reconDebugLog('workbench.balance', {
+    clientId,
+    sessionId,
+    accountId: session.accountId,
+    statementOpeningPesos,
+    statementEndingPesos,
+    samsBalanceCentavos,
+    samsBalancePesos,
+    samsVsStatementGapPesos,
+    netBankMovementCentavos,
+    impliedEndingFromImportPesos,
+    importVsEnteredEndingGapPesos,
+    unmatchedBankLineCount: unmatchedBankDetails.length,
+    availableSamsCount: availableSamsTransactions.length,
+    unresolvedInPeriodCount,
+    sampleUnmatchedBank: summarizeBankRows(unmatchedBankDetails),
+    sampleAvailableSams: summarizeTransactions(availableSamsTransactions)
+  });
 
   return {
     success: true,
@@ -988,6 +1132,7 @@ export async function getWorkbench(clientId, sessionId) {
       ...(session.matchStats || {}),
       bankUnmatchedTotalCentavos,
       samsAvailableTotalCentavos,
+      unresolvedInPeriodCount,
       unmatchedBankLineCount: unmatchedBankDetails.length,
       availableSamsCount: availableSamsTransactions.length
     }
@@ -1021,7 +1166,7 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
   const openPool = await listUnresolvedSamsInPool(clientId, session);
   if (openPool.length > 0) {
     throw new Error(
-      `All SAMS lines in the matching window must be matched, justified, or excluded before accepting (${openPool.length} still open).`
+      `All SAMS lines inside the statement period must be matched, justified, or excluded before accepting (${openPool.length} still open).`
     );
   }
 

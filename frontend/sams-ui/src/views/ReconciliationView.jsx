@@ -537,7 +537,7 @@ export default function ReconciliationView() {
         <p className="recon-page-sub">
           Auto-match first, then manual <strong>many-to-many</strong> matches (totals must match in centavos), then{' '}
           <strong>Justify selected</strong> (or the row clipboard icon) for SAMS lines with no bank line. When every bank
-          line is resolved and every in-window
+          line is resolved and every in-period
           SAMS line is matched, justified, or excluded — and difference is 0 — use Accept.{' '}
           <code>clearedDate</code> is set only on Accept.
         </p>
@@ -1068,7 +1068,7 @@ export default function ReconciliationView() {
                 disabled={
                   busy ||
                   (wb.session?.unmatchedBankRows || []).length > 0 ||
-                  (wb.session?.unmatchedTransactions || []).length > 0 ||
+                  (wb.stats?.unresolvedInPeriodCount || 0) > 0 ||
                   Math.abs(Number(diffPesos) || 0) > 0.01 ||
                   wb.session?.accepted
                 }
@@ -1212,7 +1212,10 @@ export default function ReconciliationView() {
           className="recon-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => setExcludeModal({ open: false, type: null, id: null })}
+          onClick={() => {
+            setExcludeModal({ open: false, type: null, id: null });
+            setExcludeReason('');
+          }}
         >
           <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
             <h4>Exclude from session</h4>
@@ -1227,7 +1230,10 @@ export default function ReconciliationView() {
               <button
                 type="button"
                 className="recon-secondary-btn"
-                onClick={() => setExcludeModal({ open: false, type: null, id: null })}
+                onClick={() => {
+                  setExcludeModal({ open: false, type: null, id: null });
+                  setExcludeReason('');
+                }}
               >
                 Cancel
               </button>
