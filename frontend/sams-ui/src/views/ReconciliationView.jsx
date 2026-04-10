@@ -32,6 +32,7 @@ import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import { isAdmin } from '../utils/userRoles';
 import { LoadingSpinner } from '../components/common';
+import ActivityActionBar from '../components/common/ActivityActionBar';
 import ReconciliationWorkbenchModals from './ReconciliationWorkbenchModals';
 import './ReconciliationView.css';
 
@@ -534,7 +535,33 @@ export default function ReconciliationView() {
   }
 
   return (
-    <div className="reconciliation-page">
+    <div className="view-container">
+      <ActivityActionBar>
+        {sessionId && wb && (
+          <>
+            <button
+              type="button"
+              className="action-item"
+              onClick={loadWorkbench}
+              disabled={busy}
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="action-item"
+              onClick={() => {
+                setSessionParam(null);
+                setWb(null);
+              }}
+              disabled={busy}
+            >
+              New Session
+            </button>
+          </>
+        )}
+      </ActivityActionBar>
+      <div className="reconciliation-page">
       {busy && busyAction === 'accept' && (
         <LoadingSpinner
           variant="logo"
@@ -665,22 +692,6 @@ export default function ReconciliationView() {
 
       {sessionId && wb && (
         <section className="recon-workbench">
-            <div className="recon-workbench-toolbar">
-              <button type="button" className="recon-secondary-btn" onClick={loadWorkbench} disabled={busy}>
-                Refresh
-              </button>
-              <button
-                type="button"
-                className="recon-secondary-btn"
-                onClick={() => {
-                  setSessionParam(null);
-                  setWb(null);
-                }}
-              >
-                New session
-              </button>
-            </div>
-
             {(() => {
               const mm = wb.session?.matchMap?.length ?? 0;
               const st = wb.stats || {};
@@ -1174,6 +1185,7 @@ export default function ReconciliationView() {
         onClose={() => setViewTxn(null)}
         clientId={clientId}
       />
+      </div>
     </div>
   );
 }
