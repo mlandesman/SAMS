@@ -535,6 +535,15 @@ export default function ReconciliationView() {
 
   return (
     <div className="reconciliation-page">
+      {busy && busyAction === 'accept' && (
+        <LoadingSpinner
+          variant="logo"
+          size="large"
+          fullScreen={true}
+          show={true}
+          message="Accepting statement and generating report..."
+        />
+      )}
       <header className="recon-page-header">
         <h1>
           <FontAwesomeIcon icon={faFileInvoice} /> Bank reconciliation
@@ -1079,14 +1088,7 @@ export default function ReconciliationView() {
                 }
                 onClick={handleAccept}
               >
-                {busy && busyAction === 'accept' ? (
-                  <span className="recon-btn-inline-spinner">
-                    <LoadingSpinner variant="logo" size="small" color="white" show={true} />
-                    Accepting...
-                  </span>
-                ) : (
-                  'Accept statement'
-                )}
+                Accept statement
               </button>
             </div>
             {(reportUrl || wb.session?.reconciliationReportUrl) && (

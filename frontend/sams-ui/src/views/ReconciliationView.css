@@ -417,8 +417,3 @@
   max-width: 16rem;
 }
 
-.recon-btn-inline-spinner {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
