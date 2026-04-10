@@ -19,6 +19,7 @@ import {
   importBankFile,
   runMatching,
   getWorkbench,
+  listSessions,
   manualPair,
   applyMatchGapAdjustment,
   regenerateReconciliationReport,
@@ -130,6 +131,18 @@ function inferBankFormat(accountName, explicit) {
   return '';
 }
 
+function formatSessionTimestamp(ts) {
+  if (!ts) return '—';
+  const sec = ts.seconds ?? ts._seconds;
+  if (sec != null) {
+    const d = new Date(Number(sec) * 1000);
+    if (!Number.isNaN(d.getTime())) return formatDateInMexico(d) || '—';
+  }
+  const d = new Date(ts);
+  if (!Number.isNaN(d.getTime())) return formatDateInMexico(d) || '—';
+  return '—';
+}
+
 export default function ReconciliationView() {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
@@ -170,6 +183,10 @@ export default function ReconciliationView() {
   const [gapAdjustModalOpen, setGapAdjustModalOpen] = useState(false);
   const [gapAdjustJustification, setGapAdjustJustification] = useState('');
   const [reportUrl, setReportUrl] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   const canUse = isAdmin(samsUser, clientId);
   const prevClientIdRef = useRef(undefined);
@@ -230,6 +247,21 @@ export default function ReconciliationView() {
     }
   }, [clientId, sessionId]);
 
+  const loadHistory = useCallback(async () => {
+    if (!clientId) return;
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const rows = await listSessions(clientId, accountId || null);
+      setHistoryRows(rows || []);
+    } catch (e) {
+      setHistoryError(e.message || 'Failed to load reconciliation history');
+      setHistoryRows([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [clientId, accountId]);
+
   useEffect(() => {
     if (sessionId && clientId) {
       loadWorkbench();
@@ -237,6 +269,11 @@ export default function ReconciliationView() {
       setWb(null);
     }
   }, [sessionId, clientId, loadWorkbench]);
+
+  useEffect(() => {
+    if (!showHistory || !clientId) return;
+    loadHistory();
+  }, [showHistory, clientId, loadHistory]);
 
   const bankRowById = useMemo(() => {
     const m = {};
@@ -539,6 +576,24 @@ export default function ReconciliationView() {
       <ActivityActionBar>
         <button
           type="button"
+          className={`action-item${showHistory ? ' filtered-active' : ''}`}
+          onClick={() => setShowHistory((v) => !v)}
+          disabled={busy}
+        >
+          {showHistory ? 'Back' : 'History'}
+        </button>
+        {showHistory && (
+          <button
+            type="button"
+            className="action-item"
+            onClick={loadHistory}
+            disabled={busy || historyLoading}
+          >
+            {historyLoading ? 'Loading…' : 'Refresh History'}
+          </button>
+        )}
+        <button
+          type="button"
           className="action-item"
           onClick={loadWorkbench}
           disabled={busy || !sessionId}
@@ -582,13 +637,99 @@ export default function ReconciliationView() {
 
       {error && <div className="recon-page-error">{error}</div>}
 
-      {sessionId && !wb && !error && (
+      {showHistory && (
+        <section className="recon-history-panel">
+          <h2>Reconciliation history</h2>
+          <p className="recon-hint">
+            Sessions for this client. Open any row to continue work, or use artifact links to retrieve statement/bank/report files.
+          </p>
+          {historyError && <div className="recon-page-error">{historyError}</div>}
+          <div className="recon-table-scroll recon-history-scroll">
+            <table className="recon-wb-table recon-history-table">
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Period</th>
+                  <th>Account</th>
+                  <th>Status</th>
+                  <th className="num">Matched</th>
+                  <th className="num">Unmatched bank</th>
+                  <th className="num">Unmatched txns</th>
+                  <th>Artifacts</th>
+                  <th>Session / paths</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyLoading ? (
+                  <tr>
+                    <td colSpan={10}>Loading reconciliation history…</td>
+                  </tr>
+                ) : historyRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={10}>No reconciliation sessions found.</td>
+                  </tr>
+                ) : (
+                  historyRows.map((row) => {
+                    const sessionDocId = String(row.id || '');
+                    const importFolderPath = `clients/${clientId}/reconciliation-imports/${sessionDocId}/`;
+                    const reportObjectPath = `clients/${clientId}/reconciliation-reports/${sessionDocId}.pdf`;
+                    const stats = row.matchStats || row.stats || {};
+                    const matchedCount = Number(stats.matchedCount) || (row.matchMap?.length ?? 0);
+                    const unmatchedBank = Number(stats.unmatchedBankCount) || (row.unmatchedBankRows?.length ?? 0);
+                    const unmatchedTxn = Number(stats.unmatchedTxnCount) || (row.unmatchedTransactions?.length ?? 0);
+                    return (
+                      <tr key={sessionDocId}>
+                        <td>{formatSessionTimestamp(row.created)}</td>
+                        <td>{row.startDate || '—'} → {row.endDate || '—'}</td>
+                        <td>{row.accountName || row.accountId || '—'}</td>
+                        <td>{row.accepted ? 'accepted' : (row.status || 'draft')}</td>
+                        <td className="num">{matchedCount}</td>
+                        <td className="num">{unmatchedBank}</td>
+                        <td className="num">{unmatchedTxn}</td>
+                        <td className="recon-history-links">
+                          {row.bankPdfUrl ? <a href={row.bankPdfUrl} target="_blank" rel="noreferrer">Statement PDF</a> : <span>—</span>}
+                          {row.bankFileUrl ? <a href={row.bankFileUrl} target="_blank" rel="noreferrer">Bank file</a> : <span>—</span>}
+                          {row.reconciliationReportUrl ? (
+                            <a href={row.reconciliationReportUrl} target="_blank" rel="noreferrer">Recon report</a>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
+                        <td className="recon-history-meta">
+                          <div><strong>Session:</strong> <code>{sessionDocId}</code></div>
+                          <div><strong>Imports:</strong> <code>{importFolderPath}</code></div>
+                          <div><strong>Report:</strong> <code>{reportObjectPath}</code></div>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="recon-secondary-btn"
+                            onClick={() => {
+                              setSessionParam(sessionDocId);
+                              setShowHistory(false);
+                            }}
+                          >
+                            Open session
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {!showHistory && sessionId && !wb && !error && (
         <div className="recon-loading-panel" aria-busy="true">
           Loading workbench…
         </div>
       )}
 
-      {!sessionId && (
+      {!showHistory && !sessionId && (
         <section className="recon-setup-panel">
           <h2>1. Import &amp; match</h2>
           <div className="recon-form-grid">
@@ -686,7 +827,7 @@ export default function ReconciliationView() {
         </section>
       )}
 
-      {sessionId && wb && (
+      {!showHistory && sessionId && wb && (
         <section className="recon-workbench">
             {(() => {
               const mm = wb.session?.matchMap?.length ?? 0;
