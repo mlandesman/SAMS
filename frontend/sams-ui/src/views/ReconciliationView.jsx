@@ -31,6 +31,7 @@ import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import { isAdmin } from '../utils/userRoles';
+import { LoadingSpinner } from '../components/common';
 import './ReconciliationView.css';
 
 /** Normalized bank rows and workbench SAMS txns use integer centavos (Firestore storage). Shared formatCurrency divides by 100. */
@@ -144,6 +145,7 @@ export default function ReconciliationView() {
   const [bankFile, setBankFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
 
   /** Session id is URL-driven (?session=) so back/forward and shared links stay consistent */
@@ -486,6 +488,7 @@ export default function ReconciliationView() {
 
   const handleAccept = async () => {
     if (!clientId || !sessionId) return;
+    setBusyAction('accept');
     setBusy(true);
     setError('');
     try {
@@ -497,6 +500,7 @@ export default function ReconciliationView() {
       setError(e.message || 'Accept failed');
     } finally {
       setBusy(false);
+      setBusyAction('');
     }
   };
 
@@ -1074,7 +1078,14 @@ export default function ReconciliationView() {
                 }
                 onClick={handleAccept}
               >
-                Accept statement
+                {busy && busyAction === 'accept' ? (
+                  <span className="recon-btn-inline-spinner">
+                    <LoadingSpinner variant="logo" size="small" color="white" show={true} />
+                    Accepting...
+                  </span>
+                ) : (
+                  'Accept statement'
+                )}
               </button>
             </div>
             {(reportUrl || wb.session?.reconciliationReportUrl) && (
