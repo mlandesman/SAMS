@@ -1182,7 +1182,10 @@ export default function ReconciliationView() {
           className="recon-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => setJustifyModal({ open: false, transactionId: null })}
+          onClick={() => {
+            if (busy) return;
+            setJustifyModal({ open: false, transactionId: null });
+          }}
         >
           <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
             <h4>Justify SAMS line (no bank match)</h4>
@@ -1224,6 +1227,7 @@ export default function ReconciliationView() {
           role="dialog"
           aria-modal="true"
           onClick={() => {
+            if (busy) return;
             setExcludeModal({ open: false, type: null, id: null });
             setExcludeReason('');
           }}
