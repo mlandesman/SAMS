@@ -101,6 +101,7 @@ function formatWorkbenchSamsDate(t) {
   }
   return '—';
 }
+
 /** Mirror backend reconciliationMatcher.typeMatchesBank for workbench sum preview */
 function typeMatchesBankWorkbench(bankType, txn) {
   const t = txn?.type;
