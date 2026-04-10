@@ -667,6 +667,34 @@ export default function ReconciliationView() {
               </button>
             </div>
 
+            {(() => {
+              const mm = wb.session?.matchMap?.length ?? 0;
+              const st = wb.stats || {};
+              const spei =
+                (Number(st.speiFeeGapExact) || 0) + (Number(st.speiFeeGapDrift) || 0);
+              const rnd =
+                (Number(st.roundingExact) || 0) + (Number(st.roundingDrift) || 0);
+              const fa = Number(st.feeAdjusted) || 0;
+              const ex = Number(st.exact) || 0;
+              const dd = Number(st.dateDrift) || 0;
+              if (mm === 0) return null;
+              const autoTotal = ex + dd + spei + rnd + fa;
+              return (
+                <div className="recon-automatch-banner" role="status">
+                  <strong>Saved matches:</strong> {mm} link{mm === 1 ? '' : 's'} (from Import &amp; match; Refresh
+                  reloads).{' '}
+                  {autoTotal > 0 && (
+                    <>
+                      Last auto pass: exact {ex}, date drift {dd}
+                      {spei > 0 ? `, SPEI gap ${spei}` : ''}
+                      {rnd > 0 ? `, rounding ${rnd}` : ''}
+                      {fa > 0 ? `, fee-adjusted ${fa}` : ''}.
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="recon-two-col">
               <div className="recon-col recon-col-bank">
                 <h3>Unmatched bank lines</h3>

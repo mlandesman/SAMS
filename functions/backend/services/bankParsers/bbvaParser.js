@@ -23,6 +23,38 @@ function findColumnIndex(headerRow, candidates) {
   return null;
 }
 
+/**
+ * Pick one date column. BBVA may include **liquidación / LIQ** — we ignore it when a better column exists
+ * (fecha operación, plain FECHA, etc.). Liquidación is only used if it is the only date-like header.
+ */
+function findTransactionDateColumnIndex(headerRow) {
+  const values = headerRow.values || [];
+  const scored = [];
+  for (let c = 1; c < values.length; c++) {
+    const cell = norm(values[c]);
+    if (!cell) continue;
+    const hasOper =
+      /\boper\b/.test(cell) ||
+      cell.includes('operacion') ||
+      cell.includes('operación');
+    const isLiqish =
+      cell.includes('liquid') ||
+      /\bliq\b/.test(cell) ||
+      cell.includes('liquidacion') ||
+      cell.includes('liquidación');
+    const hasFecha = cell.includes('fecha');
+    if (!hasFecha && !hasOper) continue;
+    let priority;
+    if (hasOper) priority = 0;
+    else if (isLiqish) priority = 2;
+    else priority = 1;
+    scored.push({ c, priority });
+  }
+  if (scored.length === 0) return null;
+  scored.sort((a, b) => a.priority - b.priority || a.c - b.c);
+  return scored[0].c;
+}
+
 function cellToString(cell) {
   if (cell == null || cell === '') return '';
   if (typeof cell === 'number') return String(cell);
@@ -33,9 +65,13 @@ function cellToString(cell) {
 function parseDateFromCell(val) {
   if (val == null || val === '') return null;
   if (val instanceof Date && !isNaN(val.getTime())) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, '0');
-    const d = String(val.getDate()).padStart(2, '0');
+    /**
+     * Excel date cells are date-only business values.
+     * Use UTC parts to avoid local-timezone day shifts (e.g. 2026-01-09 becoming 2026-01-08).
+     */
+    const y = val.getUTCFullYear();
+    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(val.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
   const s = cellToString(val).trim();
@@ -51,12 +87,36 @@ function parseDateFromCell(val) {
   return null;
 }
 
+/**
+ * BBVA / manual sheet amounts: `12,600.00` (US), `13.200,00` (EU comma decimal),
+ * or mistaken double-dot `13.200.00` (thousands + `.00` cents) — plain `Number()` fails on the last.
+ */
 function parseAmountNumber(val) {
   if (val == null || val === '') return NaN;
   if (typeof val === 'number') return val;
-  const s = String(val).replace(/,/g, '').replace(/\s/g, '').trim();
+  const s = String(val).replace(/\s/g, '').trim();
   if (s === '') return NaN;
-  return Number(s);
+
+  // US-style: commas as thousands, dot as decimal (e.g. 12,600.00)
+  if (/^\d{1,3}(,\d{3})*(\.\d+)?$/.test(s) && s.includes('.') && s.lastIndexOf('.') > s.lastIndexOf(',')) {
+    return Number(s.replace(/,/g, ''));
+  }
+
+  // European-style: dots as thousands, comma as decimal (e.g. 13.200,00)
+  if (/^\d{1,3}(\.\d{3})*,\d{1,2}$/.test(s)) {
+    return Number(s.replace(/\./g, '').replace(',', '.'));
+  }
+
+  // Typo / mixed locale: 13.200.00 meaning 13,200.00 MXN
+  const dotParts = s.split('.');
+  if (dotParts.length >= 3 && /^\d{1,2}$/.test(dotParts[dotParts.length - 1])) {
+    const dec = dotParts.pop();
+    const intPart = dotParts.join('');
+    const n = Number(`${intPart}.${dec}`);
+    if (Number.isFinite(n)) return n;
+  }
+
+  return Number(s.replace(/,/g, ''));
 }
 
 /**
@@ -73,7 +133,7 @@ export async function parseBBVAXLSX(fileBuffer) {
   }
 
   let headerRowNum = 1;
-  let liqCol;
+  let dateCol;
   let amountCol;
   let descCol;
   let cargoCol;
@@ -81,20 +141,7 @@ export async function parseBBVAXLSX(fileBuffer) {
 
   for (let r = 1; r <= Math.min(30, sheet.rowCount); r++) {
     const row = sheet.getRow(r);
-    // Prefer settlement/operation labels; last resort "fecha" matches statement PDF-style exports (FECHA only).
-    liqCol = findColumnIndex(row, [
-      'liq',
-      'liquidacion',
-      'liquidación',
-      'fecha liq',
-      'fecha oper',
-      'fecha de operacion',
-      'fecha de operación',
-      'fecha operacion',
-      'fecha operación',
-      'fecha'
-    ]);
-    const operCol = findColumnIndex(row, ['oper', 'fecha oper']);
+    dateCol = findTransactionDateColumnIndex(row);
     amountCol =
       findColumnIndex(row, ['importe', 'monto', 'amount']) ||
       findColumnIndex(row, ['cargo', 'abono']);
@@ -102,16 +149,16 @@ export async function parseBBVAXLSX(fileBuffer) {
     cargoCol = findColumnIndex(row, ['cargo']);
     abonoCol = findColumnIndex(row, ['abono', 'deposito', 'depósito', 'credito', 'crédito']);
 
-    if (liqCol && (amountCol || (cargoCol && abonoCol))) {
+    if (dateCol && (amountCol || (cargoCol && abonoCol))) {
       headerRowNum = r;
       break;
     }
   }
 
-  if (!liqCol) {
+  if (!dateCol) {
     return {
       bankRows: [],
-      errors: ['Could not find LIQ / settlement date column in BBVA XLSX']
+      errors: ['Could not find transaction date column in BBVA XLSX']
     };
   }
 
@@ -119,8 +166,8 @@ export async function parseBBVAXLSX(fileBuffer) {
 
   for (let r = headerRowNum + 1; r <= sheet.rowCount; r++) {
     const row = sheet.getRow(r);
-    const liqVal = row.getCell(liqCol).value;
-    const dateIso = parseDateFromCell(liqVal);
+    const dateVal = row.getCell(dateCol).value;
+    const dateIso = parseDateFromCell(dateVal);
     if (!dateIso) continue;
 
     let amountPesos = 0;

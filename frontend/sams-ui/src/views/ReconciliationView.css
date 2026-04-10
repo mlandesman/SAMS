@@ -38,6 +38,17 @@
   font-size: 0.9rem;
 }
 
+.recon-automatch-banner {
+  font-size: 0.88rem;
+  color: #3d4a54;
+  background: #eef6fc;
+  border: 1px solid #c5d9eb;
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 1rem;
+  line-height: 1.4;
+}
+
 .recon-setup-panel {
   background: #f8fafb;
   border: 1px solid #e2e8f0;

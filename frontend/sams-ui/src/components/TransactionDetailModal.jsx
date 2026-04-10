@@ -138,32 +138,69 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     });
   };
 
-  // Format date for display - handle pre-formatted dates from API
+  /**
+   * Raw Firestore timestamps reach the browser as plain objects `{ seconds, nanoseconds }`
+   * (e.g. reconciliation workbench pool). `new Date(thatObject)` is Invalid Date — normalize first.
+   */
+  const coerceToJsDate = (dateValue) => {
+    if (dateValue == null || dateValue === '') return null;
+    if (dateValue instanceof Date) {
+      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+      const d = new Date(dateValue);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof dateValue.toDate === 'function') {
+      try {
+        const d = dateValue.toDate();
+        return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+      } catch {
+        return null;
+      }
+    }
+    const sec = dateValue.seconds ?? dateValue._seconds;
+    if (sec != null && Number.isFinite(Number(sec))) {
+      const d = new Date(Number(sec) * 1000);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    if (dateValue.timestamp != null) return coerceToJsDate(dateValue.timestamp);
+    if (dateValue.timestampValue != null) return coerceToJsDate(dateValue.timestampValue);
+    return null;
+  };
+
+  // Format date for display - enriched API shapes + raw Firestore JSON
   const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A';
-    
-    // If already formatted from API (has display property), use it
+
     if (dateValue?.display) {
-      // Convert MM/DD/YYYY to MMM DD, YYYY format for consistency
-      const [month, day, year] = dateValue.display.split('/');
+      const [month, day, year] = String(dateValue.display).split('/');
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${monthNames[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
+      const mi = parseInt(month, 10);
+      const di = parseInt(day, 10);
+      if (monthNames[mi - 1] && year) {
+        return `${monthNames[mi - 1]} ${di}, ${year}`;
+      }
     }
-    
-    // Handle formatted date with timestamp field
+
+    if (dateValue?.unambiguous_long_date) {
+      return dateValue.unambiguous_long_date;
+    }
+
     if (dateValue?.timestamp) {
-      const dateObj = dateValue.timestamp._seconds ? 
-        new Date(dateValue.timestamp._seconds * 1000) : 
-        new Date(dateValue.timestamp);
-      return dateObj.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+      const inner = coerceToJsDate(dateValue.timestamp);
+      if (inner) {
+        return inner.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
     }
-    
-    // Fallback for old format (shouldn't happen with new API)
-    const dateObj = dateValue?.timestampValue ? new Date(dateValue.timestampValue) : (dateValue?.toDate ? dateValue.toDate() : new Date(dateValue));
+
+    const dateObj = coerceToJsDate(dateValue);
+    if (!dateObj) return 'N/A';
+
     return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
