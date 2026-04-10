@@ -523,33 +523,28 @@ export async function runMatch(clientId, sessionId) {
     session.endDate
   );
 
-  /** Zero-centavo SAMS lines (credit-balance / non-cash usage) — exclude from matching and pool. */
+  /** Zero-centavo SAMS lines (credit-balance / non-cash usage): auto-justify (document + clear on Accept). */
   const existingExcl = session.reconciliationExclusions || [];
-  const excludedSamsIds = new Set(
-    existingExcl.filter((e) => e.kind === 'sams').map((e) => String(e.id))
-  );
-  const zeroAutoExclusions = [];
+  const zeroAutoJustifiedMatches = [];
   for (const t of rawTxns) {
     const cents = Math.round(Number(t.amount) || 0);
     if (cents !== 0) continue;
     const tid = String(t.id);
-    if (excludedSamsIds.has(tid)) continue;
-    excludedSamsIds.add(tid);
-    zeroAutoExclusions.push({
-      kind: 'sams',
-      id: tid,
-      reason: 'Zero amount — non-cash / credit balance usage (auto on match)',
-      at: getNow().toISOString()
+    zeroAutoJustifiedMatches.push({
+      normalizedRowId: null,
+      transactionId: tid,
+      matchType: 'manual-justified',
+      justification: 'Zero amount — non-cash / credit balance usage (auto on match)'
     });
   }
   const rawTxnsForMatch = rawTxns.filter((t) => Math.round(Number(t.amount) || 0) !== 0);
-  const reconciliationExclusions = [...existingExcl, ...zeroAutoExclusions];
+  const reconciliationExclusions = existingExcl;
   reconDebugLog('match.pool', {
     clientId,
     sessionId,
     fetchedTxnCount: rawTxns.length,
     matchableTxnCount: rawTxnsForMatch.length,
-    zeroAutoExcluded: zeroAutoExclusions.length,
+    zeroAutoJustified: zeroAutoJustifiedMatches.length,
     txnsOnStartDate: summarizeTransactions(rawTxnsForMatch.filter((t) => txnDateIso(t) === session.startDate), 20),
     sampleTxnsForMatch: summarizeTransactions(rawTxnsForMatch)
   });
@@ -597,7 +592,7 @@ export async function runMatch(clientId, sessionId) {
     if (!applied.ok) throw new Error(applied.error || 'Auto-fix failed');
   }
 
-  const matchMap = result.matches.map((m) => ({
+  const autoMatchMap = result.matches.map((m) => ({
     transactionId: m.transactionId,
     normalizedRowId: m.normalizedRowId,
     matchType: m.matchType,
@@ -607,6 +602,7 @@ export async function runMatch(clientId, sessionId) {
     ...(m.roundingDeltaCentavos != null ? { roundingDeltaCentavos: m.roundingDeltaCentavos } : {}),
     ...(m.autoFix ? { autoFix: m.autoFix, samsAutoFixApplied: true } : {})
   }));
+  const matchMap = [...autoMatchMap, ...zeroAutoJustifiedMatches];
 
   const matchStats = {
     exact: result.stats.exact,
@@ -616,7 +612,7 @@ export async function runMatch(clientId, sessionId) {
     speiFeeGapExact: result.stats.speiFeeGapExact,
     speiFeeGapDrift: result.stats.speiFeeGapDrift,
     feeAdjusted: result.stats.feeAdjusted,
-    matchedCount: result.matches.length,
+    matchedCount: matchMap.length,
     unmatchedBankCount: result.unmatchedBankRows.length,
     unmatchedTxnCount: result.unmatchedTransactions.length
   };
@@ -636,7 +632,7 @@ export async function runMatch(clientId, sessionId) {
     ...result,
     matchMap,
     matchStats,
-    zeroAmountAutoExcluded: zeroAutoExclusions.length
+    zeroAmountAutoJustified: zeroAutoJustifiedMatches.length
   };
 }
 
