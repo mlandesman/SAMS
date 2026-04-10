@@ -1153,15 +1153,9 @@ export async function acceptSession(clientId, sessionId, user, options = {}) {
   if (session.accepted) throw new Error('Session already accepted');
 
   const unmatchedB = session.unmatchedBankRows || [];
-  const unmatchedT = session.unmatchedTransactions || [];
-  // Every bank line must be matched or excluded; every in-window SAMS line must be matched, justified, or excluded.
+  // Every bank line must be matched or excluded.
   if (unmatchedB.length > 0) {
     throw new Error('Every bank statement line must be matched or excluded before accepting.');
-  }
-  if (unmatchedT.length > 0) {
-    throw new Error(
-      'Every SAMS transaction from the initial match pass must be matched, justified, or excluded before accepting.'
-    );
   }
   const openPool = await listUnresolvedSamsInPool(clientId, session);
   if (openPool.length > 0) {
