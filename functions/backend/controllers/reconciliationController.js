@@ -207,7 +207,7 @@ function sumCentavosFromBankRows(normById, normalizedRowIds) {
   for (const id of normalizedRowIds) {
     const row = normById[id];
     if (!row || row.amount == null) continue;
-    sum += Math.round(Number(row.amount) || 0);
+    sum += Math.abs(Math.round(Number(row.amount) || 0));
   }
   return sum;
 }
@@ -911,7 +911,7 @@ export async function applyMatchGapAdjustment(clientId, sessionId, body, user) {
 
   let bankSum = 0;
   for (const id of normalizedRowIds) {
-    bankSum += Math.round(Number(normById[id].amount) || 0);
+    bankSum += Math.abs(Math.round(Number(normById[id].amount) || 0));
   }
 
   const matchedTxnIds = new Set(allMatchTransactionIds(session.matchMap || []));

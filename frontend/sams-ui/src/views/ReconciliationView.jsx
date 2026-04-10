@@ -272,7 +272,7 @@ export default function ReconciliationView() {
   const bankSumCentavos = useMemo(
     () =>
       selectedBankIds.reduce(
-        (s, id) => s + Math.round(Number(bankRowById[id]?.amount) || 0),
+        (s, id) => s + Math.abs(Math.round(Number(bankRowById[id]?.amount) || 0)),
         0
       ),
     [selectedBankIds, bankRowById]
