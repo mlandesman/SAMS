@@ -32,6 +32,7 @@ import { formatCurrency } from '@shared/utils/currencyUtils';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import { isAdmin } from '../utils/userRoles';
 import { LoadingSpinner } from '../components/common';
+import ReconciliationWorkbenchModals from './ReconciliationWorkbenchModals';
 import './ReconciliationView.css';
 
 /** Normalized bank rows and workbench SAMS txns use integer centavos (Firestore storage). Shared formatCurrency divides by 100. */
@@ -1121,149 +1122,49 @@ export default function ReconciliationView() {
           </section>
       )}
 
-      {gapAdjustModalOpen && (
-        <div
-          className="recon-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => {
-            if (busy) return;
-            setGapAdjustModalOpen(false);
-            setGapAdjustJustification('');
-          }}
-        >
-          <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
-            <h4>Apply bank adjustment</h4>
-            <p className="recon-hint">
-              Creates one <strong>Bank Adjustments</strong> transaction (same category as Accounts → Submit Adjustments)
-              for the signed gap <strong>{formatWorkbenchCentavos(selectionGapCentavos || 0)}</strong>{' '}
-              {selectionGapCentavos > 0 && '(bank total higher)'}
-              {selectionGapCentavos < 0 && '(SAMS total higher)'}
-              {selectionGapCentavos === 0 && ''} on <strong>{bankTypeUnified || '—'}</strong>, dated{' '}
-              <strong>{wb?.session?.endDate || '—'}</strong>. Amount and direction are computed from your selection; a
-              written justification is required (stored on the transaction). After posting, SAMS runs{' '}
-              <strong>Match selected</strong> for the same bank rows, your selected SAMS rows, and the new adjustment
-              line. Checkboxes clear only after that match succeeds (same as clicking Match selected).
-            </p>
-            <textarea
-              className="recon-field-input"
-              rows={3}
-              placeholder="Justification (required)"
-              value={gapAdjustJustification}
-              onChange={(e) => setGapAdjustJustification(e.target.value)}
-            />
-            <div className="recon-modal-actions">
-              <button
-                type="button"
-                className="recon-secondary-btn"
-                disabled={busy}
-                onClick={() => {
-                  setGapAdjustModalOpen(false);
-                  setGapAdjustJustification('');
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="recon-primary-btn"
-                disabled={busy || !canApplyGapAdjustment || !gapAdjustJustification.trim()}
-                onClick={handleGapAdjustConfirm}
-              >
-                {busy ? 'Working…' : 'Create adjustment'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {justifyModal.open && (
-        <div
-          className="recon-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => {
-            if (busy) return;
-            setJustifyModal({ open: false, transactionId: null });
-          }}
-        >
-          <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
-            <h4>Justify SAMS line (no bank match)</h4>
-            <p className="recon-hint">
-              Use for register-only activity (e.g. $0.00, cash movement, or not on this statement). A written reason is
-              required; the line is marked cleared on Accept like matched lines.
-            </p>
-            <textarea
-              className="recon-field-input"
-              rows={3}
-              placeholder="Justification (required)"
-              value={justifyReason}
-              onChange={(e) => setJustifyReason(e.target.value)}
-            />
-            <div className="recon-modal-actions">
-              <button
-                type="button"
-                className="recon-secondary-btn"
-                onClick={() => setJustifyModal({ open: false, transactionId: null })}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="recon-primary-btn"
-                disabled={!justifyReason.trim()}
-                onClick={handleJustifySubmit}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {excludeModal.open && (
-        <div
-          className="recon-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => {
-            if (busy) return;
-            setExcludeModal({ open: false, type: null, id: null });
-            setExcludeReason('');
-          }}
-        >
-          <div className="recon-modal" onClick={(e) => e.stopPropagation()}>
-            <h4>Exclude from session</h4>
-            <textarea
-              className="recon-field-input"
-              rows={3}
-              placeholder="Reason (required)"
-              value={excludeReason}
-              onChange={(e) => setExcludeReason(e.target.value)}
-            />
-            <div className="recon-modal-actions">
-              <button
-                type="button"
-                className="recon-secondary-btn"
-                onClick={() => {
-                  setExcludeModal({ open: false, type: null, id: null });
-                  setExcludeReason('');
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="recon-primary-btn"
-                disabled={busy || !excludeReason.trim()}
-                onClick={handleExclude}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReconciliationWorkbenchModals
+        gapAdjustModalOpen={gapAdjustModalOpen}
+        busy={busy}
+        canApplyGapAdjustment={canApplyGapAdjustment}
+        gapAdjustJustification={gapAdjustJustification}
+        onGapAdjustJustificationChange={setGapAdjustJustification}
+        onGapAdjustOverlayClose={() => {
+          if (busy) return;
+          setGapAdjustModalOpen(false);
+          setGapAdjustJustification('');
+        }}
+        onGapAdjustCancel={() => {
+          setGapAdjustModalOpen(false);
+          setGapAdjustJustification('');
+        }}
+        onGapAdjustConfirm={handleGapAdjustConfirm}
+        selectionGapCentavos={selectionGapCentavos}
+        bankTypeUnified={bankTypeUnified}
+        sessionEndDate={wb?.session?.endDate}
+        formatWorkbenchCentavos={formatWorkbenchCentavos}
+        justifyModalOpen={justifyModal.open}
+        justifyReason={justifyReason}
+        onJustifyReasonChange={setJustifyReason}
+        onJustifyOverlayClose={() => {
+          if (busy) return;
+          setJustifyModal({ open: false, transactionId: null });
+        }}
+        onJustifyCancel={() => setJustifyModal({ open: false, transactionId: null })}
+        onJustifySubmit={handleJustifySubmit}
+        excludeModalOpen={excludeModal.open}
+        excludeReason={excludeReason}
+        onExcludeReasonChange={setExcludeReason}
+        onExcludeOverlayClose={() => {
+          if (busy) return;
+          setExcludeModal({ open: false, type: null, id: null });
+          setExcludeReason('');
+        }}
+        onExcludeCancel={() => {
+          setExcludeModal({ open: false, type: null, id: null });
+          setExcludeReason('');
+        }}
+        onExcludeSubmit={handleExclude}
+      />
 
       <TransactionDetailModal
         transaction={viewTxn}
