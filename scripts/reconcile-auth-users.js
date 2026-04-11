@@ -14,7 +14,7 @@
 
 import admin from 'firebase-admin';
 import { createInterface } from 'readline';
-import { randomBytes } from 'crypto';
+import { generateSecureTempPassword } from '../functions/shared/utils/tempPassword.js';
 
 // ── CLI Argument Parsing ─────────────────────────────────────────────────────
 
@@ -72,10 +72,6 @@ const db = (() => { initFirebase(); return admin.firestore(); })();
 const auth = admin.auth();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateTempPassword() {
-  return randomBytes(24).toString('base64url');
-}
 
 function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -369,7 +365,7 @@ async function runFix(orphanedUsers) {
     const { docId, email, displayName } = user;
     try {
       // Step 1: Create Firebase Auth record with the same UID
-      const tempPassword = generateTempPassword();
+      const tempPassword = generateSecureTempPassword();
       await auth.createUser({
         uid: docId,
         email,

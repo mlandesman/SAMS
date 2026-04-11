@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { generateSecureTempPassword } from '../../functions/shared/utils/tempPassword.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,30 +64,6 @@ async function getLatestMigrationDir(clientId) {
   
   return path.join(migrationsDir, clientDirs[0]);
 }
-
-// Generate a secure temporary password
-function generateTempPassword() {
-  // Generate a password that meets Firebase requirements:
-  // - At least 6 characters
-  // - Mix of letters, numbers, and special characters
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
-  let password = '';
-  
-  // Ensure at least one of each type
-  password += 'A'; // uppercase
-  password += 'a'; // lowercase
-  password += '2'; // number
-  password += '!'; // special
-  
-  // Add random characters to reach 12 characters total
-  for (let i = 0; i < 8; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  
-  // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
-}
-
 
 // Main function
 async function main() {
@@ -148,7 +125,7 @@ async function main() {
           existingUsers.push(email);
         } catch (error) {
           // User doesn't exist, create them
-          const tempPassword = generateTempPassword();
+          const tempPassword = generateSecureTempPassword();
           
           const createRequest = {
             email: email,

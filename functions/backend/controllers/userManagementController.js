@@ -14,18 +14,7 @@ import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-
-/**
- * Generate secure random password
- */
-function generateSecurePassword() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+import { generateSecureTempPassword } from '../../shared/utils/tempPassword.js';
 
 /**
  * Add person to unit's arrays based on their role
@@ -341,7 +330,7 @@ export async function createUser(req, res) {
       
       if (!canLogin) {
         // Create disabled Firebase Auth user (contact-only)
-        temporaryPassword = generateSecurePassword(); // Required but never used
+        temporaryPassword = generateSecureTempPassword(); // Required but never used
         userRecord = await admin.auth().createUser({
           email: email,
           password: temporaryPassword,
@@ -352,7 +341,7 @@ export async function createUser(req, res) {
         accountState = 'contact_only';
       } else if (creationMethod === 'passkey') {
         // Create user for passkey flow — no email sent; admin generates invite URL
-        temporaryPassword = generateSecurePassword();
+        temporaryPassword = generateSecureTempPassword();
         userRecord = await admin.auth().createUser({
           email: email,
           password: temporaryPassword,
@@ -363,7 +352,7 @@ export async function createUser(req, res) {
         accountState = 'pending_passkey';
       } else {
         // Create active user with temporary password for manual flow
-        temporaryPassword = generateSecurePassword();
+        temporaryPassword = generateSecureTempPassword();
         userRecord = await admin.auth().createUser({
           email: email,
           password: temporaryPassword,
@@ -713,7 +702,7 @@ export async function updateUser(req, res) {
       // Handle password reset for self
       if (resetPassword) {
         try {
-          const passwordToSet = newPassword || generateSecurePassword();
+          const passwordToSet = newPassword || generateSecureTempPassword();
           await admin.auth().updateUser(userId, {
             password: passwordToSet,
             disabled: false
@@ -838,7 +827,7 @@ export async function updateUser(req, res) {
         await admin.auth().updateUser(userId, { disabled: false });
         
         // Generate temporary password and send notification
-        const tempPassword = generateSecurePassword();
+        const tempPassword = generateSecureTempPassword();
         await admin.auth().updateUser(userId, { password: tempPassword });
         
         await sendPasswordNotification({
@@ -917,7 +906,7 @@ export async function updateUser(req, res) {
     // Handle password reset if requested
     if (resetPassword) {
       try {
-        const passwordToSet = newPassword || generateSecurePassword();
+        const passwordToSet = newPassword || generateSecureTempPassword();
         await admin.auth().updateUser(userId, {
           password: passwordToSet,
           disabled: false // Ensure user is enabled when resetting password
