@@ -2,6 +2,7 @@ import { onRequest, onCall } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import admin from 'firebase-admin';
+import { getNow, addDays, DateService } from './shared/services/DateService.js';
 
 // Import existing exchange rate functions
 import { updateExchangeRates, populateHistoricalRates } from './src/exchangeRatesUpdater.js';
@@ -172,9 +173,10 @@ export const checkExchangeRatesHealth = onRequest(
   async (req, res) => {
     try {
       const db = admin.firestore();
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      
+      const dateService = new DateService({ timezone: 'America/Cancun' });
+      const today = dateService.formatForFrontend(getNow()).ISO_8601;
+      const yesterday = dateService.formatForFrontend(addDays(getNow(), -1)).ISO_8601;
+
       const [todayDoc, yesterdayDoc] = await Promise.all([
         db.collection('exchangeRates').doc(today).get(),
         db.collection('exchangeRates').doc(yesterday).get()
