@@ -28,6 +28,20 @@ function generateSecurePassword() {
 }
 
 /**
+ * Merge legacy clientAccess with canonical propertyAccess (propertyAccess wins per clientId).
+ * Avoids dropping access when persisting propertyAccess after partial migration (#231).
+ */
+function mergePropertyAccessFromUserDoc(userData) {
+  const legacy = userData?.clientAccess && typeof userData.clientAccess === 'object'
+    ? userData.clientAccess
+    : {};
+  const current = userData?.propertyAccess && typeof userData.propertyAccess === 'object'
+    ? userData.propertyAccess
+    : {};
+  return { ...legacy, ...current };
+}
+
+/**
  * Add person to unit's arrays based on their role
  * @param {FirebaseFirestore.WriteBatch} batch - Firestore batch
  * @param {string} clientId - Client ID
@@ -1056,7 +1070,7 @@ export async function addClientAccess(req, res) {
 
     const userData = userDoc.data();
     const updatedClientAccess = {
-      ...userData.propertyAccess,
+      ...mergePropertyAccessFromUserDoc(userData),
       [clientId]: {
         role: role,
         unitId: unitId || null,
@@ -1127,7 +1141,7 @@ export async function removeClientAccess(req, res) {
     }
 
     const userData = userDoc.data();
-    const updatedClientAccess = { ...userData.propertyAccess };
+    const updatedClientAccess = { ...mergePropertyAccessFromUserDoc(userData) };
     delete updatedClientAccess[clientId];
 
     await db.collection('users').doc(userId).update({
@@ -1202,7 +1216,7 @@ export async function updateUserPropertyAccess(req, res) {
     const userData = userDoc.data();
     
     // Ensure propertyAccess exists
-    const currentPropertyAccess = userData.propertyAccess || {};
+    const currentPropertyAccess = mergePropertyAccessFromUserDoc(userData);
     const currentClientAccess = currentPropertyAccess[clientId] || {};
     
     // Build update data
@@ -1300,8 +1314,8 @@ export async function addUnitRoleAssignment(req, res) {
     }
 
     const userData = userDoc.data();
-    const currentClientAccess = userData.propertyAccess || {};
-    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+    const previousAccessMap = mergePropertyAccessFromUserDoc(userData);
+    const updatedClientAccess = JSON.parse(JSON.stringify(previousAccessMap)); // Deep copy
 
     // Initialize client access if it doesn't exist
     if (!updatedClientAccess[clientId]) {
@@ -1353,7 +1367,7 @@ export async function addUnitRoleAssignment(req, res) {
     });
 
     // Sync unit assignments to unit records (for all roles: owners and managers)
-    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess);
+    await syncUnitAssignments(userId, previousAccessMap, updatedClientAccess);
 
     // Log the assignment
     await writeAuditLog({
@@ -1410,8 +1424,8 @@ export async function removeUnitRoleAssignment(req, res) {
     }
 
     const userData = userDoc.data();
-    const currentClientAccess = userData.propertyAccess || {};
-    const updatedClientAccess = JSON.parse(JSON.stringify(currentClientAccess)); // Deep copy
+    const previousAccessMap = mergePropertyAccessFromUserDoc(userData);
+    const updatedClientAccess = JSON.parse(JSON.stringify(previousAccessMap)); // Deep copy
 
     // Check if user has access to this client
     if (!updatedClientAccess[clientId]) {
@@ -1461,7 +1475,7 @@ export async function removeUnitRoleAssignment(req, res) {
     });
 
     // Sync unit assignments to unit records (for all roles: owners and managers)
-    await syncUnitAssignments(userId, currentClientAccess, updatedClientAccess);
+    await syncUnitAssignments(userId, previousAccessMap, updatedClientAccess);
 
     // Log the removal
     await writeAuditLog({
@@ -1523,8 +1537,9 @@ export async function deleteUser(req, res) {
     const userData = userDoc.data();
 
     // Clean up owner/manager references in unit records by removing all assignments.
-    if (userData.propertyAccess) {
-      await syncUnitAssignments(userId, userData.propertyAccess, {});
+    const accessForSync = mergePropertyAccessFromUserDoc(userData);
+    if (Object.keys(accessForSync).length > 0) {
+      await syncUnitAssignments(userId, accessForSync, {});
     }
 
     // Delete from Firebase Auth

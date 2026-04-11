@@ -25,6 +25,12 @@ function getInviteUrlFromResponse(res) {
   return res?.inviteUrl || (res?.inviteToken ? `${window.location.origin}/invite/${res.inviteToken}` : null);
 }
 
+/** Merge legacy clientAccess with canonical propertyAccess (propertyAccess wins per client). */
+function mergedPropertyAccess(user) {
+  if (!user) return {};
+  return { ...(user.clientAccess || {}), ...(user.propertyAccess || {}) };
+}
+
 const UserManagement = ({ 
   onSelectionChange, 
   onItemCountChange,
@@ -327,7 +333,7 @@ const UserRow = ({ user, canManage, isSelected, onSelect, currentUser }) => {
 
   const getAllUnitAssignments = (user) => {
     const assignments = [];
-    Object.entries(user.propertyAccess || {}).forEach(([clientId, access]) => {
+    Object.entries(mergedPropertyAccess(user)).forEach(([clientId, access]) => {
       // Handle new unitAssignments structure
       if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
         access.unitAssignments.forEach(assignment => {
@@ -1063,7 +1069,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
     name: user?.name || '',
     isActive: user?.isActive !== false,
     globalRole: user?.globalRole || 'user',
-    propertyAccess: user?.propertyAccess || {},
+    propertyAccess: mergedPropertyAccess(user),
     // Unit assignment form fields
     newClientId: '',
     newUnitId: '',
@@ -1100,7 +1106,7 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
         name: user.name || '',
         isActive: user.isActive !== false,
         globalRole: user.globalRole || 'user',
-        propertyAccess: user.propertyAccess || {},
+        propertyAccess: mergedPropertyAccess(user),
         newClientId: prev.newClientId, // Preserve form state
         newUnitId: prev.newUnitId,
         newRole: prev.newRole,
@@ -1167,45 +1173,38 @@ const EditUserModal = ({ user, onClose, onUpdate, currentUser }) => {
   useEffect(() => {
     const loadAvailableClients = async () => {
       try {
-        // Get unique client IDs from all user's current access
-        const clientIds = Object.keys(user.propertyAccess || {});
-        
-        // Also fetch all available clients for SuperAdmin
+        const access = mergedPropertyAccess(user);
+        const clientIdSet = new Set(Object.keys(access));
+
+        // SuperAdmin: include every registered client so new tenants appear in the picker (#231)
         if (currentUser?.email === 'michael@landesman.com' || currentUser?.globalRole === 'superAdmin') {
           try {
-            const response = await secureApi.getSystemUsers();
-            const allUsers = response.users || [];
-            const allClientIds = new Set();
-            
-            allUsers.forEach(u => {
-              Object.keys(u.propertyAccess || {}).forEach(clientId => {
-                allClientIds.add(clientId);
+            const clientsList = await secureApi.getClients();
+            if (Array.isArray(clientsList)) {
+              clientsList.forEach((c) => {
+                if (c && c.id) clientIdSet.add(c.id);
               });
-            });
-            
-            // Combine current user's clients with all system clients
-            const uniqueClients = [...new Set([...clientIds, ...Array.from(allClientIds)])];
-            setAvailableClients(uniqueClients.map(id => ({ id, name: id })));
-          } catch (error) {
-            console.log('Using user client access only');
-            setAvailableClients(clientIds.map(id => ({ id, name: id })));
+            }
+          } catch (err) {
+            console.warn('getClients failed; using access-derived client list only', err);
           }
-        } else {
-          setAvailableClients(clientIds.map(id => ({ id, name: id })));
         }
+
+        const sorted = [...clientIdSet].sort();
+        setAvailableClients(sorted.map((id) => ({ id, name: id })));
       } catch (error) {
         console.error('Failed to load available clients:', error);
         setAvailableClients([]);
       }
     };
-    
+
     loadAvailableClients();
   }, [user, secureApi, currentUser]);
 
   // Get all unit assignments for the user (copy of function from main component)
   const getAllUnitAssignments = (user) => {
     const assignments = [];
-    Object.entries(user.propertyAccess || {}).forEach(([clientId, access]) => {
+    Object.entries(mergedPropertyAccess(user)).forEach(([clientId, access]) => {
       // Handle new unitAssignments structure
       if (access.unitAssignments && Array.isArray(access.unitAssignments)) {
         access.unitAssignments.forEach(assignment => {
