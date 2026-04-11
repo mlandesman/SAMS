@@ -17,6 +17,9 @@ export function getDisplayNameFromUser(userData = {}) {
   const profileDisplayName = typeof profile.displayName === 'string' ? profile.displayName.trim() : '';
   if (profileDisplayName) return profileDisplayName;
 
+  const contactName = typeof userData.contactName === 'string' ? userData.contactName.trim() : '';
+  if (contactName) return contactName;
+
   if (typeof userData.name === 'string' && userData.name.trim()) {
     return userData.name.trim();
   }

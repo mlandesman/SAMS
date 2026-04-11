@@ -8,6 +8,7 @@
  * Date: December 16, 2025
  */
 
+import admin from 'firebase-admin';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { getDisplayNameFromUser as getDisplayNameFromUserShared } from '../../../shared/userIdentityDisplay.js';
 
@@ -62,7 +63,39 @@ async function buildUserCache(userIds, db, existingCache = new Map()) {
   return existingCache;
 }
 
-function resolveContactWithCache(contact, userCache) {
+/**
+ * When Firestore user doc is missing or has no display label, fill from Firebase Auth
+ * (displayName / email / phone). listUnits and other callers rely on this for NRM { userId } rows.
+ */
+export function needsAuthEnrichment(userData) {
+  if (!userData) return true;
+  return !getDisplayNameFromUser(userData);
+}
+
+/** Batch Firebase Auth lookups for UIDs (dedupe before calling). */
+export async function buildFirebaseAuthCache(userIds) {
+  const map = new Map();
+  if (!Array.isArray(userIds) || userIds.length === 0) return map;
+
+  await Promise.all(
+    userIds.map(async (uid) => {
+      try {
+        const rec = await admin.auth().getUser(uid);
+        map.set(uid, {
+          displayName: (rec.displayName || '').trim(),
+          email: (rec.email || '').trim(),
+          phoneNumber: (rec.phoneNumber || '').trim()
+        });
+      } catch (e) {
+        logWarn(`Firebase Auth getUser failed for ${uid}: ${e.message}`);
+        map.set(uid, null);
+      }
+    })
+  );
+  return map;
+}
+
+function resolveContactWithCache(contact, userCache, authCache = null) {
   // Normalize legacy string format to {name, email, phone} for consistent API response
   if (typeof contact === 'string') {
     const name = contact.trim();
@@ -77,16 +110,23 @@ function resolveContactWithCache(contact, userCache) {
     const userId = linkedId;
     const userData = userCache.get(userId);
 
-    if (!userData) {
-      // Keep unresolved UID entries backward-compatible for response shape.
-      return { userId, name: '', email: '', phone: '' };
+    let name = userData ? getDisplayNameFromUser(userData) : '';
+    let email = userData ? getEmailFromUser(userData) : '';
+    let phone = userData ? getPhoneFromUser(userData) : '';
+
+    const auth = authCache?.get(userId);
+    if (auth) {
+      if (!name && auth.displayName) name = auth.displayName;
+      if (!email && auth.email) email = auth.email;
+      if (!phone && auth.phoneNumber) phone = auth.phoneNumber;
     }
 
+    const displayName = name || email || '';
     return {
       userId,
-      name: getDisplayNameFromUser(userData),
-      email: getEmailFromUser(userData),
-      phone: getPhoneFromUser(userData),
+      name: displayName,
+      email,
+      phone: phone || ''
     };
   }
 
@@ -226,7 +266,7 @@ export async function buildUserCacheForUnits(units, db) {
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveOwners(owners, db, existingCache = null) {
+export async function resolveOwners(owners, db, existingCache = null, prebuiltAuthCache = null) {
   if (!Array.isArray(owners) || owners.length === 0) {
     return [];
   }
@@ -239,7 +279,13 @@ export async function resolveOwners(owners, db, existingCache = null) {
   const userIds = getUniqueUserIds(owners);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  return owners.map(owner => resolveContactWithCache(owner, userCache)).filter(Boolean);
+  const authCache =
+    prebuiltAuthCache ||
+    (await buildFirebaseAuthCache(
+      userIds.filter((uid) => needsAuthEnrichment(userCache.get(uid) || null))
+    ));
+
+  return owners.map(owner => resolveContactWithCache(owner, userCache, authCache)).filter(Boolean);
 }
 
 /**
@@ -250,7 +296,7 @@ export async function resolveOwners(owners, db, existingCache = null) {
  * @param {FirebaseFirestore.Firestore} db
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveManagers(managers, db, existingCache = null) {
+export async function resolveManagers(managers, db, existingCache = null, prebuiltAuthCache = null) {
   if (!Array.isArray(managers) || managers.length === 0) {
     return [];
   }
@@ -263,7 +309,13 @@ export async function resolveManagers(managers, db, existingCache = null) {
   const userIds = getUniqueUserIds(managers);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  return managers.map(manager => resolveContactWithCache(manager, userCache)).filter(Boolean);
+  const authCache =
+    prebuiltAuthCache ||
+    (await buildFirebaseAuthCache(
+      userIds.filter((uid) => needsAuthEnrichment(userCache.get(uid) || null))
+    ));
+
+  return managers.map(manager => resolveContactWithCache(manager, userCache, authCache)).filter(Boolean);
 }
 
 /**

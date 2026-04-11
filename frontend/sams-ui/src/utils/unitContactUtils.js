@@ -30,8 +30,6 @@ export function resolvedContactLabel(contact = {}) {
   if (name) return name;
   const email = (contact.email || '').trim();
   if (email) return email;
-  const uid = getContactLinkedUserId(contact);
-  if (uid) return `User ${uid.slice(0, 8)}…`;
   return '';
 }
 

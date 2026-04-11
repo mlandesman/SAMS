@@ -7,6 +7,8 @@ import {
   resolveOwners,
   resolveManagers,
   getContactLinkedUserId,
+  buildFirebaseAuthCache,
+  needsAuthEnrichment,
 } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -208,13 +210,16 @@ async function listUnits(clientId) {
       });
     }
 
+    const authNeeded = userIds.filter((uid) => needsAuthEnrichment(userMap.get(uid) || null));
+    const sharedAuthCache = await buildFirebaseAuthCache(authNeeded);
+
     const resolvedUnits = [];
     for (const unit of units) {
       const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
       resolvedUnits.push({
         ...unitWithoutRaw,
-        owners: await resolveOwners(ownersRaw, db, userMap),
-        managers: await resolveManagers(managersRaw, db, userMap),
+        owners: await resolveOwners(ownersRaw, db, userMap, sharedAuthCache),
+        managers: await resolveManagers(managersRaw, db, userMap, sharedAuthCache),
       });
     }
 
