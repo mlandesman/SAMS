@@ -108,6 +108,32 @@ async function uploadBufferToStorage(buffer, contentType, storagePath) {
   return `https://storage.googleapis.com/${bucketName}/${storagePath}`;
 }
 
+async function deleteReconciliationArtifacts(clientId, sessionId) {
+  const app = await getApp();
+  const bucketName = getStorageBucketName();
+  const bucket = app.storage().bucket(bucketName);
+  const importsPrefix = `clients/${clientId}/reconciliation-imports/${sessionId}/`;
+  const reportPath = `clients/${clientId}/reconciliation-reports/${sessionId}.pdf`;
+
+  try {
+    await bucket.deleteFiles({ prefix: importsPrefix, force: true });
+  } catch (error) {
+    const message = String(error?.message || '').toLowerCase();
+    if (!message.includes('not found')) {
+      throw new Error(`Failed to delete reconciliation imports: ${error.message || error}`);
+    }
+  }
+
+  try {
+    await bucket.file(reportPath).delete({ ignoreNotFound: true });
+  } catch (error) {
+    const message = String(error?.message || '').toLowerCase();
+    if (!message.includes('not found')) {
+      throw new Error(`Failed to delete reconciliation report: ${error.message || error}`);
+    }
+  }
+}
+
 function inferBankFormat(accountName, explicit) {
   if (explicit === 'scotiabank' || explicit === 'bbva') return explicit;
   const n = String(accountName || '').toLowerCase();
@@ -343,10 +369,12 @@ export async function deleteSession(clientId, sessionId) {
   const ref = db.collection(`clients/${clientId}/reconciliations`).doc(sessionId);
   const doc = await ref.get();
   if (!doc.exists) throw new Error('Reconciliation session not found');
-  if (doc.data().status !== 'draft') {
-    throw new Error('Only draft sessions can be deleted');
+  const session = doc.data() || {};
+  if (session.accepted) {
+    throw new Error('Accepted sessions cannot be deleted');
   }
 
+  await deleteReconciliationArtifacts(clientId, sessionId);
   await deleteQueryInBatches(ref.collection('bankRows'));
   await deleteQueryInBatches(ref.collection('normalizedRows'));
   await ref.delete();
@@ -1086,24 +1114,6 @@ export async function getWorkbench(clientId, sessionId) {
   const unresolvedInPeriodCount = availableSamsTransactions.filter((t) =>
     txnInStatementPeriod(t, session.startDate, session.endDate)
   ).length;
-  reconDebugLog('workbench.balance', {
-    clientId,
-    sessionId,
-    accountId: session.accountId,
-    statementOpeningPesos,
-    statementEndingPesos,
-    samsBalanceCentavos,
-    samsBalancePesos,
-    samsVsStatementGapPesos,
-    netBankMovementCentavos,
-    impliedEndingFromImportPesos,
-    importVsEnteredEndingGapPesos,
-    unmatchedBankLineCount: unmatchedBankDetails.length,
-    availableSamsCount: availableSamsTransactions.length,
-    unresolvedInPeriodCount,
-    sampleUnmatchedBank: summarizeBankRows(unmatchedBankDetails),
-    sampleAvailableSams: summarizeTransactions(availableSamsTransactions)
-  });
 
   return {
     success: true,

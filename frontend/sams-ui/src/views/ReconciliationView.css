@@ -1,4 +1,7 @@
 .reconciliation-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   max-width: 1280px;
   margin: 0 auto;
   padding: 1rem 1.25rem 2rem;
@@ -129,6 +132,16 @@
 
 .recon-secondary-btn:hover:not(:disabled) {
   background: #f1f5f9;
+}
+
+.recon-danger-btn {
+  color: #991b1b;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.recon-danger-btn:hover:not(:disabled) {
+  background: #fee2e2;
 }
 
 .recon-two-col {
@@ -443,10 +456,69 @@
   font-size: 0.75rem;
   color: #475569;
   line-height: 1.35;
+  background: #f8fafc;
 }
 
 .recon-history-meta code {
   font-size: 0.72rem;
   word-break: break-all;
+}
+
+.recon-history-col-created {
+  min-width: 8.75rem;
+}
+
+.recon-history-col-period {
+  min-width: 12.5rem;
+}
+
+.recon-history-col-status {
+  min-width: 5rem;
+}
+
+.recon-history-col-bank-cleared {
+  width: 6.5rem;
+}
+
+.recon-history-col-actions {
+  min-width: 9.25rem;
+}
+
+.recon-history-status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  text-transform: lowercase;
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.recon-history-status-badge.accepted {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.recon-history-status-badge.reviewing,
+.recon-history-status-badge.matching,
+.recon-history-status-badge.draft {
+  border-color: #cbd5e1;
+}
+
+.recon-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.recon-history-actions .recon-secondary-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.recon-history-meta-row td {
+  border-top: none;
 }
 

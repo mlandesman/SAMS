@@ -63,6 +63,19 @@ export async function updateSession(clientId, sessionId, data) {
   return j.session;
 }
 
+export async function deleteSession(clientId, sessionId) {
+  const res = await fetch(
+    `${config.api.baseUrl}/clients/${clientId}/reconciliations/${sessionId}`,
+    {
+      method: 'DELETE',
+      headers: await authHeaderJson()
+    }
+  );
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+  return j;
+}
+
 export async function importBankFile(clientId, sessionId, bankFile, statementPdf) {
   const fd = new FormData();
   fd.append('bankFile', bankFile);

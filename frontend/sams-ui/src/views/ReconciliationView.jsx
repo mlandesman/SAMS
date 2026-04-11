@@ -20,6 +20,7 @@ import {
   runMatching,
   getWorkbench,
   listSessions,
+  deleteSession as deleteReconciliationSession,
   manualPair,
   applyMatchGapAdjustment,
   regenerateReconciliationReport,
@@ -165,10 +166,10 @@ export default function ReconciliationView() {
 
   /** Session id is URL-driven (?session=) so back/forward and shared links stay consistent */
   const sessionId = searchParams.get('session') || '';
-  const setSessionParam = (id) => {
+  const setSessionParam = useCallback((id) => {
     if (id) setSearchParams({ session: id }, { replace: true });
     else setSearchParams({}, { replace: true });
-  };
+  }, [setSearchParams]);
 
   const [wb, setWb] = useState(null);
   const [diffPesos, setDiffPesos] = useState('0');
@@ -187,6 +188,8 @@ export default function ReconciliationView() {
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const [expandedHistorySessionId, setExpandedHistorySessionId] = useState('');
+  const [historyBusySessionId, setHistoryBusySessionId] = useState('');
 
   const canUse = isAdmin(samsUser, clientId);
   const prevClientIdRef = useRef(undefined);
@@ -261,6 +264,36 @@ export default function ReconciliationView() {
       setHistoryLoading(false);
     }
   }, [clientId, accountId]);
+
+  const abandonHistorySession = useCallback(async (row) => {
+    const targetSessionId = String(row?.id || '');
+    if (!targetSessionId || !clientId) return;
+    if (row?.accepted) {
+      setHistoryError('Accepted sessions cannot be abandoned.');
+      return;
+    }
+    const confirmDelete = window.confirm(
+      'Abandon this in-progress reconciliation?\n\nThis permanently deletes the draft session and uploaded files (bank file, statement PDF, generated report if present). Accepted sessions are never deleted.'
+    );
+    if (!confirmDelete) return;
+
+    setHistoryError('');
+    setHistoryBusySessionId(targetSessionId);
+    try {
+      await deleteReconciliationSession(clientId, targetSessionId);
+      if (expandedHistorySessionId === targetSessionId) {
+        setExpandedHistorySessionId('');
+      }
+      if (sessionId === targetSessionId) {
+        setSessionParam('');
+      }
+      await loadHistory();
+    } catch (e) {
+      setHistoryError(e.message || 'Failed to abandon reconciliation session');
+    } finally {
+      setHistoryBusySessionId('');
+    }
+  }, [clientId, expandedHistorySessionId, loadHistory, sessionId, setSessionParam]);
 
   useEffect(() => {
     if (sessionId && clientId) {
@@ -577,7 +610,10 @@ export default function ReconciliationView() {
         <button
           type="button"
           className={`action-item${showHistory ? ' filtered-active' : ''}`}
-          onClick={() => setShowHistory((v) => !v)}
+          onClick={() => {
+            setShowHistory((v) => !v);
+            setExpandedHistorySessionId('');
+          }}
           disabled={busy}
         >
           {showHistory ? 'Back' : 'History'}
@@ -604,7 +640,9 @@ export default function ReconciliationView() {
           type="button"
           className="action-item"
           onClick={() => {
-            setSessionParam(null);
+            setShowHistory(false);
+            setExpandedHistorySessionId('');
+            setSessionParam('');
             setWb(null);
           }}
           disabled={busy}
@@ -648,26 +686,23 @@ export default function ReconciliationView() {
             <table className="recon-wb-table recon-history-table">
               <thead>
                 <tr>
-                  <th>Created</th>
-                  <th>Period</th>
+                  <th className="recon-history-col-created">Created</th>
+                  <th className="recon-history-col-period">Period</th>
                   <th>Account</th>
-                  <th>Status</th>
-                  <th className="num">Matched</th>
-                  <th className="num">Unmatched bank</th>
-                  <th className="num">Unmatched txns</th>
+                  <th className="recon-history-col-status">Status</th>
+                  <th className="num recon-history-col-bank-cleared">Bank cleared</th>
                   <th>Artifacts</th>
-                  <th>Session / paths</th>
-                  <th>Actions</th>
+                  <th className="recon-history-col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {historyLoading ? (
                   <tr>
-                    <td colSpan={10}>Loading reconciliation history…</td>
+                    <td colSpan={9}>Loading reconciliation history…</td>
                   </tr>
                 ) : historyRows.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>No reconciliation sessions found.</td>
+                    <td colSpan={9}>No reconciliation sessions found.</td>
                   </tr>
                 ) : (
                   historyRows.map((row) => {
@@ -675,45 +710,75 @@ export default function ReconciliationView() {
                     const importFolderPath = `clients/${clientId}/reconciliation-imports/${sessionDocId}/`;
                     const reportObjectPath = `clients/${clientId}/reconciliation-reports/${sessionDocId}.pdf`;
                     const stats = row.matchStats || row.stats || {};
-                    const matchedCount = Number(stats.matchedCount) || (row.matchMap?.length ?? 0);
                     const unmatchedBank = Number(stats.unmatchedBankCount) || (row.unmatchedBankRows?.length ?? 0);
-                    const unmatchedTxn = Number(stats.unmatchedTxnCount) || (row.unmatchedTransactions?.length ?? 0);
+                    const matchedBankCount = (row.matchMap || []).reduce(
+                      (count, match) => (match?.normalizedRowId ? count + 1 : count),
+                      0
+                    );
+                    const totalBankRows = matchedBankCount + unmatchedBank;
+                    const isMetaOpen = expandedHistorySessionId === sessionDocId;
+                    const rowActionBusy = historyBusySessionId === sessionDocId;
+                    const historyActionInFlight = Boolean(historyBusySessionId);
+                    const statusValue = row.accepted ? 'accepted' : (row.status || 'draft');
+                    const statusClass = String(statusValue).toLowerCase().replace(/\s+/g, '-');
                     return (
-                      <tr key={sessionDocId}>
-                        <td>{formatSessionTimestamp(row.created)}</td>
-                        <td>{row.startDate || '—'} → {row.endDate || '—'}</td>
-                        <td>{row.accountName || row.accountId || '—'}</td>
-                        <td>{row.accepted ? 'accepted' : (row.status || 'draft')}</td>
-                        <td className="num">{matchedCount}</td>
-                        <td className="num">{unmatchedBank}</td>
-                        <td className="num">{unmatchedTxn}</td>
-                        <td className="recon-history-links">
-                          {row.bankPdfUrl ? <a href={row.bankPdfUrl} target="_blank" rel="noreferrer">Statement PDF</a> : <span>—</span>}
-                          {row.bankFileUrl ? <a href={row.bankFileUrl} target="_blank" rel="noreferrer">Bank file</a> : <span>—</span>}
-                          {row.reconciliationReportUrl ? (
-                            <a href={row.reconciliationReportUrl} target="_blank" rel="noreferrer">Recon report</a>
-                          ) : (
-                            <span>—</span>
-                          )}
-                        </td>
-                        <td className="recon-history-meta">
-                          <div><strong>Session:</strong> <code>{sessionDocId}</code></div>
-                          <div><strong>Imports:</strong> <code>{importFolderPath}</code></div>
-                          <div><strong>Report:</strong> <code>{reportObjectPath}</code></div>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="recon-secondary-btn"
-                            onClick={() => {
-                              setSessionParam(sessionDocId);
-                              setShowHistory(false);
-                            }}
-                          >
-                            Open session
-                          </button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={sessionDocId}>
+                        <tr>
+                          <td className="recon-history-col-created">{formatSessionTimestamp(row.created)}</td>
+                          <td className="recon-history-col-period">{row.startDate || '—'} → {row.endDate || '—'}</td>
+                          <td>{row.accountName || row.accountId || '—'}</td>
+                          <td className="recon-history-col-status">
+                            <span className={`recon-history-status-badge ${statusClass}`}>
+                              {statusValue}
+                            </span>
+                          </td>
+                          <td className="num recon-history-col-bank-cleared">
+                            {matchedBankCount}/{totalBankRows}
+                          </td>
+                          <td className="recon-history-links">
+                            {row.bankPdfUrl ? <a href={row.bankPdfUrl} target="_blank" rel="noreferrer">Statement PDF</a> : <span>—</span>}
+                            {row.bankFileUrl ? <a href={row.bankFileUrl} target="_blank" rel="noreferrer">Bank file</a> : <span>—</span>}
+                            {row.reconciliationReportUrl ? (
+                              <a href={row.reconciliationReportUrl} target="_blank" rel="noreferrer">Recon report</a>
+                            ) : (
+                              <span>—</span>
+                            )}
+                          </td>
+                          <td className="recon-history-col-actions">
+                            <div className="recon-history-actions">
+                              {!row.accepted && (
+                                <button
+                                  type="button"
+                                  className="recon-secondary-btn recon-danger-btn"
+                                  disabled={historyActionInFlight}
+                                  onClick={() => abandonHistorySession(row)}
+                                >
+                                  {rowActionBusy ? 'Abandoning…' : 'Abandon'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="recon-secondary-btn"
+                                disabled={historyActionInFlight}
+                                onClick={() =>
+                                  setExpandedHistorySessionId((prev) => (prev === sessionDocId ? '' : sessionDocId))
+                                }
+                              >
+                                {isMetaOpen ? 'Hide Meta' : 'Meta'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isMetaOpen && (
+                          <tr className="recon-history-meta-row">
+                            <td colSpan={9} className="recon-history-meta">
+                              <div><strong>Session:</strong> <code>{sessionDocId}</code></div>
+                              <div><strong>Imports:</strong> <code>{importFolderPath}</code></div>
+                              <div><strong>Report:</strong> <code>{reportObjectPath}</code></div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })
                 )}
