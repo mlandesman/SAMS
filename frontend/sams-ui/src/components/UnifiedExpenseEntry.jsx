@@ -17,6 +17,23 @@ import { getMexicoDateString } from '../utils/timezone';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 import './UnifiedExpenseEntry.css';
 
+/**
+ * True when split rows already include the standard bank transfer fee + IVA lines.
+ * Prevents re-pushing fee allocations and re-subtracting fee from total on edit (Issue #271).
+ */
+function splitAllocationsAlreadyIncludeBankFees(allocations) {
+  if (!Array.isArray(allocations) || allocations.length < 2) return false;
+  let hasFeeLine = false;
+  let hasIvaLine = false;
+  for (const a of allocations) {
+    const cat = String(a.categoryName || '').trim();
+    const notes = String(a.notes || '').trim();
+    if (cat === 'Bank: Transfer Fees' || notes === 'Bank transfer fee') hasFeeLine = true;
+    if (cat === 'Bank: IVA' || notes === 'Bank transfer IVA') hasIvaLine = true;
+  }
+  return hasFeeLine && hasIvaLine;
+}
+
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
   isOpen = true,
@@ -296,8 +313,10 @@ const UnifiedExpenseEntry = ({
             amount: databaseFieldMappings.centsToDollars(allocation.amount || 0),
             notes: allocation.notes || ''
           }));
-          
-          if (addBankFees) {
+
+          // Issue #271: On edit, fee+IVA rows are already in splitAllocations; do not append again or adjust amount twice.
+          const bankFeesAlreadyInSplit = splitAllocationsAlreadyIncludeBankFees(splitAllocations);
+          if (addBankFees && !bankFeesAlreadyInSplit) {
             const commissionAmountDollars = 5.00;
             const ivaAmountDollars = 0.80;
             apiAllocations.push(
