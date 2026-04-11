@@ -37,8 +37,8 @@
 **PRD**: `Agile/PRDs/SAMS_Reconciliation_PRD_v2_Simplified.md` (authoritative scope) + `PRDs/SAMS_Reconciliation_PRD_v1_1.md` section 7 (matching algorithm detail)  
 **Theme**: Replace manual line-by-line bank statement comparison with automated matching  
 **Risk**: MEDIUM (adds `clearedDate` field to transactions, new reconciliation collection)  
-**Dependencies**: Sprint BUGFIX-ONBOARD complete  
-**Status**: Planned — roadmap position 14
+**Dependencies**: none (delivered ahead of prior sequence due to operational priority)  
+**Status**: ✅ COMPLETE (PR #268, merged to `main` April 10, 2026)
 
 **Key Design Decisions**:
 - Transactions get ONE new field: `clearedDate` (null = uncleared, date = cleared)
@@ -1036,5 +1036,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: March 29, 2026 — **Roadmap Reset**. Sprint MOBILE-TX-UX ✅ COMPLETE (PR #259). DOC-LIB deprioritized (Google Drive works). WhatsApp **paused** (Meta blocked). Refreshed roadmap: BUGFIX-ONBOARD → BANK-RECON → DEBT-1 → UC-LITE → DEBT-2 → REPORTS-V2 → PROJECT-VIEWS → VOTING-ADV → BUDGET-PROJ → TASK-MGMT → ADMIN-SETTINGS. Bank Reconciliation PRD v2.0 added. UC-LITE targets real non-HOA clients (Karyn, Wilfredo).*  
-*Last Review: March 29, 2026*
+*Updated: April 10, 2026 — Sprint BANK-RECON ✅ COMPLETE (PR #268 merged). Scheduler auth guard follow-up ✅ COMPLETE (PR #270 merged). Active sequence now continues with BUGFIX-ONBOARD, then DEBT-1, UC-LITE, and remaining roadmap order. WhatsApp remains paused (Meta blocked).*  
+*Last Review: April 10, 2026*

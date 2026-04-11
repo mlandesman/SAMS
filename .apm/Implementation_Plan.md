@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.19.1 | **Deployed:** March 20, 2026 (production)  
-**Last Updated:** March 29, 2026 — **Roadmap Reset**. Sprint MOBILE-TX-UX complete (PR #259). DOC-LIB deprioritized. BANK-RECON and UC-LITE added. Next sprint: **BUGFIX-ONBOARD** (#246, #231, #260, #251, #254). WhatsApp paused (Meta blocked). See Roadmap_and_Timeline.md for full refreshed sequence.  
+**Version:** v1.21.0 (pending deployment) | **Production deployed:** v1.19.1 (March 20, 2026)  
+**Last Updated:** April 10, 2026 — Sprint **BANK-RECON** complete (PR #268 merged) and scheduler auth guard fix merged (PR #270). Next sprint remains **BUGFIX-ONBOARD**. WhatsApp paused (Meta blocked). See Roadmap_and_Timeline.md for sequence.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,11 +25,19 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*No active sprint. Next sprint: **BUGFIX-ONBOARD** — fix bugs blocking/degrading owner onboarding (#246, #231, #260, #251, #254). Then **BANK-RECON** (Bank Reconciliation, PRD v2.0). DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for refreshed sprint sequence (positions 13-22).*
+*No active sprint. Next sprint: **BUGFIX-ONBOARD** — fix bugs blocking/degrading owner onboarding (#246, #231, #260, #251, #254). Sprint **BANK-RECON** is complete and merged. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 
 ## Last Completed (shipping)
+
+**Sprint BANK-RECON — #268** — PR #268 merged April 10, 2026
+
+**Scope**: Full-page bank reconciliation workbench at `/reconciliation` with Scotia CSV + BBVA XLSX import, deterministic matching pool, statement acceptance and locking, reconciliation report generation, cleared transaction protection, history readability improvements, and safe draft-session abandon cleanup.  
+**Quality**: ⭐⭐⭐⭐ — Manager review approved after mandatory pre-PR quality gate pass and targeted manual checks (state reset, unit consistency, route/permission alignment).  
+**Notes**: Follow-up merge: PR #270 (`fix(auth): unify system scheduler account guard`) merged immediately after #268 to keep auth guard behavior consistent across auth/user-management paths.
+
+---
 
 **Sprint MOBILE-TX-UX — #258** — PR #259 merged March 29, 2026
 
