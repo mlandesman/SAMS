@@ -26,13 +26,20 @@ function getEmailFromUser(userData = {}) {
   return typeof userData.email === 'string' ? userData.email.trim() : '';
 }
 
+/** Firebase UID for a linked contact (`userId` canonical; `uid` accepted for legacy rows). */
+export function getContactLinkedUserId(contact) {
+  if (!contact || typeof contact !== 'object') return '';
+  if (typeof contact.userId === 'string' && contact.userId.trim()) return contact.userId.trim();
+  if (typeof contact.uid === 'string' && contact.uid.trim()) return contact.uid.trim();
+  return '';
+}
+
 function getUniqueUserIds(contacts) {
   if (!Array.isArray(contacts)) return [];
 
   return [...new Set(
     contacts
-      .filter(contact => contact && typeof contact === 'object' && typeof contact.userId === 'string')
-      .map(contact => contact.userId.trim())
+      .map(contact => getContactLinkedUserId(contact))
       .filter(Boolean)
   )];
 }
@@ -65,8 +72,9 @@ function resolveContactWithCache(contact, userCache) {
     return contact;
   }
 
-  if (typeof contact.userId === 'string' && contact.userId.trim()) {
-    const userId = contact.userId.trim();
+  const linkedId = getContactLinkedUserId(contact);
+  if (linkedId) {
+    const userId = linkedId;
     const userData = userCache.get(userId);
 
     if (!userData) {
@@ -104,8 +112,9 @@ export function normalizeContactForStorage(entry) {
     return null;
   }
 
-  if (typeof entry.userId === 'string' && entry.userId.trim()) {
-    return { userId: entry.userId.trim() };
+  const linked = getContactLinkedUserId(entry);
+  if (linked) {
+    return { userId: linked };
   }
 
   const name = typeof entry.name === 'string' ? entry.name.trim() : '';
@@ -144,10 +153,10 @@ export function normalizeOwners(owners) {
       logWarn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
-    // UID format: {userId}
-    if (typeof owner.userId === 'string' && owner.userId.trim()) {
+    const linked = getContactLinkedUserId(owner);
+    if (linked) {
       return {
-        userId: owner.userId.trim(),
+        userId: linked,
         name: (owner.name || '').trim(),
         email: (owner.email || '').trim(),
         phone: (owner.phone || '').trim()
@@ -158,7 +167,7 @@ export function normalizeOwners(owners) {
       name: (owner.name || '').trim(),
       email: (owner.email || '').trim()
     };
-  }).filter(owner => owner.name || owner.userId); // Keep UID entries even without names
+  }).filter(owner => owner.name || getContactLinkedUserId(owner)); // Keep UID entries even without names
 }
 
 /**
@@ -177,10 +186,10 @@ export function normalizeManagers(managers) {
       logWarn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
-    // UID format: {userId}
-    if (typeof manager.userId === 'string' && manager.userId.trim()) {
+    const linked = getContactLinkedUserId(manager);
+    if (linked) {
       return {
-        userId: manager.userId.trim(),
+        userId: linked,
         name: (manager.name || '').trim(),
         email: (manager.email || '').trim(),
         phone: (manager.phone || '').trim()
@@ -191,7 +200,7 @@ export function normalizeManagers(managers) {
       name: (manager.name || '').trim(),
       email: (manager.email || '').trim()
     };
-  }).filter(manager => manager.name || manager.userId); // Keep UID entries even without names
+  }).filter(manager => manager.name || getContactLinkedUserId(manager)); // Keep UID entries even without names
 }
 
 /**

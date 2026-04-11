@@ -2,6 +2,8 @@
  * Utility functions for working with unit data
  */
 
+import { normalizeOwners, resolvedContactLabel } from './unitContactUtils.js';
+
 /**
  * Formats a unit ID with the owner's last name in parentheses
  * 
@@ -12,40 +14,7 @@ export function formatUnitIdWithOwner(unit) {
   if (!unit) return '';
   
   const unitId = unit.unitId || '';
-  
-  // Check for owner information in different possible properties
-  let ownerName = '';
-  
-  // First try the owners array (primary data structure) - handle both old format ["name"] and new format [{name, email}]
-  if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-    const firstOwner = unit.owners[0];
-    if (typeof firstOwner === 'string') {
-      ownerName = firstOwner;
-    } else if (firstOwner && typeof firstOwner === 'object') {
-      ownerName = (firstOwner.name || firstOwner.email || '').trim();
-    }
-  } 
-  // Fall back to owner property if owners array isn't available
-  else if (unit.owner) {
-    ownerName = typeof unit.owner === 'string'
-      ? unit.owner
-      : (unit.owner.name || unit.owner.email || '').trim();
-  }
-  
-  // Extract last name from the owner's full name
-  let lastName = '';
-  
-  if (ownerName) {
-    // First try to match a name with spaces (e.g., "First Last")
-    const lastNameMatch = ownerName.match(/\s(\S+)$/);
-    if (lastNameMatch) {
-      lastName = lastNameMatch[1];
-    } else {
-      // If no space found, use the whole name
-      lastName = ownerName;
-    }
-  }
-  
+  const { lastName } = getOwnerInfo(unit);
   return `${unitId} (${lastName})`;
 }
 
@@ -59,44 +28,37 @@ export function getOwnerInfo(unit) {
   if (!unit) return { unitId: '', firstName: '', lastName: '', email: '' };
   
   const unitId = unit.unitId || '';
-  
-  // Check for owner information in different possible properties
-  let ownerName = '';
+
   let email = '';
-  
-  // First try the owners array (handle both old format ["name"] and new format [{name, email}])
-  if (Array.isArray(unit.owners) && unit.owners.length > 0) {
-    const firstOwner = unit.owners[0];
-    if (typeof firstOwner === 'string') {
-      ownerName = firstOwner;
-    } else if (firstOwner && typeof firstOwner === 'object') {
-      ownerName = (firstOwner.name || firstOwner.email || '').trim();
-      email = (firstOwner.email || '').trim();
-    }
-  } 
-  // Fall back to owner property if owners array isn't available
-  else if (unit.owner) {
-    ownerName = typeof unit.owner === 'string'
-      ? unit.owner
-      : (unit.owner.name || unit.owner.email || '').trim();
+
+  const normalized = normalizeOwners(
+    Array.isArray(unit.owners) && unit.owners.length > 0
+      ? unit.owners
+      : unit.owner
+        ? [typeof unit.owner === 'string' ? unit.owner : unit.owner]
+        : []
+  );
+
+  const primary = normalized[0];
+  if (primary && typeof primary === 'object') {
+    email = (primary.email || '').trim();
   }
-  
-  // Extract first and last name (handle case where ownerName might be empty or not a string)
-  if (!ownerName || typeof ownerName !== 'string') {
-    ownerName = '';
-  }
-  const nameParts = ownerName.trim().split(/\s+/);
+
+  const ownerLabel = primary ? resolvedContactLabel(primary) : '';
+
+  const nameParts = ownerLabel.trim().split(/\s+/).filter(Boolean);
   let firstName = '';
   let lastName = '';
-  
+
   if (nameParts.length >= 1) {
     firstName = nameParts[0];
-    // Last name is the last part of the name
     if (nameParts.length > 1) {
       lastName = nameParts[nameParts.length - 1];
+    } else {
+      lastName = nameParts[0];
     }
   }
-  
+
   return {
     unitId,
     firstName,

@@ -2,7 +2,7 @@
  * Canonical display-name resolution for SAMS user records (Firestore users collection shape).
  * Used by backend unit contact resolution and frontend owner/manager surfaces.
  *
- * Order: profile.firstName + profile.lastName, name, displayName, email (last resort for labels).
+ * Order: profile.firstName + profile.lastName, profile.displayName, name, displayName, email (last resort for labels).
  */
 
 export function getDisplayNameFromUser(userData = {}) {
@@ -13,6 +13,9 @@ export function getDisplayNameFromUser(userData = {}) {
   const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
   const fullName = `${firstName} ${lastName}`.trim();
   if (fullName) return fullName;
+
+  const profileDisplayName = typeof profile.displayName === 'string' ? profile.displayName.trim() : '';
+  if (profileDisplayName) return profileDisplayName;
 
   if (typeof userData.name === 'string' && userData.name.trim()) {
     return userData.name.trim();

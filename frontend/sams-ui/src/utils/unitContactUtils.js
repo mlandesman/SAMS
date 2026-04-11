@@ -15,12 +15,23 @@ export function getDisplayNameFromUser(userData) {
   return getDisplayNameFromUserCanonical(userData);
 }
 
+/** Firebase UID for a linked contact (`userId` canonical; `uid` accepted for legacy rows). */
+export function getContactLinkedUserId(contact) {
+  if (!contact || typeof contact !== 'object') return '';
+  if (typeof contact.userId === 'string' && contact.userId.trim()) return contact.userId.trim();
+  if (typeof contact.uid === 'string' && contact.uid.trim()) return contact.uid.trim();
+  return '';
+}
+
 /** Label for a resolved unit owner/manager object from the API (name, email, optional userId). */
 export function resolvedContactLabel(contact = {}) {
+  if (!contact || typeof contact !== 'object') return '';
   const name = (contact.name || '').trim();
   if (name) return name;
   const email = (contact.email || '').trim();
   if (email) return email;
+  const uid = getContactLinkedUserId(contact);
+  if (uid) return `User ${uid.slice(0, 8)}…`;
   return '';
 }
 
@@ -31,15 +42,18 @@ export function normalizeOwners(owners) {
       console.warn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
-    if (owner && typeof owner === 'object' && typeof owner.userId === 'string' && owner.userId.trim()) {
-      return {
-        userId: owner.userId.trim(),
-        name: (owner.name || '').trim(),
-        email: (owner.email || '').trim()
-      };
+    if (owner && typeof owner === 'object') {
+      const uid = getContactLinkedUserId(owner);
+      if (uid) {
+        return {
+          userId: uid,
+          name: (owner.name || '').trim(),
+          email: (owner.email || '').trim()
+        };
+      }
     }
     return { name: (owner.name || '').trim(), email: (owner.email || '').trim() };
-  }).filter(owner => owner.name || owner.userId);
+  }).filter(owner => owner.name || getContactLinkedUserId(owner));
 }
 
 export function normalizeManagers(managers) {
@@ -49,15 +63,18 @@ export function normalizeManagers(managers) {
       console.warn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
-    if (manager && typeof manager === 'object' && typeof manager.userId === 'string' && manager.userId.trim()) {
-      return {
-        userId: manager.userId.trim(),
-        name: (manager.name || '').trim(),
-        email: (manager.email || '').trim()
-      };
+    if (manager && typeof manager === 'object') {
+      const uid = getContactLinkedUserId(manager);
+      if (uid) {
+        return {
+          userId: uid,
+          name: (manager.name || '').trim(),
+          email: (manager.email || '').trim()
+        };
+      }
     }
     return { name: (manager.name || '').trim(), email: (manager.email || '').trim() };
-  }).filter(manager => manager.name || manager.userId);
+  }).filter(manager => manager.name || getContactLinkedUserId(manager));
 }
 
 export function getOwnerNames(owners) {

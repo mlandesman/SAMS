@@ -6,6 +6,7 @@ import {
   normalizeContactsForStorage,
   resolveOwners,
   resolveManagers,
+  getContactLinkedUserId,
 } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -175,16 +176,12 @@ async function listUnits(clientId) {
       const ownersRaw = Array.isArray(data.owners) ? data.owners : (data.owner ? [data.owner] : []);
       const managersRaw = Array.isArray(data.managers) ? data.managers : [];
       ownersRaw.forEach(owner => {
-        if (owner && typeof owner === 'object' && typeof owner.userId === 'string') {
-          const userId = owner.userId.trim();
-          if (userId) allUserIds.add(userId);
-        }
+        const id = getContactLinkedUserId(owner);
+        if (id) allUserIds.add(id);
       });
       managersRaw.forEach(manager => {
-        if (manager && typeof manager === 'object' && typeof manager.userId === 'string') {
-          const userId = manager.userId.trim();
-          if (userId) allUserIds.add(userId);
-        }
+        const id = getContactLinkedUserId(manager);
+        if (id) allUserIds.add(id);
       });
       
       units.push({

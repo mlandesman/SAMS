@@ -31,7 +31,13 @@ import { useStatusBar } from '../context/StatusBarContext';
 import { useAuth } from '../context/AuthContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { normalizeOwners, normalizeManagers, resolvedContactLabel } from '../utils/unitContactUtils';
+import {
+  normalizeOwners,
+  normalizeManagers,
+  resolvedContactLabel,
+  getOwnerNames,
+  getManagerNames
+} from '../utils/unitContactUtils';
 import { createVendor, updateVendor, deleteVendor } from '../api/vendors';
 import { createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../api/paymentMethods';
@@ -889,13 +895,8 @@ function ListManagementView() {
       const units = response.data || [];
       const headers = ['Unit ID', 'Unit Name', 'Owners', 'Managers', 'Status', 'Property Type', 'Square Feet', 'Notes'];
       const rows = units.map(u => {
-        // Format owners
-        const owners = u.owners || [];
-        const ownerNames = owners.map(o => o.name || '').filter(Boolean).join('; ');
-        
-        // Format managers
-        const managers = u.managers || [];
-        const managerNames = managers.map(m => m.name || '').filter(Boolean).join('; ');
+        const ownerNames = getOwnerNames(u.owners || []).join('; ');
+        const managerNames = getManagerNames(u.managers || []).join('; ');
         
         return [
           u.unitId || '',
