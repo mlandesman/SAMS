@@ -1,16 +1,22 @@
 /**
  * Unit Contact Structure Utilities
- * 
- * Provides normalization functions for unit owners and managers
- * Handles backward compatibility between old format (["name"]) and new format ([{name, email}])
- * 
+ *
+ * Canonical display path for unit owners/managers:
+ * - Raw unit arrays store `{ userId }` (NRM) and/or legacy `{ name, email }`.
+ * - Resolution loads Firestore `users/{userId}` only; profile strings come from
+ *   `shared/userIdentityDisplay.js` (same rules as frontend).
+ * - Firebase Auth is for login only — not used here.
+ *
  * Task ID: UNIT-CONTACT-CODE-UPDATE-20251216
  * Date: December 16, 2025
  */
 
-import admin from 'firebase-admin';
-import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
-import { getDisplayNameFromUser as getDisplayNameFromUserShared } from '../../../shared/userIdentityDisplay.js';
+import { logWarn } from '../../shared/logger.js';
+import {
+  getDisplayNameFromUser as getDisplayNameFromUserShared,
+  getCanonicalEmailFromUser,
+  getCanonicalPhoneFromUser,
+} from '../../../shared/userIdentityDisplay.js';
 
 /** Re-export canonical identity label (shared with frontend). */
 export function getDisplayNameFromUser(userData) {
@@ -19,12 +25,7 @@ export function getDisplayNameFromUser(userData) {
 
 /** Exported for reuse (e.g. WhatsApp webhook phone matching). */
 export function getPhoneFromUser(userData = {}) {
-  const profile = userData.profile || {};
-  return typeof profile.phone === 'string' ? profile.phone.trim() : '';
-}
-
-function getEmailFromUser(userData = {}) {
-  return typeof userData.email === 'string' ? userData.email.trim() : '';
+  return getCanonicalPhoneFromUser(userData);
 }
 
 /** Firebase UID for a linked contact (`userId` canonical; `uid` accepted for legacy rows). */
@@ -63,45 +64,7 @@ async function buildUserCache(userIds, db, existingCache = new Map()) {
   return existingCache;
 }
 
-/**
- * Only fetch Firebase Auth when there is no Firestore `users/{uid}` document.
- * Many SAMS accounts exist only in Firestore (contact-only / no Auth user); calling getUser for those
- * UIDs fails with user-not-found and does not improve labels. Display names must come from Firestore
- * via getDisplayNameFromUser when a doc exists.
- */
-export function needsAuthEnrichment(userData) {
-  return !userData;
-}
-
-/** Batch Firebase Auth lookups for UIDs (dedupe before calling). */
-export async function buildFirebaseAuthCache(userIds) {
-  const map = new Map();
-  if (!Array.isArray(userIds) || userIds.length === 0) return map;
-
-  await Promise.all(
-    userIds.map(async (uid) => {
-      try {
-        const rec = await admin.auth().getUser(uid);
-        map.set(uid, {
-          displayName: (rec.displayName || '').trim(),
-          email: (rec.email || '').trim(),
-          phoneNumber: (rec.phoneNumber || '').trim()
-        });
-      } catch (e) {
-        const code = e?.code || e?.errorInfo?.code || '';
-        if (code === 'auth/user-not-found') {
-          logDebug(`Firebase Auth: no user for ${uid} (expected when uid has no Auth record)`);
-        } else {
-          logWarn(`Firebase Auth getUser failed for ${uid}: ${e.message}`);
-        }
-        map.set(uid, null);
-      }
-    })
-  );
-  return map;
-}
-
-function resolveContactWithCache(contact, userCache, authCache = null) {
+function resolveContactWithCache(contact, userCache) {
   // Normalize legacy string format to {name, email, phone} for consistent API response
   if (typeof contact === 'string') {
     const name = contact.trim();
@@ -116,16 +79,9 @@ function resolveContactWithCache(contact, userCache, authCache = null) {
     const userId = linkedId;
     const userData = userCache.get(userId);
 
-    let name = userData ? getDisplayNameFromUser(userData) : '';
-    let email = userData ? getEmailFromUser(userData) : '';
-    let phone = userData ? getPhoneFromUser(userData) : '';
-
-    const auth = authCache?.get(userId);
-    if (auth) {
-      if (!name && auth.displayName) name = auth.displayName;
-      if (!email && auth.email) email = auth.email;
-      if (!phone && auth.phoneNumber) phone = auth.phoneNumber;
-    }
+    const name = userData ? getDisplayNameFromUser(userData) : '';
+    const email = userData ? getCanonicalEmailFromUser(userData) : '';
+    const phone = userData ? getCanonicalPhoneFromUser(userData) : '';
 
     const displayName = name || email || '';
     return {
@@ -265,14 +221,33 @@ export async function buildUserCacheForUnits(units, db) {
 }
 
 /**
+ * Canonical API helper: resolve both owners and managers from Firestore `users` in one call.
+ * Use from listUnits / single-unit endpoints so behavior does not drift.
+ *
+ * @param {Array|undefined} owners
+ * @param {Array|undefined} managers
+ * @param {FirebaseFirestore.Firestore} db
+ * @param {Map<string, object|null>|null} existingUserCache - optional preloaded `users/{uid}` map (e.g. listUnits batch)
+ * @returns {Promise<{ owners: Array<Object>, managers: Array<Object> }>}
+ */
+export async function resolveUnitContactsForApi(owners, managers, db, existingUserCache = null) {
+  const [resolvedOwners, resolvedManagers] = await Promise.all([
+    resolveOwners(owners, db, existingUserCache),
+    resolveManagers(managers, db, existingUserCache)
+  ]);
+  return { owners: resolvedOwners, managers: resolvedManagers };
+}
+
+/**
  * Resolve owners to enriched owner objects for API responses.
  * Supports mixed arrays of {userId} and legacy {name, email}.
  *
  * @param {Array<Object>|undefined} owners
  * @param {FirebaseFirestore.Firestore} db
+ * @param {Map<string, object|null>|null} existingCache - optional preloaded users map
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveOwners(owners, db, existingCache = null, prebuiltAuthCache = null) {
+export async function resolveOwners(owners, db, existingCache = null) {
   if (!Array.isArray(owners) || owners.length === 0) {
     return [];
   }
@@ -285,13 +260,7 @@ export async function resolveOwners(owners, db, existingCache = null, prebuiltAu
   const userIds = getUniqueUserIds(owners);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  const authCache =
-    prebuiltAuthCache ||
-    (await buildFirebaseAuthCache(
-      userIds.filter((uid) => needsAuthEnrichment(userCache.get(uid) || null))
-    ));
-
-  return owners.map(owner => resolveContactWithCache(owner, userCache, authCache)).filter(Boolean);
+  return owners.map(owner => resolveContactWithCache(owner, userCache)).filter(Boolean);
 }
 
 /**
@@ -300,9 +269,10 @@ export async function resolveOwners(owners, db, existingCache = null, prebuiltAu
  *
  * @param {Array<Object>|undefined} managers
  * @param {FirebaseFirestore.Firestore} db
+ * @param {Map<string, object|null>|null} existingCache - optional preloaded users map
  * @returns {Promise<Array<Object>>}
  */
-export async function resolveManagers(managers, db, existingCache = null, prebuiltAuthCache = null) {
+export async function resolveManagers(managers, db, existingCache = null) {
   if (!Array.isArray(managers) || managers.length === 0) {
     return [];
   }
@@ -315,13 +285,7 @@ export async function resolveManagers(managers, db, existingCache = null, prebui
   const userIds = getUniqueUserIds(managers);
   const userCache = await buildUserCache(userIds, db, existingCache || new Map());
 
-  const authCache =
-    prebuiltAuthCache ||
-    (await buildFirebaseAuthCache(
-      userIds.filter((uid) => needsAuthEnrichment(userCache.get(uid) || null))
-    ));
-
-  return managers.map(manager => resolveContactWithCache(manager, userCache, authCache)).filter(Boolean);
+  return managers.map(manager => resolveContactWithCache(manager, userCache)).filter(Boolean);
 }
 
 /**
@@ -403,4 +367,71 @@ export function joinOwnerNames(owners, separator = ', ') {
  */
 export function joinManagerNames(managers, separator = ', ') {
   return getManagerNames(managers).join(separator);
+}
+
+function profileHasDisplayableData(userData) {
+  if (!userData || typeof userData !== 'object') return false;
+  return Boolean(
+    getDisplayNameFromUser(userData).trim() ||
+      getCanonicalEmailFromUser(userData).trim() ||
+      getCanonicalPhoneFromUser(userData).trim()
+  );
+}
+
+/**
+ * Compare requested UIDs (from unit owner/manager links) to Firestore `users/{uid}` docs.
+ * Use with GET /clients/:id/units?contactDiagnostics=1 to see why names are blank.
+ *
+ * @param {string[]} userIds
+ * @param {Map<string, object|null>} userMap - from batched users collection reads
+ */
+export function summarizeUsersCollectionCoverage(userIds, userMap) {
+  const missingUserDocIds = [];
+  const emptyProfileUserIds = [];
+  for (const uid of userIds) {
+    const data = userMap.get(uid);
+    if (data == null) {
+      missingUserDocIds.push(uid);
+      continue;
+    }
+    if (!profileHasDisplayableData(data)) {
+      emptyProfileUserIds.push(uid);
+    }
+  }
+  return {
+    totalUniqueUserIds: userIds.length,
+    missingUserDocIds,
+    missingUserDocCount: missingUserDocIds.length,
+    emptyProfileUserIds,
+    emptyProfileCount: emptyProfileUserIds.length,
+  };
+}
+
+/**
+ * Per-unit snapshot of resolved owner/manager rows (what the API returns after Firestore merge).
+ *
+ * @param {Array<{ unitId: string, owners?: Array, managers?: Array }>} resolvedUnits
+ */
+export function perUnitContactSnapshot(resolvedUnits) {
+  return resolvedUnits.map((u) => ({
+    unitId: u.unitId,
+    owners: (u.owners || []).map(contactRowSnapshot),
+    managers: (u.managers || []).map(contactRowSnapshot),
+  }));
+}
+
+function contactRowSnapshot(c) {
+  if (!c || typeof c !== 'object') {
+    return { resolved: false, detail: String(c) };
+  }
+  const uid = getContactLinkedUserId(c);
+  const name = typeof c.name === 'string' ? c.name.trim() : '';
+  const email = typeof c.email === 'string' ? c.email.trim() : '';
+  return {
+    userId: uid || undefined,
+    name,
+    email,
+    resolved: Boolean(name || email),
+    missingLabelForLinkedUid: Boolean(uid) && !name && !email,
+  };
 }

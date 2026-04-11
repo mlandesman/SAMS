@@ -4,11 +4,10 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import {
   normalizeContactsForStorage,
-  resolveOwners,
-  resolveManagers,
+  resolveUnitContactsForApi,
   getContactLinkedUserId,
-  buildFirebaseAuthCache,
-  needsAuthEnrichment,
+  summarizeUsersCollectionCoverage,
+  perUnitContactSnapshot,
 } from '../utils/unitContactUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -158,8 +157,11 @@ async function deleteUnit(clientId, unitId) {
   }
 }
 
-// List all units under a client
-async function listUnits(clientId) {
+/**
+ * Load all units, batch-read `users/{uid}` for linked contacts, return resolved API rows + map for diagnostics.
+ * @returns {Promise<{ resolvedUnits: Array, userMap: Map<string, object|null>, allUserIds: string[] }|null>}
+ */
+async function loadResolvedUnitsBundle(clientId) {
   try {
     const db = await getDb();
     const snapshot = await db.collection(`clients/${clientId}/units`).get();
@@ -173,7 +175,7 @@ async function listUnits(clientId) {
         logDebug(`⚠️ Skipping ${doc.id} document from units list`);
         return;
       }
-      
+
       const data = doc.data();
       const ownersRaw = Array.isArray(data.owners) ? data.owners : (data.owner ? [data.owner] : []);
       const managersRaw = Array.isArray(data.managers) ? data.managers : [];
@@ -185,7 +187,7 @@ async function listUnits(clientId) {
         const id = getContactLinkedUserId(manager);
         if (id) allUserIds.add(id);
       });
-      
+
       units.push({
         unitId: doc.id, // Document ID is the unit identifier
         ...data,
@@ -210,24 +212,66 @@ async function listUnits(clientId) {
       });
     }
 
-    const authNeeded = userIds.filter((uid) => needsAuthEnrichment(userMap.get(uid) || null));
-    const sharedAuthCache = await buildFirebaseAuthCache(authNeeded);
-
     const resolvedUnits = [];
     for (const unit of units) {
       const { ownersRaw, managersRaw, ...unitWithoutRaw } = unit;
+      const { owners, managers } = await resolveUnitContactsForApi(
+        ownersRaw,
+        managersRaw,
+        db,
+        userMap
+      );
       resolvedUnits.push({
         ...unitWithoutRaw,
-        owners: await resolveOwners(ownersRaw, db, userMap, sharedAuthCache),
-        managers: await resolveManagers(managersRaw, db, userMap, sharedAuthCache),
+        owners,
+        managers
       });
     }
 
-    return resolvedUnits;
+    return { resolvedUnits, userMap, allUserIds: userIds };
   } catch (error) {
     logError('❌ Error listing units:', error);
-    return [];
+    return null;
   }
+}
+
+// List all units under a client
+async function listUnits(clientId) {
+  const bundle = await loadResolvedUnitsBundle(clientId);
+  return bundle ? bundle.resolvedUnits : [];
+}
+
+/** Same data as listUnits plus Firestore coverage stats (for ?contactDiagnostics=1). */
+async function listUnitsWithContactDiagnostics(clientId) {
+  const bundle = await loadResolvedUnitsBundle(clientId);
+  if (!bundle) {
+    return {
+      units: [],
+      contactDiagnostics: {
+        clientId,
+        error: 'load_failed',
+        totalUniqueUserIds: 0,
+        missingUserDocIds: [],
+        missingUserDocCount: 0,
+        emptyProfileUserIds: [],
+        emptyProfileCount: 0,
+        perUnit: [],
+      },
+    };
+  }
+  const coverage = summarizeUsersCollectionCoverage(bundle.allUserIds, bundle.userMap);
+  const contactDiagnostics = {
+    clientId,
+    ...coverage,
+    perUnit: perUnitContactSnapshot(bundle.resolvedUnits),
+  };
+  logInfo('📊 units contactDiagnostics', {
+    clientId,
+    unitCount: bundle.resolvedUnits.length,
+    missingUserDocCount: coverage.missingUserDocCount,
+    emptyProfileCount: coverage.emptyProfileCount,
+  });
+  return { units: bundle.resolvedUnits, contactDiagnostics };
 }
 
 // Update unit managers
@@ -272,6 +316,7 @@ export {
   updateUnit,
   deleteUnit,
   listUnits,
+  listUnitsWithContactDiagnostics,
   updateUnitManagers,
   addUnitEmail,
 };

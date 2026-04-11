@@ -1,7 +1,15 @@
 // backend/routes/units.js
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import express from 'express';
-import { createUnit, updateUnit, deleteUnit, listUnits, updateUnitManagers, addUnitEmail } from '../controllers/unitsController.js';
+import {
+  createUnit,
+  updateUnit,
+  deleteUnit,
+  listUnits,
+  listUnitsWithContactDiagnostics,
+  updateUnitManagers,
+  addUnitEmail,
+} from '../controllers/unitsController.js';
 import { authenticateUserWithProfile } from '../middleware/clientAuth.js';
 import { getDb } from '../firebase.js';
 
@@ -20,8 +28,22 @@ router.get('/', authenticateUserWithProfile, async (req, res) => {
     }
 
     logDebug(`📋 Fetching units for client: ${clientId}`);
+    const diagnostics =
+      req.query.contactDiagnostics === '1' ||
+      req.query.contactDiagnostics === 'true';
+
+    if (diagnostics) {
+      const { units, contactDiagnostics } = await listUnitsWithContactDiagnostics(clientId);
+      return res.json({
+        success: true,
+        data: units,
+        count: units.length,
+        contactDiagnostics,
+      });
+    }
+
     const units = await listUnits(clientId);
-    
+
     res.json({
       success: true,
       data: units,
