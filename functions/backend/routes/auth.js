@@ -9,20 +9,9 @@ import admin from 'firebase-admin';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
+import { generateSecureTempPassword } from '../../shared/utils/tempPassword.js';
 
 const router = express.Router();
-
-/**
- * Generate secure random password
- */
-function generateSecurePassword() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
 
 /**
  * Reset password for forgotten password requests
@@ -81,7 +70,7 @@ router.post('/reset-password', async (req, res) => {
     }
 
     // Generate temporary password
-    const temporaryPassword = generateSecurePassword();
+    const temporaryPassword = generateSecureTempPassword();
 
     // Update Firebase Auth with temporary password
     await admin.auth().updateUser(userRecord.uid, {

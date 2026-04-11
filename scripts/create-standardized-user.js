@@ -15,6 +15,7 @@ import { getAuth } from 'firebase-admin/auth';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateSecureTempPassword } from '../functions/shared/utils/tempPassword.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,7 +192,7 @@ async function createUser(userData) {
     // 2. Create Firebase Auth user
     const authUser = await auth.createUser({
       email: userData.email,
-      password: userData.password || generateTempPassword(),
+      password: userData.password || generateSecureTempPassword(),
       displayName: `${userData.firstName} ${userData.lastName}`
     });
     
@@ -218,18 +219,6 @@ async function createUser(userData) {
       error: error.message
     };
   }
-}
-
-/**
- * Generate a temporary password
- */
-function generateTempPassword() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
 }
 
 // Show examples
