@@ -17,6 +17,15 @@ import { getMexicoDateString } from '../utils/timezone';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 import './UnifiedExpenseEntry.css';
 
+/** True if split rows already include persisted bank fee lines (Issue #271 — avoid duplicate on edit). */
+function splitAllocationsIncludeBankFees(allocations) {
+  if (!Array.isArray(allocations) || allocations.length === 0) return false;
+  return allocations.some((a) => {
+    const n = (a.categoryName || '').trim();
+    return n === 'Bank: Transfer Fees' || n === 'Bank: IVA';
+  });
+}
+
 const UnifiedExpenseEntry = ({ 
   mode = 'modal', // 'modal' or 'screen'
   isOpen = true,
@@ -297,7 +306,9 @@ const UnifiedExpenseEntry = ({
             notes: allocation.notes || ''
           }));
           
-          if (addBankFees) {
+          // Do not append fee/IVA rows if they are already in the split (edit of SPEI/fee transaction)
+          const bankFeesAlreadyInSplit = splitAllocationsIncludeBankFees(splitAllocations);
+          if (addBankFees && !bankFeesAlreadyInSplit) {
             const commissionAmountDollars = 5.00;
             const ivaAmountDollars = 0.80;
             apiAllocations.push(
@@ -305,7 +316,10 @@ const UnifiedExpenseEntry = ({
               { categoryName: 'Bank: IVA', amount: -Math.abs(ivaAmountDollars), notes: 'Bank transfer IVA' }
             );
             transactionData.amount = transactionAmount - commissionAmountDollars - ivaAmountDollars;
-            transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
+            const feeNote = '(includes transfer fees)';
+            transactionData.notes = (formData.notes || '').includes(feeNote)
+              ? formData.notes
+              : (formData.notes ? `${formData.notes} ` : '') + feeNote;
           }
           
           transactionData.allocations = apiAllocations;
