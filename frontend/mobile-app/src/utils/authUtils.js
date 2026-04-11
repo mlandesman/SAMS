@@ -17,3 +17,14 @@ export function isOwnerOrManager(samsUser) {
     (access) => access.role === 'unitOwner' || access.role === 'unitManager'
   );
 }
+
+/**
+ * Client-scoped HOA administrator (not necessarily globalRole admin).
+ * Mobile must treat these users as admins for dashboard and admin routes (#274).
+ */
+export function hasClientAdminForClient(samsUser, clientId) {
+  if (!samsUser || !clientId) return false;
+  if (samsUser.globalRole === 'admin' || samsUser.globalRole === 'superAdmin') return true;
+  const clientAccess = samsUser.clientAccess || samsUser.propertyAccess || {};
+  return clientAccess[clientId]?.role === 'admin';
+}
