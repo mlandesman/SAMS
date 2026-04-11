@@ -37,9 +37,7 @@ class HOADuesAPI {
    */
   async getDuesForYear(clientId, year) {
     const token = await this.getAuthToken();
-    
-    console.log(`💰 HOADuesAPI fetching dues for ${clientId} year ${year}`);
-    
+
     // Add cache-busting parameter to ensure fresh data after payments
     const cacheBuster = `_t=${Date.now()}`;
     const response = await fetch(
@@ -56,8 +54,7 @@ class HOADuesAPI {
     );
     
     const result = await handleApiResponse(response);
-    console.log(`✅ HOADuesAPI received dues data for ${Object.keys(result || {}).length} units`);
-    
+
     return result;
   }
 

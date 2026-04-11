@@ -39,33 +39,24 @@ async function getAuthHeaders() {
  */
 export async function getUnits(clientId) {
   try {
-    console.log(`📋 [API] Fetching units for client: ${clientId}`);
-    
     const headers = await getAuthHeaders();
-    console.log('🔑 [API] Auth headers prepared:', { Authorization: headers.Authorization ? 'Bearer [token]' : 'missing' });
-    
+
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units?t=${Date.now()}`, {
       method: 'GET',
       headers,
       credentials: 'include',
       cache: 'no-store',
     });
-    
-    console.log(`📡 [API] Response status: ${response.status}`);
-    
+
     const result = await response.json();
-    console.log('📋 [API] Response body:', result);
-    
+
     if (result.success) {
-      console.log(`✅ [API] Fetched ${result.count} units successfully`);
       return result;
-    } else {
-      console.error('❌ [API] Failed to fetch units:', result.error);
-      throw new Error(result.error);
     }
-    
+    console.error('Failed to fetch units:', result.error);
+    throw new Error(result.error);
   } catch (error) {
-    console.error('❌ Error fetching units:', error);
+    console.error('Error fetching units:', error);
     throw error;
   }
 }
@@ -78,8 +69,6 @@ export async function getUnits(clientId) {
  */
 export async function createUnit(clientId, unitData) {
   try {
-    console.log(`➕ Creating unit for client: ${clientId}`, unitData);
-    
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units`, {
       method: 'POST',
@@ -91,15 +80,12 @@ export async function createUnit(clientId, unitData) {
     const result = await response.json();
     
     if (result.success) {
-      console.log(`✅ Created unit with ID: ${result.id}`);
       return result;
-    } else {
-      console.error('❌ Failed to create unit:', result.error);
-      throw new Error(result.error);
     }
-    
+    console.error('Failed to create unit:', result.error);
+    throw new Error(result.error);
   } catch (error) {
-    console.error('❌ Error creating unit:', error);
+    console.error('Error creating unit:', error);
     throw error;
   }
 }
@@ -113,8 +99,6 @@ export async function createUnit(clientId, unitData) {
  */
 export async function updateUnit(clientId, unitId, unitData) {
   try {
-    console.log(`✏️ Updating unit ${unitId} for client: ${clientId}`, unitData);
-    
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units/${unitId}`, {
       method: 'PUT',
@@ -126,15 +110,12 @@ export async function updateUnit(clientId, unitId, unitData) {
     const result = await response.json();
     
     if (result.success) {
-      console.log(`✅ Updated unit: ${unitId}`);
       return result;
-    } else {
-      console.error('❌ Failed to update unit:', result.error);
-      throw new Error(result.error);
     }
-    
+    console.error('Failed to update unit:', result.error);
+    throw new Error(result.error);
   } catch (error) {
-    console.error('❌ Error updating unit:', error);
+    console.error('Error updating unit:', error);
     throw error;
   }
 }
@@ -147,8 +128,6 @@ export async function updateUnit(clientId, unitId, unitData) {
  */
 export async function deleteUnit(clientId, unitId) {
   try {
-    console.log(`🗑️ Deleting unit ${unitId} for client: ${clientId}`);
-    
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/clients/${clientId}/units/${unitId}`, {
       method: 'DELETE',
@@ -159,15 +138,12 @@ export async function deleteUnit(clientId, unitId) {
     const result = await response.json();
     
     if (result.success) {
-      console.log(`✅ Deleted unit: ${unitId}`);
       return result;
-    } else {
-      console.error('❌ Failed to delete unit:', result.error);
-      throw new Error(result.error);
     }
-    
+    console.error('Failed to delete unit:', result.error);
+    throw new Error(result.error);
   } catch (error) {
-    console.error('❌ Error deleting unit:', error);
+    console.error('Error deleting unit:', error);
     throw error;
   }
 }

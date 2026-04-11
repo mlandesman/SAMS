@@ -32,20 +32,16 @@ import PaymentDetailsModal from '../components/PaymentDetailsModal';
 import './HOADuesView.css';
 
 function HOADuesView() {
-  console.log('🔴 HOADuesView component rendering');
-  
   const { 
     units, 
     unitsWithOwners,
-    duesData, 
+    duesData,
     loading, 
     error, 
     selectedYear, 
     setSelectedYear,
     refreshData
   } = useHOADues();
-  
-  console.log('🔴 HOADuesView - selectedYear from context:', selectedYear);
   
   // Get the client name from ClientContext
   const { selectedClient } = useClient();
@@ -58,12 +54,6 @@ function HOADuesView() {
   
   // Get dues frequency configuration (monthly or quarterly)
   const duesFrequency = selectedClient?.feeStructure?.duesFrequency || 'monthly';
-  
-  // DEBUG: Log client configuration
-  console.log('HOA Dues View - Selected Client:', selectedClient);
-  console.log('HOA Dues View - Fiscal Year Start Month:', fiscalYearStartMonth);
-  console.log('HOA Dues View - Dues Frequency:', duesFrequency);
-  console.log('HOA Dues View - Selected Year:', selectedYear);
   
   // Note: selectedUnitId and selectedMonth kept for context menu navigation
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -161,7 +151,7 @@ function HOADuesView() {
       // Not paid - only admin can open payment modal; non-admin view-only (navigate without opening)
       const canRecordPayment = isSuperAdmin(samsUser) || isAdmin(samsUser, selectedClient?.id);
       if (canRecordPayment) {
-        console.log(`💳 Opening unified payment modal for unit ${unitId}, month ${fiscalMonth}`);
+        debug.log(`Opening unified payment for unit ${unitId}, month ${fiscalMonth}`);
         navigate('/transactions', { 
           state: { 
             openUnifiedPayment: true, 

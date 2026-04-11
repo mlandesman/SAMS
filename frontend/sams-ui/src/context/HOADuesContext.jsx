@@ -5,8 +5,6 @@ import hoaDuesAPI from '../api/hoaDuesAPI';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
 
-console.log('📁 [HOADuesContext] Module loaded');
-
 const HOADuesContext = createContext();
 
 // ⚠️ NO CACHING - ALL REQUESTS FETCH FRESH FROM FIRESTORE
@@ -23,31 +21,11 @@ export function HOADuesProvider({ children }) {
   const [error, setError] = useState(null);
   const [unitsWithOwners, setUnitsWithOwners] = useState([]); // Units with owner data from API
 
-  console.log('💰 [HOADuesContext] Component rendered:', {
-    hasClient: !!selectedClient,
-    clientId: selectedClient?.id,
-    selectedYear,
-    loading,
-    hasError: !!error
-  });
-
   // Set initial year when client is loaded - EXACT PATTERN from Water Bills
   useEffect(() => {
-    console.log('📅 [HOADuesContext] Year effect triggered:', {
-      hasClient: !!selectedClient,
-      clientId: selectedClient?.id,
-      currentYear: selectedYear
-    });
-    
     if (selectedClient && selectedYear === null) {
       const fiscalYearStartMonth = selectedClient.configuration?.fiscalYearStartMonth || 1;
       const currentFiscalYear = getFiscalYear(getMexicoDate(), fiscalYearStartMonth);
-      
-      console.log('📅 [HOADuesContext] Setting initial year:', {
-        client: selectedClient.id,
-        fiscalYearStartMonth,
-        calculatedYear: currentFiscalYear
-      });
       
       debug.log('HOADuesContext - Setting initial year based on client');
       debug.log('  Client:', selectedClient.id);
@@ -76,7 +54,6 @@ export function HOADuesProvider({ children }) {
       if (response.ok) {
         const unitsResponse = await response.json();
         const units = unitsResponse.data || unitsResponse;
-        console.log('👥 [HOADuesContext] Loaded units with owner data:', units.length, 'units');
         setUnitsWithOwners(units);
       } else {
         console.warn(`Failed to fetch units with owner data for client ${selectedClient.id}`);
@@ -91,17 +68,7 @@ export function HOADuesProvider({ children }) {
   // Fetch HOA dues data directly from backend
   // NO CACHING - fetches fresh from Firestore every time
   const fetchDuesData = async (year) => {
-    console.log('💰 [HOADuesContext] fetchDuesData called:', {
-      hasClient: !!selectedClient,
-      clientId: selectedClient?.id,
-      year
-    });
-    
     if (!selectedClient || !year) {
-      console.log('⚠️ [HOADuesContext] Skipping fetch - missing requirements:', {
-        hasClient: !!selectedClient,
-        year
-      });
       debug.log('HOADuesContext - Skipping fetch, missing client or year');
       return;
     }
@@ -110,7 +77,6 @@ export function HOADuesProvider({ children }) {
     // Cache-busting in hoaDuesAPI ensures we never get stale data
     
     // Fetch from API - gets all units' dues data for the year
-    console.log('🌐 [HOADuesContext] Fetching dues for year...');
     setLoading(true);
     setError(null);
     
@@ -118,28 +84,14 @@ export function HOADuesProvider({ children }) {
       debug.log('HOADuesContext - Fetching HOA dues from API for year:', year);
       const response = await hoaDuesAPI.getDuesForYear(selectedClient.id, year);
       
-      console.log('📦 [HOADuesContext] API Response received:', {
-        hasResponse: !!response,
-        unitCount: response ? Object.keys(response).length : 0,
-        units: response ? Object.keys(response) : 'none'
-      });
-      
       // The response contains all units' dues data (direct from Firestore)
       // Update state
       const dataToSet = response || {};
-      console.log('📊 [HOADuesContext] Setting dues data state:', {
-        unitCount: Object.keys(dataToSet).length,
-        units: Object.keys(dataToSet)
-      });
       setDuesData(dataToSet);
       
       debug.log('HOADuesContext - Loaded dues data for client:', selectedClient.id, 'year:', year);
     } catch (error) {
-      console.error('🚨 [HOADuesContext] Error loading dues data:', {
-        message: error.message,
-        status: error.status,
-        stack: error.stack
-      });
+      console.error('HOADuesContext: Error loading dues data:', error);
       debug.error('HOADuesContext - Error loading dues data:', error);
       // Don't set error state for 404s, just use empty data
       if (error.status !== 404) {
@@ -147,7 +99,6 @@ export function HOADuesProvider({ children }) {
       }
       setDuesData({});
     } finally {
-      console.log('🏁 [HOADuesContext] Fetch complete');
       setLoading(false);
     }
   };
@@ -163,20 +114,8 @@ export function HOADuesProvider({ children }) {
 
   // Fetch data when client or year changes
   useEffect(() => {
-    console.log('🔄 [HOADuesContext] Data fetch effect triggered:', {
-      hasClient: !!selectedClient,
-      clientId: selectedClient?.id,
-      selectedYear
-    });
-    
     if (selectedClient && selectedYear) {
-      console.log('🚀 [HOADuesContext] Conditions met - calling fetchDuesData');
       fetchDuesData(selectedYear);
-    } else {
-      console.log('⏸️ [HOADuesContext] Conditions not met - skipping fetch:', {
-        hasClient: !!selectedClient,
-        selectedYear
-      });
     }
   }, [selectedClient, selectedYear]);
 
