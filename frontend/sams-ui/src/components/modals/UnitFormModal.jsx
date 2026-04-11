@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useClient } from '../../context/ClientContext';
-import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
+import { normalizeOwners, normalizeManagers, getDisplayNameFromUser } from '../../utils/unitContactUtils.js';
 import UserPicker from '../common/UserPicker.jsx';
 import { userAPI } from '../../api/user.js';
 import '../../styles/SandylandModalTheme.css';
@@ -93,7 +93,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         // Match owners to users by email
         if (ownersWithIds.length > 0) {
           try {
-            const users = await userAPI.getUsersByClient(selectedClient.id);
+            const users = await userAPI.getSystemUsers();
             ownersWithIds = ownersWithIds.map(owner => {
               // If userId already exists, keep it
               if (owner.userId) return owner;
@@ -120,7 +120,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
         // Match managers to users by email
         if (managersWithIds.length > 0) {
           try {
-            const users = await userAPI.getUsersByClient(selectedClient.id);
+            const users = await userAPI.getSystemUsers();
             managersWithIds = managersWithIds.map(manager => {
               // If userId already exists, keep it
               if (manager.userId) return manager;
@@ -338,11 +338,11 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     if (userId) {
       // When a user is selected, fetch user data and populate name/email
       try {
-        const users = await userAPI.getUsersByClient(selectedClient.id);
+        const users = await userAPI.getSystemUsers();
         const selectedUser = users.find(u => u.id === userId);
         if (selectedUser) {
           newOwners[index] = {
-            name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
+            name: getDisplayNameFromUser(selectedUser) || selectedUser.email || '',
             email: selectedUser.email || '',
             userId: userId
           };
@@ -389,11 +389,11 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     if (userId) {
       // When a user is selected, fetch user data and populate name/email
       try {
-        const users = await userAPI.getUsersByClient(selectedClient.id);
+        const users = await userAPI.getSystemUsers();
         const selectedUser = users.find(u => u.id === userId);
         if (selectedUser) {
           newManagers[index] = {
-            name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
+            name: getDisplayNameFromUser(selectedUser) || selectedUser.email || '',
             email: selectedUser.email || '',
             userId: userId
           };
@@ -584,6 +584,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                           allowedRoles={null}
                           label="Owner"
                           required={index === 0}
+                          requirePropertyAccessForClient={false}
                         />
                       </div>
                       <button
@@ -626,6 +627,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                               allowedRoles={null}
                               label="Manager"
                               required={false}
+                              requirePropertyAccessForClient={false}
                             />
                           </div>
                           <button

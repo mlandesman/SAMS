@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useSecureApi } from '../../api/secureApiClient.js';
+import { getDisplayNameFromUser } from '../../utils/unitContactUtils.js';
 
 /**
  * UserPicker Component
  * Displays a dropdown to select users from the Users collection
  * Filters users by client and optionally by role
- * 
- * @param {string} clientId - The client ID to filter users by
- * @param {string} selectedUserId - Currently selected user ID (or null)
- * @param {Function} onSelect - Callback when user is selected (userId) => void
- * @param {Array<string>} allowedRoles - Optional array of roles to filter by (e.g., ['unitOwner', 'unitManager'])
- * @param {string} label - Label for the picker
- * @param {boolean} required - Whether selection is required
+ *
+ * @param {string} clientId - The client ID to filter users by (when requirePropertyAccessForClient is true)
+ * @param {boolean} requirePropertyAccessForClient - If false, list all system users (unit assignment / cross-client)
  */
-const UserPicker = ({ 
-  clientId, 
-  selectedUserId, 
-  onSelect, 
-  allowedRoles = null, 
+const UserPicker = ({
+  clientId,
+  selectedUserId,
+  onSelect,
+  allowedRoles = null,
   label = 'User',
-  required = false 
+  required = false,
+  requirePropertyAccessForClient = true
 }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,49 +29,23 @@ const UserPicker = ({
       try {
         setLoading(true);
         setError(null);
-        
-        // Use same approach as UserManagement - fetch all users, then filter on frontend
+
         const response = await secureApi.getSystemUsers();
         const allUsers = response.users || [];
-        
-        console.log(`🔍 UserPicker: Fetched ${allUsers.length} total users`);
-        
-        // Filter by clientId if provided
+
         let filtered = allUsers;
-        if (clientId) {
-          filtered = allUsers.filter(user => {
-            const hasAccess = user.propertyAccess?.[clientId] != null;
-            if (!hasAccess && user.email) {
-              console.log(`  ⚠️  User ${user.email} (${user.id}) does not have propertyAccess for ${clientId}`);
-            }
-            return hasAccess;
-          });
-          console.log(`📊 UserPicker: ${filtered.length} users have access to clientId: ${clientId}`);
+        if (clientId && requirePropertyAccessForClient) {
+          filtered = allUsers.filter(user => user.propertyAccess?.[clientId] != null);
         }
-        
-        // Filter by roles if specified
-        if (allowedRoles && allowedRoles.length > 0) {
+
+        if (allowedRoles && allowedRoles.length > 0 && clientId) {
           filtered = filtered.filter(user => {
             const access = user.propertyAccess?.[clientId];
-            if (!access) {
-              if (user.email) {
-                console.log(`  ⚠️  User ${user.email} (${user.id}) - no propertyAccess for ${clientId}`);
-              }
-              return false;
-            }
-            
-            const userRole = access.role;
-            const hasRole = allowedRoles.includes(userRole);
-            
-            if (!hasRole && user.email) {
-              console.log(`  ⚠️  User ${user.email} (${user.id}) - role: "${userRole}", needs one of:`, allowedRoles);
-            }
-            
-            return hasRole;
+            if (!access) return false;
+            return allowedRoles.includes(access.role);
           });
-          console.log(`✅ UserPicker: Filtered to ${filtered.length} users with roles:`, allowedRoles);
         }
-        
+
         setUsers(filtered);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -84,7 +56,7 @@ const UserPicker = ({
     };
 
     fetchUsers();
-  }, [clientId, allowedRoles, secureApi]);
+  }, [clientId, allowedRoles, secureApi, requirePropertyAccessForClient]);
 
   if (loading) {
     return (
@@ -113,7 +85,9 @@ const UserPicker = ({
       <div className="user-picker">
         <label>{label}{required && ' *'}</label>
         <select disabled>
-          <option>No users available for this client</option>
+          <option>
+            {requirePropertyAccessForClient ? 'No users available for this client' : 'No users available'}
+          </option>
         </select>
         <span className="sandyland-helper-text">
           No users found. Create users in User Management first.
@@ -125,8 +99,8 @@ const UserPicker = ({
   return (
     <div className="user-picker">
       <label>{label}{required && ' *'}</label>
-      <select 
-        value={selectedUserId || ''} 
+      <select
+        value={selectedUserId || ''}
         onChange={(e) => onSelect(e.target.value || null)}
         required={required}
         style={{ width: '100%', padding: '8px', fontSize: '14px' }}
@@ -134,7 +108,7 @@ const UserPicker = ({
         <option value="">-- Select {label} --</option>
         {users.map(user => (
           <option key={user.id} value={user.id}>
-            {user.name || user.displayName || user.email} ({user.email})
+            {getDisplayNameFromUser(user) || user.email || user.id} ({user.email || 'no email'})
           </option>
         ))}
       </select>
@@ -143,4 +117,3 @@ const UserPicker = ({
 };
 
 export default UserPicker;
-

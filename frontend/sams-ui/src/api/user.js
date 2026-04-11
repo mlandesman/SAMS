@@ -102,6 +102,25 @@ export const userAPI = {
   },
 
   /**
+   * All users visible to the current admin (same source as User Management list).
+   * Used for unit owner/manager assignment across clients (#246).
+   */
+  async getSystemUsers() {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+        method: 'GET',
+        headers
+      });
+      const result = await handleApiResponse(response);
+      return result.users || [];
+    } catch (error) {
+      console.error('Failed to fetch system users:', error);
+      throw new Error(`Failed to load users: ${error.message}`);
+    }
+  },
+
+  /**
    * Update user propertyAccess for a specific client
    * @param {string} userId - The user ID to update
    * @param {string} clientId - The client ID
