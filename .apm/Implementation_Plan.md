@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.21.0 (pending deployment) | **Production deployed:** v1.19.1 (March 20, 2026)  
-**Last Updated:** April 10, 2026 — Sprint **BANK-RECON** complete (PR #268 merged) and scheduler auth guard fix merged (PR #270). Next sprint remains **BUGFIX-ONBOARD**. WhatsApp paused (Meta blocked). See Roadmap_and_Timeline.md for sequence.  
+**Last Updated:** April 11, 2026 — Sprint **BUG-SWEEP-STABILIZATION** in progress; Issue **#272** is complete and approved for closeout. Next execution item: **#271**. See Roadmap_and_Timeline.md for sequence.  
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,7 +25,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*No active sprint. Next sprint: **BUGFIX-ONBOARD** — fix bugs blocking/degrading owner onboarding (#246, #231, #260, #251, #254). Sprint **BANK-RECON** is complete and merged. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint: **BUG-SWEEP-STABILIZATION (post BANK-RECON)**. Issue **#272** (owner/manager labels regression) is complete and manager-reviewed; sprint now proceeds to **#271** next, then remaining risk-ordered bugs. Sprint **BANK-RECON** remains complete and merged. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 

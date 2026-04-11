@@ -3,6 +3,22 @@
 
 ## Active Sprint Categories
 
+### 🧹 Sprint BUG-SWEEP-STABILIZATION (Post BANK-RECON) — in progress
+*Risk-first regression sweep after BANK-RECON before broad deploy confidence sign-off.*
+
+| # | Title | Priority | Status |
+|---|-------|----------|--------|
+| **272** | Owner/Manager names missing in HOA Dues + List Management (NRM regression) | critical | ✅ COMPLETE (reviewed Apr 11, 2026; ready to close) |
+| **271** | Bank transfer fee/IVA duplicate application on edit | critical | Next in queue |
+| **275** | Temp password email mismatch risk due to HTML-dangerous characters | high | Planned |
+| **260** | Water mini graph clipping/period issue in SoA | medium | Planned |
+| **274** | Mobile admin lost Currency Exchange tool | medium | Planned |
+
+**Theme**: Stabilization and regression cleanup (no net-new feature scope)  
+**Status**: Active — #272 completed; continue one-at-a-time priority execution
+
+---
+
 ### 🐛 Sprint BUGFIX-ONBOARD: Owner Onboarding Bug Fixes (6-8 hours)
 *Fix bugs that degrade the owner onboarding experience before expanding MTC/AVII deployments*
 
@@ -1036,5 +1052,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 10, 2026 — Sprint BANK-RECON ✅ COMPLETE (PR #268 merged). Scheduler auth guard follow-up ✅ COMPLETE (PR #270 merged). Active sequence now continues with BUGFIX-ONBOARD, then DEBT-1, UC-LITE, and remaining roadmap order. WhatsApp remains paused (Meta blocked).*  
+*Updated: April 11, 2026 — Sprint BUG-SWEEP-STABILIZATION active; Issue #272 ✅ complete and manager-reviewed. Sprint BANK-RECON remains complete (PR #268) with scheduler auth guard follow-up complete (PR #270). Next execution item: #271.*  
 *Last Review: April 10, 2026*

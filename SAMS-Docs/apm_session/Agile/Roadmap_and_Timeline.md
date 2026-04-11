@@ -63,7 +63,7 @@
 | ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
 | ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend (code only)~~ | ~~6-8h~~ | ~~#178 (partial)~~ ⏸️ **PAUSED** — PR #253 merged Mar 19; **Meta/WhatsApp Business blocked** externally (Mar 20, 2026); not E2E complete |
 | ~~12~~ | ~~**MOBILE-TX-UX**~~ | ~~Mobile Transaction UX Polish~~ | ~~9-13h~~ | ~~#258~~ ✅ COMPLETE (PR #259, merged March 29, 2026) |
-| 13 | **BUGFIX-ONBOARD** | Owner Onboarding Bug Fixes | 6-8h | #246, #231, #260, #251, #254 |
+| 13 | **BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION** | Owner onboarding + post-recon regression fixes | 6-8h + sweep | #272 ✅, #271 next, #246, #231, #260, #251, #254, #275, #274 |
 | ~~14~~ | ~~**BANK-RECON**~~ | ~~Bank Reconciliation System~~ | ~~19-27h~~ | ~~ScotiaBank CSV + BBVA XLSX import, automated matching, reconciliation UI, statement acceptance (PRD v2.1)~~ ✅ COMPLETE (PR #268, Apr 10, 2026) |
 | --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
 | 15-16 | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; enable Karyn/Wilfredo (Epic #54 lite) |
@@ -77,9 +77,11 @@
 
 **Deferred**: DOC-LIB (after Sprint 22), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
 
-**Current Focus**: **Production v1.19.1** (deployed) with **v1.21.0** merge-ready changes now on `main` after PRs #268 and #270 (Apr 10, 2026). Sprint **BANK-RECON** is complete. Next sprint: **BUGFIX-ONBOARD**. Owner onboarding remains active. WhatsApp **paused**.
+**Current Focus**: **Production v1.19.1** (deployed) with **v1.21.0** merge-ready changes now on `main` after PRs #268 and #270 (Apr 10, 2026). Sprint **BANK-RECON** is complete. **BUG-SWEEP-STABILIZATION is active** with **#272 complete** and **#271 next**. Owner onboarding remains active. WhatsApp **paused**.
 
 **Schedule Note (Apr 10, 2026 — BANK-RECON + Auth Guard Merge)**: Sprint BANK-RECON ✅ COMPLETE and merged (PR #268). Immediate follow-on fix merged (PR #270) to unify scheduler account guard behavior across auth and user-management paths. Roadmap order remains: BUGFIX-ONBOARD next, then DEBT-1 and UC-LITE.
+
+**Schedule Note (Apr 11, 2026 — BUG-SWEEP progress)**: Issue **#272** (owner/manager labels missing in HOA Dues/List Management) is manager-reviewed complete and approved for closeout. Sprint continues one-at-a-time with **#271** as next priority.
 
 **Schedule Note (Mar 29, 2026 — Roadmap Reset)**: Scrum review with Co-Product Owner reset the entire roadmap. DOC-LIB deprioritized (Google Drive works, no user demand). WhatsApp remains paused (Meta blocked). Bank Reconciliation added at position 14 (biggest daily time drain, PRD v2.0 ready). UC-LITE added at positions 15-16 (real non-HOA clients: Karyn 3 houses + 4 condos, Wilfredo/Monica 2 condos). Bug/debt interlude sprints (DEBT-1, DEBT-2) inserted between major features. Reports, Project Views, Advanced Voting, Budget Projections, Task Management sequenced by operational value. Sprint sequence: 13 BUGFIX-ONBOARD, 14 BANK-RECON, DEBT-1, 15-16 UC-LITE, DEBT-2, 17 REPORTS-V2, 18 PROJECT-VIEWS, 19 VOTING-ADV, 20 BUDGET-PROJ, 21 TASK-MGMT, 22 ADMIN-SETTINGS.
 
@@ -143,6 +145,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| BUG-SWEEP-STABILIZATION (partial) | Apr 11, 2026 | #272 complete (owner/manager label regression fixed; manager review approved) |
 | v1.19.1 production deploy | Mar 20, 2026 | #255 SoA email preamble credit fix; affirms v1.19.0 feature set in production |
 | WA-BACKEND (WhatsApp webhook — code only, paused) | Mar 19–20, 2026 | #178 partial — PR #253 merged; Meta/WhatsApp Business **blocked**; E2E not claimed |
 | MOBILE-ADMIN-UX (Admin Mobile UX Refactor) | Mar 19, 2026 | #247 — 7 tasks (ADM-1–ADM-7), ~21h, deployed v1.18.0 |
@@ -195,4 +198,4 @@
 
 ---
 
-*Last Updated: April 10, 2026 — Sprint BANK-RECON ✅ COMPLETE (PR #268) and scheduler auth guard fix ✅ COMPLETE (PR #270). Next: BUGFIX-ONBOARD. See Sprint_Groups.md.*
+*Last Updated: April 11, 2026 — BUG-SWEEP-STABILIZATION active with #272 complete and #271 next. BANK-RECON and scheduler auth guard remain complete (PRs #268, #270). See Sprint_Groups.md.*

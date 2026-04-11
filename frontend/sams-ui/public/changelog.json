@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "272"
+          ],
+          "text": "Restore canonical owner/manager name resolution in HOA Dues and List Management after NRM regression"
+        }
+      ]
+    },
+    {
       "version": "1.21.0",
       "date": "2026-04-10",
       "changes": [
