@@ -1,105 +1,84 @@
 /**
  * Unit Contact Structure Utilities (Frontend)
- * 
+ *
  * Provides normalization functions for unit owners and managers
  * Handles backward compatibility between old format (["name"]) and new format ([{name, email}])
- * 
+ *
  * Task ID: UNIT-CONTACT-CODE-UPDATE-20251216
  * Date: December 16, 2025
  */
 
-/**
- * Normalize owners array to new structure [{name, email}]
- * Assumes new format only - converts string format if found (should not happen after migration)
- * 
- * @param {Array<Object>|undefined} owners - Owners array in [{name, email}] format
- * @returns {Array<{name: string, email: string}>} Normalized owners array
- */
+import { getDisplayNameFromUser as getDisplayNameFromUserCanonical } from '../../../../shared/userIdentityDisplay.js';
+
+/** Canonical user label — same algorithm as backend `unitContactUtils` / `listUnits` resolution. */
+export function getDisplayNameFromUser(userData) {
+  return getDisplayNameFromUserCanonical(userData);
+}
+
+/** Label for a resolved unit owner/manager object from the API (name, email, optional userId). */
+export function resolvedContactLabel(contact = {}) {
+  const name = (contact.name || '').trim();
+  if (name) return name;
+  const email = (contact.email || '').trim();
+  if (email) return email;
+  return '';
+}
+
 export function normalizeOwners(owners) {
   if (!Array.isArray(owners)) return [];
-  
   return owners.map(owner => {
-    // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof owner === 'string') {
       console.warn('⚠️  Found legacy string format owner - should be migrated:', owner);
       return { name: owner.trim(), email: '' };
     }
-    // New format: {name, email}
-    return {
-      name: (owner.name || '').trim(),
-      email: (owner.email || '').trim()
-    };
-  }).filter(owner => owner.name); // Remove empty names
+    if (owner && typeof owner === 'object' && typeof owner.userId === 'string' && owner.userId.trim()) {
+      return {
+        userId: owner.userId.trim(),
+        name: (owner.name || '').trim(),
+        email: (owner.email || '').trim()
+      };
+    }
+    return { name: (owner.name || '').trim(), email: (owner.email || '').trim() };
+  }).filter(owner => owner.name || owner.userId);
 }
 
-/**
- * Normalize managers array to new structure [{name, email}]
- * Assumes new format only - converts string format if found (should not happen after migration)
- * 
- * @param {Array<Object>|undefined} managers - Managers array in [{name, email}] format
- * @returns {Array<{name: string, email: string}>} Normalized managers array
- */
 export function normalizeManagers(managers) {
   if (!Array.isArray(managers)) return [];
-  
   return managers.map(manager => {
-    // Handle legacy string format (should be migrated, but handle gracefully)
     if (typeof manager === 'string') {
       console.warn('⚠️  Found legacy string format manager - should be migrated:', manager);
       return { name: manager.trim(), email: '' };
     }
-    // New format: {name, email}
-    return {
-      name: (manager.name || '').trim(),
-      email: (manager.email || '').trim()
-    };
-  }).filter(manager => manager.name); // Remove empty names
+    if (manager && typeof manager === 'object' && typeof manager.userId === 'string' && manager.userId.trim()) {
+      return {
+        userId: manager.userId.trim(),
+        name: (manager.name || '').trim(),
+        email: (manager.email || '').trim()
+      };
+    }
+    return { name: (manager.name || '').trim(), email: (manager.email || '').trim() };
+  }).filter(manager => manager.name || manager.userId);
 }
 
-/**
- * Extract owner names as array of strings (for backward compatibility)
- * 
- * @param {Array<string|Object>|undefined} owners - Owners array (old or new format)
- * @returns {Array<string>} Array of owner names
- */
 export function getOwnerNames(owners) {
-  return normalizeOwners(owners).map(owner => owner.name);
+  return normalizeOwners(owners).map(resolvedContactLabel).filter(Boolean);
 }
 
-/**
- * Extract manager names as array of strings (for backward compatibility)
- * 
- * @param {Array<string|Object>|undefined} managers - Managers array (old or new format)
- * @returns {Array<string>} Array of manager names
- */
 export function getManagerNames(managers) {
-  return normalizeManagers(managers).map(manager => manager.name);
+  return normalizeManagers(managers).map(resolvedContactLabel).filter(Boolean);
 }
 
-/**
- * Get first owner name (for backward compatibility)
- * 
- * @param {Array<string|Object>|undefined} owners - Owners array (old or new format)
- * @returns {string} First owner name or empty string
- */
 export function getFirstOwnerName(owners) {
   const normalized = normalizeOwners(owners);
-  return normalized.length > 0 ? normalized[0].name : '';
+  return normalized.length > 0 ? resolvedContactLabel(normalized[0]) : '';
 }
 
-/**
- * Extract owner last name from first owner (for display purposes)
- * 
- * @param {Array<string|Object>|undefined} owners - Owners array (old or new format)
- * @returns {string} Last name or empty string
- */
 export function getFirstOwnerLastName(owners) {
   const normalized = normalizeOwners(owners);
-  if (normalized.length === 0 || !normalized[0].name) return '';
-  
-  const nameParts = normalized[0].name.trim().split(/\s+/);
-  if (nameParts.length > 1) {
-    return nameParts[nameParts.length - 1];
-  }
+  if (normalized.length === 0) return '';
+  const label = resolvedContactLabel(normalized[0]);
+  if (!label) return '';
+  const nameParts = label.trim().split(/\s+/);
+  if (nameParts.length > 1) return nameParts[nameParts.length - 1];
   return nameParts[0] || '';
 }

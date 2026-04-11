@@ -31,7 +31,7 @@ import { useStatusBar } from '../context/StatusBarContext';
 import { useAuth } from '../context/AuthContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils';
+import { normalizeOwners, normalizeManagers, resolvedContactLabel } from '../utils/unitContactUtils';
 import { createVendor, updateVendor, deleteVendor } from '../api/vendors';
 import { createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../api/paymentMethods';
@@ -426,11 +426,14 @@ function ListManagementView() {
             render: (value, item) => {
               const owners = normalizeOwners(item.owners || []);
               if (owners.length === 0) return 'Not specified';
-              return owners.map(owner => {
-                const parts = [owner.name];
-                if (owner.email) parts.push(`(${owner.email})`);
+              const ownerLines = owners.map(owner => {
+                const label = resolvedContactLabel(owner);
+                if (!label) return '';
+                const parts = [label];
+                if (owner.email && label !== owner.email.trim()) parts.push(`(${owner.email})`);
                 return parts.join(' ');
-              }).join(', ');
+              }).filter(Boolean);
+              return ownerLines.length > 0 ? ownerLines.join(', ') : 'Not specified';
             }
           },
           { 
@@ -439,11 +442,14 @@ function ListManagementView() {
             render: (value, item) => {
               const managers = normalizeManagers(item.managers || []);
               if (managers.length === 0) return 'None assigned';
-              return managers.map(manager => {
-                const parts = [manager.name];
-                if (manager.email) parts.push(`(${manager.email})`);
+              const mgrLines = managers.map(manager => {
+                const label = resolvedContactLabel(manager);
+                if (!label) return '';
+                const parts = [label];
+                if (manager.email && label !== manager.email.trim()) parts.push(`(${manager.email})`);
                 return parts.join(' ');
-              }).join(', ');
+              }).filter(Boolean);
+              return mgrLines.length > 0 ? mgrLines.join(', ') : 'None assigned';
             }
           },
           { key: 'status', label: 'Status' },

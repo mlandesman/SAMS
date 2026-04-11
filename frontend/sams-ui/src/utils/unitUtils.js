@@ -22,12 +22,14 @@ export function formatUnitIdWithOwner(unit) {
     if (typeof firstOwner === 'string') {
       ownerName = firstOwner;
     } else if (firstOwner && typeof firstOwner === 'object') {
-      ownerName = firstOwner.name || '';
+      ownerName = (firstOwner.name || firstOwner.email || '').trim();
     }
   } 
   // Fall back to owner property if owners array isn't available
   else if (unit.owner) {
-    ownerName = typeof unit.owner === 'string' ? unit.owner : (unit.owner.name || '');
+    ownerName = typeof unit.owner === 'string'
+      ? unit.owner
+      : (unit.owner.name || unit.owner.email || '').trim();
   }
   
   // Extract last name from the owner's full name
@@ -68,13 +70,15 @@ export function getOwnerInfo(unit) {
     if (typeof firstOwner === 'string') {
       ownerName = firstOwner;
     } else if (firstOwner && typeof firstOwner === 'object') {
-      ownerName = firstOwner.name || '';
-      email = firstOwner.email || '';
+      ownerName = (firstOwner.name || firstOwner.email || '').trim();
+      email = (firstOwner.email || '').trim();
     }
   } 
   // Fall back to owner property if owners array isn't available
   else if (unit.owner) {
-    ownerName = typeof unit.owner === 'string' ? unit.owner : (unit.owner.name || '');
+    ownerName = typeof unit.owner === 'string'
+      ? unit.owner
+      : (unit.owner.name || unit.owner.email || '').trim();
   }
   
   // Extract first and last name (handle case where ownerName might be empty or not a string)

@@ -13,7 +13,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { getOwnerInfo } from '../utils/unitUtils';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
-import { getFirstOwnerName, normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
+import { getFirstOwnerName, normalizeOwners, normalizeManagers, resolvedContactLabel } from '../utils/unitContactUtils.js';
 import {
   getFiscalMonthNames,
   getCurrentFiscalMonth,
@@ -375,10 +375,10 @@ function HOADuesView() {
     const managers = normalizeManagers(unitWithOwner.managers);
     const lines = [];
     if (owners.length > 0) {
-      lines.push(`Owner${owners.length > 1 ? 's' : ''}: ${owners.map(o => o.name).join(', ')}`);
+      lines.push(`Owner${owners.length > 1 ? 's' : ''}: ${owners.map(resolvedContactLabel).filter(Boolean).join(', ')}`);
     }
     if (managers.length > 0) {
-      lines.push(`Manager${managers.length > 1 ? 's' : ''}: ${managers.map(m => m.name).join(', ')}`);
+      lines.push(`Manager${managers.length > 1 ? 's' : ''}: ${managers.map(resolvedContactLabel).filter(Boolean).join(', ')}`);
     }
     return lines.join('\n') || 'No contact info';
   };

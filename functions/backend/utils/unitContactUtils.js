@@ -9,17 +9,11 @@
  */
 
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
+import { getDisplayNameFromUser as getDisplayNameFromUserShared } from '../../../shared/userIdentityDisplay.js';
 
-/** Exported for reuse (e.g. WhatsApp webhook phone → user display name). */
-export function getDisplayNameFromUser(userData = {}) {
-  const profile = userData.profile || {};
-  const firstName = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
-  const lastName = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
-  const fullName = `${firstName} ${lastName}`.trim();
-
-  if (fullName) return fullName;
-  if (typeof userData.name === 'string') return userData.name.trim();
-  return '';
+/** Re-export canonical identity label (shared with frontend). */
+export function getDisplayNameFromUser(userData) {
+  return getDisplayNameFromUserShared(userData);
 }
 
 /** Exported for reuse (e.g. WhatsApp webhook phone matching). */
