@@ -3,7 +3,7 @@
  * Single scrollable page: Account Summary, Payment Info, Fee Schedule, Recent Transactions, Stored Statements
  * Sprint MOBILE-OWNER-UX (MOB-3)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -32,6 +32,7 @@ import { useHoaConfig } from '../../hooks/useHoaConfig.js';
 import { db } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
+import { buildStoredStatementOptions } from '../../utils/storedStatementLabels.js';
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
@@ -73,6 +74,11 @@ const UnitSubDashboard = () => {
   useEffect(() => {
     fetchStoredStatements();
   }, [fetchStoredStatements]);
+
+  const storedStatementRows = useMemo(
+    () => buildStoredStatementOptions(storedStatements),
+    [storedStatements]
+  );
 
   if (!currentClient || !selectedUnitId) {
     return (
@@ -211,21 +217,29 @@ const UnitSubDashboard = () => {
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Each month may include English (EN) and Spanish (ES) versions.
+          </Typography>
           {storedLoading ? (
             <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
-          ) : storedStatements.length === 0 ? (
+          ) : storedStatementRows.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No stored statements</Typography>
           ) : (
             <List dense disablePadding>
-              {storedStatements.slice(0, 5).map((s) => (
+              {storedStatementRows.slice(0, 5).map((s) => (
                 <ListItem key={s.id} disablePadding>
                   <ListItemText
-                    primary={`${s.calendarMonth || ''}/${s.calendarYear || ''}`}
+                    primary={s.label}
                     primaryTypographyProps={{ variant: 'body2' }}
                   />
                   {s.storageUrl && (
-                    <Button size="small" startIcon={<PdfIcon />} href={s.storageUrl} target="_blank" rel="noopener">
-                      Open
+                    <Button
+                      size="small"
+                      startIcon={<PdfIcon />}
+                      onClick={() => navigate('/statement', { state: { openStoredId: s.id } })}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      View
                     </Button>
                   )}
                 </ListItem>

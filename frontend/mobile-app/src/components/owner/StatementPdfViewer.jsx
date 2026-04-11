@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -12,7 +12,6 @@ import {
   InputLabel,
   Card,
   CardContent,
-  Divider,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -20,27 +19,24 @@ import {
   FolderOpen as ArchiveIcon,
   NoteAdd as GenerateIcon,
 } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
-import { getMexicoDate } from '../../utils/timezone.js';
 import { LoadingSpinner } from '../common';
+import { buildStoredStatementOptions } from '../../utils/storedStatementLabels.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
-const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 const StatementPdfViewer = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { currentClient, firebaseUser } = useAuth();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
 
   // Stored statements state
   const [storedStatements, setStoredStatements] = useState([]);
@@ -53,11 +49,6 @@ const StatementPdfViewer = () => {
   const [pdfSource, setPdfSource] = useState(null); // 'stored' | 'generated'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const yearOptions = [];
-  for (let y = currentYear; y >= currentYear - 3; y--) {
-    yearOptions.push(y);
-  }
 
   // Fetch stored statement metadata from Firestore
   const fetchStoredStatements = useCallback(async () => {
@@ -108,34 +99,26 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  // Deduplicate by year+month+language, keeping most recent generation
-  const storedOptions = (() => {
-    const deduped = new Map();
-    for (const s of storedStatements) {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const key = `${s.calendarYear}-${s.calendarMonth}-${langLabel}`;
+  const storedOptions = useMemo(
+    () => buildStoredStatementOptions(storedStatements),
+    [storedStatements]
+  );
 
-      const existing = deduped.get(key);
-      if (!existing) {
-        deduped.set(key, s);
-      } else {
-        const existingTime = existing.reportGenerated?._seconds || 0;
-        const currentTime = s.reportGenerated?._seconds || 0;
-        if (currentTime > existingTime) {
-          deduped.set(key, s);
-        }
-      }
-    }
-
-    return Array.from(deduped.values()).map((s) => {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const monthName = MONTH_NAMES[s.calendarMonth] || `Month ${s.calendarMonth}`;
-      return {
-        ...s,
-        label: `${monthName} ${s.calendarYear} (${langLabel})`,
-      };
+  // My Unit → Statement: open chosen stored PDF in-app (#251)
+  useEffect(() => {
+    const openStoredId = location.state?.openStoredId;
+    if (!openStoredId || storedStatements.length === 0) return;
+    const statement = storedStatements.find((s) => s.id === openStoredId);
+    if (!statement?.storageUrl) return;
+    setSelectedStored(openStoredId);
+    setPdfUrl((prev) => {
+      if (prev && String(prev).startsWith('blob:')) URL.revokeObjectURL(prev);
+      return statement.storageUrl;
     });
-  })();
+    setPdfSource('stored');
+    setError(null);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, storedStatements]);
 
   const handleOpenStored = () => {
     if (!selectedStored) return;
