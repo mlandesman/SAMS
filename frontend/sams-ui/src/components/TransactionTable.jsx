@@ -7,6 +7,31 @@ import { getAuthInstance } from '../firebaseClient';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 import './TransactionTable.css';
 
+function formatClearedDateLabel(c) {
+  if (c == null || c === '') return '';
+  if (typeof c === 'string') return c.slice(0, 10);
+  if (typeof c.toDate === 'function') {
+    try {
+      return c.toDate().toISOString().slice(0, 10);
+    } catch {
+      return '';
+    }
+  }
+  return String(c);
+}
+
+/** clearedDate set when a session is accepted (ISO period end). */
+function clearedTooltip(transaction) {
+  const c = transaction?.clearedDate;
+  if (c == null || c === '') {
+    return 'Not cleared (no bank reconciliation lock)';
+  }
+  const label = formatClearedDateLabel(c);
+  return label
+    ? `Cleared on bank reconciliation — period end ${label}`
+    : 'Cleared on bank reconciliation';
+}
+
 function TransactionTable({ transactions = [], selectedId = null, onSelectTransaction, onDoubleClickTransaction, clientId }) {
   
   // Helper function to determine display based on amount sign
@@ -174,6 +199,13 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
         <table className="transaction-table">
           <thead>
             <tr>
+              <th
+                className="txn-cleared-column"
+                scope="col"
+                title="Cleared: included in an accepted bank reconciliation (clearedDate set)"
+              >
+                Clr
+              </th>
               <th className="date-column">Date</th>
               <th className="vendor-column">Vendor</th>
               <th className="category-column">Category</th>
@@ -209,6 +241,21 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                 style={{ cursor: 'pointer' }}
                 title="Double-click to view details"
               >
+                <td
+                  className="txn-cleared-column"
+                  title={clearedTooltip(tx)}
+                  aria-label={tx.clearedDate ? 'Cleared' : 'Not cleared'}
+                >
+                  {tx.clearedDate ? (
+                    <span className="txn-cleared-mark" aria-hidden="true">
+                      ✓
+                    </span>
+                  ) : (
+                    <span className="txn-cleared-empty" aria-hidden="true">
+                      ◦
+                    </span>
+                  )}
+                </td>
                 <td className="date-column">{tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display || ''}</td>
                 <td className="vendor-column">{tx.vendorName || tx.vendor || ''}</td>
                 <td className="category-column">{renderCategoryCell(tx)}</td>

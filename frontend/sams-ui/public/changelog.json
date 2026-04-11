@@ -1,6 +1,31 @@
 {
   "releases": [
     {
+      "version": "1.21.0",
+      "date": "2026-04-10",
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "268"
+          ],
+          "text": "Bank Reconciliation workbench — full-page reconciliation flow at /reconciliation with Scotia CSV + BBVA XLSX parsing, deterministic matching pool, statement acceptance/locking, clearedDate transaction protection, reconciliation report generation, history readability improvements, and safe draft-session abandon cleanup"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "270"
+          ],
+          "text": "Unified system scheduler account guard across auth and user management paths to keep scheduler context validation consistent"
+        },
+        {
+          "type": "maint",
+          "issues": [],
+          "text": "Dev restore script (restore-dev-from-prod.sh) — fixed wait loop to track specific Firestore import operation by name instead of matching any recent completed operation, preventing premature user deletion/re-import race condition"
+        }
+      ]
+    },
+    {
       "version": "1.20.1",
       "date": "2026-04-03",
       "changes": [

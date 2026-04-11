@@ -7,7 +7,7 @@ import { getDb } from '../firebase.js';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { getNow } from '../services/DateService.js';
 import admin from 'firebase-admin';
-import { centavosToPesos, pesosToCentavos } from '../../shared/utils/currencyUtils.js';
+import { centavosToPesos, pesosToCentavos, formatCurrency } from '../../shared/utils/currencyUtils.js';
 
 /**
  * Fetch accounts for a client
@@ -818,8 +818,7 @@ async function createReconciliationAdjustments(clientId, adjustments, user) {
   try {
     const db = await getDb();
     const { createTransaction } = await import('./transactionsController.js');
-    const { formatCurrency } = await import('../utils/currencyUtils.js');
-    
+
     // Get accounts to look up accountType
     const clientRef = db.collection('clients').doc(clientId);
     const clientDoc = await clientRef.get();
@@ -873,8 +872,13 @@ async function createReconciliationAdjustments(clientId, adjustments, user) {
       
       // Build transaction object
       // Use account.vendorId (from accounts array) and resolved vendor name
+      const asOf =
+        adj.asOfDate && /^\d{4}-\d{2}-\d{2}$/.test(String(adj.asOfDate).trim())
+          ? String(adj.asOfDate).trim()
+          : getNow().toISOString().split('T')[0];
+
       const transaction = {
-        date: getNow().toISOString().split('T')[0], // YYYY-MM-DD format
+        date: asOf,
         amount: adj.difference, // Amount in pesos (can be positive or negative - will be converted to centavos by createTransaction)
         type: 'adjustment', // Use 'adjustment' type to allow both positive and negative amounts
         categoryId: 'bank-adjustments',
@@ -884,14 +888,21 @@ async function createReconciliationAdjustments(clientId, adjustments, user) {
         accountName: adj.accountName, // Also include accountName for consistency
         vendorId: account.vendorId, // Use vendorId from account (e.g., "bbva", "petty-cash")
         vendorName: vendorNameMap[account.id] || account.name, // Resolved vendor name
-        description: `Reconciliation adjustment for ${adj.accountName}`,
-        notes: `SAMS balance: ${formatCurrency(pesosToCentavos(adj.samsBalance))}, Actual: ${formatCurrency(pesosToCentavos(adj.actualBalance))}, Difference: ${formatCurrency(pesosToCentavos(adj.difference))}`,
+        description:
+          adj.description != null
+            ? adj.description
+            : `Reconciliation adjustment for ${adj.accountName}`,
+        notes:
+          adj.notes != null
+            ? adj.notes
+            : `SAMS balance: ${formatCurrency(pesosToCentavos(adj.samsBalance))}, Actual: ${formatCurrency(pesosToCentavos(adj.actualBalance))}, Difference: ${formatCurrency(pesosToCentavos(adj.difference))}`,
         metadata: {
           source: 'reconciliation',
           samsBalance: pesosToCentavos(adj.samsBalance),
           actualBalance: pesosToCentavos(adj.actualBalance),
-          reconciledBy: user.email,
-          reconciledAt: getNow().toISOString()
+          reconciledBy: user?.email || 'system',
+          reconciledAt: getNow().toISOString(),
+          ...(adj.extraMetadata && typeof adj.extraMetadata === 'object' ? adj.extraMetadata : {})
         }
       };
       

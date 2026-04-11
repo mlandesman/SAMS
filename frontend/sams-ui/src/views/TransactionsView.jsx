@@ -38,7 +38,8 @@ import {
   faPrint,
   faCheckDouble,
   faTrash,
-  faHandHoldingDollar
+  faHandHoldingDollar,
+  faFileInvoice
 } from '@fortawesome/free-solid-svg-icons';
 import '../layout/ActionBar.css';
 import './TransactionsDetail.css';
@@ -1453,6 +1454,14 @@ function TransactionsView() {
     }
   }, [location.state, navigate]);
 
+  // Highlight a transaction row when navigated from bank reconciliation (or similar)
+  useEffect(() => {
+    const hid = location.state?.highlightTransactionId;
+    if (!hid) return;
+    setTransactionToFind(hid);
+    navigate('.', { replace: true, state: {} });
+  }, [location.state, navigate]);
+
   return (
     <div className="view-container">
       <ActivityActionBar>
@@ -1512,10 +1521,16 @@ function TransactionsView() {
           disabled={!filteredTransactions?.length}
         />
         {isAdmin(samsUser, selectedClient?.id) && (
-          <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
-            <FontAwesomeIcon icon={faCheckDouble} />
-            <span>Reconcile Accounts</span>
-          </button>
+          <>
+            <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
+              <FontAwesomeIcon icon={faCheckDouble} />
+              <span>Quick balance adjustment</span>
+            </button>
+            <button className="action-item" onClick={() => navigate('/reconciliation')}>
+              <FontAwesomeIcon icon={faFileInvoice} />
+              <span>Bank statement reconciliation</span>
+            </button>
+          </>
         )}
         <button 
           className={`action-item ${!selectedTransaction || !(selectedTransaction.unitId || selectedTransaction.unit) ? 'disabled' : ''}`}

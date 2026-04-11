@@ -135,21 +135,28 @@ fi
 
 echo ""
 
-# Step 4: Note current Dev users (for verification)
-echo "👥 Step 3: Preserving Dev users..."
-echo "   Dev users will be preserved and NOT overwritten"
-echo "   (Only Firestore data excluding users collection will be restored)"
+# Step 4: Save Dev users before import
+# Full export imports ALL collections (including users) — Firestore full exports
+# cannot be filtered with --collection-ids on import. We protect dev users by
+# saving them first, then restoring after import.
+echo "👥 Step 3: Saving Dev users to temporary backup..."
+DEV_USERS_BACKUP="gs://${BUCKET_NAME}/dev/users_backup_$(date +%Y%m%d_%H%M%S)"
+echo "   Exporting to: $DEV_USERS_BACKUP"
+
+gcloud firestore export "$DEV_USERS_BACKUP" \
+    --project="$DEV_PROJECT_ID" \
+    --collection-ids="users"
+
+echo "   ✅ Dev users saved"
 echo ""
 
-# Step 5: Purge Dev client data and auditLog before import
+# Step 5: Purge Dev client data and auditLogs before import
 echo "🗑️  Step 4: Purging Dev data before import..."
 echo "   This ensures deleted Prod documents don't persist in Dev"
 echo ""
 
-# Purge client data and auditLog
-# Using firebase CLI recursive delete — handles subcollections automatically
 # NOTE: Leave exchangeRates (auto-synced) and system (environment-specific)
-for COLLECTION in "clients" "auditLog"; do
+for COLLECTION in "clients" "auditLogs"; do
     echo "   Deleting $COLLECTION..."
     firebase firestore:delete "$COLLECTION" -r --project "$DEV_PROJECT_ID" --force 2>/dev/null || \
         echo "   ⚠️  $COLLECTION may not exist (OK if first restore)"
@@ -158,18 +165,33 @@ done
 echo "   ✅ Dev data purged"
 echo ""
 
-# Step 6: Import Firestore (excluding users)
-echo "📦 Step 5: Importing Firestore (excluding users)..."
+# Step 6: Import Firestore (full export — includes users from prod)
+echo "📦 Step 5: Importing Firestore from Prod backup..."
 echo "   Importing from: $FIRESTORE_PATH"
 echo "   Target project: $DEV_PROJECT_ID"
+echo "   ⚠️  This imports ALL collections (users will be restored in a later step)"
 
-gcloud firestore import "$FIRESTORE_PATH" \
+IMPORT_OUTPUT=$(gcloud firestore import "$FIRESTORE_PATH" \
     --project="$DEV_PROJECT_ID" \
-    --async
+    --async 2>&1)
 
-echo "   ⏳ Firestore import started (async operation)"
-echo "   💡 This may take several minutes. Check status with:"
-echo "      gcloud firestore operations list --project=$DEV_PROJECT_ID"
+echo "$IMPORT_OUTPUT"
+
+# Extract the specific operation name so we can track THIS import, not any random operation
+IMPORT_OP_NAME=$(echo "$IMPORT_OUTPUT" | grep "^name:" | sed 's/name: //')
+
+if [ -z "$IMPORT_OP_NAME" ]; then
+    echo "   ⚠️  Could not capture import operation name from output."
+    echo "   Check manually: gcloud firestore operations list --project=$DEV_PROJECT_ID"
+    echo ""
+    echo "   After import completes, run these commands to restore Dev users:"
+    echo "     firebase firestore:delete users -r --project $DEV_PROJECT_ID --force"
+    echo "     gcloud firestore import $DEV_USERS_BACKUP --project=$DEV_PROJECT_ID --collection-ids=users"
+    exit 1
+fi
+
+echo ""
+echo "   ⏳ Tracking import operation: $(basename "$IMPORT_OP_NAME")"
 echo ""
 
 # Step 7: Sync Storage
@@ -193,50 +215,55 @@ gsutil -m rsync -r "$STORAGE_PATH/imports/" "gs://${DEV_STORAGE_BUCKET}/imports/
 echo "   ✅ Storage sync complete"
 echo ""
 
-# Step 8: Wait for Firestore import
+# Step 8: Wait for Firestore import by polling the SPECIFIC operation
 echo "⏳ Step 7: Waiting for Firestore import to complete..."
 echo "   (This may take 5-10 minutes for large databases)"
 echo ""
-echo "   You can check status manually with:"
-echo "   gcloud firestore operations list --project=$DEV_PROJECT_ID"
-echo ""
-echo "   Or wait here (checking every 30 seconds, max 15 minutes)..."
 
-# Wait up to 15 minutes
 MAX_WAIT=900
 WAIT_INTERVAL=30
 ELAPSED=0
 
-# Get the operation name from the import command output
-# Note: Firestore import operations are async, so we check periodically
-IMPORT_STARTED=false
 while [ $ELAPSED -lt $MAX_WAIT ]; do
-    # Check for recent import operations (within last hour)
-    RECENT_OPS=$(gcloud firestore operations list \
+    OP_DONE=$(gcloud firestore operations describe "$IMPORT_OP_NAME" \
         --project="$DEV_PROJECT_ID" \
-        --filter="done:true AND startTime>=-PT1H" \
-        --limit=1 \
         --format="value(done)" 2>/dev/null)
-    
-    if [ "$RECENT_OPS" = "True" ]; then
+
+    if [ "$OP_DONE" = "True" ]; then
         echo "   ✅ Import operation completed!"
         break
     fi
-    
-    if [ "$IMPORT_STARTED" = false ]; then
-        echo "   ⏳ Import started, waiting for completion..."
-        IMPORT_STARTED=true
-    fi
-    
+
     sleep $WAIT_INTERVAL
     ELAPSED=$((ELAPSED + WAIT_INTERVAL))
-    echo "   Waiting... (${ELAPSED}s elapsed)"
+    echo "   ⏳ Waiting... (${ELAPSED}s elapsed)"
 done
 
 if [ $ELAPSED -ge $MAX_WAIT ]; then
-    echo "   ⚠️  Timeout reached. Check import status manually:"
-    echo "      gcloud firestore operations list --project=$DEV_PROJECT_ID"
+    echo "   ⚠️  Timeout reached (${MAX_WAIT}s). Import may still be running."
+    echo ""
+    echo "   Check status:  gcloud firestore operations describe $IMPORT_OP_NAME --project=$DEV_PROJECT_ID"
+    echo ""
+    echo "   ⚠️  Users have NOT been restored yet. After import completes, run:"
+    echo "     firebase firestore:delete users -r --project $DEV_PROJECT_ID --force"
+    echo "     gcloud firestore import $DEV_USERS_BACKUP --project=$DEV_PROJECT_ID --collection-ids=users"
+    echo ""
+    exit 0
 fi
+
+# Step 8: Replace imported Prod users with saved Dev users
+echo ""
+echo "👥 Step 8: Restoring Dev users..."
+echo "   Deleting Prod users that were imported..."
+firebase firestore:delete "users" -r --project "$DEV_PROJECT_ID" --force 2>/dev/null || true
+
+echo "   Re-importing saved Dev users from: $DEV_USERS_BACKUP"
+gcloud firestore import "$DEV_USERS_BACKUP" \
+    --project="$DEV_PROJECT_ID" \
+    --collection-ids="users"
+
+echo "   ✅ Dev users restored"
+echo ""
 
 echo ""
 echo "✅ Restore Complete!"
@@ -245,12 +272,10 @@ echo ""
 echo "📊 Summary:"
 echo "   Firestore imported from: $FIRESTORE_PATH"
 echo "   Storage synced from: $STORAGE_PATH"
-echo "   Dev users: PRESERVED (not overwritten)"
+echo "   Dev users: SAVED → RESTORED from $DEV_USERS_BACKUP"
 echo ""
 echo "💡 Next steps:"
-echo "   1. Verify Firestore import completed:"
-echo "      gcloud firestore operations list --project=$DEV_PROJECT_ID"
-echo "   2. Test Dev environment to ensure data is correct"
-echo "   3. Verify Dev users can still log in"
+echo "   1. Test Dev environment to ensure data is correct"
+echo "   2. Verify Dev users can still log in"
 echo ""
 

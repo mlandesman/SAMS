@@ -125,7 +125,6 @@ firebase-admin-*.json
 # Editor backup files
 * 2.js
 *.backup-*
-<<<<<<< HEAD
 
 # APM Documentation (belongs in SAMS-Docs on Google Drive)
 # See: SAMS-Docs/DOC_CREATION_RULES.md for correct locations
