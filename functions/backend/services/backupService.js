@@ -14,28 +14,45 @@ const BUCKET_NAME = 'sams-shared-backups';
 
 /**
  * Detect current environment
+ * Cloud Functions / Cloud Run set GCLOUD_PROJECT reliably; NODE_ENV may be unset or not "production".
+ * Firestore export must target the live project ID or the Admin API returns permission errors.
  * @returns {Object} { env: 'dev'|'staging'|'prod', projectId: string }
  */
 function detectEnvironment() {
-  // Check NODE_ENV first (most reliable)
+  const gcpProject =
+    process.env.GCLOUD_PROJECT ||
+    process.env.GCP_PROJECT ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    '';
+
+  if (gcpProject === 'sams-sandyland-prod') {
+    return { env: 'prod', projectId: gcpProject, displayName: 'Production' };
+  }
+  if (gcpProject === 'sams-staging-6cdcd') {
+    return { env: 'staging', projectId: gcpProject, displayName: 'Staging' };
+  }
+  if (gcpProject === 'sandyland-management-system') {
+    return { env: 'dev', projectId: gcpProject, displayName: 'Development' };
+  }
+
   if (process.env.NODE_ENV === 'production') {
     return {
       env: 'prod',
-      projectId: process.env.GCLOUD_PROJECT || 'sams-sandyland-prod',
+      projectId: gcpProject || 'sams-sandyland-prod',
       displayName: 'Production'
     };
-  } else if (process.env.NODE_ENV === 'staging') {
+  }
+  if (process.env.NODE_ENV === 'staging') {
     return {
       env: 'staging',
-      projectId: process.env.GCLOUD_PROJECT || 'sams-staging-6cdcd',
+      projectId: gcpProject || 'sams-staging-6cdcd',
       displayName: 'Staging'
     };
   }
-  
-  // Development environment
+
   return {
     env: 'dev',
-    projectId: process.env.GCLOUD_PROJECT || 'sandyland-management-system',
+    projectId: gcpProject || 'sandyland-management-system',
     displayName: 'Development'
   };
 }
