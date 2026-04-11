@@ -68,6 +68,7 @@
 
 .credit-balance-edit-entry-modal input[type="date"],
 .credit-balance-edit-entry-modal input[type="number"],
+.credit-balance-edit-entry-modal input.credit-amount-text,
 .credit-balance-edit-entry-modal select,
 .credit-balance-edit-entry-modal textarea {
   width: 100%;
@@ -81,6 +82,7 @@
 
 .credit-balance-edit-entry-modal input[type="date"]:focus,
 .credit-balance-edit-entry-modal input[type="number"]:focus,
+.credit-balance-edit-entry-modal input.credit-amount-text:focus,
 .credit-balance-edit-entry-modal select:focus,
 .credit-balance-edit-entry-modal textarea:focus {
   outline: none;
@@ -90,6 +92,7 @@
 
 .credit-balance-edit-entry-modal input[type="date"]:disabled,
 .credit-balance-edit-entry-modal input[type="number"]:disabled,
+.credit-balance-edit-entry-modal input.credit-amount-text:disabled,
 .credit-balance-edit-entry-modal select:disabled,
 .credit-balance-edit-entry-modal textarea:disabled {
   background-color: #f8f9fa;

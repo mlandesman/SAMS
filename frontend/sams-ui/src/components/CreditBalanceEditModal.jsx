@@ -209,6 +209,13 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
     onClose();
   };
 
+  const handleAmountDigitsOnly = (e) => {
+    const value = e.target.value;
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+
   // Calculate preview values based on mode
   let newBalanceValue, difference, isAdd, isRemove;
   
@@ -306,17 +313,15 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
                   {mode === 'add' ? 'Amount to Add (Required):' : 'Amount to Remove (Required):'}
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
                   id="amount"
+                  className="credit-amount-text"
                   value={amount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    console.log('[CREDIT EDIT MODAL] Amount changed:', { mode, value, currentAmount: amount });
-                    setAmount(value);
-                  }}
+                  onChange={handleAmountDigitsOnly}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder={mode === 'add' ? "Enter positive amount to add" : "Enter positive amount to remove"}
-                  step="0.01"
-                  min="0.01"
                   disabled={loading}
                   required
                 />

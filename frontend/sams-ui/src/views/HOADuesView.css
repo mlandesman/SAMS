@@ -445,31 +445,8 @@
   flex-direction: column;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eaeaea;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #0527ae;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-}
-
-.close-button:hover {
-  color: #333;
-}
+/* Generic .modal-header / .close-button removed — they overrode credit-balance modals (#223).
+   Scoped modal chrome lives in each component's CSS (e.g. WaterPaymentModal.css). */
 
 .unit-selector-body {
   padding: 20px;

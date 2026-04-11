@@ -85,6 +85,7 @@
 }
 
 .credit-balance-modal input[type="number"],
+.credit-balance-modal input.credit-amount-text,
 .credit-balance-modal textarea {
   width: 100%;
   padding: 10px 12px;
@@ -96,6 +97,7 @@
 }
 
 .credit-balance-modal input[type="number"]:focus,
+.credit-balance-modal input.credit-amount-text:focus,
 .credit-balance-modal textarea:focus {
   outline: none;
   border-color: #0066cc;
@@ -103,6 +105,7 @@
 }
 
 .credit-balance-modal input[type="number"]:disabled,
+.credit-balance-modal input.credit-amount-text:disabled,
 .credit-balance-modal textarea:disabled {
   background-color: #f8f9fa;
   color: #6c757d;

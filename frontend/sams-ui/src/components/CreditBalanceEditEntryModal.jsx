@@ -113,6 +113,13 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
     onClose();
   };
 
+  const handleAmountSignedDecimal = (e) => {
+    const value = e.target.value;
+    if (value === '' || value === '-' || /^-?\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+
   if (!isOpen || !entry) {
     return null;
   }
@@ -172,12 +179,15 @@ function CreditBalanceEditEntryModal({ isOpen, onClose, unitId, entry, onUpdate 
           <div className="form-group">
             <label htmlFor="amount">Amount (Required):</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               id="amount"
+              className="credit-amount-text"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={handleAmountSignedDecimal}
+              onWheel={(e) => e.currentTarget.blur()}
               placeholder="Enter amount"
-              step="0.01"
               disabled={loading}
               required
             />
