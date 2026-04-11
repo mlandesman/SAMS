@@ -64,12 +64,13 @@ async function buildUserCache(userIds, db, existingCache = new Map()) {
 }
 
 /**
- * When Firestore user doc is missing or has no display label, fill from Firebase Auth
- * (displayName / email / phone). listUnits and other callers rely on this for NRM { userId } rows.
+ * Only fetch Firebase Auth when there is no Firestore `users/{uid}` document.
+ * Many SAMS accounts exist only in Firestore (contact-only / no Auth user); calling getUser for those
+ * UIDs fails with user-not-found and does not improve labels. Display names must come from Firestore
+ * via getDisplayNameFromUser when a doc exists.
  */
 export function needsAuthEnrichment(userData) {
-  if (!userData) return true;
-  return !getDisplayNameFromUser(userData);
+  return !userData;
 }
 
 /** Batch Firebase Auth lookups for UIDs (dedupe before calling). */
@@ -87,7 +88,12 @@ export async function buildFirebaseAuthCache(userIds) {
           phoneNumber: (rec.phoneNumber || '').trim()
         });
       } catch (e) {
-        logWarn(`Firebase Auth getUser failed for ${uid}: ${e.message}`);
+        const code = e?.code || e?.errorInfo?.code || '';
+        if (code === 'auth/user-not-found') {
+          logDebug(`Firebase Auth: no user for ${uid} (expected when uid has no Auth record)`);
+        } else {
+          logWarn(`Firebase Auth getUser failed for ${uid}: ${e.message}`);
+        }
         map.set(uid, null);
       }
     })
