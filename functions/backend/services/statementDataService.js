@@ -197,8 +197,8 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       priorReading = currentReading;
     }
     
-    // Take last 6-8 periods (most recent)
-    const recentPeriods = periods.slice(-8);
+    // Last 6 consumption periods (SoA mini graph SVG fits 6 bars; 7–8 clipped past viewBox — #260)
+    const recentPeriods = periods.slice(-6);
     
     if (recentPeriods.length === 0) {
       return null;
