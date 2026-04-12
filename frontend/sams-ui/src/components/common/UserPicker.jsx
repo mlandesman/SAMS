@@ -12,6 +12,7 @@ import { useSecureApi } from '../../api/secureApiClient.js';
  * @param {Array<string>} allowedRoles - Optional array of roles to filter by (e.g., ['unitOwner', 'unitManager'])
  * @param {string} label - Label for the picker
  * @param {boolean} required - Whether selection is required
+ * @param {boolean} restrictToUsersWithClientAccess - When true (default), only users with propertyAccess[clientId] appear. Set false for unit owner/manager assignment so cross-client users can be selected.
  */
 const UserPicker = ({ 
   clientId, 
@@ -19,7 +20,8 @@ const UserPicker = ({
   onSelect, 
   allowedRoles = null, 
   label = 'User',
-  required = false 
+  required = false,
+  restrictToUsersWithClientAccess = true
 }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +40,9 @@ const UserPicker = ({
         
         console.log(`🔍 UserPicker: Fetched ${allUsers.length} total users`);
         
-        // Filter by clientId if provided
+        // Filter by clientId if provided (optional: unit assignment lists all assignable users)
         let filtered = allUsers;
-        if (clientId) {
+        if (clientId && restrictToUsersWithClientAccess) {
           filtered = allUsers.filter(user => {
             const hasAccess = user.propertyAccess?.[clientId] != null;
             if (!hasAccess && user.email) {
@@ -49,6 +51,8 @@ const UserPicker = ({
             return hasAccess;
           });
           console.log(`📊 UserPicker: ${filtered.length} users have access to clientId: ${clientId}`);
+        } else if (clientId && !restrictToUsersWithClientAccess) {
+          console.log(`📊 UserPicker: showing all ${filtered.length} users (cross-client assignment mode for ${clientId})`);
         }
         
         // Filter by roles if specified
@@ -84,7 +88,7 @@ const UserPicker = ({
     };
 
     fetchUsers();
-  }, [clientId, allowedRoles, secureApi]);
+  }, [clientId, allowedRoles, restrictToUsersWithClientAccess, secureApi]);
 
   if (loading) {
     return (
@@ -116,7 +120,9 @@ const UserPicker = ({
           <option>No users available for this client</option>
         </select>
         <span className="sandyland-helper-text">
-          No users found. Create users in User Management first.
+          {restrictToUsersWithClientAccess
+            ? 'No users found. Create users in User Management first.'
+            : 'No users returned from directory. Create users in User Management first.'}
         </span>
       </div>
     );

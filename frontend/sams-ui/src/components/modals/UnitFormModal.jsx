@@ -584,6 +584,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                           allowedRoles={null}
                           label="Owner"
                           required={index === 0}
+                          restrictToUsersWithClientAccess={false}
                         />
                       </div>
                       <button
@@ -626,6 +627,7 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
                               allowedRoles={null}
                               label="Manager"
                               required={false}
+                              restrictToUsersWithClientAccess={false}
                             />
                           </div>
                           <button
