@@ -326,6 +326,22 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  /** Resolve display fields after UserPicker selection (cross-client users are not in getUsersByClient). */
+  const resolveUserFromDirectory = async (userId) => {
+    if (!userId) return null;
+    if (selectedClient?.id) {
+      try {
+        const clientUsers = await userAPI.getUsersByClient(selectedClient.id);
+        const match = clientUsers.find((u) => u.id === userId);
+        if (match) return match;
+      } catch (e) {
+        console.warn('resolveUserFromDirectory: client list failed, falling back to system users', e);
+      }
+    }
+    const allUsers = await userAPI.getSystemUsers();
+    return allUsers.find((u) => u.id === userId) || null;
+  };
+
   // Helper functions for managing owners/managers arrays
   const updateOwner = (index, field, value) => {
     const newOwners = [...formData.owners];
@@ -336,24 +352,20 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   const updateOwnerUser = async (index, userId) => {
     const newOwners = [...formData.owners];
     if (userId) {
-      // When a user is selected, fetch user data and populate name/email
       try {
-        const users = await userAPI.getUsersByClient(selectedClient.id);
-        const selectedUser = users.find(u => u.id === userId);
+        const selectedUser = await resolveUserFromDirectory(userId);
         if (selectedUser) {
           newOwners[index] = {
             name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
             email: selectedUser.email || '',
-            userId: userId
+            userId
           };
         } else {
-          // User not found, just set userId
-          newOwners[index] = { ...newOwners[index], userId: userId };
+          newOwners[index] = { ...newOwners[index], userId };
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Fallback: just set userId
-        newOwners[index] = { ...newOwners[index], userId: userId };
+        newOwners[index] = { ...newOwners[index], userId };
       }
     } else {
       // Clearing selection - keep name/email but clear userId
@@ -387,24 +399,20 @@ const UnitFormModal = ({ unit = null, isOpen, onClose, onSave }) => {
   const updateManagerUser = async (index, userId) => {
     const newManagers = [...formData.managers];
     if (userId) {
-      // When a user is selected, fetch user data and populate name/email
       try {
-        const users = await userAPI.getUsersByClient(selectedClient.id);
-        const selectedUser = users.find(u => u.id === userId);
+        const selectedUser = await resolveUserFromDirectory(userId);
         if (selectedUser) {
           newManagers[index] = {
             name: selectedUser.name || selectedUser.displayName || selectedUser.email || '',
             email: selectedUser.email || '',
-            userId: userId
+            userId
           };
         } else {
-          // User not found, just set userId
-          newManagers[index] = { ...newManagers[index], userId: userId };
+          newManagers[index] = { ...newManagers[index], userId };
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Fallback: just set userId
-        newManagers[index] = { ...newManagers[index], userId: userId };
+        newManagers[index] = { ...newManagers[index], userId };
       }
     } else {
       // Clearing selection - keep name/email but clear userId
