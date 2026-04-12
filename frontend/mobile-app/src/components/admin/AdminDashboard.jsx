@@ -1,7 +1,7 @@
 /**
  * Admin 3-Card Dashboard + Sub-dashboard detail cards
  * Sprint MOBILE-ADMIN-UX (ADM-1, ADM-2)
- * Replaces inline admin card grid with focused: Account Balances, Collection Status, Exchange Rates
+ * Top summary cards: Account Balances, Collection Status (Exchange Rates at bottom of stack)
  * Plus expandable Past Due Units, Water Bills Past Due, Polls/Projects summary
  */
 import React from 'react';
@@ -69,7 +69,7 @@ const AdminDashboard = () => {
     value: formatPesosForDisplay(unit.amountDue),
   }));
 
-  const mainCards = [
+  const topSummaryCards = [
     {
       title: 'Account Balances',
       icon: BalanceIcon,
@@ -116,72 +116,75 @@ const AdminDashboard = () => {
         </>
       ),
     },
-    {
-      title: 'Exchange Rates',
-      icon: CurrencyIcon,
-      color: '#7c3aed',
-      loading: dashLoading.rates,
-      onClick: () => navigate('/exchange-rates'),
-      content: (
-        <>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: '#7c3aed', mb: 0.5 }}>
-            1 USD = {(exchangeRates?.rates?.USD ?? 0).toFixed(2)} MXN
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            1 CAD = {(exchangeRates?.rates?.CAD ?? 0).toFixed(2)} MXN
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            Updated {exchangeRates?.lastUpdated || '—'}
-          </Typography>
-        </>
-      ),
-    },
   ];
+
+  const exchangeRatesCard = {
+    title: 'Exchange Rates',
+    icon: CurrencyIcon,
+    color: '#7c3aed',
+    loading: dashLoading.rates,
+    onClick: () => navigate('/exchange-rates'),
+    content: (
+      <>
+        <Typography variant="h5" sx={{ fontWeight: 700, color: '#7c3aed', mb: 0.5 }}>
+          1 USD = {(exchangeRates?.rates?.USD ?? 0).toFixed(2)} MXN
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          1 CAD = {(exchangeRates?.rates?.CAD ?? 0).toFixed(2)} MXN
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+          Updated {exchangeRates?.lastUpdated || '—'}
+        </Typography>
+      </>
+    ),
+  };
+
+  const renderMetricCard = (c) => (
+    <Card
+      key={c.title}
+      onClick={c.onClick}
+      sx={{
+        borderRadius: '16px',
+        cursor: c.onClick ? 'pointer' : 'default',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+        '&:active': c.onClick ? { transform: 'scale(0.98)' } : {},
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Box display="flex" alignItems="center" mb={1}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '10px',
+              backgroundColor: `${c.color}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mr: 1,
+            }}
+          >
+            <c.icon sx={{ color: c.color, fontSize: 20 }} />
+          </Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {c.title}
+          </Typography>
+        </Box>
+        {c.loading ? (
+          <Box display="flex" justifyContent="center" py={2}>
+            <LoadingSpinner size="small" />
+          </Box>
+        ) : (
+          c.content
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', pb: 2 }}>
-      {/* 3 Main Cards */}
-      {mainCards.map((c) => (
-        <Card
-          key={c.title}
-          onClick={c.onClick}
-          sx={{
-            borderRadius: '16px',
-            cursor: c.onClick ? 'pointer' : 'default',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-            '&:active': c.onClick ? { transform: 'scale(0.98)' } : {},
-          }}
-        >
-          <CardContent sx={{ p: 2 }}>
-            <Box display="flex" alignItems="center" mb={1}>
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '10px',
-                  backgroundColor: `${c.color}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  mr: 1,
-                }}
-              >
-                <c.icon sx={{ color: c.color, fontSize: 20 }} />
-              </Box>
-              <Typography variant="subtitle1" fontWeight={600}>
-                {c.title}
-              </Typography>
-            </Box>
-            {c.loading ? (
-              <Box display="flex" justifyContent="center" py={2}>
-                <LoadingSpinner size="small" />
-              </Box>
-            ) : (
-              c.content
-            )}
-          </CardContent>
-        </Card>
-      ))}
+      {/* Priority summary cards */}
+      {topSummaryCards.map(renderMetricCard)}
 
       {/* ADM-2: Sub-dashboard detail cards */}
       {/* Past Due Units */}
@@ -245,6 +248,8 @@ const AdminDashboard = () => {
         color="#9ca3af"
         loading={pollsProjectsLoading}
       />
+
+      {renderMetricCard(exchangeRatesCard)}
     </Box>
   );
 };
