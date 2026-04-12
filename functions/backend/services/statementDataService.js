@@ -197,9 +197,8 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) 
       priorReading = currentReading;
     }
     
-    // Take last 6-8 periods (most recent)
-    const recentPeriods = periods.slice(-8);
-    
+    // SoA mini-graph: fixed trailing window — prior 6 consumption periods (rolling, not FY-scoped).
+    const recentPeriods = periods.slice(-6);
     if (recentPeriods.length === 0) {
       return null;
     }

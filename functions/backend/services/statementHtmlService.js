@@ -563,7 +563,7 @@ function formatPeriodLabel(year, month, fiscalYearStartMonth = 7) {
 }
 
 /**
- * Generate water consumption bar chart SVG
+ * Generate water consumption bar chart SVG (fixed 385×190, six bar slots — expect ≤6 periods from data service).
  * @param {Array} periods - Array of { year, month, consumption } objects
  * @param {string} language - Language ('english' or 'spanish')
  * @returns {string} SVG markup
@@ -571,39 +571,41 @@ function formatPeriodLabel(year, month, fiscalYearStartMonth = 7) {
 function generateWaterBarsSvg(periods, language) {
   const title = language === 'spanish' ? 'CONSUMO DE AGUA' : 'WATER CONSUMPTION';
   const latestLabel = language === 'spanish' ? 'Último' : 'Latest';
-  
-  if (!periods || periods.length === 0) {
+
+  // Never plot more than six bars (fixed SVG); prior months = trailing six only.
+  const plotPeriods = Array.isArray(periods) ? periods.slice(-6) : [];
+
+  if (plotPeriods.length === 0) {
     return '';
   }
-  
-  const maxConsumption = Math.max(...periods.map(p => p.consumption || 0));
+
+  const maxConsumption = Math.max(...plotPeriods.map(p => p.consumption || 0));
   if (maxConsumption === 0) {
     return '';
   }
-  
-  // Increased dimensions for better space utilization (~10% larger, ~385x193)
+
+  // Fixed layout: SoA water mini-graph always uses six bar slots (data layer sends at most 6 periods).
   const svgWidth = 385;
   const svgHeight = 190;
   const maxHeight = 110;
   const barWidth = 38;
   const barSpacing = 9;
-  const startX = 50; // Moved right to make room for Y-axis
+  const startX = 50;
   const baselineY = 140;
   const titleY = 20;
   const labelY = 162;
   const footerY = 182;
-  const yAxisX = 45; // X position for Y-axis
-  const chartRightX = svgWidth - 35; // Right edge of chart area
-  
-  // Get fiscal year start month from first period (passed from data service)
-  const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
-  
-  const bars = periods.map((p, i) => {
+  const yAxisX = 45;
+  const chartRightX = svgWidth - 35;
+
+  const fiscalYearStartMonth = plotPeriods[0]?.fiscalYearStartMonth || 7;
+
+  const bars = plotPeriods.map((p, i) => {
     const height = Math.round((p.consumption / maxConsumption) * maxHeight) || 2;
     const x = startX + i * (barWidth + barSpacing);
     const y = baselineY - height;
     const label = formatPeriodLabel(p.year, p.month, fiscalYearStartMonth);
-    
+
     return { x, y, height, label, consumption: p.consumption };
   });
   
@@ -615,7 +617,7 @@ function generateWaterBarsSvg(periods, language) {
     `<text x="${b.x + barWidth/2}" y="${labelY}" text-anchor="middle" font-size="10" fill="#666">${b.label}</text>`
   ).join('\n      ');
   
-  const latest = periods[periods.length - 1];
+  const latest = plotPeriods[plotPeriods.length - 1];
   
   return `
     <svg viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
