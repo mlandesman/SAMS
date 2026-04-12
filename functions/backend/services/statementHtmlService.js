@@ -571,12 +571,15 @@ function formatPeriodLabel(year, month, fiscalYearStartMonth = 7) {
 function generateWaterBarsSvg(periods, language) {
   const title = language === 'spanish' ? 'CONSUMO DE AGUA' : 'WATER CONSUMPTION';
   const latestLabel = language === 'spanish' ? 'Último' : 'Latest';
-  
-  if (!periods || periods.length === 0) {
+
+  // Never plot more than six bars (fixed SVG); prior months = trailing six only.
+  const plotPeriods = Array.isArray(periods) ? periods.slice(-6) : [];
+
+  if (plotPeriods.length === 0) {
     return '';
   }
-  
-  const maxConsumption = Math.max(...periods.map(p => p.consumption || 0));
+
+  const maxConsumption = Math.max(...plotPeriods.map(p => p.consumption || 0));
   if (maxConsumption === 0) {
     return '';
   }
@@ -595,9 +598,9 @@ function generateWaterBarsSvg(periods, language) {
   const yAxisX = 45;
   const chartRightX = svgWidth - 35;
 
-  const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
+  const fiscalYearStartMonth = plotPeriods[0]?.fiscalYearStartMonth || 7;
 
-  const bars = periods.map((p, i) => {
+  const bars = plotPeriods.map((p, i) => {
     const height = Math.round((p.consumption / maxConsumption) * maxHeight) || 2;
     const x = startX + i * (barWidth + barSpacing);
     const y = baselineY - height;
@@ -614,7 +617,7 @@ function generateWaterBarsSvg(periods, language) {
     `<text x="${b.x + barWidth/2}" y="${labelY}" text-anchor="middle" font-size="10" fill="#666">${b.label}</text>`
   ).join('\n      ');
   
-  const latest = periods[periods.length - 1];
+  const latest = plotPeriods[plotPeriods.length - 1];
   
   return `
     <svg viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">
