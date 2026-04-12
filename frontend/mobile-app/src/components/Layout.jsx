@@ -330,8 +330,21 @@ const Layout = ({ children }) => {
                   <PublicIcon />
                 </ListItemIcon>
                 <ListItemText
-                  primary={preferredLanguageUi === 'ES' ? '🌐 Idioma: 🇺🇸' : '🌐 Language: 🇲🇽'}
-                  primaryTypographyProps={{ sx: { fontSize: '0.95rem' } }}
+                  disableTypography
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap' }}>
+                      <Typography component="span" variant="body2" sx={{ fontSize: '0.95rem' }}>
+                        {preferredLanguageUi === 'ES' ? 'Idioma:' : 'Language:'}
+                      </Typography>
+                      <Box
+                        component="span"
+                        sx={{ fontSize: '1.7rem', lineHeight: 1, display: 'inline-flex' }}
+                        aria-hidden
+                      >
+                        {preferredLanguageUi === 'ES' ? '🇺🇸' : '🇲🇽'}
+                      </Box>
+                    </Box>
+                  }
                 />
               </ListItemButton>
             </ListItem>

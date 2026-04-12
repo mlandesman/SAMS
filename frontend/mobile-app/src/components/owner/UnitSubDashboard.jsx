@@ -134,7 +134,7 @@ const UnitSubDashboard = () => {
     navigate('/statement');
   };
 
-  const langHint = preferredLanguageUi === 'ES' ? 'Spanish (Español)' : 'English';
+  const langHint = preferredLanguageUi === 'ES' ? 'Español' : 'English';
 
   const isPastDue = daysPastDue > 0;
   const amountColor = amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669';
