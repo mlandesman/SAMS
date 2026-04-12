@@ -580,30 +580,39 @@ function generateWaterBarsSvg(periods, language) {
   if (maxConsumption === 0) {
     return '';
   }
-  
-  // Increased dimensions for better space utilization (~10% larger, ~385x193)
-  const svgWidth = 385;
-  const svgHeight = 190;
-  const maxHeight = 110;
-  const barWidth = 38;
-  const barSpacing = 9;
-  const startX = 50; // Moved right to make room for Y-axis
-  const baselineY = 140;
+
+  const n = periods.length;
+  // Dynamic width so N bars + gaps never exceed chartRightX (fixes clipping when N=8).
+  const marginLeft = 50;
+  const marginRight = 16;
+  const gap = 8;
+  const minBarWidth = 14;
+  const maxBarWidth = 38;
+  const baselineY = 138;
   const titleY = 20;
-  const labelY = 162;
-  const footerY = 182;
-  const yAxisX = 45; // X position for Y-axis
-  const chartRightX = svgWidth - 35; // Right edge of chart area
-  
+  const labelY = 165;
+  const footerY = 184;
+  const svgHeight = 196;
+  const maxHeight = 105;
+  const innerBudget = 385 - marginLeft - marginRight;
+  let barWidth =
+    n > 0 ? Math.floor((innerBudget - Math.max(0, n - 1) * gap) / n) : maxBarWidth;
+  barWidth = Math.max(minBarWidth, Math.min(maxBarWidth, barWidth));
+  const chartWidth = n * barWidth + Math.max(0, n - 1) * gap;
+  const svgWidth = Math.max(300, marginLeft + chartWidth + marginRight);
+  const startX = marginLeft;
+  const chartRightX = startX + chartWidth;
+  const yAxisX = marginLeft - 5;
+
   // Get fiscal year start month from first period (passed from data service)
   const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
-  
+
   const bars = periods.map((p, i) => {
     const height = Math.round((p.consumption / maxConsumption) * maxHeight) || 2;
-    const x = startX + i * (barWidth + barSpacing);
+    const x = startX + i * (barWidth + gap);
     const y = baselineY - height;
     const label = formatPeriodLabel(p.year, p.month, fiscalYearStartMonth);
-    
+
     return { x, y, height, label, consumption: p.consumption };
   });
   
@@ -1290,6 +1299,7 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
     /* Allocation summary table */
     .allocation-graph-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 20px;
       margin: 20px 0;
       align-items: flex-start;
@@ -1314,15 +1324,17 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
     }
     
     .mini-graph-container {
-      flex: 0 0 auto;
+      flex: 0 1 auto;
       padding: 0;
       background: transparent;
       border: none;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      min-width: 385px;
-      max-width: 410px;
+      min-width: 0;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       margin-top: -5px;
     }
     
