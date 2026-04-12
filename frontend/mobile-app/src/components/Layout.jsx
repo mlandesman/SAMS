@@ -341,7 +341,7 @@ const Layout = ({ children }) => {
                         sx={{ fontSize: '1.7rem', lineHeight: 1, display: 'inline-flex' }}
                         aria-hidden
                       >
-                        {preferredLanguageUi === 'ES' ? '🇺🇸' : '🇲🇽'}
+                        {preferredLanguageUi === 'ES' ? '🇲🇽' : '🇺🇸'}
                       </Box>
                     </Box>
                   }
