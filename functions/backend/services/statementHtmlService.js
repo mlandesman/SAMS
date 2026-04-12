@@ -563,7 +563,7 @@ function formatPeriodLabel(year, month, fiscalYearStartMonth = 7) {
 }
 
 /**
- * Generate water consumption bar chart SVG
+ * Generate water consumption bar chart SVG (fixed 385×190, six bar slots — expect ≤6 periods from data service).
  * @param {Array} periods - Array of { year, month, consumption } objects
  * @param {string} language - Language ('english' or 'spanish')
  * @returns {string} SVG markup
@@ -581,35 +581,25 @@ function generateWaterBarsSvg(periods, language) {
     return '';
   }
 
-  const n = periods.length;
-  // Dynamic width so N bars + gaps never exceed chartRightX (fixes clipping when N=8).
-  const marginLeft = 50;
-  const marginRight = 16;
-  const gap = 8;
-  const minBarWidth = 14;
-  const maxBarWidth = 38;
-  const baselineY = 138;
+  // Fixed layout: SoA water mini-graph always uses six bar slots (data layer sends at most 6 periods).
+  const svgWidth = 385;
+  const svgHeight = 190;
+  const maxHeight = 110;
+  const barWidth = 38;
+  const barSpacing = 9;
+  const startX = 50;
+  const baselineY = 140;
   const titleY = 20;
-  const labelY = 165;
-  const footerY = 184;
-  const svgHeight = 196;
-  const maxHeight = 105;
-  const innerBudget = 385 - marginLeft - marginRight;
-  let barWidth =
-    n > 0 ? Math.floor((innerBudget - Math.max(0, n - 1) * gap) / n) : maxBarWidth;
-  barWidth = Math.max(minBarWidth, Math.min(maxBarWidth, barWidth));
-  const chartWidth = n * barWidth + Math.max(0, n - 1) * gap;
-  const svgWidth = Math.max(300, marginLeft + chartWidth + marginRight);
-  const startX = marginLeft;
-  const chartRightX = startX + chartWidth;
-  const yAxisX = marginLeft - 5;
+  const labelY = 162;
+  const footerY = 182;
+  const yAxisX = 45;
+  const chartRightX = svgWidth - 35;
 
-  // Get fiscal year start month from first period (passed from data service)
   const fiscalYearStartMonth = periods[0]?.fiscalYearStartMonth || 7;
 
   const bars = periods.map((p, i) => {
     const height = Math.round((p.consumption / maxConsumption) * maxHeight) || 2;
-    const x = startX + i * (barWidth + gap);
+    const x = startX + i * (barWidth + barSpacing);
     const y = baselineY - height;
     const label = formatPeriodLabel(p.year, p.month, fiscalYearStartMonth);
 
@@ -1299,7 +1289,6 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
     /* Allocation summary table */
     .allocation-graph-row {
       display: flex;
-      flex-wrap: wrap;
       gap: 20px;
       margin: 20px 0;
       align-items: flex-start;
@@ -1324,17 +1313,15 @@ function buildHtmlContent(data, reportCommonCss, language, t, clientId, unitId, 
     }
     
     .mini-graph-container {
-      flex: 0 1 auto;
+      flex: 0 0 auto;
       padding: 0;
       background: transparent;
       border: none;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      min-width: 0;
-      max-width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+      min-width: 385px;
+      max-width: 410px;
       margin-top: -5px;
     }
     

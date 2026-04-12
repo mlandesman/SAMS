@@ -30,10 +30,9 @@ import { isFeatureEnabled } from '../utils/featureFlags.js';
  * @param {string} clientId - Client ID (e.g., 'MTC', 'AVII')
  * @param {string} unitId - Unit ID (e.g., '101', '1A')
  * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12) for month label formatting
- * @param {number|null} fiscalYear - Statement fiscal year (limits water bars to that FY; null = legacy rolling window)
  * @returns {Promise<Object|null>} Utility graph data or null if no data available
  */
-async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 7, fiscalYear = null) {
+async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 7) {
   try {
     // Check client config to determine graph type
     const configDoc = await db
@@ -47,7 +46,7 @@ async function getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth = 
     }
     
     // AVII: Water consumption bars
-    return await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth, fiscalYear);
+    return await getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth);
   } catch (error) {
     logError(`❌ [Utility Graph] Error fetching utility graph data for ${clientId}/${unitId}:`, error);
     return null;
@@ -120,10 +119,9 @@ async function getPropaneGaugeData(db, clientId, unitId, config) {
  * @param {string} clientId - Client ID (should be 'AVII')
  * @param {string} unitId - Unit ID
  * @param {number} fiscalYearStartMonth - Fiscal year start month (1-12) for month label formatting
- * @param {number|null} fiscalYear - Statement fiscal year (filter periods to this FY before taking last 6)
  * @returns {Promise<Object|null>} Water bars data or null
  */
-async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7, fiscalYear = null) {
+async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7) {
   try {
     // Get all water readings (no orderBy to avoid index requirement)
     // We'll sort in memory to find consecutive months
@@ -199,15 +197,8 @@ async function getWaterBarsData(db, clientId, unitId, fiscalYearStartMonth = 7, 
       priorReading = currentReading;
     }
     
-    // SoA mini-graph: last 6 consumption months within the statement fiscal year (#260).
-    // Reading docs use fiscal `year` + fiscal month index 0–11 (waterReadingsService).
-    // Six bars + dynamic SVG width avoids viewBox clipping when more months were shown.
-    let fyPeriods = periods;
-    if (fiscalYear != null && !Number.isNaN(Number(fiscalYear))) {
-      const fy = Number(fiscalYear);
-      fyPeriods = periods.filter(p => Number(p.year) === fy);
-    }
-    const recentPeriods = fyPeriods.slice(-6);
+    // SoA mini-graph: fixed trailing window — prior 6 consumption periods (rolling, not FY-scoped).
+    const recentPeriods = periods.slice(-6);
     if (recentPeriods.length === 0) {
       return null;
     }
@@ -2913,8 +2904,7 @@ export async function getStatementData(api, clientId, unitId, fiscalYear = null,
     const db = await getDb();
     // Pass fiscal year start month for proper month label formatting
     const fiscalYearStartMonth = rawData.clientConfig?.fiscalYearStartMonth || 7; // Default to July for AVII
-    const statementFiscalYear = rawData.clientConfig?.fiscalYear ?? null;
-    utilityGraph = await getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth, statementFiscalYear);
+    utilityGraph = await getUtilityGraphData(db, clientId, unitId, fiscalYearStartMonth);
   } catch (error) {
     // Utility graph is optional - don't fail if it can't be loaded
     logError(`[Statement] Could not load utility graph for ${clientId}/${unitId}:`, error.message);
