@@ -32,6 +32,7 @@ import {
   Home as HomeIcon,
   DownloadForOffline as InstallIcon,
   Contacts as ContactsIcon,
+  CurrencyExchange as ExchangeRatesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -280,6 +281,7 @@ const Layout = ({ children }) => {
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
                 { label: 'Unit Directory', icon: <ContactsIcon />, path: '/unit-directory' },
                 { label: 'Budget', icon: <BudgetIcon />, path: '/admin/budget' },
+                { label: 'Exchange Rates', icon: <ExchangeRatesIcon />, path: '/exchange-rates' },
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [
