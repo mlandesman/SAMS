@@ -2,9 +2,10 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { Alert, Box } from '@mui/material';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { hasClientAdminForClient } from '../utils/authUtils.js';
 
 const RoleProtectedRoute = ({ children, requiredRole, fallbackPath = '/' }) => {
-  const { samsUser, isAuthenticated, loading } = useAuth();
+  const { samsUser, isAuthenticated, loading, currentClient } = useAuth();
 
   if (loading) {
     return null; // Loading handled by parent components
@@ -18,8 +19,11 @@ const RoleProtectedRoute = ({ children, requiredRole, fallbackPath = '/' }) => {
   const clientAccess = samsUser?.clientAccess || samsUser?.propertyAccess;
   const hasRequiredRole = () => {
     switch (requiredRole) {
-      case 'admin':
-        return userRole === 'admin' || userRole === 'superAdmin';
+      case 'admin': {
+        if (userRole === 'admin' || userRole === 'superAdmin') return true;
+        const cid = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+        return Boolean(cid && hasClientAdminForClient(samsUser, cid));
+      }
       case 'maintenance':
         return userRole === 'maintenance' || userRole === 'admin' || userRole === 'superAdmin';
       case 'unitOwner': {

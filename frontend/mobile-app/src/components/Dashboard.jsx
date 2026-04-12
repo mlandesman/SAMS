@@ -11,7 +11,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useClients } from '../hooks/useClients.jsx';
 import ClientSwitcher from './ClientSwitcher.jsx';
-import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
+import {
+  isOwnerOrManager as checkIsOwnerOrManager,
+  hasClientAdminForClient,
+} from '../utils/authUtils.js';
 import OwnerDashboard3Cards from './owner/OwnerDashboard3Cards.jsx';
 import AdminDashboard from './admin/AdminDashboard.jsx';
 
@@ -46,6 +49,9 @@ const Dashboard = () => {
   const isAdmin = samsUser?.globalRole === 'admin';
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
+  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const isClientScopedAdmin = Boolean(clientId && hasClientAdminForClient(samsUser, clientId));
+  const showAdminDashboard = isAdminOrSuperAdmin || isClientScopedAdmin;
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
 
   return (
@@ -68,15 +74,15 @@ const Dashboard = () => {
         </Box>
 
         {/* Owner/Manager: 3-card focused dashboard */}
-        {isOwnerOrManager && !isAdminOrSuperAdmin && (
+        {isOwnerOrManager && !showAdminDashboard && (
           <OwnerDashboard3Cards />
         )}
 
         {/* Admin: 3-card dashboard + sub-dashboard (ADM-1, ADM-2) */}
-        {isAdminOrSuperAdmin && <AdminDashboard />}
+        {showAdminDashboard && <AdminDashboard />}
 
         {/* Quick Actions for Non-Admins (legacy 8-card flow — hidden when 3-card shown) */}
-        {!isAdminOrSuperAdmin && !isOwnerOrManager && (
+        {!showAdminDashboard && !isOwnerOrManager && (
           <Box sx={{ maxWidth: 400, mx: 'auto', mt: 2 }}>
             <Button
               fullWidth

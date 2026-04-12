@@ -32,6 +32,7 @@ import {
   Home as HomeIcon,
   DownloadForOffline as InstallIcon,
   Contacts as ContactsIcon,
+  CurrencyExchange as ExchangeRatesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -40,19 +41,33 @@ import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 import InstallBanner from './InstallBanner.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
-import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
+import {
+  isOwnerOrManager as checkIsOwnerOrManager,
+  hasClientAdminForClient,
+} from '../utils/authUtils.js';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAdmin, samsUser } = useAuth();
+  const { user, logout, isAdmin, samsUser, currentClient } = useAuth();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
 
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
   const isAdminOrSuperAdmin = isAdmin || isSuperAdmin;
+  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const showAdminShell =
+    isAdminOrSuperAdmin || Boolean(clientId && hasClientAdminForClient(samsUser, clientId));
   const selectedUnitRole = availableUnits?.find(u => u.unitId === selectedUnitId)?.role;
-  const roleLabel = isSuperAdmin ? 'SuperAdmin' : (isAdmin ? 'Admin' : (selectedUnitRole === 'unitManager' ? 'Manager' : (isOwnerOrManager ? 'Owner' : null)));
+  const roleLabel = isSuperAdmin
+    ? 'SuperAdmin'
+    : showAdminShell
+      ? 'Admin'
+      : selectedUnitRole === 'unitManager'
+        ? 'Manager'
+        : isOwnerOrManager
+          ? 'Owner'
+          : null;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -198,11 +213,11 @@ const Layout = ({ children }) => {
             </Typography>
             {roleLabel && (
               <Chip
-                label={!isAdmin && selectedUnitId ? `Unit ${selectedUnitId} - ${roleLabel}` : roleLabel}
+                label={!showAdminShell && selectedUnitId ? `Unit ${selectedUnitId} - ${roleLabel}` : roleLabel}
                 size="small"
-                color={isAdminOrSuperAdmin ? 'primary' : 'secondary'}
+                color={showAdminShell ? 'primary' : 'secondary'}
                 sx={{
-                  backgroundColor: isAdminOrSuperAdmin ? undefined : 'rgba(255,255,255,0.2)',
+                  backgroundColor: showAdminShell ? undefined : 'rgba(255,255,255,0.2)',
                   color: 'inherit',
                   fontWeight: 600,
                   fontSize: '0.7rem',
@@ -238,8 +253,8 @@ const Layout = ({ children }) => {
         </Box>
         <Divider />
 
-        {/* Unit selector for non-admin users */}
-        {!isAdmin && availableUnits.length > 0 && (
+        {/* Unit selector for non-admin-shell users */}
+        {!showAdminShell && availableUnits.length > 0 && (
           <>
             <Box sx={{ px: 2, py: 1.5 }}>
               {availableUnits.length === 1 ? (
@@ -275,11 +290,12 @@ const Layout = ({ children }) => {
         )}
 
         <List>
-          {(isAdminOrSuperAdmin
+          {(showAdminShell
             ? [
                 { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
                 { label: 'Unit Directory', icon: <ContactsIcon />, path: '/unit-directory' },
                 { label: 'Budget', icon: <BudgetIcon />, path: '/admin/budget' },
+                { label: 'Exchange Rates', icon: <ExchangeRatesIcon />, path: '/exchange-rates' },
                 { label: 'About', icon: <AboutIcon />, path: '/about' },
               ]
             : [

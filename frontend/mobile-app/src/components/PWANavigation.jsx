@@ -19,14 +19,21 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 
-import { isOwnerOrManager as checkIsOwnerOrManager } from '../utils/authUtils.js';
+import {
+  isOwnerOrManager as checkIsOwnerOrManager,
+  hasClientAdminForClient,
+} from '../utils/authUtils.js';
 
 const PWANavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { samsUser } = useAuth();
-  
-  const isAdmin = samsUser?.globalRole === 'admin' || samsUser?.globalRole === 'superAdmin';
+  const { samsUser, currentClient } = useAuth();
+
+  const isAdminOrSuperAdmin =
+    samsUser?.globalRole === 'admin' || samsUser?.globalRole === 'superAdmin';
+  const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
+  const isClientScopedAdmin = Boolean(clientId && hasClientAdminForClient(samsUser, clientId));
+  const showAdminShell = isAdminOrSuperAdmin || isClientScopedAdmin;
   const isMaintenance = samsUser?.globalRole === 'maintenance';
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
 
@@ -74,7 +81,7 @@ const PWANavigation = () => {
   }
 
   // Owner/Manager: 4-tab layout (Home, My Unit, HOA, More)
-  if (isOwnerOrManager && !isAdmin) {
+  if (isOwnerOrManager && !showAdminShell) {
     const ownerNavItems = [
       { label: 'Home', icon: <HomeIcon />, path: '/' },
       { label: 'My Unit', icon: <UnitIcon />, path: '/unit-dashboard' },
@@ -114,8 +121,8 @@ const PWANavigation = () => {
     );
   }
 
-  // Users who are not admin, maintenance, or owner/manager: no bottom nav
-  if (!isAdmin && !isMaintenance && !isOwnerOrManager) {
+  // Users who are not admin shell, maintenance, or owner/manager: no bottom nav
+  if (!showAdminShell && !isMaintenance && !isOwnerOrManager) {
     return null;
   }
 
