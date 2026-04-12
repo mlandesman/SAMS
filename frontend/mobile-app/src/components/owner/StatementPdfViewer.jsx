@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -12,35 +12,30 @@ import {
   InputLabel,
   Card,
   CardContent,
-  Divider,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
-  Refresh as RefreshIcon,
   FolderOpen as ArchiveIcon,
   NoteAdd as GenerateIcon,
 } from '@mui/icons-material';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
-import { getMexicoDate } from '../../utils/timezone.js';
 import { LoadingSpinner } from '../common';
+import { buildDedupedStoredStatementsForUi } from '../../utils/storedStatementLabels.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
-const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 const StatementPdfViewer = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { currentClient, firebaseUser } = useAuth();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
 
   // Stored statements state
   const [storedStatements, setStoredStatements] = useState([]);
@@ -54,10 +49,10 @@ const StatementPdfViewer = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const yearOptions = [];
-  for (let y = currentYear; y >= currentYear - 3; y--) {
-    yearOptions.push(y);
-  }
+  const pdfSourceRef = useRef(pdfSource);
+  const pdfUrlRef = useRef(pdfUrl);
+  pdfSourceRef.current = pdfSource;
+  pdfUrlRef.current = pdfUrl;
 
   // Fetch stored statement metadata from Firestore
   const fetchStoredStatements = useCallback(async () => {
@@ -108,34 +103,32 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  // Deduplicate by year+month+language, keeping most recent generation
-  const storedOptions = (() => {
-    const deduped = new Map();
-    for (const s of storedStatements) {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const key = `${s.calendarYear}-${s.calendarMonth}-${langLabel}`;
+  const storedOptions = buildDedupedStoredStatementsForUi(storedStatements);
 
-      const existing = deduped.get(key);
-      if (!existing) {
-        deduped.set(key, s);
-      } else {
-        const existingTime = existing.reportGenerated?._seconds || 0;
-        const currentTime = s.reportGenerated?._seconds || 0;
-        if (currentTime > existingTime) {
-          deduped.set(key, s);
-        }
-      }
+  // Deep-link from My Unit (and similar): open stored PDF in-app like this screen's iframe viewer
+  useEffect(() => {
+    const openId = location.state?.openStoredStatementId;
+    if (!openId || storedLoading) return;
+
+    if (!storedStatements.length) {
+      navigate(location.pathname, { replace: true, state: {} });
+      return;
     }
 
-    return Array.from(deduped.values()).map((s) => {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const monthName = MONTH_NAMES[s.calendarMonth] || `Month ${s.calendarMonth}`;
-      return {
-        ...s,
-        label: `${monthName} ${s.calendarYear} (${langLabel})`,
-      };
-    });
-  })();
+    const statement = storedStatements.find((s) => s.id === openId);
+
+    navigate(location.pathname, { replace: true, state: {} });
+
+    if (!statement?.storageUrl) return;
+
+    if (pdfUrlRef.current && pdfSourceRef.current === 'generated') {
+      URL.revokeObjectURL(pdfUrlRef.current);
+    }
+    setPdfUrl(statement.storageUrl);
+    setPdfSource('stored');
+    setSelectedStored(openId);
+    setError(null);
+  }, [storedStatements, storedLoading, location.state, location.pathname, navigate]);
 
   const handleOpenStored = () => {
     if (!selectedStored) return;

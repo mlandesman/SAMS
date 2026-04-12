@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { LoadingSpinner } from '../common';
 import { useNavigate } from 'react-router-dom';
+import { buildDedupedStoredStatementsForUi } from '../../utils/storedStatementLabels.js';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
@@ -112,6 +113,8 @@ const UnitSubDashboard = () => {
   const lineItems = unitData?.lineItems || [];
   const nonFuture = lineItems.filter((i) => !i.isFuture);
   const recentTx = nonFuture.slice(-10).reverse();
+
+  const statementRowsForCard = buildDedupedStoredStatementsForUi(storedStatements).slice(0, 5);
 
   const handleGenerateStatement = async () => {
     navigate('/statement');
@@ -213,18 +216,22 @@ const UnitSubDashboard = () => {
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
           {storedLoading ? (
             <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
-          ) : storedStatements.length === 0 ? (
+          ) : statementRowsForCard.length === 0 ? (
             <Typography variant="body2" color="text.secondary">No stored statements</Typography>
           ) : (
             <List dense disablePadding>
-              {storedStatements.slice(0, 5).map((s) => (
+              {statementRowsForCard.map((s) => (
                 <ListItem key={s.id} disablePadding>
                   <ListItemText
-                    primary={`${s.calendarMonth || ''}/${s.calendarYear || ''}`}
+                    primary={s.label}
                     primaryTypographyProps={{ variant: 'body2' }}
                   />
                   {s.storageUrl && (
-                    <Button size="small" startIcon={<PdfIcon />} href={s.storageUrl} target="_blank" rel="noopener">
+                    <Button
+                      size="small"
+                      startIcon={<PdfIcon />}
+                      onClick={() => navigate('/statement', { state: { openStoredStatementId: s.id } })}
+                    >
                       Open
                     </Button>
                   )}
