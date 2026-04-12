@@ -210,9 +210,15 @@ const StatementPdfViewer = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
               <LoadingSpinner size="small" message="Loading..." />
             </Box>
-          ) : storedOptions.length === 0 ? (
+          ) : storedOptionsAll.length === 0 ? (
             <Typography variant="caption" color="text.secondary">
               No stored statements found for this unit.
+            </Typography>
+          ) : storedOptions.length === 0 ? (
+            <Typography variant="caption" color="text.secondary" component="div">
+              No stored statements in {preferredLanguageUi === 'ES' ? 'Español' : 'English'} for this unit.
+              {' '}
+              Use the menu (Language / Idioma) to switch languages.
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
