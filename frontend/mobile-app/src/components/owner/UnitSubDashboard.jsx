@@ -48,6 +48,8 @@ const UnitSubDashboard = () => {
   const [transactionsExpanded, setTransactionsExpanded] = useState(true);
   const [storedStatements, setStoredStatements] = useState([]);
   const [storedLoading, setStoredLoading] = useState(false);
+  /** Latest SoA PDF shown inline on My Unit (avoids navigation + re-select). */
+  const [inlinePdfUrl, setInlinePdfUrl] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const { hoaConfig } = useHoaConfig(clientId);
@@ -79,6 +81,10 @@ const UnitSubDashboard = () => {
   useEffect(() => {
     fetchStoredStatements();
   }, [fetchStoredStatements]);
+
+  useEffect(() => {
+    setInlinePdfUrl(null);
+  }, [selectedUnitId, clientId]);
 
   if (!currentClient || !selectedUnitId) {
     return (
@@ -124,6 +130,7 @@ const UnitSubDashboard = () => {
   const latestInPreferredLanguage = preferredLangRows[0] || null;
 
   const handleGenerateStatement = () => {
+    setInlinePdfUrl(null);
     navigate('/statement');
   };
 
@@ -245,11 +252,35 @@ const UnitSubDashboard = () => {
                         fullWidth
                         variant="contained"
                         startIcon={<PdfIcon />}
-                        onClick={() => navigate('/statement', { state: { openStoredStatementId: latestInPreferredLanguage.id } })}
+                        onClick={() => setInlinePdfUrl(latestInPreferredLanguage.storageUrl)}
                         sx={{ textTransform: 'none' }}
                       >
                         Open latest statement
                       </Button>
+                      {inlinePdfUrl && (
+                        <Box sx={{ mt: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
+                            <Button size="small" onClick={() => setInlinePdfUrl(null)} sx={{ textTransform: 'none' }}>
+                              Close
+                            </Button>
+                          </Box>
+                          <Box
+                            sx={{
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              minHeight: 320,
+                              bgcolor: '#fafafa',
+                            }}
+                          >
+                            <iframe
+                              title="Statement of Account"
+                              src={inlinePdfUrl}
+                              style={{ width: '100%', height: 360, border: 'none', display: 'block' }}
+                            />
+                          </Box>
+                        </Box>
+                      )}
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -262,7 +293,10 @@ const UnitSubDashboard = () => {
                 fullWidth
                 variant="text"
                 size="small"
-                onClick={() => navigate('/statement')}
+                onClick={() => {
+                  setInlinePdfUrl(null);
+                  navigate('/statement');
+                }}
                 sx={{ textTransform: 'none', mb: 1 }}
               >
                 Other statements / Otros estados de cuenta

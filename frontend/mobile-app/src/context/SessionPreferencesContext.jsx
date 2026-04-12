@@ -37,11 +37,20 @@ export function SessionPreferencesProvider({ children }) {
     if (seededForUidRef.current === uid) return;
     seededForUidRef.current = uid;
 
-    // When backend adds preferredLanguage / preferredCurrency to getProfile(), they apply here.
-    const rawLang = samsUser.preferredLanguage ?? samsUser.preferred_language;
+    // getProfile() nests prefs under profile: { preferredLanguage, preferredCurrency }
+    const prof = samsUser.profile || {};
+    const rawLang =
+      prof.preferredLanguage ??
+      prof.preferred_language ??
+      samsUser.preferredLanguage ??
+      samsUser.preferred_language;
     setPreferredLanguageUi(normalizeProfileLanguageToUi(rawLang));
 
-    const rawCur = samsUser.preferredCurrency ?? samsUser.preferred_currency;
+    const rawCur =
+      prof.preferredCurrency ??
+      prof.preferred_currency ??
+      samsUser.preferredCurrency ??
+      samsUser.preferred_currency;
     if (rawCur != null && String(rawCur).trim() !== '') {
       setPreferredCurrency(String(rawCur).trim().toUpperCase());
     } else {

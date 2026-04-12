@@ -16,8 +16,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -35,6 +33,7 @@ import {
   DownloadForOffline as InstallIcon,
   Contacts as ContactsIcon,
   CurrencyExchange as ExchangeRatesIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
@@ -257,29 +256,6 @@ const Layout = ({ children }) => {
         </Box>
         <Divider />
 
-        {user && (
-          <>
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                Language / Idioma
-              </Typography>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                fullWidth
-                value={preferredLanguageUi}
-                onChange={(_, v) => {
-                  if (v) setPreferredLanguageUi(v);
-                }}
-              >
-                <ToggleButton value="EN" sx={{ textTransform: 'none' }}>English</ToggleButton>
-                <ToggleButton value="ES" sx={{ textTransform: 'none' }}>Español</ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-            <Divider />
-          </>
-        )}
-
         {/* Unit selector for non-admin-shell users */}
         {!showAdminShell && availableUnits.length > 0 && (
           <>
@@ -341,6 +317,25 @@ const Layout = ({ children }) => {
               </ListItemButton>
             </ListItem>
           ))}
+          {user && (
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  setPreferredLanguageUi((prev) => (prev === 'ES' ? 'EN' : 'ES'));
+                  setDrawerOpen(false);
+                }}
+                sx={{ minHeight: 48 }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <PublicIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary={preferredLanguageUi === 'ES' ? '🌐 Idioma: 🇺🇸' : '🌐 Language: 🇲🇽'}
+                  primaryTypographyProps={{ sx: { fontSize: '0.95rem' } }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )}
           {!isInstalled && isMobile && (
             <ListItem disablePadding>
               <ListItemButton

@@ -40,9 +40,9 @@ const StatementPdfViewer = () => {
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  // Stored statements state
+  // Stored statements state — start true so deep-link effect does not clear router state before first fetch runs
   const [storedStatements, setStoredStatements] = useState([]);
-  const [storedLoading, setStoredLoading] = useState(false);
+  const [storedLoading, setStoredLoading] = useState(true);
   const [selectedStored, setSelectedStored] = useState('');
 
   // Generate state
@@ -58,7 +58,11 @@ const StatementPdfViewer = () => {
 
   // Fetch stored statement metadata from Firestore
   const fetchStoredStatements = useCallback(async () => {
-    if (!clientId || !selectedUnitId) return;
+    if (!clientId || !selectedUnitId) {
+      setStoredStatements([]);
+      setStoredLoading(false);
+      return;
+    }
 
     try {
       setStoredLoading(true);
@@ -276,7 +280,7 @@ const StatementPdfViewer = () => {
           </Box>
 
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Uses your menu language ({preferredLanguageUi === 'ES' ? 'Español' : 'English'}). Change in the sidebar menu under Language / Idioma.
+            Uses your session language ({preferredLanguageUi === 'ES' ? 'Español' : 'English'}). Change it from the menu (globe row: Language / Idioma).
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
