@@ -1,12 +1,11 @@
 /**
  * More Menu — Secondary screens for mobile owners
- * Links: Statement of Account, Exchange Rate Calculator, About, Install App
- * Sprint MOBILE-OWNER-UX (MOB-5)
+ * Statement of Account lives on My Unit + /statement (issue #251); not duplicated here.
+ * Links: Exchange Rate Calculator, About, Install App
  */
 import React from 'react';
 import { Box, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import {
-  PictureAsPdf as StatementIcon,
   CurrencyExchange as ExchangeIcon,
   Info as AboutIcon,
   DownloadForOffline as InstallIcon,
@@ -19,7 +18,6 @@ const MoreMenu = () => {
   const { isInstalled, isMobile, reopenInstallUI } = useInstallPrompt();
 
   const items = [
-    { label: 'Statement of Account', icon: <StatementIcon />, path: '/statement' },
     { label: 'Exchange Rate Calculator', icon: <ExchangeIcon />, path: '/exchange-rates' },
     { label: 'About', icon: <AboutIcon />, path: '/about' },
   ];

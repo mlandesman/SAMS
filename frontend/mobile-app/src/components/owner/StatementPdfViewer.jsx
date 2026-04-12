@@ -1,67 +1,60 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
   Alert,
   Button,
-  ToggleButton,
-  ToggleButtonGroup,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   Card,
   CardContent,
-  Divider,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
-  Refresh as RefreshIcon,
   FolderOpen as ArchiveIcon,
   NoteAdd as GenerateIcon,
 } from '@mui/icons-material';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
-import { getMexicoDate } from '../../utils/timezone.js';
 import { LoadingSpinner } from '../common';
+import {
+  buildDedupedStoredStatementsForUi,
+  filterDedupedStatementsByUiLanguage,
+} from '../../utils/storedStatementLabels.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
-const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 const StatementPdfViewer = () => {
   const { currentClient, firebaseUser } = useAuth();
+  const { statementLanguageApi, preferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
-  const currentYear = getMexicoDate().getFullYear();
 
-  // Stored statements state
+  // Stored statements state — start true until first fetch settles (avoids empty flash)
   const [storedStatements, setStoredStatements] = useState([]);
-  const [storedLoading, setStoredLoading] = useState(false);
+  const [storedLoading, setStoredLoading] = useState(true);
   const [selectedStored, setSelectedStored] = useState('');
 
   // Generate state
-  const [language, setLanguage] = useState('english');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfSource, setPdfSource] = useState(null); // 'stored' | 'generated'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const yearOptions = [];
-  for (let y = currentYear; y >= currentYear - 3; y--) {
-    yearOptions.push(y);
-  }
-
   // Fetch stored statement metadata from Firestore
   const fetchStoredStatements = useCallback(async () => {
-    if (!clientId || !selectedUnitId) return;
+    if (!clientId || !selectedUnitId) {
+      setStoredStatements([]);
+      setStoredLoading(false);
+      return;
+    }
 
     try {
       setStoredLoading(true);
@@ -108,34 +101,21 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  // Deduplicate by year+month+language, keeping most recent generation
-  const storedOptions = (() => {
-    const deduped = new Map();
-    for (const s of storedStatements) {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const key = `${s.calendarYear}-${s.calendarMonth}-${langLabel}`;
+  const storedOptionsAll = useMemo(
+    () => buildDedupedStoredStatementsForUi(storedStatements),
+    [storedStatements],
+  );
+  const storedOptions = useMemo(
+    () => filterDedupedStatementsByUiLanguage(storedOptionsAll, preferredLanguageUi),
+    [storedOptionsAll, preferredLanguageUi],
+  );
 
-      const existing = deduped.get(key);
-      if (!existing) {
-        deduped.set(key, s);
-      } else {
-        const existingTime = existing.reportGenerated?._seconds || 0;
-        const currentTime = s.reportGenerated?._seconds || 0;
-        if (currentTime > existingTime) {
-          deduped.set(key, s);
-        }
-      }
+  useEffect(() => {
+    const allowed = new Set(storedOptions.map((s) => s.id));
+    if (selectedStored && !allowed.has(selectedStored)) {
+      setSelectedStored('');
     }
-
-    return Array.from(deduped.values()).map((s) => {
-      const langLabel = (s.language || 'english').toLowerCase() === 'spanish' ? 'ES' : 'EN';
-      const monthName = MONTH_NAMES[s.calendarMonth] || `Month ${s.calendarMonth}`;
-      return {
-        ...s,
-        label: `${monthName} ${s.calendarYear} (${langLabel})`,
-      };
-    });
-  })();
+  }, [storedOptions, selectedStored]);
 
   const handleOpenStored = () => {
     if (!selectedStored) return;
@@ -164,7 +144,7 @@ const StatementPdfViewer = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const url = `${API_BASE_URL}/reports/${clientId}/statement/pdf?unitId=${selectedUnitId}&language=${language}`;
+      const url = `${API_BASE_URL}/reports/${clientId}/statement/pdf?unitId=${selectedUnitId}&language=${statementLanguageApi}`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -230,9 +210,15 @@ const StatementPdfViewer = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
               <LoadingSpinner size="small" message="Loading..." />
             </Box>
-          ) : storedOptions.length === 0 ? (
+          ) : storedOptionsAll.length === 0 ? (
             <Typography variant="caption" color="text.secondary">
               No stored statements found for this unit.
+            </Typography>
+          ) : storedOptions.length === 0 ? (
+            <Typography variant="caption" color="text.secondary" component="div">
+              No stored statements in {preferredLanguageUi === 'ES' ? 'Español' : 'English'} for this unit.
+              {' '}
+              Use the menu (Language / Idioma) to switch languages.
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -272,23 +258,16 @@ const StatementPdfViewer = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <ToggleButtonGroup
-              value={language}
-              exclusive
-              onChange={(_, val) => { if (val) setLanguage(val); }}
-              size="small"
-            >
-              <ToggleButton value="english" sx={{ textTransform: 'none', px: 1.5 }}>EN</ToggleButton>
-              <ToggleButton value="spanish" sx={{ textTransform: 'none', px: 1.5 }}>ES</ToggleButton>
-            </ToggleButtonGroup>
-
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Uses your session language ({preferredLanguageUi === 'ES' ? 'Español' : 'English'}). Change it from the menu (globe row: Language / Idioma).
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               variant="contained"
               size="small"
               onClick={handleGenerateCurrent}
               disabled={loading}
-              sx={{ ml: 'auto', textTransform: 'none' }}
+              sx={{ textTransform: 'none' }}
             >
               {loading ? 'Generating...' : 'Generate'}
             </Button>

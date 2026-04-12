@@ -24,6 +24,11 @@ import {
 } from '@mui/icons-material';
 import { LoadingSpinner } from '../common';
 import { useNavigate } from 'react-router-dom';
+import {
+  buildDedupedStoredStatementsForUi,
+  filterDedupedStatementsByUiLanguage,
+} from '../../utils/storedStatementLabels.js';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
@@ -36,12 +41,15 @@ import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
   const { currentClient } = useAuth();
+  const { preferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId } = useSelectedUnit();
   const { data: unitData, loading: unitLoading, error: unitError } = useUnitAccountStatus(currentClient, selectedUnitId);
 
   const [transactionsExpanded, setTransactionsExpanded] = useState(true);
   const [storedStatements, setStoredStatements] = useState([]);
   const [storedLoading, setStoredLoading] = useState(false);
+  /** Latest SoA PDF shown inline on My Unit (avoids navigation + re-select). */
+  const [inlinePdfUrl, setInlinePdfUrl] = useState(null);
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const { hoaConfig } = useHoaConfig(clientId);
@@ -73,6 +81,10 @@ const UnitSubDashboard = () => {
   useEffect(() => {
     fetchStoredStatements();
   }, [fetchStoredStatements]);
+
+  useEffect(() => {
+    setInlinePdfUrl(null);
+  }, [selectedUnitId, clientId, preferredLanguageUi]);
 
   if (!currentClient || !selectedUnitId) {
     return (
@@ -113,9 +125,16 @@ const UnitSubDashboard = () => {
   const nonFuture = lineItems.filter((i) => !i.isFuture);
   const recentTx = nonFuture.slice(-10).reverse();
 
-  const handleGenerateStatement = async () => {
+  const allStatementRows = buildDedupedStoredStatementsForUi(storedStatements);
+  const preferredLangRows = filterDedupedStatementsByUiLanguage(allStatementRows, preferredLanguageUi);
+  const latestInPreferredLanguage = preferredLangRows[0] || null;
+
+  const handleGenerateStatement = () => {
+    setInlinePdfUrl(null);
     navigate('/statement');
   };
+
+  const langHint = preferredLanguageUi === 'ES' ? 'Español' : 'English';
 
   const isPastDue = daysPastDue > 0;
   const amountColor = amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669';
@@ -207,36 +226,88 @@ const UnitSubDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Stored Statements */}
+      {/* Statements — primary: latest in session language; archive on full screen */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
           {storedLoading ? (
             <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
-          ) : storedStatements.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No stored statements</Typography>
           ) : (
-            <List dense disablePadding>
-              {storedStatements.slice(0, 5).map((s) => (
-                <ListItem key={s.id} disablePadding>
-                  <ListItemText
-                    primary={`${s.calendarMonth || ''}/${s.calendarYear || ''}`}
-                    primaryTypographyProps={{ variant: 'body2' }}
-                  />
-                  {s.storageUrl && (
-                    <Button size="small" startIcon={<PdfIcon />} href={s.storageUrl} target="_blank" rel="noopener">
-                      Open
-                    </Button>
+            <>
+              {allStatementRows.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  No stored statements
+                </Typography>
+              ) : (
+                <>
+                  {latestInPreferredLanguage?.storageUrl ? (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        Latest ({langHint})
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {latestInPreferredLanguage.label}
+                      </Typography>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={<PdfIcon />}
+                        onClick={() => setInlinePdfUrl(latestInPreferredLanguage.storageUrl)}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Open latest statement
+                      </Button>
+                      {inlinePdfUrl && (
+                        <Box sx={{ mt: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
+                            <Button size="small" onClick={() => setInlinePdfUrl(null)} sx={{ textTransform: 'none' }}>
+                              Close
+                            </Button>
+                          </Box>
+                          <Box
+                            sx={{
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              minHeight: 320,
+                              bgcolor: '#fafafa',
+                            }}
+                          >
+                            <iframe
+                              title="Statement of Account"
+                              src={inlinePdfUrl}
+                              style={{ width: '100%', height: 360, border: 'none', display: 'block' }}
+                            />
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      No stored statement in {langHint} for this unit yet.
+                    </Typography>
                   )}
-                </ListItem>
-              ))}
-            </List>
+                </>
+              )}
+              <Button
+                fullWidth
+                variant="text"
+                size="small"
+                onClick={() => {
+                  setInlinePdfUrl(null);
+                  navigate('/statement');
+                }}
+                sx={{ textTransform: 'none', mb: 1 }}
+              >
+                Other statements / Otros estados de cuenta
+              </Button>
+            </>
           )}
           <Button
             fullWidth
-            variant="contained"
+            variant="outlined"
             startIcon={<GenerateIcon />}
-            sx={{ mt: 1 }}
+            sx={{ mt: 0.5 }}
             onClick={handleGenerateStatement}
           >
             Generate Current Statement

@@ -33,9 +33,11 @@ import {
   DownloadForOffline as InstallIcon,
   Contacts as ContactsIcon,
   CurrencyExchange as ExchangeRatesIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useSessionPreferences } from '../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
@@ -50,6 +52,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAdmin, samsUser, currentClient } = useAuth();
+  const { preferredLanguageUi, setPreferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
 
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
@@ -314,6 +317,38 @@ const Layout = ({ children }) => {
               </ListItemButton>
             </ListItem>
           ))}
+          {user && (
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => {
+                  setPreferredLanguageUi((prev) => (prev === 'ES' ? 'EN' : 'ES'));
+                  setDrawerOpen(false);
+                }}
+                sx={{ minHeight: 48 }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <PublicIcon />
+                </ListItemIcon>
+                <ListItemText
+                  disableTypography
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap' }}>
+                      <Typography component="span" variant="body2" sx={{ fontSize: '0.95rem' }}>
+                        {preferredLanguageUi === 'ES' ? 'Idioma:' : 'Language:'}
+                      </Typography>
+                      <Box
+                        component="span"
+                        sx={{ fontSize: '1.7rem', lineHeight: 1, display: 'inline-flex' }}
+                        aria-hidden
+                      >
+                        {preferredLanguageUi === 'ES' ? '🇲🇽' : '🇺🇸'}
+                      </Box>
+                    </Box>
+                  }
+                />
+              </ListItemButton>
+            </ListItem>
+          )}
           {!isInstalled && isMobile && (
             <ListItem disablePadding>
               <ListItemButton
