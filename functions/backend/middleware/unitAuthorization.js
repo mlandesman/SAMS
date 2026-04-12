@@ -50,6 +50,11 @@ const requireUnitAccess = (req, res, next) => {
     || req.user.samsProfile?.clientAccess?.[clientId];
   const userGlobalRole = req.user.samsProfile?.globalRole; // CRITICAL: Include global role
 
+  // Align with hasUnitAccess: global admin/superAdmin may access any unit without per-client map
+  if (['admin', 'superAdmin'].includes(userGlobalRole)) {
+    return next();
+  }
+
   if (!propertyAccess) {
     return res.status(403).json({
       error: 'Access denied to this client',
