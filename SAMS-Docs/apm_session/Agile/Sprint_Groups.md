@@ -17,7 +17,14 @@
 **Theme**: Eliminate bugs that block or confuse unit owners during onboarding  
 **Risk**: Low — individual bug fixes, no shared engine changes  
 **Dependencies**: None  
-**Status**: Planned — **NEXT SPRINT** (roadmap position 13)
+**Status**: Active — one-at-a-time bug-sweep in progress
+
+**Progress (Apr 11, 2026):**
+- ✅ #272 complete (owner/manager labels; issue closed)
+- ✅ #271 complete (bank fee/IVA duplicate on edit; PR #290 merged)
+- ✅ #275 complete (temp password charset safety; PR #291 merged)
+- ✅ #260 complete (water mini-graph clipping; PR #292 merged)
+- ⏭️ Next: #274
 
 ---
 
@@ -1036,5 +1043,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 10, 2026 — Sprint BANK-RECON ✅ COMPLETE (PR #268 merged). Scheduler auth guard follow-up ✅ COMPLETE (PR #270 merged). Active sequence now continues with BUGFIX-ONBOARD, then DEBT-1, UC-LITE, and remaining roadmap order. WhatsApp remains paused (Meta blocked).*  
+*Updated: April 11, 2026 — BUGFIX-ONBOARD / BUG-SWEEP active with #272, #271, #275, and #260 complete; next #274. BANK-RECON and scheduler auth guard remain complete (PRs #268, #270). WhatsApp remains paused (Meta blocked).*  
 *Last Review: April 10, 2026*

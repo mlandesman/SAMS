@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "260"
+          ],
+          "text": "Cap SoA water mini-graph to six rolling periods to prevent AVII clipping/overflow"
+        }
+      ]
+    },
+    {
       "version": "1.21.0",
       "date": "2026-04-10",
       "changes": [
