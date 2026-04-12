@@ -1194,21 +1194,24 @@ export async function updateUserPropertyAccess(req, res) {
     const currentPropertyAccess = userData.propertyAccess || {};
     const currentClientAccess = currentPropertyAccess[clientId] || {};
     
-    // Build update data
+    const roleField = `propertyAccess.${clientId}.role`;
+    const unitIdField = `propertyAccess.${clientId}.unitId`;
+
+    // Build update data (use `in` so explicit null clears unitId instead of being treated as falsy)
     const updateData = {};
     if (role !== undefined) {
-      updateData[`propertyAccess.${clientId}.role`] = role;
+      updateData[roleField] = role;
     }
     if (unitId !== undefined) {
-      updateData[`propertyAccess.${clientId}.unitId`] = unitId;
+      updateData[unitIdField] = unitId;
     }
     
-    // Preserve other fields in propertyAccess[clientId]
-    if (!updateData[`propertyAccess.${clientId}.role`] && currentClientAccess.role) {
-      updateData[`propertyAccess.${clientId}.role`] = currentClientAccess.role;
+    // Preserve other fields in propertyAccess[clientId] only when not explicitly set in this request
+    if (!(roleField in updateData) && currentClientAccess.role) {
+      updateData[roleField] = currentClientAccess.role;
     }
-    if (!updateData[`propertyAccess.${clientId}.unitId`] && currentClientAccess.unitId) {
-      updateData[`propertyAccess.${clientId}.unitId`] = currentClientAccess.unitId;
+    if (!(unitIdField in updateData) && currentClientAccess.unitId) {
+      updateData[unitIdField] = currentClientAccess.unitId;
     }
     if (currentClientAccess.permissions) {
       updateData[`propertyAccess.${clientId}.permissions`] = currentClientAccess.permissions;

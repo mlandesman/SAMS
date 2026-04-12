@@ -18,12 +18,15 @@ const hasUnitAccess = (propertyAccess, requestedUnitId, userGlobalRole = null) =
     return true;
   }
   
-  // Direct unit ownership
-  if (propertyAccess.role === 'unitOwner' && propertyAccess.unitId === requestedUnitId) {
+  // Primary unit on client (legacy shape from PATCH / propertyAccess sync — owners and managers)
+  if (
+    (propertyAccess.role === 'unitOwner' || propertyAccess.role === 'unitManager') &&
+    propertyAccess.unitId === requestedUnitId
+  ) {
     return true;
   }
   
-  // Unit management assignments (NEW LOGIC)
+  // Unit management assignments (multi-unit / explicit array)
   if (propertyAccess.unitAssignments && Array.isArray(propertyAccess.unitAssignments)) {
     return propertyAccess.unitAssignments.some(assignment => 
       assignment.unitId === requestedUnitId && 
@@ -43,8 +46,22 @@ const hasUnitAccess = (propertyAccess, requestedUnitId, userGlobalRole = null) =
 const requireUnitAccess = (req, res, next) => {
   const { unitId } = req.params;
   const clientId = req.originalParams?.clientId || req.params.clientId;
-  const propertyAccess = req.user.propertyAccess[clientId];
+  const propertyAccess = req.user.samsProfile?.propertyAccess?.[clientId]
+    || req.user.samsProfile?.clientAccess?.[clientId];
   const userGlobalRole = req.user.samsProfile?.globalRole; // CRITICAL: Include global role
+
+  // Align with hasUnitAccess: global admin/superAdmin may access any unit without per-client map
+  if (['admin', 'superAdmin'].includes(userGlobalRole)) {
+    return next();
+  }
+
+  if (!propertyAccess) {
+    return res.status(403).json({
+      error: 'Access denied to this client',
+      clientId,
+      code: 'CLIENT_ACCESS_DENIED'
+    });
+  }
   
   if (!hasUnitAccess(propertyAccess, unitId, userGlobalRole)) {
     return res.status(403).json({ 
