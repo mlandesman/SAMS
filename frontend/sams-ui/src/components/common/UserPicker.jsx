@@ -9,7 +9,7 @@ import { useSecureApi } from '../../api/secureApiClient.js';
  * @param {string} clientId - The client ID to filter users by
  * @param {string} selectedUserId - Currently selected user ID (or null)
  * @param {Function} onSelect - Callback when user is selected (userId) => void
- * @param {Array<string>} allowedRoles - Optional array of roles to filter by (e.g., ['unitOwner', 'unitManager'])
+ * @param {Array<string>} allowedRoles - Optional: filter by propertyAccess[clientId].role. Only applied when restrictToUsersWithClientAccess is true; ignored in cross-client mode (those users have no role on this client yet).
  * @param {string} label - Label for the picker
  * @param {boolean} required - Whether selection is required
  * @param {boolean} restrictToUsersWithClientAccess - When true (default), only users with propertyAccess[clientId] appear. Set false for unit owner/manager assignment so cross-client users can be selected.
@@ -55,8 +55,8 @@ const UserPicker = ({
           console.log(`📊 UserPicker: showing all ${filtered.length} users (cross-client assignment mode for ${clientId})`);
         }
         
-        // Filter by roles if specified
-        if (allowedRoles && allowedRoles.length > 0) {
+        // Filter by roles on this client (requires propertyAccess[clientId]; skip when listing cross-client assignees)
+        if (allowedRoles && allowedRoles.length > 0 && restrictToUsersWithClientAccess) {
           filtered = filtered.filter(user => {
             const access = user.propertyAccess?.[clientId];
             if (!access) {
