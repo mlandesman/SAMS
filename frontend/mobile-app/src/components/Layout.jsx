@@ -16,6 +16,8 @@ import {
   Select,
   MenuItem,
   FormControl,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -36,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useSessionPreferences } from '../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
@@ -50,6 +53,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAdmin, samsUser, currentClient } = useAuth();
+  const { preferredLanguageUi, setPreferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
 
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
@@ -252,6 +256,29 @@ const Layout = ({ children }) => {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>SAMS Mobile</Typography>
         </Box>
         <Divider />
+
+        {user && (
+          <>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                Language / Idioma
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                fullWidth
+                value={preferredLanguageUi}
+                onChange={(_, v) => {
+                  if (v) setPreferredLanguageUi(v);
+                }}
+              >
+                <ToggleButton value="EN" sx={{ textTransform: 'none' }}>English</ToggleButton>
+                <ToggleButton value="ES" sx={{ textTransform: 'none' }}>Español</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+            <Divider />
+          </>
+        )}
 
         {/* Unit selector for non-admin-shell users */}
         {!showAdminShell && availableUnits.length > 0 && (

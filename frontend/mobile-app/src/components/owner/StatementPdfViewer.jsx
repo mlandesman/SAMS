@@ -4,8 +4,6 @@ import {
   Typography,
   Alert,
   Button,
-  ToggleButton,
-  ToggleButtonGroup,
   Select,
   MenuItem,
   FormControl,
@@ -21,11 +19,15 @@ import {
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
 import { config } from '../../config/index.js';
 import { auth, db } from '../../services/firebase';
 import { LoadingSpinner } from '../common';
-import { buildDedupedStoredStatementsForUi } from '../../utils/storedStatementLabels.js';
+import {
+  buildDedupedStoredStatementsForUi,
+  filterDedupedStatementsByUiLanguage,
+} from '../../utils/storedStatementLabels.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -33,6 +35,7 @@ const StatementPdfViewer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentClient, firebaseUser } = useAuth();
+  const { statementLanguageApi, preferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
@@ -43,7 +46,6 @@ const StatementPdfViewer = () => {
   const [selectedStored, setSelectedStored] = useState('');
 
   // Generate state
-  const [language, setLanguage] = useState('english');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfSource, setPdfSource] = useState(null); // 'stored' | 'generated'
   const [loading, setLoading] = useState(false);
@@ -103,7 +105,15 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  const storedOptions = buildDedupedStoredStatementsForUi(storedStatements);
+  const storedOptionsAll = buildDedupedStoredStatementsForUi(storedStatements);
+  const storedOptions = filterDedupedStatementsByUiLanguage(storedOptionsAll, preferredLanguageUi);
+
+  useEffect(() => {
+    const allowed = new Set(storedOptions.map((s) => s.id));
+    if (selectedStored && !allowed.has(selectedStored)) {
+      setSelectedStored('');
+    }
+  }, [storedOptions, selectedStored]);
 
   // Deep-link from My Unit (and similar): open stored PDF in-app like this screen's iframe viewer
   useEffect(() => {
@@ -157,7 +167,7 @@ const StatementPdfViewer = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const url = `${API_BASE_URL}/reports/${clientId}/statement/pdf?unitId=${selectedUnitId}&language=${language}`;
+      const url = `${API_BASE_URL}/reports/${clientId}/statement/pdf?unitId=${selectedUnitId}&language=${statementLanguageApi}`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -265,23 +275,16 @@ const StatementPdfViewer = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <ToggleButtonGroup
-              value={language}
-              exclusive
-              onChange={(_, val) => { if (val) setLanguage(val); }}
-              size="small"
-            >
-              <ToggleButton value="english" sx={{ textTransform: 'none', px: 1.5 }}>EN</ToggleButton>
-              <ToggleButton value="spanish" sx={{ textTransform: 'none', px: 1.5 }}>ES</ToggleButton>
-            </ToggleButtonGroup>
-
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Uses your menu language ({preferredLanguageUi === 'ES' ? 'Español' : 'English'}). Change in the sidebar menu under Language / Idioma.
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               variant="contained"
               size="small"
               onClick={handleGenerateCurrent}
               disabled={loading}
-              sx={{ ml: 'auto', textTransform: 'none' }}
+              sx={{ textTransform: 'none' }}
             >
               {loading ? 'Generating...' : 'Generate'}
             </Button>

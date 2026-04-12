@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './hooks/useAuthStable.jsx';
+import { SessionPreferencesProvider } from './context/SessionPreferencesContext.jsx';
 import { SelectedUnitProvider } from './context/SelectedUnitContext.jsx';
 import { UnitStatementProvider } from './context/UnitStatementContext.jsx';
 import AuthScreen from './components/AuthScreen';
@@ -114,6 +115,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
+          <SessionPreferencesProvider>
           <SelectedUnitProvider>
           <UnitStatementProvider>
           <Layout>
@@ -387,6 +389,7 @@ function App() {
           </Layout>
           </UnitStatementProvider>
           </SelectedUnitProvider>
+          </SessionPreferencesProvider>
         </Router>
       </AuthProvider>
     </ThemeProvider>

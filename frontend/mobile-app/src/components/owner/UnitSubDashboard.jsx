@@ -24,7 +24,11 @@ import {
 } from '@mui/icons-material';
 import { LoadingSpinner } from '../common';
 import { useNavigate } from 'react-router-dom';
-import { buildDedupedStoredStatementsForUi } from '../../utils/storedStatementLabels.js';
+import {
+  buildDedupedStoredStatementsForUi,
+  filterDedupedStatementsByUiLanguage,
+} from '../../utils/storedStatementLabels.js';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
@@ -37,6 +41,7 @@ import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
   const { currentClient } = useAuth();
+  const { preferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId } = useSelectedUnit();
   const { data: unitData, loading: unitLoading, error: unitError } = useUnitAccountStatus(currentClient, selectedUnitId);
 
@@ -114,11 +119,15 @@ const UnitSubDashboard = () => {
   const nonFuture = lineItems.filter((i) => !i.isFuture);
   const recentTx = nonFuture.slice(-10).reverse();
 
-  const statementRowsForCard = buildDedupedStoredStatementsForUi(storedStatements).slice(0, 5);
+  const allStatementRows = buildDedupedStoredStatementsForUi(storedStatements);
+  const preferredLangRows = filterDedupedStatementsByUiLanguage(allStatementRows, preferredLanguageUi);
+  const latestInPreferredLanguage = preferredLangRows[0] || null;
 
-  const handleGenerateStatement = async () => {
+  const handleGenerateStatement = () => {
     navigate('/statement');
   };
+
+  const langHint = preferredLanguageUi === 'ES' ? 'Spanish (Español)' : 'English';
 
   const isPastDue = daysPastDue > 0;
   const amountColor = amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669';
@@ -210,40 +219,61 @@ const UnitSubDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Stored Statements */}
+      {/* Statements — primary: latest in session language; archive on full screen */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
           {storedLoading ? (
             <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
-          ) : statementRowsForCard.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No stored statements</Typography>
           ) : (
-            <List dense disablePadding>
-              {statementRowsForCard.map((s) => (
-                <ListItem key={s.id} disablePadding>
-                  <ListItemText
-                    primary={s.label}
-                    primaryTypographyProps={{ variant: 'body2' }}
-                  />
-                  {s.storageUrl && (
-                    <Button
-                      size="small"
-                      startIcon={<PdfIcon />}
-                      onClick={() => navigate('/statement', { state: { openStoredStatementId: s.id } })}
-                    >
-                      Open
-                    </Button>
+            <>
+              {allStatementRows.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  No stored statements
+                </Typography>
+              ) : (
+                <>
+                  {latestInPreferredLanguage?.storageUrl ? (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        Latest ({langHint})
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {latestInPreferredLanguage.label}
+                      </Typography>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={<PdfIcon />}
+                        onClick={() => navigate('/statement', { state: { openStoredStatementId: latestInPreferredLanguage.id } })}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Open latest statement
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      No stored statement in {langHint} for this unit yet.
+                    </Typography>
                   )}
-                </ListItem>
-              ))}
-            </List>
+                </>
+              )}
+              <Button
+                fullWidth
+                variant="text"
+                size="small"
+                onClick={() => navigate('/statement')}
+                sx={{ textTransform: 'none', mb: 1 }}
+              >
+                Other statements / Otros estados de cuenta
+              </Button>
+            </>
           )}
           <Button
             fullWidth
-            variant="contained"
+            variant="outlined"
             startIcon={<GenerateIcon />}
-            sx={{ mt: 1 }}
+            sx={{ mt: 0.5 }}
             onClick={handleGenerateStatement}
           >
             Generate Current Statement

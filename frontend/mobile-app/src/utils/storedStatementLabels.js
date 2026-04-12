@@ -29,6 +29,12 @@ export function formatStoredStatementLabel(statement) {
  * Deduplicate by calendarYear + calendarMonth + language; keep newest reportGenerated.
  * Returns statements with .label for UI (e.g. "March 2026 (EN)").
  */
+/** @param {Array<{ label?: string }>} dedupedRows from buildDedupedStoredStatementsForUi */
+export function filterDedupedStatementsByUiLanguage(dedupedRows, uiLanguageCode) {
+  const want = uiLanguageCode === 'ES' ? 'ES' : 'EN';
+  return (dedupedRows || []).filter((s) => statementLanguageCode(s) === want);
+}
+
 export function buildDedupedStoredStatementsForUi(storedStatements) {
   const list = Array.isArray(storedStatements) ? storedStatements : [];
   const deduped = new Map();
