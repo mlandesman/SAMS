@@ -5,6 +5,7 @@ import admin from 'firebase-admin';
 
 // Import existing exchange rate functions
 import { updateExchangeRates, populateHistoricalRates } from './src/exchangeRatesUpdater.js';
+import { getMexicoDateString, getMexicoYesterdayString } from './src/utils/timezone.js';
 import { syncExchangeRatesToDev } from './src/syncToDevDatabase.js';
 import { loadTwoYearsHistoricalData, loadHistoricalDataForYear } from './src/bulkHistoricalLoader.js';
 
@@ -172,8 +173,9 @@ export const checkExchangeRatesHealth = onRequest(
   async (req, res) => {
     try {
       const db = admin.firestore();
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      // Doc IDs match updateExchangeRates: America/Cancun calendar YYYY-MM-DD (not UTC ISO date).
+      const today = getMexicoDateString();
+      const yesterday = getMexicoYesterdayString();
       
       const [todayDoc, yesterdayDoc] = await Promise.all([
         db.collection('exchangeRates').doc(today).get(),
