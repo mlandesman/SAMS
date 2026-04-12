@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -17,7 +17,6 @@ import {
   NoteAdd as GenerateIcon,
 } from '@mui/icons-material';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../../context/SelectedUnitContext.jsx';
@@ -32,15 +31,13 @@ import {
 const API_BASE_URL = config.api.baseUrl;
 
 const StatementPdfViewer = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { currentClient, firebaseUser } = useAuth();
   const { statementLanguageApi, preferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
 
-  // Stored statements state — start true so deep-link effect does not clear router state before first fetch runs
+  // Stored statements state — start true until first fetch settles (avoids empty flash)
   const [storedStatements, setStoredStatements] = useState([]);
   const [storedLoading, setStoredLoading] = useState(true);
   const [selectedStored, setSelectedStored] = useState('');
@@ -50,11 +47,6 @@ const StatementPdfViewer = () => {
   const [pdfSource, setPdfSource] = useState(null); // 'stored' | 'generated'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const pdfSourceRef = useRef(pdfSource);
-  const pdfUrlRef = useRef(pdfUrl);
-  pdfSourceRef.current = pdfSource;
-  pdfUrlRef.current = pdfUrl;
 
   // Fetch stored statement metadata from Firestore
   const fetchStoredStatements = useCallback(async () => {
@@ -109,8 +101,14 @@ const StatementPdfViewer = () => {
     };
   }, [pdfUrl, pdfSource]);
 
-  const storedOptionsAll = buildDedupedStoredStatementsForUi(storedStatements);
-  const storedOptions = filterDedupedStatementsByUiLanguage(storedOptionsAll, preferredLanguageUi);
+  const storedOptionsAll = useMemo(
+    () => buildDedupedStoredStatementsForUi(storedStatements),
+    [storedStatements],
+  );
+  const storedOptions = useMemo(
+    () => filterDedupedStatementsByUiLanguage(storedOptionsAll, preferredLanguageUi),
+    [storedOptionsAll, preferredLanguageUi],
+  );
 
   useEffect(() => {
     const allowed = new Set(storedOptions.map((s) => s.id));
@@ -118,31 +116,6 @@ const StatementPdfViewer = () => {
       setSelectedStored('');
     }
   }, [storedOptions, selectedStored]);
-
-  // Deep-link from My Unit (and similar): open stored PDF in-app like this screen's iframe viewer
-  useEffect(() => {
-    const openId = location.state?.openStoredStatementId;
-    if (!openId || storedLoading) return;
-
-    if (!storedStatements.length) {
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
-    }
-
-    const statement = storedStatements.find((s) => s.id === openId);
-
-    navigate(location.pathname, { replace: true, state: {} });
-
-    if (!statement?.storageUrl) return;
-
-    if (pdfUrlRef.current && pdfSourceRef.current === 'generated') {
-      URL.revokeObjectURL(pdfUrlRef.current);
-    }
-    setPdfUrl(statement.storageUrl);
-    setPdfSource('stored');
-    setSelectedStored(openId);
-    setError(null);
-  }, [storedStatements, storedLoading, location.state, location.pathname, navigate]);
 
   const handleOpenStored = () => {
     if (!selectedStored) return;

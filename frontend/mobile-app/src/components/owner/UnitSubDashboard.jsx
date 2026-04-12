@@ -84,7 +84,7 @@ const UnitSubDashboard = () => {
 
   useEffect(() => {
     setInlinePdfUrl(null);
-  }, [selectedUnitId, clientId]);
+  }, [selectedUnitId, clientId, preferredLanguageUi]);
 
   if (!currentClient || !selectedUnitId) {
     return (
