@@ -473,10 +473,18 @@ function DashboardView() {
                       <span>Bank Accounts:</span>
                       <strong>${accountBalances.bank?.toLocaleString() || '0'}</strong>
                     </Typography>
-                    <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                       <span>Cash Accounts:</span>
                       <strong>${accountBalances.cash?.toLocaleString() || '0'}</strong>
                     </Typography>
+                    {(accountBalances.unitCreditsPesos || 0) > 0 && (
+                      <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <span>Unit credits:</span>
+                        <strong style={{ color: '#b45309' }}>
+                          −${Math.round(accountBalances.unitCreditsPesos).toLocaleString()}
+                        </strong>
+                      </Typography>
+                    )}
                   </Box>
                 </>
               )}

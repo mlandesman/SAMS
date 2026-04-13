@@ -88,13 +88,25 @@ export const useDashboardData = () => {
         const bankBalance = accountsData.bankBalance || 0;
         const cashBalance = accountsData.cashBalance || 0;
         const totalBalance = bankBalance + cashBalance;
-        
+        const accountsList = accountsData.accounts || [];
+        // Gross pesos: sum all active account balances (same ledger as /balances/current).
+        // Matches user expectation: unit credits = gross − net total (HOADuesView sums creditBalance separately).
+        let sumAllCentavos = 0;
+        accountsList.forEach((acc) => {
+          if (acc.active !== false) {
+            sumAllCentavos += acc.balance || 0;
+          }
+        });
+        const sumAllAccountsPesos = Math.round(sumAllCentavos / 100);
+        const grossPesos =
+          accountsList.length > 0 ? sumAllAccountsPesos : Math.round(totalBalance / 100);
+
         // Structure the data for the dashboard (convert cents to dollars)
         const balanceData = {
-          total: Math.round(totalBalance / 100),
+          total: grossPesos,
           bank: Math.round(bankBalance / 100),
           cash: Math.round(cashBalance / 100),
-          accounts: accountsData.accounts || []
+          accounts: accountsList
         };
         
         setAccountBalancesBeforeCredit(balanceData);
@@ -120,9 +132,13 @@ export const useDashboardData = () => {
   const accountBalances = useMemo(() => {
     const gross = accountBalancesBeforeCredit.total || 0;
     const credit = unitCreditTotalPesos || 0;
+    const netTotal = Math.round(gross - credit);
+    // Reconciliation line (issue #96): same as HOA table total credit when net = gross − credit.
+    const unitCreditsPesos = gross - netTotal;
     return {
       ...accountBalancesBeforeCredit,
-      total: Math.round(gross - credit)
+      total: netTotal,
+      unitCreditsPesos
     };
   }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
 
