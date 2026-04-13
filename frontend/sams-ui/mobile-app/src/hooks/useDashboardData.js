@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from './useAuthStable.jsx';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
+import { getMexicoDate } from '../utils/timezone.js';
 
 export const useDashboardData = () => {
   const { samsUser, currentClient } = useAuth();
-  
-  const [accountBalances, setAccountBalances] = useState({
+
+  /** Gross bank+cash in pesos (rounded); headline total deducts unit credits (matches desktop sams-ui). */
+  const [accountBalancesBeforeCredit, setAccountBalancesBeforeCredit] = useState({
     total: 0,
     bank: 0,
     cash: 0,
     accounts: []
   });
+  /** Sum of positive unit creditBalance from dues/{year} (Firestore centavos → pesos). Same intent as HOADuesView.calculateTotalCredit(). */
+  const [unitCreditTotalPesos, setUnitCreditTotalPesos] = useState(0);
   
   const [hoaDuesStatus, setHoaDuesStatus] = useState({
     totalDue: 0,
@@ -41,29 +45,36 @@ export const useDashboardData = () => {
     rates: null
   });
 
-  // Fetch account balances - simplified version for PWA
+  // Fetch account balances from Firestore (amounts stored as centavos — match desktop /balances/current display)
   useEffect(() => {
     const fetchAccountBalances = async () => {
-      if (!currentClient || !samsUser) return;
-      
+      if (!currentClient || !samsUser) {
+        setAccountBalancesBeforeCredit({
+          total: 0,
+          bank: 0,
+          cash: 0,
+          accounts: []
+        });
+        setLoading(prev => ({ ...prev, accounts: false }));
+        return;
+      }
+
       try {
         setLoading(prev => ({ ...prev, accounts: true }));
         setError(prev => ({ ...prev, accounts: null }));
-        
-        // Get client document directly from Firestore
+
         const clientDocRef = doc(db, `clients/${currentClient}`);
         const clientSnapshot = await getDoc(clientDocRef);
-        
+
         if (clientSnapshot.exists()) {
           const clientData = clientSnapshot.data();
           const accounts = clientData.accounts || [];
-          
-          // Calculate totals by account type
+
           let bankBalance = 0;
           let cashBalance = 0;
-          
-          accounts.forEach(account => {
-            if (account.active !== false) { // Include active accounts
+
+          accounts.forEach((account) => {
+            if (account.active !== false) {
               const balance = account.balance || 0;
               if (account.type === 'bank') {
                 bankBalance += balance;
@@ -72,25 +83,22 @@ export const useDashboardData = () => {
               }
             }
           });
-          
+
           const totalBalance = bankBalance + cashBalance;
-          
-          setAccountBalances({
-            total: Math.round(totalBalance),
-            bank: Math.round(bankBalance),
-            cash: Math.round(cashBalance),
-            accounts: accounts.filter(acc => acc.active !== false)
+
+          setAccountBalancesBeforeCredit({
+            total: Math.round(totalBalance / 100),
+            bank: Math.round(bankBalance / 100),
+            cash: Math.round(cashBalance / 100),
+            accounts: accounts.filter((acc) => acc.active !== false)
           });
         } else {
           throw new Error('Client data not found');
         }
-        
       } catch (err) {
         console.error('Error fetching account balances:', err);
         setError(prev => ({ ...prev, accounts: err.message }));
-        
-        // Fallback to zero balances on error
-        setAccountBalances({
+        setAccountBalancesBeforeCredit({
           total: 0,
           bank: 0,
           cash: 0,
@@ -104,17 +112,33 @@ export const useDashboardData = () => {
     fetchAccountBalances();
   }, [currentClient, samsUser]);
 
+  const accountBalances = useMemo(() => {
+    const gross = accountBalancesBeforeCredit.total || 0;
+    const credit = unitCreditTotalPesos || 0;
+    const netTotal = Math.round(gross - credit);
+    return {
+      ...accountBalancesBeforeCredit,
+      total: netTotal,
+      unitCreditsPesos: credit
+    };
+  }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
+
   // Fetch HOA dues status - same logic as Desktop UI
   useEffect(() => {
     const fetchHOADuesStatus = async () => {
-      if (!currentClient || !samsUser) return;
+      if (!currentClient || !samsUser) {
+        setUnitCreditTotalPesos(0);
+        setLoading(prev => ({ ...prev, dues: false }));
+        return;
+      }
       
       try {
+        setUnitCreditTotalPesos(0);
         setLoading(prev => ({ ...prev, dues: true }));
         setError(prev => ({ ...prev, dues: null }));
         
-        // Get current year and month for calculations
-        const currentDate = new Date();
+        // Current calendar context in America/Cancun (same discipline as desktop)
+        const currentDate = getMexicoDate();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth() + 1; // 1-12
         
@@ -123,12 +147,12 @@ export const useDashboardData = () => {
         const unitsSnapshot = await getDocs(unitsCollectionRef);
         
         const units = [];
-        unitsSnapshot.forEach(doc => {
-          const unitData = {
-            id: doc.id,
-            ...doc.data()
-          };
-          units.push(unitData);
+        unitsSnapshot.forEach((unitDoc) => {
+          if (unitDoc.id === 'creditBalances') return;
+          units.push({
+            id: unitDoc.id,
+            ...unitDoc.data()
+          });
         });
         
         if (units.length === 0) {
@@ -152,6 +176,7 @@ export const useDashboardData = () => {
         let currentMonthCollected = 0;
         let pastDueUnits = 0;
         let pastDueAmount = 0;
+        let totalCreditCentavos = 0;
         const monthsElapsed = currentMonth; // How many months of the year have passed
         
         for (const unit of units) {
@@ -197,8 +222,11 @@ export const useDashboardData = () => {
             }
           }
           
-          // Add credit balance to total collected and unit paid total (credits count as payments received)
+          // Credits in Firestore are centavos; add to collection math in centavos.
           const unitCreditBalance = unitDues?.creditBalance || 0;
+          if (unitCreditBalance > 0) {
+            totalCreditCentavos += unitCreditBalance;
+          }
           totalCollected += unitCreditBalance;
           unitPaidTotal += unitCreditBalance;
           
@@ -228,6 +256,8 @@ export const useDashboardData = () => {
         console.log('📊 Collection Rate (Current Month):', collectionRate.toFixed(1) + '%');
         console.log('🚨 Past Due Units Count:', pastDueUnits);
         console.log('💸 Past Due Amount:', pastDueAmount.toLocaleString());
+
+        setUnitCreditTotalPesos(totalCreditCentavos / 100);
         
         setHoaDuesStatus({
           totalDue: annualDuesTotal,
@@ -243,6 +273,7 @@ export const useDashboardData = () => {
       } catch (err) {
         console.error('Error fetching HOA dues status:', err);
         setError(prev => ({ ...prev, dues: err.message }));
+        setUnitCreditTotalPesos(0);
         
         // Fallback to zero data on error
         setHoaDuesStatus({
