@@ -4,6 +4,18 @@ import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
 import { getMexicoDate } from '../utils/timezone.js';
 
+/**
+ * Current credit balance in centavos from one unit's slice of `units/creditBalances` (history journal).
+ * Same algorithm as shared getCreditBalance — inlined to avoid bundling Node DateService/firebase-admin.
+ */
+function creditBalanceCentavosFromHistory(unitCreditDoc) {
+  if (!unitCreditDoc?.history || !Array.isArray(unitCreditDoc.history)) return 0;
+  return unitCreditDoc.history.reduce((sum, entry) => {
+    const amount = typeof entry.amount === 'number' ? entry.amount : 0;
+    return sum + amount;
+  }, 0);
+}
+
 export const useDashboardData = () => {
   const { samsUser, currentClient } = useAuth();
 
@@ -14,7 +26,7 @@ export const useDashboardData = () => {
     cash: 0,
     accounts: []
   });
-  /** Sum of positive unit creditBalance from dues/{year} (Firestore centavos → pesos). Same intent as HOADuesView.calculateTotalCredit(). */
+  /** Sum of positive unit credits from `units/creditBalances` history (centavos → pesos). Matches getAllDuesDataForYear / HOADuesView.calculateTotalCredit(). */
   const [unitCreditTotalPesos, setUnitCreditTotalPesos] = useState(0);
   
   const [hoaDuesStatus, setHoaDuesStatus] = useState({
@@ -160,6 +172,12 @@ export const useDashboardData = () => {
         if (units.length === 0) {
           throw new Error('No units found for this client');
         }
+
+        // Centralized credit (same source as getAllDuesDataForYear / desktop API) — not on per-unit dues docs
+        const creditBalancesSnap = await getDoc(
+          doc(db, `clients/${currentClient}/units/creditBalances`)
+        );
+        const allCreditData = creditBalancesSnap.exists() ? creditBalancesSnap.data() || {} : {};
         
         // Calculate Annual Dues (total amount each unit should pay x 12)
         const annualDuesTotal = units.reduce((total, unit) => {
@@ -224,13 +242,13 @@ export const useDashboardData = () => {
             }
           }
           
-          // Credits in Firestore are centavos; add to collection math in centavos.
-          const unitCreditBalance = unitDues?.creditBalance || 0;
-          if (unitCreditBalance > 0) {
-            totalCreditCentavos += unitCreditBalance;
+          // Credits: centavos from units/creditBalances (authoritative), not dues/{year} snapshots
+          const creditCentavos = creditBalanceCentavosFromHistory(allCreditData[unit.id] || {});
+          if (creditCentavos > 0) {
+            totalCreditCentavos += creditCentavos;
           }
-          totalCollected += unitCreditBalance;
-          unitPaidTotal += unitCreditBalance;
+          totalCollected += creditCentavos;
+          unitPaidTotal += creditCentavos;
           
           // Calculate past due amount for this unit (including credits)
           if (unitPaidTotal < shouldHavePaidByNow) {
