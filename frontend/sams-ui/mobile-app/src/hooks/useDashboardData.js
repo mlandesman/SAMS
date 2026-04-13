@@ -3,18 +3,10 @@ import { useAuth } from './useAuthStable.jsx';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
 import { getMexicoDate } from '../utils/timezone.js';
-
-/**
- * Current credit balance in centavos from one unit's slice of `units/creditBalances` (history journal).
- * Same algorithm as shared getCreditBalance — inlined to avoid bundling Node DateService/firebase-admin.
- */
-function creditBalanceCentavosFromHistory(unitCreditDoc) {
-  if (!unitCreditDoc?.history || !Array.isArray(unitCreditDoc.history)) return 0;
-  return unitCreditDoc.history.reduce((sum, entry) => {
-    const amount = typeof entry.amount === 'number' ? entry.amount : 0;
-    return sum + amount;
-  }, 0);
-}
+import {
+  getCreditBalanceCentavos,
+  totalCreditCentavosPositiveFromCreditBalancesRoot
+} from '@shared/utils/hoaCreditTotals';
 
 export const useDashboardData = () => {
   const { samsUser, currentClient } = useAuth();
@@ -196,7 +188,6 @@ export const useDashboardData = () => {
         let currentMonthCollected = 0;
         let pastDueUnits = 0;
         let pastDueAmount = 0;
-        let totalCreditCentavos = 0;
         const monthsElapsed = currentMonth; // How many months of the year have passed
         
         for (const unit of units) {
@@ -242,11 +233,8 @@ export const useDashboardData = () => {
             }
           }
           
-          // Credits: centavos from units/creditBalances (authoritative), not dues/{year} snapshots
-          const creditCentavos = creditBalanceCentavosFromHistory(allCreditData[unit.id] || {});
-          if (creditCentavos > 0) {
-            totalCreditCentavos += creditCentavos;
-          }
+          // Credits: centavos from units/creditBalances (shared getCreditBalanceCentavos)
+          const creditCentavos = getCreditBalanceCentavos(allCreditData[unit.id] || {});
           totalCollected += creditCentavos;
           unitPaidTotal += creditCentavos;
           
@@ -277,6 +265,10 @@ export const useDashboardData = () => {
         console.log('🚨 Past Due Units Count:', pastDueUnits);
         console.log('💸 Past Due Amount:', pastDueAmount.toLocaleString());
 
+        const totalCreditCentavos = totalCreditCentavosPositiveFromCreditBalancesRoot(
+          allCreditData,
+          units.map((u) => u.id)
+        );
         setUnitCreditTotalPesos(totalCreditCentavos / 100);
         
         setHoaDuesStatus({

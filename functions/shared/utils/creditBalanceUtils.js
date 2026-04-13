@@ -8,27 +8,18 @@
  */
 
 import { getNow } from '../services/DateService.js';
+import { getCreditBalanceCentavos } from './hoaCreditTotals.js';
 
 /**
  * Calculate current credit balance from history entries.
  * This is the ONLY source of truth for credit balance.
- * 
- * ARCHITECTURAL PRINCIPLE: amount field is the single source of truth.
- * - Positive amount = credit added
- * - Negative amount = credit used
- * 
+ * Delegates to {@link getCreditBalanceCentavos} in hoaCreditTotals.js (browser-safe single implementation).
+ *
  * @param {Object} creditDoc - The credit balance document from Firestore
  * @returns {number} Credit balance in centavos
  */
 export function getCreditBalance(creditDoc) {
-  if (!creditDoc?.history || !Array.isArray(creditDoc.history)) {
-    return 0;
-  }
-  
-  return creditDoc.history.reduce((sum, entry) => {
-    const amount = typeof entry.amount === 'number' ? entry.amount : 0;
-    return sum + amount;
-  }, 0);
+  return getCreditBalanceCentavos(creditDoc);
 }
 
 /**

@@ -26,6 +26,7 @@ import {
 import { getMexicoDate } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
 import { centavosToPesos } from '@shared/utils/currencyUtils';
+import { totalCreditPesosFromDuesDataByUnitsList } from '@shared/utils/hoaCreditTotals';
 import debug from '../utils/debug';
 import ContextMenu from '../components/ContextMenu';
 import PaymentDetailsModal from '../components/PaymentDetailsModal';
@@ -590,13 +591,9 @@ function HOADuesView() {
     return units.reduce((total, unit) => total + calculateUnitTotal(unit.unitId), 0);
   };
 
-  // Calculate total credit - Sum backend creditBalance values
-  const calculateTotalCredit = () => {
-    return units.reduce((total, unit) => {
-      const unitData = duesData[unit.unitId];
-      return total + (unitData?.creditBalance || 0);
-    }, 0);
-  };
+  // Total credit footer — shared util (same aggregation as single source in @shared/utils/hoaCreditTotals)
+  const calculateTotalCredit = () =>
+    totalCreditPesosFromDuesDataByUnitsList(duesData || {}, units || []);
 
   // ============================================
   // QUARTERLY DISPLAY FUNCTIONS

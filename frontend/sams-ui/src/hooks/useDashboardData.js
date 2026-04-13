@@ -11,6 +11,7 @@ import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils';
 import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDate } from '../utils/timezone';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
+import { totalCreditPesosPositiveFromDuesYearRecord } from '@shared/utils/hoaCreditTotals';
 
 // NO CACHE - Dashboard always fetches fresh data
 // Cache was removed to prevent stale data issues (Dec 2025)
@@ -398,17 +399,11 @@ export const useDashboardData = () => {
         
         // Calculate pre-paid amounts - sum backend credit + future payment values
         let prePaidAmount = 0;
-        let totalCreditBalances = 0;
+        const totalCreditBalances = totalCreditPesosPositiveFromDuesYearRecord(duesDataFromAPI);
         if (duesDataFromAPI && Object.keys(duesDataFromAPI).length > 0) {
           Object.entries(duesDataFromAPI)
-            .filter(([unitId]) => unitId !== 'creditBalances')
-            .forEach(([unitId, unitData]) => {
-              // Sum backend credit balances
-              const creditBalance = unitData?.creditBalance || 0; // From backend
-              if (creditBalance > 0) {
-                totalCreditBalances += creditBalance;
-              }
-              
+            .filter(([unitId]) => unitId !== 'creditBalances' && !unitId.startsWith('creditBalances'))
+            .forEach(([, unitData]) => {
               // Sum backend future payment amounts
               if (unitData?.payments && Array.isArray(unitData.payments)) {
                 for (let fiscalMonth = currentMonth + 1; fiscalMonth <= 12; fiscalMonth++) {
