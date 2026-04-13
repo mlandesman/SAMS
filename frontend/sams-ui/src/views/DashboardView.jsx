@@ -465,10 +465,10 @@ function DashboardView() {
                   <Typography variant="h4" sx={{ color: '#0863bf', fontWeight: 700, mb: 1 }}>
                     ${accountBalances.total?.toLocaleString() || '0'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Total Balance
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    Bank + Cash − Credit Balances
                   </Typography>
-                  <Box sx={{ mt: 2 }}>
+                  <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                       <span>Bank Accounts:</span>
                       <strong>${accountBalances.bank?.toLocaleString() || '0'}</strong>
@@ -479,9 +479,9 @@ function DashboardView() {
                     </Typography>
                     {(accountBalances.unitCreditsPesos || 0) > 0 && (
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span>Unit credits:</span>
-                        <strong style={{ color: '#b45309' }}>
-                          −${Math.round(accountBalances.unitCreditsPesos).toLocaleString()}
+                        <span style={{ color: 'rgba(0,0,0,0.6)' }}>Credit Balances</span>
+                        <strong>
+                          ${Math.round(accountBalances.unitCreditsPesos).toLocaleString()}
                         </strong>
                       </Typography>
                     )}
