@@ -28,7 +28,7 @@ export const useDashboardData = () => {
     cash: 0,
     accounts: []
   });
-  /** Sum of owner unit credit balances (pesos) from same hoadues/year payload as HOA card. */
+  /** Same total as HOADuesView.calculateTotalCredit() — sum of unit creditBalance from hoadues/{year} (pesos). */
   const [unitCreditTotalPesos, setUnitCreditTotalPesos] = useState(0);
   
   const [hoaDuesStatus, setHoaDuesStatus] = useState({
@@ -89,21 +89,12 @@ export const useDashboardData = () => {
         const cashBalance = accountsData.cashBalance || 0;
         const totalBalance = bankBalance + cashBalance;
         const accountsList = accountsData.accounts || [];
-        // Gross pesos: sum all active account balances (same ledger as /balances/current).
-        // Matches user expectation: unit credits = gross − net total (HOADuesView sums creditBalance separately).
-        let sumAllCentavos = 0;
-        accountsList.forEach((acc) => {
-          if (acc.active !== false) {
-            sumAllCentavos += acc.balance || 0;
-          }
-        });
-        const sumAllAccountsPesos = Math.round(sumAllCentavos / 100);
-        const grossPesos =
-          accountsList.length > 0 ? sumAllAccountsPesos : Math.round(totalBalance / 100);
 
-        // Structure the data for the dashboard (convert cents to dollars)
+        // Structure the data for the dashboard (convert cents to pesos).
+        // Gross = bank+cash from GET /balances/current. Unit credits = same sum as HOADuesView.calculateTotalCredit()
+        // (aggregated from hoadues/{year} in the HOA dashboard effect below).
         const balanceData = {
-          total: grossPesos,
+          total: Math.round(totalBalance / 100),
           bank: Math.round(bankBalance / 100),
           cash: Math.round(cashBalance / 100),
           accounts: accountsList
@@ -133,12 +124,11 @@ export const useDashboardData = () => {
     const gross = accountBalancesBeforeCredit.total || 0;
     const credit = unitCreditTotalPesos || 0;
     const netTotal = Math.round(gross - credit);
-    // Reconciliation line (issue #96): same as HOA table total credit when net = gross − credit.
-    const unitCreditsPesos = gross - netTotal;
     return {
       ...accountBalancesBeforeCredit,
       total: netTotal,
-      unitCreditsPesos
+      // Explicit HOA aggregate (pesos), not derived — matches HOADuesView.calculateTotalCredit().
+      unitCreditsPesos: credit
     };
   }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
 
