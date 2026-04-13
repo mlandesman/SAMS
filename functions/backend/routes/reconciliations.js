@@ -24,6 +24,7 @@ import {
 
 const router = express.Router();
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
+const MAX_MULTIPART_BYTES = (MAX_UPLOAD_BYTES * 2) + (2 * 1024 * 1024); // bank + optional pdf + form overhead
 const ALLOWED_UPLOAD_FIELDS = new Set(['bankFile', 'statementPdf']);
 
 class UploadParseError extends Error {
@@ -65,13 +66,7 @@ async function parseImportMultipartFromRawBody(req) {
     );
   }
 
-  if (!Buffer.isBuffer(req.rawBody) || req.rawBody.length === 0) {
-    throw new UploadParseError(
-      'UPLOAD_PARSE_FAILED',
-      'Missing raw upload payload for multipart parsing.',
-      'raw-body'
-    );
-  }
+  const uploadBody = await resolveMultipartBody(req);
 
   return new Promise((resolve, reject) => {
     let failed = false;
@@ -162,11 +157,15 @@ async function parseImportMultipartFromRawBody(req) {
       if (parsedFiles.statementPdf.length > 0) {
         files.statementPdf = parsedFiles.statementPdf;
       }
-      resolve(files);
+      resolve({
+        files,
+        bodySource: uploadBody.source,
+        bodyLength: uploadBody.buffer.length
+      });
     });
 
     try {
-      bb.end(req.rawBody);
+      bb.end(uploadBody.buffer);
     } catch (error) {
       fail('UPLOAD_PARSE_FAILED', `Failed to process raw upload body (${error.message}).`, 'raw-body');
     }
@@ -176,8 +175,11 @@ async function parseImportMultipartFromRawBody(req) {
 async function importUploadParser(req, res, next) {
   uploadLog(req, 'attempt');
   try {
-    req.files = await parseImportMultipartFromRawBody(req);
+    const parsed = await parseImportMultipartFromRawBody(req);
+    req.files = parsed.files;
     uploadLog(req, 'parsed', {
+      bodySource: parsed.bodySource,
+      bodyLength: parsed.bodyLength,
       parsedFiles: {
         bankFile: req.files.bankFile.map((f) => ({
           originalname: f.originalname,
@@ -199,6 +201,83 @@ async function importUploadParser(req, res, next) {
     uploadLog(req, 'failed', { code, phase, error: message });
     return res.status(400).json({ success: false, error: message, code });
   }
+}
+
+async function resolveMultipartBody(req) {
+  if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) {
+    return { source: 'rawBody', buffer: req.rawBody };
+  }
+
+  const buffered = await readRequestStreamToBuffer(req);
+  if (!buffered.length) {
+    throw new UploadParseError(
+      'UPLOAD_PARSE_FAILED',
+      'Missing upload payload for multipart parsing.',
+      'raw-body'
+    );
+  }
+  return { source: 'request-stream', buffer: buffered };
+}
+
+function readRequestStreamToBuffer(req) {
+  return new Promise((resolve, reject) => {
+    let total = 0;
+    const chunks = [];
+    let done = false;
+
+    const cleanup = () => {
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+      req.removeListener('aborted', onAborted);
+    };
+
+    const fail = (error) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(error);
+    };
+
+    const succeed = () => {
+      if (done) return;
+      done = true;
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    };
+
+    const onData = (chunk) => {
+      total += chunk.length;
+      if (total > MAX_MULTIPART_BYTES) {
+        fail(new UploadParseError(
+          'UPLOAD_PARSE_FAILED',
+          `Multipart payload exceeds ${MAX_MULTIPART_BYTES} bytes.`,
+          'raw-body'
+        ));
+        return;
+      }
+      chunks.push(chunk);
+    };
+
+    const onEnd = () => succeed();
+    const onError = (error) =>
+      fail(new UploadParseError(
+        'UPLOAD_PARSE_FAILED',
+        `Failed to read multipart request stream (${error.message}).`,
+        'raw-body'
+      ));
+    const onAborted = () =>
+      fail(new UploadParseError(
+        'UPLOAD_PARSE_FAILED',
+        'Multipart request stream was aborted before completion.',
+        'raw-body'
+      ));
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+    req.on('aborted', onAborted);
+  });
 }
 
 router.use(authenticateUserWithProfile);
