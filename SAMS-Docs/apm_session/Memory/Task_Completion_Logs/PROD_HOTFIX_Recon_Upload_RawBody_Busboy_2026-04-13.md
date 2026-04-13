@@ -11,7 +11,7 @@ branch: fix/recon-upload-rawbody-busboy
 
 Production upload failures (`Unexpected end of form`) were caused by multipart parsing behavior across Firebase/Cloud Run request handling. The import route depended on Multer stream parsing and a JSON/base64 fallback path, which is fragile for this transport mismatch and increases complexity/risk.  
 
-The fix uses route-local Busboy parsing over `req.rawBody` (already buffered by platform) so parsing is deterministic and does not rely on live stream integrity in this endpoint.
+The fix uses route-local Busboy parsing over a buffered payload source with `req.rawBody` preferred and a request-stream buffer fallback when `rawBody` is unavailable in runtime. This keeps parsing deterministic while handling both platform shapes observed in Dev/Prod paths.
 
 ## Files changed and why
 
@@ -48,10 +48,48 @@ The fix uses route-local Busboy parsing over `req.rawBody` (already buffered by 
 - Malformed/truncated multipart paths could surface as `Unexpected end of form` in production transport.
 
 ### After
-- Route parses multipart payload via Busboy using `req.rawBody`.
+- Route parses multipart payload via Busboy using buffered payload (`req.rawBody` when available, otherwise request-stream buffer fallback).
 - Single upload contract path; no JSON/base64 fallback behavior needed.
 - Parsing/contract errors return typed 400 responses with explicit error codes.
 - Upload metadata is logged structurally without file content.
+
+## Task Completion Summary
+
+### Completion Details
+- **Completed Date**: 2026-04-13 (America/Cancun)
+- **Total Duration**: Same-day hotfix implementation + validation
+- **Final Status**: ✅ Complete
+
+### Deliverables Produced
+1. **RawBody-first Busboy parser for reconciliation import**
+   - Location: `functions/backend/routes/reconciliations.js`
+   - Description: Replaced route-local Multer parser with Busboy-based buffered parser, preserving controller contract.
+2. **Upload error contract + structured observability**
+   - Location: `functions/backend/routes/reconciliations.js`
+   - Description: Added typed 400 codes and structured logs for attempt/parsed/failed stages.
+3. **Dependency and completion-log updates**
+   - Location: `functions/package.json`, `functions/package-lock.json`, `functions/backend/package.json`, `functions/backend/package-lock.json`, this completion log
+   - Description: Added `busboy` dependency and documented root cause, behavior change, and testing evidence.
+
+### Implementation Highlights
+- Implemented strict multipart contract validation without touching reconciliation business logic.
+- Added runtime-safe payload source resolution (`rawBody` preferred, stream buffer fallback).
+- Kept parser output format fully compatible with existing controller expectations (`req.files` shape).
+
+### Technical Decisions
+1. **Route-local parser migration**: limited change scope to import endpoint to avoid regressions in unrelated upload routes.
+2. **Buffered fallback when rawBody missing**: avoids reintroducing JSON/base64 hacks while handling inconsistent runtime request-shape behavior.
+
+### Code Statistics
+- Files Created: `SAMS-Docs/apm_session/Memory/Task_Completion_Logs/PROD_HOTFIX_Recon_Upload_RawBody_Busboy_2026-04-13.md`
+- Files Modified:
+  - `functions/backend/routes/reconciliations.js`
+  - `functions/package.json`
+  - `functions/package-lock.json`
+  - `functions/backend/package.json`
+  - `functions/backend/package-lock.json`
+- Total Lines (main...HEAD for this hotfix): `379 insertions`, `9 deletions`
+- Test Coverage: manual/parser smoke coverage; no new formal unit test suite added
 
 ## Test evidence
 
@@ -115,3 +153,105 @@ Observed:
 - Typed 400 parser/validation errors: ✅
 - `pre-pr-checks.sh main` executed and documented: ✅
 - No reconciliation business logic changes: ✅
+
+## Acceptance Criteria Validation
+
+From Task Assignment:
+- ✅ **Route parser migration**: import endpoint no longer uses Multer parsing on this path.
+- ✅ **Busboy + buffered payload contract**: parser uses `req.rawBody` when present and request-stream buffering fallback when absent.
+- ✅ **Typed parser/contract 400 errors**: all required upload error codes implemented and validated.
+- ✅ **Observability**: structured logs include route/client/session/content metadata + parse phase/code outcomes.
+- ✅ **Frontend fallback cleanup requirement**: branch verified against current code; frontend already on single multipart path (no JSON/base64 retry logic).
+- ✅ **No business logic regression scope**: reconciliation controller contract preserved (`req.files` file object arrays).
+
+Additional Achievements:
+- ✅ Added explicit body source telemetry (`rawBody` vs `request-stream`) to aid production diagnosis.
+
+## Integration Documentation
+
+### Interfaces Created
+- **`importUploadParser(req,res,next)`**: route middleware for multipart parsing/validation.
+- **`parseImportMultipartFromRawBody(req)`**: parser that normalizes upload files to controller contract.
+- **`resolveMultipartBody(req)`**: payload source resolver (`rawBody` preferred, stream fallback).
+
+### Dependencies
+- Depends on: `busboy` package and existing Express route auth middleware.
+- Depended by: `POST /clients/:clientId/reconciliations/:sessionId/import` route and `importBankFile(...)` controller call path.
+
+### API/Contract
+```javascript
+// req.files shape passed to controller
+{
+  bankFile: [{ fieldname, originalname, mimetype, encoding, size, buffer }],
+  statementPdf?: [{ fieldname, originalname, mimetype, encoding, size, buffer }]
+}
+```
+
+## Usage Examples
+
+### Example 1: Successful import parse
+```javascript
+await importUploadParser(req, res, next);
+// next() called with req.files populated for controller
+```
+
+### Example 2: Contract failure
+```javascript
+// Missing bankFile
+res.status(400).json({
+  success: false,
+  error: 'bankFile upload is required.',
+  code: 'UPLOAD_MISSING_BANK_FILE'
+});
+```
+
+## Key Implementation Code
+
+### Multipart body source resolution
+```javascript
+if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) {
+  return { source: 'rawBody', buffer: req.rawBody };
+}
+const buffered = await readRequestStreamToBuffer(req);
+return { source: 'request-stream', buffer: buffered };
+```
+**Purpose**: ensure parser works across runtime differences where `rawBody` may be absent.
+**Notes**: keeps a single multipart pathway (no JSON/base64 fallback).
+
+## Lessons Learned
+- **What Worked Well**: route-local parser replacement kept blast radius minimal and reviewable.
+- **Challenges Faced**: runtime differences (rawBody present in some paths, absent in others) required buffered fallback for reliability.
+- **Time Estimates**: original rawBody-only approach was quick; robust cross-runtime hardening added a short second pass.
+- **Recommendations**: keep upload telemetry at parser boundaries to rapidly isolate transport-vs-business issues.
+
+## Handoff to Manager
+
+### Review Points
+- Confirm acceptance of buffered fallback design (`rawBody` preferred + stream fallback).
+- Confirm this endpoint-only migration is sufficient for production reliability before broader upload refactors.
+
+### Testing Instructions
+1. Dev/Prod reconcile import with bank file only; verify `stage: parsed`.
+2. Dev/Prod reconcile import with bank file + PDF; verify `stage: parsed`.
+3. Trigger malformed uploads (or synthetic parser checks) and confirm typed 400 error codes.
+4. Inspect logs for `bodySource` to confirm telemetry is present.
+
+### Deployment Notes
+- Backend API deploy only; no schema/data migration.
+- No configuration changes required.
+
+## Final Status
+- **Task**: `PROD-HOTFIX-RECON-UPLOAD-RAWBODY` - PROD Upload Reliability (Bank Reconciliation)
+- **Status**: ✅ COMPLETE
+- **Ready for**: Manager Review
+- **Memory Bank**: Fully Updated
+- **Blockers**: None
+
+## Completion Checklist
+- [x] All code committed
+- [x] Tests passing
+- [x] Documentation complete
+- [x] Memory Bank updated
+- [x] Integration verified
+- [x] Examples provided
+- [x] Handoff notes prepared
