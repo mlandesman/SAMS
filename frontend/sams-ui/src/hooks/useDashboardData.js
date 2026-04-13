@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { useHOADues } from '../context/HOADuesContext';
@@ -21,12 +21,15 @@ export const useDashboardData = () => {
   const { selectedClient, menuConfig, isLoadingMenu } = useClient();
   const { exchangeRate, loading: exchangeLoading } = useExchangeRates();
   
-  const [accountBalances, setAccountBalances] = useState({
+  /** Gross bank+cash (pesos, rounded); total is reduced by unit credit in useMemo (#96). */
+  const [accountBalancesBeforeCredit, setAccountBalancesBeforeCredit] = useState({
     total: 0,
     bank: 0,
     cash: 0,
     accounts: []
   });
+  /** Sum of owner unit credit balances (pesos) from same hoadues/year payload as HOA card. */
+  const [unitCreditTotalPesos, setUnitCreditTotalPesos] = useState(0);
   
   const [hoaDuesStatus, setHoaDuesStatus] = useState({
     currentlyDue: 0,
@@ -65,7 +68,7 @@ export const useDashboardData = () => {
     const fetchAccountBalances = async () => {
       if (!selectedClient || !samsUser) {
         // Clear data when no client selected
-        setAccountBalances({
+        setAccountBalancesBeforeCredit({
           total: 0,
           bank: 0,
           cash: 0,
@@ -94,13 +97,13 @@ export const useDashboardData = () => {
           accounts: accountsData.accounts || []
         };
         
-        setAccountBalances(balanceData);
+        setAccountBalancesBeforeCredit(balanceData);
       } catch (err) {
         console.error('Error fetching account balances:', err);
         setError(prev => ({ ...prev, accounts: err.message }));
         
         // Fallback to zero balances on error
-        setAccountBalances({
+        setAccountBalancesBeforeCredit({
           total: 0,
           bank: 0,
           cash: 0,
@@ -114,11 +117,21 @@ export const useDashboardData = () => {
     fetchAccountBalances();
   }, [selectedClient, samsUser]);
 
+  const accountBalances = useMemo(() => {
+    const gross = accountBalancesBeforeCredit.total || 0;
+    const credit = unitCreditTotalPesos || 0;
+    return {
+      ...accountBalancesBeforeCredit,
+      total: Math.round(gross - credit)
+    };
+  }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
+
   // Fetch HOA dues status
   useEffect(() => {
     const fetchHOADuesStatus = async () => {
       if (!selectedClient || !samsUser) {
         // Clear data when no client selected
+        setUnitCreditTotalPesos(0);
         setHoaDuesStatus({
           currentlyDue: 0,
           currentPaid: 0,
@@ -131,6 +144,7 @@ export const useDashboardData = () => {
       }
       
       try {
+        setUnitCreditTotalPesos(0);
         setLoading(prev => ({ ...prev, dues: true }));
         setError(prev => ({ ...prev, dues: null }));
         
@@ -402,6 +416,9 @@ export const useDashboardData = () => {
             });
         }
         prePaidAmount += totalCreditBalances;
+
+        // Owner credits (pesos) — same sums as futurePayments prepay logic; deduct from Account Balances total (#96)
+        setUnitCreditTotalPesos(totalCreditBalances);
         
         // Calculate currently due (total expected to date through current month)
         const currentlyDue = totalExpectedToDate || 0;
@@ -443,6 +460,7 @@ export const useDashboardData = () => {
         setError(prev => ({ ...prev, dues: err.message || 'Unknown error' }));
         
         // Fallback to zero data on error
+        setUnitCreditTotalPesos(0);
         setHoaDuesStatus({
           currentlyDue: 0,
           currentPaid: 0,

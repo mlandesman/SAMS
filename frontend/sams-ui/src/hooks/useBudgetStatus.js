@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useClient } from '../context/ClientContext';
 import reportService from '../services/reportService';
+import { centavosToPesos } from '@shared/utils/currencyUtils';
 
 export function useBudgetStatus() {
   const { selectedClient } = useClient();
@@ -28,28 +29,19 @@ export function useBudgetStatus() {
       //   reportInfo: { fiscalYear, percentOfYearElapsed, ... }
       //   income:     { categories: [...], totals: { totalAnnualBudget, totalYtdBudget, totalYtdActual, totalVariance } }
       //   expenses:   { categories: [...], totals: { totalAnnualBudget, totalYtdBudget, totalYtdActual, totalVariance } }
+      // Totals and category rows are INTEGER CENTAVOS (same as Firestore); convert to pesos for UI.
       const incomeTotals = budgetData.income?.totals || {};
       const expenseTotals = budgetData.expenses?.totals || {};
 
-      // Calculate summary metrics
-      const totalBudget = (incomeTotals.totalAnnualBudget || 0) + 
-                          (expenseTotals.totalAnnualBudget || 0);
-      const totalActual = (incomeTotals.totalYtdActual || 0) + 
-                          (expenseTotals.totalYtdActual || 0);
-      const totalVariance = (incomeTotals.totalVariance || 0) + 
-                            (expenseTotals.totalVariance || 0);
-
-      // Calculate YTD budget based on % of year elapsed
       const percentElapsed = budgetData.reportInfo?.percentOfYearElapsed || 0;
-      const ytdBudget = totalBudget * (percentElapsed / 100);
 
       // Determine status (favorable = actual < budget for expenses, actual > budget for income)
-      // For combined, we look at net position
-      const netBudgetYTD = (incomeTotals.totalYtdBudget || 0) - 
-                           (expenseTotals.totalYtdBudget || 0);
-      const netActual = (incomeTotals.totalYtdActual || 0) - 
-                        Math.abs(expenseTotals.totalYtdActual || 0);
-      const netVariance = netActual - netBudgetYTD;
+      // For combined, we look at net position (centavos → pesos for derived fields)
+      const netBudgetYTDCents = (incomeTotals.totalYtdBudget || 0) -
+        (expenseTotals.totalYtdBudget || 0);
+      const netActualCents = (incomeTotals.totalYtdActual || 0) -
+        Math.abs(expenseTotals.totalYtdActual || 0);
+      const netVarianceCents = netActualCents - netBudgetYTDCents;
 
       // Over-budget watch list: expense categories where actual > budget
       // Variance in BvA is (budget - actual), so negative = over budget
@@ -58,16 +50,20 @@ export function useBudgetStatus() {
         .filter(item => item.ytdBudget > 0 && item.variance < 0)
         .map(item => ({
           category: item.name,
-          overAmount: Math.abs(item.variance),
+          overAmount: centavosToPesos(Math.abs(item.variance)),
           overPercent: Math.round(Math.abs(item.variance / item.ytdBudget) * 100),
         }))
         .sort((a, b) => b.overPercent - a.overPercent)
         .slice(0, 5);
 
       // Expense-only status: are expenses within budget?
-      const expenseYtdBudget = expenseTotals.totalYtdBudget || 0;
-      const expenseYtdActual = Math.abs(expenseTotals.totalYtdActual || 0);
-      const expenseVariance = expenseYtdBudget - expenseYtdActual;
+      const expenseYtdBudgetCents = expenseTotals.totalYtdBudget || 0;
+      const expenseYtdActualCents = Math.abs(expenseTotals.totalYtdActual || 0);
+      const expenseVarianceCents = expenseYtdBudgetCents - expenseYtdActualCents;
+
+      const expenseYtdBudget = centavosToPesos(expenseYtdBudgetCents);
+      const expenseYtdActual = centavosToPesos(expenseYtdActualCents);
+      const expenseVariance = centavosToPesos(expenseVarianceCents);
 
       setData({
         fiscalYear: budgetData.reportInfo?.fiscalYear,
@@ -77,20 +73,20 @@ export function useBudgetStatus() {
         expenseYtdBudget,
         expenseYtdActual,
         expenseVariance,
-        expenseBudgetAnnual: expenseTotals.totalAnnualBudget || 0,
+        expenseBudgetAnnual: centavosToPesos(expenseTotals.totalAnnualBudget || 0),
 
         // Status based on expense budget health
-        status: expenseVariance >= 0 ? 'favorable' : 'unfavorable',
-        statusText: expenseVariance >= 0 ? 'On Track' : 'Over Budget',
-        statusColor: expenseVariance >= 0 ? '#059669' : '#dc2626',
+        status: expenseVarianceCents >= 0 ? 'favorable' : 'unfavorable',
+        statusText: expenseVarianceCents >= 0 ? 'On Track' : 'Over Budget',
+        statusColor: expenseVarianceCents >= 0 ? '#059669' : '#dc2626',
         
         // Over-budget watch list for tooltip
         overBudgetItems,
         
         // Legacy fields kept for backward compat
-        netBudgetYTD,
-        netActual,
-        netVariance,
+        netBudgetYTD: centavosToPesos(netBudgetYTDCents),
+        netActual: centavosToPesos(netActualCents),
+        netVariance: centavosToPesos(netVarianceCents),
       });
 
     } catch (err) {
