@@ -79,7 +79,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Symlink SAMS/shared/utils → functions/shared/utils (same as sams-ui desktop)
+      '@shared': fileURLToPath(new URL('../../../shared', import.meta.url))
     }
   },
   server: {

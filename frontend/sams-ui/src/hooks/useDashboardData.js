@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { useHOADues } from '../context/HOADuesContext';
@@ -11,6 +11,7 @@ import { getFiscalYear, getCurrentFiscalMonth } from '../utils/fiscalYearUtils';
 import { hasWaterBills } from '../utils/clientFeatures';
 import { getMexicoDate } from '../utils/timezone';
 import { getFirstOwnerLastName } from '../utils/unitContactUtils.js';
+import { totalCreditPesosPositiveFromDuesYearRecord } from '@shared/utils/hoaCreditTotals';
 
 // NO CACHE - Dashboard always fetches fresh data
 // Cache was removed to prevent stale data issues (Dec 2025)
@@ -21,12 +22,15 @@ export const useDashboardData = () => {
   const { selectedClient, menuConfig, isLoadingMenu } = useClient();
   const { exchangeRate, loading: exchangeLoading } = useExchangeRates();
   
-  const [accountBalances, setAccountBalances] = useState({
+  /** Gross bank+cash (pesos, rounded); total is reduced by unit credit in useMemo (#96). */
+  const [accountBalancesBeforeCredit, setAccountBalancesBeforeCredit] = useState({
     total: 0,
     bank: 0,
     cash: 0,
     accounts: []
   });
+  /** Same total as HOADuesView.calculateTotalCredit() — sum of unit creditBalance from hoadues/{year} (pesos). */
+  const [unitCreditTotalPesos, setUnitCreditTotalPesos] = useState(0);
   
   const [hoaDuesStatus, setHoaDuesStatus] = useState({
     currentlyDue: 0,
@@ -65,7 +69,7 @@ export const useDashboardData = () => {
     const fetchAccountBalances = async () => {
       if (!selectedClient || !samsUser) {
         // Clear data when no client selected
-        setAccountBalances({
+        setAccountBalancesBeforeCredit({
           total: 0,
           bank: 0,
           cash: 0,
@@ -85,22 +89,25 @@ export const useDashboardData = () => {
         const bankBalance = accountsData.bankBalance || 0;
         const cashBalance = accountsData.cashBalance || 0;
         const totalBalance = bankBalance + cashBalance;
-        
-        // Structure the data for the dashboard (convert cents to dollars)
+        const accountsList = accountsData.accounts || [];
+
+        // Structure the data for the dashboard (convert cents to pesos).
+        // Gross = bank+cash from GET /balances/current. Unit credits = same sum as HOADuesView.calculateTotalCredit()
+        // (aggregated from hoadues/{year} in the HOA dashboard effect below).
         const balanceData = {
           total: Math.round(totalBalance / 100),
           bank: Math.round(bankBalance / 100),
           cash: Math.round(cashBalance / 100),
-          accounts: accountsData.accounts || []
+          accounts: accountsList
         };
         
-        setAccountBalances(balanceData);
+        setAccountBalancesBeforeCredit(balanceData);
       } catch (err) {
         console.error('Error fetching account balances:', err);
         setError(prev => ({ ...prev, accounts: err.message }));
         
         // Fallback to zero balances on error
-        setAccountBalances({
+        setAccountBalancesBeforeCredit({
           total: 0,
           bank: 0,
           cash: 0,
@@ -114,11 +121,27 @@ export const useDashboardData = () => {
     fetchAccountBalances();
   }, [selectedClient, samsUser]);
 
+  const accountBalances = useMemo(() => {
+    const gross = accountBalancesBeforeCredit.total || 0;
+    const credit = unitCreditTotalPesos || 0;
+    // If balances failed we fall back to zeros — do not subtract HOA credits (avoids headline 0 − credit < 0).
+    const accountsFailed = Boolean(error.accounts);
+    const creditApplied = accountsFailed ? 0 : credit;
+    const netTotal = Math.round(gross - creditApplied);
+    return {
+      ...accountBalancesBeforeCredit,
+      total: netTotal,
+      // Explicit HOA aggregate (pesos), not derived — matches HOADuesView.calculateTotalCredit().
+      unitCreditsPesos: accountsFailed ? 0 : credit
+    };
+  }, [accountBalancesBeforeCredit, unitCreditTotalPesos, error.accounts]);
+
   // Fetch HOA dues status
   useEffect(() => {
     const fetchHOADuesStatus = async () => {
       if (!selectedClient || !samsUser) {
         // Clear data when no client selected
+        setUnitCreditTotalPesos(0);
         setHoaDuesStatus({
           currentlyDue: 0,
           currentPaid: 0,
@@ -131,6 +154,7 @@ export const useDashboardData = () => {
       }
       
       try {
+        setUnitCreditTotalPesos(0);
         setLoading(prev => ({ ...prev, dues: true }));
         setError(prev => ({ ...prev, dues: null }));
         
@@ -375,17 +399,11 @@ export const useDashboardData = () => {
         
         // Calculate pre-paid amounts - sum backend credit + future payment values
         let prePaidAmount = 0;
-        let totalCreditBalances = 0;
+        const totalCreditBalances = totalCreditPesosPositiveFromDuesYearRecord(duesDataFromAPI);
         if (duesDataFromAPI && Object.keys(duesDataFromAPI).length > 0) {
           Object.entries(duesDataFromAPI)
-            .filter(([unitId]) => unitId !== 'creditBalances')
-            .forEach(([unitId, unitData]) => {
-              // Sum backend credit balances
-              const creditBalance = unitData?.creditBalance || 0; // From backend
-              if (creditBalance > 0) {
-                totalCreditBalances += creditBalance;
-              }
-              
+            .filter(([unitId]) => unitId !== 'creditBalances' && !unitId.startsWith('creditBalances'))
+            .forEach(([, unitData]) => {
               // Sum backend future payment amounts
               if (unitData?.payments && Array.isArray(unitData.payments)) {
                 for (let fiscalMonth = currentMonth + 1; fiscalMonth <= 12; fiscalMonth++) {
@@ -402,6 +420,9 @@ export const useDashboardData = () => {
             });
         }
         prePaidAmount += totalCreditBalances;
+
+        // Owner credits (pesos) — same sums as futurePayments prepay logic; deduct from Account Balances total (#96)
+        setUnitCreditTotalPesos(totalCreditBalances);
         
         // Calculate currently due (total expected to date through current month)
         const currentlyDue = totalExpectedToDate || 0;
@@ -443,6 +464,7 @@ export const useDashboardData = () => {
         setError(prev => ({ ...prev, dues: err.message || 'Unknown error' }));
         
         // Fallback to zero data on error
+        setUnitCreditTotalPesos(0);
         setHoaDuesStatus({
           currentlyDue: 0,
           currentPaid: 0,
