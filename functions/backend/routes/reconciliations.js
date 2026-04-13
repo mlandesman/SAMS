@@ -25,6 +25,7 @@ import {
 const router = express.Router();
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MULTIPART_BYTES = (MAX_UPLOAD_BYTES * 2) + (2 * 1024 * 1024); // bank + optional pdf + form overhead
+const MULTIPART_READ_TIMEOUT_MS = 5000;
 const ALLOWED_UPLOAD_FIELDS = new Set(['bankFile', 'statementPdf']);
 
 class UploadParseError extends Error {
@@ -70,6 +71,7 @@ async function parseImportMultipartFromRawBody(req) {
 
   return new Promise((resolve, reject) => {
     let failed = false;
+    let totalFilesSeen = 0;
     const parsedFiles = {
       bankFile: [],
       statementPdf: []
@@ -88,12 +90,19 @@ async function parseImportMultipartFromRawBody(req) {
     const bb = Busboy({
       headers: req.headers,
       limits: {
-        files: 2,
+        // Keep slightly above contract max so unknown third file still triggers 'file' handler.
+        files: 3,
         fileSize: MAX_UPLOAD_BYTES
       }
     });
 
     bb.on('file', (fieldname, file, info) => {
+      totalFilesSeen += 1;
+      if (totalFilesSeen > 2) {
+        file.resume();
+        fail('UPLOAD_TOO_MANY_FILES', 'Too many files provided. Maximum is 2 files.', 'file-count');
+        return;
+      }
       if (!ALLOWED_UPLOAD_FIELDS.has(fieldname)) {
         file.resume();
         fail('UPLOAD_INVALID_FIELD', `Unexpected file field "${fieldname}".`, 'file-field');
@@ -135,6 +144,9 @@ async function parseImportMultipartFromRawBody(req) {
 
     bb.on('error', (error) => {
       fail('UPLOAD_PARSE_FAILED', `Failed to parse multipart upload (${error.message}).`, 'busboy');
+    });
+    bb.on('filesLimit', () => {
+      fail('UPLOAD_TOO_MANY_FILES', 'Too many files provided. Maximum is 2 files.', 'files-limit');
     });
 
     bb.on('finish', () => {
@@ -224,8 +236,16 @@ function readRequestStreamToBuffer(req) {
     let total = 0;
     const chunks = [];
     let done = false;
+    const readTimeout = setTimeout(() => {
+      fail(new UploadParseError(
+        'UPLOAD_PARSE_FAILED',
+        `Timed out waiting for multipart upload payload after ${MULTIPART_READ_TIMEOUT_MS}ms.`,
+        'raw-body-timeout'
+      ));
+    }, MULTIPART_READ_TIMEOUT_MS);
 
     const cleanup = () => {
+      clearTimeout(readTimeout);
       req.removeListener('data', onData);
       req.removeListener('end', onEnd);
       req.removeListener('error', onError);
