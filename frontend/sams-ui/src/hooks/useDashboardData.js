@@ -123,14 +123,17 @@ export const useDashboardData = () => {
   const accountBalances = useMemo(() => {
     const gross = accountBalancesBeforeCredit.total || 0;
     const credit = unitCreditTotalPesos || 0;
-    const netTotal = Math.round(gross - credit);
+    // If balances failed we fall back to zeros — do not subtract HOA credits (avoids headline 0 − credit < 0).
+    const accountsFailed = Boolean(error.accounts);
+    const creditApplied = accountsFailed ? 0 : credit;
+    const netTotal = Math.round(gross - creditApplied);
     return {
       ...accountBalancesBeforeCredit,
       total: netTotal,
       // Explicit HOA aggregate (pesos), not derived — matches HOADuesView.calculateTotalCredit().
-      unitCreditsPesos: credit
+      unitCreditsPesos: accountsFailed ? 0 : credit
     };
-  }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
+  }, [accountBalancesBeforeCredit, unitCreditTotalPesos, error.accounts]);
 
   // Fetch HOA dues status
   useEffect(() => {

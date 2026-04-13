@@ -115,13 +115,15 @@ export const useDashboardData = () => {
   const accountBalances = useMemo(() => {
     const gross = accountBalancesBeforeCredit.total || 0;
     const credit = unitCreditTotalPesos || 0;
-    const netTotal = Math.round(gross - credit);
+    const accountsFailed = Boolean(error.accounts);
+    const creditApplied = accountsFailed ? 0 : credit;
+    const netTotal = Math.round(gross - creditApplied);
     return {
       ...accountBalancesBeforeCredit,
       total: netTotal,
-      unitCreditsPesos: credit
+      unitCreditsPesos: accountsFailed ? 0 : credit
     };
-  }, [accountBalancesBeforeCredit, unitCreditTotalPesos]);
+  }, [accountBalancesBeforeCredit, unitCreditTotalPesos, error.accounts]);
 
   // Fetch HOA dues status - same logic as Desktop UI
   useEffect(() => {
