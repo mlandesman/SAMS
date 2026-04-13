@@ -10,6 +10,28 @@
             "260"
           ],
           "text": "Cap SoA water mini-graph to six rolling periods to prevent AVII clipping/overflow"
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "246",
+            "231"
+          ],
+          "text": "Fixed cross-client owner/manager assignment so Unit edit pickers can select directory users and propertyAccess/unit authorization stays consistent when assigning users to additional clients."
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "251"
+          ],
+          "text": "Unified mobile Statement of Account experience: removed duplicate More-menu path, added session language toggle, and standardized month/language labels across latest + archive views."
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "254"
+          ],
+          "text": "Updated exchange-rates health check to use Cancun date helpers for today/yesterday keys, matching exchangeRates writer document-id contract and removing raw Date usage in the handler."
         }
       ]
     },
