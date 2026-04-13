@@ -28,6 +28,7 @@
   "dependencies": {
     "@pomgui/pdf-tables-parser": "^0.1.0",
     "axios": "^1.10.0",
+    "busboy": "^1.6.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.5.0",
