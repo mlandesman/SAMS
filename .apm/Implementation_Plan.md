@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
-**Version:** v1.21.0 (pending deployment) | **Production deployed:** v1.19.1 (March 20, 2026)  
-**Last Updated:** April 11, 2026 — Sprint **BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION** is active with #272, #271, #275, and #260 completed (PR #292 merged for #260). Next execution item: #274.  
+**Version:** v1.21.0 (deployed) | **Production deployed:** v1.21.0 (April 13, 2026)  
+**Last Updated:** April 13, 2026 — Sprint **PROD-STABILIZATION-1** is now complete: Task 1 `#288 + #96` (PR #298), Task 2 `#273` (PR #301), Task 3 `#266` (PR #302). Recon upload reliability hotfix was also completed and validated in production (`PR #299`, `PR #300`). Next sprint queued: **BUDGET-PROJ-1** (`#165`), then **DEBT-1**.
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,7 +25,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Active sprint: **BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION (post BANK-RECON)**. Completed this sequence: #272, #271, #275, #260. Next one-at-a-time item: #274, then remaining backlog in priority order. Sprint **BANK-RECON** is complete and merged. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint queue: **BUDGET-PROJ-1** (`#165`) next, then **DEBT-1** (`#220`, `#223`, `#166`). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 

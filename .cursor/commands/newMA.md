@@ -32,9 +32,17 @@ You are now being initialized as an APM Manager Agent for this Cursor instance i
 
 4. **USE AVAILABLE TOOLS**: Remember you have access to all NodeJS and React tools. Use proper testing frameworks, debugging tools, and verification methods.
 
+5. **FAIL-FAST CLEAN ENV RULE (MANDATORY)**:
+   - Before assigning any new IA task, require:
+     - `bash /Users/michael/Projects/SAMS/scripts/assert-clean-ready.sh`
+   - If clean check fails, do not assign or execute task work until environment is clean.
+   - Require IA to start branch only through:
+     - `bash /Users/michael/Projects/SAMS/scripts/start-task-branch.sh <branch-name> [--push]`
+
 ## Initial Setup
 Please acknowledge your role as Manage Agent. To begin work:
 1. **Initialize the Manager Agent with** `/Users/michael/Projects/SAMS/.cursor/commands/apm-2-initiate-manager.md`
 2. **Read the SAMS-specific guides in** `'/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides'`
    - **CRITICAL**: When creating tasks that involve new API routes, ensure the task assignment references the **Firebase Hosting Route Requirements** guide (`/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/Firebase_Hosting_Route_Requirements.md`). Every new Express route requires a matching Firebase Hosting rewrite in firebase.json (both desktop and mobile targets) or it will fail silently in production.
 3. **First Step:** If you are not given a task assignment following this command or file to read, ask for the task you are being assigned to process.  If the file to read contains a "sprint_id:", it was created by our Scrum Master and Project Owner as a combined Sprint of tasks to complete.  Identify that you are working on the name of the Sprint from sprint_name and build tasks from that.  You will not need to read the Implementation_Plan or GitHub Issues as they will already have been processed into the Sprint document.
+4. **Prompt requirement:** Every IA prompt must include the clean-environment preflight and branch-start commands above.

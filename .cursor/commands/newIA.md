@@ -39,12 +39,19 @@ You are now being initialized as an APM Implementation Agent for this Claude Cod
 
 6. **USE AVAILABLE TOOLS**: Remember you have access to all NodeJS and React tools. Use proper testing frameworks, debugging tools, and verification methods.
 
+7. **FAIL-FAST CLEAN ENV RULE (MANDATORY)**:
+   - Before starting any assignment, run:
+     - `bash /Users/michael/Projects/SAMS/scripts/assert-clean-ready.sh`
+   - If this fails, **STOP** and clean the environment first (no task work allowed).
+   - Then create the task branch from clean `main`:
+     - `bash /Users/michael/Projects/SAMS/scripts/start-task-branch.sh <branch-name> [--push]`
+
 ## Initial Setup
 Please acknowledge your role as Implementation Agent. To begin work:
 1. **Read the Implementation Agent Initiation Prompt:** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
 2. **Read the CRITICAL CODING GUIDELINES:** `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
 3. **Read the Memory Log Guide:** `/Users/michael/Projects/SAMS/.apm/guides/Memory_Log_Guide.md`
-4. **Read the SAMS-specific guides in:** `/Users/michael/Projects/SAMS-Docs/SAMS Guides/`
+4. **Read the SAMS-specific guides in:** `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/`
 5. If there is a file reference after this command or text describing a task, that is your assignment. Confirm that you have received and understand the task and ask any clarifying questions before proceeding to code.
 6. If starting fresh, wait for task assignment from Manager Agent
 
@@ -73,6 +80,8 @@ Remember: You are the executor of specific tasks. Your primary goal is to delive
 - [ ] I have read Implementation Agent Initiation Prompt (`apm-3-initiate-implementation.md`)
 - [ ] I have read CRITICAL CODING GUIDELINES (`.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`)
 - [ ] I have read Memory Log Guide (`.apm/guides/Memory_Log_Guide.md`)
+- [ ] I ran `scripts/assert-clean-ready.sh` and environment is clean
+- [ ] I created my task branch using `scripts/start-task-branch.sh` from `main`
 - [ ] I understand I must use exact paths from memory_log_path
 - [ ] I will not use `new Date()` - only `getNow()` from DateService
 - [ ] I will not use MCP tools in production code - only for testing

@@ -4,8 +4,8 @@
 
 ---
 
-## Production Status: v1.19.1
-**Deployed:** March 20, 2026 | **Prior:** v1.18.0 mobile UX + hotfixes (Mar 19); **v1.19.x** adds automated monthly SoA (#249), WhatsApp webhook code (#178 partial, **not live** until Meta unblocks), and **SoA email preamble fix #255** (credit no longer double-counted in email body; PDF unchanged)
+## Production Status: v1.21.0
+**Deployed:** April 13, 2026 | **Prior:** v1.19.1 (Mar 20). v1.21.0 includes BANK-RECON, BUGFIX-ONBOARD sweep items, and post-deploy stabilization/hotfix follow-through merged on `main`.
 
 ### Core Capabilities (Complete)
 - ✅ Double-entry accounting (expenses, deposits, splits)
@@ -63,8 +63,10 @@
 | ~~10~~ | ~~**AUTO-STMT**~~ | ~~Automated Monthly Statements~~ | ~~4-6h~~ | ~~#249~~ ✅ COMPLETE (PR #250, merged March 19, 2026) |
 | ~~11~~ | ~~**WA-BACKEND**~~ | ~~WhatsApp Backend (code only)~~ | ~~6-8h~~ | ~~#178 (partial)~~ ⏸️ **PAUSED** — PR #253 merged Mar 19; **Meta/WhatsApp Business blocked** externally (Mar 20, 2026); not E2E complete |
 | ~~12~~ | ~~**MOBILE-TX-UX**~~ | ~~Mobile Transaction UX Polish~~ | ~~9-13h~~ | ~~#258~~ ✅ COMPLETE (PR #259, merged March 29, 2026) |
-| 13 | **BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION** | Owner onboarding + post-recon regression fixes | 6-8h + sweep | #272 ✅, #271 ✅, #275 ✅, #260 ✅, #274 next, #246, #231, #251, #254 |
+| ~~13~~ | ~~**BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION**~~ | ~~Owner onboarding + post-recon regression fixes~~ | ~~6-8h + sweep~~ | ~~#272, #271, #275, #260, #274, #246, #231, #251, #254~~ ✅ COMPLETE |
 | ~~14~~ | ~~**BANK-RECON**~~ | ~~Bank Reconciliation System~~ | ~~19-27h~~ | ~~ScotiaBank CSV + BBVA XLSX import, automated matching, reconciliation UI, statement acceptance (PRD v2.1)~~ ✅ COMPLETE (PR #268, Apr 10, 2026) |
+| ~~14.5~~ | ~~**PROD-STABILIZATION-1**~~ | ~~Post-Recon Production Confidence~~ | ~~4-6h~~ | ~~#288, #96, #273, #266~~ ✅ COMPLETE (PRs #298, #301, #302) |
+| 15 | **BUDGET-PROJ-1** | Fiscal Year Projection Baseline | 4-6h | #165 |
 | --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
 | 15-16 | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; enable Karyn/Wilfredo (Epic #54 lite) |
 | --- | **DEBT-2** | Bug/Polish Pass | 4-6h | #169, #214, #96, owner feedback bugs |
@@ -77,7 +79,9 @@
 
 **Deferred**: DOC-LIB (after Sprint 22), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
 
-**Current Focus**: **Production v1.19.1** (deployed) with **v1.21.0** merge-ready changes now on `main` after PRs #268 and #270 (Apr 10, 2026). Sprint **BANK-RECON** is complete. **BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION** is active with #272, #271, #275, and #260 complete; #274 is next. Owner onboarding remains active. WhatsApp **paused**.
+**Current Focus**: **Production v1.21.0** (deployed Apr 13, 2026). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266` merged). Next sprint is **BUDGET-PROJ-1** (`#165`), then **DEBT-1**. WhatsApp remains **paused**.
+
+**Schedule Note (Apr 13, 2026 — PROD-STAB closed):** PR #302 merged for issue `#266` (canonical `canLogin` login-eligibility contract and cleanup of legacy `loginEnabled` handling). This closes PROD-STABILIZATION-1.
 
 **Schedule Note (Apr 10, 2026 — BANK-RECON + Auth Guard Merge)**: Sprint BANK-RECON ✅ COMPLETE and merged (PR #268). Immediate follow-on fix merged (PR #270) to unify scheduler account guard behavior across auth and user-management paths. Roadmap order remains: BUGFIX-ONBOARD next, then DEBT-1 and UC-LITE.
 
@@ -145,6 +149,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| PROD-STABILIZATION-1 | Apr 13, 2026 | #288 + #96 (PR #298), #273 (PR #301), #266 (PR #302) — sprint complete |
 | BUGFIX-ONBOARD / BUG-SWEEP (partial) | Apr 11, 2026 | #260 complete (SoA water mini-graph clipping fix merged in PR #292) |
 | BUGFIX-ONBOARD / BUG-SWEEP (partial) | Apr 11, 2026 | #275 complete (temp-password HTML-safe charset merged in PR #291) |
 | BUGFIX-ONBOARD / BUG-SWEEP (partial) | Apr 11, 2026 | #271 complete (duplicate bank fee/IVA edit-path fix merged in PR #290) |

@@ -3,28 +3,40 @@
 
 ## Active Sprint Categories
 
-### 🐛 Sprint BUGFIX-ONBOARD: Owner Onboarding Bug Fixes (6-8 hours)
-*Fix bugs that degrade the owner onboarding experience before expanding MTC/AVII deployments*
+### ✅ Sprint PROD-STABILIZATION-1: Post-Recon Production Confidence (Complete)
+*Post-v1.21.0 confidence fixes while balancing in production*
 
 | # | Title | Priority | Est |
 |---|-------|----------|-----|
-| **246** | Adding Owner/Manager only shows users already assigned to that ClientId | bug | 2h |
-| **231** | Adding a new user role for a new client doesn't grant access | bug | 2h |
-| **260** | Water Consumption Mini Graph scrolls off page in SoA | bug | 1h |
-| **251** | Mobile PWA SoA has two paths with different experiences | bug | 1-2h |
-| **254** | checkExchangeRatesHealth uses new Date() (DateService violation) | tech-debt | 0.5h |
+| **288** | Budget Status card on Dashboard shows centavos as pesos | bug | 1h |
+| **96** | Dashboard Account Balances Card — deduct Credit Balances | enhancement | 1-2h |
+| **273** | SuperAdmin Access Denied when running Backup Now from Desktop UI | bug | 1-2h |
+| **266** | Unused/duplicate user login field (`loginEnabled` vs `canLogin`) causes confusion | bug/debt | 1-2h |
 
-**Theme**: Eliminate bugs that block or confuse unit owners during onboarding  
-**Risk**: Low — individual bug fixes, no shared engine changes  
-**Dependencies**: None  
-**Status**: Active — one-at-a-time bug-sweep in progress
+**Theme**: Protect production data trust and operator confidence during reconciliation period  
+**Risk**: Low-Medium  
+**Dependencies**: After v1.21.0 deployment  
+**Status**: ✅ COMPLETE (Apr 13, 2026)
 
-**Progress (Apr 11, 2026):**
-- ✅ #272 complete (owner/manager labels; issue closed)
-- ✅ #271 complete (bank fee/IVA duplicate on edit; PR #290 merged)
-- ✅ #275 complete (temp password charset safety; PR #291 merged)
-- ✅ #260 complete (water mini-graph clipping; PR #292 merged)
-- ⏭️ Next: #274
+**Progress (Apr 13, 2026):**
+- ✅ `#288 + #96` complete (PR #298 merged to `main`)
+- ✅ `#273` complete (PR #301 merged to `main`)
+- ✅ `#266` complete (PR #302 merged to `main`)
+- ✅ Sprint close criteria met; next sprint is BUDGET-PROJ-1 (`#165`)
+
+---
+
+### 📊 Sprint BUDGET-PROJ-1: Fiscal Year Projection Baseline (4-6 hours)
+*Immediate budget projection capability for active Q4 planning client*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **165** | Budget Projection & Runway Graphs — year-end projection based on YTD actuals vs budget | high | 4-6h |
+
+**Theme**: Deliver a practical projection baseline for near-term fiscal planning decisions  
+**Risk**: Low-Medium (read-only reporting; higher risk is formula/design correctness)  
+**Dependencies**: After PROD-STABILIZATION-1  
+**Status**: Active — next sprint
 
 ---
 

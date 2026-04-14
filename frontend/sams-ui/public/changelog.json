@@ -32,6 +32,13 @@
             "254"
           ],
           "text": "Updated exchange-rates health check to use Cancun date helpers for today/yesterday keys, matching exchangeRates writer document-id contract and removing raw Date usage in the handler."
+        },
+        {
+          "type": "fix",
+          "issues": [
+            "266"
+          ],
+          "text": "Normalized backend login eligibility to canonical canLogin with legacy loginEnabled bridge and updated reconcile-auth-users to write canLogin=false while removing obsolete loginEnabled."
         }
       ]
     },
