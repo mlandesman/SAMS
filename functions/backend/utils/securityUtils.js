@@ -7,6 +7,7 @@
  */
 
 import { getNow } from '../services/DateService.js';
+import { isFirestoreLoginEligible } from './userLoginEligibility.js';
 
 /**
  * Validate that a user can access a specific client
@@ -174,8 +175,8 @@ export function sanitizeUserData(userData, requestingUser) {
     isActive: userData.isActive,
     lastLoginDate: userData.lastLoginDate,
     firebaseMetadata: userData.firebaseMetadata,
-    // Include new profile fields
-    canLogin: userData.canLogin,
+    // Canonical boolean for UI (bridges legacy loginEnabled when canLogin unset)
+    canLogin: isFirestoreLoginEligible(userData),
     accountState: userData.accountState,
     profile: userData.profile,
     notifications: userData.notifications

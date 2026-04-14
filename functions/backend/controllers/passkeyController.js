@@ -15,6 +15,7 @@ import { webauthnConfig } from '../config/webauthnConfig.js';
 import { getNow } from '../services/DateService.js';
 import { validateInviteToken } from './inviteController.js';
 import { logError } from '../../shared/logger.js';
+import { isFirestoreLoginEligible } from '../utils/userLoginEligibility.js';
 import crypto from 'crypto';
 
 const CHALLENGE_TTL_MINUTES = 5;
@@ -311,6 +312,9 @@ export async function authenticationOptions(req, res) {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
+      if (!isFirestoreLoginEligible(user)) {
+        return res.status(403).json({ error: 'Login is not enabled for this account.' });
+      }
       const passkeysSnap = await db.collection('users').doc(user.uid).collection('passkeys').get();
       allowCredentials = passkeysSnap.docs.map((d) => ({
         id: d.id,
@@ -403,6 +407,12 @@ export async function authenticationVerify(req, res) {
       return res.status(401).json({ error: 'Verification failed' });
     }
 
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    if (!isFirestoreLoginEligible(userData)) {
+      return res.status(403).json({ error: 'Login is not enabled for this account.' });
+    }
+
     const { newCounter } = verification.authenticationInfo;
     const now = getNow();
 
@@ -412,8 +422,6 @@ export async function authenticationVerify(req, res) {
     });
 
     const customToken = await admin.auth().createCustomToken(uid);
-    const userDoc = await db.collection('users').doc(uid).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
 
     res.json({
       token: customToken,

@@ -10,6 +10,7 @@ import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
 import { generateSecureTempPassword } from '../../shared/utils/tempPassword.js';
+import { isFirestoreLoginEligible } from '../utils/userLoginEligibility.js';
 
 const router = express.Router();
 
@@ -65,7 +66,7 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    if (userData.isActive === false || userData.canLogin === false) {
+    if (userData.isActive === false || !isFirestoreLoginEligible(userData)) {
       return res.status(403).json({ error: 'This account has been deactivated. Please contact your administrator.' });
     }
 

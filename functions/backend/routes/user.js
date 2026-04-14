@@ -7,6 +7,8 @@ import {
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
 import { sanitizeUserData } from '../utils/securityUtils.js';
+import { isFirestoreLoginEligible } from '../utils/userLoginEligibility.js';
+import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
 import { DateService, getNow } from '../services/DateService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 
@@ -78,6 +80,10 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       ...userData,
       propertyAccess: userData.propertyAccess ? Object.keys(userData.propertyAccess) : []
     });
+
+    if (!isSystemSchedulerAccount(uid, userData) && !isFirestoreLoginEligible(userData)) {
+      return res.status(403).json({ error: 'This account has been deactivated. Please contact your administrator.' });
+    }
     
     // Ensure user has required fields (include profile and notifications for Manage Profile)
     // Prefer userData.email (Firestore) over token email — token can be stale after email change
@@ -92,6 +98,9 @@ router.get('/profile', authenticateUserWithProfile, async (req, res) => {
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       accountState: userData.accountState || 'active',
       mustChangePassword: userData.mustChangePassword || false,
+      // Raw flags for sanitizeUserData → canonical canLogin in API response
+      canLogin: userData.canLogin,
+      loginEnabled: userData.loginEnabled,
       createdAt: formatDateField(userData.createdAt),
       lastLogin: formatDateField(getNow()),
       profile: userData.profile || {},

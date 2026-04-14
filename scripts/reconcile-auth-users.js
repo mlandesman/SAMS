@@ -15,6 +15,7 @@
 import admin from 'firebase-admin';
 import { createInterface } from 'readline';
 import { generateSecureTempPassword } from '../functions/shared/utils/tempPassword.js';
+import { getNow } from '../functions/backend/services/DateService.js';
 
 // ── CLI Argument Parsing ─────────────────────────────────────────────────────
 
@@ -197,7 +198,6 @@ async function runAudit() {
         email: email || null,
         displayName: userData.displayName || userData.name || '',
         globalRole: userData.globalRole || '',
-        loginEnabled: userData.loginEnabled,
         propertyAccess: userData.propertyAccess || userData.clientAccess || {},
       });
     } catch (err) {
@@ -247,14 +247,14 @@ function printSummary(result) {
   if (orphanedUsers.length > 0) {
     console.log('ORPHANED USERS (Firestore doc exists, no Firebase Auth record):');
     console.log('┌──────────────────────────────┬──────────────────────────────────────┬────────────────┬──────────────┐');
-    console.log('│ Email                        │ Doc ID (old UID)                     │ Role           │ Login        │');
+    console.log('│ Email                        │ Doc ID (old UID)                     │ Role           │ Auth record  │');
     console.log('├──────────────────────────────┼──────────────────────────────────────┼────────────────┼──────────────┤');
     for (const u of orphanedUsers) {
       const email = padRight(u.email || '(no email)', 28);
       const docId = padRight(u.docId, 36);
       const role = padRight(u.globalRole || '-', 14);
-      const login = padRight(u.loginEnabled === true ? 'enabled' : u.loginEnabled === false ? 'disabled' : 'unset', 12);
-      console.log(`│ ${email} │ ${docId} │ ${role} │ ${login} │`);
+      const authCol = padRight('none', 12);
+      console.log(`│ ${email} │ ${docId} │ ${role} │ ${authCol} │`);
     }
     console.log('└──────────────────────────────┴──────────────────────────────────────┴────────────────┴──────────────┘');
     console.log('');
@@ -329,7 +329,7 @@ async function runFix(orphanedUsers) {
   console.log('  For each orphaned user, the script will:');
   console.log('    1. Create a Firebase Auth record with the SAME UID as the Firestore doc');
   console.log('    2. Set the Auth account as DISABLED');
-  console.log('    3. Set loginEnabled = false in the Firestore document');
+  console.log('    3. Set canLogin=false, remove obsolete loginEnabled (if present)');
   console.log('    4. Add reconciliation metadata to the Firestore document');
   console.log('');
   console.log(`  Target project: ${projectId}`);
@@ -375,11 +375,12 @@ async function runFix(orphanedUsers) {
         disabled: true,
       });
 
-      // Step 2: Update Firestore document
+      // Step 2: Update Firestore document (Auth disabled flag is source of truth for login access)
       await db.collection('users').doc(docId).update({
-        loginEnabled: false,
+        canLogin: false,
+        loginEnabled: admin.firestore.FieldValue.delete(),
         _reconciled: true,
-        _reconciledAt: new Date().toISOString(),
+        _reconciledAt: getNow().toISOString(),
         _reconciledBy: 'reconcile-auth-users-script',
         _reconciledNote: 'Auth record recreated after backup/restore loss',
       });
