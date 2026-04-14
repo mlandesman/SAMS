@@ -15,6 +15,7 @@ import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
 import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
+import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
 import { 
   generateWaterConsumptionReportHtml,
@@ -1017,6 +1018,48 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
       success: false, 
       error: error.message,
       details: error.stack 
+    });
+  }
+});
+
+/**
+ * Get Budget vs Actual report as plain text (tables)
+ * GET /api/clients/:clientId/reports/budget-actual/text
+ * Query params: fiscalYear?, reportMode? (ytd|projected)
+ */
+router.get('/budget-actual/text', authenticateUserWithProfile, async (req, res) => {
+  try {
+    const clientId = req.originalParams?.clientId || req.params.clientId;
+    const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const reportMode = parseBudgetActualReportMode(req.query.reportMode);
+    const user = req.user;
+
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Client ID is required'
+      });
+    }
+
+    const propertyAccess = user.getPropertyAccess(clientId);
+    if (!propertyAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to this client'
+      });
+    }
+
+    const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
+    const textOutput = generateBudgetActualText(data);
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(textOutput);
+  } catch (error) {
+    logError('Error generating budget vs actual text:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.stack
     });
   }
 });
