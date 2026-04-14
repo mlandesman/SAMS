@@ -15,7 +15,6 @@ import { generateStatementData } from '../services/statementHtmlService.js';
 import { generatePdf } from '../services/pdfService.js';
 import { getBudgetActualData } from '../services/budgetActualDataService.js';
 import { generateBudgetActualHtml } from '../services/budgetActualHtmlService.js';
-import { generateBudgetActualText } from '../services/budgetActualTextService.js';
 import { generateBudgetReportHtml } from '../services/budgetReportHtmlService.js';
 import { 
   generateWaterConsumptionReportHtml,
@@ -29,6 +28,11 @@ import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
+
+/** BUDGET-PROJ-1: YTD vs projected FY-end variance basis */
+function parseBudgetActualReportMode(value) {
+  return value === 'projected' ? 'projected' : 'ytd';
+}
 
 // Create date service for formatting API responses
 const dateService = new DateService({ timezone: 'America/Cancun' });
@@ -925,13 +929,15 @@ router.get('/statement/pdf-download', async (req, res) => {
  * Query params:
  *   - fiscalYear (optional): Fiscal year (defaults to current)
  *   - language (optional): 'english' or 'spanish' (defaults to 'english')
- * 
+ *   - reportMode (optional): 'ytd' | 'projected' (defaults to 'ytd')
+ *
  * Returns comprehensive data object with budget vs actual data
  */
 router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) => {
   try {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
+    const reportMode = parseBudgetActualReportMode(req.query.reportMode);
     const user = req.user;
     
     if (!clientId) {
@@ -950,8 +956,7 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
       });
     }
 
-    // Get budget vs actual data
-    const data = await getBudgetActualData(clientId, fiscalYear, user);
+    const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
     
     res.json({ success: true, data });
   } catch (error) {
@@ -970,7 +975,8 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
  * Query params:
  *   - fiscalYear (optional): Fiscal year (defaults to current)
  *   - language (optional): 'english' or 'spanish' (defaults to 'english')
- * 
+ *   - reportMode (optional): 'ytd' | 'projected' (defaults to 'ytd')
+ *
  * Returns professional HTML report matching Statement of Account design
  */
 router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) => {
@@ -978,6 +984,7 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
     const language = req.query.language || 'english';
+    const reportMode = parseBudgetActualReportMode(req.query.reportMode);
     const user = req.user;
     
     if (!clientId) {
@@ -996,8 +1003,7 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
       });
     }
 
-    // Get budget vs actual data
-    const data = await getBudgetActualData(clientId, fiscalYear, user);
+    const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
     
     // Generate HTML
     const { html: htmlOutput } = generateBudgetActualHtml(data, { language });
@@ -1019,8 +1025,8 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
  * Export Budget vs Actual report
  * POST /api/clients/:clientId/reports/budget-actual/export
  * Query param: format=pdf|csv
- * Body: { fiscalYear, language, html?, meta? }
- * 
+ * Body: { fiscalYear, language, reportMode?, html?, meta? }
+ *
  * Returns PDF or CSV export of the report
  */
 router.post('/budget-actual/export', authenticateUserWithProfile, async (req, res) => {
@@ -1029,12 +1035,14 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
     const {
       fiscalYear = null,
       language = 'english',
+      reportMode: bodyReportMode,
       html,
       meta = {},
       format: bodyFormat
     } = req.body || {};
 
     const format = (req.query.format || bodyFormat || 'pdf').toLowerCase();
+    const reportMode = parseBudgetActualReportMode(bodyReportMode);
     const user = req.user;
 
     if (!clientId) {
@@ -1053,9 +1061,15 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       });
     }
 
+    const emDash = '\u2014';
+    const csvVarianceDollars = (centavos) =>
+      centavos == null || Number.isNaN(centavos) ? emDash : centavosToPesos(centavos).toFixed(2);
+    const csvVariancePercent = (pct) =>
+      pct == null || Number.isNaN(pct) ? emDash : Number(pct).toFixed(2);
+
     // CSV export: build from data
     if (format === 'csv') {
-      const data = await getBudgetActualData(clientId, fiscalYear, user);
+      const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
       
       const header = ['Category Name', 'Type', 'Annual Budget', 'YTD Budget', 'YTD Actual', 'Variance ($)', 'Variance (%)'];
       const rows = [];
@@ -1068,8 +1082,8 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           centavosToPesos(cat.annualBudget).toFixed(2),
           centavosToPesos(cat.ytdBudget).toFixed(2),
           centavosToPesos(cat.ytdActual).toFixed(2),
-          centavosToPesos(cat.variance).toFixed(2),
-          cat.variancePercent.toFixed(2)
+          csvVarianceDollars(cat.variance),
+          csvVariancePercent(cat.variancePercent)
         ]);
       });
 
@@ -1081,8 +1095,8 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
           centavosToPesos(cat.annualBudget).toFixed(2),
           centavosToPesos(cat.ytdBudget).toFixed(2),
           centavosToPesos(cat.ytdActual).toFixed(2),
-          centavosToPesos(cat.variance).toFixed(2),
-          cat.variancePercent.toFixed(2)
+          csvVarianceDollars(cat.variance),
+          csvVariancePercent(cat.variancePercent)
         ]);
       });
 
@@ -1174,8 +1188,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
     let metaToUse = meta;
 
     if (!htmlToConvert) {
-      // Generate HTML if not provided
-      const data = await getBudgetActualData(clientId, fiscalYear, user);
+      const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
       const result = generateBudgetActualHtml(data, { language });
       htmlToConvert = result.html;
       metaToUse = result.meta;

@@ -10,15 +10,20 @@ import { getNow } from './DateService.js';
 import { getFiscalYear, getFiscalYearBounds, validateFiscalYearConfig } from '../utils/fiscalYearUtils.js';
 import { listBudgetsByYear } from '../controllers/budgetController.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import {
+  computeCategoryVariances,
+  computeSectionTotalVariances
+} from '../utils/budgetActualVarianceMath.js';
 
 /**
  * Get Budget vs Actual data for a client and fiscal year
  * @param {string} clientId - Client ID
  * @param {number|null} fiscalYear - Fiscal year (null = current fiscal year)
  * @param {Object} user - User object for propertyAccess validation
+ * @param {{ reportMode?: 'ytd'|'projected' }} [options]
  * @returns {Promise<Object>} Budget vs Actual data structure
  */
-export async function getBudgetActualData(clientId, fiscalYear, user) {
+export async function getBudgetActualData(clientId, fiscalYear, user, options = {}) {
   try {
     if (!clientId || !user) {
       throw new Error('Missing required parameters: clientId or user');
@@ -60,6 +65,11 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
     const fiscalYearDuration = fiscalYearEnd - fiscalYearStart;
     const elapsedTime = Math.min(now.getTime() - fiscalYearStart, fiscalYearDuration);
     const actualPercentOfYearElapsed = Math.max(0, Math.min(100, (elapsedTime / fiscalYearDuration) * 100));
+    /** Raw FY progress 0..1 for run-rate projection only (no >95% proration). */
+    const projectionElapsedFraction =
+      fiscalYearDuration > 0 ? Math.min(1, Math.max(0, elapsedTime / fiscalYearDuration)) : 0;
+
+    const reportMode = options.reportMode === 'projected' ? 'projected' : 'ytd';
     
     // YEAR-END ADJUSTMENT: When >95% of year elapsed, treat as 100% for budget comparisons
     // This makes the report more useful for year-end reporting (final 2 weeks)
@@ -479,14 +489,15 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         ? ytdActualRaw  // Income: already positive
         : Math.abs(ytdActualRaw); // Expense: convert negative to positive for comparison
       
-      // Context-aware variance calculation:
-      // Income: positive variance = favorable (collected more than expected)
-      // Expense: positive variance = favorable (spent less than expected)
-      const variance = categoryType === 'income'
-        ? ytdActual - ytdBudget   // Income: positive when actual > budget (good)
-        : ytdBudget - ytdActual;  // Expense: positive when budget > actual (good)
-      
-      const variancePercent = ytdBudget > 0 ? (variance / ytdBudget) * 100 : 0;
+      // Context-aware variance (YTD vs prorated budget, or projected FY-end vs annual budget)
+      const { variance, variancePercent } = computeCategoryVariances(
+        categoryType,
+        annualBudget,
+        ytdBudget,
+        ytdActual,
+        reportMode,
+        projectionElapsedFraction
+      );
 
       const categoryData = {
         id: categoryId,
@@ -495,8 +506,8 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         annualBudget: annualBudget,
         ytdBudget: ytdBudget,
         ytdActual: ytdActual,
-        variance: variance,
-        variancePercent: variancePercent
+        variance,
+        variancePercent
       };
 
       // Categorize into three tables
@@ -544,16 +555,27 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
       balance: accountCreditBalance   // Net balance (centavos, can be positive or negative)
     };
 
-    // Calculate variance totals for each table (context-aware)
-    // Income: variance = actual - budget (positive = favorable)
-    incomeTotals.totalVariance = incomeTotals.totalYtdActual - incomeTotals.totalYtdBudget;
-    incomeTotals.totalVariancePercent = incomeTotals.totalYtdBudget > 0 
-      ? (incomeTotals.totalVariance / incomeTotals.totalYtdBudget) * 100 : 0;
+    const incomeAgg = computeSectionTotalVariances(
+      'income',
+      incomeTotals.totalAnnualBudget,
+      incomeTotals.totalYtdBudget,
+      incomeTotals.totalYtdActual,
+      reportMode,
+      projectionElapsedFraction
+    );
+    incomeTotals.totalVariance = incomeAgg.variance;
+    incomeTotals.totalVariancePercent = incomeAgg.variancePercent;
 
-    // Expense: variance = budget - actual (positive = favorable)
-    expenseTotals.totalVariance = expenseTotals.totalYtdBudget - expenseTotals.totalYtdActual;
-    expenseTotals.totalVariancePercent = expenseTotals.totalYtdBudget > 0 
-      ? (expenseTotals.totalVariance / expenseTotals.totalYtdBudget) * 100 : 0;
+    const expenseAgg = computeSectionTotalVariances(
+      'expense',
+      expenseTotals.totalAnnualBudget,
+      expenseTotals.totalYtdBudget,
+      expenseTotals.totalYtdActual,
+      reportMode,
+      projectionElapsedFraction
+    );
+    expenseTotals.totalVariance = expenseAgg.variance;
+    expenseTotals.totalVariancePercent = expenseAgg.variancePercent;
 
     // PM8B: Replace transaction-based special assessments with direct project/bill data
     const specialAssessmentsCollectionsFinal = projectCollections.length > 0
@@ -585,6 +607,8 @@ export async function getBudgetActualData(clientId, fiscalYear, user) {
         reportDate: reportDate.toISOString(),
         percentOfYearElapsed: actualPercentOfYearElapsed, // Show actual % in report info
         percentOfYearElapsedForBudget: percentOfYearElapsed, // Show adjusted % used for budget calculations
+        reportMode,
+        projectionElapsedFraction,
         reportId: reportId
       },
       income: {

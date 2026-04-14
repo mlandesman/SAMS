@@ -79,6 +79,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
   const [fiscalYear, setFiscalYear] = useState(null);
   const [language, setLanguage] = useState('english');
+  const [reportMode, setReportMode] = useState('ytd');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -116,7 +117,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
       console.log('[BudgetActual] handleGenerate called', { 
         selectedClient: selectedClient?.id, 
         fiscalYear, 
-        language 
+        language,
+        reportMode
       });
 
       if (!selectedClient || !fiscalYear) {
@@ -132,7 +134,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
         const html = await reportService.getBudgetActualHtml(
           selectedClient.id,
           fiscalYear,
-          language
+          language,
+          reportMode
         );
         console.log('[BudgetActual] HTML fetched, length:', html?.length);
 
@@ -141,7 +144,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
         const data = await reportService.getBudgetActualData(
           selectedClient.id,
           fiscalYear,
-          language
+          language,
+          reportMode
         );
         console.log('[BudgetActual] Data fetched');
 
@@ -156,7 +160,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         setLoading(false);
       }
     },
-    [selectedClient, language, fiscalYear]
+    [selectedClient, language, fiscalYear, reportMode]
   );
 
   const handleDownloadPdf = useCallback(
@@ -201,7 +205,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
       try {
         await reportService.exportBudgetActualCsv(selectedClient.id, {
           fiscalYear,
-          language
+          language,
+          reportMode
         });
       } catch (err) {
         console.error('CSV download failed:', err);
@@ -210,7 +215,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         setDownloadingCsv(false);
       }
     },
-    [selectedClient, language, fiscalYear]
+    [selectedClient, language, fiscalYear, reportMode]
   );
 
   const handleRetry = useCallback(() => {
@@ -234,7 +239,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
       return;
     }
     handleGenerate();
-  }, [handleGenerate, selectedClient, fiscalYear, language]);
+  }, [handleGenerate, selectedClient, fiscalYear, language, reportMode]);
 
   if (!selectedClient) {
     return (
@@ -284,6 +289,32 @@ function BudgetActualTab({ zoom = 1.0 }) {
               onClick={() => setLanguage('spanish')}
             >
               ES
+            </button>
+          </div>
+        </div>
+
+        <div className="control-group">
+          <span className="budget-actual-mode-label" id="budget-actual-mode-label">
+            Variance:
+          </span>
+          <div
+            className="language-toggle budget-actual-report-mode-toggle"
+            role="group"
+            aria-labelledby="budget-actual-mode-label"
+          >
+            <button
+              type="button"
+              className={reportMode === 'ytd' ? 'active' : ''}
+              onClick={() => setReportMode('ytd')}
+            >
+              YTD
+            </button>
+            <button
+              type="button"
+              className={reportMode === 'projected' ? 'active' : ''}
+              onClick={() => setReportMode('projected')}
+            >
+              Projected FY-End
             </button>
           </div>
         </div>

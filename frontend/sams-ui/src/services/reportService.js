@@ -365,14 +365,18 @@ class ReportService {
    * @param {string} clientId
    * @param {number|null} fiscalYear - Optional fiscal year (e.g., 2025)
    * @param {string} language - 'english' or 'spanish'
+   * @param {'ytd'|'projected'} [reportMode='ytd'] - BUDGET-PROJ-1 variance basis
    */
-  async getBudgetActualData(clientId, fiscalYear = null, language = 'english') {
+  async getBudgetActualData(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
+    }
+    if (reportMode === 'projected') {
+      params.append('reportMode', 'projected');
     }
 
     const response = await fetch(
@@ -399,14 +403,18 @@ class ReportService {
    * @param {string} clientId
    * @param {number|null} fiscalYear - Optional fiscal year
    * @param {string} language - 'english' or 'spanish'
+   * @param {'ytd'|'projected'} [reportMode='ytd']
    */
-  async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english') {
+  async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
+    }
+    if (reportMode === 'projected') {
+      params.append('reportMode', 'projected');
     }
 
     const response = await fetch(
@@ -503,7 +511,8 @@ class ReportService {
         headers,
         body: JSON.stringify({
           fiscalYear: params.fiscalYear,
-          language: params.language || 'english'
+          language: params.language || 'english',
+          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd'
         })
       }
     );
@@ -520,7 +529,8 @@ class ReportService {
     const a = document.createElement('a');
     a.href = url;
     const yearPart = params.fiscalYear || 'current';
-    a.download = `budget-actual-${clientId}-${yearPart}.csv`;
+    const modePart = params.reportMode === 'projected' ? '-projected' : '';
+    a.download = `budget-actual-${clientId}-${yearPart}${modePart}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   }

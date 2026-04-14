@@ -56,13 +56,29 @@ function formatDate(dateValue) {
   return dt.toFormat('dd-MMM-yy');
 }
 
-/**
- * Format percentage
- */
-function formatPercent(percent) {
-  if (!percent || isNaN(percent)) return '0.00%';
+const EM_DASH = '\u2014';
+
+/** Percent cell when backend may return null (zero denominator or undefined projection) */
+function formatPercentCell(percent) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    return EM_DASH;
+  }
   const sign = percent >= 0 ? '+' : '';
   return `${sign}${percent.toFixed(2)}%`;
+}
+
+function formatCurrencyCell(centavos, showSign = false) {
+  if (centavos === null || centavos === undefined || Number.isNaN(centavos)) {
+    return EM_DASH;
+  }
+  return formatCurrency(centavos, showSign);
+}
+
+function varianceCellClass(variance) {
+  if (variance === null || variance === undefined || Number.isNaN(variance)) {
+    return 'variance-na';
+  }
+  return variance >= 0 ? 'variance-favorable' : 'variance-unfavorable';
 }
 
 /**
@@ -189,7 +205,10 @@ function getTranslations(language) {
       totals: 'TOTALS',
       reportId: 'Report ID',
       generatedOn: 'Generated',
-      noData: 'No data available'
+      noData: 'No data available',
+      varianceBasisCaption: 'Variance basis',
+      varianceBasisYtd: 'Year-to-date (vs prorated budget)',
+      varianceBasisProjected: 'Projected fiscal year-end (run-rate vs annual budget)'
     },
     spanish: {
       title: 'REPORTE PRESUPUESTO VS REAL',
@@ -221,7 +240,10 @@ function getTranslations(language) {
       totals: 'TOTALES',
       reportId: 'ID del Reporte',
       generatedOn: 'Generado',
-      noData: 'No hay datos disponibles'
+      noData: 'No hay datos disponibles',
+      varianceBasisCaption: 'Base de varianza',
+      varianceBasisYtd: 'Acumulado del año (vs presupuesto prorrateado)',
+      varianceBasisProjected: 'Cierre fiscal proyectado (ritmo vs presupuesto anual)'
     }
   };
   
@@ -426,6 +448,10 @@ export function generateBudgetActualHtml(data, options = {}) {
       color: #C00000; /* Red */
       font-weight: bold;
     }
+    .variance-na {
+      color: #555;
+      font-weight: normal;
+    }
     
     /* Totals row */
     .totals-row {
@@ -558,6 +584,10 @@ export function generateBudgetActualHtml(data, options = {}) {
               <td>${t.percentElapsed}:</td>
               <td>${reportInfo.percentOfYearElapsed.toFixed(1)}%</td>
             </tr>
+            <tr>
+              <td>${t.varianceBasisCaption}:</td>
+              <td>${reportInfo.reportMode === 'projected' ? t.varianceBasisProjected : t.varianceBasisYtd}</td>
+            </tr>
           </table>
         </div>
       </div>
@@ -588,15 +618,15 @@ export function generateBudgetActualHtml(data, options = {}) {
       </thead>
       <tbody>
         ${income.categories.length > 0 ? income.categories.map(cat => {
-          const varianceClass = cat.variance >= 0 ? 'variance-favorable' : 'variance-unfavorable';
+          const varianceClass = varianceCellClass(cat.variance);
           return `
         <tr>
           <td class="col-category">${translateCategoryName(cat.name, language)}</td>
           <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
           <td class="col-ytd-budget">${formatCurrency(cat.ytdBudget)}</td>
           <td class="col-ytd-actual">${formatCurrency(cat.ytdActual)}</td>
-          <td class="col-variance ${varianceClass}">${formatCurrency(cat.variance, true)}</td>
-          <td class="col-variance-percent ${varianceClass}">${formatPercent(cat.variancePercent)}</td>
+          <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
+          <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
         </tr>`;
         }).join('') : `
         <tr>
@@ -609,8 +639,8 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-annual-budget">${formatCurrency(income.totals.totalAnnualBudget)}</td>
           <td class="col-ytd-budget">${formatCurrency(income.totals.totalYtdBudget)}</td>
           <td class="col-ytd-actual">${formatCurrency(income.totals.totalYtdActual)}</td>
-          <td class="col-variance ${income.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatCurrency(income.totals.totalVariance, true)}</td>
-          <td class="col-variance-percent ${income.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(income.totals.totalVariancePercent)}</td>
+          <td class="col-variance ${varianceCellClass(income.totals.totalVariance)}">${formatCurrencyCell(income.totals.totalVariance, true)}</td>
+          <td class="col-variance-percent ${varianceCellClass(income.totals.totalVariance)}">${formatPercentCell(income.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
     </table>
@@ -630,15 +660,15 @@ export function generateBudgetActualHtml(data, options = {}) {
       </thead>
       <tbody>
         ${expenses.categories.length > 0 ? expenses.categories.map(cat => {
-          const varianceClass = cat.variance >= 0 ? 'variance-favorable' : 'variance-unfavorable';
+          const varianceClass = varianceCellClass(cat.variance);
           return `
         <tr>
           <td class="col-category">${translateCategoryName(cat.name, language)}</td>
           <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
           <td class="col-ytd-budget">${formatCurrency(cat.ytdBudget)}</td>
           <td class="col-ytd-actual">${formatCurrency(cat.ytdActual)}</td>
-          <td class="col-variance ${varianceClass}">${formatCurrency(cat.variance, true)}</td>
-          <td class="col-variance-percent ${varianceClass}">${formatPercent(cat.variancePercent)}</td>
+          <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
+          <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
         </tr>`;
         }).join('') : `
         <tr>
@@ -651,8 +681,8 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-annual-budget">${formatCurrency(expenses.totals.totalAnnualBudget)}</td>
           <td class="col-ytd-budget">${formatCurrency(expenses.totals.totalYtdBudget)}</td>
           <td class="col-ytd-actual">${formatCurrency(expenses.totals.totalYtdActual)}</td>
-          <td class="col-variance ${expenses.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatCurrency(expenses.totals.totalVariance, true)}</td>
-          <td class="col-variance-percent ${expenses.totals.totalVariance >= 0 ? 'variance-favorable' : 'variance-unfavorable'}">${formatPercent(expenses.totals.totalVariancePercent)}</td>
+          <td class="col-variance ${varianceCellClass(expenses.totals.totalVariance)}">${formatCurrencyCell(expenses.totals.totalVariance, true)}</td>
+          <td class="col-variance-percent ${varianceCellClass(expenses.totals.totalVariance)}">${formatPercentCell(expenses.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
     </table>
