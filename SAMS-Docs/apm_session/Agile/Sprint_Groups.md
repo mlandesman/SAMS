@@ -3,6 +3,21 @@
 
 ## Active Sprint Categories
 
+### 🛠️ Sprint PROD-BACKUP-STABILIZATION: Backup Reliability Follow-up (Queued)
+*Post-v1.21.0 production hardening for backup execution UX and operator trust*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **HOTFIX** | Manual backup run endpoint should return quickly (async trigger + status polling pattern) | high | 2-3h |
+| **303** | [Tech Debt] Backup history timestamps show incorrect timezone in UI | medium | 1-2h |
+
+**Theme**: Remove false-failure signals from backup operations and align displayed backup times with Cancun reality  
+**Risk**: Low-Medium (admin settings flow touches backend route + frontend status rendering)  
+**Dependencies**: IAM permissions fixed and validated in production; backup artifacts confirmed in bucket  
+**Status**: Queued (Apr 14, 2026) — run immediately before BUDGET-PROJ-1
+
+---
+
 ### ✅ Sprint PROD-STABILIZATION-1: Post-Recon Production Confidence (Complete)
 *Post-v1.21.0 confidence fixes while balancing in production*
 
@@ -35,8 +50,8 @@
 
 **Theme**: Deliver a practical projection baseline for near-term fiscal planning decisions  
 **Risk**: Low-Medium (read-only reporting; higher risk is formula/design correctness)  
-**Dependencies**: After PROD-STABILIZATION-1  
-**Status**: Active — next sprint
+**Dependencies**: After PROD-BACKUP-STABILIZATION  
+**Status**: Queued — follows PROD-BACKUP-STABILIZATION
 
 ---
 
@@ -1055,5 +1070,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 11, 2026 — BUGFIX-ONBOARD / BUG-SWEEP active with #272, #271, #275, and #260 complete; next #274. BANK-RECON and scheduler auth guard remain complete (PRs #268, #270). WhatsApp remains paused (Meta blocked).*  
-*Last Review: April 10, 2026*
+*Updated: April 14, 2026 — Added PROD-BACKUP-STABILIZATION queue (async backup run follow-up + issue #303 timezone display fix) after production validation. PROD-STABILIZATION-1 remains complete; BUDGET-PROJ-1 is next after backup follow-up.*  
+*Last Review: April 14, 2026*

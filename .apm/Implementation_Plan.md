@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.21.0 (deployed) | **Production deployed:** v1.21.0 (April 13, 2026)  
-**Last Updated:** April 13, 2026 — Sprint **PROD-STABILIZATION-1** is now complete: Task 1 `#288 + #96` (PR #298), Task 2 `#273` (PR #301), Task 3 `#266` (PR #302). Recon upload reliability hotfix was also completed and validated in production (`PR #299`, `PR #300`). Next sprint queued: **BUDGET-PROJ-1** (`#165`), then **DEBT-1**.
+**Last Updated:** April 14, 2026 — Post-deploy production backup validation completed (IAM/export path confirmed). Sprint **PROD-STABILIZATION-1** remains complete (`#288 + #96`, `#273`, `#266`; PRs #298/#301/#302). Recon upload reliability hotfix remains validated (`PR #299`, `PR #300`). Immediate queue adjusted to backup reliability follow-up (async run behavior + timezone display issue `#303`) before **BUDGET-PROJ-1** (`#165`).
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,7 +25,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Active sprint queue: **BUDGET-PROJ-1** (`#165`) next, then **DEBT-1** (`#220`, `#223`, `#166`). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint queue: **PROD-BACKUP-STABILIZATION** first (manual backup async follow-up + issue `#303` timezone display correction), then **BUDGET-PROJ-1** (`#165`), then **DEBT-1** (`#220`, `#223`, `#166`). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 
