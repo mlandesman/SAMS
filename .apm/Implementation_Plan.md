@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.21.0 (deployed) | **Production deployed:** v1.21.0 (April 13, 2026)  
-**Last Updated:** April 14, 2026 — Post-deploy production backup validation completed (IAM/export path confirmed). Sprint **PROD-STABILIZATION-1** remains complete (`#288 + #96`, `#273`, `#266`; PRs #298/#301/#302). Recon upload reliability hotfix remains validated (`PR #299`, `PR #300`). Immediate queue adjusted to backup reliability follow-up (async run behavior + timezone display issue `#303`) before **BUDGET-PROJ-1** (`#165`).
+**Last Updated:** April 14, 2026 — PO flipped active priority to **BUDGET-PROJ-1** (`#165`) with design-first execution (math + visualization sign-off before coding). Sprint **PROD-STABILIZATION-1** remains complete (`#288 + #96`, `#273`, `#266`; PRs #298/#301/#302). Recon upload reliability hotfix remains validated (`PR #299`, `PR #300`). **PROD-BACKUP-STABILIZATION** (async run behavior + timezone display issue `#303`) is deferred until needed.
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,7 +25,7 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Active sprint queue: **PROD-BACKUP-STABILIZATION** first (manual backup async follow-up + issue `#303` timezone display correction), then **BUDGET-PROJ-1** (`#165`), then **DEBT-1** (`#220`, `#223`, `#166`). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint queue: **BUDGET-PROJ-1** (`#165`) first with design-first workflow, then **DEBT-1** (`#220`, `#223`, `#166`). **PROD-BACKUP-STABILIZATION** (manual backup async follow-up + issue `#303` timezone display correction) is deferred by PO direction unless production risk rises. Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 

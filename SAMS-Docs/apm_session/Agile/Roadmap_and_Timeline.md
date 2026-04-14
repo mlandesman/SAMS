@@ -66,25 +66,29 @@
 | ~~13~~ | ~~**BUGFIX-ONBOARD / BUG-SWEEP-STABILIZATION**~~ | ~~Owner onboarding + post-recon regression fixes~~ | ~~6-8h + sweep~~ | ~~#272, #271, #275, #260, #274, #246, #231, #251, #254~~ ✅ COMPLETE |
 | ~~14~~ | ~~**BANK-RECON**~~ | ~~Bank Reconciliation System~~ | ~~19-27h~~ | ~~ScotiaBank CSV + BBVA XLSX import, automated matching, reconciliation UI, statement acceptance (PRD v2.1)~~ ✅ COMPLETE (PR #268, Apr 10, 2026) |
 | ~~14.5~~ | ~~**PROD-STABILIZATION-1**~~ | ~~Post-Recon Production Confidence~~ | ~~4-6h~~ | ~~#288, #96, #273, #266~~ ✅ COMPLETE (PRs #298, #301, #302) |
-| 15 | **PROD-BACKUP-STABILIZATION** | Backup reliability follow-up | 3-5h | Async backup trigger/polling follow-up + #303 timezone display correction |
-| 16 | **BUDGET-PROJ-1** | Fiscal Year Projection Baseline | 4-6h | #165 |
+| 15 | **BUDGET-PROJ-1** | Fiscal Year Projection Baseline (design-first) | 4-6h | #165 phase A/B/C (design sign-off, baseline implementation, validation) |
+| 16 | **PROD-BACKUP-STABILIZATION** | Backup reliability follow-up | 3-5h | Async backup trigger/polling follow-up + #303 timezone display correction (deferred by PO) |
 | --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
 | 17-18 | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; enable Karyn/Wilfredo (Epic #54 lite) |
 | --- | **DEBT-2** | Bug/Polish Pass | 4-6h | #169, #214, #96, owner feedback bugs |
 | 19 | **REPORTS-V2** | Board & Owner Reports | 10-14h | Formalized PDF reports replacing CSV exports; Sandyland branding |
 | 20 | **PROJECT-VIEWS** | Better Project Presentation | 4-6h | Proposed/Active/Completed tabs; timeline visualization |
 | 21 | **VOTING-ADV** | Advanced Voting | 6-8h | #207 committee filters, #198 vote subsets, email reminders, auto-close |
-| 22 | **BUDGET-PROJ** | Budget Projection Graphs | 6-8h | #165 year-end projections, trend analysis |
+| 22 | **BUDGET-PROJ-2** | Budget Projection Diagnostics Expansion | 6-8h | Follow-on to #165 baseline: category isolation presets, scenario/trend overlays, narrative polish |
 | 23 | **TASK-MGMT** | Task Assignment & Tracking | 16-24h | New module: PRD + Phase 1; maintenance tasks, mobile-first |
 | 24 | **ADMIN-SETTINGS** | Admin & Settings (Sprint E) | 6-8h | #182, #106, #102, #50, #159 |
 
 **Deferred**: DOC-LIB (after Sprint 24), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
 
-**Current Focus**: **Production backup reliability close-out** after v1.21.0 deployment. Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266` merged). Next execution slice is **PROD-BACKUP-STABILIZATION** (async backup run follow-up + issue `#303` timezone fix), then **BUDGET-PROJ-1** (`#165`), then **DEBT-1**. WhatsApp remains **paused**.
+**Current Focus**: **BUDGET-PROJ-1** (`#165`) is now active by PO direction with a design-first workflow (math and visualization sign-off before coding). **PROD-BACKUP-STABILIZATION** is intentionally deferred unless production risk reappears. Next queue after BUDGET-PROJ-1 is **DEBT-1**. WhatsApp remains **paused**.
+
+**Budget Sprint Clarification:** `BUDGET-PROJ-1` and `BUDGET-PROJ` were overlapping labels. The roadmap now treats them as a phased sequence for the same problem space: **BUDGET-PROJ-1** = baseline projection engine and runway chart, **BUDGET-PROJ-2** = optional diagnostics/polish after baseline validation.
 
 **Schedule Note (Apr 13, 2026 — PROD-STAB closed):** PR #302 merged for issue `#266` (canonical `canLogin` login-eligibility contract and cleanup of legacy `loginEnabled` handling). This closes PROD-STABILIZATION-1.
 
 **Schedule Note (Apr 14, 2026 — Backup validation + follow-up queue):** Production backup run now completes Firestore export after IAM correction (runtime SA + Firestore SA permissions validated; artifacts confirmed in `gs://sams-shared-backups/...`). Remaining operator-facing gap is synchronous HTTP behavior and timestamp rendering mismatch. Added **PROD-BACKUP-STABILIZATION** queue and opened issue `#303` for timezone display correction.
+
+**Schedule Note (Apr 14, 2026 — Priority flip to Budget Projection):** PO moved **BUDGET-PROJ-1** ahead of backup follow-up. Sprint goal is design-first: confirm projection math, assumptions, and visualization contract for `#165` before implementation.
 
 **Schedule Note (Apr 10, 2026 — BANK-RECON + Auth Guard Merge)**: Sprint BANK-RECON ✅ COMPLETE and merged (PR #268). Immediate follow-on fix merged (PR #270) to unify scheduler account guard behavior across auth and user-management paths. Roadmap order remains: BUGFIX-ONBOARD next, then DEBT-1 and UC-LITE.
 
@@ -209,4 +213,4 @@
 
 ---
 
-*Last Updated: April 14, 2026 — Added PROD-BACKUP-STABILIZATION queue (async backup follow-up + #303 timezone display), and updated current focus ordering before BUDGET-PROJ-1.*
+*Last Updated: April 14, 2026 — Flipped active sprint to BUDGET-PROJ-1 by PO direction, clarified Budget sprint phase split (BUDGET-PROJ-1 baseline vs BUDGET-PROJ-2 diagnostics), and deferred PROD-BACKUP-STABILIZATION.*

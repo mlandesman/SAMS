@@ -3,7 +3,7 @@
 
 ## Active Sprint Categories
 
-### 🛠️ Sprint PROD-BACKUP-STABILIZATION: Backup Reliability Follow-up (Queued)
+### 🛠️ Sprint PROD-BACKUP-STABILIZATION: Backup Reliability Follow-up (Deferred)
 *Post-v1.21.0 production hardening for backup execution UX and operator trust*
 
 | # | Title | Priority | Est |
@@ -14,7 +14,7 @@
 **Theme**: Remove false-failure signals from backup operations and align displayed backup times with Cancun reality  
 **Risk**: Low-Medium (admin settings flow touches backend route + frontend status rendering)  
 **Dependencies**: IAM permissions fixed and validated in production; backup artifacts confirmed in bucket  
-**Status**: Queued (Apr 14, 2026) — run immediately before BUDGET-PROJ-1
+**Status**: Deferred by PO (Apr 14, 2026) — keep queued for rapid reactivation if production risk returns
 
 ---
 
@@ -50,8 +50,8 @@
 
 **Theme**: Deliver a practical projection baseline for near-term fiscal planning decisions  
 **Risk**: Low-Medium (read-only reporting; higher risk is formula/design correctness)  
-**Dependencies**: After PROD-BACKUP-STABILIZATION  
-**Status**: Queued — follows PROD-BACKUP-STABILIZATION
+**Dependencies**: None (PO-prioritized sprint flip)  
+**Status**: 🚀 ACTIVE (Apr 14, 2026) — design-first (math + visualization sign-off before implementation)
 
 ---
 
@@ -548,18 +548,18 @@
 
 ---
 
-### 📊 Sprint BUDGET-PROJ: Budget Projection Graphs (6-8 hours)
-*Year-end projections and trend analysis for budget planning*
+### 📊 Sprint BUDGET-PROJ-2: Budget Projection Diagnostics Expansion (6-8 hours)
+*Follow-on diagnostics and scenario overlays after baseline projection is accepted*
 
 | Task/# | Title | Priority | Est |
 |--------|-------|----------|-----|
-| **165** | Budget Projection & Runway Graphs — year-end projection based on YTD actuals vs budget | medium | 4-5h |
-| BP-1 | Trend analysis / variance forecasting | medium | 2-3h |
+| **165-FollowOn** | Category isolation presets and explanatory overlays built on baseline projection engine | medium | 4-5h |
+| BP-1 | Trend/scenario diagnostics (variance overlays, narrative callouts) | medium | 2-3h |
 
-**Theme**: "Where we are" is ready; "where we'll likely end up" is currently manual  
+**Theme**: Extend baseline projection into decision-support diagnostics after baseline trust is established  
 **Risk**: Low (read-only visualization, no engine changes)  
-**Dependencies**: After VOTING-ADV  
-**Status**: Planned — roadmap position 20
+**Dependencies**: After BUDGET-PROJ-1 baseline validation  
+**Status**: Planned — do not start until BUDGET-PROJ-1 design + validation are complete
 
 ---
 
@@ -1070,5 +1070,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 14, 2026 — Added PROD-BACKUP-STABILIZATION queue (async backup run follow-up + issue #303 timezone display fix) after production validation. PROD-STABILIZATION-1 remains complete; BUDGET-PROJ-1 is next after backup follow-up.*  
+*Updated: April 14, 2026 — Flipped active sprint to BUDGET-PROJ-1 (design-first), deferred PROD-BACKUP-STABILIZATION by PO direction, and clarified follow-on scope as BUDGET-PROJ-2 diagnostics.*  
 *Last Review: April 14, 2026*
