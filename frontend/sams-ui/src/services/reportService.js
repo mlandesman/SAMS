@@ -445,6 +445,7 @@ class ReportService {
    * @param {number|null} params.fiscalYear
    * @param {string} params.language
    * @param {string} params.html - Complete HTML document
+   * @param {'ytd'|'projected'} [params.reportMode='ytd']
    * @param {object} [params.meta] - Optional footer metadata
    */
   async exportBudgetActualPdfFromHtml(clientId, params) {
@@ -461,6 +462,7 @@ class ReportService {
         body: JSON.stringify({
           fiscalYear: params.fiscalYear,
           language: params.language || 'english',
+          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd',
           html: params.html,
           meta: params.meta || {}
         })

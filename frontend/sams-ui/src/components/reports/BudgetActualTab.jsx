@@ -178,6 +178,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         await reportService.exportBudgetActualPdfFromHtml(selectedClient.id, {
           fiscalYear,
           language,
+          reportMode,
           html: htmlPreview,
           meta: reportData?.meta || {}
         });
@@ -188,7 +189,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         setDownloadingPdf(false);
       }
     },
-    [selectedClient, language, fiscalYear, htmlPreview, reportData]
+    [selectedClient, language, fiscalYear, htmlPreview, reportData, reportMode]
   );
 
   const handleDownloadCsv = useCallback(
