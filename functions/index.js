@@ -53,7 +53,7 @@ async function getApp() {
 
 export const api = onRequest(
   {
-    timeoutSeconds: 300,
+    timeoutSeconds: 900,
     memory: '512MiB',
     // CRITICAL: Do NOT use cors: true here - it may consume the request body stream
     // Express app already handles CORS via cors() middleware
