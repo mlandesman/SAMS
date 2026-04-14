@@ -236,6 +236,11 @@ export function generateBudgetActualText(data) {
   output += `Fiscal Year: ${reportInfo.fiscalYear}\n`;
   output += `Report Date: ${formatDate(reportInfo.reportDate)}\n`;
   output += `% of Year Elapsed: ${reportInfo.percentOfYearElapsed.toFixed(1)}%\n`;
+  const basis =
+    reportInfo.reportMode === 'projected'
+      ? 'Projected fiscal year-end (run-rate vs annual budget)'
+      : 'Year-to-date (vs prorated budget)';
+  output += `Variance basis: ${basis}\n`;
   output += '='.repeat(80) + '\n\n';
 
   // Generate three separate tables
