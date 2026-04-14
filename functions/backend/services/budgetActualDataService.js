@@ -464,8 +464,18 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
       // Continue with zero values if there's an error
     }
     
-    let incomeTotals = { totalAnnualBudget: 0, totalYtdBudget: 0, totalYtdActual: 0 };
-    let expenseTotals = { totalAnnualBudget: 0, totalYtdBudget: 0, totalYtdActual: 0 };
+    let incomeTotals = {
+      totalAnnualBudget: 0,
+      totalYtdBudget: 0,
+      totalYtdActual: 0,
+      totalProjectedYearEnd: 0
+    };
+    let expenseTotals = {
+      totalAnnualBudget: 0,
+      totalYtdBudget: 0,
+      totalYtdActual: 0,
+      totalProjectedYearEnd: 0
+    };
     
     categories.forEach(category => {
       const categoryId = category.id;
@@ -489,14 +499,17 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
         ? ytdActualRaw  // Income: already positive
         : Math.abs(ytdActualRaw); // Expense: convert negative to positive for comparison
       
-      // Context-aware variance (YTD vs prorated budget, or projected FY-end vs annual budget)
-      const { variance, variancePercent } = computeCategoryVariances(
+      const incomeFixedAssessment =
+        categoryType === 'income' && isHOADuesCategory(categoryId) && annualBudget > 0;
+
+      const { variance, variancePercent, projectedYearEndAmount } = computeCategoryVariances(
         categoryType,
         annualBudget,
         ytdBudget,
         ytdActual,
         reportMode,
-        projectionElapsedFraction
+        projectionElapsedFraction,
+        { incomeFixedAssessment }
       );
 
       const categoryData = {
@@ -507,7 +520,9 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
         ytdBudget: ytdBudget,
         ytdActual: ytdActual,
         variance,
-        variancePercent
+        variancePercent,
+        projectedYearEndAmount: projectedYearEndAmount ?? null,
+        incomeFixedAssessment
       };
 
       // Categorize into three tables
@@ -555,27 +570,47 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
       balance: accountCreditBalance   // Net balance (centavos, can be positive or negative)
     };
 
-    const incomeAgg = computeSectionTotalVariances(
-      'income',
-      incomeTotals.totalAnnualBudget,
-      incomeTotals.totalYtdBudget,
-      incomeTotals.totalYtdActual,
-      reportMode,
-      projectionElapsedFraction
-    );
-    incomeTotals.totalVariance = incomeAgg.variance;
-    incomeTotals.totalVariancePercent = incomeAgg.variancePercent;
+    if (reportMode === 'projected') {
+      const sumProjected = cats =>
+        cats.reduce((sum, c) => sum + (Number(c.projectedYearEndAmount) || 0), 0);
+      incomeTotals.totalProjectedYearEnd = sumProjected(incomeCategories);
+      incomeTotals.totalVariance =
+        incomeTotals.totalProjectedYearEnd - incomeTotals.totalAnnualBudget;
+      incomeTotals.totalVariancePercent =
+        incomeTotals.totalAnnualBudget > 0
+          ? (incomeTotals.totalVariance / incomeTotals.totalAnnualBudget) * 100
+          : null;
 
-    const expenseAgg = computeSectionTotalVariances(
-      'expense',
-      expenseTotals.totalAnnualBudget,
-      expenseTotals.totalYtdBudget,
-      expenseTotals.totalYtdActual,
-      reportMode,
-      projectionElapsedFraction
-    );
-    expenseTotals.totalVariance = expenseAgg.variance;
-    expenseTotals.totalVariancePercent = expenseAgg.variancePercent;
+      expenseTotals.totalProjectedYearEnd = sumProjected(expenseCategories);
+      expenseTotals.totalVariance =
+        expenseTotals.totalAnnualBudget - expenseTotals.totalProjectedYearEnd;
+      expenseTotals.totalVariancePercent =
+        expenseTotals.totalAnnualBudget > 0
+          ? (expenseTotals.totalVariance / expenseTotals.totalAnnualBudget) * 100
+          : null;
+    } else {
+      const incomeAgg = computeSectionTotalVariances(
+        'income',
+        incomeTotals.totalAnnualBudget,
+        incomeTotals.totalYtdBudget,
+        incomeTotals.totalYtdActual,
+        reportMode,
+        projectionElapsedFraction
+      );
+      incomeTotals.totalVariance = incomeAgg.variance;
+      incomeTotals.totalVariancePercent = incomeAgg.variancePercent;
+
+      const expenseAgg = computeSectionTotalVariances(
+        'expense',
+        expenseTotals.totalAnnualBudget,
+        expenseTotals.totalYtdBudget,
+        expenseTotals.totalYtdActual,
+        reportMode,
+        projectionElapsedFraction
+      );
+      expenseTotals.totalVariance = expenseAgg.variance;
+      expenseTotals.totalVariancePercent = expenseAgg.variancePercent;
+    }
 
     // PM8B: Replace transaction-based special assessments with direct project/bill data
     const specialAssessmentsCollectionsFinal = projectCollections.length > 0

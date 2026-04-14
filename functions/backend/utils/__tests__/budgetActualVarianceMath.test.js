@@ -31,18 +31,37 @@ describe('computeCategoryVariances projected', () => {
 
   it('income: projected vs annual', () => {
     const r = computeCategoryVariances('income', 1200000000, 480000000, 400000000, 'projected', frac);
+    assert.equal(r.projectedYearEndAmount, 1000000000);
     assert.equal(r.variance, -200000000);
     assert.ok(Math.abs(r.variancePercent - -100 / 6) < 0.0001);
   });
 
+  it('HOA dues (fixed assessment) locks projected year-end to annual budget', () => {
+    const r = computeCategoryVariances('income', 12000000, 4800000, 4000000, 'projected', 0.4, {
+      incomeFixedAssessment: true
+    });
+    assert.equal(r.projectedYearEndAmount, 12000000);
+    assert.equal(r.variance, 0);
+    assert.equal(r.variancePercent, 0);
+  });
+
+  it('fixed assessment flag ignored when annual budget is zero', () => {
+    const r = computeCategoryVariances('income', 0, 0, 4000000, 'projected', 0.4, {
+      incomeFixedAssessment: true
+    });
+    assert.equal(r.projectedYearEndAmount, 10000000);
+  });
+
   it('expense: annual minus projected', () => {
     const r = computeCategoryVariances('expense', 350000000, 140000000, 180000000, 'projected', frac);
+    assert.equal(r.projectedYearEndAmount, 450000000);
     assert.equal(r.variance, -100000000);
     assert.ok(Math.abs(r.variancePercent - (-100000000 / 350000000) * 100) < 0.0001);
   });
 
   it('annual budget zero yields null percent', () => {
     const r = computeCategoryVariances('expense', 0, 0, 40000000, 'projected', frac);
+    assert.equal(r.projectedYearEndAmount, 100000000);
     assert.equal(r.variance, -100000000);
     assert.equal(r.variancePercent, null);
   });
