@@ -11,6 +11,7 @@ import admin from 'firebase-admin';
 import { writeAuditLog } from '../utils/auditLogger.js';
 import { validateClientAccess, sanitizeUserData } from '../utils/securityUtils.js';
 import { isSystemSchedulerAccount } from '../utils/systemSchedulerAccount.js';
+import { isFirestoreLoginEligible } from '../utils/userLoginEligibility.js';
 import { sendPasswordNotification } from '../services/emailService.js';
 import { getNow } from '../services/DateService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
@@ -570,9 +571,8 @@ export async function getUsers(req, res) {
     // Enhance users with Firebase Auth metadata (including lastSignInTime)
     // Note: Contact-only users (canLogin=false) don't have Firebase Auth records - this is expected
     const enhancedUsers = await Promise.all(users.map(async (user) => {
-      // Only fetch Firebase Auth data for users who can login
-      if (user.canLogin === false) {
-        // Contact-only user - no Auth record expected, skip fetch
+      // Skip Auth metadata fetch for ineligible users (no Auth record expected), except system scheduler
+      if (!isFirestoreLoginEligible(user) && !isSystemSchedulerAccount(user.id, user)) {
         return {
           ...user,
           firebaseMetadata: {

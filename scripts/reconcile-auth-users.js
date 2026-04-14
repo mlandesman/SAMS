@@ -15,6 +15,7 @@
 import admin from 'firebase-admin';
 import { createInterface } from 'readline';
 import { generateSecureTempPassword } from '../functions/shared/utils/tempPassword.js';
+import { getNow } from '../functions/backend/services/DateService.js';
 
 // ── CLI Argument Parsing ─────────────────────────────────────────────────────
 
@@ -328,7 +329,7 @@ async function runFix(orphanedUsers) {
   console.log('  For each orphaned user, the script will:');
   console.log('    1. Create a Firebase Auth record with the SAME UID as the Firestore doc');
   console.log('    2. Set the Auth account as DISABLED');
-  console.log('    3. Remove obsolete loginEnabled from the Firestore document (if present)');
+  console.log('    3. Set canLogin=false, remove obsolete loginEnabled (if present)');
   console.log('    4. Add reconciliation metadata to the Firestore document');
   console.log('');
   console.log(`  Target project: ${projectId}`);
@@ -376,9 +377,10 @@ async function runFix(orphanedUsers) {
 
       // Step 2: Update Firestore document (Auth disabled flag is source of truth for login access)
       await db.collection('users').doc(docId).update({
+        canLogin: false,
         loginEnabled: admin.firestore.FieldValue.delete(),
         _reconciled: true,
-        _reconciledAt: new Date().toISOString(),
+        _reconciledAt: getNow().toISOString(),
         _reconciledBy: 'reconcile-auth-users-script',
         _reconciledNote: 'Auth record recreated after backup/restore loss',
       });
