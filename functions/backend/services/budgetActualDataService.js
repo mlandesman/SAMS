@@ -386,6 +386,27 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
       }
     });
 
+    /**
+     * Merge actualMap by normalized id so budget category ids match transaction keys
+     * (e.g. maintenance-elevator vs maintenance_elevator).
+     */
+    const normalizeBvACategoryKey = rawId =>
+      String(rawId || '')
+        .toLowerCase()
+        .replace(/_/g, '-');
+
+    const actualByNormalizedCategoryId = new Map();
+    for (const [key, value] of actualMap.entries()) {
+      const nk = normalizeBvACategoryKey(key);
+      actualByNormalizedCategoryId.set(
+        nk,
+        (actualByNormalizedCategoryId.get(nk) || 0) + (Number(value) || 0)
+      );
+    }
+
+    const getActualForCategory = categoryId =>
+      actualByNormalizedCategoryId.get(normalizeBvACategoryKey(categoryId)) || 0;
+
     // Helper function to check if category is a project category
     const isProjectCategory = (categoryId, categoryName) => {
       const idLower = (categoryId || '').toLowerCase();
@@ -490,7 +511,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
       
       const annualBudget = budgetMap.get(categoryId) || 0; // centavos (always positive)
       const ytdBudget = Math.round(annualBudget * (percentOfYearElapsed / 100)); // centavos (prorated, always positive)
-      const ytdActualRaw = actualMap.get(categoryId) || 0; // centavos (signed: negative for expenses, positive for income)
+      const ytdActualRaw = getActualForCategory(categoryId); // centavos (signed: negative for expenses, positive for income)
       
       // For budget comparison, we need to compare positive budget to positive actual
       // So for expenses (stored as negative), convert to positive for comparison

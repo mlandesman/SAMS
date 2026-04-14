@@ -41,7 +41,24 @@ export function projectedYearEndDisplayCentavos(
   ) {
     return Math.round(annual);
   }
-  return projectedFYActualCentavos(ytdActual, projectionElapsedFraction);
+
+  const run = projectedFYActualCentavos(ytdActual, projectionElapsedFraction);
+  if (run === null) {
+    return null;
+  }
+
+  // Expense: pure run-rate (YTD/elapsed) yields $0 with no YTD spend — misleading when an
+  // annual budget exists (lumpy spend / timing). Assume year-end converges to the budget envelope.
+  if (categoryType === 'expense' && annual > 0 && run === 0) {
+    return Math.round(annual);
+  }
+
+  // Expense: never project below realized YTD spend (defensive vs rounding / edge timing).
+  if (categoryType === 'expense' && ytdActual > 0 && run < ytdActual) {
+    return Math.round(ytdActual);
+  }
+
+  return run;
 }
 
 /**

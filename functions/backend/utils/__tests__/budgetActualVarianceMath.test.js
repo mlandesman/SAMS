@@ -65,6 +65,13 @@ describe('computeCategoryVariances projected', () => {
     assert.equal(r.variance, -100000000);
     assert.equal(r.variancePercent, null);
   });
+
+  it('expense: zero YTD with annual budget uses annual as projected year-end (not $0 run-rate)', () => {
+    const r = computeCategoryVariances('expense', 5000000, 2000000, 0, 'projected', 0.4);
+    assert.equal(r.projectedYearEndAmount, 5000000);
+    assert.equal(r.variance, 0);
+    assert.equal(r.variancePercent, 0);
+  });
 });
 
 describe('computeCategoryVariances ytd', () => {
