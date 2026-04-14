@@ -11,6 +11,7 @@ import admin from 'firebase-admin';
 import { createRequire } from 'module';
 import { getNow } from '../services/DateService.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
+import { isLegacySuperAdminEmail } from '../../shared/superAdminConstants.js';
 const require = createRequire(import.meta.url);
 
 // Load service account to get expected project ID
@@ -83,7 +84,10 @@ export const authenticateUserWithProfile = async (req, res, next) => {
       samsProfile: samsProfile,
       // Helper methods
       isSuperAdmin: () => {
-        return samsProfile?.globalRole === 'superAdmin';
+        if (samsProfile?.globalRole === 'superAdmin') return true;
+        const tokenEmail = decodedToken.email;
+        const profileEmail = samsProfile?.email;
+        return isLegacySuperAdminEmail(tokenEmail) || isLegacySuperAdminEmail(profileEmail);
       },
       getPropertyAccess: (clientId) => {
         // Support both field names for backwards compatibility

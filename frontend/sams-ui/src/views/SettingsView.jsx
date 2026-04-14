@@ -3,9 +3,11 @@ import { Box, Tabs, Tab } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faChartLine, faDatabase, faCalendarAlt, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { triggerManualExchangeRatesUpdate, checkTodaysExchangeRates } from '../api/exchangeRates';
+import { getMexicoDateString } from '../utils/timezone';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import { SuperAdminGuard } from '../components/security/PermissionGuard';
+import { isSuperAdmin } from '../utils/userRoles';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import ImportManagement from '../components/Settings/ImportManagement';
 import YearEndProcessing from './settings/YearEndProcessing';
@@ -75,7 +77,7 @@ function SettingsView() {
       const result = await triggerManualExchangeRatesUpdate({ 
         mode: 'fill-gaps',
         startDate: '2025-05-01', // Last month
-        endDate: new Date().toISOString().split('T')[0] // Today
+        endDate: getMexicoDateString()
       });
       
       if (result.success) {
@@ -137,8 +139,7 @@ function SettingsView() {
     }
   };
 
-  // Check if user is SuperAdmin
-  const isSuperAdmin = samsUser?.email === 'michael@landesman.com' || samsUser?.globalRole === 'superAdmin';
+  const userIsSuperAdmin = isSuperAdmin(samsUser);
 
   // Map activeSection to tab index
   const sectionToIndex = {
@@ -190,14 +191,14 @@ function SettingsView() {
             icon={<FontAwesomeIcon icon={faCog} />}
             iconPosition="start"
           />
-          {isSuperAdmin && (
+          {userIsSuperAdmin && (
             <Tab
               label="System Errors"
               icon={<FontAwesomeIcon icon={faExclamationTriangle} />}
               iconPosition="start"
             />
           )}
-          {isSuperAdmin && (
+          {userIsSuperAdmin && (
             <Tab
               label="Backup & Recovery"
               icon={<FontAwesomeIcon icon={faDatabase} />}
@@ -411,7 +412,7 @@ function SettingsView() {
           <p>Additional system settings and administration tools will be added here.</p>
           
           {/* User Management Notice */}
-          {isSuperAdmin && (
+          {userIsSuperAdmin && (
             <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#d1ecf1', borderRadius: '4px', border: '1px solid #bee5eb' }}>
               <h4>👥 User Management</h4>
               <p>User Management has been moved to <strong>List Management</strong> for better organization.</p>
@@ -423,14 +424,14 @@ function SettingsView() {
           <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e9ecef', borderRadius: '4px' }}>
             <h4>Current User Information</h4>
             <p><strong>Email:</strong> {samsUser?.email}</p>
-            <p><strong>Role:</strong> {isSuperAdmin ? 'SuperAdmin' : 'User'}</p>
+            <p><strong>Role:</strong> {userIsSuperAdmin ? 'SuperAdmin' : 'User'}</p>
             <p><strong>Client Access:</strong> {samsUser?.propertyAccess && Array.isArray(samsUser.propertyAccess) ? samsUser.propertyAccess.join(', ') : 'None'}</p>
           </div>
         </div>
       )}
 
       {/* System Errors Section — SuperAdmin only */}
-      {activeSection === 'system-errors' && isSuperAdmin && (
+      {activeSection === 'system-errors' && userIsSuperAdmin && (
         <SuperAdminGuard>
           <div style={{
             border: '1px solid #ddd',
@@ -445,7 +446,7 @@ function SettingsView() {
       )}
 
       {/* Backup & Recovery Section */}
-      {activeSection === 'backup' && isSuperAdmin && (
+      {activeSection === 'backup' && userIsSuperAdmin && (
         <SuperAdminGuard>
           <BackupSettings />
         </SuperAdminGuard>

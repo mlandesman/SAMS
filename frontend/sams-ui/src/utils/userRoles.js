@@ -3,6 +3,8 @@
  * Defines role hierarchy, permissions, and access control
  */
 
+import { getMexicoDateTime } from './timezone.js';
+
 /**
  * User Role Definitions
  */
@@ -13,6 +15,9 @@ export const USER_ROLES = {
   UNIT_OWNER: 'unitOwner',
   UNIT_MANAGER: 'unitManager'
 };
+
+/** Must match `functions/shared/superAdminConstants.js` */
+export const LEGACY_SUPERADMIN_EMAIL = 'michael@landesman.com';
 
 /**
  * Permission Definitions - Aligned with Backend Security Model
@@ -142,6 +147,27 @@ export const ROLE_PERMISSIONS = {
 };
 
 /**
+ * SuperAdmin: Firestore `globalRole` and legacy bootstrap operator email.
+ * @param {Object|string|null} userOrEmail - SAMS user object or email string
+ * @returns {boolean}
+ */
+export function isSuperAdmin(userOrEmail) {
+  if (userOrEmail == null || userOrEmail === '') {
+    return false;
+  }
+  if (typeof userOrEmail === 'string') {
+    return userOrEmail.toLowerCase() === LEGACY_SUPERADMIN_EMAIL;
+  }
+  if (userOrEmail.globalRole === 'superAdmin') {
+    return true;
+  }
+  if (typeof userOrEmail.email === 'string' && userOrEmail.email.toLowerCase() === LEGACY_SUPERADMIN_EMAIL) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Enhanced Permission Checking Functions
  * Phase 8: User Access Control System - Frontend Integration
  */
@@ -155,13 +181,16 @@ export const ROLE_PERMISSIONS = {
  * @returns {boolean} - True if user has permission
  */
 export function hasPermission(user, permission, clientId, unitId = null) {
-  if (!user || !permission || !clientId) {
+  if (!user || !permission) {
     return false;
   }
 
-  // SuperAdmin has all permissions
-  if (user.globalRole === 'superAdmin') {
+  if (isSuperAdmin(user)) {
     return true;
+  }
+
+  if (!clientId) {
+    return false;
   }
 
   // Check if user has access to this client
@@ -206,8 +235,7 @@ export function canUserPerformOperation(user, operation, resourceType, clientId,
     return false;
   }
 
-  // SuperAdmin can do everything
-  if (user.globalRole === 'superAdmin') {
+  if (isSuperAdmin(user)) {
     return true;
   }
 
@@ -270,8 +298,7 @@ export function getAccessibleClients(user) {
     return [];
   }
 
-  // SuperAdmin can access all clients
-  if (user.globalRole === 'superAdmin') {
+  if (isSuperAdmin(user)) {
     return ['*']; // Special marker for all clients
   }
 
@@ -290,8 +317,7 @@ export function getUserClientRole(user, clientId) {
     return null;
   }
 
-  // SuperAdmin
-  if (user.globalRole === 'superAdmin') {
+  if (isSuperAdmin(user)) {
     return 'superAdmin';
   }
 
@@ -351,25 +377,6 @@ export const USER_DATA_STRUCTURE = {
 };
 
 /**
- * Check if user is SuperAdmin
- * @param {Object|string} userOrEmail - User object or email string
- * @returns {boolean} - True if user is SuperAdmin
- */
-export const isSuperAdmin = (userOrEmail) => {
-  // Handle both user object and email string
-  const user = typeof userOrEmail === 'object' ? userOrEmail : null;
-  
-  // Check by globalRole if user object provided
-  if (user && user.globalRole === 'superAdmin') {
-    return true;
-  }
-  
-  // For backward compatibility, return false for email-only checks
-  // SuperAdmin status should only be determined by globalRole in the database
-  return false;
-};
-
-/**
  * Check if user is Admin (but not SuperAdmin)
  * @param {Object} user - User object
  * @param {string} clientId - Optional client ID to check client-specific admin role
@@ -417,7 +424,7 @@ export const isUnitOwnerOrManager = (user) => {
  * @returns {Object} - New user data structure
  */
 export const createUserData = (email, name, createdBy) => {
-  const now = new Date().toISOString();
+  const now = getMexicoDateTime().toISOString();
   
   return {
     email: email.toLowerCase(),
@@ -450,7 +457,7 @@ export const addPropertyAccess = (user, clientId, role, unitId = null, addedBy) 
     role,
     unitId,
     permissions: [],
-    addedDate: new Date().toISOString(),
+    addedDate: getMexicoDateTime().toISOString(),
     addedBy
   };
   
