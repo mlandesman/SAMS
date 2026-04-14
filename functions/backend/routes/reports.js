@@ -1043,6 +1043,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
 
     const format = (req.query.format || bodyFormat || 'pdf').toLowerCase();
     const reportMode = parseBudgetActualReportMode(bodyReportMode);
+    const budgetActualFileSuffix = reportMode === 'projected' ? '-projected' : '';
     const user = req.user;
 
     if (!clientId) {
@@ -1168,7 +1169,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       const csvContent = csvLines.join('\r\n');
 
       const safeClientId = clientId || 'client';
-      const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}.csv`;
+      const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}${budgetActualFileSuffix}.csv`;
 
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -1204,7 +1205,7 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
     });
 
     const safeClientId = clientId || 'client';
-    const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}.pdf`;
+    const fileName = `budget-actual_${safeClientId}_${fiscalYear || 'current'}${budgetActualFileSuffix}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
