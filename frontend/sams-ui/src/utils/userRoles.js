@@ -16,9 +16,6 @@ export const USER_ROLES = {
   UNIT_MANAGER: 'unitManager'
 };
 
-/** Must match `functions/shared/superAdminConstants.js` */
-export const LEGACY_SUPERADMIN_EMAIL = 'michael@landesman.com';
-
 /**
  * Permission Definitions - Aligned with Backend Security Model
  * Phase 8: User Access Control System Enhancement
@@ -147,24 +144,18 @@ export const ROLE_PERMISSIONS = {
 };
 
 /**
- * SuperAdmin: Firestore `globalRole` and legacy bootstrap operator email.
- * @param {Object|string|null} userOrEmail - SAMS user object or email string
+ * SuperAdmin is defined only by Firestore `globalRole === 'superAdmin'` on the user profile.
+ * @param {Object|string|null} userOrEmail - SAMS user object; non-objects are not super admin
  * @returns {boolean}
  */
 export function isSuperAdmin(userOrEmail) {
   if (userOrEmail == null || userOrEmail === '') {
     return false;
   }
-  if (typeof userOrEmail === 'string') {
-    return userOrEmail.toLowerCase() === LEGACY_SUPERADMIN_EMAIL;
+  if (typeof userOrEmail !== 'object') {
+    return false;
   }
-  if (userOrEmail.globalRole === 'superAdmin') {
-    return true;
-  }
-  if (typeof userOrEmail.email === 'string' && userOrEmail.email.toLowerCase() === LEGACY_SUPERADMIN_EMAIL) {
-    return true;
-  }
-  return false;
+  return userOrEmail.globalRole === 'superAdmin';
 }
 
 /**
