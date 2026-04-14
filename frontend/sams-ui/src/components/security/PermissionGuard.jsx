@@ -9,7 +9,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
-import { hasPermission, canUserPerformOperation } from '../../utils/userRoles';
+import { hasPermission, canUserPerformOperation, isSuperAdmin } from '../../utils/userRoles';
 
 /**
  * PermissionGuard Component
@@ -38,30 +38,30 @@ export const PermissionGuard = ({
 
   // Determine if user has required permissions
   const hasAccess = React.useMemo(() => {
-    if (!samsUser || !selectedClient) {
+    if (!samsUser) {
       return false;
     }
 
-    // Check specific permission if provided
     if (permission) {
       const permissions = Array.isArray(permission) ? permission : [permission];
-      return permissions.some(perm => 
-        hasPermission(samsUser, perm, selectedClient.id)
+      return permissions.some(perm =>
+        hasPermission(samsUser, perm, selectedClient?.id)
       );
     }
 
-    // Check operation-based permission if provided
     if (operation && resource) {
+      if (!selectedClient) {
+        return false;
+      }
       return canUserPerformOperation(
-        samsUser, 
-        operation, 
-        resource, 
+        samsUser,
+        operation,
+        resource,
         selectedClient.id,
         resourceData
       );
     }
 
-    // Default to deny if no permission criteria specified
     return false;
   }, [samsUser, selectedClient, permission, operation, resource, resourceData]);
 
@@ -106,7 +106,7 @@ export const usePermission = (permission, clientId = null) => {
   const targetClientId = clientId || selectedClient?.id;
 
   return React.useMemo(() => {
-    if (!samsUser || !targetClientId) {
+    if (!samsUser) {
       return false;
     }
 
@@ -186,10 +186,8 @@ export const RoleGuard = ({ role, children, fallback = null }) => {
       return false;
     }
 
-    // SuperAdmin check
     if (role === 'superAdmin') {
-      return samsUser.email === 'michael@landesman.com' || 
-             samsUser.globalRole === 'superAdmin';
+      return isSuperAdmin(samsUser);
     }
 
     // Client-specific role check
