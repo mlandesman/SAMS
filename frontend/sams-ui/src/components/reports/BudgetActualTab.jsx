@@ -79,7 +79,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
   const [fiscalYear, setFiscalYear] = useState(null);
   const [language, setLanguage] = useState('english');
-  const [reportMode, setReportMode] = useState('ytd');
+  const [reportMode, setReportMode] = useState('projected');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -152,7 +152,31 @@ function BudgetActualTab({ zoom = 1.0 }) {
           language,
           reportMode
         );
-        console.log('[BudgetActual] Data fetched');
+        console.log('[BudgetActual] Data fetched', {
+          requestedReportMode: reportMode,
+          returnedReportMode: data?.reportInfo?.reportMode,
+          reportId: data?.reportInfo?.reportId,
+          firstIncomeRow: data?.income?.categories?.[0]
+            ? {
+                name: data.income.categories[0].name,
+                annualBudget: data.income.categories[0].annualBudget,
+                ytdBudget: data.income.categories[0].ytdBudget,
+                ytdActual: data.income.categories[0].ytdActual,
+                variance: data.income.categories[0].variance,
+                variancePercent: data.income.categories[0].variancePercent
+              }
+            : null,
+          firstExpenseRow: data?.expenses?.categories?.[0]
+            ? {
+                name: data.expenses.categories[0].name,
+                annualBudget: data.expenses.categories[0].annualBudget,
+                ytdBudget: data.expenses.categories[0].ytdBudget,
+                ytdActual: data.expenses.categories[0].ytdActual,
+                variance: data.expenses.categories[0].variance,
+                variancePercent: data.expenses.categories[0].variancePercent
+              }
+            : null
+        });
 
         if (seq !== budgetActualGenerateSeq.current) {
           console.log('[BudgetActual] Discarding stale generate result (seq mismatch)');

@@ -391,8 +391,14 @@ class ReportService {
     params.append('reportMode', normalizedReportMode);
     params.append('_cb', this.createBudgetActualCacheBustToken());
 
+    const requestUrl = `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`;
+    console.log('[ReportService] GET BudgetActual data', {
+      path: requestUrl,
+      reportMode: normalizedReportMode
+    });
+
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`,
+      requestUrl,
       {
         method: 'GET',
         headers,
@@ -404,6 +410,13 @@ class ReportService {
     if (!response.ok || json.success === false) {
       throw new Error(json.error || 'Failed to fetch budget vs actual data');
     }
+
+    console.log('[ReportService] BudgetActual data response summary', {
+      returnedReportMode: json?.data?.reportInfo?.reportMode,
+      reportId: json?.data?.reportInfo?.reportId,
+      incomeCount: json?.data?.income?.categories?.length || 0,
+      expenseCount: json?.data?.expenses?.categories?.length || 0
+    });
 
     // Return the data object (income, expenses, specialAssessments, etc.)
     return json.data;
@@ -431,8 +444,14 @@ class ReportService {
     params.append('reportMode', normalizedReportMode);
     params.append('_cb', this.createBudgetActualCacheBustToken());
 
+    const requestUrl = `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`;
+    console.log('[ReportService] GET BudgetActual html', {
+      path: requestUrl,
+      reportMode: normalizedReportMode
+    });
+
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`,
+      requestUrl,
       {
         method: 'GET',
         headers,
@@ -448,6 +467,12 @@ class ReportService {
     }
 
     const html = await response.text();
+    console.log('[ReportService] BudgetActual html response markers', {
+      reportMode: normalizedReportMode,
+      hasProjectedBasisText: html.includes('Projected year-end'),
+      hasYtdBudgetHeader: html.includes('YTD BUDGET'),
+      hasProjectedVarianceHeader: html.includes('PROJECTED VARIANCE')
+    });
     return html;
   }
 
