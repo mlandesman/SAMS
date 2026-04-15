@@ -163,7 +163,13 @@ function generateProjectedTableSection(title, categories, totals) {
   output += '-'.repeat(80) + '\n';
   output += 'TOTALS'.padEnd(28);
   output += formatPesos(totals.totalAnnualBudget).padStart(14);
-  output += formatPesos(totals.totalProjectedYearEnd).padStart(15);
+  const totalProjYe =
+    totals.totalProjectedYearEnd === null ||
+    totals.totalProjectedYearEnd === undefined ||
+    Number.isNaN(totals.totalProjectedYearEnd)
+      ? EM_DASH.padStart(15)
+      : formatPesos(totals.totalProjectedYearEnd).padStart(15);
+  output += totalProjYe;
 
   const totalVariance =
     totals.totalVariance === null || totals.totalVariance === undefined || Number.isNaN(totals.totalVariance)

@@ -324,7 +324,7 @@ export function generateBudgetActualHtml(data, options = {}) {
         <tr class="totals-row">
           <td class="col-category">${t.totals}</td>
           <td class="col-annual-budget">${formatCurrency(income.totals.totalAnnualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrency(income.totals.totalProjectedYearEnd)}</td>
+          <td class="col-projected-ye">${formatCurrencyCell(income.totals.totalProjectedYearEnd)}</td>
           <td class="col-variance ${varianceCellClass(income.totals.totalVariance)}">${formatCurrencyCell(income.totals.totalVariance, true)}</td>
           <td class="col-variance-percent ${varianceCellClass(income.totals.totalVariance)}">${formatPercentCell(income.totals.totalVariancePercent)}</td>
         </tr>
@@ -418,7 +418,7 @@ export function generateBudgetActualHtml(data, options = {}) {
         <tr class="totals-row">
           <td class="col-category">${t.totals}</td>
           <td class="col-annual-budget">${formatCurrency(expenses.totals.totalAnnualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrency(expenses.totals.totalProjectedYearEnd)}</td>
+          <td class="col-projected-ye">${formatCurrencyCell(expenses.totals.totalProjectedYearEnd)}</td>
           <td class="col-variance ${varianceCellClass(expenses.totals.totalVariance)}">${formatCurrencyCell(expenses.totals.totalVariance, true)}</td>
           <td class="col-variance-percent ${varianceCellClass(expenses.totals.totalVariance)}">${formatPercentCell(expenses.totals.totalVariancePercent)}</td>
         </tr>

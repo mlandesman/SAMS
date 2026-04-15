@@ -592,23 +592,42 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
     };
 
     if (reportMode === 'projected') {
-      const sumProjected = cats =>
-        cats.reduce((sum, c) => sum + (Number(c.projectedYearEndAmount) || 0), 0);
-      incomeTotals.totalProjectedYearEnd = sumProjected(incomeCategories);
-      incomeTotals.totalVariance =
-        incomeTotals.totalProjectedYearEnd - incomeTotals.totalAnnualBudget;
-      incomeTotals.totalVariancePercent =
-        incomeTotals.totalAnnualBudget > 0
-          ? (incomeTotals.totalVariance / incomeTotals.totalAnnualBudget) * 100
-          : null;
+      // Do not treat null row projections as 0: when FY elapsed fraction is 0 (e.g. future FY),
+      // non–HOA-dues lines are null; summing them as zero would fabricate footer variance.
+      const anyRowMissingProjection = cats =>
+        cats.some(
+          c => c.projectedYearEndAmount === null || c.projectedYearEndAmount === undefined
+        );
+      const sumProjectedDefined = cats =>
+        cats.reduce((sum, c) => sum + Number(c.projectedYearEndAmount), 0);
 
-      expenseTotals.totalProjectedYearEnd = sumProjected(expenseCategories);
-      expenseTotals.totalVariance =
-        expenseTotals.totalAnnualBudget - expenseTotals.totalProjectedYearEnd;
-      expenseTotals.totalVariancePercent =
-        expenseTotals.totalAnnualBudget > 0
-          ? (expenseTotals.totalVariance / expenseTotals.totalAnnualBudget) * 100
-          : null;
+      if (anyRowMissingProjection(incomeCategories)) {
+        incomeTotals.totalProjectedYearEnd = null;
+        incomeTotals.totalVariance = null;
+        incomeTotals.totalVariancePercent = null;
+      } else {
+        incomeTotals.totalProjectedYearEnd = sumProjectedDefined(incomeCategories);
+        incomeTotals.totalVariance =
+          incomeTotals.totalProjectedYearEnd - incomeTotals.totalAnnualBudget;
+        incomeTotals.totalVariancePercent =
+          incomeTotals.totalAnnualBudget > 0
+            ? (incomeTotals.totalVariance / incomeTotals.totalAnnualBudget) * 100
+            : null;
+      }
+
+      if (anyRowMissingProjection(expenseCategories)) {
+        expenseTotals.totalProjectedYearEnd = null;
+        expenseTotals.totalVariance = null;
+        expenseTotals.totalVariancePercent = null;
+      } else {
+        expenseTotals.totalProjectedYearEnd = sumProjectedDefined(expenseCategories);
+        expenseTotals.totalVariance =
+          expenseTotals.totalAnnualBudget - expenseTotals.totalProjectedYearEnd;
+        expenseTotals.totalVariancePercent =
+          expenseTotals.totalAnnualBudget > 0
+            ? (expenseTotals.totalVariance / expenseTotals.totalAnnualBudget) * 100
+            : null;
+      }
     } else {
       const incomeAgg = computeSectionTotalVariances(
         'income',
