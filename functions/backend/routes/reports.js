@@ -1120,16 +1120,26 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
     if (format === 'csv') {
       const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
 
-      // Same columns for ytd and projected: variance columns reflect reportMode from getBudgetActualData.
-      const header = [
-        'Category Name',
-        'Type',
-        'Annual Budget',
-        'YTD Budget',
-        'YTD Actual',
-        'Variance ($)',
-        'Variance (%)'
-      ];
+      const isProjected = reportMode === 'projected';
+      const header = isProjected
+        ? [
+            'Category Name',
+            'Type',
+            'Annual Budget',
+            'YTD Budget (Reference)',
+            'YTD Actual (Reference)',
+            'Projected Variance ($)',
+            'Projected Variance (%)'
+          ]
+        : [
+            'Category Name',
+            'Type',
+            'Annual Budget',
+            'YTD Budget',
+            'YTD Actual',
+            'Variance ($)',
+            'Variance (%)'
+          ];
       const rows = [];
 
       data.income.categories.forEach(cat => {

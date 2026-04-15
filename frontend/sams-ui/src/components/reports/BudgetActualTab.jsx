@@ -117,15 +117,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         event.preventDefault();
       }
 
-      console.log('[BudgetActual] handleGenerate called', { 
-        selectedClient: selectedClient?.id, 
-        fiscalYear, 
-        language,
-        reportMode
-      });
-
       if (!selectedClient || !fiscalYear) {
-        console.log('[BudgetActual] Early return - missing client or fiscal year');
         return;
       }
 
@@ -134,7 +126,6 @@ function BudgetActualTab({ zoom = 1.0 }) {
       setLoading(true);
       setError(null);
 
-      console.log('[BudgetActual] Fetching HTML...');
       try {
         const html = await reportService.getBudgetActualHtml(
           selectedClient.id,
@@ -142,51 +133,22 @@ function BudgetActualTab({ zoom = 1.0 }) {
           language,
           reportMode
         );
-        console.log('[BudgetActual] HTML fetched, length:', html?.length);
 
         // Also fetch data for potential CSV export
-        console.log('[BudgetActual] Fetching data...');
         const data = await reportService.getBudgetActualData(
           selectedClient.id,
           fiscalYear,
           language,
           reportMode
         );
-        console.log('[BudgetActual] Data fetched', {
-          requestedReportMode: reportMode,
-          returnedReportMode: data?.reportInfo?.reportMode,
-          reportId: data?.reportInfo?.reportId,
-          firstIncomeRow: data?.income?.categories?.[0]
-            ? {
-                name: data.income.categories[0].name,
-                annualBudget: data.income.categories[0].annualBudget,
-                ytdBudget: data.income.categories[0].ytdBudget,
-                ytdActual: data.income.categories[0].ytdActual,
-                variance: data.income.categories[0].variance,
-                variancePercent: data.income.categories[0].variancePercent
-              }
-            : null,
-          firstExpenseRow: data?.expenses?.categories?.[0]
-            ? {
-                name: data.expenses.categories[0].name,
-                annualBudget: data.expenses.categories[0].annualBudget,
-                ytdBudget: data.expenses.categories[0].ytdBudget,
-                ytdActual: data.expenses.categories[0].ytdActual,
-                variance: data.expenses.categories[0].variance,
-                variancePercent: data.expenses.categories[0].variancePercent
-              }
-            : null
-        });
 
         if (seq !== budgetActualGenerateSeq.current) {
-          console.log('[BudgetActual] Discarding stale generate result (seq mismatch)');
           return;
         }
 
         setReportData(data);
         setHtmlPreview(html);
         setHasGenerated(true);
-        console.log('[BudgetActual] State updated, report ready');
       } catch (err) {
         console.error('[BudgetActual] Generation error:', err);
         if (seq === budgetActualGenerateSeq.current) {
