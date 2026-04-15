@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
 import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
@@ -79,6 +79,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
   const [fiscalYear, setFiscalYear] = useState(null);
   const [language, setLanguage] = useState('english');
+  const [reportMode, setReportMode] = useState('ytd');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -87,6 +88,9 @@ function BudgetActualTab({ zoom = 1.0 }) {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+
+  /** Suppress stale preview when multiple generates overlap (Strict Mode, rapid YTD ↔ Projected). */
+  const budgetActualGenerateSeq = useRef(0);
 
   // Initialize language and fiscal year when client or user changes
   useEffect(() => {
@@ -113,50 +117,50 @@ function BudgetActualTab({ zoom = 1.0 }) {
         event.preventDefault();
       }
 
-      console.log('[BudgetActual] handleGenerate called', { 
-        selectedClient: selectedClient?.id, 
-        fiscalYear, 
-        language 
-      });
-
       if (!selectedClient || !fiscalYear) {
-        console.log('[BudgetActual] Early return - missing client or fiscal year');
         return;
       }
+
+      const seq = ++budgetActualGenerateSeq.current;
 
       setLoading(true);
       setError(null);
 
-      console.log('[BudgetActual] Fetching HTML...');
       try {
         const html = await reportService.getBudgetActualHtml(
           selectedClient.id,
           fiscalYear,
-          language
+          language,
+          reportMode
         );
-        console.log('[BudgetActual] HTML fetched, length:', html?.length);
 
         // Also fetch data for potential CSV export
-        console.log('[BudgetActual] Fetching data...');
         const data = await reportService.getBudgetActualData(
           selectedClient.id,
           fiscalYear,
-          language
+          language,
+          reportMode
         );
-        console.log('[BudgetActual] Data fetched');
+
+        if (seq !== budgetActualGenerateSeq.current) {
+          return;
+        }
 
         setReportData(data);
         setHtmlPreview(html);
         setHasGenerated(true);
-        console.log('[BudgetActual] State updated, report ready');
       } catch (err) {
         console.error('[BudgetActual] Generation error:', err);
-        setError('Failed to generate report. Please try again.');
+        if (seq === budgetActualGenerateSeq.current) {
+          setError('Failed to generate report. Please try again.');
+        }
       } finally {
-        setLoading(false);
+        if (seq === budgetActualGenerateSeq.current) {
+          setLoading(false);
+        }
       }
     },
-    [selectedClient, language, fiscalYear]
+    [selectedClient, language, fiscalYear, reportMode]
   );
 
   const handleDownloadPdf = useCallback(
@@ -171,11 +175,12 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
       setDownloadingPdf(true);
       try {
+        // PDF is rendered server-side from reportMode (do not send preview HTML — it can
+        // lag behind the toggle and produce a projected filename with YTD content).
         await reportService.exportBudgetActualPdfFromHtml(selectedClient.id, {
           fiscalYear,
           language,
-          html: htmlPreview,
-          meta: reportData?.meta || {}
+          reportMode
         });
       } catch (err) {
         console.error('PDF download failed:', err);
@@ -184,7 +189,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         setDownloadingPdf(false);
       }
     },
-    [selectedClient, language, fiscalYear, htmlPreview, reportData]
+    [selectedClient, language, fiscalYear, htmlPreview, reportData, reportMode]
   );
 
   const handleDownloadCsv = useCallback(
@@ -201,7 +206,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
       try {
         await reportService.exportBudgetActualCsv(selectedClient.id, {
           fiscalYear,
-          language
+          language,
+          reportMode
         });
       } catch (err) {
         console.error('CSV download failed:', err);
@@ -210,7 +216,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         setDownloadingCsv(false);
       }
     },
-    [selectedClient, language, fiscalYear]
+    [selectedClient, language, fiscalYear, reportMode]
   );
 
   const handleRetry = useCallback(() => {
@@ -224,6 +230,10 @@ function BudgetActualTab({ zoom = 1.0 }) {
   const isGenerateDisabled = !fiscalYear || loading;
 
   const hasReport = !!reportData && !!htmlPreview;
+  const previewFrameKey = useMemo(() => {
+    const reportId = reportData?.reportInfo?.reportId || 'pending';
+    return `${reportMode}-${reportId}`;
+  }, [reportData, reportMode]);
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
   const isCsvDisabled = !hasReport || loading || downloadingCsv;
   const isPrintDisabled = !hasReport || loading;
@@ -234,7 +244,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
       return;
     }
     handleGenerate();
-  }, [handleGenerate, selectedClient, fiscalYear, language]);
+  }, [handleGenerate, selectedClient, fiscalYear, language, reportMode]);
 
   if (!selectedClient) {
     return (
@@ -284,6 +294,32 @@ function BudgetActualTab({ zoom = 1.0 }) {
               onClick={() => setLanguage('spanish')}
             >
               ES
+            </button>
+          </div>
+        </div>
+
+        <div className="control-group">
+          <span className="budget-actual-mode-label" id="budget-actual-mode-label">
+            Variance:
+          </span>
+          <div
+            className="language-toggle budget-actual-report-mode-toggle"
+            role="group"
+            aria-labelledby="budget-actual-mode-label"
+          >
+            <button
+              type="button"
+              className={reportMode === 'ytd' ? 'active' : ''}
+              onClick={() => setReportMode('ytd')}
+            >
+              YTD
+            </button>
+            <button
+              type="button"
+              className={reportMode === 'projected' ? 'active' : ''}
+              onClick={() => setReportMode('projected')}
+            >
+              Projected FY-End
             </button>
           </div>
         </div>
@@ -393,6 +429,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         {!loading && !error && hasGenerated && htmlPreview && (
           <div className="budget-actual-preview-frame-container">
             <iframe
+              key={previewFrameKey}
               title="Budget vs Actual Preview"
               srcDoc={htmlPreview}
               className="budget-actual-preview-frame"

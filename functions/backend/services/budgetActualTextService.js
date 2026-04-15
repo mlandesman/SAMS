@@ -31,13 +31,17 @@ function formatPesos(centavos) {
   return pesos.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+const EM_DASH = '\u2014';
+
 /**
  * Format percentage
- * @param {number} percent - Percentage value
- * @returns {string} Formatted percentage
+ * @param {number|null|undefined} percent - Percentage value
+ * @returns {string} Formatted percentage or em dash
  */
 function formatPercent(percent) {
-  if (!percent || isNaN(percent)) return '0.00%';
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    return EM_DASH;
+  }
   return `${percent.toFixed(2)}%`;
 }
 
@@ -75,10 +79,16 @@ function generateTableSection(title, categories, totals) {
     // ytdActual is already converted to positive for expenses in data service
     const ytdActual = formatPesos(category.ytdActual).padStart(15);
     
-    // Variance indicator: + for positive, - for negative
-    const varianceSign = category.variance >= 0 ? '+' : '';
-    const variance = `${varianceSign}${formatPesos(category.variance)}`.padStart(15);
-    const variancePercent = `${varianceSign}${formatPercent(category.variancePercent)}`.padStart(15);
+    const variance =
+      category.variance === null || category.variance === undefined || Number.isNaN(category.variance)
+        ? EM_DASH.padStart(15)
+        : `${category.variance >= 0 ? '+' : ''}${formatPesos(category.variance)}`.padStart(15);
+    const variancePercent =
+      category.variancePercent === null ||
+      category.variancePercent === undefined ||
+      Number.isNaN(category.variancePercent)
+        ? EM_DASH.padStart(15)
+        : `${category.variancePercent >= 0 ? '+' : ''}${formatPercent(category.variancePercent)}`.padStart(15);
     
     output += `${name}${annualBudget}${ytdBudget}${ytdActual}${variance}${variancePercent}\n`;
   });
@@ -90,9 +100,89 @@ function generateTableSection(title, categories, totals) {
   output += formatPesos(totals.totalYtdBudget).padStart(15);
   output += formatPesos(totals.totalYtdActual).padStart(15);
   
-  const totalVarianceSign = totals.totalVariance >= 0 ? '+' : '';
-  output += `${totalVarianceSign}${formatPesos(totals.totalVariance)}`.padStart(15);
-  output += `${totalVarianceSign}${formatPercent(totals.totalVariancePercent)}`.padStart(15);
+  const totalVariance =
+    totals.totalVariance === null || totals.totalVariance === undefined || Number.isNaN(totals.totalVariance)
+      ? EM_DASH.padStart(15)
+      : `${totals.totalVariance >= 0 ? '+' : ''}${formatPesos(totals.totalVariance)}`.padStart(15);
+  const totalVariancePercent =
+    totals.totalVariancePercent === null ||
+    totals.totalVariancePercent === undefined ||
+    Number.isNaN(totals.totalVariancePercent)
+      ? EM_DASH.padStart(15)
+      : `${totals.totalVariancePercent >= 0 ? '+' : ''}${formatPercent(totals.totalVariancePercent)}`.padStart(15);
+  output += totalVariance;
+  output += totalVariancePercent;
+  output += '\n';
+  output += '='.repeat(80) + '\n\n';
+
+  return output;
+}
+
+/** Projected year-end layout: Annual, Projected Yr-End, Variance $, % */
+function generateProjectedTableSection(title, categories, totals) {
+  if (categories.length === 0) {
+    return `${title}\nNo data available\n\n`;
+  }
+
+  let output = '';
+  output += title + '\n';
+  output += '='.repeat(80) + '\n';
+
+  output += 'Category Name'.padEnd(28);
+  output += 'Annual Budget'.padStart(14);
+  output += 'Proj Yr-End'.padStart(15);
+  output += 'Variance ($)'.padStart(12);
+  output += 'Var (%)'.padStart(11);
+  output += '\n';
+  output += '-'.repeat(80) + '\n';
+
+  categories.forEach(category => {
+    const name = (category.name || category.id).substring(0, 26).padEnd(28);
+    const annualBudget = formatPesos(category.annualBudget).padStart(14);
+    const projYe =
+      category.projectedYearEndAmount === null ||
+      category.projectedYearEndAmount === undefined ||
+      Number.isNaN(category.projectedYearEndAmount)
+        ? EM_DASH.padStart(15)
+        : formatPesos(category.projectedYearEndAmount).padStart(15);
+
+    const variance =
+      category.variance === null || category.variance === undefined || Number.isNaN(category.variance)
+        ? EM_DASH.padStart(12)
+        : `${category.variance >= 0 ? '+' : ''}${formatPesos(category.variance)}`.padStart(12);
+    const variancePercent =
+      category.variancePercent === null ||
+      category.variancePercent === undefined ||
+      Number.isNaN(category.variancePercent)
+        ? EM_DASH.padStart(11)
+        : `${category.variancePercent >= 0 ? '+' : ''}${formatPercent(category.variancePercent)}`.padStart(11);
+
+    output += `${name}${annualBudget}${projYe}${variance}${variancePercent}\n`;
+  });
+
+  output += '-'.repeat(80) + '\n';
+  output += 'TOTALS'.padEnd(28);
+  output += formatPesos(totals.totalAnnualBudget).padStart(14);
+  const totalProjYe =
+    totals.totalProjectedYearEnd === null ||
+    totals.totalProjectedYearEnd === undefined ||
+    Number.isNaN(totals.totalProjectedYearEnd)
+      ? EM_DASH.padStart(15)
+      : formatPesos(totals.totalProjectedYearEnd).padStart(15);
+  output += totalProjYe;
+
+  const totalVariance =
+    totals.totalVariance === null || totals.totalVariance === undefined || Number.isNaN(totals.totalVariance)
+      ? EM_DASH.padStart(12)
+      : `${totals.totalVariance >= 0 ? '+' : ''}${formatPesos(totals.totalVariance)}`.padStart(12);
+  const totalVariancePercent =
+    totals.totalVariancePercent === null ||
+    totals.totalVariancePercent === undefined ||
+    Number.isNaN(totals.totalVariancePercent)
+      ? EM_DASH.padStart(11)
+      : `${totals.totalVariancePercent >= 0 ? '+' : ''}${formatPercent(totals.totalVariancePercent)}`.padStart(11);
+  output += totalVariance;
+  output += totalVariancePercent;
   output += '\n';
   output += '='.repeat(80) + '\n\n';
 
@@ -217,13 +307,24 @@ export function generateBudgetActualText(data) {
   output += `Fiscal Year: ${reportInfo.fiscalYear}\n`;
   output += `Report Date: ${formatDate(reportInfo.reportDate)}\n`;
   output += `% of Year Elapsed: ${reportInfo.percentOfYearElapsed.toFixed(1)}%\n`;
+  const isProjected = reportInfo.reportMode === 'projected';
+  const basis = isProjected
+    ? 'Projected year-end (HOA dues locked to annual budget; other lines run-rate vs annual)'
+    : 'Year-to-date (vs prorated budget)';
+  output += `Variance basis: ${basis}\n`;
   output += '='.repeat(80) + '\n\n';
 
-  // Generate three separate tables
-  output += generateTableSection('INCOME TABLE', income.categories, income.totals);
+  const incomeTable = isProjected
+    ? generateProjectedTableSection('INCOME TABLE', income.categories, income.totals)
+    : generateTableSection('INCOME TABLE', income.categories, income.totals);
+  const expenseTable = isProjected
+    ? generateProjectedTableSection('EXPENSE TABLE', expenses.categories, expenses.totals)
+    : generateTableSection('EXPENSE TABLE', expenses.categories, expenses.totals);
+
+  output += incomeTable;
   output += generateSpecialAssessmentsSection(specialAssessments);
   output += generateUnitCreditAccountsSection(unitCreditAccounts);
-  output += generateTableSection('EXPENSE TABLE', expenses.categories, expenses.totals);
+  output += expenseTable;
   
   // Footer
   output += '='.repeat(80) + '\n';

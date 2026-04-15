@@ -47,7 +47,13 @@ export function useBudgetStatus() {
       // Variance in BvA is (budget - actual), so negative = over budget
       const expenseCategories = budgetData.expenses?.categories || [];
       const overBudgetItems = expenseCategories
-        .filter(item => item.ytdBudget > 0 && item.variance < 0)
+        .filter(
+          item =>
+            item.ytdBudget > 0 &&
+            item.variance != null &&
+            !Number.isNaN(item.variance) &&
+            item.variance < 0
+        )
         .map(item => ({
           category: item.name,
           overAmount: centavosToPesos(Math.abs(item.variance)),

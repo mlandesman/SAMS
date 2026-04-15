@@ -5,11 +5,22 @@
 
 import { getAuthInstance } from '../firebaseClient';
 import { config } from '../config/index.js';
+import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 
 class ReportService {
   constructor() {
     // Unified base URL (no /api suffix) - see config/index.js
     this.baseUrl = config.api.baseUrl;
+    this.budgetActualCacheBustSeq = 0;
+  }
+
+  normalizeBudgetActualReportMode(reportMode) {
+    return reportMode === 'projected' ? 'projected' : 'ytd';
+  }
+
+  createBudgetActualCacheBustToken() {
+    this.budgetActualCacheBustSeq += 1;
+    return `${this.budgetActualCacheBustSeq}-${Math.floor(performance.now())}`;
   }
 
   /**
@@ -365,21 +376,29 @@ class ReportService {
    * @param {string} clientId
    * @param {number|null} fiscalYear - Optional fiscal year (e.g., 2025)
    * @param {string} language - 'english' or 'spanish'
+   * @param {'ytd'|'projected'} [reportMode='ytd'] - BUDGET-PROJ-1 variance basis
    */
-  async getBudgetActualData(clientId, fiscalYear = null, language = 'english') {
+  async getBudgetActualData(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
+    const normalizedReportMode = this.normalizeBudgetActualReportMode(reportMode);
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
     }
+    // Always send reportMode explicitly to avoid silent fallback to server default.
+    params.append('reportMode', normalizedReportMode);
+    params.append('_cb', this.createBudgetActualCacheBustToken());
+
+    const requestUrl = `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`;
 
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`,
+      requestUrl,
       {
         method: 'GET',
-        headers
+        headers,
+        cache: 'no-store'
       }
     );
 
@@ -399,21 +418,29 @@ class ReportService {
    * @param {string} clientId
    * @param {number|null} fiscalYear - Optional fiscal year
    * @param {string} language - 'english' or 'spanish'
+   * @param {'ytd'|'projected'} [reportMode='ytd']
    */
-  async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english') {
+  async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
+    const normalizedReportMode = this.normalizeBudgetActualReportMode(reportMode);
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
     }
+    // Always send reportMode explicitly to avoid silent fallback to server default.
+    params.append('reportMode', normalizedReportMode);
+    params.append('_cb', this.createBudgetActualCacheBustToken());
+
+    const requestUrl = `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`;
 
     const response = await fetch(
-      `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`,
+      requestUrl,
       {
         method: 'GET',
-        headers
+        headers,
+        cache: 'no-store'
       }
     );
 
@@ -436,8 +463,8 @@ class ReportService {
    * @param {object} params
    * @param {number|null} params.fiscalYear
    * @param {string} params.language
-   * @param {string} params.html - Complete HTML document
-   * @param {object} [params.meta] - Optional footer metadata
+   * @param {'ytd'|'projected'} [params.reportMode='ytd']
+   * @param {object} [params.meta] - Ignored for PDF; server regenerates HTML and footer meta from reportMode.
    */
   async exportBudgetActualPdfFromHtml(clientId, params) {
     const headers = await this.getAuthHeaders();
@@ -453,8 +480,7 @@ class ReportService {
         body: JSON.stringify({
           fiscalYear: params.fiscalYear,
           language: params.language || 'english',
-          html: params.html,
-          meta: params.meta || {}
+          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd'
         })
       }
     );
@@ -503,7 +529,8 @@ class ReportService {
         headers,
         body: JSON.stringify({
           fiscalYear: params.fiscalYear,
-          language: params.language || 'english'
+          language: params.language || 'english',
+          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd'
         })
       }
     );
@@ -520,7 +547,8 @@ class ReportService {
     const a = document.createElement('a');
     a.href = url;
     const yearPart = params.fiscalYear || 'current';
-    a.download = `budget-actual-${clientId}-${yearPart}.csv`;
+    const modePart = params.reportMode === 'projected' ? '-projected' : '';
+    a.download = `budget-actual-${clientId}-${yearPart}${modePart}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   }
@@ -705,7 +733,7 @@ class ReportService {
     const url = window.URL.createObjectURL(blob);
 
     // Generate meaningful filename
-    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const dateStr = getMexicoDateString();
     const clientName = params.clientName || clientId;
     
     // Build filename from filter summary
@@ -717,8 +745,8 @@ class ReportService {
       // Add date range to filename
       if (dateRange && dateRange !== 'all') {
         if (typeof dateRange === 'object' && dateRange.startDate && dateRange.endDate) {
-          const start = new Date(dateRange.startDate).toISOString().split('T')[0];
-          const end = new Date(dateRange.endDate).toISOString().split('T')[0];
+          const start = formatDateInMexico(dateRange.startDate) || '';
+          const end = formatDateInMexico(dateRange.endDate) || '';
           filenameParts.push(`${start}_to_${end}`);
         } else {
           filenameParts.push(String(dateRange));
