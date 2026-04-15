@@ -79,7 +79,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
   const [fiscalYear, setFiscalYear] = useState(null);
   const [language, setLanguage] = useState('english');
-  const [reportMode, setReportMode] = useState('projected');
+  const [reportMode, setReportMode] = useState('ytd');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
