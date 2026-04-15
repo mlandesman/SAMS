@@ -445,9 +445,8 @@ class ReportService {
    * @param {object} params
    * @param {number|null} params.fiscalYear
    * @param {string} params.language
-   * @param {string} params.html - Complete HTML document
    * @param {'ytd'|'projected'} [params.reportMode='ytd']
-   * @param {object} [params.meta] - Optional footer metadata
+   * @param {object} [params.meta] - Ignored for PDF; server regenerates HTML and footer meta from reportMode.
    */
   async exportBudgetActualPdfFromHtml(clientId, params) {
     const headers = await this.getAuthHeaders();
@@ -463,9 +462,7 @@ class ReportService {
         body: JSON.stringify({
           fiscalYear: params.fiscalYear,
           language: params.language || 'english',
-          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd',
-          html: params.html,
-          meta: params.meta || {}
+          reportMode: params.reportMode === 'projected' ? 'projected' : 'ytd'
         })
       }
     );

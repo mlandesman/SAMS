@@ -1068,7 +1068,7 @@ router.get('/budget-actual/text', authenticateUserWithProfile, async (req, res) 
  * Export Budget vs Actual report
  * POST /api/clients/:clientId/reports/budget-actual/export
  * Query param: format=pdf|csv
- * Body: { fiscalYear, language, reportMode?, html?, meta? }
+ * Body: { fiscalYear, language, reportMode? } — PDF HTML is always regenerated server-side (reportMode authoritative).
  *
  * Returns PDF or CSV export of the report
  */
@@ -1079,8 +1079,6 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       fiscalYear = null,
       language = 'english',
       reportMode: bodyReportMode,
-      html,
-      meta = {},
       format: bodyFormat
     } = req.body || {};
 
@@ -1234,15 +1232,14 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       });
     }
 
-    let htmlToConvert = html;
-    let metaToUse = meta;
-
-    if (!htmlToConvert) {
-      const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
-      const result = generateBudgetActualHtml(data, { language });
-      htmlToConvert = result.html;
-      metaToUse = result.meta;
-    }
+    // Always build PDF HTML from server data for this reportMode. Client-supplied
+    // `html` is ignored — it can be stale (e.g. user toggled YTD ↔ Projected before
+    // the preview fetch finished), which produced PDFs labeled projected but showing YTD.
+    const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
+    const { html: htmlToConvert, meta: metaFromGen } = generateBudgetActualHtml(data, {
+      language
+    });
+    const metaToUse = metaFromGen;
 
     // Convert HTML to PDF
     const pdfBuffer = await generatePdf(htmlToConvert, {

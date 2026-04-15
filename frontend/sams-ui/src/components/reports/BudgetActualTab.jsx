@@ -175,12 +175,12 @@ function BudgetActualTab({ zoom = 1.0 }) {
 
       setDownloadingPdf(true);
       try {
+        // PDF is rendered server-side from reportMode (do not send preview HTML — it can
+        // lag behind the toggle and produce a projected filename with YTD content).
         await reportService.exportBudgetActualPdfFromHtml(selectedClient.id, {
           fiscalYear,
           language,
-          reportMode,
-          html: htmlPreview,
-          meta: reportData?.meta || {}
+          reportMode
         });
       } catch (err) {
         console.error('PDF download failed:', err);
