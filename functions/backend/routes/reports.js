@@ -1110,159 +1110,100 @@ router.post('/budget-actual/export', authenticateUserWithProfile, async (req, re
       centavos == null || Number.isNaN(centavos) ? emDash : centavosToPesos(centavos).toFixed(2);
     const csvVariancePercent = (pct) =>
       pct == null || Number.isNaN(pct) ? emDash : Number(pct).toFixed(2);
-    const csvProjectedYe = (centavos) =>
-      centavos == null || Number.isNaN(centavos) ? emDash : centavosToPesos(centavos).toFixed(2);
 
     // CSV export: build from data
     if (format === 'csv') {
       const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
-      const csvProjectedLayout = data.reportInfo?.reportMode === 'projected';
 
-      const header = csvProjectedLayout
-        ? ['Category Name', 'Type', 'Annual Budget', 'Projected Year End', 'Variance ($)', 'Variance (%)']
-        : ['Category Name', 'Type', 'Annual Budget', 'YTD Budget', 'YTD Actual', 'Variance ($)', 'Variance (%)'];
+      // Same columns for ytd and projected: variance columns reflect reportMode from getBudgetActualData.
+      const header = [
+        'Category Name',
+        'Type',
+        'Annual Budget',
+        'YTD Budget',
+        'YTD Actual',
+        'Variance ($)',
+        'Variance (%)'
+      ];
       const rows = [];
 
-      if (csvProjectedLayout) {
-        data.income.categories.forEach(cat => {
-          rows.push([
-            cat.name,
-            'Income',
-            centavosToPesos(cat.annualBudget).toFixed(2),
-            csvProjectedYe(cat.projectedYearEndAmount),
-            csvVarianceDollars(cat.variance),
-            csvVariancePercent(cat.variancePercent)
-          ]);
-        });
-        data.expenses.categories.forEach(cat => {
-          rows.push([
-            cat.name,
-            'Expense',
-            centavosToPesos(cat.annualBudget).toFixed(2),
-            csvProjectedYe(cat.projectedYearEndAmount),
-            csvVarianceDollars(cat.variance),
-            csvVariancePercent(cat.variancePercent)
-          ]);
-        });
-      } else {
-        data.income.categories.forEach(cat => {
-          rows.push([
-            cat.name,
-            'Income',
-            centavosToPesos(cat.annualBudget).toFixed(2),
-            centavosToPesos(cat.ytdBudget).toFixed(2),
-            centavosToPesos(cat.ytdActual).toFixed(2),
-            csvVarianceDollars(cat.variance),
-            csvVariancePercent(cat.variancePercent)
-          ]);
-        });
-        data.expenses.categories.forEach(cat => {
-          rows.push([
-            cat.name,
-            'Expense',
-            centavosToPesos(cat.annualBudget).toFixed(2),
-            centavosToPesos(cat.ytdBudget).toFixed(2),
-            centavosToPesos(cat.ytdActual).toFixed(2),
-            csvVarianceDollars(cat.variance),
-            csvVariancePercent(cat.variancePercent)
-          ]);
-        });
-      }
+      data.income.categories.forEach(cat => {
+        rows.push([
+          cat.name,
+          'Income',
+          centavosToPesos(cat.annualBudget).toFixed(2),
+          centavosToPesos(cat.ytdBudget).toFixed(2),
+          centavosToPesos(cat.ytdActual).toFixed(2),
+          csvVarianceDollars(cat.variance),
+          csvVariancePercent(cat.variancePercent)
+        ]);
+      });
+      data.expenses.categories.forEach(cat => {
+        rows.push([
+          cat.name,
+          'Expense',
+          centavosToPesos(cat.annualBudget).toFixed(2),
+          centavosToPesos(cat.ytdBudget).toFixed(2),
+          centavosToPesos(cat.ytdActual).toFixed(2),
+          csvVarianceDollars(cat.variance),
+          csvVariancePercent(cat.variancePercent)
+        ]);
+      });
 
       // Special Assessments (as separate section)
       if (data.specialAssessments.collections && data.specialAssessments.collections.amount > 0) {
-        rows.push(
-          csvProjectedLayout
-            ? [
-                data.specialAssessments.collections.categoryName,
-                'Special Assessments - Collections',
-                '0.00',
-                centavosToPesos(data.specialAssessments.collections.amount).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-            : [
-                data.specialAssessments.collections.categoryName,
-                'Special Assessments - Collections',
-                '0.00',
-                '0.00',
-                centavosToPesos(data.specialAssessments.collections.amount).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-        );
+        rows.push([
+          data.specialAssessments.collections.categoryName,
+          'Special Assessments - Collections',
+          '0.00',
+          '0.00',
+          centavosToPesos(data.specialAssessments.collections.amount).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
       }
 
       data.specialAssessments.expenditures.forEach(exp => {
-        rows.push(
-          csvProjectedLayout
-            ? [exp.name, 'Special Assessments - Expenditure', '0.00', centavosToPesos(exp.amount).toFixed(2), '0.00', '0.00']
-            : [exp.name, 'Special Assessments - Expenditure', '0.00', '0.00', centavosToPesos(exp.amount).toFixed(2), '0.00', '0.00']
-        );
+        rows.push([
+          exp.name,
+          'Special Assessments - Expenditure',
+          '0.00',
+          '0.00',
+          centavosToPesos(exp.amount).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
       });
 
       // Unit Credit Accounts (as separate section)
       if (data.unitCreditAccounts) {
-        rows.push(
-          csvProjectedLayout
-            ? [
-                'Credit Added',
-                'Unit Credit Accounts - Added',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.added).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-            : [
-                'Credit Added',
-                'Unit Credit Accounts - Added',
-                '0.00',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.added).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-        );
-        rows.push(
-          csvProjectedLayout
-            ? [
-                'Credit Used',
-                'Unit Credit Accounts - Used',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.used).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-            : [
-                'Credit Used',
-                'Unit Credit Accounts - Used',
-                '0.00',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.used).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-        );
-        rows.push(
-          csvProjectedLayout
-            ? [
-                'Credit Balance',
-                'Unit Credit Accounts - Balance',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.balance).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-            : [
-                'Credit Balance',
-                'Unit Credit Accounts - Balance',
-                '0.00',
-                '0.00',
-                centavosToPesos(data.unitCreditAccounts.balance).toFixed(2),
-                '0.00',
-                '0.00'
-              ]
-        );
+        rows.push([
+          'Credit Added',
+          'Unit Credit Accounts - Added',
+          '0.00',
+          '0.00',
+          centavosToPesos(data.unitCreditAccounts.added).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+        rows.push([
+          'Credit Used',
+          'Unit Credit Accounts - Used',
+          '0.00',
+          '0.00',
+          centavosToPesos(data.unitCreditAccounts.used).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
+        rows.push([
+          'Credit Balance',
+          'Unit Credit Accounts - Balance',
+          '0.00',
+          '0.00',
+          centavosToPesos(data.unitCreditAccounts.balance).toFixed(2),
+          '0.00',
+          '0.00'
+        ]);
       }
 
       const escapeCell = (value) => {

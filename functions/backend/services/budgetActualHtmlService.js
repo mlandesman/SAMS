@@ -196,7 +196,6 @@ function getTranslations(language) {
       tableHeaders: {
         category: 'CATEGORY NAME',
         annualBudget: 'ANNUAL BUDGET',
-        projectedYearEnd: 'PROJECTED YEAR-END',
         ytdBudget: 'YTD BUDGET',
         ytdActual: 'YTD ACTUAL',
         variance: 'VARIANCE ($)',
@@ -235,7 +234,6 @@ function getTranslations(language) {
       tableHeaders: {
         category: 'NOMBRE DE CATEGORÍA',
         annualBudget: 'PRESUPUESTO ANUAL',
-        projectedYearEnd: 'CIERRE FISCAL PROYECTADO',
         ytdBudget: 'PRESUPUESTO YTD',
         ytdActual: 'REAL YTD',
         variance: 'VARIANZA ($)',
@@ -284,61 +282,14 @@ export function generateBudgetActualHtml(data, options = {}) {
   // Get logo URL if available
   const logoUrl = clientInfo.logoUrl || null;
 
-  const isProjectedLayout = reportInfo.reportMode === 'projected';
-
-  const incomeSectionHtml = isProjectedLayout
-    ? (() => {
-        const body =
-          income.categories.length > 0
-            ? income.categories
-                .map(cat => {
-                  const varianceClass = varianceCellClass(cat.variance);
-                  return `
-        <tr>
-          <td class="col-category">${translateCategoryName(cat.name, language)}</td>
-          <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrencyCell(cat.projectedYearEndAmount)}</td>
-          <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
-          <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
-        </tr>`;
-                })
-                .join('')
-            : `
-        <tr>
-          <td colspan="5" style="text-align: center; padding: 20px;">${t.noData}</td>
-        </tr>`;
-        return `
-    <div class="section-header">${t.incomeTable}</div>
-    <table class="budget-table budget-table-projected">
-      <thead>
-        <tr>
-          <th class="col-category">${t.tableHeaders.category}</th>
-          <th class="col-annual-budget">${t.tableHeaders.annualBudget}</th>
-          <th class="col-projected-ye">${t.tableHeaders.projectedYearEnd}</th>
-          <th class="col-variance">${t.tableHeaders.variance}</th>
-          <th class="col-variance-percent">${t.tableHeaders.variancePercent}</th>
-        </tr>
-      </thead>
-      <tbody>${body}</tbody>
-      <tfoot>
-        <tr class="totals-row">
-          <td class="col-category">${t.totals}</td>
-          <td class="col-annual-budget">${formatCurrency(income.totals.totalAnnualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrencyCell(income.totals.totalProjectedYearEnd)}</td>
-          <td class="col-variance ${varianceCellClass(income.totals.totalVariance)}">${formatCurrencyCell(income.totals.totalVariance, true)}</td>
-          <td class="col-variance-percent ${varianceCellClass(income.totals.totalVariance)}">${formatPercentCell(income.totals.totalVariancePercent)}</td>
-        </tr>
-      </tfoot>
-    </table>
-    <p class="bva-footnote">${t.hoaDuesProjectedFootnote}</p>`;
-      })()
-    : (() => {
-        const body =
-          income.categories.length > 0
-            ? income.categories
-                .map(cat => {
-                  const varianceClass = varianceCellClass(cat.variance);
-                  return `
+  // BUDGET-PROJ-1 contract: projected mode uses the same six visible columns as YTD;
+  // variance ($) / (%) come from projected FY-end math (no separate Projected Year-End column).
+  const incomeBody =
+    income.categories.length > 0
+      ? income.categories
+          .map(cat => {
+            const varianceClass = varianceCellClass(cat.variance);
+            return `
         <tr>
           <td class="col-category">${translateCategoryName(cat.name, language)}</td>
           <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
@@ -347,13 +298,19 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
           <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
         </tr>`;
-                })
-                .join('')
-            : `
+          })
+          .join('')
+      : `
         <tr>
           <td colspan="6" style="text-align: center; padding: 20px;">${t.noData}</td>
         </tr>`;
-        return `
+
+  const incomeProjectedFootnote =
+    reportInfo.reportMode === 'projected'
+      ? `<p class="bva-footnote">${t.hoaDuesProjectedFootnote}</p>`
+      : '';
+
+  const incomeSectionHtml = `
     <div class="section-header">${t.incomeTable}</div>
     <table class="budget-table">
       <thead>
@@ -366,7 +323,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <th class="col-variance-percent">${t.tableHeaders.variancePercent}</th>
         </tr>
       </thead>
-      <tbody>${body}</tbody>
+      <tbody>${incomeBody}</tbody>
       <tfoot>
         <tr class="totals-row">
           <td class="col-category">${t.totals}</td>
@@ -377,61 +334,14 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance-percent ${varianceCellClass(income.totals.totalVariance)}">${formatPercentCell(income.totals.totalVariancePercent)}</td>
         </tr>
       </tfoot>
-    </table>`;
-      })();
+    </table>${incomeProjectedFootnote}`;
 
-  const expenseSectionHtml = isProjectedLayout
-    ? (() => {
-        const body =
-          expenses.categories.length > 0
-            ? expenses.categories
-                .map(cat => {
-                  const varianceClass = varianceCellClass(cat.variance);
-                  return `
-        <tr>
-          <td class="col-category">${translateCategoryName(cat.name, language)}</td>
-          <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrencyCell(cat.projectedYearEndAmount)}</td>
-          <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
-          <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
-        </tr>`;
-                })
-                .join('')
-            : `
-        <tr>
-          <td colspan="5" style="text-align: center; padding: 20px;">${t.noData}</td>
-        </tr>`;
-        return `
-    <div class="section-header">${t.expenseTable}</div>
-    <table class="budget-table budget-table-projected">
-      <thead>
-        <tr>
-          <th class="col-category">${t.tableHeaders.category}</th>
-          <th class="col-annual-budget">${t.tableHeaders.annualBudget}</th>
-          <th class="col-projected-ye">${t.tableHeaders.projectedYearEnd}</th>
-          <th class="col-variance">${t.tableHeaders.variance}</th>
-          <th class="col-variance-percent">${t.tableHeaders.variancePercent}</th>
-        </tr>
-      </thead>
-      <tbody>${body}</tbody>
-      <tfoot>
-        <tr class="totals-row">
-          <td class="col-category">${t.totals}</td>
-          <td class="col-annual-budget">${formatCurrency(expenses.totals.totalAnnualBudget)}</td>
-          <td class="col-projected-ye">${formatCurrencyCell(expenses.totals.totalProjectedYearEnd)}</td>
-          <td class="col-variance ${varianceCellClass(expenses.totals.totalVariance)}">${formatCurrencyCell(expenses.totals.totalVariance, true)}</td>
-          <td class="col-variance-percent ${varianceCellClass(expenses.totals.totalVariance)}">${formatPercentCell(expenses.totals.totalVariancePercent)}</td>
-        </tr>
-      </tfoot>
-    </table>`;
-      })()
-    : (() => {
-        const body =
-          expenses.categories.length > 0
-            ? expenses.categories
-                .map(cat => {
-                  const varianceClass = varianceCellClass(cat.variance);
-                  return `
+  const expenseBody =
+    expenses.categories.length > 0
+      ? expenses.categories
+          .map(cat => {
+            const varianceClass = varianceCellClass(cat.variance);
+            return `
         <tr>
           <td class="col-category">${translateCategoryName(cat.name, language)}</td>
           <td class="col-annual-budget">${formatCurrency(cat.annualBudget)}</td>
@@ -440,13 +350,14 @@ export function generateBudgetActualHtml(data, options = {}) {
           <td class="col-variance ${varianceClass}">${formatCurrencyCell(cat.variance, true)}</td>
           <td class="col-variance-percent ${varianceClass}">${formatPercentCell(cat.variancePercent)}</td>
         </tr>`;
-                })
-                .join('')
-            : `
+          })
+          .join('')
+      : `
         <tr>
           <td colspan="6" style="text-align: center; padding: 20px;">${t.noData}</td>
         </tr>`;
-        return `
+
+  const expenseSectionHtml = `
     <div class="section-header">${t.expenseTable}</div>
     <table class="budget-table">
       <thead>
@@ -459,7 +370,7 @@ export function generateBudgetActualHtml(data, options = {}) {
           <th class="col-variance-percent">${t.tableHeaders.variancePercent}</th>
         </tr>
       </thead>
-      <tbody>${body}</tbody>
+      <tbody>${expenseBody}</tbody>
       <tfoot>
         <tr class="totals-row">
           <td class="col-category">${t.totals}</td>
@@ -471,7 +382,6 @@ export function generateBudgetActualHtml(data, options = {}) {
         </tr>
       </tfoot>
     </table>`;
-      })();
   
   // Build HTML
   const html = `<!DOCTYPE html>
@@ -634,8 +544,6 @@ export function generateBudgetActualHtml(data, options = {}) {
     .col-ytd-actual { text-align: right; width: 14%; }
     .col-variance { text-align: right; width: 14%; }
     .col-variance-percent { text-align: right; width: 14%; }
-    .col-projected-ye { text-align: right; width: 22%; }
-    .budget-table-projected .col-category { width: 30%; }
     .bva-footnote {
       font-size: 8pt;
       color: #333;
