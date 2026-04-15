@@ -32,7 +32,8 @@ import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js
 
 /** BUDGET-PROJ-1: YTD vs projected FY-end variance basis */
 function parseBudgetActualReportMode(value) {
-  return value === 'projected' ? 'projected' : 'ytd';
+  const normalizedValue = Array.isArray(value) ? value[value.length - 1] : value;
+  return normalizedValue === 'projected' ? 'projected' : 'ytd';
 }
 
 // Create date service for formatting API responses
@@ -958,6 +959,9 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
     }
 
     const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     res.json({ success: true, data });
   } catch (error) {
@@ -1011,6 +1015,9 @@ router.get('/budget-actual/html', authenticateUserWithProfile, async (req, res) 
     
     // Return as HTML
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(htmlOutput);
   } catch (error) {
     logError('Error generating budget vs actual HTML:', error);

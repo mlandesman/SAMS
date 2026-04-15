@@ -244,6 +244,10 @@ function BudgetActualTab({ zoom = 1.0 }) {
   const isGenerateDisabled = !fiscalYear || loading;
 
   const hasReport = !!reportData && !!htmlPreview;
+  const previewFrameKey = useMemo(() => {
+    const reportId = reportData?.reportInfo?.reportId || 'pending';
+    return `${reportMode}-${reportId}`;
+  }, [reportData, reportMode]);
   const isPdfDisabled = !hasReport || loading || downloadingPdf;
   const isCsvDisabled = !hasReport || loading || downloadingCsv;
   const isPrintDisabled = !hasReport || loading;
@@ -439,6 +443,7 @@ function BudgetActualTab({ zoom = 1.0 }) {
         {!loading && !error && hasGenerated && htmlPreview && (
           <div className="budget-actual-preview-frame-container">
             <iframe
+              key={previewFrameKey}
               title="Budget vs Actual Preview"
               srcDoc={htmlPreview}
               className="budget-actual-preview-frame"

@@ -11,6 +11,16 @@ class ReportService {
   constructor() {
     // Unified base URL (no /api suffix) - see config/index.js
     this.baseUrl = config.api.baseUrl;
+    this.budgetActualCacheBustSeq = 0;
+  }
+
+  normalizeBudgetActualReportMode(reportMode) {
+    return reportMode === 'projected' ? 'projected' : 'ytd';
+  }
+
+  createBudgetActualCacheBustToken() {
+    this.budgetActualCacheBustSeq += 1;
+    return `${this.budgetActualCacheBustSeq}-${Math.floor(performance.now())}`;
   }
 
   /**
@@ -370,21 +380,23 @@ class ReportService {
    */
   async getBudgetActualData(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
+    const normalizedReportMode = this.normalizeBudgetActualReportMode(reportMode);
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
     }
-    if (reportMode === 'projected') {
-      params.append('reportMode', 'projected');
-    }
+    // Always send reportMode explicitly to avoid silent fallback to server default.
+    params.append('reportMode', normalizedReportMode);
+    params.append('_cb', this.createBudgetActualCacheBustToken());
 
     const response = await fetch(
       `${this.baseUrl}/reports/${clientId}/budget-actual/data?${params.toString()}`,
       {
         method: 'GET',
-        headers
+        headers,
+        cache: 'no-store'
       }
     );
 
@@ -408,21 +420,23 @@ class ReportService {
    */
   async getBudgetActualHtml(clientId, fiscalYear = null, language = 'english', reportMode = 'ytd') {
     const headers = await this.getAuthHeaders();
+    const normalizedReportMode = this.normalizeBudgetActualReportMode(reportMode);
 
     const params = new URLSearchParams();
     params.append('language', language);
     if (fiscalYear) {
       params.append('fiscalYear', String(fiscalYear));
     }
-    if (reportMode === 'projected') {
-      params.append('reportMode', 'projected');
-    }
+    // Always send reportMode explicitly to avoid silent fallback to server default.
+    params.append('reportMode', normalizedReportMode);
+    params.append('_cb', this.createBudgetActualCacheBustToken());
 
     const response = await fetch(
       `${this.baseUrl}/reports/${clientId}/budget-actual/html?${params.toString()}`,
       {
         method: 'GET',
-        headers
+        headers,
+        cache: 'no-store'
       }
     );
 
