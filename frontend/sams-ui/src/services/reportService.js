@@ -5,6 +5,7 @@
 
 import { getAuthInstance } from '../firebaseClient';
 import { config } from '../config/index.js';
+import { getMexicoDateString, formatDateInMexico } from '../utils/timezone';
 
 class ReportService {
   constructor() {
@@ -717,7 +718,7 @@ class ReportService {
     const url = window.URL.createObjectURL(blob);
 
     // Generate meaningful filename
-    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const dateStr = getMexicoDateString();
     const clientName = params.clientName || clientId;
     
     // Build filename from filter summary
@@ -729,8 +730,8 @@ class ReportService {
       // Add date range to filename
       if (dateRange && dateRange !== 'all') {
         if (typeof dateRange === 'object' && dateRange.startDate && dateRange.endDate) {
-          const start = new Date(dateRange.startDate).toISOString().split('T')[0];
-          const end = new Date(dateRange.endDate).toISOString().split('T')[0];
+          const start = formatDateInMexico(dateRange.startDate) || '';
+          const end = formatDateInMexico(dateRange.endDate) || '';
           filenameParts.push(`${start}_to_${end}`);
         } else {
           filenameParts.push(String(dateRange));
