@@ -51,7 +51,13 @@
 **Theme**: Deliver a practical projection baseline for near-term fiscal planning decisions  
 **Risk**: Low-Medium (read-only reporting; higher risk is formula/design correctness)  
 **Dependencies**: None (PO-prioritized sprint flip)  
-**Status**: 🚀 ACTIVE (Apr 14, 2026) — design-first (math + visualization sign-off before implementation)
+**Status**: ✅ COMPLETE (Apr 14, 2026, PR #304 merged)
+
+**Progress (Apr 14, 2026):**
+- ✅ Design-first contract locked and approved before implementation
+- ✅ Budget vs Actual toggle shipped: `YTD` vs `Projected FY-End`
+- ✅ Projected variance basis aligned across preview/PDF/CSV exports
+- ✅ Issue `#165` closed after merge
 
 ---
 
@@ -1070,5 +1076,5 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 14, 2026 — Flipped active sprint to BUDGET-PROJ-1 (design-first), deferred PROD-BACKUP-STABILIZATION by PO direction, and clarified follow-on scope as BUDGET-PROJ-2 diagnostics.*  
+*Updated: April 15, 2026 — Marked BUDGET-PROJ-1 complete (PR #304, issue #165 closed), preserved PROD-BACKUP-STABILIZATION as deferred, and maintained BUDGET-PROJ-2 as follow-on diagnostics scope.*  
 *Last Review: April 14, 2026*

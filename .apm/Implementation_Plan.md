@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.21.0 (deployed) | **Production deployed:** v1.21.0 (April 13, 2026)  
-**Last Updated:** April 14, 2026 — PO flipped active priority to **BUDGET-PROJ-1** (`#165`) with design-first execution (math + visualization sign-off before coding). Sprint **PROD-STABILIZATION-1** remains complete (`#288 + #96`, `#273`, `#266`; PRs #298/#301/#302). Recon upload reliability hotfix remains validated (`PR #299`, `PR #300`). **PROD-BACKUP-STABILIZATION** (async run behavior + timezone display issue `#303`) is deferred until needed.
+**Last Updated:** April 15, 2026 — **BUDGET-PROJ-1** (`#165`) is complete and merged (PR #304). Active queue advances to **DEBT-1** with **PROD-BACKUP-STABILIZATION** still deferred unless production risk reappears.
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,11 +25,19 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Active sprint queue: **BUDGET-PROJ-1** (`#165`) first with design-first workflow, then **DEBT-1** (`#220`, `#223`, `#166`). **PROD-BACKUP-STABILIZATION** (manual backup async follow-up + issue `#303` timezone display correction) is deferred by PO direction unless production risk rises. Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint queue: **DEBT-1** (`#220`, `#223`, `#166`) first. **PROD-BACKUP-STABILIZATION** (manual backup async follow-up + issue `#303` timezone display correction) remains deferred by PO direction unless production risk rises. **BUDGET-PROJ-1** is complete (`#165`, PR #304 merged). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 
 ## Last Completed (shipping)
+
+**Sprint BUDGET-PROJ-1 — #165** — PR #304 merged April 14, 2026
+
+**Scope**: Budget vs Actual now supports variance-basis mode selection (`YTD` vs `Projected FY-End`) with consistent server-side projection logic and export parity.  
+**Quality**: ⭐⭐⭐⭐ — Pre-PR quality gate passed, targeted manager review complete, BugBot clean/skipped at merge state.  
+**Notes**: Issue #165 closed after merge. Archive: `SAMS-Docs/apm_session/Memory/Archive/Sprint_BUDGET_PROJ_1_2026-04-14/`.
+
+---
 
 **Sprint BANK-RECON — #268** — PR #268 merged April 10, 2026
 

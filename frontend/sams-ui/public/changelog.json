@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "165"
+          ],
+          "text": "Budget vs Actual now supports YTD vs Projected FY-End variance mode with explicit projected CSV headers and aligned exports"
+        }
+      ]
+    },
+    {
       "version": "1.21.1",
       "date": "2026-04-14",
       "changes": [
