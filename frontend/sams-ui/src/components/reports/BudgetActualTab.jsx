@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
 import { getFiscalYear, getFiscalYearLabel } from '../../utils/fiscalYearUtils';
@@ -89,6 +89,9 @@ function BudgetActualTab({ zoom = 1.0 }) {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
 
+  /** Suppress stale preview when multiple generates overlap (Strict Mode, rapid YTD ↔ Projected). */
+  const budgetActualGenerateSeq = useRef(0);
+
   // Initialize language and fiscal year when client or user changes
   useEffect(() => {
     if (!selectedClient) {
@@ -126,6 +129,8 @@ function BudgetActualTab({ zoom = 1.0 }) {
         return;
       }
 
+      const seq = ++budgetActualGenerateSeq.current;
+
       setLoading(true);
       setError(null);
 
@@ -149,15 +154,24 @@ function BudgetActualTab({ zoom = 1.0 }) {
         );
         console.log('[BudgetActual] Data fetched');
 
+        if (seq !== budgetActualGenerateSeq.current) {
+          console.log('[BudgetActual] Discarding stale generate result (seq mismatch)');
+          return;
+        }
+
         setReportData(data);
         setHtmlPreview(html);
         setHasGenerated(true);
         console.log('[BudgetActual] State updated, report ready');
       } catch (err) {
         console.error('[BudgetActual] Generation error:', err);
-        setError('Failed to generate report. Please try again.');
+        if (seq === budgetActualGenerateSeq.current) {
+          setError('Failed to generate report. Please try again.');
+        }
       } finally {
-        setLoading(false);
+        if (seq === budgetActualGenerateSeq.current) {
+          setLoading(false);
+        }
       }
     },
     [selectedClient, language, fiscalYear, reportMode]
