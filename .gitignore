@@ -175,6 +175,9 @@ functions/backend/testing/test*.js
 .cursor/screenshots/
 .claude/screenshots/
 
+# Cursor APM toolset (local-only, rebuildable)
+.cursor/skills/
+
 # Old .claude commands (migrated to .cursor)
 .claude/
 
