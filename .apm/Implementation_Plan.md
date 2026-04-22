@@ -1,7 +1,7 @@
 # SAMS Implementation Plan
 
 **Version:** v1.21.0 (deployed) | **Production deployed:** v1.21.0 (April 13, 2026)  
-**Last Updated:** April 15, 2026 — **BUDGET-PROJ-1** (`#165`) is complete and merged (PR #304). Active queue advances to **DEBT-1** with **PROD-BACKUP-STABILIZATION** still deferred unless production risk reappears.
+**Last Updated:** April 22, 2026 — **Sprint UPC-CREDIT-FIX (`#308`) is ✅ COMPLETE.** Resolution: data-only reconciliation, no runtime code changed. Two reconciliation entries posted by PO via Credit Balance UI in Dev + Prod (AVII 202 +$0.14, AVII 103 +$99.88). Branch deleted; no PR. Follow-up GH `#310` (UI dropdown enhancement) and `#311` (SoA-vs-ledger dual-derivation documentation + invariant check) filed. Active queue advances to **PROD-BACKUP-STABILIZATION**, then **DEBT-1**.
 **Product Owner:** Michael Landesman  
 **Development:** Cursor APM Framework (AI Agents)
 
@@ -25,11 +25,21 @@ All planning and backlog management is maintained in the Agile documentation:
 
 ## Current Sprint
 
-*Active sprint queue: **DEBT-1** (`#220`, `#223`, `#166`) first. **PROD-BACKUP-STABILIZATION** (manual backup async follow-up + issue `#303` timezone display correction) remains deferred by PO direction unless production risk rises. **BUDGET-PROJ-1** is complete (`#165`, PR #304 merged). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
+*Active sprint queue: **PROD-BACKUP-STABILIZATION** (manual backup async follow-up + issue `#303` timezone display correction) advances to active position after UPC-CREDIT-FIX closed. **DEBT-1** (`#220`, `#223`, `#166`) is queued behind it. Sprint **UPC-CREDIT-FIX** (`#308`) is complete (data-only reconciliation, no runtime code changed). **BUDGET-PROJ-1** is complete (`#165`, PR #304 merged). Sprint **PROD-STABILIZATION-1** is complete (`#288`, `#96`, `#273`, `#266`). Sprint **BANK-RECON** remains complete and deployed. DOC-LIB deprioritized. WhatsApp paused. See [Roadmap](../SAMS-Docs/apm_session/Agile/Roadmap_and_Timeline.md) for current sequence.*
 
 ---
 
 ## Last Completed (shipping)
+
+**Sprint UPC-CREDIT-FIX — #308** — Closed April 22, 2026 (no PR; data-only resolution)
+
+**Scope**: Diagnose and resolve the production blocker where a UPC payment using credit balance left a Water Bill marked `partial` while the SoA showed zero owed. After multi-iteration diagnostic loop between PO and Manager Agent (two failed hypotheses retracted en route), final root cause was identified as small import-era miscounts of `credit_added` ledger entries from the December 2025 Google-Sheet→Firestore migration's text-parsing scripts, dormant for months until the Apr 20 unit 202 payment was the first to depend on the credit ledger to fully cover a bill.  
+**Resolution**: No runtime code changed. Two reconciliation entries posted by PO via the existing Credit Balance UI's "+ Add Credit → Edit Source" workflow in both Dev and Prod (AVII 202 +$0.14, AVII 103 +$99.88), using a non-whitelist `source` value so the entries appear in the Credit Balance Activity card without doubling the SoA Account Activity running balance.  
+**Quality**: Diagnostic discipline ⭐⭐⭐ — IA correctly stopped at gates and surfaced contradictions to Manager rather than rationalizing them; Manager twice over-confidently reframed without checking data and was course-corrected by PO. No defect introduced; no regression risk.  
+**Follow-ups**: GH `#310` (Credit Balance UI: add `Reconciliation` option to Source dropdown to eliminate the add-then-edit step). GH `#311` (Document and self-validate the SoA-vs-ledger dual-derivation contract; add a low-cost invariant check so the next silent import or migration miss surfaces early).  
+**Archive**: `SAMS-Docs/apm_session/Memory/Archive/Sprint_UPC_CREDIT_FIX_2026-04-22/`.
+
+---
 
 **Sprint BUDGET-PROJ-1 — #165** — PR #304 merged April 14, 2026
 
