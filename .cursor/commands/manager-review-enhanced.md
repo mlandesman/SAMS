@@ -1,304 +1,209 @@
-# Manager Agent - Review Implementation Work (Enhanced with Auto-Archive)
+---
+description: SAMS Manager review of Worker Task Report with auto-archive workflow
+---
 
-As a Manager Agent, you will now review completed work from Implementation Agents. This ensures quality, adherence to requirements, and project alignment.
+# SAMS Manager Review Wrapper
 
-## Review Process
+Run after `/apm-5-check-reports` has delivered a Worker Task Report. This wrapper layers SAMS-specific code-quality verification and auto-archiving on top of the native v1.0.0 Manager review.
 
-### 1. Synchronize Project State
-First, ensure you have the latest project information:
-- Check recent Memory Bank entries
-- Review Implementation Plan progress
-- Identify completed tasks for review
+## Step 1 — Automated Quality Gate (MANDATORY before approval)
 
-### 2. Code Quality Verification (MANDATORY BEFORE APPROVAL)
-
-Before evaluating functionality or documentation, run the automated quality gate and perform a targeted code review. **Do NOT approve a PR until these pass.**
-
-#### 2a. Run Automated Quality Gate
 ```bash
-bash scripts/pre-pr-checks.sh main
+bash /Users/michael/Projects/SAMS/scripts/pre-pr-checks.sh main
 ```
-This catches: `new Date()` timezone violations, dead/unused files, orphaned imports, navigation targets without matching routes, CommonJS in frontend code. **All issues must be resolved before approval.**
 
-#### 2b. Targeted Code Review (Review `git diff main...HEAD`)
+Catches: `new Date()` timezone violations, dead/unused files, orphaned imports, navigation targets without matching routes, CommonJS in frontend code.
 
-Review the full branch diff for these specific patterns — these are the issues BugBot repeatedly catches and automated linting misses:
+**Do NOT approve a report or merge a PR until this passes.** If the script is missing, **HALT and ask Michael.**
+
+## Step 2 — Targeted Code Review (review `git diff main...HEAD`)
+
+Review the full branch diff for these specific patterns — issues BugBot repeatedly catches and automated linting misses:
 
 | Check | What to look for | Why |
-|-------|-----------------|-----|
-| **Dead files** | Files created during the branch that are no longer imported by anything. Common after design pivots (e.g., built ComponentA, later switched to ComponentB, forgot to delete ComponentA). | 5 of 8 BugBot issues in Sprint MOBILE-OWNER-V1 were dead code. |
-| **Unused imports** | `import Foo from './Foo'` where `Foo` is never referenced in the file body. Often left behind when removing a component's usage. | Adds unnecessary bundle size and confuses future readers. |
-| **State reset on context change** | Components using `useSelectedUnit()`, `useAuth()`, or similar context — does local state (loaded data, PDF URLs, dropdown selections, error messages) reset when the context value changes? Look for missing `useEffect` cleanup. | Stale data from a previous unit/client displayed after switching. |
-| **Data unit mismatches in fallbacks** | `const value = sourceA?.field ?? sourceB?.field` — are both sources in the same units? Dashboard-summary returns pesos; unit-report returns centavos. Both return date objects differently. | Values display 100x too large or show "Invalid Date" until the preferred source loads. |
-| **Role/permission alignment** | Every `navigate('/route')` — can the user who SEES the clickable element actually ACCESS that route? Cross-reference with `RoleProtectedRoute` wrappers in `App.jsx`. Cards rendered outside `!isAdminOrSuperAdmin` guards must not link to `requiredRole="unitOwner"` routes. | Admin clicks a card and gets "You don't have permission." |
-| **Orphaned route references** | `navigate('/old-route')` pointing to routes that were renamed or removed during the branch. Check all `navigate()` calls against the current `App.jsx` `<Route>` definitions. | Click leads to catch-all redirect to `/auth`. |
+| :--- | :--- | :--- |
+| **Dead files** | Files created in this branch no longer imported by anything. | Most BugBot issues in Sprint MOBILE-OWNER-V1 were dead code. |
+| **Unused imports** | `import Foo from './Foo'` where `Foo` is never referenced. | Bundle size, reader confusion. |
+| **State reset on context change** | Components using `useSelectedUnit()`, `useAuth()`, etc. — does local state reset when context value changes? Missing `useEffect` cleanup? | Stale data after switching unit/client. |
+| **Data unit mismatches in fallbacks** | `sourceA?.field ?? sourceB?.field` — same units across both sources? | 100x value errors, "Invalid Date." |
+| **Role/permission alignment** | Every `navigate('/route')` — does the user who SEES the element have permission to ACCESS the route? Check `RoleProtectedRoute` in `App.jsx`. | Admin click → permission denied. |
+| **Orphaned route references** | `navigate('/old-route')` pointing to renamed/removed routes. | Click → catch-all `/auth` redirect. |
 
-#### 2c. General Review Checklist
+## Step 3 — Functional & Documentation Review
 
-##### Functionality Review
-- Does it meet the task requirements?
-- Are all acceptance criteria satisfied?
-- Does it integrate properly with other components?
-- Are edge cases handled appropriately?
+- Does the implementation meet the Task Prompt's acceptance criteria?
+- Does it integrate properly with adjacent components?
+- Are edge cases handled?
+- Is the Worker's Task Report complete and accurate?
+- Are decisions documented?
+- Is the Memory Log entry complete?
 
-##### Code Quality Review
-- Is the code clean and readable?
-- Does it follow project conventions?
-- Is the logic clear and maintainable?
+## Step 4 — Issue One of Three Verdicts
 
-##### Technical Review
-- Are best practices followed?
-- Is the solution efficient?
-- Are there any security concerns?
-- Is error handling comprehensive?
-
-##### Documentation Review
-- Is the Memory Bank entry complete?
-- Are implementation decisions documented?
-- Is the code self-documenting where possible?
-- Are any special considerations noted?
-
-### 3. Feedback Categories
-
-#### ✅ Approved
+### APPROVED
 - Task fully meets requirements
-- No significant issues found
-- Ready for integration
-- **TRIGGERS AUTOMATIC ARCHIVING**
+- All quality gates pass
+- No outstanding issues
+- **TRIGGERS AUTO-ARCHIVE WORKFLOW (Step 6)**
 
-#### 🔄 Minor Revisions Needed
-- Small improvements required
-- Non-blocking issues
-- Can proceed with notes
-- **NO AUTOMATIC ARCHIVING**
+### MINOR REVISIONS
+- Small improvements required, non-blocking
+- Issue follow-up Task Prompt via Message Bus
+- **NO archive**
 
-#### ❌ Major Revisions Required
-- Significant issues found
-- Requirements not met
-- Needs rework before proceeding
-- **NO AUTOMATIC ARCHIVING**
+### MAJOR REVISIONS
+- Requirements not met or significant rework needed
+- Issue revised Task Prompt via Message Bus
+- **NO archive**
 
-### 4. Providing Feedback
+## Step 5 — Write Manager Review
 
-Structure your feedback as:
+Structure:
+
 ```markdown
-## Task Review: [Task ID] - [Task Name]
+## Task Review: [Task ID] — [Task Name]
 
 ### Summary
-[Brief overview of the review outcome]
+[Outcome in 1-2 sentences]
 
 ### Strengths
 - [What was done well]
-- [Positive aspects to maintain]
 
 ### Areas for Improvement
-- [Specific issues found]
-- [Required changes]
+- [Specific issues, if any]
 
-### Recommendations
-- [Suggested approaches]
-- [Best practices to follow]
+### Verdict
+[APPROVED | MINOR REVISIONS | MAJOR REVISIONS]
 
 ### Next Steps
-- [Specific actions needed]
-- [Who should handle them]
+- [Specific actions, who handles them]
 ```
 
-### 5. Memory Bank Update
-Log your review to Memory Bank:
-- For memory log paths, read `/Users/michael/Projects/SAMS-Docs/DOC_CREATION_RULES.md`
-- Create review entry in `Memory/Reviews/`
-- Reference the task being reviewed
-- Include feedback and decisions
-- Note any follow-up tasks needed
+Save the review to:
+- For v1.0.0 sessions: `.apm/memory/stage-NN/` alongside the Worker's Task Log, OR the location specified in the active sprint's Bootstrap document
+- For SAMS-Docs/Sprint_Management workflow: `/Users/michael/Projects/SAMS/SAMS-Docs/Sprint_Management/Memory/Reviews/Manager_Review_<Sprint>_<Date>.md`
 
-### 6. AUTOMATIC ARCHIVING (For Approved Reviews Only) - MANDATORY
+## Step 6 — AUTO-ARCHIVE WORKFLOW (APPROVED reviews only — MANDATORY)
 
-When a review is **APPROVED** without challenges, you MUST complete this full archiving workflow:
+When verdict is APPROVED and Michael has confirmed working code:
 
-#### Step 1: Commit, Push and Merge if user agrees
-- Check git to see if all code changes related to this task are committed and pushed to GitHub
-- If changes are not committed, ask if they are ready to commit and push
-- Ask if this code should be merged into main and merge if approved
-- Ask if the branch should be deleted or left open for other related tasks
+### 6a. Commit, Push, Merge
 
-#### Step 2: Add Changelog Entry (MANDATORY)
+- Verify all task code is committed and pushed
+- If not, ask Michael whether to commit/push now
+- Ask whether to merge into `main` and merge if approved
+- Ask whether to delete or keep the branch
 
-Add an entry to the changelog for this completed work:
+### 6b. Changelog Entry (MANDATORY)
 
-1. **Summarize the changes** from the completion log:
-   - For single-task deployments: 2-3 bullet points describing the change
-   - For multi-task deployments: One line per task summarizing each
-   
-2. **Determine the change type:**
-   - `feat` — New feature or enhancement
-   - `fix` — Bug fix
-   - `maint` — Refactoring, maintenance, code cleanup
-   - `perf` — Performance improvement
-
-3. **Identify linked GitHub issues** (if any)
-
-4. **Run the changelog helper script:**
-   ```bash
-   node scripts/updateChangelogPending.js --type <type> --issues "<issue_numbers>" --text "<description>"
-   ```
-   
-   **Examples:**
-   ```bash
-   # Single feature with issue
-   node scripts/updateChangelogPending.js --type feat --issues "158" --text "Changelog display in About modal"
-   
-   # Bug fix with multiple issues
-   node scripts/updateChangelogPending.js --type fix --issues "115,60" --text "Fixed reconcile accounts sign flip and water service checks"
-   
-   # Feature without issue
-   node scripts/updateChangelogPending.js --type feat --text "Document upload in payment controller"
-   ```
-
-5. **Confirm the entry was added** by checking the script output
-
-**Note:** Entries are added with `version: "pending"`. The deploy script (`deploySams.sh`) will finalize by replacing "pending" with the actual version number.
-
-#### Step 3: Create Archive Directory Structure
 ```bash
-# For completed phases/tasks, create organized archive
-cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory/Archive"
-
-mkdir -p "[Phase_Name]_[Date]/Task_Assignments"
-mkdir -p "[Phase_Name]_[Date]/Completion_Logs"
-mkdir -p "[Phase_Name]_[Date]/Reviews"
-mkdir -p "[Phase_Name]_[Date]/Test_Results"
+node /Users/michael/Projects/SAMS/scripts/updateChangelogPending.js --type <type> --issues "<issue_numbers>" --text "<description>"
 ```
 
-**Example**: `Phase_3_Shared_Services_Extraction_2025-10-27/`
+Types:
+- `feat` — new feature or enhancement
+- `fix` — bug fix
+- `maint` — refactor / cleanup
+- `perf` — performance improvement
 
-#### Step 4: Move Task Assignment Files (MOVE - prevents confusion)
+Examples:
+
 ```bash
-# Move task assignments from /apm_session/ root to archive
-# These are the files new agents might mistake as "not done yet"
-cd "/Users/michael/Projects/SAMS-Docs/apm_session"
-
-mv Task_[Phase]*.md Memory/Archive/[Archive_Dir]/Task_Assignments/
+node scripts/updateChangelogPending.js --type feat --issues "158" --text "Changelog display in About modal"
+node scripts/updateChangelogPending.js --type fix --issues "115,60" --text "Fixed reconcile accounts sign flip and water service checks"
+node scripts/updateChangelogPending.js --type feat --text "Document upload in payment controller"
 ```
 
-**Why MOVE**: Task assignments in root confuse new agents who assume work is incomplete
+Entries are added with `version: "pending"`. The deploy script (`deploySams.sh`) finalizes pending → actual version.
 
-#### Step 5: Copy Completion Logs to Archive (COPY - keep originals)
+If the script is missing, **HALT and ask Michael.**
+
+### 6c. Sprint Archive Directory
+
+Operational sprint archives live at `/Users/michael/Projects/SAMS/SAMS-Docs/Sprint_Management/Sprint_Archive/<Sprint_Name>_<Date>/`.
+
 ```bash
-# Copy (don't move) completion logs - keep originals in Task_Completion_Logs/
-cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
-
-cp Task_Completion_Logs/Task_[Phase]*_Complete*.md Archive/[Archive_Dir]/Completion_Logs/
+cd /Users/michael/Projects/SAMS/SAMS-Docs/Sprint_Management/Sprint_Archive
+mkdir -p "<Sprint_Name>_<Date>/Task_Assignments"
+mkdir -p "<Sprint_Name>_<Date>/Completion_Logs"
+mkdir -p "<Sprint_Name>_<Date>/Reviews"
+mkdir -p "<Sprint_Name>_<Date>/Test_Results"
 ```
 
-**Why COPY**: Keep originals accessible for quick reference
+Example: `Sprint_UPC_CREDIT_FIX_2026-04-22/`
 
-#### Step 6: Copy Manager Reviews to Archive (COPY - keep originals)
+### 6d. Move Task Assignments to Archive (MOVE — prevents new-agent confusion)
+
 ```bash
-# Copy (don't move) manager reviews - keep originals in Reviews/
-cd "/Users/michael/Projects/SAMS-Docs/apm_session/Memory"
-
-cp Reviews/Manager_Review_[Phase]*.md Archive/[Archive_Dir]/Reviews/
-cp Reviews/Phase_[X]_Complete_Handoff*.md Archive/[Archive_Dir]/Reviews/
+cd /Users/michael/Projects/SAMS/SAMS-Docs/Sprint_Management
+mv Tasks/Task_<Sprint>*.md Sprint_Archive/<Sprint_Name>_<Date>/Task_Assignments/
 ```
 
-**Why COPY**: Keep originals for reference, archive for organization
+Why MOVE: leaving task assignments in the active `Tasks/` folder causes new agents to assume work is incomplete.
 
-#### Step 7: Move Summary Documents to Archive (MOVE)
+### 6e. Copy Completion Logs to Archive (COPY — keep originals)
+
 ```bash
-# Move phase/project summary documents from /apm_session/ root to archive
-cd "/Users/michael/Projects/SAMS-Docs/apm_session"
-
-mv [PHASE]_MANAGER_REVIEW_COMPLETE_SUMMARY.md Memory/Archive/[Archive_Dir]/
-mv [PHASE]_COMPLETION_SUMMARY.md Memory/Archive/[Archive_Dir]/ (if exists)
+cp Memory/Task_Completion_Logs/<Sprint>*_Complete*.md Sprint_Archive/<Sprint_Name>_<Date>/Completion_Logs/
 ```
 
-#### Step 8: Create Archive README
-Create comprehensive README in archive directory explaining:
+### 6f. Copy Manager Reviews to Archive (COPY — keep originals)
+
+```bash
+cp Memory/Reviews/Manager_Review_<Sprint>*.md Sprint_Archive/<Sprint_Name>_<Date>/Reviews/
+```
+
+### 6g. Move Sprint Bootstrap(s) to Archive (MOVE)
+
+```bash
+mv Manager_Bootstraps/Manager_Bootstrap_Prompt_Sprint_<Sprint>*.md Sprint_Archive/<Sprint_Name>_<Date>/
+mv Manager_Bootstraps/Manager_Bootstrap_Addendum_Sprint_<Sprint>*.md Sprint_Archive/<Sprint_Name>_<Date>/  # if exists
+```
+
+### 6h. Create Archive README
+
+In `Sprint_Archive/<Sprint_Name>_<Date>/README.md`, document:
 - What was accomplished (deliverables, metrics)
-- Why it's archived (phase complete)
-- What remains active (production code locations)
-- Archive contents (organized by subdirectory)
-- References to Implementation Plan and Project Tracking
+- Why it's archived (sprint complete and merged)
+- Production code locations affected
+- Archive contents inventory
+- References to Sprint_Groups.md entry and any GitHub issues closed
 
-#### Step 9: Update Implementation Plan
-```markdown
-# Mark phase/task as COMPLETE with:
-- ✅ COMPLETE status and date
-- Duration (actual vs estimated)
-- Deliverables summary
-- Testing results
-- Quality rating (⭐⭐⭐⭐⭐)
-- Documentation references (completion log, review)
-- Strategic value/impact
-```
+### 6i. Update Sprint_Groups.md and Roadmap
 
-#### Step 10: Create Archive Log Entry
-Create or append to: `Memory/ARCHIVE_LOG_[YYYY-MM-DD].md`
+- `/Users/michael/Projects/SAMS/SAMS-Docs/Agile/Sprint_Groups.md` — move the sprint from "Active" or "In Progress" section to "Completed" section at bottom; add completion notes, technical debt left behind, link to Sprint_Archive entry
+- `/Users/michael/Projects/SAMS/SAMS-Docs/Agile/Roadmap_and_Timeline.md` — update as needed
 
-Document:
+### 6j. Append Archive Log Entry
+
+Create or append `/Users/michael/Projects/SAMS/SAMS-Docs/Sprint_Management/Memory/ARCHIVE_LOG_<YYYY-MM-DD>.md`:
 - What was archived
-- Where it was moved to
+- Where it moved to
 - Why it was archived
-- Archive structure created
-- Files moved vs copied
+- Files MOVED vs COPIED
 
-#### Step 11: Update TODO List
-Mark all related TODOs as completed
+### 6k. Update GitHub Issues
 
+If GitHub issues were linked to this sprint, update or close them.
 
-#### Step 12: Update GitHub Issues
-If GitHub issues (Bugs or Enhancements) were linked to this task, update or close them.
+### 6l. Auto-Archive Checklist
 
----
+- [ ] Changelog entry added via `updateChangelogPending.js`
+- [ ] Sprint archive directory created with subdirs
+- [ ] Task Assignments MOVED to archive
+- [ ] Completion Logs COPIED to archive
+- [ ] Manager Reviews COPIED to archive
+- [ ] Sprint Bootstrap(s) MOVED to archive
+- [ ] Archive README created
+- [ ] `SAMS-Docs/Agile/Sprint_Groups.md` updated (sprint moved to Completed)
+- [ ] `SAMS-Docs/Agile/Roadmap_and_Timeline.md` updated if applicable
+- [ ] Archive log entry written
+- [ ] GitHub issues updated if applicable
 
-### MANDATORY ARCHIVING CHECKLIST (For Approved Reviews)
+**ALL boxes checked before declaring "Auto-Archive Complete."**
 
-Use this checklist for EVERY approved review:
+## Step 7 — Confirmation
 
-- [ ] **Changelog entry added** via `node scripts/updateChangelogPending.js`
-- [ ] Archive directory created: `/Memory/Archive/[Phase_Name]_[Date]/`
-- [ ] Subdirectories created: `Task_Assignments/`, `Completion_Logs/`, `Reviews/`
-- [ ] Task assignments MOVED to archive (prevents agent confusion)
-- [ ] Completion logs COPIED to archive (originals kept)
-- [ ] Manager reviews COPIED to archive (originals kept)
-- [ ] Summary documents MOVED to archive
-- [ ] Archive README.md created
-- [ ] Implementation_Plan.md updated with completion
-- [ ] Archive log entry created/updated
-- [ ] TODO list updated
-- [ ] GitHub issues reviewed and updated if applicable
+State to Michael:
 
-**ALL items must be checked before claiming "Auto-Archive Complete"**
-
-### 7. Communication
-After review:
-- For APPROVED: Confirm auto-archive completion
-- For REVISIONS: Create new task assignments
-- Communicate blockers or risks
-- Adjust timeline if necessary
-
-## Review Best Practices
-- Be constructive and specific
-- Focus on requirements and quality
-- Provide actionable feedback
-- Recognize good work
-- Consider project constraints
-- Think about long-term maintainability
-
-## After Review
-1. Update Memory Bank with review results
-2. If APPROVED: Verify auto-archive completed successfully
-3. If REVISIONS: Create revision tasks
-4. Update project tracking
-5. Plan next steps
-
-## Auto-Archive Summary
-The auto-archive feature activates ONLY when:
-- Review result is ✅ APPROVED
-- No challenges or revisions needed
-- User has tested and confirmed working
-
-This keeps the workspace clean and prevents resolved issues from appearing in future APM-SYNC operations.
-
-Begin the review process by checking recent completed work in the Memory Bank.
+> "Review verdict: [APPROVED | MINOR | MAJOR]. [If APPROVED:] Auto-archive workflow [complete | in progress]. Sprint_Groups.md updated. Awaiting next sprint or task."
