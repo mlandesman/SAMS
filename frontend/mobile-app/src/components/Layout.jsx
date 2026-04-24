@@ -39,6 +39,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useSessionPreferences } from '../context/SessionPreferencesContext.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
+import { useMobileStrings } from '../hooks/useMobileStrings.js';
 import PWANavigation from './PWANavigation.jsx';
 import UserProfileManager from './UserProfileManager.jsx';
 import InstallBanner from './InstallBanner.jsx';
@@ -54,6 +55,7 @@ const Layout = ({ children }) => {
   const { user, logout, isAdmin, samsUser, currentClient } = useAuth();
   const { preferredLanguageUi, setPreferredLanguageUi } = useSessionPreferences();
   const { selectedUnitId, setSelectedUnitId, availableUnits } = useSelectedUnit();
+  const t = useMobileStrings();
 
   const isOwnerOrManager = checkIsOwnerOrManager(samsUser);
   const isSuperAdmin = samsUser?.globalRole === 'superAdmin';
@@ -63,13 +65,13 @@ const Layout = ({ children }) => {
     isAdminOrSuperAdmin || Boolean(clientId && hasClientAdminForClient(samsUser, clientId));
   const selectedUnitRole = availableUnits?.find(u => u.unitId === selectedUnitId)?.role;
   const roleLabel = isSuperAdmin
-    ? 'SuperAdmin'
+    ? t('layout.role.superAdmin')
     : showAdminShell
-      ? 'Admin'
+      ? t('layout.role.admin')
       : selectedUnitRole === 'unitManager'
-        ? 'Manager'
+        ? t('layout.role.manager')
         : isOwnerOrManager
-          ? 'Owner'
+          ? t('layout.role.owner')
           : null;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -102,52 +104,52 @@ const Layout = ({ children }) => {
   const getPageTitle = () => {
     switch (location.pathname) {
       case '/auth':
-        return 'Sandyland Mobile';
+        return t('layout.page.auth');
       case '/clients':
-        return 'Select Client';
+        return t('layout.page.clients');
       case '/confirmation':
-        return 'Confirmation';
+        return t('layout.page.confirmation');
       case '/expense-entry':
-        return 'Add Expense';
+        return t('layout.page.expenseEntry');
       case '/':
       case '/dashboard':
-        return 'Dashboard';
+        return t('layout.page.dashboard');
       case '/exchange-rates':
-        return 'Exchange Rates';
+        return t('layout.page.exchangeRates');
       case '/my-report':
-        return 'Current Status';
+        return t('layout.page.myReport');
       case '/statement':
-        return 'Statement of Account';
+        return t('layout.page.statement');
       case '/about':
-        return 'About';
+        return t('layout.page.about');
       case '/transactions':
-        return 'Transactions';
+        return t('layout.page.transactions');
       case '/unit-dashboard':
-        return 'My Unit';
+        return t('layout.page.unitDashboard');
       case '/hoa':
-        return 'HOA';
+        return t('layout.page.hoa');
       case '/more':
-        return 'More';
+        return t('layout.page.more');
       case '/tareas':
-        return 'Tareas';
+        return t('layout.page.tareas');
       case '/propane-reading':
-        return 'Lectura de Gas';
+        return t('layout.page.propaneReading');
       case '/water-reading':
       case '/tareas/agua':
-        return 'Lectura de Agua';
+        return t('layout.page.waterReading');
       case '/unit-directory':
-        return 'Unit Directory';
+        return t('layout.page.unitDirectory');
       case '/admin/transactions':
-        return 'Transactions';
+        return t('layout.page.transactions');
       case '/admin/record-payment':
-        return 'Record Payment';
+        return t('layout.page.recordPayment');
       case '/admin/budget':
-        return 'Budget';
+        return t('layout.page.budget');
       default:
         if (location.pathname.startsWith('/expense/')) {
-          return 'Add Expense';
+          return t('layout.page.expenseEntry');
         }
-        return 'Dashboard';
+        return t('layout.page.default');
     }
   };
 
@@ -196,7 +198,7 @@ const Layout = ({ children }) => {
               color="inherit"
               onClick={() => setDrawerOpen(true)}
               sx={{ mr: 1 }}
-              aria-label="open menu"
+              aria-label={t('layout.openMenu')}
             >
               <MenuIcon />
             </IconButton>
@@ -216,7 +218,11 @@ const Layout = ({ children }) => {
             </Typography>
             {roleLabel && (
               <Chip
-                label={!showAdminShell && selectedUnitId ? `Unit ${selectedUnitId} - ${roleLabel}` : roleLabel}
+                label={
+                  !showAdminShell && selectedUnitId
+                    ? t('layout.unitRoleLabel', { unitId: selectedUnitId, role: roleLabel })
+                    : roleLabel
+                }
                 size="small"
                 color={showAdminShell ? 'primary' : 'secondary'}
                 sx={{
@@ -234,7 +240,7 @@ const Layout = ({ children }) => {
             <IconButton
               color="inherit"
               onClick={() => setProfileOpen(true)}
-              aria-label="profile"
+              aria-label={t('layout.profile')}
             >
               <AccountCircle />
             </IconButton>
@@ -252,7 +258,7 @@ const Layout = ({ children }) => {
         PaperProps={{ sx: { width: 260, paddingTop: 'env(safe-area-inset-top)' } }}
       >
         <Box sx={{ pt: 2, pb: 1, px: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>SAMS Mobile</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('layout.appName')}</Typography>
         </Box>
         <Divider />
 
@@ -263,7 +269,7 @@ const Layout = ({ children }) => {
               {availableUnits.length === 1 ? (
                 <Chip
                   icon={<HomeIcon />}
-                  label={`Unit ${availableUnits[0].unitId}`}
+                  label={t('layout.unitLabel', { unitId: availableUnits[0].unitId })}
                   color="primary"
                   sx={{ fontWeight: 600, fontSize: '0.85rem' }}
                 />
@@ -277,11 +283,13 @@ const Layout = ({ children }) => {
                     }}
                     displayEmpty
                     sx={{ fontWeight: 600, fontSize: '0.9rem' }}
-                    renderValue={(val) => val ? `Unit ${val}` : 'Select Unit'}
+                    renderValue={(val) => val
+                      ? t('layout.unitLabel', { unitId: val })
+                      : t('layout.selectUnit')}
                   >
                     {availableUnits.map((u) => (
                       <MenuItem key={u.unitId} value={u.unitId}>
-                        Unit {u.unitId}
+                        {t('layout.unitLabel', { unitId: u.unitId })}
                       </MenuItem>
                     ))}
                   </Select>
@@ -295,11 +303,11 @@ const Layout = ({ children }) => {
         <List>
           {(showAdminShell
             ? [
-                { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-                { label: 'Unit Directory', icon: <ContactsIcon />, path: '/unit-directory' },
-                { label: 'Budget', icon: <BudgetIcon />, path: '/admin/budget' },
-                { label: 'Exchange Rates', icon: <ExchangeRatesIcon />, path: '/exchange-rates' },
-                { label: 'About', icon: <AboutIcon />, path: '/about' },
+                { label: t('layout.menu.dashboard'), icon: <DashboardIcon />, path: '/' },
+                { label: t('layout.menu.unitDirectory'), icon: <ContactsIcon />, path: '/unit-directory' },
+                { label: t('layout.menu.budget'), icon: <BudgetIcon />, path: '/admin/budget' },
+                { label: t('layout.menu.exchangeRates'), icon: <ExchangeRatesIcon />, path: '/exchange-rates' },
+                { label: t('layout.menu.about'), icon: <AboutIcon />, path: '/about' },
               ]
             : [
                 // Owner/Manager: bottom tabs cover Home, My Unit, HOA, More — hamburger keeps unit selector + Logout only
@@ -334,7 +342,7 @@ const Layout = ({ children }) => {
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap' }}>
                       <Typography component="span" variant="body2" sx={{ fontSize: '0.95rem' }}>
-                        {preferredLanguageUi === 'ES' ? 'Idioma:' : 'Language:'}
+                        {t('layout.language')}
                       </Typography>
                       <Box
                         component="span"
@@ -361,7 +369,7 @@ const Layout = ({ children }) => {
                 <ListItemIcon sx={{ minWidth: 40 }}>
                   <InstallIcon />
                 </ListItemIcon>
-                <ListItemText primary="Install App" />
+                <ListItemText primary={t('layout.installApp')} />
               </ListItemButton>
             </ListItem>
           )}
@@ -374,7 +382,7 @@ const Layout = ({ children }) => {
               sx={{ minHeight: 48 }}
             >
               <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
-              <ListItemText primary="Logout" />
+              <ListItemText primary={t('layout.logout')} />
             </ListItemButton>
           </ListItem>
         </List>
@@ -383,7 +391,7 @@ const Layout = ({ children }) => {
       {/* Offline indicator */}
       <div className={`offline-indicator ${!isOnline ? 'show' : ''}`}>
         <Typography variant="body2">
-          You're offline. Some features may not work.
+          {t('layout.offlineNotice')}
         </Typography>
       </div>
 

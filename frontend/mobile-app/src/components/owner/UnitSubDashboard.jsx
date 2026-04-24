@@ -37,11 +37,13 @@ import { useHoaConfig } from '../../hooks/useHoaConfig.js';
 import { db } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
   const { currentClient } = useAuth();
   const { preferredLanguageUi } = useSessionPreferences();
+  const t = useMobileStrings();
   const { selectedUnitId } = useSelectedUnit();
   const { data: unitData, loading: unitLoading, error: unitError } = useUnitAccountStatus(currentClient, selectedUnitId);
 
@@ -89,7 +91,7 @@ const UnitSubDashboard = () => {
   if (!currentClient || !selectedUnitId) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">Select a unit to view your account.</Typography>
+        <Typography color="text.secondary">{t('unit.selectClientOrUnit')}</Typography>
       </Box>
     );
   }
@@ -144,7 +146,7 @@ const UnitSubDashboard = () => {
       {/* Section A: Account Summary — Combined: amount due, due date, scheduled payment */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Account Summary</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('unit.accountSummary')}</Typography>
           {!unitReady ? (
             <Box display="flex" justifyContent="center" py={2}>
               <LoadingSpinner size="small" />
@@ -155,14 +157,18 @@ const UnitSubDashboard = () => {
                 {formatPesosForDisplay(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
+                {t('owner.due', {
+                  date: dueDate ? formatDateForDisplay(dueDate) : t('owner.dateNotSet')
+                })}
               </Typography>
               {daysPastDue > 0 && (
-                <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>{daysPastDue} days past due</Typography>
+                <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>
+                  {t('owner.daysPastDue', { days: daysPastDue })}
+                </Typography>
               )}
               {hasLateFees && lateFeeDate && (
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Late fees apply after {lateFeeDate}
+                  {t('owner.lateFeesAfter', { date: lateFeeDate })}
                 </Typography>
               )}
               {nextPaymentAmount > 0 && (
@@ -171,7 +177,7 @@ const UnitSubDashboard = () => {
                     {formatPesosForDisplay(nextPaymentAmount)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    Scheduled payment amount
+                    {t('unit.scheduledPaymentAmount')}
                   </Typography>
                 </>
               )}
@@ -184,7 +190,7 @@ const UnitSubDashboard = () => {
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-            <Typography variant="subtitle2" color="text.secondary">Recent Transactions</Typography>
+            <Typography variant="subtitle2" color="text.secondary">{t('unit.recentTransactions')}</Typography>
             <Button size="small" onClick={() => setTransactionsExpanded(!transactionsExpanded)}>
               {transactionsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </Button>
@@ -193,7 +199,7 @@ const UnitSubDashboard = () => {
             {unitLoading ? (
               <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
             ) : recentTx.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">No transactions</Typography>
+              <Typography variant="body2" color="text.secondary">{t('unit.noTransactions')}</Typography>
             ) : (
               <List dense disablePadding>
                 {recentTx.map((item, i) => {
@@ -202,7 +208,7 @@ const UnitSubDashboard = () => {
                   return (
                     <ListItem key={i} disablePadding sx={{ py: 0.5 }}>
                       <ListItemText
-                        primary={item.description || 'Transaction'}
+                        primary={item.description || t('unit.transactionFallback')}
                         secondary={formatDateForDisplay(item.date)}
                         primaryTypographyProps={{ variant: 'body2' }}
                         secondaryTypographyProps={{ variant: 'caption' }}
@@ -221,7 +227,7 @@ const UnitSubDashboard = () => {
             )}
           </Collapse>
           <Button fullWidth size="small" sx={{ mt: 1 }} onClick={() => navigate('/transactions')}>
-            View All Transactions
+            {t('unit.viewAllTransactions')}
           </Button>
         </CardContent>
       </Card>
@@ -229,21 +235,21 @@ const UnitSubDashboard = () => {
       {/* Statements — primary: latest in session language; archive on full screen */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Statements</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('unit.statements')}</Typography>
           {storedLoading ? (
             <Box display="flex" justifyContent="center" py={1}><LoadingSpinner size="small" /></Box>
           ) : (
             <>
               {allStatementRows.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  No stored statements
+                  {t('unit.noStoredStatements')}
                 </Typography>
               ) : (
                 <>
                   {latestInPreferredLanguage?.storageUrl ? (
                     <Box sx={{ mb: 1.5 }}>
                       <Typography variant="body2" sx={{ mb: 0.5 }}>
-                        Latest ({langHint})
+                        {t('unit.latest', { language: langHint })}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         {latestInPreferredLanguage.label}
@@ -255,13 +261,13 @@ const UnitSubDashboard = () => {
                         onClick={() => setInlinePdfUrl(latestInPreferredLanguage.storageUrl)}
                         sx={{ textTransform: 'none' }}
                       >
-                        Open latest statement
+                        {t('unit.openLatestStatement')}
                       </Button>
                       {inlinePdfUrl && (
                         <Box sx={{ mt: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
                             <Button size="small" onClick={() => setInlinePdfUrl(null)} sx={{ textTransform: 'none' }}>
-                              Close
+                              {t('unit.close')}
                             </Button>
                           </Box>
                           <Box
@@ -274,7 +280,7 @@ const UnitSubDashboard = () => {
                             }}
                           >
                             <iframe
-                              title="Statement of Account"
+                              title={t('unit.statementTitle')}
                               src={inlinePdfUrl}
                               style={{ width: '100%', height: 360, border: 'none', display: 'block' }}
                             />
@@ -284,7 +290,7 @@ const UnitSubDashboard = () => {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      No stored statement in {langHint} for this unit yet.
+                      {t('unit.noStoredStatementInLanguage', { language: langHint })}
                     </Typography>
                   )}
                 </>
@@ -299,7 +305,7 @@ const UnitSubDashboard = () => {
                 }}
                 sx={{ textTransform: 'none', mb: 1 }}
               >
-                Other statements / Otros estados de cuenta
+                {t('unit.otherStatements')}
               </Button>
             </>
           )}
@@ -310,7 +316,7 @@ const UnitSubDashboard = () => {
             sx={{ mt: 0.5 }}
             onClick={handleGenerateStatement}
           >
-            Generate Current Statement
+            {t('unit.generateCurrentStatement')}
           </Button>
         </CardContent>
       </Card>

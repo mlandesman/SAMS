@@ -27,12 +27,14 @@ import {
   buildDedupedStoredStatementsForUi,
   filterDedupedStatementsByUiLanguage,
 } from '../../utils/storedStatementLabels.js';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
 const StatementPdfViewer = () => {
   const { currentClient, firebaseUser } = useAuth();
   const { statementLanguageApi, preferredLanguageUi } = useSessionPreferences();
+  const t = useMobileStrings();
   const { selectedUnitId } = useSelectedUnit();
 
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
@@ -187,7 +189,7 @@ const StatementPdfViewer = () => {
     return (
       <Box sx={{ p: 3, textAlign: 'center', mt: 4 }}>
         <Typography variant="body1" color="text.secondary">
-          No unit selected. Please select a unit from the menu.
+          {t('statement.noUnitSelected')}
         </Typography>
       </Box>
     );
@@ -202,31 +204,33 @@ const StatementPdfViewer = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <ArchiveIcon sx={{ fontSize: 18, color: '#666' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#444' }}>
-              Stored Statements
+              {t('statement.storedStatements')}
             </Typography>
           </Box>
 
           {storedLoading ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
-              <LoadingSpinner size="small" message="Loading..." />
+              <LoadingSpinner size="small" message={t('statement.loading')} />
             </Box>
           ) : storedOptionsAll.length === 0 ? (
             <Typography variant="caption" color="text.secondary">
-              No stored statements found for this unit.
+              {t('statement.noStoredForUnit')}
             </Typography>
           ) : storedOptions.length === 0 ? (
             <Typography variant="caption" color="text.secondary" component="div">
-              No stored statements in {preferredLanguageUi === 'ES' ? 'Español' : 'English'} for this unit.
+              {t('statement.noStoredInLanguage', {
+                language: preferredLanguageUi === 'ES' ? 'Español' : 'English'
+              })}
               {' '}
-              Use the menu (Language / Idioma) to switch languages.
+              {t('statement.switchLanguageHint')}
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <FormControl size="small" sx={{ flex: 1 }}>
-                <InputLabel>Month / Year</InputLabel>
+                <InputLabel>{t('statement.monthYear')}</InputLabel>
                 <Select
                   value={selectedStored}
-                  label="Month / Year"
+                  label={t('statement.monthYear')}
                   onChange={(e) => setSelectedStored(e.target.value)}
                 >
                   {storedOptions.map((s) => (
@@ -241,7 +245,7 @@ const StatementPdfViewer = () => {
                 onClick={handleOpenStored}
                 sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
               >
-                Open
+                {t('statement.open')}
               </Button>
             </Box>
           )}
@@ -254,12 +258,14 @@ const StatementPdfViewer = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <GenerateIcon sx={{ fontSize: 18, color: '#666' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#444' }}>
-              Generate Current Statement
+              {t('statement.generateCurrent')}
             </Typography>
           </Box>
 
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Uses your session language ({preferredLanguageUi === 'ES' ? 'Español' : 'English'}). Change it from the menu (globe row: Language / Idioma).
+            {t('statement.sessionLanguageHint', {
+              language: preferredLanguageUi === 'ES' ? 'Español' : 'English'
+            })}
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
@@ -269,7 +275,7 @@ const StatementPdfViewer = () => {
               disabled={loading}
               sx={{ textTransform: 'none' }}
             >
-              {loading ? 'Generating...' : 'Generate'}
+              {loading ? t('statement.generating') : t('statement.generate')}
             </Button>
           </Box>
         </CardContent>
@@ -283,7 +289,7 @@ const StatementPdfViewer = () => {
       {/* Loading spinner for generation */}
       {loading && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <LoadingSpinner size="medium" message="Generating statement..." />
+          <LoadingSpinner size="medium" message={t('statement.generateSpinner')} />
         </Box>
       )}
 
@@ -297,13 +303,13 @@ const StatementPdfViewer = () => {
               onClick={handleDownload}
               sx={{ textTransform: 'none' }}
             >
-              Download
+              {t('statement.download')}
             </Button>
           </Box>
           <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 1, overflow: 'hidden' }}>
             <iframe
               src={pdfUrl}
-              title="Statement of Account"
+              title={t('statement.title')}
               style={{ width: '100%', height: '100%', border: 'none' }}
             />
           </Box>
@@ -314,7 +320,7 @@ const StatementPdfViewer = () => {
       {!loading && !pdfUrl && !error && (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#999' }}>
           <Typography variant="body2">
-            Select a stored statement or generate a current one.
+            {t('statement.initialHint')}
           </Typography>
         </Box>
       )}

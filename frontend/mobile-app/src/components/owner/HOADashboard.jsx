@@ -31,6 +31,7 @@ import { auth } from '../../services/firebase';
 import { formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay, formatCurrency, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const HOADashboard = () => {
   const { currentClient } = useAuth();
@@ -43,6 +44,7 @@ const HOADashboard = () => {
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const { priorMonthBalance, priorLoading } = usePriorMonthBalance(clientId);
   const { polls, projects, loading: pollsProjectsLoading } = usePollsProjects(clientId);
+  const t = useMobileStrings();
 
   const [budgetData, setBudgetData] = useState(null);
   const [budgetLoading, setBudgetLoading] = useState(false);
@@ -73,7 +75,7 @@ const HOADashboard = () => {
   if (!currentClient) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">Select a client to view HOA information.</Typography>
+        <Typography color="text.secondary">{t('hoa.selectClient')}</Typography>
       </Box>
     );
   }
@@ -106,23 +108,25 @@ const HOADashboard = () => {
       {/* Financial Health — Bank, Cash, Credit Balances, total less credits */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Financial Health</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('hoa.financialHealth')}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 1 }}>
             {formatPesosForDisplay(netTotal)}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Bank + Cash − Credit Balances
+            {t('owner.bankCashMinusCredits')}
           </Typography>
           {!priorLoading && priorTotal != null && (
             <Typography variant="body2" sx={{ color: delta >= 0 ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
               {delta >= 0 ? <UpIcon fontSize="small" /> : <DownIcon fontSize="small" />}
-              {delta >= 0 ? 'Up' : 'Down'} {formatPesosForDisplay(Math.abs(delta))} from last month
+              {delta >= 0
+                ? t('owner.upFromLastMonth', { amount: formatPesosForDisplay(Math.abs(delta)) })
+                : t('owner.downFromLastMonth', { amount: formatPesosForDisplay(Math.abs(delta)) })}
             </Typography>
           )}
           <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
             {accounts.map((acc) => (
               <Box key={acc.id || acc.name} display="flex" justifyContent="space-between" py={0.5}>
-                <Typography variant="body2" color="text.secondary">{acc.name || acc.id || 'Account'}</Typography>
+                <Typography variant="body2" color="text.secondary">{acc.name || acc.id || t('hoa.accountFallback')}</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatPesosForDisplay(Math.round((acc.balance || 0) / 100))}
                 </Typography>
@@ -130,7 +134,7 @@ const HOADashboard = () => {
             ))}
             {totalCreditBalances > 0 && (
               <Box display="flex" justifyContent="space-between" py={0.5}>
-                <Typography variant="body2" color="text.secondary">Credit Balances</Typography>
+                <Typography variant="body2" color="text.secondary">{t('hoa.creditBalances')}</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatPesosForDisplay(totalCreditBalances)}
                 </Typography>
@@ -138,7 +142,7 @@ const HOADashboard = () => {
             )}
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Collection: {collectionRate}%
+            {t('hoa.collection', { rate: collectionRate })}
           </Typography>
         </CardContent>
       </Card>
@@ -146,22 +150,22 @@ const HOADashboard = () => {
       {/* Section B: Active Polls */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Active Polls</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('hoa.activePolls')}</Typography>
           {pollsProjectsLoading ? (
             <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : polls.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No active polls</Typography>
+            <Typography variant="body2" color="text.secondary">{t('hoa.noActivePolls')}</Typography>
           ) : (
             <List dense disablePadding>
               {polls.map((p) => (
                 <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
                   <ListItemText
-                    primary={p.title || p.question || 'Poll'}
-                    secondary={p.closingDate ? `Closes ${formatDateForDisplay(p.closingDate)}` : null}
+                    primary={p.title || p.question || t('hoa.pollFallback')}
+                    secondary={p.closingDate ? t('hoa.closes', { date: formatDateForDisplay(p.closingDate) }) : null}
                     primaryTypographyProps={{ variant: 'body2' }}
                     secondaryTypographyProps={{ variant: 'caption' }}
                   />
-                  <Chip label="Vote Needed" size="small" color="warning" sx={{ fontSize: '0.7rem' }} />
+                  <Chip label={t('hoa.voteNeeded')} size="small" color="warning" sx={{ fontSize: '0.7rem' }} />
                 </ListItem>
               ))}
             </List>
@@ -172,11 +176,11 @@ const HOADashboard = () => {
       {/* Section C: Active Projects */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Active Projects</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('hoa.activeProjects')}</Typography>
           {pollsProjectsLoading ? (
             <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : projects.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No active projects</Typography>
+            <Typography variant="body2" color="text.secondary">{t('hoa.noActiveProjects')}</Typography>
           ) : (
             <List dense disablePadding>
               {projects.map((p) => (
@@ -187,7 +191,7 @@ const HOADashboard = () => {
                     onClick={() => setProjectExpanded(projectExpanded === p.id ? null : p.id)}
                   >
                     <ListItemText
-                      primary={p.name || p.title || 'Project'}
+                      primary={p.name || p.title || t('hoa.projectFallback')}
                       primaryTypographyProps={{ variant: 'body2' }}
                     />
                     <Chip label={p.status || '—'} size="small" sx={{ fontSize: '0.7rem', mr: 0.5 }} />
@@ -199,13 +203,15 @@ const HOADashboard = () => {
                   <Collapse in={projectExpanded === p.id}>
                     <Box sx={{ pl: 2, pr: 2, pb: 1 }}>
                       {p.vendorName && (
-                        <Typography variant="caption" color="text.secondary">Vendor: {p.vendorName}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t('hoa.vendor', { name: p.vendorName })}
+                        </Typography>
                       )}
                       {p.milestones && p.milestones.length > 0 && (
                         <Box sx={{ mt: 0.5 }}>
                           {p.milestones.slice(0, 5).map((m, i) => (
                             <Typography key={i} variant="caption" display="block">
-                              • {m.name || m.description || 'Milestone'}: {m.status || '—'}
+                              • {m.name || m.description || t('hoa.milestoneFallback')}: {m.status || '—'}
                             </Typography>
                           ))}
                         </Box>
@@ -222,24 +228,24 @@ const HOADashboard = () => {
       {/* Section D: Budget Summary — Expense categories only (not income) */}
       <Card sx={{ mb: 2, borderRadius: 2 }}>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Budget Summary</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('hoa.budgetSummary')}</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-            Expense spending only (excludes income)
+            {t('hoa.expenseOnly')}
           </Typography>
           {budgetLoading ? (
             <Box display="flex" justifyContent="center" py={2}><LoadingSpinner size="small" /></Box>
           ) : !budgetData ? (
-            <Typography variant="body2" color="text.secondary">No budget data</Typography>
+            <Typography variant="body2" color="text.secondary">{t('hoa.noBudgetData')}</Typography>
           ) : (
             <>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Expense Budget YTD</Typography>
+                <Typography variant="body2">{t('hoa.expenseBudgetYtd')}</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatCurrency(budgetData.expenses?.totals?.totalYtdBudget || 0)}
                 </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Expense Actual YTD</Typography>
+                <Typography variant="body2">{t('hoa.expenseActualYtd')}</Typography>
                 <Typography variant="body2" fontWeight={500}>
                   {formatCurrency(budgetData.expenses?.totals?.totalYtdActual || 0)}
                 </Typography>
@@ -249,9 +255,9 @@ const HOADashboard = () => {
                   <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>Top Categories</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>Actual YTD</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>vs Budget</th>
+                        <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>{t('hoa.topCategories')}</th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>{t('hoa.actualYtd')}</th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>{t('hoa.vsBudget')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -277,7 +283,7 @@ const HOADashboard = () => {
                       sx={{ mt: 1 }}
                       onClick={() => setShowAllBudgetCategories((v) => !v)}
                     >
-                      {showAllBudgetCategories ? 'Show less' : 'More'}
+                      {showAllBudgetCategories ? t('hoa.showLess') : t('hoa.showMore')}
                     </Button>
                   )}
                 </Box>

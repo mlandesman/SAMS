@@ -17,6 +17,7 @@ import { useHoaConfig } from '../../hooks/useHoaConfig.js';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const OwnerDashboard3Cards = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const OwnerDashboard3Cards = () => {
   const { priorMonthBalance, priorLoading } = usePriorMonthBalance(clientId);
   const { pollsCount, projectsCount, loading: pollsProjectsLoading } = usePollsProjects(clientId);
   const { hoaConfig } = useHoaConfig(clientId);
+  const t = useMobileStrings();
 
   const dueDate = unitData?.nextPaymentDueDate || unitData?.summary?.nextPaymentDueDate;
   const amountDue = unitData?.amountDue ?? 0;
@@ -62,7 +64,7 @@ const OwnerDashboard3Cards = () => {
 
   const cards = [
     {
-      title: 'Unit Status',
+      title: t('owner.card.unitStatus'),
       icon: UnitIcon,
       color: amountDue > 0 ? (isPastDue ? '#dc2626' : '#1f2937') : '#059669',
       loading: unitLoading,
@@ -74,32 +76,37 @@ const OwnerDashboard3Cards = () => {
           </Typography>
           {amountDue > 0 && (
             <Typography variant="body2" color="text.secondary">
-              Due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
+              {t('owner.due', {
+                date: dueDate ? formatDateForDisplay(dueDate) : t('owner.dateNotSet')
+              })}
             </Typography>
           )}
           {daysPastDue > 0 && (
             <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mt: 0.5 }}>
-              {daysPastDue} days past due
+              {t('owner.daysPastDue', { days: daysPastDue })}
             </Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount > 0 && (
             <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>
-              Next: {formatPesosForDisplay(nextPaymentAmount)} due {dueDate ? formatDateForDisplay(dueDate) : '(date not set)'}
+              {t('owner.nextDue', {
+                amount: formatPesosForDisplay(nextPaymentAmount),
+                date: dueDate ? formatDateForDisplay(dueDate) : t('owner.dateNotSet')
+              })}
             </Typography>
           )}
           {!daysPastDue && amountDue <= 0 && nextPaymentAmount <= 0 && (
-            <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>Current</Typography>
+            <Typography variant="body2" sx={{ color: '#059669', mt: 0.5 }}>{t('owner.current')}</Typography>
           )}
           {hasLateFees && lateFeeDate && (
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-              Late fees apply after {lateFeeDate}
+              {t('owner.lateFeesAfter', { date: lateFeeDate })}
             </Typography>
           )}
         </>
       ),
     },
     {
-      title: 'HOA Status',
+      title: t('owner.card.hoaStatus'),
       icon: HOAIcon,
       color: '#0863bf',
       loading: dashLoading.accounts || priorLoading || pollsProjectsLoading,
@@ -107,7 +114,7 @@ const OwnerDashboard3Cards = () => {
       content: (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Bank + Cash − Credit Balances
+            {t('owner.bankCashMinusCredits')}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#0863bf', mb: 0.5 }}>
             {formatPesosForDisplay(netTotal)}
@@ -120,20 +127,22 @@ const OwnerDashboard3Cards = () => {
                 mb: 0.5,
               }}
             >
-              {delta >= 0 ? 'Up' : 'Down'} {formatPesosForDisplay(Math.abs(delta))} from last month
+              {delta >= 0
+                ? t('owner.upFromLastMonth', { amount: formatPesosForDisplay(Math.abs(delta)) })
+                : t('owner.downFromLastMonth', { amount: formatPesosForDisplay(Math.abs(delta)) })}
             </Typography>
           )}
           <Typography variant="body2" color="text.secondary">
-            Collection: {Math.round(hoaDuesStatus?.collectionRate ?? 0)}%
+            {t('owner.collectionRate', { rate: Math.round(hoaDuesStatus?.collectionRate ?? 0) })}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            {pollsCount} poll{pollsCount !== 1 ? 's' : ''} • {projectsCount} project{projectsCount !== 1 ? 's' : ''}
+            {t('owner.pollProjectCount', { polls: pollsCount, projects: projectsCount })}
           </Typography>
         </>
       ),
     },
     {
-      title: 'Exchange Rates',
+      title: t('owner.card.exchangeRates'),
       icon: CurrencyIcon,
       color: '#7c3aed',
       loading: dashLoading.rates,
@@ -147,7 +156,7 @@ const OwnerDashboard3Cards = () => {
             1 CAD = {(exchangeRates?.rates?.CAD ?? 0).toFixed(2)} MXN
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-            Updated {exchangeRates?.lastUpdated || '—'}
+            {t('owner.updatedAt', { value: exchangeRates?.lastUpdated || '—' })}
           </Typography>
         </>
       ),

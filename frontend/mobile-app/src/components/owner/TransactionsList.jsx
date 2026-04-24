@@ -45,18 +45,16 @@ import {
 } from '../../utils/transactionAttachments.js';
 import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
 import DocumentViewer from '../documents/DocumentViewer';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
-const DATE_PRESETS = [
-  { id: 'currentMonth', label: 'This month' },
-  { id: 'prior3Months', label: 'Prior 3 mo' },
-  { id: 'currentYear', label: 'This year' },
-];
+const DATE_PRESET_IDS = ['currentMonth', 'prior3Months', 'currentYear'];
 
 const TransactionsList = () => {
   const { currentClient, firebaseUser } = useAuth();
   const { selectedClient } = useClients();
+  const t = useMobileStrings();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -202,10 +200,19 @@ const TransactionsList = () => {
     setTypeFilter('all');
   };
 
+  const datePresetLabel = (presetId) => {
+    const map = {
+      currentMonth: t('transactions.currentMonth'),
+      prior3Months: t('transactions.prior3Months'),
+      currentYear: t('transactions.currentYear'),
+    };
+    return map[presetId] || presetId;
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <LoadingSpinner size="medium" message="Loading transactions..." />
+        <LoadingSpinner size="medium" message={t('transactions.loading')} />
       </Box>
     );
   }
@@ -214,7 +221,7 @@ const TransactionsList = () => {
     return (
       <Box sx={{ p: 3, mt: 2 }}>
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-        <Button variant="outlined" fullWidth onClick={fetchTransactions}>Try Again</Button>
+        <Button variant="outlined" fullWidth onClick={fetchTransactions}>{t('transactions.tryAgain')}</Button>
       </Box>
     );
   }
@@ -224,7 +231,7 @@ const TransactionsList = () => {
       <TextField
         size="small"
         fullWidth
-        placeholder="Search transactions…"
+        placeholder={t('transactions.searchPlaceholder')}
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         sx={{ mb: 1.5 }}
@@ -241,20 +248,20 @@ const TransactionsList = () => {
         <Badge badgeContent={activeFilterCount} color="primary" invisible={activeFilterCount === 0}>
           <Chip
             icon={<FilterListIcon />}
-            label="Filters"
+            label={t('transactions.filters')}
             onClick={() => setFiltersExpanded((v) => !v)}
             variant={filtersExpanded ? 'filled' : 'outlined'}
             color={filtersExpanded ? 'primary' : 'default'}
           />
         </Badge>
         {activeFilterCount > 0 && (
-          <Button size="small" onClick={clearAllFilters}>Clear all</Button>
+          <Button size="small" onClick={clearAllFilters}>{t('transactions.clearAll')}</Button>
         )}
       </Box>
 
       <Collapse in={filtersExpanded}>
         <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <Typography variant="caption" color="text.secondary">Year</Typography>
+          <Typography variant="caption" color="text.secondary">{t('transactions.year')}</Typography>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
             {yearOptions.map((y) => (
               <Chip
@@ -267,20 +274,20 @@ const TransactionsList = () => {
               />
             ))}
           </Box>
-          <Typography variant="caption" color="text.secondary">Date range</Typography>
+          <Typography variant="caption" color="text.secondary">{t('transactions.dateRange')}</Typography>
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-            {DATE_PRESETS.map((p) => (
+            {DATE_PRESET_IDS.map((presetId) => (
               <Chip
-                key={p.id}
+                key={presetId}
                 size="small"
-                label={p.label}
-                onClick={() => setDatePreset(datePreset === p.id ? null : p.id)}
-                color={datePreset === p.id ? 'secondary' : 'default'}
-                variant={datePreset === p.id ? 'filled' : 'outlined'}
+                label={datePresetLabel(presetId)}
+                onClick={() => setDatePreset(datePreset === presetId ? null : presetId)}
+                color={datePreset === presetId ? 'secondary' : 'default'}
+                variant={datePreset === presetId ? 'filled' : 'outlined'}
               />
             ))}
           </Box>
-          <Typography variant="caption" color="text.secondary">Type</Typography>
+          <Typography variant="caption" color="text.secondary">{t('transactions.type')}</Typography>
           <ToggleButtonGroup
             value={typeFilter}
             exclusive
@@ -289,19 +296,19 @@ const TransactionsList = () => {
             fullWidth
             sx={{ '& .MuiToggleButton-root': { textTransform: 'none', py: 1 } }}
           >
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="income">Income</ToggleButton>
-            <ToggleButton value="expense">Expense</ToggleButton>
+            <ToggleButton value="all">{t('transactions.typeAll')}</ToggleButton>
+            <ToggleButton value="income">{t('transactions.typeIncome')}</ToggleButton>
+            <ToggleButton value="expense">{t('transactions.typeExpense')}</ToggleButton>
           </ToggleButtonGroup>
           <TextField
             select
             size="small"
-            label="Vendor"
+            label={t('transactions.vendor')}
             value={vendorFilter}
             onChange={(e) => setVendorFilter(e.target.value)}
             fullWidth
           >
-            <MenuItem value="">All</MenuItem>
+            <MenuItem value="">{t('transactions.typeAll')}</MenuItem>
             {vendorOptions.map((v) => (
               <MenuItem key={v} value={v}>{v}</MenuItem>
             ))}
@@ -309,12 +316,12 @@ const TransactionsList = () => {
           <TextField
             select
             size="small"
-            label="Category"
+            label={t('transactions.category')}
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             fullWidth
           >
-            <MenuItem value="">All</MenuItem>
+            <MenuItem value="">{t('transactions.typeAll')}</MenuItem>
             {categoryOptions.map((c) => (
               <MenuItem key={c} value={c}>{c}</MenuItem>
             ))}
@@ -322,12 +329,12 @@ const TransactionsList = () => {
           <TextField
             select
             size="small"
-            label="Unit"
+            label={t('transactions.unit')}
             value={unitFilter}
             onChange={(e) => setUnitFilter(e.target.value)}
             fullWidth
           >
-            <MenuItem value="">All</MenuItem>
+            <MenuItem value="">{t('transactions.typeAll')}</MenuItem>
             {unitOptions.map((u) => (
               <MenuItem key={u} value={u}>{u}</MenuItem>
             ))}
@@ -336,15 +343,15 @@ const TransactionsList = () => {
       </Collapse>
 
       <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 2 }}>
-        Showing {filteredTransactions.length} of {transactions.length} transactions
-        {datePreset ? ` · ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || ''}` : selectedYear != null ? ` · ${selectedYear}` : ''}
+        {t('transactions.showing', { filtered: filteredTransactions.length, total: transactions.length })}
+        {datePreset ? ` · ${datePresetLabel(datePreset)}` : selectedYear != null ? ` · ${selectedYear}` : ''}
       </Typography>
 
       {filteredTransactions.length === 0 ? (
         <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-              No transactions match your filters.
+              {t('transactions.noMatches')}
             </Typography>
           </CardContent>
         </Card>
@@ -403,26 +410,30 @@ const TransactionsList = () => {
                   <Collapse in={isExpanded}>
                     <Box sx={{ px: 2, py: 1.5, backgroundColor: '#fafafa', borderBottom: idx < filteredTransactions.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
                       {tx.categoryName && (
-                        <DetailRow label="Category" value={tx.categoryName} />
+                        <DetailRow label={t('transactions.category')} value={tx.categoryName} />
                       )}
                       {tx.accountName && (
-                        <DetailRow label="Account" value={tx.accountName} />
+                        <DetailRow label={t('transactions.account')} value={tx.accountName} />
                       )}
                       {tx.paymentMethod && (
-                        <DetailRow label="Payment Method" value={tx.paymentMethod} />
+                        <DetailRow label={t('transactions.paymentMethod')} value={tx.paymentMethod} />
                       )}
                       {tx.unitId && (
-                        <DetailRow label="Unit" value={tx.unitId} />
+                        <DetailRow label={t('transactions.unit')} value={tx.unitId} />
                       )}
                       {tx.notes && (
-                        <DetailRow label="Notes" value={tx.notes} />
+                        <DetailRow label={t('transactions.notes')} value={tx.notes} />
                       )}
                       {docCount > 0 && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                           <Typography variant="caption" color="text.secondary">
-                            Attachments ({docCount})
+                            {t('transactions.attachments', { count: docCount })}
                           </Typography>
-                          <IconButton size="small" aria-label="Open attachments" onClick={(e) => openAttachments(tx, e)}>
+                          <IconButton
+                            size="small"
+                            aria-label={t('transactions.openAttachments')}
+                            onClick={(e) => openAttachments(tx, e)}
+                          >
                             <Badge badgeContent={docCount} color="primary" max={99}>
                               <AttachFileIcon fontSize="small" />
                             </Badge>
@@ -453,7 +464,7 @@ const TransactionsList = () => {
         maxWidth="md"
       >
         <DialogTitle sx={{ pr: 5 }}>
-          Attachment
+          {t('transactions.attachmentTitle')}
           <IconButton
             aria-label="close"
             onClick={() => setSingleDocPreviewId(null)}

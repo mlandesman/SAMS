@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
+import { useMobileStrings } from '../hooks/useMobileStrings.js';
 
 import {
   isOwnerOrManager as checkIsOwnerOrManager,
@@ -28,6 +29,7 @@ const PWANavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { samsUser, currentClient } = useAuth();
+  const t = useMobileStrings();
 
   const isAdminOrSuperAdmin =
     samsUser?.globalRole === 'admin' || samsUser?.globalRole === 'superAdmin';
@@ -45,7 +47,7 @@ const PWANavigation = () => {
   // Maintenance: bottom nav with Tareas only
   if (isMaintenance) {
     const maintenanceNavItems = [
-      { label: 'Tareas', icon: <TaskIcon />, path: '/tareas' },
+      { label: t('nav.maintenance.tasks'), icon: <TaskIcon />, path: '/tareas' },
     ];
     const getValue = () => {
       const index = maintenanceNavItems.findIndex(item => item.path === location.pathname);
@@ -83,10 +85,10 @@ const PWANavigation = () => {
   // Owner/Manager: 4-tab layout (Home, My Unit, HOA, More)
   if (isOwnerOrManager && !showAdminShell) {
     const ownerNavItems = [
-      { label: 'Home', icon: <HomeIcon />, path: '/' },
-      { label: 'My Unit', icon: <UnitIcon />, path: '/unit-dashboard' },
-      { label: 'HOA', icon: <HOAIcon />, path: '/hoa' },
-      { label: 'More', icon: <MoreIcon />, path: '/more' },
+      { label: t('nav.owner.home'), icon: <HomeIcon />, path: '/' },
+      { label: t('nav.owner.myUnit'), icon: <UnitIcon />, path: '/unit-dashboard' },
+      { label: t('nav.owner.hoa'), icon: <HOAIcon />, path: '/hoa' },
+      { label: t('nav.owner.more'), icon: <MoreIcon />, path: '/more' },
     ];
     const getValue = () => {
       const index = ownerNavItems.findIndex(item => item.path === location.pathname);
@@ -128,10 +130,10 @@ const PWANavigation = () => {
 
   // Admin: 4-tab layout (Home, Transactions, Record Payment, Add Expense)
   const adminNavItems = [
-    { label: 'Home', icon: <DashboardIcon />, path: '/' },
-    { label: 'Transactions', icon: <ReceiptIcon />, path: '/admin/transactions' },
-    { label: 'Payment', icon: <PaymentIcon />, path: '/admin/record-payment' },
-    { label: 'Expense', icon: <AddIcon />, path: '/expense-entry' },
+    { label: t('nav.admin.home'), icon: <DashboardIcon />, path: '/' },
+    { label: t('nav.admin.transactions'), icon: <ReceiptIcon />, path: '/admin/transactions' },
+    { label: t('nav.admin.payment'), icon: <PaymentIcon />, path: '/admin/record-payment' },
+    { label: t('nav.admin.expense'), icon: <AddIcon />, path: '/expense-entry' },
   ];
 
   const navItems = adminNavItems;

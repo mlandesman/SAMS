@@ -12,19 +12,21 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt.js';
+import { useMobileStrings } from '../../hooks/useMobileStrings.js';
 
 const MoreMenu = () => {
   const navigate = useNavigate();
   const { isInstalled, isMobile, reopenInstallUI } = useInstallPrompt();
+  const t = useMobileStrings();
 
   const items = [
-    { label: 'Exchange Rate Calculator', icon: <ExchangeIcon />, path: '/exchange-rates' },
-    { label: 'About', icon: <AboutIcon />, path: '/about' },
+    { label: t('more.exchangeRateCalculator'), icon: <ExchangeIcon />, path: '/exchange-rates' },
+    { label: t('more.about'), icon: <AboutIcon />, path: '/about' },
   ];
 
   return (
     <Box sx={{ p: 2, pb: 10 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>More</Typography>
+      <Typography variant="h6" sx={{ mb: 2 }}>{t('more.title')}</Typography>
       <List disablePadding>
         {items.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
@@ -44,7 +46,7 @@ const MoreMenu = () => {
               sx={{ borderRadius: 1, minHeight: 48 }}
             >
               <ListItemIcon sx={{ minWidth: 40 }}><InstallIcon /></ListItemIcon>
-              <ListItemText primary="Install App" />
+              <ListItemText primary={t('layout.installApp')} />
             </ListItemButton>
           </ListItem>
         )}

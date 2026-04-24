@@ -10,6 +10,7 @@ import { ArrowForward as ArrowIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useClients } from '../hooks/useClients.jsx';
+import { useMobileStrings } from '../hooks/useMobileStrings.js';
 import ClientSwitcher from './ClientSwitcher.jsx';
 import {
   isOwnerOrManager as checkIsOwnerOrManager,
@@ -22,9 +23,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { samsUser, currentClient, isAuthenticated } = useAuth();
   const { selectClient } = useClients();
+  const t = useMobileStrings();
 
   if (!isAuthenticated) {
-    return <LoadingSpinner message="Authenticating..." size="medium" />;
+    return <LoadingSpinner message={t('dashboard.authenticating')} size="medium" />;
   }
 
   // Block maintenance users from accessing Dashboard
@@ -33,14 +35,14 @@ const Dashboard = () => {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          El Dashboard no está disponible para trabajadores de mantenimiento.
+          {t('dashboard.maintenanceBlocked')}
         </Alert>
         <Button 
           variant="contained" 
           onClick={() => navigate('/tareas')}
           sx={{ textTransform: 'none' }}
         >
-          Ir a Tareas
+          {t('dashboard.goToTasks')}
         </Button>
       </Box>
     );
@@ -98,7 +100,7 @@ const Dashboard = () => {
                 boxShadow: '0 4px 12px rgba(8, 99, 191, 0.3)',
               }}
             >
-              View Full Statement of Account
+              {t('dashboard.viewFullStatement')}
             </Button>
           </Box>
         )}
