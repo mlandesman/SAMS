@@ -175,6 +175,9 @@ functions/backend/testing/test*.js
 .cursor/screenshots/
 .claude/screenshots/
 
+# Cursor APM toolset (local-only, rebuildable)
+.cursor/skills/
+
 # Old .claude commands (migrated to .cursor)
 .claude/
 
@@ -199,6 +202,7 @@ SAMS-Docs/apm_session/Memory/Task_Completion_Logs/*
 !SAMS-Docs/apm_session/Memory/Task_Completion_Logs/MOBILE_TX_UX_PR259_Manager_Completion_2026-03-29.md
 # Keep implementation plan versioned
 !.apm/Implementation_Plan.md
+.apm/
 backend.OLD/
 
 # Test results and artifacts (entire directory)

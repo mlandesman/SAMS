@@ -1,220 +1,61 @@
-# Implementation Agent - Complete Task
+---
+description: SAMS Worker pre-completion quality gate before Task Report submission
+---
 
-As an Implementation Agent, you will now mark your task as complete and prepare final documentation. This ensures proper handoff and project continuity.
+# SAMS Worker Completion Wrapper
 
-## Task Completion Process
+Run this BEFORE generating your Task Report (which the Manager picks up via `/apm-5-check-reports`). This wrapper layers SAMS-specific quality checks on top of the native v1.0.0 Task Report flow.
 
-### 1. Pre-Completion Quality Gate (MANDATORY)
+## Step 1 — Automated Quality Gate (MANDATORY)
 
-Before marking complete, run automated and manual checks against the full branch diff.
-
-#### 1a. Run Automated Checks
 ```bash
-bash scripts/pre-pr-checks.sh main
-```
-This checks for: `new Date()` violations, dead/unused files, navigation targets without matching routes, and CommonJS in frontend code. **Fix all issues before proceeding.**
-
-#### 1b. Manual Code Review (Review `git diff main...HEAD`)
-You MUST review the full diff and check for these patterns that automated tools miss:
-
-- **Dead code from pivots**: If you created a component/file and later abandoned it in favor of a different approach, DELETE the abandoned file. Don't leave it in the branch.
-- **Unused imports**: If you removed usage of a component but left its `import` statement, remove the import.
-- **State reset on context changes**: For every component that uses `selectedUnitId`, `currentClient`, or similar context values — verify that local state (loaded data, selections, errors, displayed content) resets when those values change. Add a `useEffect` cleanup if missing.
-- **Data unit consistency**: When a component falls back between two data sources (e.g., `accountStatus?.value ?? currentStatus?.value`), verify both sources return the same units (pesos vs centavos, strings vs objects). Convert in the fallback if they differ.
-- **Role/permission alignment**: For every `onClick={() => navigate('/route')}`, verify the user who can SEE the clickable element also has PERMISSION to access that route. Check `RoleProtectedRoute` wrappers in `App.jsx`. If a card is visible to all users but links to a role-restricted route, gate the `onClick` or use role-appropriate targets.
-
-#### 1c. Standard Validation
-- [ ] All acceptance criteria are met
-- [ ] Code is tested and working
-- [ ] Documentation is complete
-- [ ] Memory Bank is updated
-- [ ] No outstanding issues
-- [ ] Quality gate script passes with zero issues
-- [ ] Manual review completed for state/data/permission patterns
-
-### 2. Create Completion Summary
-
-Update your Memory Bank log with a completion section:
-
-```markdown
-## Task Completion Summary
-
-### Completion Details
-- **Completed Date**: [Current date/time]
-- **Total Duration**: [Time taken]
-- **Final Status**: ✅ Complete
-
-### Deliverables Produced
-1. **[Deliverable 1]**
-   - Location: [File path]
-   - Description: [What it does]
-   
-2. **[Deliverable 2]**
-   - Location: [File path]
-   - Description: [What it does]
-
-### Implementation Highlights
-- [Key feature implemented]
-- [Important algorithm used]
-- [Notable optimization made]
-
-### Technical Decisions
-1. **[Decision 1]**: [What and why]
-2. **[Decision 2]**: [What and why]
-
-### Code Statistics
-- Files Created: [List]
-- Files Modified: [List]
-- Total Lines: [Approximate]
-- Test Coverage: [Percentage]
-
-### Testing Summary
-- Unit Tests: [Number] tests, [Pass rate]
-- Integration Tests: [Number] tests, [Pass rate]
-- Manual Testing: [What was tested]
-- Edge Cases: [Handled scenarios]
-
-### Known Limitations
-- [Limitation 1 and workaround]
-- [Limitation 2 and future consideration]
-
-### Future Enhancements
-- [Possible improvement 1]
-- [Possible improvement 2]
+bash /Users/michael/Projects/SAMS/scripts/pre-pr-checks.sh main
 ```
 
-### 3. Validate Against Requirements
+Catches: `new Date()` timezone violations, dead/unused files, navigation targets without matching routes, CommonJS in frontend code.
 
-Create a checklist showing requirement fulfillment:
+**Fix all reported issues before proceeding.** If the script is missing, **HALT and ask Michael** — do not skip.
 
-```markdown
-## Acceptance Criteria Validation
+## Step 2 — Manual Code Review (review `git diff main...HEAD`)
 
-From Task Assignment:
-- ✅ [Criterion 1]: [How it was met]
-- ✅ [Criterion 2]: [How it was met]
-- ✅ [Criterion 3]: [How it was met]
+These are the issues BugBot repeatedly catches and automated linting misses. Review the FULL branch diff for each pattern:
 
-Additional Achievements:
-- ✅ [Extra feature or improvement]
-```
+| Check | What to look for | Why |
+| :--- | :--- | :--- |
+| **Dead files** | Files created in this branch that are no longer imported. Common after design pivots. | Most BugBot issues in Sprint MOBILE-OWNER-V1 were dead code. |
+| **Unused imports** | `import Foo from './Foo'` where `Foo` is never referenced in the file body. | Bundle bloat, future-reader confusion. |
+| **State reset on context change** | Components using `useSelectedUnit()`, `useAuth()`, or similar context — does local state (loaded data, PDF URLs, dropdown selections, error messages) reset when the context value changes? Look for missing `useEffect` cleanup. | Stale data from previous unit/client displays after switching. |
+| **Data unit mismatches in fallbacks** | `const value = sourceA?.field ?? sourceB?.field` — are both sources in the same units (pesos vs centavos, date object vs string)? | Values display 100x too large or "Invalid Date" until preferred source loads. |
+| **Role/permission alignment** | Every `navigate('/route')` — can the user who SEES the clickable element also ACCESS that route? Cross-reference with `RoleProtectedRoute` wrappers in `App.jsx`. | Admin clicks card and gets "You don't have permission." |
+| **Orphaned route references** | `navigate('/old-route')` pointing to renamed/removed routes. Check all `navigate()` calls against current `App.jsx` `<Route>` definitions. | Click leads to catch-all `/auth` redirect. |
 
-### 4. Document Integration Points
+## Step 3 — Standard Validation Checklist
 
-If your task interfaces with other components:
+- [ ] All acceptance criteria met
+- [ ] Code tested with real data (`backend/testing/testHarness.js` or equivalent — not code-review only)
+- [ ] No `new Date()` in production paths (use `getNow()` from DateService)
+- [ ] No MCP tools in production code (testing only)
+- [ ] Pre-PR quality gate passed with zero issues
+- [ ] Manual review completed for all six patterns above
+- [ ] Memory Log updated at the path the Manager assigned (`.apm/memory/stage-NN/task-NN-NN.log.md` for v1.0.0 sessions, or the path supplied in your Task Prompt for active SAMS-Docs/Sprint_Management work)
 
-```markdown
-## Integration Documentation
+## Step 4 — Generate Task Report
 
-### Interfaces Created
-- **[Interface 1]**: [Purpose and usage]
-- **[Interface 2]**: [Purpose and usage]
+Now produce your Task Report following the v1.0.0 Worker Task Report format. The Manager will read it via `/apm-5-check-reports`. The report should include:
 
-### Dependencies
-- Depends on: [What this task needs]
-- Depended by: [What needs this task]
+- **Task ID and name**
+- **Status:** complete / blocked / partial
+- **Deliverables produced** (file paths and one-line description each)
+- **Acceptance criteria validation** (each criterion + how it was met)
+- **Test evidence** (what you ran, what passed, links to test output if any)
+- **Implementation decisions** (what you decided and why, especially deviations)
+- **Known limitations / follow-ups** (if any)
+- **Handoff notes for Manager review** (specific areas to scrutinize)
 
-### API/Contract
-```[language]
-[Key interfaces or contracts]
-```
-```
+## Step 5 — Confirmation
 
-### 5. Provide Usage Examples
+State to Michael:
 
-Include examples for future reference:
+> "Pre-completion quality gate passed. Manual review complete. Task Report ready. Run `/apm-5-check-reports` in the Manager conversation to deliver."
 
-```markdown
-## Usage Examples
-
-### Example 1: [Basic Usage]
-```[language]
-[Code example]
-```
-
-### Example 2: [Advanced Usage]
-```[language]
-[Code example]
-```
-```
-
-### 6. Final Code Snapshot
-
-Include key code sections:
-
-```markdown
-## Key Implementation Code
-
-### [Component Name]
-```[language]
-[Core implementation code]
-```
-**Purpose**: [What this does]
-**Notes**: [Important details]
-```
-
-### 7. Lessons Learned
-
-Document insights for future tasks:
-
-```markdown
-## Lessons Learned
-- **What Worked Well**: [Successful approaches]
-- **Challenges Faced**: [Difficulties and solutions]
-- **Time Estimates**: [Actual vs estimated]
-- **Recommendations**: [For similar future tasks]
-```
-
-### 8. Handoff Information
-
-Prepare for Manager review:
-
-```markdown
-## Handoff to Manager
-
-### Review Points
-- [Key area 1 to review]
-- [Key area 2 to review]
-- [Specific feedback needed]
-
-### Testing Instructions
-1. [How to test feature 1]
-2. [How to test feature 2]
-
-### Deployment Notes
-- [Any special deployment steps]
-- [Configuration requirements]
-- [Environment considerations]
-```
-
-### 9. Update Task Status
-
-Final status update:
-```markdown
-## Final Status
-- **Task**: [ID] - [Name]
-- **Status**: ✅ COMPLETE
-- **Ready for**: Manager Review
-- **Memory Bank**: Fully Updated
-- **Blockers**: None
-```
-
-### 10. Completion Checklist
-
-Ensure everything is done:
-- [ ] All code committed
-- [ ] Tests passing
-- [ ] Documentation complete
-- [ ] Memory Bank updated
-- [ ] Integration verified
-- [ ] Examples provided
-- [ ] Handoff notes prepared
-
-## After Completion
-
-1. Save all updates to Memory Bank
-2. Notify Manager of completion (through Memory Bank)
-3. Be available for review feedback
-4. Prepare for next task assignment
-
-Mark your task as complete and create the comprehensive completion documentation.
+Do NOT claim "complete" until Michael or the Manager Agent has confirmed the report.

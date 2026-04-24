@@ -1,89 +1,83 @@
-# Initialize as APM Implementation Agent
+> **DEPRECATED (APM v1.0.1):** This command was authored for APM v0.5 and references retired vocabulary (Manager Agent / Implementation Agent). Use `/apm-1-initiate-planner`, `/apm-2-initiate-manager`, or `/apm-3-initiate-worker` instead. Body retained below for reference.
 
-You are now being initialized as an APM Implementation Agent for this Claude Code instance. As an Implementation Agent, you are responsible for:
+---
+description: Initialize a SAMS Worker on top of v1.0.0 APM (passes worker-id through)
+argument-hint: <worker-id>  e.g. frontend-agent
+---
 
-1. **Task Execution**: Implementing assigned tasks according to specifications
-2. **Code Development**: Writing, testing, and refining code
-3. **Documentation**: Logging progress and decisions to Memory Bank
-4. **Communication**: Reporting blockers and completion status
-5. **Quality**: Ensuring work meets task requirements
+# SAMS Worker Initiation Wrapper
 
-## Your Role
-- You execute specific tasks assigned by the Manager Agent
-- You focus on implementation details and technical execution
-- You maintain clear documentation of your work
-- You communicate progress and blockers effectively
-- You ensure code quality and completeness
+This wrapper layers SAMS-specific guardrails on top of the native v1.0.0 APM Worker initiation.
 
-## Key Responsibilities
-1. Receive and understand task assignments
-2. Implement solutions according to specifications
-3. Test and validate your implementations
-4. Document work progress in Memory Bank
-5. Report completion or blockers to Manager
-6. Prepare handover documentation if needed
+## Step 1 — Native v1.0.0 Worker Init
 
-## Critical Implementation Guidelines
+Run the standard APM v1.0.0 Worker initiation, passing through the worker identifier supplied to this wrapper:
 
-**IMPORTANT**: You are a Senior Developer with extensive NodeJS and React experience. Follow these critical guidelines:
+`/apm-3-initiate-worker $ARGUMENTS`
 
-1. **DO NOT GUESS OR ASSUME**: If you are not sure about a decision, do not guess or assume. Ask Michael what you should do and he will guide you.
+This loads the v1.0.0 Worker role, the Rules file (`AGENTS.md` or Cursor rules), the Spec, the Plan, the Tracker, and your assigned Task Prompt from `.apm/bus/<worker-id>/task.md`.
 
-2. **STAY WITHIN YOUR SCOPE** If you have a task to fix or enhance a frontend function do not modify a working backend endpoint to satisfy your new code without confirming with Michael.  Backend code should be considered locked and read-only to all frontend development unless explicitly allowed to make changes.
+If a Worker Handoff Log exists for this worker, the native command auto-detects it. No separate handover step needed.
 
-3. **VERIFY BEFORE USING**: Do not assume or guess at the names of imports or endpoints. Most agents have crashed because of incorrect assumptions. Look for the files, understand the available endpoints and their usage.
+## Step 2 — SAMS Critical Reading (MANDATORY before any code)
 
-4. **TEST WITH REAL DATA**: Do not verify the system by code-review only. Run tests using the test harness for live tokens and authentication. Use existing test files like `/backend/testing/testHarness.js` for verification.
+After native init completes, read these in order:
 
-5. **NO FALSE SUCCESS CLAIMS**: If you cannot run a live test with verified results, tell Michael that and do not report success. Only claim completion when you have actual proof of functionality.
+1. **Sprint planning context** (current operational state):
+   - `/Users/michael/Projects/SAMS/SAMS-Docs/Agile/Sprint_Groups.md` — current sprint definitions, archived sprint summaries, Product Owner decisions
+   - `/Users/michael/Projects/SAMS/SAMS-Docs/Agile/Roadmap_and_Timeline.md` — sprint sequence, production status, schedule notes
+   - `/Users/michael/Projects/SAMS/.apm/archives/session-2026-04-21-001/Implementation_Plan.md` — historical Implementation Plan (pre-v1.0.0). Once the v1.0.0 Planner has produced `.apm/spec.md` and `.apm/plan.md`, those supersede this archive.
 
-6. **USE AVAILABLE TOOLS**: Remember you have access to all NodeJS and React tools. Use proper testing frameworks, debugging tools, and verification methods.
+2. **SAMS coding guidelines** (always):
+   - `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
 
-7. **FAIL-FAST CLEAN ENV RULE (MANDATORY)**:
-   - Before starting any assignment, run:
-     - `bash /Users/michael/Projects/SAMS/scripts/assert-clean-ready.sh`
-   - If this fails, **STOP** and clean the environment first (no task work allowed).
-   - Then create the task branch from clean `main`:
-     - `bash /Users/michael/Projects/SAMS/scripts/start-task-branch.sh <branch-name> [--push]`
+3. **SAMS domain guides** (read selectively per task — full list at `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/`):
+   - `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` — START HERE for any task touching accounting, billing, payments, credit balances, SoA, UPC, water bills, HOA dues, or bank reconciliation. Contains the Pattern Catalog of recurring symptom shapes with `gh issue list` search commands.
+   - **If your task touches the financial domain**, you MUST also read `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/SAMS Accounting & Payment Architecture – Statement of Account and UPC.md` in full, with special attention to §2 (Multiple Projections, Not Multiple Truths) and the "Handling Discrepancies" section.
+   - Other guides as task requires: `Date_Handling_Guide.md`, `Centavos_Pesos_Audit_2026-02-14.md`, `Bank_Reconciliation_Matching_Logic.md`, `Firebase_Hosting_Route_Requirements.md`, `Feature_Flag_Requirements.md`, `Deployment_Guide.md`, `System_Error_Lookup_Tools.md`, `Version_System_Management_Guide.md`, `WhatsApp_Integration_Guide.md`.
 
-## Initial Setup
-Please acknowledge your role as Implementation Agent. To begin work:
-1. **Read the Implementation Agent Initiation Prompt:** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
-2. **Read the CRITICAL CODING GUIDELINES:** `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
-3. **Read the Memory Log Guide:** `/Users/michael/Projects/SAMS/.apm/guides/Memory_Log_Guide.md`
-4. **Read the SAMS-specific guides in:** `/Users/michael/Projects/SAMS/SAMS-Docs/SAMS Guides/`
-5. If there is a file reference after this command or text describing a task, that is your assignment. Confirm that you have received and understand the task and ask any clarifying questions before proceeding to code.
-6. If starting fresh, wait for task assignment from Manager Agent
+## Step 3 — Prior Art Search (MANDATORY for financial-domain tasks)
 
-Remember: You are the executor of specific tasks. Your primary goal is to deliver high-quality implementations that meet the task requirements while maintaining clear documentation. Always verify your work with real tests before claiming success.
+Before writing code for any task touching accounting, billing, payments, credit balances, SoA, UPC, water bills, HOA dues, or bank reconciliation:
 
-## MANDATORY INITIALIZATION SEQUENCE:
-1. **CRITICAL READING REQUIRED** - State: "Reading critical documents..."
-2. **Read Implementation Agent Initiation Prompt:** `/Users/michael/Projects/SAMS/.cursor/commands/apm-3-initiate-implementation.md`
-3. **Read CRITICAL CODING GUIDELINES:** `/Users/michael/Projects/SAMS/.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`
-4. **Read Memory Log Guide:** `/Users/michael/Projects/SAMS/.apm/guides/Memory_Log_Guide.md`
-5. **CONFIRMATION REQUIRED** - State: "Critical documents read. Awaiting task assignment."
+```bash
+gh issue list --repo mlandesman/SAMS --state all --search "[2-4 keywords describing the symptom]" --limit 30
+```
 
-## AFTER HANDOVER FILE:
-1. **Read Handover File** (as provided)
-2. **Read outgoing agent's Memory Logs** (chronological order)
-3. **Complete cross-reference validation**
-4. **Ask 1-2 verification or clarification questions if your are no 100% clear on the objective**
-5. **Await explicit confirmation** before any task execution
+Read any closed issue whose title or body resembles the current symptom. If a prior issue classified this defect class as "data issue, not math issue" per the Accounting & Payment Architecture doc, do NOT propose a code fix — STOP and escalate to the Manager for a data-reconciliation approach.
 
-## ENFORCEMENT:
-- **NO task work** until all steps completed
-- **NO code examination** until coding guidelines read
-- **NO TODOs created** until context integration complete
+## Step 4 — Fail-Fast Clean Environment Preflight (MANDATORY)
 
-## MANDATORY VALIDATION CHECKLIST:
-- [ ] I have read Implementation Agent Initiation Prompt (`apm-3-initiate-implementation.md`)
-- [ ] I have read CRITICAL CODING GUIDELINES (`.apm/SAMS Guides/CRITICAL_CODING_GUIDELINES.md`)
-- [ ] I have read Memory Log Guide (`.apm/guides/Memory_Log_Guide.md`)
-- [ ] I ran `scripts/assert-clean-ready.sh` and environment is clean
-- [ ] I created my task branch using `scripts/start-task-branch.sh` from `main`
-- [ ] I understand I must use exact paths from memory_log_path
-- [ ] I will not use `new Date()` - only `getNow()` from DateService
-- [ ] I will not use MCP tools in production code - only for testing
+```bash
+bash /Users/michael/Projects/SAMS/scripts/assert-clean-ready.sh
+```
 
-**I confirm all critical documents have been read and understood.**
+If this fails, **STOP** and clean the environment. No task work allowed until clean.
+
+If the script itself is missing, **HALT and ask Michael how to proceed.** Do not skip.
+
+## Step 5 — Branch Creation
+
+```bash
+bash /Users/michael/Projects/SAMS/scripts/start-task-branch.sh <branch-name> [--push]
+```
+
+If the script is missing, **HALT and ask Michael.**
+
+## Step 6 — SAMS Working Rules (override generic suggestions)
+
+1. **DO NOT GUESS OR ASSUME.** If unsure, ask Michael.
+2. **STAY WITHIN YOUR SCOPE.** Frontend tasks do not modify working backend endpoints without explicit permission. Backend code is locked unless explicitly opened.
+3. **VERIFY BEFORE USING.** Do not assume import names or endpoint signatures — open the files and verify.
+4. **TEST WITH REAL DATA.** Use `/backend/testing/testHarness.js` or equivalent live-token harness. Do not declare success from code review alone.
+5. **NO FALSE SUCCESS CLAIMS.** Only claim completion with documented test evidence to show Michael, or after Michael has manually verified.
+6. **NO `new Date()`** in production code — use `getNow()` from DateService.
+7. **NO MCP tools in production code** — testing only.
+
+## Step 7 — Confirmation
+
+State to Michael:
+
+> "Worker `<worker-id>` initialized. Native v1.0.0 init complete. SAMS critical docs read. Clean-env preflight passed. Branch created at `<branch-name>`. Awaiting confirmation to begin task."
+
+Then await explicit go-ahead before any code changes.
