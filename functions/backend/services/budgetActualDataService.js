@@ -536,6 +536,7 @@ export async function getBudgetActualData(clientId, fiscalYear, user, options = 
       const categoryData = {
         id: categoryId,
         name: categoryName,
+        name_es: category.name_es || '',
         type: categoryType,
         annualBudget: annualBudget,
         ytdBudget: ytdBudget,

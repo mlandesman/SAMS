@@ -1,6 +1,7 @@
 import express from 'express';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 const router = express.Router();
+import { getDb } from '../firebase.js';
 import { 
   createTransaction, 
   updateTransaction, 
@@ -16,6 +17,119 @@ import {
   requirePermission,
   logSecurityEvent 
 } from '../middleware/clientAuth.js';
+import {
+  applyLocalizationHeaders,
+  getLocalizationContext,
+} from '../utils/localizationContract.js';
+import { localizeDomainDisplayText, localizeFixedValue } from '../utils/localizationCatalog.js';
+import { localizeFreeFormFields } from '../services/freeFormTranslationBatch.js';
+import { resolvePersistedCategoryName } from '../utils/persistedCategoryLocalization.js';
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+function buildCategoryFallback(categoryName) {
+  const fallbackName = normalizeText(categoryName);
+  return { name: fallbackName, name_es: '' };
+}
+
+async function buildCategoryLocalizationLookup(clientId) {
+  const db = await getDb();
+  const snapshot = await db.collection(`clients/${clientId}/categories`).get();
+
+  const byId = new Map();
+  const byName = new Map();
+
+  snapshot.forEach((doc) => {
+    const data = doc.data() || {};
+    const category = {
+      id: doc.id,
+      name: normalizeText(data.name),
+      name_es: normalizeText(data.name_es),
+    };
+    byId.set(doc.id, category);
+    if (category.name) {
+      byName.set(category.name.toLowerCase(), category);
+    }
+  });
+
+  return { byId, byName };
+}
+
+function resolveLocalizedCategoryName(transaction, localizationCtx, categoryLookup) {
+  const sourceCategoryName = normalizeText(transaction.categoryName || transaction.category);
+  if (!sourceCategoryName) {
+    return '';
+  }
+
+  if (localizationCtx.resolvedLanguage !== 'ES') {
+    return sourceCategoryName;
+  }
+
+  const fromId = transaction.categoryId ? categoryLookup?.byId?.get(transaction.categoryId) : null;
+  const fromName = categoryLookup?.byName?.get(sourceCategoryName.toLowerCase()) || null;
+  const persistedSource = fromId || fromName || buildCategoryFallback(sourceCategoryName);
+
+  const persistedLocalized = resolvePersistedCategoryName(persistedSource, localizationCtx.resolvedLanguage);
+  if (persistedLocalized) {
+    return persistedLocalized;
+  }
+
+  return localizeDomainDisplayText(sourceCategoryName, localizationCtx.resolvedLanguage);
+}
+
+function withTransactionCompanions(transaction, localizationCtx, categoryLookup) {
+  const language = localizationCtx.resolvedLanguage;
+  const descriptionSource = normalizeText(transaction.description);
+  const notesSource = normalizeText(transaction.notes);
+  const vendorSource = normalizeText(transaction.vendorName);
+  const paymentMethodSource = normalizeText(transaction.paymentMethod);
+  const accountNameSource = normalizeText(transaction.accountName);
+  const localizedCategoryName = resolveLocalizedCategoryName(transaction, localizationCtx, categoryLookup);
+
+  return {
+    ...transaction,
+    typeLocalized: localizeFixedValue('type', transaction.type, language),
+    typeDisplayLocalized: localizeFixedValue('type', transaction.type, language),
+    categoryNameLocalized: localizedCategoryName,
+    categoryLocalized: localizedCategoryName,
+    descriptionLocalized: localizeDomainDisplayText(descriptionSource, language),
+    notesLocalized: localizeDomainDisplayText(notesSource, language),
+    vendorNameLocalized: localizeDomainDisplayText(vendorSource, language),
+    paymentMethodLocalized: localizeDomainDisplayText(paymentMethodSource, language),
+    accountNameLocalized: localizeDomainDisplayText(accountNameSource, language),
+  };
+}
+
+async function localizeTransactionRecords(clientId, transactions, localizationCtx) {
+  if (!localizationCtx.flags.companionsOn || transactions.length === 0) {
+    return transactions;
+  }
+
+  let categoryLookup = null;
+  if (localizationCtx.resolvedLanguage === 'ES') {
+    categoryLookup = await buildCategoryLocalizationLookup(clientId);
+  }
+
+  let localizedTransactions = transactions.map((transaction) =>
+    withTransactionCompanions(transaction, localizationCtx, categoryLookup)
+  );
+
+  const shouldTranslateFreeForm = localizationCtx.flags.translateFreeFormOn && localizationCtx.resolvedLanguage === 'ES';
+  let partialTranslation = false;
+  if (shouldTranslateFreeForm) {
+    const translationResult = await localizeFreeFormFields(
+      localizedTransactions,
+      ['description', 'notes', 'vendorName'],
+      localizationCtx.resolvedLanguage
+    );
+    localizedTransactions = translationResult.records;
+    partialTranslation = translationResult.failedCount > 0;
+  }
+
+  return { localizedTransactions, partialTranslation };
+}
 
 // Apply security middleware to all transaction routes
 router.use(authenticateUserWithProfile);
@@ -32,6 +146,8 @@ router.get('/',
   async (req, res) => {
   try {
     const clientId = req.authorizedClientId;
+    const localizationCtx = await getLocalizationContext(req, 'transactions.list');
+    applyLocalizationHeaders(res, localizationCtx);
     
     logDebug('🔍 Transaction route - GET / (List/Query):', { 
       user: req.user.email,
@@ -41,15 +157,22 @@ router.get('/',
     });
     
     // Check if we have query parameters
-    if (Object.keys(req.query).length > 0) {
-      // Use queryTransactions for filtered results
-      const transactions = await queryTransactions(clientId, req.query);
-      res.json(transactions);
+    const hasFilters = Object.keys(req.query).length > 0;
+    let transactions = hasFilters
+      ? await queryTransactions(clientId, req.query)
+      : await listTransactions(clientId);
+
+    const localizedResult = await localizeTransactionRecords(clientId, transactions, localizationCtx);
+    if (Array.isArray(localizedResult)) {
+      transactions = localizedResult;
     } else {
-      // Use listTransactions for all transactions
-      const transactions = await listTransactions(clientId);
-      res.json(transactions);
+      transactions = localizedResult.localizedTransactions;
+      if (localizationCtx.flags.companionsOn) {
+        res.setHeader('X-SAMS-Localization-Partial', localizedResult.partialTranslation ? 'true' : 'false');
+      }
     }
+
+    res.json(transactions);
   } catch (error) {
     logError('Error listing transactions:', error);
     res.status(500).json({ error: error.message || 'Server error' });
@@ -115,6 +238,8 @@ router.get('/:txnId',
   try {
     const txnId = req.params.txnId;
     const clientId = req.authorizedClientId;
+    const localizationCtx = await getLocalizationContext(req, 'transactions.list');
+    applyLocalizationHeaders(res, localizationCtx);
     
     logDebug('🔍 Transaction route - GET /:txnId (Secured):', { 
       user: req.user.email,
@@ -126,7 +251,14 @@ router.get('/:txnId',
     const transaction = await getTransaction(clientId, txnId);
     
     if (transaction) {
-      res.json(transaction);
+      const localizedResult = await localizeTransactionRecords(clientId, [transaction], localizationCtx);
+      const localizedTransaction = Array.isArray(localizedResult)
+        ? localizedResult[0]
+        : localizedResult.localizedTransactions[0];
+      if (!Array.isArray(localizedResult) && localizationCtx.flags.companionsOn) {
+        res.setHeader('X-SAMS-Localization-Partial', localizedResult.partialTranslation ? 'true' : 'false');
+      }
+      res.json(localizedTransaction);
     } else {
       logDebug(`Transaction not found: clientId=${clientId}, txnId=${txnId}`);
       res.status(404).json({ error: 'Transaction not found' });

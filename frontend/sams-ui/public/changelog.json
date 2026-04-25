@@ -1,8 +1,8 @@
 {
   "releases": [
     {
-      "version": "pending",
-      "date": null,
+      "version": "1.22.0",
+      "date": "2026-04-25",
       "changes": [
         {
           "type": "feat",
@@ -10,6 +10,11 @@
             "165"
           ],
           "text": "Budget vs Actual now supports YTD vs Projected FY-End variance mode with explicit projected CSV headers and aligned exports"
+        },
+        {
+          "type": "fix",
+          "issues": [],
+          "text": "Backend localization parity for transactions list/detail with persisted category companions and Spanish diacritic polish"
         }
       ]
     },

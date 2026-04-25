@@ -39,7 +39,7 @@ router.post('/', enforceClientAccess, async (req, res) => {
     const clientId = req.authorizedClientId;
     console.log('➕ Categories route - creating for client:', clientId);
     
-    const { name, description, type, status } = req.body;
+    const { name, name_es, description, type, status } = req.body;
     
     if (!name) {
       return res.status(400).json({
@@ -50,6 +50,7 @@ router.post('/', enforceClientAccess, async (req, res) => {
 
     const categoryId = await createCategory(clientId, {
       name,
+      name_es: name_es || '',
       description: description || '',
       type: type || 'expense',
       status: status || 'active'

@@ -26,50 +26,33 @@ APM_RULES {
 - `SAMS-Docs/` is a subdirectory inside the SAMS git repository at `/Users/michael/Projects/SAMS/SAMS-Docs/`. It is not a separate repository.
 - The canonical mobile app path is `/Users/michael/Projects/SAMS/frontend/mobile-app/`. The path `frontend/sams-ui/mobile-app/` is documented as stale; treat any reference to it as a stale reference to be corrected, not as an alternative location.
 
-## Read-Only Boundaries
+## Implementation Scope Guard
 
-Treat the following as read-only unless your Task explicitly authorizes modification. If a Task appears to require modifying any of these without explicit authorization, stop and escalate via your Task report.
+- Mobile implementation scope is limited to `frontend/mobile-app/**`.
+- Desktop UI implementation under `frontend/sams-ui/**` is out of scope for this project and must not be modified.
+- `_archive` directories are always read-only references and never valid implementation targets.
+- Use `ACTIVE_MODULES.md` and entry-point tracing to confirm active paths before changing code.
 
-- APM v1.0.1 framework files: `.cursor/apm-guides/`, `.cursor/commands/apm-1` through `apm-9`, `.cursor/skills/apm-communication/`, `.cursor/agents/apm-archive-explorer.md`.
-- `.apm/archives/session-2026-04-21-001/` and any other subdirectory under `.apm/archives/`. Read for verification only.
-- All production code: `frontend/`, `backend/`, `functions/`, `shared/`, `scripts/`.
-- Any `_archive` directory anywhere in the workspace (per the SAMS rule that no code from `_archive` is in active use).
+## Language and Localization Rules
 
-## APM v1.0.1 Vocabulary
+- Supported UI languages in this project are only `EN` and `ES`.
+- The hamburger language choice is the single user control for language behavior; do not add downstream screen-level toggles.
+- In selected-language mode, all in-scope translatable visible text should resolve to that language when available.
+- If localized content is unavailable, render the existing source value rather than blocking UI behavior.
 
-- Use v1.0.1 vocabulary in all writing: Planner, Manager, Worker; commands `apm-1-initiate-planner` through `apm-9-recover`; Task, Stage, Spec, Plan, Tracker, Memory Index, Bus, Handoff.
-- Do not use v0.5 vocabulary in new content: "Manager Agent", "Implementation Agent", "Memory Agent", "Implementation Plan", "renewMA", "renewIA", "Task Assignment Prompt".
-- When you encounter v0.5 vocabulary in source documents you are explicitly editing per your Task, update or annotate it as your Task's Guidance directs. Never carry v0.5 vocabulary forward into new content you author.
+## Backend Contract and Translation Rules
 
-## Authority and Escalation Discipline
+- Backend localization changes are allowed only when backward compatibility is preserved for existing consumers.
+- Any language-aware backend behavior must default to English when language input is missing or invalid.
+- Do not remove legacy response fields relied on by existing clients; additive localized behavior is preferred.
+- For bulk free-form localization (notes/descriptions/context text), use batched translation patterns (extract, dedupe, batch, remap) and avoid per-record translation calls.
+- Translation failures (quota, timeout, auth, service error) must degrade gracefully to source text without breaking primary data retrieval.
 
-- When your Task grants execute-authority for a destructive operation (branch deletion, GitHub issue closure, file deletion, content removal), apply that authority only to cases that meet the clear-classification criteria specified in the Task's Guidance.
-- For any case that is ambiguous against those criteria, do not act. Add the case to your Task report under an "Escalations" or "Ambiguous Cases" section with: subject, observed state, why it is ambiguous, recommended action, and your rationale.
-- Prefer preserving content when in doubt. The cost of preserving an extra file, branch, or issue is much lower than the cost of losing something the User wanted retained.
+## Feature Flag and Safety Rules
 
-## Verification Before Destruction
-
-- Before any destructive operation (deletion, closure, removal, mass-edit), capture the pre-state as evidence: file lists via `git status --short` or `ls`, branch lists via `git branch -a`, issue lists via `gh issue list --json ...`, file contents you are about to overwrite via Read.
-- After the operation, capture the post-state with the same command shape.
-- Both snapshots are part of your Task report's evidence record. Reports without evidence are incomplete.
-
-## Out-of-Scope Guard
-
-- For any Task in the APM v1.0.1 Base Setup project, do not modify production code under `frontend/`, `backend/`, `functions/`, `shared/`, or `scripts/`.
-- Do not invoke any deploy command: no `deploySams.sh`, no `firebase deploy`, no `vercel`, no `npm run deploy:*`.
-- If a Task appears to require either of the above, stop and escalate via your Task report. The project Spec scopes this work as workspace-and-metadata only.
-
-## Markdown Editing Conventions
-
-- When editing existing markdown documents (e.g., `Roadmap_and_Timeline.md`, `Sprint_Groups.md`, `CLAUDE.md`, `ACTIVE_MODULES.md`), preserve the existing structural conventions: heading levels, table column orders, schedule-note prefix patterns, list styles, footer separators.
-- Do not introduce new top-level section structure unless your Task explicitly authorizes it.
-- For chronological notes (e.g., Roadmap schedule notes, completion log rows), follow the existing date-prefix and ordering pattern visible immediately above your insertion point.
-- When prepending content (e.g., deprecation notice headers), insert above the existing content without modifying it. The existing content's bytes below your insertion should be preserved exactly.
-
-## Memory Log Location
-
-- Task completion logs for this workspace are written to `/Users/michael/Projects/SAMS/SAMS-Docs/apm_session/Memory/Task_Completion_Logs/<Task_Name>_<YYYY-MM-DD>.md`.
-- The `.apm/memory/index.md` file is the v1.0.1-required Memory Index that points outward to those logs. New task completion logs continue going to the SAMS-Docs path; the Memory Index references them.
+- New localization behavior must be gated by a feature flag with clear ON/OFF behavior.
+- Keep auth, routing, permissions, and business logic behavior unchanged unless explicitly required by approved scope.
+- Do not run deploy commands as part of implementation work in this project.
 
 ## Version Control Conventions
 
@@ -85,6 +68,13 @@ Treat the following as read-only unless your Task explicitly authorizes modifica
 - When you find a better approach than what's specified, surface it with reasoning and ask before proceeding.
 - Never claim success without documented evidence the User can verify: file paths, commit SHAs, command outputs, screenshots, or other artifacts.
 - Be honest about what was done versus what was deferred or escalated. Partial success is success-with-caveats; report the caveats.
+
+## Validation and Evidence
+
+- Validation must include EN and ES checks across all in-scope mobile routes and major user-visible text surfaces.
+- Provide explicit proof that desktop UI files under `frontend/sams-ui/**` were not modified.
+- Store language reference tables and validation artifacts in `SAMS-Docs/Agile/PRDs/`.
+- Treat final wording review for Spanish quality as a stakeholder review step (Michael and Sandra).
 
 } //APM_RULES
 ```

@@ -33,6 +33,7 @@ async function createCategory(clientId, data, user) {
     // Build simplified category structure - no budget fields
     const category = {
       name: (data.name || '').trim(),
+      name_es: (data.name_es || '').trim(),
       description: data.description || '',
       type: data.type || 'expense', // expense or income
       status: 'active',
@@ -104,6 +105,9 @@ async function updateCategory(clientId, catId, newData, user) {
     // Ensure name is trimmed if provided
     if (updates.name) {
       updates.name = updates.name.trim();
+    }
+    if (typeof updates.name_es === 'string') {
+      updates.name_es = updates.name_es.trim();
     }
     
     await catRef.update({
