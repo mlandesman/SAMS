@@ -25,11 +25,14 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from '../context/SelectedUnitContext.jsx';
+import { useSessionPreferences } from '../context/SessionPreferencesContext.jsx';
 import { useUnitAccountStatus } from '../hooks/useUnitAccountStatus';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils.js';
 import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
 import { getMexicoDate } from '../utils/timezone.js';
+import { getLanguageQuery, resolveLocalizedField, firstNonEmpty, formatLocalizedDateFallback } from '../utils/localization.js';
+import { useMobileStrings } from '../hooks/useMobileStrings.js';
 import './UnitReport.css';
 import { LoadingSpinner } from './common';
 
@@ -55,12 +58,59 @@ const formatDate = (dateValue) => {
 const UnitReport = ({ unitId: propUnitId }) => {
   const { currentClient, firebaseUser } = useAuth();
   const { selectedUnitId } = useSelectedUnit();
+  const { preferredLanguageUi } = useSessionPreferences();
+  const t = useMobileStrings();
   const currentUnitId = propUnitId || selectedUnitId;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const labels = preferredLanguageUi === 'ES'
+    ? {
+        loadingReport: 'Cargando tu reporte financiero...',
+        retry: 'Reintentar',
+        noData: 'No hay datos de reporte para esta unidad.',
+        status: 'Estado:',
+        balanceDue: 'Saldo pendiente',
+        credit: 'Saldo a favor',
+        current: 'Al corriente',
+        ytdTotal: 'Total YTD:',
+        lastPayment: 'Último pago:',
+        managerShort: 'Ger',
+        recentTransactions: t('unit.recentTransactions'),
+        noTransactions: 'No se encontraron transacciones para esta unidad.',
+        transactionDetails: 'Detalles de transacción',
+        date: 'Fecha',
+        amount: 'Monto',
+        vendor: t('transactions.vendor'),
+        description: 'Descripción',
+        category: t('transactions.category'),
+        paymentMethod: t('transactions.paymentMethod'),
+        close: t('unit.close'),
+      }
+    : {
+        loadingReport: 'Loading your financial report...',
+        retry: 'Try Again',
+        noData: 'No report data available for this unit.',
+        status: 'Status:',
+        balanceDue: 'Balance Due',
+        credit: 'Credit',
+        current: 'Current',
+        ytdTotal: 'YTD Total:',
+        lastPayment: 'Last Payment:',
+        managerShort: 'Mgr',
+        recentTransactions: 'Recent Transactions',
+        noTransactions: 'No transactions found for this unit.',
+        transactionDetails: 'Transaction Details',
+        date: 'Date',
+        amount: 'Amount',
+        vendor: 'Vendor',
+        description: 'Description',
+        category: 'Category',
+        paymentMethod: 'Payment Method',
+        close: 'Close',
+      };
 
   // Fetch account status for the summary header
   const { data: accountStatus } = useUnitAccountStatus(
@@ -73,7 +123,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
     if (clientId && currentUnitId) {
       fetchUnitReport(clientId, currentUnitId);
     }
-  }, [currentClient, currentUnitId]);
+  }, [currentClient, currentUnitId, preferredLanguageUi]);
 
   const fetchUnitReport = async (clientId, unitId) => {
     try {
@@ -83,7 +133,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
       if (!firebaseUser) throw new Error('No authenticated user');
 
       const token = await firebaseUser.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/reports/unit/${unitId}`, {
+      const response = await fetch(`${API_BASE_URL}/clients/${clientId}/reports/unit/${unitId}?${getLanguageQuery(preferredLanguageUi)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -101,6 +151,22 @@ const UnitReport = ({ unitId: propUnitId }) => {
         data.unit.owners = normalizeOwners(data.unit.owners);
         data.unit.managers = normalizeManagers(data.unit.managers);
       }
+      if (Array.isArray(data.transactions)) {
+        data.transactions = data.transactions.map((tx) => ({
+          ...tx,
+          vendor: firstNonEmpty([resolveLocalizedField(tx, 'vendorName'), tx.vendor]),
+          description: firstNonEmpty([resolveLocalizedField(tx, 'description'), tx.description]),
+          notes: firstNonEmpty([resolveLocalizedField(tx, 'notes'), tx.notes]),
+          category: firstNonEmpty([tx.categoryLocalized, tx.category]),
+          paymentMethod: firstNonEmpty([tx.paymentMethodLocalized, tx.paymentMethod]),
+          dateDisplay: firstNonEmpty([
+            tx.dateDisplayLocalized,
+            formatLocalizedDateFallback(tx.date, preferredLanguageUi),
+            formatDate(tx.date),
+          ]),
+          amountDisplay: firstNonEmpty([tx.amountDisplayLocalized, formatCurrency(centavosToPesos(tx.amount))]),
+        }));
+      }
       setReportData(data);
     } catch (err) {
       console.error('Error fetching unit report:', err);
@@ -113,7 +179,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <LoadingSpinner size="medium" message="Loading your financial report..." />
+        <LoadingSpinner size="medium" message={labels.loadingReport} />
       </Box>
     );
   }
@@ -126,7 +192,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
           const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
           if (clientId && currentUnitId) fetchUnitReport(clientId, currentUnitId);
         }}>
-          Try Again
+          {labels.retry}
         </Button>
       </Box>
     );
@@ -135,7 +201,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
   if (!reportData) {
     return (
       <Box sx={{ p: 3, textAlign: 'center', mt: 4 }}>
-        <Typography variant="body1" color="text.secondary">No report data available for this unit.</Typography>
+        <Typography variant="body1" color="text.secondary">{labels.noData}</Typography>
       </Box>
     );
   }
@@ -147,18 +213,19 @@ const UnitReport = ({ unitId: propUnitId }) => {
   const creditBalance = accountStatus?.creditBalance ?? centavosToPesos(currentStatus?.creditBalance) ?? 0;
   let statusLabel, statusColor;
   if (amountDue > 0) {
-    statusLabel = `Balance Due: ${formatCurrency(amountDue)}`;
+    statusLabel = `${labels.balanceDue}: ${formatCurrency(amountDue)}`;
     statusColor = '#d32f2f';
   } else if (creditBalance > 0) {
-    statusLabel = `Credit: ${formatCurrency(creditBalance)}`;
+    statusLabel = `${labels.credit}: ${formatCurrency(creditBalance)}`;
     statusColor = '#1565c0';
   } else {
-    statusLabel = 'Current';
+    statusLabel = labels.current;
     statusColor = '#2e7d32';
   }
 
   // Payment calendar
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthFormatter = new Intl.DateTimeFormat(preferredLanguageUi === 'ES' ? 'es-MX' : 'en-US', { month: 'short' });
+  const months = Array.from({ length: 12 }, (_v, i) => monthFormatter.format(new Date(2026, i, 1)).replace('.', ''));
   const currentMonth = getMexicoDate().getMonth();
   const paymentData = reportData?.paymentCalendar || reportData?.payments;
   const paymentCalendar = months.map((month, index) => {
@@ -190,7 +257,7 @@ const UnitReport = ({ unitId: propUnitId }) => {
           ))}
           {unit.managers.map((manager, i) => (
             <div key={`mgr-${i}`} className="person-item manager">
-              {manager.name} (Mgr)
+              {manager.name} ({labels.managerShort})
               {manager.phone && (
                 <> · <a href={`tel:${manager.phone.replace(/\D/g, '')}`} style={{ textDecoration: 'none' }}>{manager.phone}</a></>
               )}
@@ -203,19 +270,23 @@ const UnitReport = ({ unitId: propUnitId }) => {
       <div className="status-card enhanced">
         <div className="financial-summary">
           <div className="summary-row">
-            <span className="label">Status:</span>
+            <span className="label">{labels.status}</span>
             <span className="value" style={{ color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
           </div>
           {currentStatus?.ytdPaid && (
             <div className="summary-row">
-              <span className="label">YTD Total:</span>
+              <span className="label">{labels.ytdTotal}</span>
               <span className="value">{formatCurrency(centavosToPesos((currentStatus.ytdPaid.hoaDues || 0) + (currentStatus.ytdPaid.projects || 0)))}</span>
             </div>
           )}
           {accountStatus?.lastPayment && (
             <div className="summary-row">
-              <span className="label">Last Payment:</span>
-              <span className="value">{formatDate(accountStatus.lastPayment.date)} — {formatCurrency(accountStatus.lastPayment.amount)}</span>
+              <span className="label">{labels.lastPayment}</span>
+              <span className="value">
+                {accountStatus.lastPayment.dateDisplay || formatDate(accountStatus.lastPayment.date)}
+                {' — '}
+                {accountStatus.lastPayment.amountDisplay || formatCurrency(accountStatus.lastPayment.amount)}
+              </span>
             </div>
           )}
         </div>
@@ -237,9 +308,9 @@ const UnitReport = ({ unitId: propUnitId }) => {
 
       {/* Transactions */}
       <div className="transactions-section">
-        <h3>Recent Transactions</h3>
+        <h3>{labels.recentTransactions}</h3>
         {transactions.length === 0 ? (
-          <div className="no-transactions"><p>No transactions found for this unit.</p></div>
+          <div className="no-transactions"><p>{labels.noTransactions}</p></div>
         ) : (
           <div className="transactions-list">
             {transactions.map((tx) => {
@@ -251,10 +322,10 @@ const UnitReport = ({ unitId: propUnitId }) => {
                   className="transaction-item"
                   onClick={() => setSelectedTransaction(tx)}
                 >
-                  <div className="transaction-date">{formatDate(tx.date)}</div>
+                  <div className="transaction-date">{tx.dateDisplay || formatDate(tx.date)}</div>
                   <div className="transaction-desc">{tx.vendor || tx.description || '—'}</div>
                   <div className="transaction-amount">
-                    {formatCurrency(amount)}
+                    {tx.amountDisplay || formatCurrency(amount)}
                   </div>
                 </div>
               );
@@ -268,29 +339,29 @@ const UnitReport = ({ unitId: propUnitId }) => {
         {selectedTransaction && (
           <>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-              Transaction Details
+              {labels.transactionDetails}
               <IconButton size="small" onClick={() => setSelectedTransaction(null)} aria-label="close">
                 <CloseIcon />
               </IconButton>
             </DialogTitle>
             <DialogContent dividers>
-              <DetailRow label="Date" value={formatDate(selectedTransaction.date)} />
-              <DetailRow label="Amount" value={formatCurrency(centavosToPesos(selectedTransaction.amount))} />
+              <DetailRow label={labels.date} value={selectedTransaction.dateDisplay || formatDate(selectedTransaction.date)} />
+              <DetailRow label={labels.amount} value={selectedTransaction.amountDisplay || formatCurrency(centavosToPesos(selectedTransaction.amount))} />
               {selectedTransaction.vendor && (
-                <DetailRow label="Vendor" value={selectedTransaction.vendor} />
+                <DetailRow label={labels.vendor} value={selectedTransaction.vendor} />
               )}
               {selectedTransaction.description && (
-                <DetailRow label="Description" value={selectedTransaction.description} />
+                <DetailRow label={labels.description} value={selectedTransaction.description} />
               )}
               {selectedTransaction.category && (
-                <DetailRow label="Category" value={selectedTransaction.category} />
+                <DetailRow label={labels.category} value={selectedTransaction.category} />
               )}
               {selectedTransaction.paymentMethod && (
-                <DetailRow label="Payment Method" value={selectedTransaction.paymentMethod} />
+                <DetailRow label={labels.paymentMethod} value={selectedTransaction.paymentMethod} />
               )}
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setSelectedTransaction(null)} fullWidth variant="contained">Close</Button>
+              <Button onClick={() => setSelectedTransaction(null)} fullWidth variant="contained">{labels.close}</Button>
             </DialogActions>
           </>
         )}

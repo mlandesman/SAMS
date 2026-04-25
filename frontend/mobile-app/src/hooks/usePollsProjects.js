@@ -7,8 +7,11 @@
 import { useState, useEffect } from 'react';
 import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
+import { useSessionPreferences } from '../context/SessionPreferencesContext.jsx';
+import { getLanguageQuery, resolveLocalizedField } from '../utils/localization.js';
 
 export function usePollsProjects(clientId) {
+  const { preferredLanguageUi } = useSessionPreferences();
   const [polls, setPolls] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,10 +36,14 @@ export function usePollsProjects(clientId) {
 
     tokenPromise.then((t) => {
       if (cancelled) return;
-      const headers = { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' };
+      const headers = {
+        Authorization: `Bearer ${t}`,
+        'Content-Type': 'application/json',
+      };
+      const languageQuery = getLanguageQuery(preferredLanguageUi);
       return Promise.all([
-        fetch(`${config.api.baseUrl}/vote/clients/${clientId}/polls`, { headers }),
-        fetch(`${config.api.baseUrl}/clients/${clientId}/projects`, { headers }),
+        fetch(`${config.api.baseUrl}/vote/clients/${clientId}/polls?${languageQuery}`, { headers }),
+        fetch(`${config.api.baseUrl}/clients/${clientId}/projects?${languageQuery}`, { headers }),
       ]);
     }).then(async ([pollsRes, projectsRes]) => {
       if (cancelled) return;
@@ -48,19 +55,37 @@ export function usePollsProjects(clientId) {
       if (pollsJson) {
         const list = pollsJson?.data || pollsJson?.polls || pollsJson || [];
         const arr = Array.isArray(list) ? list : Object.values(list);
-        setPolls(arr.filter((p) => p?.status === 'published'));
+        setPolls(
+          arr
+            .filter((p) => p?.status === 'published')
+            .map((poll) => ({
+              ...poll,
+              titleDisplay: resolveLocalizedField(poll, 'title'),
+              descriptionDisplay: resolveLocalizedField(poll, 'description'),
+              statusDisplay: resolveLocalizedField(poll, 'status'),
+            }))
+        );
       }
       if (projectsJson) {
         const list = projectsJson?.data || projectsJson?.projects || projectsJson || [];
         const arr = Array.isArray(list) ? list : Object.values(list);
-        setProjects(arr.filter((p) => p?.status === 'approved' || p?.status === 'in-progress'));
+        setProjects(
+          arr
+            .filter((p) => p?.status === 'approved' || p?.status === 'in-progress')
+            .map((project) => ({
+              ...project,
+              nameDisplay: resolveLocalizedField(project, 'name'),
+              descriptionDisplay: resolveLocalizedField(project, 'description'),
+              statusDisplay: resolveLocalizedField(project, 'status'),
+            }))
+        );
       }
     }).catch(() => {}).finally(() => {
       if (!cancelled) setLoading(false);
     });
 
     return () => { cancelled = true; };
-  }, [clientId]);
+  }, [clientId, preferredLanguageUi]);
 
   return {
     polls,

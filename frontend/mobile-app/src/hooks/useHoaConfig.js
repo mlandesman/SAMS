@@ -28,14 +28,25 @@ export function useHoaConfig(clientId) {
       return fetch(`${config.api.baseUrl}/clients/${clientId}/config/hoaDues`, {
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       });
-    }).then((r) => (r?.ok ? r.json() : null)).then((res) => {
+    }).then(async (r) => {
+      if (!r?.ok) return null;
+      if (r.status === 204) {
+        console.info('HOA config returned 204; using defaults.', { clientId });
+        return { data: {} };
+      }
+      return r.json().catch((err) => {
+        console.error('Failed parsing HOA config JSON:', err);
+        return null;
+      });
+    }).then((res) => {
       if (cancelled) return;
       const d = res?.data || {};
       setHoaConfig({
         penaltyDays: d.penaltyDays ?? 10,
         penaltyRate: d.penaltyRate ?? 0,
       });
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('HOA config fetch failed:', err);
       if (!cancelled) setHoaConfig({ penaltyDays: 10, penaltyRate: 0 });
     });
 

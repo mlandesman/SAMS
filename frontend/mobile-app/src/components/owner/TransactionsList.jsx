@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useClients } from '../../hooks/useClients.jsx';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { getMexicoDate } from '../../utils/timezone.js';
@@ -46,6 +47,13 @@ import {
 import TransactionAttachmentsDialog from '../transactions/TransactionAttachmentsDialog.jsx';
 import DocumentViewer from '../documents/DocumentViewer';
 import { useMobileStrings } from '../../hooks/useMobileStrings.js';
+import {
+  getLanguageQuery,
+  resolveLocalizedField,
+  firstNonEmpty,
+  pickLocalized,
+  formatLocalizedDateFallback,
+} from '../../utils/localization.js';
 
 const API_BASE_URL = config.api.baseUrl;
 
@@ -54,6 +62,7 @@ const DATE_PRESET_IDS = ['currentMonth', 'prior3Months', 'currentYear'];
 const TransactionsList = () => {
   const { currentClient, firebaseUser } = useAuth();
   const { selectedClient } = useClients();
+  const { preferredLanguageUi } = useSessionPreferences();
   const t = useMobileStrings();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +121,7 @@ const TransactionsList = () => {
       if (!user) throw new Error('No authenticated user');
 
       const token = await user.getIdToken();
-      const url = `${API_BASE_URL}/clients/${clientId}/transactions?startDate=${startDate}&endDate=${endDate}`;
+      const url = `${API_BASE_URL}/clients/${clientId}/transactions?startDate=${startDate}&endDate=${endDate}&${getLanguageQuery(preferredLanguageUi)}`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -129,14 +138,33 @@ const TransactionsList = () => {
 
       const data = await response.json();
       const txList = Array.isArray(data) ? data : data.transactions || [];
-      setTransactions(txList);
+      setTransactions(
+        txList.map((tx) => {
+          const vendorLocalized = resolveLocalizedField(tx, 'vendorName');
+          const descriptionLocalized = resolveLocalizedField(tx, 'description');
+          const notesLocalized = resolveLocalizedField(tx, 'notes');
+          return {
+            ...tx,
+            // Keep business fields stable; normalize display text to avoid mixed-language row composition.
+            vendorName: firstNonEmpty([vendorLocalized, tx.vendorName]),
+            description: firstNonEmpty([descriptionLocalized, tx.description]),
+            notes: firstNonEmpty([notesLocalized, tx.notes]),
+            typeDisplay: pickLocalized(tx.typeLocalized, tx.type),
+            dateDisplay: firstNonEmpty([
+              tx.dateDisplayLocalized,
+              formatLocalizedDateFallback(tx.date, preferredLanguageUi),
+              formatTransactionDate(tx.date),
+            ]),
+          };
+        })
+      );
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError(err.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
-  }, [clientId, firebaseUser, startDate, endDate]);
+  }, [clientId, firebaseUser, startDate, endDate, preferredLanguageUi]);
 
   useEffect(() => {
     if (clientId && startDate && endDate) fetchTransactions();
@@ -383,7 +411,7 @@ const TransactionsList = () => {
                   >
                     <Box sx={{ flex: '0 0 90px', mr: 1 }}>
                       <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
-                        {formatTransactionDate(tx.date)}
+                        {tx.dateDisplay || formatTransactionDate(tx.date)}
                       </Typography>
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
@@ -442,7 +470,7 @@ const TransactionsList = () => {
                       )}
                       {tx.type && (
                         <Chip
-                          label={tx.type}
+                          label={tx.typeDisplay || tx.type}
                           size="small"
                           sx={{ mt: 0.5, textTransform: 'capitalize', fontSize: '0.7rem' }}
                           color={tx.type === 'income' ? 'success' : 'default'}

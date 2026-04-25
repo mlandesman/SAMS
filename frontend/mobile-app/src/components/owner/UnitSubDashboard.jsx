@@ -38,6 +38,7 @@ import { db } from '../../services/firebase';
 import { getMexicoDateTime, formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay } from '@shared/utils/currencyUtils.js';
 import { useMobileStrings } from '../../hooks/useMobileStrings.js';
+import { firstNonEmpty, formatLocalizedDateFallback } from '../../utils/localization.js';
 
 const UnitSubDashboard = () => {
   const navigate = useNavigate();
@@ -106,9 +107,19 @@ const UnitSubDashboard = () => {
 
   const unitReady = !unitLoading && unitData;
   const dueDate = unitData?.nextPaymentDueDate || unitData?.summary?.nextPaymentDueDate;
+  const dueDateDisplay = firstNonEmpty([
+    unitData?.nextPaymentDueDateDisplay,
+    formatLocalizedDateFallback(dueDate, preferredLanguageUi, { day: 'numeric', month: 'long', year: 'numeric' }),
+    dueDate ? formatDateForDisplay(dueDate) : '',
+    t('owner.dateNotSet'),
+  ]);
   const amountDue = unitData?.amountDue ?? 0;
   const creditBalance = unitData?.creditBalance ?? 0;
   const nextPaymentAmount = unitData?.nextPaymentAmount ?? 0;
+  const nextPaymentAmountDisplay = firstNonEmpty([
+    unitData?.nextPaymentAmountDisplay,
+    nextPaymentAmount > 0 ? formatPesosForDisplay(nextPaymentAmount) : '',
+  ]);
   const now = getMexicoDateTime();
   const dueDateObj = dueDate ? new Date(dueDate + 'T12:00:00') : null;
   const daysPastDue = dueDateObj && now > dueDateObj
@@ -157,9 +168,7 @@ const UnitSubDashboard = () => {
                 {formatPesosForDisplay(amountDue > 0 ? amountDue : (creditBalance > 0 ? creditBalance : 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {t('owner.due', {
-                  date: dueDate ? formatDateForDisplay(dueDate) : t('owner.dateNotSet')
-                })}
+                {t('owner.due', { date: dueDateDisplay })}
               </Typography>
               {daysPastDue > 0 && (
                 <Typography variant="body2" sx={{ color: '#dc2626', fontWeight: 600, mb: 1 }}>
@@ -174,7 +183,7 @@ const UnitSubDashboard = () => {
               {nextPaymentAmount > 0 && (
                 <>
                   <Typography variant="body2" sx={{ color: '#1f2937', mt: 1 }}>
-                    {formatPesosForDisplay(nextPaymentAmount)}
+                    {nextPaymentAmountDisplay}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
                     {t('unit.scheduledPaymentAmount')}
@@ -205,11 +214,20 @@ const UnitSubDashboard = () => {
                 {recentTx.map((item, i) => {
                   const isPayment = item.type === 'payment' || (item.payment && item.payment > 0);
                   const amt = isPayment ? item.payment : item.charge;
+                  const dateDisplay = firstNonEmpty([
+                    item.dateDisplayLocalized,
+                    formatLocalizedDateFallback(item.date, preferredLanguageUi),
+                    item.date ? formatDateForDisplay(item.date) : '',
+                  ]);
+                  const amountDisplay = firstNonEmpty([
+                    isPayment ? item.paymentAmountDisplayLocalized : item.chargeAmountDisplayLocalized,
+                    `${isPayment ? '+' : '-'}${formatPesosForDisplay(amt)}`,
+                  ]);
                   return (
                     <ListItem key={i} disablePadding sx={{ py: 0.5 }}>
                       <ListItemText
                         primary={item.description || t('unit.transactionFallback')}
-                        secondary={formatDateForDisplay(item.date)}
+                        secondary={dateDisplay}
                         primaryTypographyProps={{ variant: 'body2' }}
                         secondaryTypographyProps={{ variant: 'caption' }}
                       />
@@ -218,7 +236,7 @@ const UnitSubDashboard = () => {
                         fontWeight={600}
                         sx={{ color: isPayment ? '#059669' : '#dc2626' }}
                       >
-                        {isPayment ? '+' : '-'}{formatPesosForDisplay(amt)}
+                        {amountDisplay}
                       </Typography>
                     </ListItem>
                   );

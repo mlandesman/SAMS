@@ -150,7 +150,9 @@ const StatementPdfViewer = () => {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {

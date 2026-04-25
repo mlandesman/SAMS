@@ -12,9 +12,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuthStable.jsx';
 import { useSelectedUnit } from './SelectedUnitContext.jsx';
+import { useSessionPreferences } from './SessionPreferencesContext.jsx';
 import { config } from '../config/index.js';
 import { auth } from '../services/firebase';
 import { getMexicoDateTime } from '../utils/timezone.js';
+import { getLanguageQuery, resolveLocalizedField, firstNonEmpty } from '../utils/localization.js';
 
 const UnitStatementContext = createContext(null);
 
@@ -53,7 +55,14 @@ async function fetchWithAuth(url) {
  */
 function deriveAccountData(raw) {
   const lineItems = raw?.lineItems || [];
-  const currentItems = lineItems.filter(item => item.isFuture !== true);
+  const resolvedLineItems = lineItems.map((item) => ({
+    ...item,
+    description: firstNonEmpty([
+      resolveLocalizedField(item, 'description'),
+      item.description,
+    ]),
+  }));
+  const currentItems = resolvedLineItems.filter(item => item.isFuture !== true);
   const lastBalance = currentItems.length > 0
     ? (typeof currentItems[currentItems.length - 1].balance === 'number'
       ? currentItems[currentItems.length - 1].balance : 0)
@@ -69,13 +78,20 @@ function deriveAccountData(raw) {
 
   let nextPaymentDueDate = raw?.nextPaymentDueDate || null;
   let nextPaymentAmount = typeof raw?.nextPaymentAmount === 'number' ? raw.nextPaymentAmount : null;
+  const nextPaymentDueDateDisplay = firstNonEmpty([
+    raw?.nextPaymentDueDateDisplayLocalized,
+    nextPaymentDueDate,
+  ]);
+  const nextPaymentAmountDisplay = firstNonEmpty([
+    raw?.nextPaymentAmountDisplayLocalized,
+  ]);
 
   if (typeof nextPaymentDueDate === 'object' && nextPaymentDueDate?.toISOString) {
     nextPaymentDueDate = nextPaymentDueDate.toISOString().split('T')[0];
   }
 
   if (!nextPaymentDueDate) {
-    const charges = lineItems.filter(item => item.type === 'charge' || (item.charge && item.charge > 0));
+    const charges = resolvedLineItems.filter(item => item.type === 'charge' || (item.charge && item.charge > 0));
     for (const item of charges) {
       const bal = typeof item.balance === 'number' ? item.balance : 0;
       if (bal > 0 || item.isFuture) {
@@ -86,7 +102,7 @@ function deriveAccountData(raw) {
     }
   }
 
-  const payments = lineItems.filter(
+  const payments = resolvedLineItems.filter(
     item => (item.type === 'payment' || (item.payment && item.payment > 0)) && !item.isFuture
   );
   const lastPayment = payments.length > 0
@@ -102,10 +118,19 @@ function deriveAccountData(raw) {
     creditBalance,
     nextPaymentDueDate,
     nextPaymentAmount,
-    lastPayment: lastPayment ? { date: lastPayment.date, amount: lastPayment.payment || 0 } : null,
+    nextPaymentDueDateDisplay,
+    nextPaymentAmountDisplay,
+    lastPayment: lastPayment
+      ? {
+          date: lastPayment.date,
+          amount: lastPayment.payment || 0,
+          dateDisplay: firstNonEmpty([lastPayment.dateDisplayLocalized, lastPayment.date]),
+          amountDisplay: firstNonEmpty([lastPayment.paymentAmountDisplayLocalized]),
+        }
+      : null,
     owners,
     ownerNames,
-    lineItems,
+    lineItems: resolvedLineItems,
     ytdMonthsPaid: typeof raw?.ytdMonthsPaid === 'number' ? raw.ytdMonthsPaid : 0,
     ytdTotal: typeof raw?.ytdTotal === 'number' ? raw.ytdTotal : 12,
     summary: raw?.summary || {},
@@ -115,6 +140,7 @@ function deriveAccountData(raw) {
 export const UnitStatementProvider = ({ children }) => {
   const { currentClient } = useAuth();
   const { selectedUnitId } = useSelectedUnit();
+  const { preferredLanguageUi } = useSessionPreferences();
 
   const [rawStatement, setRawStatement] = useState(null);
   const [accountData, setAccountData] = useState(null);
@@ -136,7 +162,7 @@ export const UnitStatementProvider = ({ children }) => {
     setError(null);
 
     try {
-      const url = `${API_BASE_URL}/reports/${clientId}/statement/data?unitId=${selectedUnitId}&skipHtml=true`;
+      const url = `${API_BASE_URL}/reports/${clientId}/statement/data?unitId=${selectedUnitId}&skipHtml=true&${getLanguageQuery(preferredLanguageUi)}`;
       const json = await fetchWithAuth(url);
       if (getCancelled?.()) return;
       const raw = json.data || json;
@@ -144,13 +170,14 @@ export const UnitStatementProvider = ({ children }) => {
       setAccountData(deriveAccountData(raw));
     } catch (err) {
       if (getCancelled?.()) return;
+      console.error('UnitStatementContext refresh failed:', err);
       setError(err?.message || 'Failed to load statement data');
       setRawStatement(null);
       setAccountData(null);
     } finally {
       if (!getCancelled?.()) setLoading(false);
     }
-  }, [clientId, selectedUnitId]);
+  }, [clientId, selectedUnitId, preferredLanguageUi]);
 
   useEffect(() => {
     let cancelled = false;

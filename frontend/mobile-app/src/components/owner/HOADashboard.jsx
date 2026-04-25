@@ -26,12 +26,14 @@ import { useAuth } from '../../hooks/useAuthStable.jsx';
 import { useDashboardData } from '../../hooks/useDashboardData.js';
 import { usePriorMonthBalance } from '../../hooks/usePriorMonthBalance.js';
 import { usePollsProjects } from '../../hooks/usePollsProjects.js';
+import { useSessionPreferences } from '../../context/SessionPreferencesContext.jsx';
 import { config } from '../../config/index.js';
 import { auth } from '../../services/firebase';
 import { formatDateForDisplay } from '../../utils/timezone.js';
 import { formatPesosForDisplay, formatCurrency, centavosToPesos } from '@shared/utils/currencyUtils.js';
 import { LoadingSpinner } from '../common';
 import { useMobileStrings } from '../../hooks/useMobileStrings.js';
+import { pickLocalized } from '../../utils/localization.js';
 
 const HOADashboard = () => {
   const { currentClient } = useAuth();
@@ -44,9 +46,11 @@ const HOADashboard = () => {
   const clientId = typeof currentClient === 'string' ? currentClient : currentClient?.id;
   const { priorMonthBalance, priorLoading } = usePriorMonthBalance(clientId);
   const { polls, projects, loading: pollsProjectsLoading } = usePollsProjects(clientId);
+  const { preferredLanguageUi } = useSessionPreferences();
   const t = useMobileStrings();
 
   const [budgetData, setBudgetData] = useState(null);
+  const [budgetLocalizedLabels, setBudgetLocalizedLabels] = useState({});
   const [budgetLoading, setBudgetLoading] = useState(false);
   const [projectExpanded, setProjectExpanded] = useState(null);
   const [showAllBudgetCategories, setShowAllBudgetCategories] = useState(false);
@@ -63,14 +67,20 @@ const HOADashboard = () => {
     let cancelled = false;
     setBudgetLoading(true);
     tokenPromise.then((t) =>
-      fetch(`${config.api.baseUrl}/reports/${clientId}/budget-actual/data?language=english`, {
-        headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+      fetch(`${config.api.baseUrl}/reports/${clientId}/budget-actual/data?language=${preferredLanguageUi === 'ES' ? 'spanish' : 'english'}`, {
+        headers: {
+          Authorization: `Bearer ${t}`,
+          'Content-Type': 'application/json',
+        },
       })
     ).then((r) => (r?.ok ? r.json() : null)).then((res) => {
-      if (!cancelled && res?.data) setBudgetData(res.data);
+      if (!cancelled && res?.data) {
+        setBudgetData(res.data);
+        setBudgetLocalizedLabels(res.data.localizedLabels || {});
+      }
     }).catch(() => {}).finally(() => { if (!cancelled) setBudgetLoading(false); });
     return () => { cancelled = true; };
-  }, [clientId]);
+  }, [clientId, preferredLanguageUi]);
 
   if (!currentClient) {
     return (
@@ -102,6 +112,8 @@ const HOADashboard = () => {
   const displayBudgetCats = showAllBudgetCategories
     ? allSortedByVariance
     : allSortedByVariance.slice(0, 5);
+
+  const budgetLabel = (key, fallback) => pickLocalized(budgetLocalizedLabels?.[key], fallback);
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
@@ -160,7 +172,7 @@ const HOADashboard = () => {
               {polls.map((p) => (
                 <ListItem key={p.id} disablePadding sx={{ py: 0.5 }}>
                   <ListItemText
-                    primary={p.title || p.question || t('hoa.pollFallback')}
+                    primary={p.titleDisplay || p.title || p.question || t('hoa.pollFallback')}
                     secondary={p.closingDate ? t('hoa.closes', { date: formatDateForDisplay(p.closingDate) }) : null}
                     primaryTypographyProps={{ variant: 'body2' }}
                     secondaryTypographyProps={{ variant: 'caption' }}
@@ -191,10 +203,10 @@ const HOADashboard = () => {
                     onClick={() => setProjectExpanded(projectExpanded === p.id ? null : p.id)}
                   >
                     <ListItemText
-                      primary={p.name || p.title || t('hoa.projectFallback')}
+                      primary={p.nameDisplay || p.name || p.title || t('hoa.projectFallback')}
                       primaryTypographyProps={{ variant: 'body2' }}
                     />
-                    <Chip label={p.status || '—'} size="small" sx={{ fontSize: '0.7rem', mr: 0.5 }} />
+                    <Chip label={p.statusDisplay || p.status || '—'} size="small" sx={{ fontSize: '0.7rem', mr: 0.5 }} />
                     <Typography variant="body2" fontWeight={500}>
                       {formatPesosForDisplay(Math.round((p.totalCost || p.cost || 0) / 100))}
                     </Typography>
@@ -255,9 +267,15 @@ const HOADashboard = () => {
                   <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>{t('hoa.topCategories')}</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>{t('hoa.actualYtd')}</th>
-                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>{t('hoa.vsBudget')}</th>
+                        <th style={{ textAlign: 'left', fontWeight: 600, color: '#6b7280', padding: '4px 8px 4px 0' }}>
+                          {budgetLabel('topCategories', t('hoa.topCategories'))}
+                        </th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 8px' }}>
+                          {budgetLabel('actualYtd', t('hoa.actualYtd'))}
+                        </th>
+                        <th style={{ textAlign: 'right', fontWeight: 600, color: '#6b7280', padding: '4px 0 4px 8px' }}>
+                          {budgetLabel('vsBudget', t('hoa.vsBudget'))}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -269,7 +287,9 @@ const HOADashboard = () => {
                         const diffLabel = c.diff === 0 ? '—' : (isOver ? `>${formatPesosForDisplay(absPesos)}` : `<${formatPesosForDisplay(absPesos)}`);
                         return (
                           <tr key={c.id}>
-                            <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>{c.name || c.id}</td>
+                            <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>
+                              {pickLocalized(c.nameLocalized, c.name || c.id)}
+                            </td>
                             <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatCurrency(c.ytdActual || 0)}</td>
                             <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
                           </tr>
