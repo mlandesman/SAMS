@@ -398,6 +398,23 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     }
 
     // Build response
+    const currentStatus = {
+      amountDue: roundPesos(amountDue),
+      paidThrough: paidThrough,
+      creditBalance: roundPesos(creditBalance),
+      ytdPaid: {
+        hoaDues: roundPesos(ytdPaid),
+        projects: 0 // Placeholder for future Projects module
+      }
+    };
+
+    if (localizationCtx.flags.companionsOn) {
+      currentStatus.paidThroughLocalized = localizeDomainDisplayText(paidThrough || '', localizationCtx.resolvedLanguage);
+      currentStatus.amountDueDisplayLocalized = formatLocalizedAmountDisplay(roundPesos(amountDue), localizationCtx.resolvedLanguage);
+      currentStatus.creditBalanceDisplayLocalized = formatLocalizedAmountDisplay(roundPesos(creditBalance), localizationCtx.resolvedLanguage);
+      currentStatus.ytdPaid.hoaDuesDisplayLocalized = formatLocalizedAmountDisplay(roundPesos(ytdPaid), localizationCtx.resolvedLanguage);
+    }
+
     const response = {
       unit: {
         unitNumber: unitData.unitNumber || unitId,
@@ -405,19 +422,7 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         owners: owners,
         managers: managers
       },
-      currentStatus: {
-        amountDue: roundPesos(amountDue),
-        paidThrough: paidThrough,
-        paidThroughLocalized: localizeDomainDisplayText(paidThrough || '', localizationCtx.resolvedLanguage),
-        amountDueDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(amountDue), localizationCtx.resolvedLanguage),
-        creditBalance: roundPesos(creditBalance),
-        creditBalanceDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(creditBalance), localizationCtx.resolvedLanguage),
-        ytdPaid: {
-          hoaDues: roundPesos(ytdPaid),
-          hoaDuesDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(ytdPaid), localizationCtx.resolvedLanguage),
-          projects: 0 // Placeholder for future Projects module
-        }
-      },
+      currentStatus,
       paymentCalendar: paymentCalendar, // Add payment calendar data
       transactions: responseTransactions,
       localization: buildLocalizationMeta(localizationCtx)

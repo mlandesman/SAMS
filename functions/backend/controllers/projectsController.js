@@ -677,11 +677,12 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
   if (statusToApproved) {
     const batch = db.batch();
     batch.update(docRef, updateData);
+    const categoryDisplayName = existingData.name || otherUpdates.name || projectId;
     const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
     batch.set(categoryRef, {
-      name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
-      name_es: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
-      description: existingData.name || otherUpdates.name || projectId,
+      name: `Projects: ${categoryDisplayName}`,
+      name_es: `Proyectos: ${categoryDisplayName}`,
+      description: categoryDisplayName,
       type: 'expense',
       status: 'active',
       notBudgeted: true,
@@ -1291,11 +1292,12 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
   batch.update(projectRef, batchUpdates);
 
   // Create project expense category for transaction categorization
+  const categoryDisplayName = projectData.name || projectId;
   const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
   batch.set(categoryRef, {
-    name: `Projects: ${projectData.name || projectId}`,
-    name_es: `Projects: ${projectData.name || projectId}`,
-    description: projectData.name || projectId,
+    name: `Projects: ${categoryDisplayName}`,
+    name_es: `Proyectos: ${categoryDisplayName}`,
+    description: categoryDisplayName,
     type: 'expense',
     status: 'active',
     notBudgeted: true,

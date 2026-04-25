@@ -102,6 +102,12 @@ function withTransactionCompanions(transaction, localizationCtx, categoryLookup)
   };
 }
 
+const NON_FILTER_QUERY_PARAMS = new Set(['lang', 'language']);
+
+function hasTransactionFilters(query = {}) {
+  return Object.keys(query).some((key) => !NON_FILTER_QUERY_PARAMS.has(String(key || '').trim().toLowerCase()));
+}
+
 async function localizeTransactionRecords(clientId, transactions, localizationCtx) {
   if (!localizationCtx.flags.companionsOn || transactions.length === 0) {
     return transactions;
@@ -157,7 +163,7 @@ router.get('/',
     });
     
     // Check if we have query parameters
-    const hasFilters = Object.keys(req.query).length > 0;
+    const hasFilters = hasTransactionFilters(req.query);
     let transactions = hasFilters
       ? await queryTransactions(clientId, req.query)
       : await listTransactions(clientId);
@@ -238,7 +244,7 @@ router.get('/:txnId',
   try {
     const txnId = req.params.txnId;
     const clientId = req.authorizedClientId;
-    const localizationCtx = await getLocalizationContext(req, 'transactions.list');
+    const localizationCtx = await getLocalizationContext(req, 'transactions.detail');
     applyLocalizationHeaders(res, localizationCtx);
     
     logDebug('🔍 Transaction route - GET /:txnId (Secured):', { 
