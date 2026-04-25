@@ -114,6 +114,13 @@ const HOADashboard = () => {
     : allSortedByVariance.slice(0, 5);
 
   const budgetLabel = (key, fallback) => pickLocalized(budgetLocalizedLabels?.[key], fallback);
+  const budgetCategoryName = (category) => {
+    if (preferredLanguageUi === 'ES') {
+      // Prefer companion value, then persisted ES field from category docs, then legacy source.
+      return pickLocalized(category?.nameLocalized, category?.name_es || category?.name || category?.id);
+    }
+    return pickLocalized(category?.nameLocalized, category?.name || category?.id);
+  };
 
   return (
     <Box sx={{ p: 2, pb: 12 }}>
@@ -288,7 +295,7 @@ const HOADashboard = () => {
                         return (
                           <tr key={c.id}>
                             <td style={{ padding: '4px 8px 4px 0', verticalAlign: 'top' }}>
-                              {pickLocalized(c.nameLocalized, c.name || c.id)}
+                              {budgetCategoryName(c)}
                             </td>
                             <td style={{ padding: '4px 8px', textAlign: 'right' }}>{formatCurrency(c.ytdActual || 0)}</td>
                             <td style={{ padding: '4px 0 4px 8px', textAlign: 'right', color: diffColor }}>{diffLabel}</td>
