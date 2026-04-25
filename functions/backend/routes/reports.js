@@ -29,6 +29,24 @@ import axios from 'axios';
 import creditAutoPayReportRoutes from './creditAutoPayReportRoutes.js';
 import { logInfo, logDebug, logWarn, logError } from '../../shared/logger.js';
 import { centavosToPesos, roundPesos } from '../../shared/utils/currencyUtils.js';
+import {
+  applyLocalizationHeaders,
+  buildLocalizationMeta,
+  getLocalizationContext,
+  languageToReportLanguage,
+} from '../utils/localizationContract.js';
+import {
+  localizeDomainDisplayText,
+  localizeFixedValue,
+} from '../utils/localizationCatalog.js';
+import { localizeFreeFormFields } from '../services/freeFormTranslationBatch.js';
+import {
+  formatLocalizedAmountDisplay,
+  formatLocalizedDateDisplay,
+} from '../utils/localizedDisplay.js';
+import {
+  resolvePersistedCategoryName,
+} from '../utils/persistedCategoryLocalization.js';
 
 /** BUDGET-PROJ-1: YTD vs projected FY-end variance basis */
 function parseBudgetActualReportMode(value) {
@@ -43,6 +61,32 @@ const dateService = new DateService({ timezone: 'America/Cancun' });
 function formatDateField(dateValue) {
   if (!dateValue) return null;
   return dateService.formatForFrontend(dateValue);
+}
+
+function withDateAmountDisplayCompanions(record, language, options = {}) {
+  const {
+    dateField = 'date',
+    amountField = 'amount',
+    dateOutput = `${dateField}DisplayLocalized`,
+    amountOutput = `${amountField}DisplayLocalized`,
+  } = options;
+
+  return {
+    ...record,
+    [dateOutput]: formatLocalizedDateDisplay(record?.[dateField], language),
+    [amountOutput]: formatLocalizedAmountDisplay(record?.[amountField], language),
+  };
+}
+
+function withStatementLineItemDisplayCompanions(lineItem, language) {
+  return {
+    ...lineItem,
+    descriptionLocalized: localizeDomainDisplayText(lineItem?.description || '', language),
+    dateDisplayLocalized: formatLocalizedDateDisplay(lineItem?.date, language),
+    chargeAmountDisplayLocalized: formatLocalizedAmountDisplay(lineItem?.charge, language),
+    paymentAmountDisplayLocalized: formatLocalizedAmountDisplay(lineItem?.payment, language),
+    balanceAmountDisplayLocalized: formatLocalizedAmountDisplay(lineItem?.balance, language),
+  };
 }
 
 const router = express.Router();
@@ -60,6 +104,8 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const { unitId } = req.params;
     const user = req.user;
+    const localizationCtx = await getLocalizationContext(req, 'reports.unit');
+    applyLocalizationHeaders(res, localizationCtx);
 
     if (!clientId || !unitId) {
       return res.status(400).json({ 
@@ -312,6 +358,45 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       });
     }
 
+    let responseTransactions = transactions.map(tx => ({
+      id: tx.id,
+      date: formatDateField(tx.date), // Formatted date object
+      amount: tx.amount,
+      type: tx.type || '',
+      description: tx.description,
+      category: tx.category,
+      account: tx.account,
+      paymentMethod: tx.paymentMethod
+    }));
+
+    if (localizationCtx.flags.companionsOn) {
+      responseTransactions = responseTransactions.map((tx) => ({
+        ...withDateAmountDisplayCompanions(tx, localizationCtx.resolvedLanguage),
+        categoryLocalized: localizeDomainDisplayText(tx.category || '', localizationCtx.resolvedLanguage),
+        paymentMethodLocalized: localizeDomainDisplayText(tx.paymentMethod || '', localizationCtx.resolvedLanguage),
+        typeLocalized: localizeFixedValue('type', tx.type, localizationCtx.resolvedLanguage),
+      }));
+
+      if (localizationCtx.flags.translateFreeFormOn && localizationCtx.resolvedLanguage === 'ES') {
+        const translationResult = await localizeFreeFormFields(
+          responseTransactions,
+          ['description'],
+          localizationCtx.resolvedLanguage
+        );
+        responseTransactions = translationResult.records;
+        responseTransactions = responseTransactions.map((tx) => ({
+          ...tx,
+          descriptionLocalized: localizeDomainDisplayText(tx.descriptionLocalized || tx.description || '', localizationCtx.resolvedLanguage),
+        }));
+        res.setHeader('X-SAMS-Localization-Partial', translationResult.failedCount > 0 ? 'true' : 'false');
+      } else {
+        responseTransactions = responseTransactions.map((tx) => ({
+          ...tx,
+          descriptionLocalized: localizeDomainDisplayText(tx.description || '', localizationCtx.resolvedLanguage),
+        }));
+      }
+    }
+
     // Build response
     const response = {
       unit: {
@@ -323,22 +408,19 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       currentStatus: {
         amountDue: roundPesos(amountDue),
         paidThrough: paidThrough,
+        paidThroughLocalized: localizeDomainDisplayText(paidThrough || '', localizationCtx.resolvedLanguage),
+        amountDueDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(amountDue), localizationCtx.resolvedLanguage),
         creditBalance: roundPesos(creditBalance),
+        creditBalanceDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(creditBalance), localizationCtx.resolvedLanguage),
         ytdPaid: {
           hoaDues: roundPesos(ytdPaid),
+          hoaDuesDisplayLocalized: formatLocalizedAmountDisplay(roundPesos(ytdPaid), localizationCtx.resolvedLanguage),
           projects: 0 // Placeholder for future Projects module
         }
       },
       paymentCalendar: paymentCalendar, // Add payment calendar data
-      transactions: transactions.map(tx => ({
-        id: tx.id,
-        date: formatDateField(tx.date), // Formatted date object
-        amount: tx.amount,
-        description: tx.description,
-        category: tx.category,
-        account: tx.account,
-        paymentMethod: tx.paymentMethod
-      }))
+      transactions: responseTransactions,
+      localization: buildLocalizationMeta(localizationCtx)
     };
 
     res.json(response);
@@ -388,7 +470,9 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
-    const language = req.query.language || 'english';
+    const localizationCtx = await getLocalizationContext(req, 'reports.statement.data');
+    applyLocalizationHeaders(res, localizationCtx);
+    const language = languageToReportLanguage(localizationCtx.resolvedLanguage);
     const skipHtml = req.query.skipHtml === 'true';
     
     if (!unitId) {
@@ -410,13 +494,46 @@ router.get('/statement/data', authenticateUserWithProfile, async (req, res) => {
       }
     });
 
-    const statement = await generateStatementData(api, clientId, unitId, {
+    let statement = await generateStatementData(api, clientId, unitId, {
       fiscalYear,
       language,
       skipHtml
     });
+
+    if (localizationCtx.flags.companionsOn) {
+      const localizedLineItems = Array.isArray(statement.lineItems)
+        ? statement.lineItems.map((lineItem) => withStatementLineItemDisplayCompanions(lineItem, localizationCtx.resolvedLanguage))
+        : statement.lineItems;
+
+      statement = {
+        ...statement,
+        lineItems: localizedLineItems,
+        statementInfo: statement.statementInfo
+          ? {
+              ...statement.statementInfo,
+              periodCoveredLocalized: localizeDomainDisplayText(statement.statementInfo.periodCovered || '', localizationCtx.resolvedLanguage),
+              statementDateDisplayLocalized: formatLocalizedDateDisplay(statement.statementInfo.statementDate, localizationCtx.resolvedLanguage),
+            }
+          : statement.statementInfo,
+        summary: statement.summary
+          ? {
+              ...statement.summary,
+              totalDueAmountDisplayLocalized: formatLocalizedAmountDisplay(statement.summary.totalDue, localizationCtx.resolvedLanguage),
+              totalPaidAmountDisplayLocalized: formatLocalizedAmountDisplay(statement.summary.totalPaid, localizationCtx.resolvedLanguage),
+              closingBalanceAmountDisplayLocalized: formatLocalizedAmountDisplay(statement.summary.closingBalance, localizationCtx.resolvedLanguage),
+              amountDueAmountDisplayLocalized: formatLocalizedAmountDisplay(statement.summary.amountDue, localizationCtx.resolvedLanguage),
+            }
+          : statement.summary,
+        nextPaymentDueDateDisplayLocalized: formatLocalizedDateDisplay(statement.nextPaymentDueDate, localizationCtx.resolvedLanguage),
+        nextPaymentAmountDisplayLocalized: formatLocalizedAmountDisplay(statement.nextPaymentAmount, localizationCtx.resolvedLanguage),
+      };
+    }
     
-    res.json({ success: true, data: statement });
+    res.json({
+      success: true,
+      data: statement,
+      localization: buildLocalizationMeta(localizationCtx),
+    });
   } catch (error) {
     logError('Error fetching statement data:', error);
     res.status(500).json({ 
@@ -608,7 +725,9 @@ router.get('/statement/pdf', authenticateUserWithProfile, async (req, res) => {
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const unitId = req.query.unitId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
-    const language = req.query.language || 'english';
+    const localizationCtx = await getLocalizationContext(req, 'reports.statement.pdf');
+    applyLocalizationHeaders(res, localizationCtx);
+    const language = languageToReportLanguage(localizationCtx.resolvedLanguage);
     
     if (!unitId) {
       return res.status(400).json({ 
@@ -940,6 +1059,8 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
     const clientId = req.originalParams?.clientId || req.params.clientId;
     const fiscalYear = req.query.fiscalYear ? parseInt(req.query.fiscalYear) : null;
     const reportMode = parseBudgetActualReportMode(req.query.reportMode);
+    const localizationCtx = await getLocalizationContext(req, 'reports.budgetActual.data');
+    applyLocalizationHeaders(res, localizationCtx);
     const user = req.user;
     
     if (!clientId) {
@@ -959,11 +1080,57 @@ router.get('/budget-actual/data', authenticateUserWithProfile, async (req, res) 
     }
 
     const data = await getBudgetActualData(clientId, fiscalYear, user, { reportMode });
+    if (localizationCtx.flags.companionsOn) {
+      const isSpanish = localizationCtx.resolvedLanguage === 'ES';
+      data.localizedLabels = {
+        income: isSpanish ? 'Ingresos' : 'Income',
+        expenses: isSpanish ? 'Gastos' : 'Expenses',
+        variance: isSpanish ? 'Variacion' : 'Variance',
+        annualBudget: isSpanish ? 'Presupuesto Anual' : 'Annual Budget',
+        ytdBudget: isSpanish ? 'Presupuesto Acumulado' : 'YTD Budget',
+        ytdActual: isSpanish ? 'Real Acumulado' : 'YTD Actual',
+        specialAssessments: isSpanish ? 'Cuotas Especiales' : 'Special Assessments',
+      };
+
+      data.income.categories = (data.income?.categories || []).map((category) => ({
+        ...category,
+        nameLocalized: resolvePersistedCategoryName(category, localizationCtx.resolvedLanguage),
+        annualBudgetAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.annualBudget || 0), localizationCtx.resolvedLanguage),
+        ytdBudgetAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.ytdBudget || 0), localizationCtx.resolvedLanguage),
+        ytdActualAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.ytdActual || 0), localizationCtx.resolvedLanguage),
+      }));
+
+      data.expenses.categories = (data.expenses?.categories || []).map((category) => ({
+        ...category,
+        nameLocalized: resolvePersistedCategoryName(category, localizationCtx.resolvedLanguage),
+        annualBudgetAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.annualBudget || 0), localizationCtx.resolvedLanguage),
+        ytdBudgetAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.ytdBudget || 0), localizationCtx.resolvedLanguage),
+        ytdActualAmountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(category.ytdActual || 0), localizationCtx.resolvedLanguage),
+      }));
+
+      if (data.specialAssessments?.collections) {
+        data.specialAssessments.collections.categoryNameLocalized =
+          data.localizedLabels.specialAssessments || data.specialAssessments.collections.categoryName || '';
+      }
+
+      if (Array.isArray(data.specialAssessments?.expenditures)) {
+        data.specialAssessments.expenditures = data.specialAssessments.expenditures.map((expense) => ({
+          ...expense,
+          // Project names are not category documents; preserve source for compatibility.
+          nameLocalized: expense.name || '',
+          amountDisplayLocalized: formatLocalizedAmountDisplay(centavosToPesos(expense.amount || 0), localizationCtx.resolvedLanguage),
+        }));
+      }
+    }
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data,
+      localization: buildLocalizationMeta(localizationCtx),
+    });
   } catch (error) {
     logError('Error fetching budget vs actual data:', error);
     res.status(500).json({ 

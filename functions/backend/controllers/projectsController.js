@@ -17,6 +17,9 @@ import { listUnits } from './unitsController.js';
 import { allocateByOwnership } from '../../shared/utils/allocationUtils.js';
 import { logDebug, logInfo, logWarn, logError } from '../../shared/logger.js';
 import { createTransaction } from './transactionsController.js';
+import { localizeFixedValue } from '../utils/localizationCatalog.js';
+import { applyLocalizationHeaders, getLocalizationContext } from '../utils/localizationContract.js';
+import { localizeFreeFormFields } from '../services/freeFormTranslationBatch.js';
 
 // Documents to exclude from project listings (structural, not projects)
 const EXCLUDED_PROJECT_IDS = ['waterBills', 'propaneTanks'];
@@ -217,6 +220,8 @@ export async function listProjectsHandler(req, res) {
   try {
     const { clientId } = req.params;
     const { year } = req.query;
+    const localizationCtx = await getLocalizationContext(req, 'projects.list');
+    applyLocalizationHeaders(res, localizationCtx);
     
     if (!clientId) {
       return res.status(400).json({
@@ -236,7 +241,32 @@ export async function listProjectsHandler(req, res) {
     
     logDebug(`📋 Fetching projects for client: ${clientId}${fiscalYear ? ` (year: ${fiscalYear})` : ''}`);
     
-    const projects = await listProjects(clientId, fiscalYear);
+    let projects = await listProjects(clientId, fiscalYear);
+
+    if (localizationCtx.flags.companionsOn) {
+      const isSpanish = localizationCtx.resolvedLanguage === 'ES';
+      projects = projects.map((project) => ({
+        ...project,
+        statusLocalized: localizeFixedValue('status', project.status, localizationCtx.resolvedLanguage),
+        nameLocalized: isSpanish ? (project.name_es || project.name || '') : (project.name || ''),
+        descriptionLocalized: isSpanish ? (project.description_es || project.description || '') : (project.description || ''),
+      }));
+
+      const shouldTranslateFreeForm = localizationCtx.flags.translateFreeFormOn && localizationCtx.resolvedLanguage === 'ES';
+      if (shouldTranslateFreeForm) {
+        const translationResult = await localizeFreeFormFields(
+          projects,
+          ['name', 'description'],
+          localizationCtx.resolvedLanguage
+        );
+        projects = translationResult.records.map((project) => ({
+          ...project,
+          nameLocalized: project.name_es || project.nameLocalized || project.name || '',
+          descriptionLocalized: project.description_es || project.descriptionLocalized || project.description || '',
+        }));
+        res.setHeader('X-SAMS-Localization-Partial', translationResult.failedCount > 0 ? 'true' : 'false');
+      }
+    }
     
     logDebug(`✅ Found ${projects.length} projects`);
     
@@ -650,6 +680,7 @@ export async function updateProject(clientId, projectId, updates, options = {}) 
     const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
     batch.set(categoryRef, {
       name: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
+      name_es: `Projects: ${existingData.name || otherUpdates.name || projectId}`,
       description: existingData.name || otherUpdates.name || projectId,
       type: 'expense',
       status: 'active',
@@ -1263,6 +1294,7 @@ export async function selectBid(clientId, projectId, bidId, options = {}) {
   const categoryRef = db.doc(`clients/${clientId}/categories/projects-${projectId}`);
   batch.set(categoryRef, {
     name: `Projects: ${projectData.name || projectId}`,
+    name_es: `Projects: ${projectData.name || projectId}`,
     description: projectData.name || projectId,
     type: 'expense',
     status: 'active',

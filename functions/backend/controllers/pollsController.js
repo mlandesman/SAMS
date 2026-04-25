@@ -5,6 +5,8 @@ import { writeAuditLog } from '../utils/auditLogger.js';
 import { generateVoteToken, validateVoteToken as decodeVoteToken } from '../utils/voteTokenUtils.js';
 import { listUnits } from './unitsController.js';
 import { getUnitEmailLanguage, getUnitRecipientInfo, isProduction, getDevEmailOverride } from '../utils/reportEmailUtils.js';
+import { localizeFixedValue } from '../utils/localizationCatalog.js';
+import { applyLocalizationHeaders, getLocalizationContext } from '../utils/localizationContract.js';
 
 function toTimestamp(value, fallback = null) {
   if (!value) {
@@ -213,9 +215,11 @@ export async function listPollsHandler(req, res) {
   try {
     const { clientId } = req.params;
     const { status } = req.query;
+    const localizationCtx = await getLocalizationContext(req, 'vote.polls.list');
+    applyLocalizationHeaders(res, localizationCtx);
     const db = await getDb();
     const snapshot = await db.collection(`clients/${clientId}/polls`).get();
-    const polls = snapshot.docs
+    let polls = snapshot.docs
       .map((doc) => serializePoll(doc))
       .filter((poll) => !status || poll.status === status)
       .sort((a, b) => {
@@ -223,6 +227,22 @@ export async function listPollsHandler(req, res) {
         const bTime = b.closesAt ? Date.parse(b.closesAt) : 0;
         return bTime - aTime;
       });
+
+    if (localizationCtx.flags.companionsOn) {
+      const isSpanish = localizationCtx.resolvedLanguage === 'ES';
+      polls = polls.map((poll) => ({
+        ...poll,
+        titleLocalized: isSpanish ? (poll.title_es || poll.title || '') : (poll.title || ''),
+        descriptionLocalized: isSpanish ? (poll.description_es || poll.description || '') : (poll.description || ''),
+        statusLocalized: localizeFixedValue('status', poll.status, localizationCtx.resolvedLanguage),
+        options: Array.isArray(poll.options)
+          ? poll.options.map((option) => ({
+              ...option,
+              labelLocalized: isSpanish ? (option.label_es || option.label || '') : (option.label || ''),
+            }))
+          : poll.options,
+      }));
+    }
 
     res.json({
       success: true,
