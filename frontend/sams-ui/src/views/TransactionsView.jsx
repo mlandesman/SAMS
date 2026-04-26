@@ -55,7 +55,7 @@ import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
-  const { t } = useDesktopStrings();
+  const { t, language } = useDesktopStrings();
   const [allTransactions, setAllTransactions] = useState([]);
   const [balance, setBalance] = useState(null);
   const [startingBalance, setStartingBalance] = useState({ cashBalance: 0, bankBalance: 0 });
@@ -806,7 +806,7 @@ function TransactionsView() {
       
       // Step 2: Not in current filter, check if it exists at all (ignoring filters)
       console.log(`Transaction ${transactionId} not in current filter, checking if it exists in database`);
-      const transaction = await getTransactionById(selectedClient.id, transactionId);
+      const transaction = await getTransactionById(selectedClient.id, transactionId, language);
       
       if (!transaction) {
         // Step 3a: Transaction doesn't exist at all
@@ -897,7 +897,7 @@ function TransactionsView() {
       // Books are open: all users (including owners/managers) see all transactions; CRUD gated separately
       console.log(`Fetching transactions for filter: ${currentFilter}`);
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      const txnList = await fetchTransactions({ clientId, startDate, endDate });
+      const txnList = await fetchTransactions({ clientId, startDate, endDate, language });
       
       // Debug: Log transaction dates to see what we're getting
       console.log(`Loaded ${txnList.length} transactions with current filter`);
@@ -993,7 +993,7 @@ function TransactionsView() {
       isMounted = false;
       console.log('Data fetching effect cleanup - component unmounted');
     };
-  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
+  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates, language]);
   
   // Effect for handling transaction finding after filter change
   useEffect(() => {
@@ -1168,7 +1168,8 @@ function TransactionsView() {
           const allTxns = await fetchTransactions({ 
             clientId: selectedClient.id,
             startDate: new Date('2020-01-01'), // Start from 2020
-            endDate: new Date('2099-12-31')   // End in far future
+            endDate: new Date('2099-12-31'),  // End in far future
+            language
           });
           console.log(`✅ Loaded ${allTxns.length} total transactions for Advanced Filter`);
           setAllTransactionsUnfiltered(allTxns);
@@ -1179,7 +1180,7 @@ function TransactionsView() {
     };
     
     fetchAllTransactions();
-  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length]);
+  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length, language]);
 
   // Clear unfiltered transactions when client changes
   useEffect(() => {
@@ -1955,7 +1956,7 @@ function TransactionsView() {
               // Fetch the saved transaction to get formatted dates
               let formattedTransaction = null;
               try {
-                formattedTransaction = await getTransactionById(clientId, transactionId);
+                formattedTransaction = await getTransactionById(clientId, transactionId, language);
                 console.log('✅ Fetched formatted transaction with proper dates');
               } catch (error) {
                 console.warn('Could not fetch formatted transaction, using input data', error);

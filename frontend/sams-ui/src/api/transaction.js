@@ -351,6 +351,10 @@ export async function fetchTransactions(clientId, filters = {}) {
     if (filters.unitId) {
       queryParams.append('unitId', filters.unitId);
     }
+    if (filters.language) {
+      const normalizedLanguage = String(filters.language).toUpperCase() === 'ES' ? 'ES' : 'EN';
+      queryParams.append('lang', normalizedLanguage);
+    }
 
     const API_BASE_URL = config.api.baseUrl;
     const url = `${API_BASE_URL}/clients/${clientId}/transactions${queryParams.toString() ? '?' + queryParams.toString() : ''}`;

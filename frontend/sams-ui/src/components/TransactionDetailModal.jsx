@@ -4,10 +4,11 @@ import { faEye } from '@fortawesome/free-solid-svg-icons';
 import { DocumentList } from './documents';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
-import { getAuthInstance } from '../firebaseClient';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import './TransactionDetailModal.css';
 
 const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
+  const { isSpanish } = useDesktopLanguage();
   const [documentViewer, setDocumentViewer] = useState({
     isOpen: false,
     documents: [],
@@ -61,6 +62,19 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
   }, [transaction, isOpen, clientId]);
 
   if (!isOpen || !transaction) return null;
+
+  const readText = (value) => {
+    if (value == null) return '';
+    return String(value).trim();
+  };
+
+  const pickDisplayText = (localizedValue, sourceValue) => {
+    if (isSpanish) {
+      const localized = readText(localizedValue);
+      if (localized) return localized;
+    }
+    return readText(sourceValue);
+  };
 
   // Helper function to check if documents exist and get count
   const getDocumentCount = (docs) => {
@@ -247,17 +261,17 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             
             <div className="detail-row">
               <label>Vendor:</label>
-              <span>{transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor || 'N/A'}</span>
+              <span>{pickDisplayText(transaction.vendorNameLocalized, transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor) || 'N/A'}</span>
             </div>
             
             <div className="detail-row">
               <label>Category:</label>
-              <span>{transaction.categoryName?.stringValue || transaction.categoryName || transaction.category || 'N/A'}</span>
+              <span>{pickDisplayText(transaction.categoryNameLocalized || transaction.categoryLocalized, transaction.categoryName?.stringValue || transaction.categoryName || transaction.category) || 'N/A'}</span>
             </div>
             
             <div className="detail-row">
               <label>Account:</label>
-              <span>{transaction.accountName || transaction.accountType || transaction.account || 'N/A'}</span>
+              <span>{pickDisplayText(transaction.accountNameLocalized, transaction.accountName || transaction.accountType || transaction.account) || 'N/A'}</span>
             </div>
             
             <div className="detail-row">
@@ -267,13 +281,13 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             
             <div className="detail-row">
               <label>Payment Method:</label>
-              <span>{transaction.paymentMethod || 'N/A'}</span>
+              <span>{pickDisplayText(transaction.paymentMethodLocalized, transaction.paymentMethod) || 'N/A'}</span>
             </div>
             
-            {transaction.notes && (
+            {(transaction.notes || transaction.notesLocalized) && (
               <div className="detail-row notes-row">
                 <label>Notes:</label>
-                <div className="notes-content">{transaction.notes}</div>
+                <div className="notes-content">{pickDisplayText(transaction.notesLocalized, transaction.notes)}</div>
               </div>
             )}
             

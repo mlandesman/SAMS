@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperclip, faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
-import { getAuthInstance } from '../firebaseClient';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import './TransactionTable.css';
 
 function formatClearedDateLabel(c) {
@@ -33,6 +33,21 @@ function clearedTooltip(transaction) {
 }
 
 function TransactionTable({ transactions = [], selectedId = null, onSelectTransaction, onDoubleClickTransaction, clientId }) {
+  const { isSpanish } = useDesktopLanguage();
+
+  const readText = (value) => {
+    if (value == null) return '';
+    const normalized = String(value).trim();
+    return normalized;
+  };
+
+  const pickDisplayText = (localizedValue, sourceValue) => {
+    if (isSpanish) {
+      const localized = readText(localizedValue);
+      if (localized) return localized;
+    }
+    return readText(sourceValue);
+  };
   
   // Helper function to determine display based on amount sign
   const getAmountDisplay = (transaction) => {
@@ -190,7 +205,10 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
     }
     
     // Regular single-category transaction
-    return transaction.categoryName || transaction.category || '';
+    return pickDisplayText(
+      transaction.categoryNameLocalized || transaction.categoryLocalized,
+      transaction.categoryName || transaction.category
+    );
   };
 
   return (
@@ -257,7 +275,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                   )}
                 </td>
                 <td className="date-column">{tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display || ''}</td>
-                <td className="vendor-column">{tx.vendorName || tx.vendor || ''}</td>
+                <td className="vendor-column">{pickDisplayText(tx.vendorNameLocalized, tx.vendorName || tx.vendor)}</td>
                 <td className="category-column">{renderCategoryCell(tx)}</td>
                 <td className="unit-column">{tx.unitId || tx.unit || ''}</td>
                 <td className="amount-column amount-cell" style={{ 
@@ -270,10 +288,10 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                     true // Show cents (centavos)
                   )}
                 </td>
-                <td className="account-column">{tx.accountName || tx.accountType || tx.account || ''}</td>
+                <td className="account-column">{pickDisplayText(tx.accountNameLocalized, tx.accountName || tx.accountType || tx.account)}</td>
                 <td className="notes-column">
                   <div className="notes-content">
-                    <span className="notes-text">{tx.notes}</span>
+                    <span className="notes-text">{pickDisplayText(tx.notesLocalized, tx.notes)}</span>
                     {getDocumentCount(tx.documents) > 0 && (
                       <span 
                         className="document-indicator"
