@@ -5,13 +5,12 @@ import PWANavigation from '../components/PWANavigation';
 import './Layout.css';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
-import { useDesktopLanguage } from '../context/DesktopLanguageContext';
-import { getDesktopShellString } from '../i18n/desktopShellStrings';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 function MainLayout({ children, onChangeClientClick, showStatusBar, onActivityChange }) {
   const { selectedClient, setClient } = useClient();
   const { currentUser, logout } = useAuth();
-  const { language } = useDesktopLanguage();
+  const { t } = useDesktopStrings();
   
   const handleLogout = async () => {
     const success = await logout();
@@ -35,10 +34,10 @@ function MainLayout({ children, onChangeClientClick, showStatusBar, onActivityCh
         {currentUser && (
           <div className="user-info">
             <span>
-              {getDesktopShellString(language, 'layout.loggedInAs')}: {currentUser.email}
+              {t('layout.loggedInAs')}: {currentUser.email}
             </span>
             <button onClick={handleLogout} className="logout-button">
-              {getDesktopShellString(language, 'layout.logout')}
+              {t('layout.logout')}
             </button>
           </div>
         )}

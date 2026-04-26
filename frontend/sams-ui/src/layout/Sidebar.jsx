@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
-import { getDesktopShellString, getLocalizedMenuLabel } from '../i18n/desktopShellStrings';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import './Sidebar.css';
 
@@ -90,6 +90,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
   const { samsUser } = useAuth(); // Get user for role checking
   const { language, setLanguage } = useDesktopLanguage();
+  const { t, menuLabel } = useDesktopStrings();
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
   const allMenuItems = useMemo(() => {
@@ -152,14 +153,14 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
 
       {/* Always render "Activities" heading */}
       <h3 className="sidebar-menu-heading">
-        {getDesktopShellString(language, 'sidebar.activities')}
+        {t('sidebar.activities')}
       </h3>
 
       <ul className="sidebar-menu">
         {isLoadingMenu && selectedClient ? (
-          <li className="menu-loading">{getDesktopShellString(language, 'sidebar.loadingMenu')}</li>
+          <li className="menu-loading">{t('sidebar.loadingMenu')}</li>
         ) : menuError ? (
-          <li className="menu-error">{getDesktopShellString(language, 'sidebar.errorMenu')}</li>
+          <li className="menu-error">{t('sidebar.errorMenu')}</li>
         ) : (
           menuItems.map((item, index) => {
             // Get the current path from window location
@@ -177,7 +178,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
                     onActivityChange(item.activity); // Call onActivityChange
                   }}
                 >
-                  {getLocalizedMenuLabel(language, item.activity, item.name)}
+                  {menuLabel(item.activity, item.name)}
                 </Link>
               </li>
             );
@@ -189,12 +190,12 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
               to="/reconciliation"
               onClick={() => onActivityChange && onActivityChange('reconciliation')}
             >
-              {getDesktopShellString(language, 'sidebar.reconciliation')}
+              {t('sidebar.reconciliation')}
             </Link>
           </li>
         )}
         <li className="change-client-button" onClick={onChangeClientClick}>
-          {getDesktopShellString(language, 'sidebar.changeClient')}
+          {t('sidebar.changeClient')}
         </li>
       </ul>
 
@@ -205,7 +206,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
           onClick={handleLanguageToggle}
           aria-label="Toggle language"
         >
-          {language === 'EN' ? 'Language: 🇺🇸' : 'Idioma: 🇲🇽'}
+          {t('sidebar.languageToggle')}
         </button>
       </div>
     </div>

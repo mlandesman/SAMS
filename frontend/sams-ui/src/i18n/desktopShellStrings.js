@@ -2,6 +2,7 @@ const STRINGS = {
   EN: {
     'sidebar.activities': 'Activities',
     'sidebar.language': 'Language',
+    'sidebar.languageToggle': 'Language: 🇺🇸',
     'sidebar.changeClient': 'Change Client',
     'sidebar.loadingMenu': 'Loading menu...',
     'sidebar.errorMenu': 'Error loading menu',
@@ -12,6 +13,7 @@ const STRINGS = {
   ES: {
     'sidebar.activities': 'Actividades',
     'sidebar.language': 'Idioma',
+    'sidebar.languageToggle': 'Idioma: 🇲🇽',
     'sidebar.changeClient': 'Cambiar cliente',
     'sidebar.loadingMenu': 'Cargando menu...',
     'sidebar.errorMenu': 'Error al cargar menu',
@@ -41,25 +43,40 @@ function normalizeLanguage(language) {
   return language === 'ES' ? 'ES' : 'EN';
 }
 
-export function getDesktopShellString(language, key) {
+export function getDesktopShellString(language, key, localizationEnabled = true) {
   const normalizedLanguage = normalizeLanguage(language);
-  const localized = STRINGS[normalizedLanguage][key];
+  const resolvedLanguage = localizationEnabled ? normalizedLanguage : 'EN';
+  const localized = STRINGS[resolvedLanguage][key];
 
   if (localized) {
     return localized;
   }
 
-  return STRINGS.EN[key] || key;
+  const englishFallback = STRINGS.EN[key];
+  if (englishFallback) {
+    return englishFallback;
+  }
+
+  // Deterministic readable fallback for missing key cases.
+  return `[missing: ${key}]`;
 }
 
-export function getLocalizedMenuLabel(language, activity, fallbackLabel) {
+export function getLocalizedMenuLabel(language, activity, fallbackLabel, localizationEnabled = true) {
   const normalizedLanguage = normalizeLanguage(language);
+  const resolvedLanguage = localizationEnabled ? normalizedLanguage : 'EN';
   const normalizedActivity = (activity || '').toLowerCase();
   const localizedEntry = MENU_LABELS_BY_ACTIVITY[normalizedActivity];
 
-  if (localizedEntry && localizedEntry[normalizedLanguage]) {
-    return localizedEntry[normalizedLanguage];
+  if (localizedEntry && localizedEntry[resolvedLanguage]) {
+    return localizedEntry[resolvedLanguage];
   }
 
   return fallbackLabel;
+}
+
+export function normalizeProfileLanguageToUi(raw) {
+  if (raw == null || raw === '') return 'EN';
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'es' || s === 'spanish' || s === 'esp' || s === 'es-mx' || s === 'es_mx') return 'ES';
+  return 'EN';
 }
