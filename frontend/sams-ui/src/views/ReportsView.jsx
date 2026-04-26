@@ -13,17 +13,18 @@ import { useStatusBar } from '../context/StatusBarContext';
 import ActivityActionBar from '../components/common/ActivityActionBar';
 import StatementOfAccountTab from '../components/reports/StatementOfAccountTab';
 import BudgetActualTab from '../components/reports/BudgetActualTab';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import '../layout/ActionBar.css';
 import './ReportsView.css';
 
-function ActivityTab() {
+function ActivityTab({ t }) {
   return (
     <div className="reports-tab-content">
       <div className="reports-placeholder">
         <FontAwesomeIcon icon={faChartLine} size="3x" className="placeholder-icon" />
-        <h2>Activity Reports</h2>
-        <p>View activity and transaction history reports.</p>
-        <p className="coming-soon">Coming soon</p>
+        <h2>{t('reports.activity.title')}</h2>
+        <p>{t('reports.activity.description')}</p>
+        <p className="coming-soon">{t('reports.comingSoon')}</p>
       </div>
     </div>
   );
@@ -32,6 +33,7 @@ function ActivityTab() {
 function ReportsView() {
   const location = useLocation();
   const { selectedClient } = useClient();
+  const { t } = useDesktopStrings();
   
   // Handle navigation state for direct tab selection
   const getInitialTab = () => {
@@ -69,17 +71,17 @@ function ReportsView() {
   useEffect(() => {
     const zoomControl = (
       <div className="status-zoom-control">
-        <span className="status-zoom-label">Zoom</span>
+        <span className="status-zoom-label">{t('reports.zoom')}</span>
         <select
           className="status-zoom-select"
           value={zoomMode === 'custom' ? zoom : zoomMode}
           onChange={handleZoomChange}
         >
-          <optgroup label="Fit">
-            <option value="page-width">Page Width</option>
-            <option value="single-page">Single Page</option>
+          <optgroup label={t('reports.zoom.fit')}>
+            <option value="page-width">{t('reports.zoom.pageWidth')}</option>
+            <option value="single-page">{t('reports.zoom.singlePage')}</option>
           </optgroup>
-          <optgroup label="Percentage">
+          <optgroup label={t('reports.zoom.percentage')}>
             <option value={0.75}>75%</option>
             <option value={1.0}>100%</option>
             <option value={1.25}>125%</option>
@@ -95,13 +97,13 @@ function ReportsView() {
     return () => {
       clearCenterContent();
     };
-  }, [zoom, zoomMode, setCenterContent, clearCenterContent, handleZoomChange]);
+  }, [zoom, zoomMode, setCenterContent, clearCenterContent, handleZoomChange, t]);
 
   if (!selectedClient) {
     return (
       <div className="reports-view">
         <div className="reports-placeholder">
-          <p>Please select a client to view reports.</p>
+          <p>{t('reports.selectClient')}</p>
         </div>
       </div>
     );
@@ -122,23 +124,23 @@ function ReportsView() {
           className="reports-tabs"
         >
           <Tab
-            label="Statement of Account"
+            label={t('reports.tab.statement')}
             icon={<FontAwesomeIcon icon={faFileInvoice} />}
             iconPosition="start"
           />
           <Tab
-            label="Budget vs Actual"
+            label={t('reports.tab.budgetActual')}
             icon={<FontAwesomeIcon icon={faChartPie} />}
             iconPosition="start"
           />
           <Tab
-            label="Activity"
+            label={t('reports.tab.activity')}
             icon={<FontAwesomeIcon icon={faChartLine} />}
             iconPosition="start"
             disabled
           />
           <Tab
-            label="History (Soon)"
+            label={t('reports.tab.historySoon')}
             icon={<FontAwesomeIcon icon={faHistory} />}
             iconPosition="start"
             disabled
@@ -149,14 +151,14 @@ function ReportsView() {
       <div className="reports-content">
         {tabIndex === 0 && <StatementOfAccountTab zoom={zoom} zoomMode={zoomMode} />}
         {tabIndex === 1 && <BudgetActualTab zoom={zoom} zoomMode={zoomMode} />}
-        {tabIndex === 2 && <ActivityTab />}
+        {tabIndex === 2 && <ActivityTab t={t} />}
         {tabIndex === 3 && (
           <div className="reports-tab-content">
             <div className="reports-placeholder">
               <FontAwesomeIcon icon={faHistory} size="3x" className="placeholder-icon" />
-              <h2>Report History</h2>
-              <p>View previously generated reports.</p>
-              <p className="coming-soon">Coming soon</p>
+              <h2>{t('reports.history.title')}</h2>
+              <p>{t('reports.history.description')}</p>
+              <p className="coming-soon">{t('reports.comingSoon')}</p>
             </div>
           </div>
         )}

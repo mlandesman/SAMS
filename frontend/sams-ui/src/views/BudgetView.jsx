@@ -4,7 +4,6 @@ import { Tab, Tabs, Box, Typography, Alert, CircularProgress, Button } from '@mu
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCoins,
-  faChartPie,
   faFileAlt,
   faVoteYea,
   faComments,
@@ -22,6 +21,7 @@ import { getPolls, getPoll, createPoll } from '../api/polls';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import PollCreationWizard from '../components/polls/PollCreationWizard';
 import reportService from '../services/reportService';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import '../layout/ActionBar.css';
 import './BudgetView.css';
 
@@ -50,6 +50,7 @@ function BudgetView() {
   const navigate = useNavigate();
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
+  const { t } = useDesktopStrings();
   const canManageBudget = isAdmin(samsUser, selectedClient?.id);
   // Non-admin: only Budget vs Actual (tab 1); admin: both tabs, default to 0
   const [tabIndex, setTabIndex] = useState(0);
@@ -90,7 +91,7 @@ function BudgetView() {
 
     const zoomControl = (
       <div className="status-zoom-control">
-        <span className="status-zoom-label">Zoom</span>
+        <span className="status-zoom-label">{t('budget.zoom')}</span>
         <select
           className="status-zoom-select"
           value={zoomMode === 'custom' ? zoom : zoomMode}
@@ -116,7 +117,7 @@ function BudgetView() {
     return () => {
       clearCenterContent();
     };
-  }, [zoom, zoomMode, tabIndex, canManageBudget, setCenterContent, clearCenterContent, handleZoomChange]);
+  }, [zoom, zoomMode, tabIndex, canManageBudget, setCenterContent, clearCenterContent, handleZoomChange, t]);
 
   useEffect(() => {
     const loadBudgetPoll = async () => {
@@ -231,7 +232,7 @@ function BudgetView() {
     return (
       <div className="view-container">
         <Alert severity="info" sx={{ mt: 2, mx: 2 }}>
-          Please select a client to manage budgets
+          {t('budget.selectClient')}
         </Alert>
       </div>
     );
@@ -244,10 +245,10 @@ function BudgetView() {
         <button 
           className="action-item" 
           onClick={() => navigate('/reports', { state: { activeTab: 'budget-actual' } })}
-          title="View Budget vs Actual report"
+          title={t('budget.action.viewBudgetVsActual')}
         >
           <FontAwesomeIcon icon={faChartLine} />
-          <span>Budget vs Actual</span>
+          <span>{t('budget.action.viewBudgetVsActual')}</span>
         </button>
         {canManageBudget && (
           <>
@@ -255,19 +256,19 @@ function BudgetView() {
               className="action-item" 
               onClick={() => handleCreateVoteOrPoll('vote')}
               disabled={generatingDocs}
-              title="Create budget approval vote"
+              title={t('budget.action.createVoteTitle')}
             >
               <FontAwesomeIcon icon={generatingDocs ? faSpinner : faVoteYea} spin={generatingDocs} />
-              <span>{generatingDocs ? 'Generating...' : 'Create Vote'}</span>
+              <span>{generatingDocs ? t('budget.action.generating') : t('budget.action.createVote')}</span>
             </button>
             <button 
               className="action-item" 
               onClick={() => handleCreateVoteOrPoll('poll')}
               disabled={generatingDocs}
-              title="Create budget discussion poll"
+              title={t('budget.action.createPollTitle')}
             >
               <FontAwesomeIcon icon={generatingDocs ? faSpinner : faComments} spin={generatingDocs} />
-              <span>{generatingDocs ? 'Generating...' : 'Create Poll'}</span>
+              <span>{generatingDocs ? t('budget.action.generating') : t('budget.action.createPoll')}</span>
             </button>
           </>
         )}
@@ -280,7 +281,12 @@ function BudgetView() {
       )}
       {budgetPoll && (
         <Alert severity="info" sx={{ mb: 2, mx: 2 }}>
-          Budget Vote: {budgetPoll.title} • {budgetPoll.status} • {budgetPollSummary?.totalResponses || 0}/{budgetPollSummary?.totalUnits || 0} responses
+          {t('budget.voteSummary', {
+            title: budgetPoll.title,
+            status: budgetPoll.status,
+            responses: budgetPollSummary?.totalResponses || 0,
+            units: budgetPollSummary?.totalUnits || 0
+          })}
         </Alert>
       )}
       {canManageBudget ? (
@@ -293,12 +299,12 @@ function BudgetView() {
               className="budget-tabs"
             >
               <Tab 
-                label="Budget Entry" 
+                label={t('budget.tab.entry')} 
                 icon={<FontAwesomeIcon icon={faCoins} />}
                 iconPosition="start"
               />
               <Tab 
-                label="Budget Report" 
+                label={t('budget.tab.report')} 
                 icon={<FontAwesomeIcon icon={faFileAlt} />}
                 iconPosition="start"
               />
