@@ -6,6 +6,7 @@ import TransactionFiltersProvider from './context/TransactionFiltersContext.jsx'
 import { StatusBarProvider } from './context/StatusBarContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExchangeRateProvider } from './context/ExchangeRateContext';
+import { DesktopLanguageProvider } from './context/DesktopLanguageContext';
 import { useExchangeRates } from './hooks/useExchangeRates';
 import MainLayout from './layout/MainLayout';
 import SplashScreen from './views/SplashScreen';
@@ -330,11 +331,13 @@ function App() {
             <AuthProvider>
               <ExchangeRateProvider>
                 <ClientProvider>
-                  <TransactionsProvider>
-                    <TransactionFiltersProvider>
-                      <AppContent />
-                    </TransactionFiltersProvider>
-                  </TransactionsProvider>
+                  <DesktopLanguageProvider>
+                    <TransactionsProvider>
+                      <TransactionFiltersProvider>
+                        <AppContent />
+                      </TransactionFiltersProvider>
+                    </TransactionsProvider>
+                  </DesktopLanguageProvider>
                 </ClientProvider>
               </ExchangeRateProvider>
             </AuthProvider>
