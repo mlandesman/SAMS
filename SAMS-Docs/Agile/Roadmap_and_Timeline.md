@@ -93,6 +93,8 @@
 
 **Schedule Note (Apr 24, 2026 — BACKEND-LOCALIZATION sprint closeout):** Backend localization contract + endpoint parity session completed and archived. Scope included additive EN/ES companion behavior across read paths (transactions/reports/polls/projects), persisted category `name_es` strategy + backfill support, transactions list/detail parity closure, and Spanish diacritic polish (`Depósito`, `Crédito`, `Penalización`). Branch `feat/flag-design-and-localized-reads` was pushed and changelog pending entry added.
 
+**Schedule Note (Apr 25, 2026 — #315 merged and rollout-ready):** PR #317 merged to `main` with persisted transaction notes localization finalization, runtime transaction read-path DeepL removal, strict backfill guardrails (no English fallback writes to `notes_es`), and legacy transfer-fee note suffix cleanup in expense/reconciliation paths. Production deployment should occur before running the production backfill script.
+
 **Schedule Note (Apr 22, 2026 — UPC-CREDIT-FIX ✅ COMPLETE):** Resolution: data-only reconciliation; no runtime code changed. Both initial diagnoses (writer-side cache corruption per Bootstrap; single-class import miss per Addendum) were proved wrong during the diagnostic loop. Final root cause: small import-era miscounts of `credit_added` ledger entries from the December 2025 Google-Sheet→Firestore migration's text-parsing scripts, sitting dormant for months until the Apr 20 unit 202 payment was the first to depend on the credit ledger to fully cover a bill. Fix: PO posted two reconciliation entries via existing Credit Balance UI (AVII 202 +$0.14, AVII 103 +$99.88, both Dev + Prod) using the Edit-modal Source dropdown to set `source` outside the SoA Account Activity whitelist. Audit script written by IA (`auditCreditLedgerVsSoA.js`) flagged 10/20 units divergent but 8 were by-design false positives (SoA visual application of credit against future-window charges); script deleted at sprint close pending #311's enhancement. Branch `fix/308-credit-ledger-soa-reconciliation` deleted (no merge to main). Issue #308 closed. Follow-up GH issues: #310 (UI dropdown enhancement), #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position.
 
 **Schedule Note (Apr 21, 2026 — UPC-CREDIT-FIX inserted as ACTIVE):** Production blocker `#308` discovered: when UPC uses credit balance to complete a payment, the affected billing document persists with `status: 'partial'` and a `paidAmount` short of `totalAmount`, while the SoA and UPC Preview both correctly show zero owed. Manager Bootstrap Prompt at `SAMS-Docs/Sprint_Management/Manager_Bootstraps/Manager_Bootstrap_Prompt_Sprint_UPC_CREDIT_FIX_2026-04-21.md`. PROD-BACKUP-STABILIZATION and DEBT-1 pushed back one slot. (Both Bootstrap and the subsequent Bootstrap Addendum diagnoses turned out to be wrong — see Apr 22 close-out note above for the actual root cause.)
@@ -165,6 +167,7 @@
 
 | Sprint | Completed | Issues Closed |
 |--------|-----------|---------------|
+| ISSUE-315 localization closeout | Apr 25, 2026 | #315 complete (PR #317 merged): persisted `notes_es` read/write contract finalized, runtime transaction DeepL reads removed, strict backfill behavior enforced |
 | BACKEND-LOCALIZATION | Apr 24, 2026 | APM Task 2.1–2.7 complete (contract, rollout guard, endpoint parity, persisted category propagation, transactions parity + polish) |
 | BUDGET-PROJ-1 | Apr 14, 2026 | #165 complete (PR #304 merged) |
 | PROD-STABILIZATION-1 | Apr 13, 2026 | #288 + #96 (PR #298), #273 (PR #301), #266 (PR #302) — sprint complete |
@@ -224,7 +227,7 @@
 
 ---
 
-*Last Updated: April 25, 2026 — Synced roadmap with backend localization sprint closeout (Apr 24): added Current Focus update, Schedule Note, and Sprint Completion Log entry for APM Task 2.1–2.7 completion and archive state.*
+*Last Updated: April 25, 2026 — Added #315 merge closeout (PR #317) with deploy-before-backfill sequencing note, and appended Sprint Completion Log entry for persisted transaction notes localization finalization.*
 
 *Previous Update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. #308 closed; resolution was data-only reconciliation, no runtime code changed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). Advanced PROD-BACKUP-STABILIZATION to active position; DEBT-1 next behind it. Added Apr 22 Schedule Note.*
 

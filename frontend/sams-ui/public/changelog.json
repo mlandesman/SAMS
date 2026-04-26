@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "fix",
+          "issues": [
+            "315"
+          ],
+          "text": "Persisted transaction notes localization rollout: remove runtime DeepL reads on transaction endpoints, enforce strict notes_es backfill writes, and align expense/reconciliation note generation cleanup"
+        }
+      ]
+    },
+    {
       "version": "1.22.0",
       "date": "2026-04-25",
       "changes": [

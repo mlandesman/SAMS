@@ -1100,6 +1100,7 @@
 1. **Sprint AUTO-STMT**: ✅ COMPLETE (Mar 19) - Automated monthly SoA generation: #249 — PR #250
 12. **Production v1.19.1** (Mar 20, 2026): SoA **email** preamble fix #255 — PDF/data were always correct; email body had double-counted credit; now uses closing balance only.
 13. **Sprint WA / WA-BACKEND**: ⏸️ PAUSED (Mar 20, 2026) — webhook code in main (PR #253); Meta/WhatsApp Business setup blocked externally (not a code defect); WA-FRONTEND deferred until unblock.
+14. **Issue #315 localization closeout**: ✅ COMPLETE (Apr 25, 2026) — PR #317 merged to `main`; persisted `notes_es` contract finalized across transaction read/write flows, runtime transaction DeepL reads removed, strict backfill skip-on-unresolved behavior enforced, and legacy transfer-fee note suffix generation removed from expense/reconciliation paths.
 2. **Sprint EM**: ✅ COMPLETE (Feb 16) - System Error Monitor: #171 — PR #185
 2. **Sprint CX**: ✅ COMPLETE (Feb 15) - Currency discipline: #181, #180, #179 — PR #183
 2. **Sprint F**: ✅ COMPLETE (Feb 6) - Tech debt: #124, #52, #146, #63, #155 — PRs #172-#177
@@ -1139,7 +1140,8 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 22, 2026 (post-retrospective) — Closed #311 as superseded after Sprint UPC-CREDIT-FIX retrospective work created `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` (with Pattern Catalog of recurring symptom shapes) and updated `.cursor/commands/newMA.md` + `newIA.md` with prior-art search rules + mandatory architecture-doc reading. Filed new GH #312 (Nightly Data Integrity Validation + Operations Summary Email) and added new Sprint DATA-INTEGRITY-1 (Deferred) capturing the framework + UPC-vs-SoA seed check + consolidated morning ops email rollup.*  
+*Updated: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.  
+Previous major update: April 22, 2026 (post-retrospective) — Closed #311 as superseded after Sprint UPC-CREDIT-FIX retrospective work created `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` (with Pattern Catalog of recurring symptom shapes) and updated `.cursor/commands/newMA.md` + `newIA.md` with prior-art search rules + mandatory architecture-doc reading. Filed new GH #312 (Nightly Data Integrity Validation + Operations Summary Email) and added new Sprint DATA-INTEGRITY-1 (Deferred) capturing the framework + UPC-vs-SoA seed check + consolidated morning ops email rollup.*  
 *Previous Update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. Resolution: data-only reconciliation, no runtime code changed. #308 closed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position; DEBT-1 next behind it.*  
 *Previous Update: April 21, 2026 — Inserted Sprint UPC-CREDIT-FIX (#308) as ACTIVE critical hotfix sprint ahead of DEBT-1 after production blocker discovered in credit-balance write-back path. PROD-BACKUP-STABILIZATION remained deferred. Scrum step-back analysis attached to Manager Bootstrap Prompt for the new sprint.*  
 *Previous Update: April 15, 2026 — Marked BUDGET-PROJ-1 complete (PR #304, issue #165 closed), preserved PROD-BACKUP-STABILIZATION as deferred, and maintained BUDGET-PROJ-2 as follow-on diagnostics scope.*  
