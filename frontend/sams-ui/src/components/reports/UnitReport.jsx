@@ -9,32 +9,57 @@
  * Designed for mobile-first with touch-friendly interactions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
 import './UnitReport.css';
 
 const UnitReport = ({ unitId, onClose }) => {
   const { samsUser } = useAuth();
   const { selectedClient } = useClient();
+  const { language } = useDesktopLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const isSpanish = language === 'ES';
 
-  useEffect(() => {
-    if (selectedClient?.id && unitId) {
-      fetchUnitReport();
+  const readText = (value) => {
+    if (value == null) return '';
+    return String(value).trim();
+  };
+
+  const pickDisplayText = (localizedValue, sourceValue) => {
+    if (isSpanish) {
+      const localized = readText(localizedValue);
+      if (localized) return localized;
     }
-  }, [selectedClient?.id, unitId]);
+    return readText(sourceValue);
+  };
 
-  const fetchUnitReport = async () => {
+  const getTransactionDateDisplay = (transaction) =>
+    pickDisplayText(transaction?.dateDisplayLocalized, transaction?.date?.display || transaction?.date || '');
+
+  const getTransactionTypeDisplay = (transaction) =>
+    pickDisplayText(transaction?.typeLocalized, transaction?.type || 'Transaction');
+
+  const getTransactionDescriptionDisplay = (transaction) =>
+    pickDisplayText(transaction?.descriptionLocalized, transaction?.description);
+
+  const getTransactionCategoryDisplay = (transaction) =>
+    pickDisplayText(transaction?.categoryLocalized, transaction?.category);
+
+  const getTransactionVendorDisplay = (transaction) =>
+    pickDisplayText(transaction?.vendorLocalized, transaction?.vendor);
+
+  const fetchUnitReport = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/clients/${selectedClient.id}/reports/unit/${unitId}`, {
+      const response = await fetch(`/clients/${selectedClient.id}/reports/unit/${unitId}?lang=${language}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +85,13 @@ const UnitReport = ({ unitId, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClient?.id, unitId, samsUser, language]);
+
+  useEffect(() => {
+    if (selectedClient?.id && unitId) {
+      fetchUnitReport();
+    }
+  }, [selectedClient?.id, unitId, fetchUnitReport]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -68,15 +99,6 @@ const UnitReport = ({ unitId, onClose }) => {
       currency: 'USD',
       minimumFractionDigits: 2,
     }).format(amount || 0);
-  };
-
-  // Date formatting no longer needed - API returns pre-formatted dates
-  // Keeping function for backward compatibility if needed
-  const formatDate = (dateValue) => {
-    // If already formatted (has display property), use it
-    if (dateValue?.display) return dateValue.display;
-    // Otherwise return as-is or empty string
-    return dateValue || '';
   };
 
   const handleTransactionClick = (transaction) => {
@@ -232,9 +254,13 @@ const UnitReport = ({ unitId, onClose }) => {
             <span className="label">Status:</span>
             <span className="value">
               {currentStatus.amountDue > 0 ? (
-                <span className="status-due">❌ Amount Due: {formatCurrency(currentStatus.amountDue)}</span>
+                <span className="status-due">
+                  ❌ Amount Due: {pickDisplayText(currentStatus.amountDueDisplayLocalized, formatCurrency(currentStatus.amountDue))}
+                </span>
               ) : (
-                <span className="status-paid">✅ Paid Through {currentStatus.paidThrough || 'Current'}</span>
+                <span className="status-paid">
+                  ✅ Paid Through {pickDisplayText(currentStatus.paidThroughLocalized, currentStatus.paidThrough || 'Current')}
+                </span>
               )}
             </span>
           </div>
@@ -282,7 +308,7 @@ const UnitReport = ({ unitId, onClose }) => {
                 }}
               >
                 <div className="transaction-date">
-                  {transaction.date?.display || transaction.date || ''}
+                  {getTransactionDateDisplay(transaction)}
                 </div>
                 <div className="transaction-amount">
                   {formatCurrency(transaction.amount)}
@@ -314,13 +340,13 @@ const UnitReport = ({ unitId, onClose }) => {
               <div className="detail-row">
                 <span className="detail-label">Date:</span>
                 <span className="detail-value">
-                  {selectedTransaction.date?.display || selectedTransaction.date || ''}
+                  {getTransactionDateDisplay(selectedTransaction)}
                 </span>
               </div>
               <div className="detail-row">
                 <span className="detail-label">Type:</span>
                 <span className="detail-value">
-                  {selectedTransaction.type || 'Transaction'}
+                  {getTransactionTypeDisplay(selectedTransaction)}
                 </span>
               </div>
               <div className="detail-row">
@@ -329,27 +355,27 @@ const UnitReport = ({ unitId, onClose }) => {
                   {formatCurrency(selectedTransaction.amount)}
                 </span>
               </div>
-              {selectedTransaction.description && (
+              {getTransactionDescriptionDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Description:</span>
                   <span className="detail-value">
-                    {selectedTransaction.description}
+                    {getTransactionDescriptionDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}
-              {selectedTransaction.category && (
+              {getTransactionCategoryDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Category:</span>
                   <span className="detail-value">
-                    {selectedTransaction.category}
+                    {getTransactionCategoryDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}
-              {selectedTransaction.vendor && (
+              {getTransactionVendorDisplay(selectedTransaction) && (
                 <div className="detail-row">
                   <span className="detail-label">Vendor:</span>
                   <span className="detail-value">
-                    {selectedTransaction.vendor}
+                    {getTransactionVendorDisplay(selectedTransaction)}
                   </span>
                 </div>
               )}
