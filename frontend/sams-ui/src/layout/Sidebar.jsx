@@ -89,7 +89,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   const { pathname } = useLocation();
   const { selectedClient, menuConfig, isLoadingMenu, menuError } = useClient();
   const { samsUser } = useAuth(); // Get user for role checking
-  const { language, setLanguage } = useDesktopLanguage();
+  const { language, setLanguage, localizationEnabled } = useDesktopLanguage();
   const { t, menuLabel } = useDesktopStrings();
 
   // Use menuConfig if available, otherwise fall back to defaults (memoized)
@@ -138,6 +138,9 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
   }, [samsUser, allMenuItems, selectedClient]);
 
   const handleLanguageToggle = () => {
+    if (!localizationEnabled) {
+      return;
+    }
     setLanguage(language === 'EN' ? 'ES' : 'EN');
   };
 
@@ -205,6 +208,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
           className="sidebar-language-toggle"
           onClick={handleLanguageToggle}
           aria-label={t('sidebar.language')}
+          disabled={!localizationEnabled}
         >
           {t('sidebar.languageToggle')}
         </button>
