@@ -51,7 +51,7 @@ const formatDateDisplay = (value) => {
 
 function DashboardView() {
   const navigate = useNavigate();
-  const { t } = useDesktopStrings();
+  const { t, language } = useDesktopStrings();
   const { currentUser, samsUser } = useAuth();
   const { selectedClient, selectedUnitId, setSelectedUnitId, setUnitOwnerNames, menuConfig } = useClient();
   const { 
@@ -167,6 +167,9 @@ function DashboardView() {
     return 'Unit Owner';
   };
   const userRole = getUserRole();
+  const locale = language === 'ES' ? 'es-MX' : 'en-US';
+  const formatMoney = (value) => Number(value || 0).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatCompactMoney = (value) => Number(value || 0).toLocaleString(locale);
 
   // For non-admin: get authorized units and property role (unitOwner = green, unitManager = purple)
   const propertyAccess = samsUser?.samsProfile?.propertyAccess?.[selectedClient?.id] ?? samsUser?.propertyAccess?.[selectedClient?.id];
@@ -395,31 +398,41 @@ function DashboardView() {
                   <>
                     <Box display="flex" alignItems="center" gap={1} mb={1.5}>
                       <Chip
-                        label={unitAccountData.amountDue <= 0 ? 'Current' : `Balance Due: $${unitAccountData.amountDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        label={
+                          unitAccountData.amountDue <= 0
+                            ? t('dashboard.current')
+                            : t('dashboard.balanceDue', { amount: `$${formatMoney(unitAccountData.amountDue)}` })
+                        }
                         color={unitAccountData.amountDue <= 0 ? 'success' : 'error'}
                         size="small"
                       />
                     </Box>
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       {unitAccountData.nextPaymentDueDate && unitAccountData.nextPaymentAmount != null
-                        ? `${getMexicoDateTime(unitAccountData.nextPaymentDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — $${unitAccountData.nextPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+                        ? `${getMexicoDateTime(unitAccountData.nextPaymentDueDate).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })} - $${formatMoney(unitAccountData.nextPaymentAmount)} MXN`
                         : unitAccountData.amountDue <= 0
-                          ? 'Paid through period'
+                          ? t('dashboard.paidThroughPeriod')
                           : '—'}
                     </Typography>
                     {unitAccountData.creditBalance > 0 && (
                       <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
-                        ${unitAccountData.creditBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                        {t('dashboard.creditAmount', { amount: `$${formatMoney(unitAccountData.creditBalance)}` })}
                       </Typography>
                     )}
                     {unitAccountData.lastPayment && (
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Last: {unitAccountData.lastPayment.date ? getMexicoDateTime(unitAccountData.lastPayment.date).toLocaleDateString('en-US') : '—'} — ${(unitAccountData.lastPayment.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {t('dashboard.lastPayment', {
+                          date: unitAccountData.lastPayment.date ? getMexicoDateTime(unitAccountData.lastPayment.date).toLocaleDateString(locale) : '—',
+                          amount: `$${formatMoney(unitAccountData.lastPayment.amount || 0)}`
+                        })}
                       </Typography>
                     )}
                     <Box sx={{ mt: 1.5 }}>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                        YTD: {unitAccountData.ytdMonthsPaid}/{unitAccountData.ytdTotal} months
+                        {t('dashboard.ytdMonths', {
+                          paid: unitAccountData.ytdMonthsPaid,
+                          total: unitAccountData.ytdTotal
+                        })}
                       </Typography>
                       <LinearProgress
                         variant="determinate"
@@ -460,25 +473,25 @@ function DashboardView() {
               ) : (
                 <>
                   <Typography variant="h4" sx={{ color: '#0863bf', fontWeight: 700, mb: 1 }}>
-                    ${accountBalances.total?.toLocaleString() || '0'}
+                    ${formatCompactMoney(accountBalances.total)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    Bank + Cash − Credit Balances
+                    {t('dashboard.accountFormula')}
                   </Typography>
                   <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <span>Bank Accounts:</span>
-                      <strong>${accountBalances.bank?.toLocaleString() || '0'}</strong>
+                      <span>{t('dashboard.bankAccounts')}:</span>
+                      <strong>${formatCompactMoney(accountBalances.bank)}</strong>
                     </Typography>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <span>Cash Accounts:</span>
-                      <strong>${accountBalances.cash?.toLocaleString() || '0'}</strong>
+                      <span>{t('dashboard.cashAccounts')}:</span>
+                      <strong>${formatCompactMoney(accountBalances.cash)}</strong>
                     </Typography>
                     {(accountBalances.unitCreditsPesos || 0) > 0 && (
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span style={{ color: 'rgba(0,0,0,0.6)' }}>Credit Balances</span>
+                        <span style={{ color: 'rgba(0,0,0,0.6)' }}>{t('dashboard.creditBalances')}</span>
                         <strong>
-                          ${Math.round(accountBalances.unitCreditsPesos).toLocaleString()}
+                          ${formatCompactMoney(Math.round(accountBalances.unitCreditsPesos))}
                         </strong>
                       </Typography>
                     )}
@@ -493,7 +506,7 @@ function DashboardView() {
         {isAdmin && (
         <Grid item xs={12} sm={6} md={4}>
           <Tooltip
-            title="Click to receive payment"
+            title={t('dashboard.receivePaymentHint')}
             arrow
             placement="top"
           >
@@ -549,16 +562,16 @@ function DashboardView() {
                   </Box>
                   <Box>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <span>Currently Due:</span>
-                      <strong>${hoaDuesStatus.currentlyDue?.toLocaleString() || '0'}</strong>
+                      <span>{t('dashboard.currentlyDue')}:</span>
+                      <strong>${formatCompactMoney(hoaDuesStatus.currentlyDue)}</strong>
                     </Typography>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <span>Current Paid:</span>
-                      <strong style={{ color: '#059669' }}>${hoaDuesStatus.currentPaid?.toLocaleString() || '0'}</strong>
+                      <span>{t('dashboard.currentPaid')}:</span>
+                      <strong style={{ color: '#059669' }}>${formatCompactMoney(hoaDuesStatus.currentPaid)}</strong>
                     </Typography>
                     <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Pre-Paid:</span>
-                      <strong style={{ color: '#7c3aed' }}>${hoaDuesStatus.futurePayments?.toLocaleString() || '0'}</strong>
+                      <span>{t('dashboard.prePaid')}:</span>
+                      <strong style={{ color: '#7c3aed' }}>${formatCompactMoney(hoaDuesStatus.futurePayments)}</strong>
                     </Typography>
                   </Box>
                 </>
@@ -600,7 +613,7 @@ function DashboardView() {
                         hoaDuesStatus.pastDueDetails?.length > 0 ? (
                           <Box sx={{ p: 1.5 }}>
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
-                              Past Due Details
+                              {t('dashboard.pastDueDetails')}
                             </Typography>
                             {hoaDuesStatus.pastDueDetails.map((unit, index) => (
                               <Box key={unit.unitId} sx={{ mb: index < hoaDuesStatus.pastDueDetails.length - 1 ? 1 : 0 }}>
@@ -608,7 +621,7 @@ function DashboardView() {
                                   <span>
                                     <strong>{unit.unitId}</strong> - {unit.owner}
                                   </span>
-                                  <strong>${Math.round(unit.amountDue).toLocaleString()}</strong>
+                                  <strong>${formatCompactMoney(Math.round(unit.amountDue))}</strong>
                                 </Typography>
                               </Box>
                             ))}
@@ -630,7 +643,7 @@ function DashboardView() {
                     >
                       <Box sx={{ cursor: hoaDuesStatus.overdueCount > 0 ? 'pointer' : 'default' }}>
                         <Typography variant="h4" sx={{ color: '#dc2626', fontWeight: 700, mb: 1 }}>
-                          ${hoaDuesStatus.pastDueAmount?.toLocaleString() || '0'}
+                          ${formatCompactMoney(hoaDuesStatus.pastDueAmount)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           {t('dashboard.pastDueAmount')}
@@ -671,7 +684,7 @@ function DashboardView() {
                     <WaterIcon sx={{ color: '#0891b2', mr: 1, fontSize: 28 }} />
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.waterBillsPastDue')}</Typography>
                   </Box>
-                  <Tooltip title="Refresh water bills data">
+                  <Tooltip title={t('dashboard.refreshWaterHint')}>
                     <IconButton 
                       size="small" 
                       onClick={refresh.water}
@@ -710,7 +723,7 @@ function DashboardView() {
                                   <span>
                                     <strong>{unit.unitId}</strong> - {unit.owner}
                                   </span>
-                                  <strong>${Math.round(unit.amountDue).toLocaleString()}</strong>
+                                  <strong>${formatCompactMoney(Math.round(unit.amountDue))}</strong>
                                 </Typography>
                               </Box>
                             ))}
@@ -732,7 +745,7 @@ function DashboardView() {
                     >
                       <Box sx={{ cursor: waterBillsStatus.overdueCount > 0 ? 'pointer' : 'default' }}>
                         <Typography variant="h4" sx={{ color: '#0891b2', fontWeight: 700, mb: 1 }}>
-                          ${waterBillsStatus.totalUnpaid?.toLocaleString() || '0'}
+                          ${formatCompactMoney(waterBillsStatus.totalUnpaid)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                           {t('dashboard.pastDueAmount')}
@@ -787,7 +800,7 @@ function DashboardView() {
                       bgcolor: 'rgba(124, 58, 237, 0.2)'
                     }
                   }}
-                  title="Open Calculator"
+                  title={t('dashboard.openCalculator')}
                 >
                   <CalculateIcon />
                 </IconButton>
@@ -879,7 +892,7 @@ function DashboardView() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {pollCard.summary?.totalUnits
-                      ? `${Math.round((pollCard.summary.totalResponses / pollCard.summary.totalUnits) * 100)}% returned`
+                      ? t('dashboard.returnedPct', { percent: Math.round((pollCard.summary.totalResponses / pollCard.summary.totalUnits) * 100) })
                       : t('dashboard.noResponses')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -907,7 +920,7 @@ function DashboardView() {
               budgetStatus?.overBudgetItems?.length > 0 ? (
                 <Box sx={{ p: 1.5 }}>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
-                    Over-Budget Watch List
+                    {t('dashboard.overBudgetWatchList')}
                   </Typography>
                   {budgetStatus.overBudgetItems.map((item, index) => (
                     <Box key={index} sx={{ mb: index < budgetStatus.overBudgetItems.length - 1 ? 0.75 : 0 }}>
@@ -920,7 +933,7 @@ function DashboardView() {
                     </Box>
                   ))}
                 </Box>
-              ) : budgetStatus ? 'All categories within budget' : 'View Budget vs Actual Report'
+              ) : budgetStatus ? t('dashboard.allCategoriesWithinBudget') : t('dashboard.viewBudgetReport')
             }
             arrow
             placement="top"
@@ -973,7 +986,7 @@ function DashboardView() {
                       {budgetStatus.statusText}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      FY {budgetStatus.fiscalYear} • {budgetStatus.percentElapsed}% elapsed
+                      {t('dashboard.fyElapsed', { year: budgetStatus.fiscalYear, percent: budgetStatus.percentElapsed })}
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Box sx={{ 
@@ -993,17 +1006,17 @@ function DashboardView() {
                     </Box>
                     <Box>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span>YTD Budget:</span>
-                        <strong>${Math.round(budgetStatus.expenseYtdBudget)?.toLocaleString() || '0'}</strong>
+                        <span>{t('dashboard.ytdBudget')}:</span>
+                        <strong>${formatCompactMoney(Math.round(budgetStatus.expenseYtdBudget))}</strong>
                       </Typography>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <span>YTD Actual:</span>
-                        <strong>${Math.round(budgetStatus.expenseYtdActual)?.toLocaleString() || '0'}</strong>
+                        <span>{t('dashboard.ytdActual')}:</span>
+                        <strong>${formatCompactMoney(Math.round(budgetStatus.expenseYtdActual))}</strong>
                       </Typography>
                       <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Variance:</span>
+                        <span>{t('dashboard.variance')}:</span>
                         <strong style={{ color: budgetStatus.expenseVariance >= 0 ? '#059669' : '#dc2626' }}>
-                          {budgetStatus.expenseVariance >= 0 ? '+' : '-'}${Math.abs(Math.round(budgetStatus.expenseVariance))?.toLocaleString() || '0'}
+                          {budgetStatus.expenseVariance >= 0 ? '+' : '-'}${formatCompactMoney(Math.abs(Math.round(budgetStatus.expenseVariance)))}
                         </strong>
                       </Typography>
                     </Box>
@@ -1026,10 +1039,7 @@ function DashboardView() {
           {t('dashboard.quickActions')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Use the navigation menu to access {isAdmin ? 
-            'expense entry, exchange rates, and client management features' : 
-            'exchange rates and your financial information'
-          }.
+          {isAdmin ? t('dashboard.quickActionsAdmin') : t('dashboard.quickActionsUser')}
         </Typography>
       </Box>
       

@@ -97,11 +97,11 @@ function BudgetView() {
           value={zoomMode === 'custom' ? zoom : zoomMode}
           onChange={handleZoomChange}
         >
-          <optgroup label="Fit">
-            <option value="page-width">Page Width</option>
-            <option value="single-page">Single Page</option>
+          <optgroup label={t('budget.zoom.group.fit')}>
+            <option value="page-width">{t('budget.zoom.pageWidth')}</option>
+            <option value="single-page">{t('budget.zoom.singlePage')}</option>
           </optgroup>
-          <optgroup label="Percentage">
+          <optgroup label={t('budget.zoom.group.percentage')}>
             <option value={0.75}>75%</option>
             <option value={1.0}>100%</option>
             <option value={1.25}>125%</option>
@@ -145,12 +145,12 @@ function BudgetView() {
         setBudgetPoll(pollDetail.data);
         setBudgetPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
       } catch (error) {
-        setPollError(error.message || 'Failed to load budget vote');
+        setPollError(error.message || t('budget.error.loadVote'));
       }
     };
 
     loadBudgetPoll();
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, t]);
 
   const currentFiscalYear = selectedClient?.configuration?.fiscalYearStartMonth != null
     ? getFiscalYear(new Date(), selectedClient.configuration.fiscalYearStartMonth)
@@ -176,11 +176,11 @@ function BudgetView() {
         setBudgetPoll(pollDetail.data);
         setBudgetPollSummary(pollDetail.data?.summary || pollDetail.data?.results || null);
       } catch (error) {
-        setPollError(error.message || 'Failed to load budget vote');
+        setPollError(error.message || t('budget.error.loadVote'));
       }
     };
     loadBudgetPoll();
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, t]);
 
   const handleCreateVoteOrPoll = useCallback(async (intent) => {
     if (!selectedClient?.id) return;

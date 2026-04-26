@@ -819,13 +819,13 @@ function HOADuesView() {
                   </th>
                 );
               })}
-              <th className="total-header">Total Paid</th>
-              <th className="remaining-header">To Be Collected</th>
+              <th className="total-header">{t('hoadues.totalPaid')}</th>
+              <th className="remaining-header">{t('hoadues.toBeCollected')}</th>
             </tr>
             
             {/* Subheader row with scheduled amounts */}
             <tr className="owner-header-row">
-              <th className="dues-label">Dues{duesFrequency === 'quarterly' ? '/Qtr' : '/Mo'}</th>
+              <th className="dues-label">{duesFrequency === 'quarterly' ? t('hoadues.duesPerQuarter') : t('hoadues.duesPerMonth')}</th>
               {units.map(unit => {
                 const monthlyAmount = duesData[unit.unitId]?.scheduledAmount || 0;
                 const displayAmount = duesFrequency === 'quarterly' ? monthlyAmount * 3 : monthlyAmount;
@@ -852,7 +852,7 @@ function HOADuesView() {
           <tbody>
             {/* Credit row */}
             <tr className="credit-row">
-              <td className="row-label">Credit</td>
+              <td className="row-label">{t('hoadues.credit')}</td>
               {units.map(unit => {
                 const unitData = duesData[unit.unitId] || {};
                 const hasCreditHistory = unitData.creditBalanceHistory && unitData.creditBalanceHistory.length > 0;
@@ -957,12 +957,12 @@ function HOADuesView() {
                           if (paymentMonth) {
                             const dateTime = extractDateTimeFromPayment(paymentMonth);
                             if (dateTime) {
-                              tooltipLines.push(`Last payment: ${dateTime}`);
+                              tooltipLines.push(`${t('hoadues.lastPaymentPrefix')}: ${dateTime}`);
                             }
                           }
                           
                           tooltipLines.push('');
-                          tooltipLines.push('Click: View transaction');
+                          tooltipLines.push(t('hoadues.clickViewTransaction'));
                         } else if (quarterStatus.status === 'partial') {
                           tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalPaid)} of $${formatNumber(quarterStatus.totalDue)} paid`);
                           if (totalPenalties > 0) {
@@ -970,12 +970,12 @@ function HOADuesView() {
                           }
                           tooltipLines.push(`Remaining: $${formatNumber(quarterStatus.remaining)}`);
                           tooltipLines.push('');
-                          tooltipLines.push('Click: Make payment');
+                          tooltipLines.push(t('hoadues.clickMakePayment'));
                         } else {
                           tooltipLines.push(`${quarter.id}: $${formatNumber(quarterStatus.totalDue)} due`);
-                          tooltipLines.push('Status: Unpaid');
+                          tooltipLines.push(t('hoadues.statusUnpaid'));
                           tooltipLines.push('');
-                          tooltipLines.push('Click: Make payment');
+                          tooltipLines.push(t('hoadues.clickMakePayment'));
                         }
                         
                         tooltipLines.push(`${t('hoadues.tooltip.rightClick')} ⋮`);
@@ -1103,7 +1103,7 @@ function HOADuesView() {
           <tfoot>
             {/* Total row */}
             <tr className="totals-row">
-              <td className="totals-label">Total Paid</td>
+              <td className="totals-label">{t('hoadues.totalPaid')}</td>
               {units.map(unit => (
                 <td key={`total-${unit.unitId}`} className="unit-total">
                   ${formatNumber(calculateUnitTotal(unit.unitId))}
@@ -1129,23 +1129,23 @@ function HOADuesView() {
       <div className="hoa-dues-legend">
         <div className="legend-item">
           <div className="legend-color payment-paid"></div>
-          <div className="legend-text">Paid in Full</div>
+          <div className="legend-text">{t('hoadues.legend.paidInFull')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color payment-partial"></div>
-          <div className="legend-text">Partial Payment</div>
+          <div className="legend-text">{t('hoadues.legend.partialPayment')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color payment-late"></div>
-          <div className="legend-text">Late Payment</div>
+          <div className="legend-text">{t('hoadues.legend.latePayment')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color row-label current-month"></div>
-          <div className="legend-text">Current Month</div>
+          <div className="legend-text">{t('hoadues.legend.currentMonth')}</div>
         </div>
         <div className="legend-item">
           <div className="legend-color"></div>
-          <div className="legend-text">Hover to read payment notes</div>
+          <div className="legend-text">{t('hoadues.legend.hoverNotes')}</div>
         </div>
       </div>
       
