@@ -10,7 +10,7 @@
 |-----------|--------|------------------|
 | 🚨 Production broken | GitHub Issue + `critical` label | `gh issue create --label critical,bug` |
 | 🔥 Work on this week | GitHub Issue + priority label | `gh issue create --label bug,high-priority` |
-| 💡 Good idea for later | Add to master tracker backlog | Edit `.apm/Implementation_Plan.md` |
+| 💡 Good idea for later | Add to sprint/backlog tracker | Edit `SAMS-Docs/Agile/Sprint_Groups.md` |
 | 🧩 Messy code found | Add to technical debt | Edit `TECHNICAL_DEBT.md` |
 | ⚡ Quick fix (< 15 min) | Just fix it | `git commit -m "Quick fix: ..."` |
 
@@ -55,7 +55,7 @@ gh issue list --label high-priority --state open
 grep -r "Status.*OPEN" docs/issues\ 2/open/
 
 # Find high priority
-grep "Priority.*HIGH" .apm/Implementation_Plan.md
+grep -Ei "high|priority|current sprint|next sprint" SAMS-Docs/Agile/Sprint_Groups.md
 
 # Find technical debt
 grep "Priority: High" TECHNICAL_DEBT.md
@@ -67,13 +67,13 @@ grep "Priority: High" TECHNICAL_DEBT.md
 
 ### Monday (Planning)
 - [ ] Run `./scripts/sync-issues.sh` → option 5 (weekly summary)
-- [ ] Review `.apm/Implementation_Plan.md` backlog
+- [ ] Review `SAMS-Docs/Agile/Sprint_Groups.md` backlog
 - [ ] Promote 3-5 items to GitHub Issues for this week
 - [ ] Update `.cursorrules` if new critical constraints
 
 ### Friday (Wrap-up)
 - [ ] Close completed GitHub Issues
-- [ ] Update `.apm/Implementation_Plan.md` metrics
+- [ ] Update `SAMS-Docs/Agile/Sprint_Groups.md` and `SAMS-Docs/Agile/Roadmap_and_Timeline.md`
 - [ ] Move resolved issues to resolved/ folder
 - [ ] Add any new technical debt to `TECHNICAL_DEBT.md`
 
@@ -82,7 +82,7 @@ grep "Priority: High" TECHNICAL_DEBT.md
 ## 💬 Cursor Prompts
 
 ```
-"What are the high priority issues from .apm/Implementation_Plan.md?"
+"What are the high priority issues from SAMS-Docs/Agile/Sprint_Groups.md?"
 "Check TECHNICAL_DEBT.md before I work on water bills"
 "Work on GitHub issue #42"
 "Show me open critical issues"
@@ -111,7 +111,7 @@ grep "Priority: High" TECHNICAL_DEBT.md
 | File | Purpose | Update When |
 |------|---------|-------------|
 | `.cursorrules` | Cursor's context | Critical changes, weekly review |
-| `.apm/Implementation_Plan.md` | Big picture view | After each issue, weekly planning |
+| `SAMS-Docs/Agile/Sprint_Groups.md` | Sprint and backlog view | After each issue, weekly planning |
 | `TECHNICAL_DEBT.md` | Code debt tracking | Discover debt, resolve debt |
 | `docs/issues 2/open/` | Active issue details | Create/resolve issues |
 | `scripts/sync-issues.sh` | Helper tool | Weekly planning |
@@ -126,7 +126,7 @@ New Issue/Idea?
 ├─ Blocking production? → GitHub Issue (critical)
 ├─ Work this week? → GitHub Issue (priority label)
 ├─ Technical debt? → TECHNICAL_DEBT.md
-├─ Future enhancement? → .apm/Implementation_Plan.md
+├─ Future enhancement? → SAMS-Docs/Agile/Sprint_Groups.md
 └─ Quick fix? → Just fix it now
 ```
 
@@ -137,7 +137,7 @@ New Issue/Idea?
 ### Find high priority work:
 ```bash
 gh issue list --label high-priority,critical
-grep -A 3 "Priority.*HIGH" .apm/Implementation_Plan.md
+grep -Ei "high|priority|current sprint|next sprint" SAMS-Docs/Agile/Sprint_Groups.md
 ```
 
 ### Check what's broken:
@@ -194,7 +194,7 @@ Resolves TD-017."
 
 **Cursor doesn't see my issues?**
 → Check `.cursorrules` is up-to-date
-→ Explicitly mention file: "Check .apm/Implementation_Plan.md"
+→ Explicitly mention files: "Check SAMS-Docs/Agile/Sprint_Groups.md and Roadmap_and_Timeline.md"
 
 **Can't find an issue?**
 → Run: `./scripts/sync-issues.sh` → option 4

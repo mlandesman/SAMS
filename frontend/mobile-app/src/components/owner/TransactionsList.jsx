@@ -149,6 +149,14 @@ const TransactionsList = () => {
             vendorName: firstNonEmpty([vendorLocalized, tx.vendorName]),
             description: firstNonEmpty([descriptionLocalized, tx.description]),
             notes: firstNonEmpty([notesLocalized, tx.notes]),
+            categoryName: firstNonEmpty([
+              tx.categoryNameLocalized,
+              tx.categoryLocalized,
+              tx.categoryName,
+              tx.category,
+            ]),
+            accountName: firstNonEmpty([tx.accountNameLocalized, tx.accountName]),
+            paymentMethod: firstNonEmpty([tx.paymentMethodLocalized, tx.paymentMethod]),
             typeDisplay: pickLocalized(tx.typeLocalized, tx.type),
             dateDisplay: firstNonEmpty([
               tx.dateDisplayLocalized,

@@ -125,8 +125,10 @@ function list_markdown_issues() {
     fi
     
     echo ""
-    echo -e "${GREEN}Backlog from .apm/Implementation_Plan.md:${NC}"
-    grep -A 3 "Status.*BACKLOG" "$PROJECT_ROOT/.apm/Implementation_Plan.md" 2>/dev/null | head -n 20 || echo "None found"
+    echo -e "${GREEN}Backlog from SAMS-Docs/Agile/Sprint_Groups.md:${NC}"
+    grep -Ei "backlog|sprint-next|future|queued" "$PROJECT_ROOT/SAMS-Docs/Agile/Sprint_Groups.md" 2>/dev/null | head -n 20 || echo "No backlog keywords found"
+    echo ""
+    echo -e "${GREEN}Roadmap reference:${NC} $PROJECT_ROOT/SAMS-Docs/Agile/Roadmap_and_Timeline.md"
     
     echo ""
     read -p "Press enter to continue..."
@@ -387,7 +389,7 @@ function promote_markdown_to_github() {
                 
                 echo ""
                 echo -e "${GREEN}GitHub issue created successfully!${NC}"
-                echo "You may want to update .apm/Implementation_Plan.md"
+                echo "You may want to update SAMS-Docs/Agile/Sprint_Groups.md and Roadmap_and_Timeline.md"
             fi
             break
         fi

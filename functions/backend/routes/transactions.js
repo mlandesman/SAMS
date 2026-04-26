@@ -22,7 +22,6 @@ import {
   getLocalizationContext,
 } from '../utils/localizationContract.js';
 import { localizeDomainDisplayText, localizeFixedValue } from '../utils/localizationCatalog.js';
-import { localizeFreeFormFields } from '../services/freeFormTranslationBatch.js';
 import { resolvePersistedCategoryName } from '../utils/persistedCategoryLocalization.js';
 
 function normalizeText(value) {
@@ -79,23 +78,55 @@ function resolveLocalizedCategoryName(transaction, localizationCtx, categoryLook
   return localizeDomainDisplayText(sourceCategoryName, localizationCtx.resolvedLanguage);
 }
 
+function normalizeAllocationsWithNotesCompanions(allocations) {
+  if (!Array.isArray(allocations)) {
+    return allocations;
+  }
+
+  return allocations.map((allocation) => {
+    if (!allocation || typeof allocation !== 'object') {
+      return allocation;
+    }
+
+    return {
+      ...allocation,
+      notes: normalizeText(allocation.notes),
+      notes_es: normalizeText(allocation.notes_es),
+    };
+  });
+}
+
+function resolveLocalizedNotesValue(notes, notesEs, language) {
+  if (language === 'ES') {
+    return notesEs || notes;
+  }
+
+  return notes;
+}
+
 function withTransactionCompanions(transaction, localizationCtx, categoryLookup) {
   const language = localizationCtx.resolvedLanguage;
   const descriptionSource = normalizeText(transaction.description);
   const notesSource = normalizeText(transaction.notes);
+  const notesEsSource = normalizeText(transaction.notes_es);
   const vendorSource = normalizeText(transaction.vendorName);
   const paymentMethodSource = normalizeText(transaction.paymentMethod);
   const accountNameSource = normalizeText(transaction.accountName);
   const localizedCategoryName = resolveLocalizedCategoryName(transaction, localizationCtx, categoryLookup);
+  const allocationsWithNotesCompanions = normalizeAllocationsWithNotesCompanions(transaction.allocations);
+  const localizedNotes = resolveLocalizedNotesValue(notesSource, notesEsSource, language);
 
   return {
     ...transaction,
+    notes: notesSource,
+    notes_es: notesEsSource,
+    allocations: allocationsWithNotesCompanions,
     typeLocalized: localizeFixedValue('type', transaction.type, language),
     typeDisplayLocalized: localizeFixedValue('type', transaction.type, language),
     categoryNameLocalized: localizedCategoryName,
     categoryLocalized: localizedCategoryName,
     descriptionLocalized: localizeDomainDisplayText(descriptionSource, language),
-    notesLocalized: localizeDomainDisplayText(notesSource, language),
+    notesLocalized: localizedNotes,
     vendorNameLocalized: localizeDomainDisplayText(vendorSource, language),
     paymentMethodLocalized: localizeDomainDisplayText(paymentMethodSource, language),
     accountNameLocalized: localizeDomainDisplayText(accountNameSource, language),
@@ -122,18 +153,7 @@ async function localizeTransactionRecords(clientId, transactions, localizationCt
     withTransactionCompanions(transaction, localizationCtx, categoryLookup)
   );
 
-  const shouldTranslateFreeForm = localizationCtx.flags.translateFreeFormOn && localizationCtx.resolvedLanguage === 'ES';
-  let partialTranslation = false;
-  if (shouldTranslateFreeForm) {
-    const translationResult = await localizeFreeFormFields(
-      localizedTransactions,
-      ['description', 'notes', 'vendorName'],
-      localizationCtx.resolvedLanguage
-    );
-    localizedTransactions = translationResult.records;
-    partialTranslation = translationResult.failedCount > 0;
-  }
-
+  const partialTranslation = false;
   return { localizedTransactions, partialTranslation };
 }
 

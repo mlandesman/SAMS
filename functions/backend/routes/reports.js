@@ -39,7 +39,6 @@ import {
   localizeDomainDisplayText,
   localizeFixedValue,
 } from '../utils/localizationCatalog.js';
-import { localizeFreeFormFields } from '../services/freeFormTranslationBatch.js';
 import {
   formatLocalizedAmountDisplay,
   formatLocalizedDateDisplay,
@@ -61,6 +60,40 @@ const dateService = new DateService({ timezone: 'America/Cancun' });
 function formatDateField(dateValue) {
   if (!dateValue) return null;
   return dateService.formatForFrontend(dateValue);
+}
+
+function normalizeText(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+}
+
+function withAllocationNoteCompanions(allocations) {
+  if (!Array.isArray(allocations)) {
+    return allocations;
+  }
+
+  return allocations.map((allocation) => {
+    if (!allocation || typeof allocation !== 'object') {
+      return allocation;
+    }
+
+    return {
+      ...allocation,
+      notes: normalizeText(allocation.notes),
+      notes_es: normalizeText(allocation.notes_es),
+    };
+  });
+}
+
+function resolveLocalizedNotesValue(notes, notesEs, language) {
+  const sourceNotes = normalizeText(notes);
+  const sourceNotesEs = normalizeText(notesEs);
+  if (language === 'ES') {
+    return sourceNotesEs || sourceNotes;
+  }
+  return sourceNotes;
 }
 
 function withDateAmountDisplayCompanions(record, language, options = {}) {
@@ -314,6 +347,9 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         category: data.category || '',
         vendor: data.vendor || '',
         description: data.description || data.notes || '',
+        notes: normalizeText(data.notes),
+        notes_es: normalizeText(data.notes_es),
+        allocations: withAllocationNoteCompanions(data.allocations),
         account: data.account || '',
         paymentMethod: data.paymentMethod || ''
       };
@@ -364,6 +400,9 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
       amount: tx.amount,
       type: tx.type || '',
       description: tx.description,
+      notes: tx.notes,
+      notes_es: tx.notes_es,
+      allocations: tx.allocations,
       category: tx.category,
       account: tx.account,
       paymentMethod: tx.paymentMethod
@@ -375,26 +414,9 @@ router.get('/unit/:unitId', authenticateUserWithProfile, async (req, res) => {
         categoryLocalized: localizeDomainDisplayText(tx.category || '', localizationCtx.resolvedLanguage),
         paymentMethodLocalized: localizeDomainDisplayText(tx.paymentMethod || '', localizationCtx.resolvedLanguage),
         typeLocalized: localizeFixedValue('type', tx.type, localizationCtx.resolvedLanguage),
+        notesLocalized: resolveLocalizedNotesValue(tx.notes, tx.notes_es, localizationCtx.resolvedLanguage),
+        descriptionLocalized: localizeDomainDisplayText(tx.description || '', localizationCtx.resolvedLanguage),
       }));
-
-      if (localizationCtx.flags.translateFreeFormOn && localizationCtx.resolvedLanguage === 'ES') {
-        const translationResult = await localizeFreeFormFields(
-          responseTransactions,
-          ['description'],
-          localizationCtx.resolvedLanguage
-        );
-        responseTransactions = translationResult.records;
-        responseTransactions = responseTransactions.map((tx) => ({
-          ...tx,
-          descriptionLocalized: localizeDomainDisplayText(tx.descriptionLocalized || tx.description || '', localizationCtx.resolvedLanguage),
-        }));
-        res.setHeader('X-SAMS-Localization-Partial', translationResult.failedCount > 0 ? 'true' : 'false');
-      } else {
-        responseTransactions = responseTransactions.map((tx) => ({
-          ...tx,
-          descriptionLocalized: localizeDomainDisplayText(tx.description || '', localizationCtx.resolvedLanguage),
-        }));
-      }
     }
 
     // Build response

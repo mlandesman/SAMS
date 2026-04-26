@@ -35,11 +35,26 @@ import { updatePriorYearClosedFlag } from './hoaDuesController.js';
 import creditService from '../services/creditService.js';
 import { getCreditBalance } from '../../shared/utils/creditBalanceUtils.js';
 import { isFeatureEnabled } from '../utils/featureFlags.js';
+import { translateNoteToSpanishDeterministicFirst } from '../utils/notesLocalization.js';
 
 const { dollarsToCents, centsToDollars, generateTransactionId } = databaseFieldMappings;
 
 // Initialize DateService for Mexico timezone
 const dateService = new DateService({ timezone: 'America/Cancun' });
+
+function hasOwnProperty(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function asComparableNoteValue(value) {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value == null) {
+    return '';
+  }
+  return String(value);
+}
 
 /**
  * Recursively convert all Firestore Timestamp objects to ISO strings
@@ -461,6 +476,19 @@ async function createTransaction(clientId, data, options = {}) {
       }
     }
     
+    // Step 2.2: Persist additive note companions (deterministic first, DeepL fallback).
+    if (typeof normalizedData.notes === 'string' && normalizedData.notes.trim()) {
+      normalizedData.notes_es = await translateNoteToSpanishDeterministicFirst(normalizedData.notes);
+    }
+
+    if (Array.isArray(normalizedData.allocations) && normalizedData.allocations.length > 0) {
+      for (const allocation of normalizedData.allocations) {
+        if (typeof allocation?.notes === 'string' && allocation.notes.trim()) {
+          allocation.notes_es = await translateNoteToSpanishDeterministicFirst(allocation.notes);
+        }
+      }
+    }
+
     // Step 2.5: Apply proper accounting sign conventions based on category type
     // BYPASSED ON 2025-07-10: Using sign convention from source data (Google Sheets)
     // The import data already has correct signs: negative for expenses, positive for income
@@ -765,6 +793,37 @@ async function updateTransaction(clientId, txnId, newData) {
         } else {
           normalizedData.paymentMethodId = null;
           normalizedData.paymentMethod = '';
+        }
+      }
+    }
+
+    // Persist notes companions only when note fields changed.
+    if (hasOwnProperty(validation.data, 'notes')) {
+      const incomingNotes = asComparableNoteValue(validation.data.notes);
+      const originalNotes = asComparableNoteValue(originalData.notes);
+      if (incomingNotes !== originalNotes) {
+        normalizedData.notes_es = incomingNotes.trim()
+          ? await translateNoteToSpanishDeterministicFirst(incomingNotes)
+          : '';
+      } else if (hasOwnProperty(originalData, 'notes_es')) {
+        normalizedData.notes_es = originalData.notes_es;
+      }
+    }
+
+    if (Array.isArray(validation.data.allocations) && Array.isArray(normalizedData.allocations)) {
+      const originalAllocations = Array.isArray(originalData.allocations) ? originalData.allocations : [];
+      for (let index = 0; index < normalizedData.allocations.length; index += 1) {
+        const incomingAllocation = normalizedData.allocations[index] || {};
+        const originalAllocation = originalAllocations[index] || {};
+        const incomingNotes = asComparableNoteValue(incomingAllocation.notes);
+        const originalNotes = asComparableNoteValue(originalAllocation.notes);
+
+        if (incomingNotes !== originalNotes) {
+          incomingAllocation.notes_es = incomingNotes.trim()
+            ? await translateNoteToSpanishDeterministicFirst(incomingNotes)
+            : '';
+        } else if (hasOwnProperty(originalAllocation, 'notes_es')) {
+          incomingAllocation.notes_es = originalAllocation.notes_es;
         }
       }
     }

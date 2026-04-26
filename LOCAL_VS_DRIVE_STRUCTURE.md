@@ -75,7 +75,9 @@ Google Drive/Sandyland/SAMS-Docs/
 │   ├── Memory/
 │   │   ├── Task_Assignments/
 │   │   └── Task_Completion_Logs/
-│   └── Implementation_Plan.md
+│   ├── Agile/
+│   │   ├── Sprint_Groups.md
+│   │   └── Roadmap_and_Timeline.md
 ├── Memory/                  ← Historical logs
 │   └── Handovers/
 ├── analysis_reports/        ← System analyses
@@ -83,7 +85,8 @@ Google Drive/Sandyland/SAMS-Docs/
 │   ├── logo.png
 │   └── screenshots/
 ├── README.md
-├── .apm/Implementation_Plan.md
+├── Agile/Sprint_Groups.md
+├── Agile/Roadmap_and_Timeline.md
 ├── QUICK_START.md
 ├── DEPLOYMENT.md
 └── [all *.md files]
