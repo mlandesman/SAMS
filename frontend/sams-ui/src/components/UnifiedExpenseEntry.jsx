@@ -324,7 +324,6 @@ const UnifiedExpenseEntry = ({
               { categoryName: 'Bank: IVA', amount: -Math.abs(ivaAmountDollars), notes: 'Bank transfer IVA' }
             );
             transactionData.amount = transactionAmount - commissionAmountDollars - ivaAmountDollars;
-            transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           }
           
           transactionData.allocations = apiAllocations;
@@ -349,7 +348,6 @@ const UnifiedExpenseEntry = ({
           transactionData.categoryName = "-Split-";
           // CRITICAL: Send amount and allocations in PESOS - backend createTransaction converts to centavos (fix #180)
           transactionData.amount = -Math.abs(totalAmountDollars);
-          transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionData.allocations = [
             {
               categoryName: selectedCategory?.name || '',
@@ -444,7 +442,6 @@ const UnifiedExpenseEntry = ({
           const totalAmountDollars = originalAmountDollars + commissionAmountDollars + ivaAmountDollars;
           
           transactionAmount = -Math.abs(totalAmountDollars);
-          transactionNotes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
           transactionCategoryId = '-split-';
           
           transactionAllocations = [

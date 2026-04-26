@@ -362,7 +362,6 @@ const ExpenseForm = ({ clientId, onSubmit, onCancel, samsUser }) => {
         transactionData.categoryId = '-split-';
         transactionData.categoryName = '-Split-';
         transactionData.amount = -Math.abs(totalAmount);
-        transactionData.notes = (formData.notes ? formData.notes + ' ' : '') + '(includes transfer fees)';
         transactionData.allocations = [
           {
             categoryName: selectedCategory?.name || 'General',

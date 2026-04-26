@@ -1,7 +1,15 @@
 import { getDb } from '../firebase.js'; // Add .js extension
 import admin from 'firebase-admin';
 import { getNow } from '../services/DateService.js';
-const db = await getDb(); // Await getDb
+
+let auditDb = null;
+
+async function getAuditDb() {
+  if (!auditDb) {
+    auditDb = await getDb();
+  }
+  return auditDb;
+}
 
 function generateAuditId() {
   const now = getNow();
@@ -29,6 +37,8 @@ function generateAuditId() {
  */
 async function writeAuditLog({ module, action, parentPath, docId, friendlyName, notes = '', clientId = null }) {
   try {
+    const db = await getAuditDb();
+
     // Auto-extract clientId from parentPath if not provided
     if (!clientId && parentPath && parentPath.startsWith('clients/')) {
       const pathParts = parentPath.split('/');

@@ -24,57 +24,51 @@ APM_RULES {
 
 - All file paths in your output must be absolute (starting with `/Users/michael/Projects/SAMS/`) or workspace-relative. Never reference paths under `/Users/michael/Library/CloudStorage/GoogleDrive-...` — Google Drive sync is broken on macOS 26 and those paths do not resolve.
 - `SAMS-Docs/` is a subdirectory inside the SAMS git repository at `/Users/michael/Projects/SAMS/SAMS-Docs/`. It is not a separate repository.
-- The canonical mobile app path is `/Users/michael/Projects/SAMS/frontend/mobile-app/`. The path `frontend/sams-ui/mobile-app/` is documented as stale; treat any reference to it as a stale reference to be corrected, not as an alternative location.
+- Use `SAMS-Docs/Agile/Sprint_Groups.md` and `SAMS-Docs/Agile/Roadmap_and_Timeline.md` as canonical sprint/roadmap references for this cycle.
 
 ## Implementation Scope Guard
 
-- Mobile implementation scope is limited to `frontend/mobile-app/**`.
-- Desktop UI implementation under `frontend/sams-ui/**` is out of scope for this project and must not be modified.
+- Transaction notes localization scope is limited to backend transaction surfaces and migration tooling.
+- In-scope data fields are only `notes` mirrors: top-level `notes_es` and `allocations[].notes_es`.
+- Transactions or allocations without `notes` are ignored.
+- Do not expand scope to translate `vendorName`, `accountName`, `paymentMethod`, or category names in this cycle.
 - `_archive` directories are always read-only references and never valid implementation targets.
-- Use `ACTIVE_MODULES.md` and entry-point tracing to confirm active paths before changing code.
 
-## Language and Localization Rules
-
-- Supported UI languages in this project are only `EN` and `ES`.
-- The hamburger language choice is the single user control for language behavior; do not add downstream screen-level toggles.
-- In selected-language mode, all in-scope translatable visible text should resolve to that language when available.
-- If localized content is unavailable, render the existing source value rather than blocking UI behavior.
-
-## Backend Contract and Translation Rules
+## Translation Pipeline Rules
 
 - Backend localization changes are allowed only when backward compatibility is preserved for existing consumers.
 - Any language-aware backend behavior must default to English when language input is missing or invalid.
 - Do not remove legacy response fields relied on by existing clients; additive localized behavior is preferred.
-- For bulk free-form localization (notes/descriptions/context text), use batched translation patterns (extract, dedupe, batch, remap) and avoid per-record translation calls.
-- Translation failures (quota, timeout, auth, service error) must degrade gracefully to source text without breaking primary data retrieval.
+- Use deterministic translation first for known SAMS-generated/hardcoded note text; use DeepL fallback only for unresolved strings.
+- Preserve all ALL-CAPS tokens verbatim during deterministic translation (for example, `HOA`).
+- Use compact quarter notation (`Tn`) in generated note text.
+- Keep source `notes` unchanged; persist only additive `notes_es` mirrors (no extra metadata fields).
 
-## Feature Flag and Safety Rules
+## Read/Write Contract Rules
 
-- New localization behavior must be gated by a feature flag with clear ON/OFF behavior.
+- Transaction create/update paths must persist `notes_es` only for note fields that changed.
+- Transaction read and recent-transactions read paths must return persisted note companions and must not call runtime free-form DeepL translation for notes.
 - Keep auth, routing, permissions, and business logic behavior unchanged unless explicitly required by approved scope.
-- Do not run deploy commands as part of implementation work in this project.
 
-## Version Control Conventions
+## Backfill Operational Safety
 
-- Base branch is `main` for this repository unless explicitly overridden by the User.
-- Branch naming convention: `type/short-description`.
-- Commit message convention: `type(scope): description`.
-- Preferred commit types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`.
-
-## User Collaboration
-
-- Challenge requests that seem suboptimal, unclear, or potentially problematic. Do not agree by default.
-- When you encounter ambiguity in a Task, ask the User a focused clarifying question rather than proceeding on assumption.
-- When you find a better approach than what's specified, surface it with reasoning and ask before proceeding.
-- Never claim success without documented evidence the User can verify: file paths, commit SHAs, command outputs, screenshots, or other artifacts.
-- Be honest about what was done versus what was deferred or escalated. Partial success is success-with-caveats; report the caveats.
+- Backfill must support `--dry-mode` and `--prod`.
+- Backfill must be idempotent: skip any note location where `notes_es` already exists; safe reruns are required.
+- Use conservative batched and spaced translation requests with retry/backoff and jitter for 429 responses; honor `Retry-After` when available.
+- Stop safely on hard quota limits and provide output that supports resume in later runs.
 
 ## Validation and Evidence
 
-- Validation must include EN and ES checks across all in-scope mobile routes and major user-visible text surfaces.
-- Provide explicit proof that desktop UI files under `frontend/sams-ui/**` were not modified.
-- Store language reference tables and validation artifacts in `SAMS-Docs/Agile/PRDs/`.
-- Treat final wording review for Spanish quality as a stakeholder review step (Michael and Sandra).
+- Required evidence includes dry-run count output and live-run count output from migration execution.
+- Verify create/update behavior only translates note fields that changed.
+- Verify transaction and recent-transactions read behavior no longer depends on runtime note translation.
+
+## Version Control Conventions
+
+- Base branch: `main`.
+- Branch naming convention: `<type>/<short-description>` where `type` is one of `feat`, `fix`, `refactor`, `docs`, `test`, `chore`.
+- Commit naming convention: `<type>(optional-scope): <description>` using the same `type` set.
+- APM workspace convention: `.apm/` remains untracked in git and is managed/archived locally via APM CLI workflow.
 
 } //APM_RULES
 ```

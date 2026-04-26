@@ -108,10 +108,7 @@ export async function buildSpeiFeeFixUpdate(clientId, txn, bankCentavos) {
     categoryId: '-split-',
     categoryName: '-Split-',
     allocations,
-    notes: appendReconNote(
-      txn.notes,
-      '(includes transfer fees — reconciliation SPEI auto-fix)'
-    ),
+    notes: appendReconNote(txn.notes, 'reconciliation SPEI auto-fix'),
     updated: admin.firestore.Timestamp.now()
   };
 }

@@ -322,7 +322,7 @@ echo ""
 echo "📝 Current Project Status:"
 echo "   Priority: 0B - HOA Dues Refactor Preparation"
 echo "   Phase: Phase 1 Validation (in progress)"
-echo "   See: apm_session/Implementation_Plan.md"
+echo "   See: SAMS-Docs/Agile/Sprint_Groups.md and SAMS-Docs/Agile/Roadmap_and_Timeline.md"
 echo ""
 ```
 
@@ -514,7 +514,8 @@ lsof -ti:5173 | xargs kill -9
 **Next:** Complete Phase 1B validation testing (9 scenarios)
 
 **Key Files:**
-- Implementation Plan: `apm_session/Implementation_Plan.md`
+- Sprint Groups: `SAMS-Docs/Agile/Sprint_Groups.md`
+- Roadmap: `SAMS-Docs/Agile/Roadmap_and_Timeline.md`
 - Active Tasks: `apm_session/Memory/Task_Assignments/Active/`
 - Recent Completion: `apm_session/Memory/Task_Completion_Logs/Phase_1_Validation_Complete_With_Fixes_2025-10-19.md`
 
