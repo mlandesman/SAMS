@@ -4,7 +4,7 @@ import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getCategories } from '../../api/categories';
 import { useClient } from '../../context/ClientContext';
 import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
-import { resolveListEntityField } from '../../utils/listLocalization';
+import { buildListEntityWritePayload, resolveListEntityField } from '../../utils/listLocalization';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
 import '../../styles/SandylandModalTheme.css';
 
@@ -56,14 +56,30 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
   useEffect(() => {
     if (vendor) {
       setFormData({
-        name: vendor.name || '',
+        name: resolveListEntityField(vendor, 'vendor', 'name', {
+          language,
+          localizationEnabled,
+          hardFallback: vendor.name || '',
+        }),
         category: vendor.category || '',
-        contactPerson: vendor.contactPerson || vendor.contactName || '',
+        contactPerson: resolveListEntityField(vendor, 'vendor', 'contactPerson', {
+          language,
+          localizationEnabled,
+          hardFallback: vendor.contactPerson || vendor.contactName || '',
+        }),
         phone: vendor.phone || '',
         email: vendor.email || '',
         website: vendor.website || '',
-        address: vendor.address || '',
-        notes: vendor.notes || '',
+        address: resolveListEntityField(vendor, 'vendor', 'address', {
+          language,
+          localizationEnabled,
+          hardFallback: vendor.address || '',
+        }),
+        notes: resolveListEntityField(vendor, 'vendor', 'notes', {
+          language,
+          localizationEnabled,
+          hardFallback: vendor.notes || '',
+        }),
         status: vendor.status || 'active'
       });
     } else {
@@ -81,7 +97,7 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
       });
     }
     setErrors({});
-  }, [vendor, isOpen]);
+  }, [vendor, isOpen, language, localizationEnabled]);
 
   // Handle field changes
   const handleChange = (e) => {
@@ -124,7 +140,11 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
     
     if (validateForm()) {
       await withLoading(async () => {
-        await onSave(formData);
+        const payload = buildListEntityWritePayload('vendor', formData, vendor || {}, {
+          language,
+          localizationEnabled,
+        });
+        await onSave(payload);
       });
     }
   };

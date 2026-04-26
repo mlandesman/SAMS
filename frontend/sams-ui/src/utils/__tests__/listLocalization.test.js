@@ -1,5 +1,5 @@
 /* global describe, it, expect */
-import { resolveListEntityField } from '../listLocalization';
+import { buildListEntityWritePayload, isSpanishCompanionMode, resolveListEntityField } from '../listLocalization';
 
 describe('resolveListEntityField', () => {
   it('uses Spanish companion when ES language and localization is enabled', () => {
@@ -61,6 +61,59 @@ describe('resolveListEntityField', () => {
     });
 
     expect(result).toBe('PH-A1');
+  });
+});
+
+describe('isSpanishCompanionMode', () => {
+  it('is true only when language is ES and localization is enabled', () => {
+    expect(isSpanishCompanionMode('ES', true)).toBe(true);
+    expect(isSpanishCompanionMode('EN', true)).toBe(false);
+    expect(isSpanishCompanionMode('ES', false)).toBe(false);
+  });
+});
+
+describe('buildListEntityWritePayload', () => {
+  it('keeps base values in EN mode', () => {
+    const payload = buildListEntityWritePayload(
+      'category',
+      { name: 'Security' },
+      { name: 'Security' },
+      { language: 'EN', localizationEnabled: true }
+    );
+
+    expect(payload).toEqual({ name: 'Security' });
+  });
+
+  it('writes companion and preserves existing base on ES edits', () => {
+    const payload = buildListEntityWritePayload(
+      'category',
+      { name: 'Seguridad', description: 'Guardia' },
+      { name: 'Security', description: 'Guard' },
+      { language: 'ES', localizationEnabled: true }
+    );
+
+    expect(payload).toEqual({
+      name: 'Security',
+      name_es: 'Seguridad',
+      description: 'Guard',
+      description_es: 'Guardia',
+    });
+  });
+
+  it('writes both base and companion on ES creates', () => {
+    const payload = buildListEntityWritePayload(
+      'method',
+      { name: 'Transferencia', details: 'Cuenta 1234' },
+      {},
+      { language: 'ES', localizationEnabled: true }
+    );
+
+    expect(payload).toEqual({
+      name: 'Transferencia',
+      name_es: 'Transferencia',
+      details: 'Cuenta 1234',
+      details_es: 'Cuenta 1234',
+    });
   });
 });
 

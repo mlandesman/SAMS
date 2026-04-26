@@ -62,6 +62,10 @@ export const LIST_ENTITY_LANGUAGE_CONTRACT = {
   },
 };
 
+export function isSpanishCompanionMode(language, localizationEnabled) {
+  return normalizeLanguage(language) === 'ES' && localizationEnabled === true;
+}
+
 export function resolveListEntityField(item, entity, field, options = {}) {
   const { language = 'EN', localizationEnabled = false, hardFallback = EMPTY_FALLBACK } = options;
   const resolvedLanguage = normalizeLanguage(language);
@@ -81,5 +85,40 @@ export function resolveListEntityField(item, entity, field, options = {}) {
   }
 
   return baseValue || companionValue || hardFallback;
+}
+
+/**
+ * Build write payload for list entities when editing in Spanish mode.
+ * In ES + localization mode:
+ * - write current field value to companion key
+ * - preserve existing base key on edits when base source exists
+ */
+export function buildListEntityWritePayload(entity, draft, source = {}, options = {}) {
+  const payload = { ...(draft || {}) };
+  const companionMode = isSpanishCompanionMode(options.language, options.localizationEnabled);
+
+  if (!companionMode) {
+    return payload;
+  }
+
+  const contract = LIST_ENTITY_LANGUAGE_CONTRACT[entity] || {};
+
+  Object.values(contract).forEach((fieldContract) => {
+    const baseKey = fieldContract?.base?.[0];
+    const companionKey = fieldContract?.companions?.[0];
+    if (!baseKey || !companionKey) return;
+    if (baseKey.includes('.') || companionKey.includes('.')) return;
+
+    if (!Object.prototype.hasOwnProperty.call(payload, baseKey)) return;
+
+    payload[companionKey] = payload[baseKey];
+
+    const sourceBaseValue = source?.[baseKey];
+    if (sourceBaseValue != null && String(sourceBaseValue).trim() !== '') {
+      payload[baseKey] = sourceBaseValue;
+    }
+  });
+
+  return payload;
 }
 

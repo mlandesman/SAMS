@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
-import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
+import { buildListEntityWritePayload, resolveListEntityField } from '../../utils/listLocalization';
 import '../../styles/SandylandModalTheme.css';
 
 /**
  * Modal for creating/editing categories
  */
 const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
-  const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -24,8 +25,16 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
   useEffect(() => {
     if (category) {
       setFormData({
-        name: category.name || '',
-        description: category.description || '',
+        name: resolveListEntityField(category, 'category', 'name', {
+          language,
+          localizationEnabled,
+          hardFallback: category.name || '',
+        }),
+        description: resolveListEntityField(category, 'category', 'description', {
+          language,
+          localizationEnabled,
+          hardFallback: category.description || '',
+        }),
         type: category.type || 'expense',
         status: category.status || 'active',
         notBudgeted: category.notBudgeted || false
@@ -41,7 +50,7 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
       });
     }
     setErrors({});
-  }, [category, isOpen]);
+  }, [category, isOpen, language, localizationEnabled]);
 
   // Handle field changes
   const handleChange = (e) => {
@@ -81,7 +90,11 @@ const CategoryFormModal = ({ category = null, isOpen, onClose, onSave }) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSave(formData);
+      const payload = buildListEntityWritePayload('category', formData, category || {}, {
+        language,
+        localizationEnabled,
+      });
+      onSave(payload);
     }
   };
 

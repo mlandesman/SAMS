@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
-import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
+import { buildListEntityWritePayload, resolveListEntityField } from '../../utils/listLocalization';
 import '../../styles/SandylandModalTheme.css';
 
 /**
  * Modal for creating/editing payment methods
  */
 const PaymentMethodFormModal = ({ paymentMethod = null, isOpen, onClose, onSave }) => {
-  const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -24,10 +25,22 @@ const PaymentMethodFormModal = ({ paymentMethod = null, isOpen, onClose, onSave 
   useEffect(() => {
     if (paymentMethod) {
       setFormData({
-        name: paymentMethod.name || '',
-        type: paymentMethod.type || 'bank',
+        name: resolveListEntityField(paymentMethod, 'method', 'name', {
+          language,
+          localizationEnabled,
+          hardFallback: paymentMethod.name || '',
+        }),
+        type: resolveListEntityField(paymentMethod, 'method', 'type', {
+          language,
+          localizationEnabled,
+          hardFallback: paymentMethod.type || 'bank',
+        }),
         currency: paymentMethod.currency || 'MX$ (Mexican Pesos)',
-        details: paymentMethod.details || '',
+        details: resolveListEntityField(paymentMethod, 'method', 'details', {
+          language,
+          localizationEnabled,
+          hardFallback: paymentMethod.details || '',
+        }),
         status: paymentMethod.status || 'active'
       });
     } else {
@@ -41,7 +54,7 @@ const PaymentMethodFormModal = ({ paymentMethod = null, isOpen, onClose, onSave 
       });
     }
     setErrors({});
-  }, [paymentMethod, isOpen]);
+  }, [paymentMethod, isOpen, language, localizationEnabled]);
 
   // Handle field changes
   const handleChange = (e) => {
@@ -77,7 +90,11 @@ const PaymentMethodFormModal = ({ paymentMethod = null, isOpen, onClose, onSave 
     e.preventDefault();
     
     if (validateForm()) {
-      onSave(formData);
+      const payload = buildListEntityWritePayload('method', formData, paymentMethod || {}, {
+        language,
+        localizationEnabled,
+      });
+      onSave(payload);
     }
   };
 
