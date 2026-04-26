@@ -2,19 +2,44 @@ import React, { useState, useCallback } from 'react';
 import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { getPaymentMethods } from '../../api/paymentMethods';
+import { resolveListEntityField } from '../../utils/listLocalization';
 
 const ModernPaymentMethodList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailPaymentMethod, setDetailPaymentMethod] = useState(null);
 
   // Define the columns for the payment method list
   const columns = [
-    { field: 'name', headerName: 'Name', searchable: true, width: '25%' },
-    { field: 'type', headerName: 'Type', searchable: true, width: '20%' },
+    {
+      field: 'name',
+      headerName: 'Name',
+      searchable: true,
+      width: '25%',
+      render: (item) =>
+        resolveListEntityField(item, 'method', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+      searchValue: (item) => resolveListEntityField(item, 'method', 'name', { language, localizationEnabled }),
+    },
+    {
+      field: 'type',
+      headerName: 'Type',
+      searchable: true,
+      width: '20%',
+      render: (item) => resolveListEntityField(item, 'method', 'type', { language, localizationEnabled }),
+      searchValue: (item) => resolveListEntityField(item, 'method', 'type', { language, localizationEnabled }),
+    },
     { field: 'currency', headerName: 'Currency', searchable: true, width: '15%' },
-    { field: 'details', headerName: 'Account Number', searchable: true, width: '25%' },
+    {
+      field: 'details',
+      headerName: 'Account Number',
+      searchable: true,
+      width: '25%',
+      render: (item) => resolveListEntityField(item, 'method', 'details', { language, localizationEnabled }),
+      searchValue: (item) => resolveListEntityField(item, 'method', 'details', { language, localizationEnabled }),
+    },
     { 
       field: 'status', 
       headerName: 'Status', 
@@ -30,12 +55,34 @@ const ModernPaymentMethodList = ({ selectedItem, onItemSelect, onItemCountChange
 
   // Define detail modal fields
   const detailFields = [
-    { key: 'name', label: 'Name' },
-    { key: 'type', label: 'Type' },
+    {
+      key: 'name',
+      label: 'Name',
+      render: (value, item) =>
+        resolveListEntityField(item, 'method', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      render: (value, item) => resolveListEntityField(item, 'method', 'type', { language, localizationEnabled }),
+    },
     { key: 'currency', label: 'Currency', type: 'currency' },
-    { key: 'details', label: 'Account Number' },
-    { key: 'description', label: 'Description', type: 'multiline' },
-    { key: 'institution', label: 'Financial Institution' },
+    {
+      key: 'details',
+      label: 'Account Number',
+      render: (value, item) => resolveListEntityField(item, 'method', 'details', { language, localizationEnabled }),
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      type: 'multiline',
+      render: (value, item) => resolveListEntityField(item, 'method', 'description', { language, localizationEnabled }),
+    },
+    {
+      key: 'institution',
+      label: 'Financial Institution',
+      render: (value, item) => resolveListEntityField(item, 'method', 'institution', { language, localizationEnabled }),
+    },
     { key: 'status', label: 'Status', type: 'status' }
   ];
   

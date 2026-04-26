@@ -2,18 +2,43 @@ import React, { useState, useCallback } from 'react';
 import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { getCategories } from '../../api/categories';
+import { resolveListEntityField } from '../../utils/listLocalization';
 
 const ModernCategoryList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailCategory, setDetailCategory] = useState(null);
 
   // Define the columns for the category list
   const columns = [
-    { field: 'name', headerName: 'Name', searchable: true, width: '30%' },
-    { field: 'type', headerName: 'Type', searchable: true, width: '20%' },
-    { field: 'description', headerName: 'Description', searchable: true, width: '35%' },
+    {
+      field: 'name',
+      headerName: 'Name',
+      searchable: true,
+      width: '30%',
+      render: (item) =>
+        resolveListEntityField(item, 'category', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+      searchValue: (item) => resolveListEntityField(item, 'category', 'name', { language, localizationEnabled }),
+    },
+    {
+      field: 'type',
+      headerName: 'Type',
+      searchable: true,
+      width: '20%',
+      render: (item) => resolveListEntityField(item, 'category', 'type', { language, localizationEnabled }),
+      searchValue: (item) => resolveListEntityField(item, 'category', 'type', { language, localizationEnabled }),
+    },
+    {
+      field: 'description',
+      headerName: 'Description',
+      searchable: true,
+      width: '35%',
+      render: (item) => resolveListEntityField(item, 'category', 'description', { language, localizationEnabled }),
+      searchValue: (item) => resolveListEntityField(item, 'category', 'description', { language, localizationEnabled }),
+    },
     { 
       field: 'status', 
       headerName: 'Status', 
@@ -29,9 +54,23 @@ const ModernCategoryList = ({ selectedItem, onItemSelect, onItemCountChange, sea
 
   // Define detail modal fields
   const detailFields = [
-    { key: 'name', label: 'Name' },
-    { key: 'type', label: 'Type' },
-    { key: 'description', label: 'Description', type: 'multiline' },
+    {
+      key: 'name',
+      label: 'Name',
+      render: (value, item) =>
+        resolveListEntityField(item, 'category', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      render: (value, item) => resolveListEntityField(item, 'category', 'type', { language, localizationEnabled }),
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      type: 'multiline',
+      render: (value, item) => resolveListEntityField(item, 'category', 'description', { language, localizationEnabled }),
+    },
     { key: 'code', label: 'Category Code' },
     { key: 'parentCategory', label: 'Parent Category' },
     { key: 'status', label: 'Status', type: 'status' }

@@ -3,6 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getCategories } from '../../api/categories';
 import { useClient } from '../../context/ClientContext';
+import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
+import { resolveListEntityField } from '../../utils/listLocalization';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
 import '../../styles/SandylandModalTheme.css';
 
@@ -11,6 +13,7 @@ import '../../styles/SandylandModalTheme.css';
  */
 const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = false }) => {
   const { selectedClient } = useClient();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const { isLoading: isSaving, withLoading } = useLoadingSpinner();
   
   const [formData, setFormData] = useState({
@@ -191,7 +194,11 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
                   <option value="">Select a category (optional)</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.name}>
-                      {category.name}
+                      {resolveListEntityField(category, 'category', 'name', {
+                        language,
+                        localizationEnabled,
+                        hardFallback: category.name || category.id || '',
+                      })}
                     </option>
                   ))}
                 </select>

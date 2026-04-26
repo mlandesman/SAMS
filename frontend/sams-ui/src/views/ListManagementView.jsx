@@ -29,6 +29,7 @@ import { useClient } from '../context/ClientContext';
 import { useListManagement } from '../context/ListManagementContext';
 import { useStatusBar } from '../context/StatusBarContext';
 import { useAuth } from '../context/AuthContext';
+import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useSecureApi } from '../api/secureApiClient';
 import { isSuperAdmin, isAdmin } from '../utils/userRoles';
 import { normalizeOwners, normalizeManagers } from '../utils/unitContactUtils';
@@ -47,6 +48,7 @@ import { getPaymentMethods } from '../api/paymentMethods';
 import { getUnits } from '../api/units';
 import { fetchAllExchangeRates } from '../api/exchangeRates';
 import { getMexicoDateTime, getMexicoDateString } from '../utils/timezone';
+import { resolveListEntityField } from '../utils/listLocalization';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
@@ -89,6 +91,7 @@ function ListManagementView() {
   const { updateEntryCount, searchTerm } = useListManagement();
   const { setStatusInfo, clearStatusInfo } = useStatusBar();
   const { samsUser } = useAuth();
+  const { language, localizationEnabled } = useDesktopLanguage();
   const secureApi = useSecureApi();
   const [tabIndex, setTabIndex] = useState(0);
   const [availableLists, setAvailableLists] = useState([]);
@@ -385,22 +388,55 @@ function ListManagementView() {
       case 'vendor':
         title = 'Vendor Details';
         detailFields = [
-          { key: 'name', label: 'Name' },
+          {
+            key: 'name',
+            label: 'Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'vendor', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+          },
           { key: 'contactPerson', label: 'Contact Person' },
           { key: 'email', label: 'Email', type: 'email' },
           { key: 'phone', label: 'Phone', type: 'phone' },
-          { key: 'address', label: 'Address', type: 'multiline' },
-          { key: 'category', label: 'Category' },
+          {
+            key: 'address',
+            label: 'Address',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'vendor', 'address', { language, localizationEnabled }),
+          },
+          {
+            key: 'category',
+            label: 'Category',
+            render: (value, item) => resolveListEntityField(item, 'vendor', 'category', { language, localizationEnabled }),
+          },
           { key: 'status', label: 'Status', type: 'status' },
-          { key: 'notes', label: 'Notes', type: 'multiline' }
+          {
+            key: 'notes',
+            label: 'Notes',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'vendor', 'notes', { language, localizationEnabled }),
+          }
         ];
         break;
       case 'category':
         title = 'Category Details';
         detailFields = [
-          { key: 'name', label: 'Name' },
-          { key: 'type', label: 'Type' },
-          { key: 'description', label: 'Description', type: 'multiline' },
+          {
+            key: 'name',
+            label: 'Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'category', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: (value, item) => resolveListEntityField(item, 'category', 'type', { language, localizationEnabled }),
+          },
+          {
+            key: 'description',
+            label: 'Description',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'category', 'description', { language, localizationEnabled }),
+          },
           { key: 'code', label: 'Category Code' },
           { key: 'parentCategory', label: 'Parent Category' },
           { key: 'status', label: 'Status', type: 'status' }
@@ -409,9 +445,23 @@ function ListManagementView() {
       case 'method':
         title = 'Payment Method Details';
         detailFields = [
-          { key: 'name', label: 'Name' },
-          { key: 'type', label: 'Type' },
-          { key: 'description', label: 'Description', type: 'multiline' },
+          {
+            key: 'name',
+            label: 'Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'method', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: (value, item) => resolveListEntityField(item, 'method', 'type', { language, localizationEnabled }),
+          },
+          {
+            key: 'description',
+            label: 'Description',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'method', 'description', { language, localizationEnabled }),
+          },
           { key: 'isActive', label: 'Active', type: 'boolean' }
         ];
         break;
@@ -419,7 +469,12 @@ function ListManagementView() {
         title = 'Unit Details';
         detailFields = [
           { key: 'unitId', label: 'Unit ID' },
-          { key: 'unitName', label: 'Unit Name' },
+          {
+            key: 'unitName',
+            label: 'Unit Name',
+            render: (value, item) =>
+              resolveListEntityField(item, 'unit', 'unitName', { language, localizationEnabled, hardFallback: item.unitId || '' }),
+          },
           { 
             key: 'owners', 
             label: 'Owners',
@@ -446,8 +501,16 @@ function ListManagementView() {
               }).join(', ');
             }
           },
-          { key: 'status', label: 'Status' },
-          { key: 'type', label: 'Type' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'status', { language, localizationEnabled }),
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'propertyType', { language, localizationEnabled }),
+          },
           { 
             key: 'squareFeet', 
             label: 'Square Feet',
@@ -481,7 +544,12 @@ function ListManagementView() {
             type: 'money'
           },
           { key: 'accessCode', label: 'Access Code' },
-          { key: 'notes', label: 'Notes', type: 'multiline' }
+          {
+            key: 'notes',
+            label: 'Notes',
+            type: 'multiline',
+            render: (value, item) => resolveListEntityField(item, 'unit', 'notes', { language, localizationEnabled }),
+          }
         ];
         break;
       case 'users':
