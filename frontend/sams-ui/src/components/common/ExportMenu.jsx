@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileExport, faFileCsv, faEnvelope, faFilePdf } from '@fortawesome/free-solid-svg-icons';
+import { useDesktopStrings } from '../../hooks/useDesktopStrings';
 import './ExportMenu.css';
 
 /**
@@ -22,6 +23,7 @@ function ExportMenu({
   loading = false,
   loadingText = 'Exporting...'
 }) {
+  const { t } = useDesktopStrings();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -58,7 +60,7 @@ function ExportMenu({
         disabled={disabled}
       >
         <FontAwesomeIcon icon={faFileExport} />
-        <span>Export</span>
+        <span>{t('export.export')}</span>
       </button>
       
       {isOpen && (

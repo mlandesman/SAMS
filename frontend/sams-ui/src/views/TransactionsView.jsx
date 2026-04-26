@@ -51,9 +51,11 @@ import { databaseFieldMappings } from '../utils/databaseFieldMappings';
 import { centavosToPesos } from '@shared/utils/currencyUtils';
 import { generateTransactionsPdfHtml } from '../utils/transactionPdfTemplate';
 import reportService from '../services/reportService';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
+  const { t } = useDesktopStrings();
   const [allTransactions, setAllTransactions] = useState([]);
   const [balance, setBalance] = useState(null);
   const [startingBalance, setStartingBalance] = useState({ cashBalance: 0, bankBalance: 0 });
@@ -102,7 +104,6 @@ function TransactionsView() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [confirmationData, setConfirmationData] = useState(null);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [documentFiles, setDocumentFiles] = useState([]); // Store actual file objects
   
   // Success modal state (survives balance recalculation remounts)
   const [showExpenseSuccessModal, setShowExpenseSuccessModal] = useState(false);
@@ -141,8 +142,7 @@ function TransactionsView() {
     editTransaction,
     isRefreshing,
     setIsRefreshing,
-    balanceUpdateTrigger,
-    isSplitTransaction
+    balanceUpdateTrigger
   } = useTransactionsContext();
 
   // Reference to store if we've already calculated the balance and for which client
@@ -168,7 +168,7 @@ function TransactionsView() {
   const handleGenerateReceipt = useCallback(async () => {
     const transactionUnit = selectedTransaction?.unitId || selectedTransaction?.unit;
     if (!selectedTransaction || !transactionUnit) {
-      showError('Please select a transaction with a Unit ID to generate a receipt');
+      showError('Error', t('tx.transactionNeedsUnit'));
       return;
     }
 
@@ -190,11 +190,11 @@ function TransactionsView() {
       
     } catch (error) {
       console.error('Error generating receipt:', error);
-      showError('Error generating receipt: ' + error.message);
+      showError('Error', `Error generating receipt: ${error.message}`);
     } finally {
       setIsGeneratingReceipt(false);
     }
-  }, [selectedTransaction, selectedClient, units, setReceiptTransactionData, setShowDigitalReceipt, showError]);
+  }, [selectedTransaction, selectedClient, units, setReceiptTransactionData, setShowDigitalReceipt, showError, t]);
 
   // Apply date filters based on the current filter - now using Mexico City timezone
   const getFilterDates = (filterType) => {
@@ -296,7 +296,7 @@ function TransactionsView() {
             transaction.allocations,
             'categoryName',
             advancedFilters.category,
-            (alloc, field) => alloc.categoryName || alloc.categoryId
+            (alloc) => alloc.categoryName || alloc.categoryId
           );
           
           // Include if EITHER transaction-level OR any allocation matches
@@ -451,7 +451,7 @@ function TransactionsView() {
             transaction.allocations,
             'accountName',
             advancedFilters.account,
-            (alloc, field) => alloc.accountName || alloc.accountId || alloc.data?.accountName
+            (alloc) => alloc.accountName || alloc.accountId || alloc.data?.accountName
           );
           
           // Include if EITHER transaction-level OR any allocation matches
@@ -1504,16 +1504,18 @@ function TransactionsView() {
             disabled={!selectedTransaction}
           >
             <FontAwesomeIcon icon={faTrash} />
-            <span>Delete Entry</span>
+            <span>{t('tx.deleteEntry')}</span>
           </button>
         )}
         <button 
           className={`action-item ${Object.keys(advancedFilters).length > 0 ? 'filtered-active' : ''}`} 
           onClick={handleOpenAdvancedFilter}
-          title={Object.keys(advancedFilters).length > 0 ? `Advanced filters active (${filteredTransactions.length} results)` : 'Open advanced filters'}
+          title={Object.keys(advancedFilters).length > 0
+            ? t('tx.advancedFiltersActive', { count: filteredTransactions.length })
+            : t('tx.openAdvancedFilters')}
         >
           <FontAwesomeIcon icon={faFilter} />
-          <span>Filter</span>
+          <span>{t('tx.filter')}</span>
         </button>
         <ExportMenu
           onExportCSV={handleExportCSV}
@@ -1524,11 +1526,11 @@ function TransactionsView() {
           <>
             <button className="action-item" onClick={() => setShowReconciliationModal(true)}>
               <FontAwesomeIcon icon={faCheckDouble} />
-              <span>Quick balance adjustment</span>
+              <span>{t('tx.quickBalanceAdjustment')}</span>
             </button>
             <button className="action-item" onClick={() => navigate('/reconciliation')}>
               <FontAwesomeIcon icon={faFileInvoice} />
-              <span>Bank statement reconciliation</span>
+              <span>{t('tx.bankStatementReconciliation')}</span>
             </button>
           </>
         )}
@@ -1536,25 +1538,29 @@ function TransactionsView() {
           className={`action-item ${!selectedTransaction || !(selectedTransaction.unitId || selectedTransaction.unit) ? 'disabled' : ''}`}
           onClick={handleGenerateReceipt}
           disabled={!selectedTransaction || !(selectedTransaction.unitId || selectedTransaction.unit) || isGeneratingReceipt}
-          title={!selectedTransaction ? 'Select a transaction' : !(selectedTransaction.unitId || selectedTransaction.unit) ? 'Transaction must have a Unit ID' : 'Generate digital receipt'}
+          title={!selectedTransaction
+            ? t('tx.selectTransaction')
+            : !(selectedTransaction.unitId || selectedTransaction.unit)
+              ? t('tx.transactionNeedsUnit')
+              : t('tx.generateDigitalReceipt')}
         >
           {isGeneratingReceipt ? (
             <LoadingSpinner variant="logo" size="small" color="white" show={true} />
           ) : (
             <FontAwesomeIcon icon={faPrint} />
           )}
-          <span>{isGeneratingReceipt ? 'Preparing...' : 'Send Receipt via Email'}</span>
+          <span>{isGeneratingReceipt ? t('tx.preparing') : t('tx.sendReceiptEmail')}</span>
         </button>
       </ActivityActionBar>
       
       {noBalanceFound && (
         <div className="balance-warning">
-          <strong>Warning:</strong> No balance snapshot found. Balance calculations may be inaccurate.
+          <strong>{t('tx.warningLabel')}:</strong> {t('tx.noBalanceSnapshotWarning')}
         </div>
       )}
       
       {loadingTransaction && (
-        <LoadingSpinner variant="logo" message="Loading transaction..." size="small" />
+        <LoadingSpinner variant="logo" message={t('tx.loadingTransaction')} size="small" />
       )}
       
       {transactionError && (
@@ -1637,12 +1643,12 @@ function TransactionsView() {
           } catch (error) {
             console.error('❌ Error during balance recalculation:', error);
             setNoBalanceFound(true);
-            alert(`Error recalculating balances: ${error.message}`);
+            alert(t('tx.errorRecalcBalances', { message: error.message }));
           } finally {
             setIsRecalculatingBalance(false);
           }
         } : undefined}
-        title={canRecalcBalances ? 'Click to recalculate balances. Right-click for historical lookup.' : undefined}
+        title={canRecalcBalances ? t('tx.balanceBarTitle') : undefined}
         style={{ 
           opacity: isRecalculatingBalance ? 0.7 : 1,
           cursor: canRecalcBalances ? (isRecalculatingBalance ? 'wait' : 'pointer') : 'default'
@@ -1651,15 +1657,15 @@ function TransactionsView() {
         {isRecalculatingBalance ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <LoadingSpinner variant="logo" size="small" color="white" show={true} />
-            <span>Recalculating balances from year-end snapshot...</span>
+            <span>{t('tx.recalculatingFromSnapshot')}</span>
           </div>
         ) : (
           <>
-            🏦 Cash: ${centavosToPesos(startingBalance?.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            🏦 {t('tx.cash')}: ${centavosToPesos(startingBalance?.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
-            🏛️ Bank: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            🏛️ {t('tx.bank')}: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             &nbsp;&nbsp;
-            💰 Total: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            💰 {t('tx.total')}: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             {canRecalcBalances && <div className="refresh-hint">↻</div>}
           </>
         )}
@@ -1669,11 +1675,11 @@ function TransactionsView() {
         <div className="modal-overlay" onClick={handleCloseHistoricalBalanceLookup}>
           <div className="modal-content" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>Historical Account Balances</h2>
+              <h2>{t('tx.historicalBalancesTitle')}</h2>
               <button className="close-button" onClick={handleCloseHistoricalBalanceLookup}>×</button>
             </div>
             <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.92rem' }}>
-              This admin lookup first refreshes current balances, then reconstructs balances as of the selected date.
+              {t('tx.historicalBalancesDescription')}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem' }}>
               <input
@@ -1686,31 +1692,31 @@ function TransactionsView() {
                 onClick={handleHistoricalBalanceLookup}
                 disabled={historicalBalanceLoading}
               >
-                {historicalBalanceLoading ? 'Refreshing + Looking up...' : 'Refresh + Lookup'}
+                {historicalBalanceLoading ? t('tx.refreshingLookup') : t('tx.refreshLookup')}
               </button>
             </div>
             {historicalBalanceError && (
               <div className="balance-warning">
-                <strong>Error:</strong> {historicalBalanceError}
+                <strong>{t('tx.errorLabel')}:</strong> {historicalBalanceError}
               </div>
             )}
             {historicalBalanceResult && (
               <div>
                 <p>
-                  <strong>As of:</strong> {historicalBalanceDate}
+                  <strong>{t('tx.asOf')}:</strong> {historicalBalanceDate}
                 </p>
                 {historicalBalanceResult.historicalLookup?.latestKnownTransactionDate?.display && (
                   <p>
-                    <strong>Last known transaction:</strong> {historicalBalanceResult.historicalLookup.latestKnownTransactionDate.display}
+                    <strong>{t('tx.lastKnownTransaction')}:</strong> {historicalBalanceResult.historicalLookup.latestKnownTransactionDate.display}
                   </p>
                 )}
                 <p>
-                  <strong>Cash:</strong> ${centavosToPesos(historicalBalanceResult.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.cash')}:</strong> ${centavosToPesos(historicalBalanceResult.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   &nbsp;&nbsp;
-                  <strong>Bank:</strong> ${centavosToPesos(historicalBalanceResult.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.bank')}:</strong> ${centavosToPesos(historicalBalanceResult.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p>
-                  <strong>Total:</strong> ${centavosToPesos((historicalBalanceResult.cashBalance || 0) + (historicalBalanceResult.bankBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.total')}:</strong> ${centavosToPesos((historicalBalanceResult.cashBalance || 0) + (historicalBalanceResult.bankBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <div style={{ maxHeight: '260px', overflowY: 'auto', borderTop: '1px solid #ddd', paddingTop: '0.75rem' }}>
                   {(historicalBalanceResult.accounts || []).map((account) => (
@@ -1739,17 +1745,6 @@ function TransactionsView() {
           mode="modal"
           isOpen={showExpenseModal}
           initialData={selectedTransaction ? (() => {
-            // Robust field extraction handling multiple data structure possibilities
-            const extractField = (obj, fieldNames) => {
-              for (const fieldName of fieldNames) {
-                if (obj[fieldName]) return obj[fieldName];
-                // Handle nested fields like vendor.stringValue
-                if (obj[fieldName]?.stringValue) return obj[fieldName].stringValue;
-                if (obj[fieldName]?.value) return obj[fieldName].value;
-              }
-              return '';
-            };
-            
             const extractDate = (dateField) => {
               if (!dateField) return '';
               // Handle formatted date from API
@@ -1818,7 +1813,6 @@ function TransactionsView() {
               }
               
               // Use the atomic workflow for file uploads (same as UnifiedExpenseEntry direct mode)
-              let savedTransaction;
               let transactionId;
               if (selectedTransaction) {
                 // Step 1: Upload new documents if any are selected
@@ -1887,7 +1881,7 @@ function TransactionsView() {
                   documentsCount: normalizedData.documents?.length || 0
                 });
                 
-                savedTransaction = await editTransaction(selectedTransaction.id, normalizedData);
+                await editTransaction(selectedTransaction.id, normalizedData);
                 transactionId = selectedTransaction.id; // Use the existing transaction ID
                 
                 console.log('✅ Transaction edit completed:', transactionId);
@@ -1950,7 +1944,6 @@ function TransactionsView() {
                   console.log('✅ Documents linked to transaction');
                 }
                 
-                savedTransaction = { id: transactionId, ...cleanTransactionData };
                 console.log('✅ Atomic expense submission complete');
               }
               
@@ -2029,13 +2022,13 @@ function TransactionsView() {
                   : [error.validationErrors];
                 
                 const formattedErrors = errorMessages.map(err => `• ${err}`).join('\n');
-                alert(`Transaction Validation Failed:\n\n${formattedErrors}\n\nPlease check your data and try again.`);
+                alert(`${t('tx.validationFailed')}:\n\n${formattedErrors}\n\n${t('tx.checkDataTryAgain')}`);
               } else if (error.message && error.message.includes('validation failed')) {
                 // Handle validation errors that come as strings
-                alert(`Validation Error:\n\n${error.message}\n\nPlease check your data and try again.`);
+                alert(`${t('tx.validationError')}:\n\n${error.message}\n\n${t('tx.checkDataTryAgain')}`);
               } else {
                 // Generic error fallback
-                alert(`Error saving transaction:\n\n${error.message || 'Unknown error occurred. Please try again.'}`);
+                alert(`${t('tx.errorSaving')}:\n\n${error.message || t('tx.unknownError')}`);
               }
             }
           }}
@@ -2072,7 +2065,7 @@ function TransactionsView() {
         <div className="modal-overlay" onClick={() => setShowDigitalReceipt(false)}>
           <div className="modal-content digital-receipt-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Digital Receipt</h2>
+              <h2>{t('tx.digitalReceiptTitle')}</h2>
               <button className="close-button" onClick={() => setShowDigitalReceipt(false)}>×</button>
             </div>
             <DigitalReceipt 
@@ -2159,8 +2152,7 @@ function TransactionsView() {
                 setShowSplitEntryModal(false);
                 
                 // Show success notification
-                showSuccess('Split Transaction Updated', 
-                  `Updated transaction for ${transactionData.vendorName} with ${allocations.length} allocations`);
+                showEmailSuccess(`Updated transaction for ${transactionData.vendorName} with ${allocations.length} allocations`);
                 
                 // Refresh the transaction list
                 setIsRefreshing(true);

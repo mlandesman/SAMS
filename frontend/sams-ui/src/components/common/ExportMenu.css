@@ -1,6 +1,7 @@
 .export-menu-container {
   position: relative;
-  display: inline-block;
+  display: flex;
+  align-self: stretch;
 }
 
 .export-menu-button {
@@ -17,6 +18,7 @@
   font-size: 0.8rem;
   color: #333;
   min-width: 90px;
+  height: 100%;
   text-align: center;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }

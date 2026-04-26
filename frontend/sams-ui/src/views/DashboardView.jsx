@@ -41,6 +41,7 @@ import { LoadingSpinner } from '../components/common';
 import ClientSwitcher from '../components/ClientSwitcher';
 import { ErrorMonitorSection } from '../components/Dashboard/ErrorMonitorCard';
 import { getPolls, getPoll } from '../api/polls';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './DashboardView.css';
 
 const formatDateDisplay = (value) => {
@@ -50,6 +51,7 @@ const formatDateDisplay = (value) => {
 
 function DashboardView() {
   const navigate = useNavigate();
+  const { t } = useDesktopStrings();
   const { currentUser, samsUser } = useAuth();
   const { selectedClient, selectedUnitId, setSelectedUnitId, setUnitOwnerNames, menuConfig } = useClient();
   const { 
@@ -80,11 +82,6 @@ function DashboardView() {
   const [pollError, setPollError] = useState('');
   const [unitMenuAnchor, setUnitMenuAnchor] = useState(null);
   
-  const formatDate = (value) => {
-    if (!value || typeof value !== 'string') return '—';
-    return value.split('T')[0];
-  };
-
   const getNowMs = () => {
     if (typeof performance !== 'undefined' && performance.timeOrigin) {
       return performance.timeOrigin + performance.now();
@@ -144,14 +141,14 @@ function DashboardView() {
           setPollCard(null);
         }
       } catch (err) {
-        setPollError(err.message || 'Failed to load polls');
+        setPollError(err.message || t('dashboard.pollLoadError'));
       } finally {
         setPollLoading(false);
       }
     };
 
     loadPolls();
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, t]);
   
   // Currency calculator modal state
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -252,7 +249,7 @@ function DashboardView() {
   if (!currentUser) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <LoadingSpinner message="Loading..." />
+        <LoadingSpinner message={t('dashboard.loading')} />
       </Box>
     );
   }
@@ -267,7 +264,7 @@ function DashboardView() {
         {/* Header */}
         <Box mb={3}>
         <Typography variant="h4" gutterBottom sx={{ color: 'white', fontWeight: 600 }}>
-          Dashboard
+          {t('dashboard.title')}
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
           {isAdmin ? (
@@ -353,8 +350,8 @@ function DashboardView() {
         icon={<BalanceIcon />}
       >
         Welcome to Sandyland Asset Management. {isAdmin ? 
-          'You have administrator access with full system capabilities.' : 
-          'Access your unit information and financial data.'
+          t('dashboard.welcome.admin') : 
+          t('dashboard.welcome.user')
         }
       </Alert>
 
@@ -383,7 +380,7 @@ function DashboardView() {
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
                   <ReceiptIcon sx={{ color: '#059669', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Unit Account Status</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.unitAccountStatus')}</Typography>
                 </Box>
                 {unitAccountLoading ? (
                   <Box display="flex" flexDirection="column" gap={1} py={2}>
@@ -454,7 +451,7 @@ function DashboardView() {
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <BalanceIcon sx={{ color: '#0863bf', mr: 1, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>Account Balances</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.accountBalances')}</Typography>
               </Box>
               {loading.accounts ? (
                 <Box display="flex" justifyContent="center" py={2}>
@@ -519,7 +516,7 @@ function DashboardView() {
               <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <HomeIcon sx={{ color: '#059669', mr: 1, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>HOA Dues Status</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.hoaDuesStatus')}</Typography>
               </Box>
               {loading.dues ? (
                 <Box display="flex" justifyContent="center" py={2}>
@@ -531,7 +528,7 @@ function DashboardView() {
                     {hoaDuesStatus.collectionRate?.toFixed(1) || '0'}%
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Collection Rate
+                    {t('dashboard.collectionRate')}
                   </Typography>
                   <Box sx={{ mb: 2 }}>
                     <Box sx={{ 
@@ -590,7 +587,7 @@ function DashboardView() {
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
                   <ReceiptIcon sx={{ color: '#dc2626', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Past Due Units</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.pastDueUnits')}</Typography>
                 </Box>
                 {loading.dues ? (
                   <Box display="flex" justifyContent="center" py={2}>
@@ -616,7 +613,7 @@ function DashboardView() {
                               </Box>
                             ))}
                           </Box>
-                        ) : 'No units past due'
+                        ) : t('dashboard.noUnitsPastDue')
                       }
                       arrow
                       placement="top"
@@ -636,11 +633,11 @@ function DashboardView() {
                           ${hoaDuesStatus.pastDueAmount?.toLocaleString() || '0'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          Past Due Amount
+                          {t('dashboard.pastDueAmount')}
                         </Typography>
                         <Box>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Units Past Due:</span>
+                            <span>{t('dashboard.unitsPastDue')}:</span>
                             <strong>{hoaDuesStatus.overdueCount || 0}</strong>
                           </Typography>
                         </Box>
@@ -672,7 +669,7 @@ function DashboardView() {
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                   <Box display="flex" alignItems="center">
                     <WaterIcon sx={{ color: '#0891b2', mr: 1, fontSize: 28 }} />
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>Water Bills Past Due</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.waterBillsPastDue')}</Typography>
                   </Box>
                   <Tooltip title="Refresh water bills data">
                     <IconButton 
@@ -695,7 +692,7 @@ function DashboardView() {
                 ) : error.water ? (
                   <Box textAlign="center" py={2}>
                     <Typography variant="body2" color="text.secondary">
-                      Water bills not available
+                      {t('dashboard.waterUnavailable')}
                     </Typography>
                   </Box>
                 ) : (
@@ -705,7 +702,7 @@ function DashboardView() {
                         waterBillsStatus.pastDueDetails?.length > 0 ? (
                           <Box sx={{ p: 1.5 }}>
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'white' }}>
-                              Water Bills Past Due Details
+                              {t('dashboard.waterBillsPastDueDetails')}
                             </Typography>
                             {waterBillsStatus.pastDueDetails.map((unit, index) => (
                               <Box key={unit.unitId} sx={{ mb: index < waterBillsStatus.pastDueDetails.length - 1 ? 1 : 0 }}>
@@ -718,7 +715,7 @@ function DashboardView() {
                               </Box>
                             ))}
                           </Box>
-                        ) : 'No water bills past due'
+                        ) : t('dashboard.noWaterPastDue')
                       }
                       arrow
                       placement="top"
@@ -738,15 +735,15 @@ function DashboardView() {
                           ${waterBillsStatus.totalUnpaid?.toLocaleString() || '0'}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          Past Due Amount
+                          {t('dashboard.pastDueAmount')}
                         </Typography>
                         <Box>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <span>Units Past Due:</span>
+                            <span>{t('dashboard.unitsPastDue')}:</span>
                             <strong>{waterBillsStatus.overdueCount || 0}</strong>
                           </Typography>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Collection Rate:</span>
+                            <span>{t('dashboard.collectionRate')}:</span>
                             <strong style={{ color: waterBillsStatus.collectionRate >= 80 ? '#059669' : '#dc2626' }}>
                               {waterBillsStatus.collectionRate?.toFixed(1) || '0'}%
                             </strong>
@@ -779,7 +776,7 @@ function DashboardView() {
               <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                 <Box display="flex" alignItems="center">
                   <CurrencyIcon sx={{ color: '#7c3aed', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Exchange Rates</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.exchangeRates')}</Typography>
                 </Box>
                 <IconButton 
                   onClick={() => setCalculatorOpen(true)}
@@ -802,7 +799,7 @@ function DashboardView() {
               ) : exchangeError ? (
                 <Box textAlign="center" py={2}>
                   <Typography variant="body2" color="error">
-                    Unable to load exchange rates
+                    {t('dashboard.exchangeLoadError')}
                   </Typography>
                 </Box>
               ) : exchangeRates?.rates ? (
@@ -830,14 +827,14 @@ function DashboardView() {
                   {/* Footer Info */}
                   <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
                     <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
-                      Last updated: {exchangeRates.lastUpdated || 'Never'}
+                      {t('dashboard.lastUpdated')}: {exchangeRates.lastUpdated || 'Never'}
                     </Typography>
                   </Box>
                 </>
               ) : (
                 <Box textAlign="center" py={2}>
                   <Typography variant="body2" color="text.secondary">
-                    No exchange rate data available
+                    {t('dashboard.exchangeNoData')}
                   </Typography>
                 </Box>
               )}
@@ -862,7 +859,7 @@ function DashboardView() {
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
                 <ProjectIcon sx={{ color: '#2563eb', mr: 1, fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>Polls</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.polls')}</Typography>
               </Box>
               {pollLoading ? (
                 <Box display="flex" justifyContent="center" py={2}>
@@ -875,28 +872,28 @@ function DashboardView() {
               ) : pollCard ? (
                 <>
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                    {pollCard.poll?.title || 'Active Poll'}
+                    {pollCard.poll?.title || t('dashboard.activePoll')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {pollCard.mode === 'open' ? 'Active Vote' : 'Recent Result'}
+                    {pollCard.mode === 'open' ? t('dashboard.activeVote') : t('dashboard.recentResult')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {pollCard.summary?.totalUnits
                       ? `${Math.round((pollCard.summary.totalResponses / pollCard.summary.totalUnits) * 100)}% returned`
-                      : 'No responses yet'}
+                      : t('dashboard.noResponses')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {pollCard.mode === 'open' ? 'Closes' : 'Closed'}: {formatDateDisplay(pollCard.poll?.closesAt || pollCard.poll?.closedAt)}
+                    {pollCard.mode === 'open' ? t('dashboard.closes') : t('dashboard.closed')}: {formatDateDisplay(pollCard.poll?.closesAt || pollCard.poll?.closedAt)}
                   </Typography>
                   {pollCard.summary && (
                     <Typography variant="body2" color="text.secondary">
-                      {buildResultSummary(pollCard.summary) || 'Results pending'}
+                      {buildResultSummary(pollCard.summary) || t('dashboard.resultsPending')}
                     </Typography>
                   )}
                 </>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  No active polls.
+                  {t('dashboard.noActivePolls')}
                 </Typography>
               )}
             </CardContent>
@@ -955,7 +952,7 @@ function DashboardView() {
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
                   <TrendingUpIcon sx={{ color: budgetStatus?.statusColor || '#f59e0b', mr: 1, fontSize: 28 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>Budget Status</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>{t('dashboard.budgetStatus')}</Typography>
                 </Box>
                 {budgetLoading ? (
                   <Box display="flex" justifyContent="center" py={2}>
@@ -967,7 +964,7 @@ function DashboardView() {
                       --
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Unable to load budget data
+                      {t('dashboard.budgetLoadError')}
                     </Typography>
                   </Box>
                 ) : budgetStatus ? (
@@ -1013,7 +1010,7 @@ function DashboardView() {
                   </>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No budget data available
+                    {t('dashboard.noBudgetData')}
                   </Typography>
                 )}
               </CardContent>
@@ -1026,7 +1023,7 @@ function DashboardView() {
       {/* Quick Actions */}
       <Box mt={4}>
         <Typography variant="h6" gutterBottom sx={{ color: '#0863bf', fontWeight: 600 }}>
-          Quick Actions
+          {t('dashboard.quickActions')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Use the navigation menu to access {isAdmin ? 

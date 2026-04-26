@@ -7,11 +7,13 @@ import { getMexicoDateString } from '../utils/timezone';
 import { formatAsMXN } from '../utils/hoaDuesUtils';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
 import { getMexicoDate } from '../utils/timezone';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './CreditBalanceEditModal.css';
 
 function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year, onUpdate, mode }) {
   const { selectedClient } = useClient();
   const { samsUser } = useAuth();
+  const { t } = useDesktopStrings();
   
   // mode can be 'add', 'remove', or undefined (for edit/new balance mode)
   const isAmountMode = mode === 'add' || mode === 'remove';
@@ -53,7 +55,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
 
   const handleSave = async () => {
     if (!canEdit) {
-      setError('You do not have permission to edit credit balances');
+      setError(t('creditEdit.errorNoPermission'));
       return;
     }
 
@@ -76,7 +78,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       });
       
       if (!amountStr || isNaN(amountValue) || amountValue === 0) {
-        setError('Please enter a valid non-zero amount');
+        setError(t('creditEdit.errorNonZeroAmount'));
         return;
       }
       
@@ -99,7 +101,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       // Balance mode: validate new balance
       newBalanceValue = parseFloat(newBalance);
       if (isNaN(newBalanceValue)) {
-        setError('Please enter a valid balance amount');
+        setError(t('creditEdit.errorValidBalance'));
         return;
       }
 
@@ -108,18 +110,18 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
 
       // Check if there's actually a change
       if (Math.abs(difference) < 0.01) {
-        setError('New balance must be different from current balance');
+        setError(t('creditEdit.errorDifferentBalance'));
         return;
       }
     }
 
     if (!notes.trim()) {
-      setError('Please provide a note explaining this change');
+      setError(t('creditEdit.errorExplainChange'));
       return;
     }
 
     if (!entryDate) {
-      setError('Please select a date for this entry');
+      setError(t('creditEdit.errorSelectDate'));
       return;
     }
 
@@ -194,7 +196,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       onClose();
     } catch (err) {
       console.error('Error updating credit balance:', err);
-      setError(err.message || 'Failed to update credit balance');
+      setError(err.message || t('creditEdit.errorUpdateFailed'));
     } finally {
       setLoading(false);
     }
@@ -243,16 +245,16 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       <div className="modal-backdrop">
         <div className="credit-balance-modal">
           <div className="modal-header">
-            <h3>Access Denied</h3>
+            <h3>{t('creditEdit.accessDenied')}</h3>
             <button className="close-button" onClick={onClose}>×</button>
           </div>
           <div className="modal-body">
-            <p>You do not have permission to edit credit balances.</p>
-            <p>Only administrators and super administrators can make credit balance adjustments.</p>
+            <p>{t('creditEdit.noPermission')}</p>
+            <p>{t('creditEdit.adminOnly')}</p>
           </div>
           <div className="modal-footer">
             <button className="btn-secondary" onClick={onClose}>
-              Close
+              {t('creditHistory.close')}
             </button>
           </div>
         </div>
@@ -265,7 +267,11 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
       <div className="credit-balance-modal">
         <div className={`modal-header ${isAdd ? 'header-add' : isRemove ? 'header-remove' : ''}`}>
           <h3>
-            {mode === 'add' ? '➕ Add Credit' : mode === 'remove' ? '➖ Remove Credit' : 'Edit Credit Balance'} - Unit {unitId}
+            {mode === 'add'
+              ? `➕ ${t('creditEdit.title.add', { unitId })}`
+              : mode === 'remove'
+                ? `➖ ${t('creditEdit.title.remove', { unitId })}`
+                : t('creditEdit.title.edit', { unitId })}
           </h3>
           <button className="close-button" onClick={handleCancel}>×</button>
         </div>
@@ -278,14 +284,14 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
           )}
           
           <div className="form-group">
-            <label htmlFor="currentBalance">Current Balance:</label>
+            <label htmlFor="currentBalance">{t('creditEdit.currentBalance')}</label>
             <div className="current-balance">
               {formatAsMXN(currentBalance || 0)}
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="entryDate">Entry Date (Required):</label>
+            <label htmlFor="entryDate">{t('creditEdit.entryDateRequired')}</label>
             <input
               type="date"
               id="entryDate"
@@ -295,7 +301,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
               required
             />
             <div className="form-hint">
-              This date will be used to sort the history chronologically
+              {t('creditEdit.entryDateHint')}
             </div>
           </div>
 
@@ -303,7 +309,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
             <>
               <div className="form-group">
                 <label htmlFor="amount">
-                  {mode === 'add' ? 'Amount to Add (Required):' : 'Amount to Remove (Required):'}
+                  {mode === 'add' ? t('creditEdit.amountAddRequired') : t('creditEdit.amountRemoveRequired')}
                 </label>
                 <input
                   type="number"
@@ -314,7 +320,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
                     console.log('[CREDIT EDIT MODAL] Amount changed:', { mode, value, currentAmount: amount });
                     setAmount(value);
                   }}
-                  placeholder={mode === 'add' ? "Enter positive amount to add" : "Enter positive amount to remove"}
+                  placeholder={mode === 'add' ? t('creditEdit.amountAddPlaceholder') : t('creditEdit.amountRemovePlaceholder')}
                   step="0.01"
                   min="0.01"
                   disabled={loading}
@@ -322,22 +328,22 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
                 />
                 <div className="form-hint">
                   {mode === 'add' 
-                    ? 'Enter a positive amount to add to the credit balance' 
-                    : 'Enter a positive amount to remove from the credit balance'}
+                    ? t('creditEdit.amountAddHint')
+                    : t('creditEdit.amountRemoveHint')}
                 </div>
               </div>
 
               {amount && parseFloat(amount) > 0 && (
                 <div className={`balance-preview ${isAdd ? 'preview-add' : 'preview-remove'}`}>
-                  <div className="preview-label">Current Balance:</div>
+                  <div className="preview-label">{t('creditEdit.previewCurrent')}</div>
                   <div className="preview-amount">
                     {formatAsMXN(currentBalance || 0)}
                   </div>
-                  <div className="preview-label">Change:</div>
+                  <div className="preview-label">{t('creditEdit.previewChange')}</div>
                   <div className="preview-change">
                     {isAdd ? '+' : ''}{formatAsMXN(difference)}
                   </div>
-                  <div className="preview-label">New Balance:</div>
+                  <div className="preview-label">{t('creditEdit.previewNew')}</div>
                   <div className="preview-amount">
                     {formatAsMXN(newBalanceValue)}
                   </div>
@@ -347,29 +353,29 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
           ) : (
             <>
               <div className="form-group">
-                <label htmlFor="newBalance">New Balance (Required):</label>
+                <label htmlFor="newBalance">{t('creditEdit.newBalanceRequired')}</label>
                 <input
                   type="number"
                   id="newBalance"
                   value={newBalance}
                   onChange={(e) => setNewBalance(e.target.value)}
-                  placeholder="Enter the new ending balance"
+                  placeholder={t('creditEdit.newBalancePlaceholder')}
                   step="0.01"
                   disabled={loading}
                   required
                 />
                 <div className="form-hint">
-                  Enter the final balance amount. The system will automatically calculate if this is an addition or removal.
+                  {t('creditEdit.newBalanceHint')}
                 </div>
               </div>
 
               {Math.abs(difference) > 0.01 && (
                 <div className={`balance-preview ${isAdd ? 'preview-add' : 'preview-remove'}`}>
-                  <div className="preview-label">Change:</div>
+                  <div className="preview-label">{t('creditEdit.previewChange')}</div>
                   <div className="preview-change">
                     {isAdd ? '+' : ''}{formatAsMXN(difference)}
                   </div>
-                  <div className="preview-label">New Balance:</div>
+                  <div className="preview-label">{t('creditEdit.previewNew')}</div>
                   <div className="preview-amount">
                     {formatAsMXN(newBalanceValue)}
                   </div>
@@ -379,23 +385,23 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
           )}
 
           <div className="form-group">
-            <label htmlFor="notes">Notes (Required):</label>
+            <label htmlFor="notes">{t('creditEdit.notesRequired')}</label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Please explain the reason for this credit balance adjustment..."
+              placeholder={t('creditEdit.notesPlaceholder')}
               rows="3"
               disabled={loading}
               required
             />
             <div className="form-hint">
-              This entry will be created with source: "admin"
+              {t('creditEdit.adminSourceHint')}
             </div>
           </div>
 
           <div className="form-note">
-            <strong>Note:</strong> This action will create a history entry and the balance will be recalculated from all history entries.
+            <strong>{t('creditEdit.noteTitle')}</strong> {t('creditEdit.noteBody')}
           </div>
         </div>
 
@@ -405,7 +411,7 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
             onClick={handleCancel}
             disabled={loading}
           >
-            Cancel
+            {t('creditEdit.cancel')}
           </button>
           <button 
             className={`btn-primary ${isAdd ? 'btn-add' : isRemove ? 'btn-remove' : ''}`} 
@@ -418,12 +424,12 @@ function CreditBalanceEditModal({ isOpen, onClose, unitId, currentBalance, year,
             }
           >
             {loading 
-              ? 'Saving...' 
+              ? t('creditEdit.saving')
               : mode === 'add' 
-                ? 'Add Credit' 
+                ? t('creditHistory.addCredit')
                 : mode === 'remove' 
-                  ? 'Remove Credit' 
-                  : 'Save Changes'}
+                  ? t('creditHistory.removeCredit')
+                  : t('creditEdit.saveChanges')}
           </button>
         </div>
       </div>
