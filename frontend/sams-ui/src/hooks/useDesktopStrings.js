@@ -6,7 +6,7 @@ export function useDesktopStrings() {
   const { language, localizationEnabled } = useDesktopLanguage();
 
   const t = useCallback(
-    (key) => getDesktopShellString(language, key, localizationEnabled),
+    (key, params = {}) => getDesktopShellString(language, key, localizationEnabled, params),
     [language, localizationEnabled]
   );
 

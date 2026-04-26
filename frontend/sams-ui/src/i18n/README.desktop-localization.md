@@ -7,6 +7,7 @@ This desktop app uses shared keyed strings from `desktopShellStrings.js` and run
 2. Add the same key in `STRINGS.ES`.
 3. Render via `useDesktopStrings()`:
    - `t('your.key')` for regular copy.
+   - `t('your.key', { token: value })` for token interpolation.
    - `menuLabel(activity, fallback)` for dynamic menu activity labels.
 
 ## Fallback behavior

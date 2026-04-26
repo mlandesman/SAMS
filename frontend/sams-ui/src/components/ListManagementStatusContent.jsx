@@ -1,5 +1,6 @@
 import React from 'react';
 import GlobalSearch from './GlobalSearch';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './ListManagementStatusContent.css';
 
 /**
@@ -12,6 +13,8 @@ const ListManagementStatusContent = ({
   onClearGlobalSearch,
   isGlobalSearchActive = false
 }) => {
+  const { t } = useDesktopStrings();
+
   return (
     <div className="list-management-status-content">
       <GlobalSearch
@@ -20,7 +23,7 @@ const ListManagementStatusContent = ({
         isActive={isGlobalSearchActive}
       />
       <span className="entry-count">
-        Entries ({entryCount})
+        {t('list.entries', { count: entryCount })}
       </span>
     </div>
   );

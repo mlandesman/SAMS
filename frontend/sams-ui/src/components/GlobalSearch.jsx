@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './GlobalSearch.css';
 
-const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder = "Search..." }) => {
+const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);  // For click-outside detection
   const inputRef = useRef(null);       // For auto-focus
+  const { t } = useDesktopStrings();
+  const resolvedPlaceholder = placeholder || t('search.placeholder');
 
   const handleClose = useCallback(() => {
     setIsExpanded(false);
@@ -72,7 +75,7 @@ const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder = "Sea
           <input
             ref={inputRef}
             type="text"
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -81,7 +84,7 @@ const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder = "Sea
           <button 
             className="search-close-btn" 
             onClick={handleClose}
-            title="Clear search"
+            title={t('search.clear')}
           >
             <FontAwesomeIcon icon={faTimes} />
           </button>
@@ -90,7 +93,7 @@ const GlobalSearch = ({ onSearch, onClear, onEnter, isActive, placeholder = "Sea
         <button 
           className="search-toggle-btn" 
           onClick={handleToggle}
-          title="Search"
+          title={t('search.open')}
         >
           <FontAwesomeIcon icon={faSearch} />
         </button>

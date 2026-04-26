@@ -204,7 +204,7 @@ function Sidebar({ onChangeClientClick, onActivityChange }) { // Add onActivityC
           type="button"
           className="sidebar-language-toggle"
           onClick={handleLanguageToggle}
-          aria-label="Toggle language"
+          aria-label={t('sidebar.language')}
         >
           {t('sidebar.languageToggle')}
         </button>
