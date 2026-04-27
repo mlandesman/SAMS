@@ -55,7 +55,13 @@ import { useDesktopStrings } from '../hooks/useDesktopStrings';
 
 function TransactionsView() {
   const { samsUser } = useAuth(); // Get user for role checking
-  const { t } = useDesktopStrings();
+  const { t, language } = useDesktopStrings();
+  const numberLocale = language === 'ES' ? 'es-MX' : 'en-US';
+  const formatBalanceAmount = (amountInCentavos) =>
+    centavosToPesos(amountInCentavos || 0).toLocaleString(numberLocale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   const [allTransactions, setAllTransactions] = useState([]);
   const [balance, setBalance] = useState(null);
   const [startingBalance, setStartingBalance] = useState({ cashBalance: 0, bankBalance: 0 });
@@ -806,7 +812,7 @@ function TransactionsView() {
       
       // Step 2: Not in current filter, check if it exists at all (ignoring filters)
       console.log(`Transaction ${transactionId} not in current filter, checking if it exists in database`);
-      const transaction = await getTransactionById(selectedClient.id, transactionId);
+      const transaction = await getTransactionById(selectedClient.id, transactionId, language);
       
       if (!transaction) {
         // Step 3a: Transaction doesn't exist at all
@@ -897,7 +903,7 @@ function TransactionsView() {
       // Books are open: all users (including owners/managers) see all transactions; CRUD gated separately
       console.log(`Fetching transactions for filter: ${currentFilter}`);
       console.log(`Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      const txnList = await fetchTransactions({ clientId, startDate, endDate });
+      const txnList = await fetchTransactions({ clientId, startDate, endDate, language });
       
       // Debug: Log transaction dates to see what we're getting
       console.log(`Loaded ${txnList.length} transactions with current filter`);
@@ -993,7 +999,7 @@ function TransactionsView() {
       isMounted = false;
       console.log('Data fetching effect cleanup - component unmounted');
     };
-  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates]);
+  }, [selectedClient, currentFilter, isRefreshing, setIsRefreshing, checkAndUpdateRates, language]);
   
   // Effect for handling transaction finding after filter change
   useEffect(() => {
@@ -1168,7 +1174,8 @@ function TransactionsView() {
           const allTxns = await fetchTransactions({ 
             clientId: selectedClient.id,
             startDate: new Date('2020-01-01'), // Start from 2020
-            endDate: new Date('2099-12-31')   // End in far future
+            endDate: new Date('2099-12-31'),  // End in far future
+            language
           });
           console.log(`✅ Loaded ${allTxns.length} total transactions for Advanced Filter`);
           setAllTransactionsUnfiltered(allTxns);
@@ -1179,7 +1186,7 @@ function TransactionsView() {
     };
     
     fetchAllTransactions();
-  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length]);
+  }, [showAdvancedFilterModal, selectedClient?.id, allTransactionsUnfiltered.length, language]);
 
   // Clear unfiltered transactions when client changes
   useEffect(() => {
@@ -1638,7 +1645,7 @@ function TransactionsView() {
             };
             
             console.log(`✅ Balance recalculation complete! Processed ${recalculatedData.processedTransactions} transactions`);
-            console.log(`💰 New Total: $${recalculatedData.totalBalance.toLocaleString('en-US')}`);
+            console.log(`💰 New Total: $${recalculatedData.totalBalance.toLocaleString(numberLocale)}`);
             
           } catch (error) {
             console.error('❌ Error during balance recalculation:', error);
@@ -1661,11 +1668,11 @@ function TransactionsView() {
           </div>
         ) : (
           <>
-            🏦 {t('tx.cash')}: ${centavosToPesos(startingBalance?.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            🏦 {t('tx.cash')}: ${formatBalanceAmount(startingBalance?.cashBalance)}
             &nbsp;&nbsp;
-            🏛️ {t('tx.bank')}: ${centavosToPesos(startingBalance?.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            🏛️ {t('tx.bank')}: ${formatBalanceAmount(startingBalance?.bankBalance)}
             &nbsp;&nbsp;
-            💰 {t('tx.total')}: ${centavosToPesos(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            💰 {t('tx.total')}: ${formatBalanceAmount(balance)}
             {canRecalcBalances && <div className="refresh-hint">↻</div>}
           </>
         )}
@@ -1711,18 +1718,18 @@ function TransactionsView() {
                   </p>
                 )}
                 <p>
-                  <strong>{t('tx.cash')}:</strong> ${centavosToPesos(historicalBalanceResult.cashBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.cash')}:</strong> ${formatBalanceAmount(historicalBalanceResult.cashBalance)}
                   &nbsp;&nbsp;
-                  <strong>{t('tx.bank')}:</strong> ${centavosToPesos(historicalBalanceResult.bankBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.bank')}:</strong> ${formatBalanceAmount(historicalBalanceResult.bankBalance)}
                 </p>
                 <p>
-                  <strong>{t('tx.total')}:</strong> ${centavosToPesos((historicalBalanceResult.cashBalance || 0) + (historicalBalanceResult.bankBalance || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <strong>{t('tx.total')}:</strong> ${formatBalanceAmount((historicalBalanceResult.cashBalance || 0) + (historicalBalanceResult.bankBalance || 0))}
                 </p>
                 <div style={{ maxHeight: '260px', overflowY: 'auto', borderTop: '1px solid #ddd', paddingTop: '0.75rem' }}>
                   {(historicalBalanceResult.accounts || []).map((account) => (
                     <div key={account.id || account.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0' }}>
                       <span>{account.name} ({account.type})</span>
-                      <span>${centavosToPesos(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span>${formatBalanceAmount(account.balance)}</span>
                     </div>
                   ))}
                 </div>
@@ -1955,7 +1962,7 @@ function TransactionsView() {
               // Fetch the saved transaction to get formatted dates
               let formattedTransaction = null;
               try {
-                formattedTransaction = await getTransactionById(clientId, transactionId);
+                formattedTransaction = await getTransactionById(clientId, transactionId, language);
                 console.log('✅ Fetched formatted transaction with proper dates');
               } catch (error) {
                 console.warn('Could not fetch formatted transaction, using input data', error);

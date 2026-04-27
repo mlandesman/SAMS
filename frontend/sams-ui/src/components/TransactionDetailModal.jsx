@@ -5,10 +5,12 @@ import { DocumentList } from './documents';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
+import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './TransactionDetailModal.css';
 
 const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
-  const { isSpanish } = useDesktopLanguage();
+  const { isSpanish, language } = useDesktopLanguage();
+  const { t } = useDesktopStrings();
   const [documentViewer, setDocumentViewer] = useState({
     isOpen: false,
     documents: [],
@@ -185,26 +187,49 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
 
   // Format date for display - enriched API shapes + raw Firestore JSON
   const formatDate = (dateValue) => {
-    if (!dateValue) return 'N/A';
+    if (!dateValue) return t('tx.detail.na');
+
+    const locale = language === 'ES' ? 'es-MX' : 'en-US';
+
+    if (dateValue?.displayLocalized) {
+      return dateValue.displayLocalized;
+    }
 
     if (dateValue?.display) {
       const [month, day, year] = String(dateValue.display).split('/');
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const mi = parseInt(month, 10);
-      const di = parseInt(day, 10);
       if (monthNames[mi - 1] && year) {
-        return `${monthNames[mi - 1]} ${di}, ${year}`;
+        const parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
       }
     }
 
     if (dateValue?.unambiguous_long_date) {
-      return dateValue.unambiguous_long_date;
+      if (!isSpanish) return dateValue.unambiguous_long_date;
+      const dateObj = coerceToJsDate(dateValue);
+      if (dateObj) {
+        return dateObj.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+      }
     }
 
     if (dateValue?.timestamp) {
       const inner = coerceToJsDate(dateValue.timestamp);
       if (inner) {
-        return inner.toLocaleDateString('en-US', {
+        return inner.toLocaleDateString(locale, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+    }
+
+    if (dateValue?.ISO_8601 || dateValue?.iso) {
+      const fromIso = coerceToJsDate(dateValue?.ISO_8601 || dateValue?.iso);
+      if (fromIso) {
+        return fromIso.toLocaleDateString(locale, {
           year: 'numeric',
           month: 'short',
           day: 'numeric'
@@ -213,9 +238,9 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     }
 
     const dateObj = coerceToJsDate(dateValue);
-    if (!dateObj) return 'N/A';
+    if (!dateObj) return t('tx.detail.na');
 
-    return dateObj.toLocaleDateString('en-US', {
+    return dateObj.toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -226,7 +251,7 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
   const formatAmount = (amount) => {
     const amountInCents = Number(amount || 0);
     const amountInDollars = amountInCents / 100; // Convert cents to dollars
-    return amountInDollars.toLocaleString('en-US', {
+    return amountInDollars.toLocaleString(language === 'ES' ? 'es-MX' : 'en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2
@@ -237,84 +262,84 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="transaction-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Transaction Details</h2>
+          <h2>{t('tx.detail.title')}</h2>
         </div>
         
         <div className="modal-content">
           <div className="detail-section">
             <div className="detail-row">
-              <label>Transaction ID:</label>
-              <span className="transaction-id">{transaction.id || 'N/A'}</span>
+              <label>{t('tx.detail.transactionId')}:</label>
+              <span className="transaction-id">{transaction.id || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
-              <label>Date:</label>
+              <label>{t('tx.detail.date')}:</label>
               <span>{formatDate(transaction.date)}</span>
             </div>
             
             <div className="detail-row">
-              <label>Amount:</label>
+              <label>{t('tx.detail.amount')}:</label>
               <span className={`amount ${Number(transaction.amount?.integerValue || transaction.amount) < 0 ? 'negative' : 'positive'}`}>
                 {formatAmount(transaction.amount?.integerValue || transaction.amount)}
               </span>
             </div>
             
             <div className="detail-row">
-              <label>Vendor:</label>
-              <span>{pickDisplayText(transaction.vendorNameLocalized, transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor) || 'N/A'}</span>
+              <label>{t('tx.detail.vendor')}:</label>
+              <span>{pickDisplayText(transaction.vendorNameLocalized, transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
-              <label>Category:</label>
-              <span>{pickDisplayText(transaction.categoryNameLocalized || transaction.categoryLocalized, transaction.categoryName?.stringValue || transaction.categoryName || transaction.category) || 'N/A'}</span>
+              <label>{t('tx.detail.category')}:</label>
+              <span>{pickDisplayText(transaction.categoryNameLocalized || transaction.categoryLocalized, transaction.categoryName?.stringValue || transaction.categoryName || transaction.category) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
-              <label>Account:</label>
-              <span>{pickDisplayText(transaction.accountNameLocalized, transaction.accountName || transaction.accountType || transaction.account) || 'N/A'}</span>
+              <label>{t('tx.detail.account')}:</label>
+              <span>{pickDisplayText(transaction.accountNameLocalized, transaction.accountName || transaction.accountType || transaction.account) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
-              <label>Unit:</label>
-              <span>{transaction.unitId || transaction.unit || 'N/A'}</span>
+              <label>{t('tx.detail.unit')}:</label>
+              <span>{transaction.unitId || transaction.unit || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
-              <label>Payment Method:</label>
-              <span>{pickDisplayText(transaction.paymentMethodLocalized, transaction.paymentMethod) || 'N/A'}</span>
+              <label>{t('tx.detail.paymentMethod')}:</label>
+              <span>{pickDisplayText(transaction.paymentMethodLocalized, transaction.paymentMethod) || t('tx.detail.na')}</span>
             </div>
             
             {(transaction.notes || transaction.notesLocalized) && (
               <div className="detail-row notes-row">
-                <label>Notes:</label>
+                <label>{t('tx.detail.notes')}:</label>
                 <div className="notes-content">{pickDisplayText(transaction.notesLocalized, transaction.notes)}</div>
               </div>
             )}
             
             {transaction.created && (
               <div className="detail-row">
-                <label>Created:</label>
+                <label>{t('tx.detail.created')}:</label>
                 <span>{formatDate(transaction.created)}</span>
               </div>
             )}
             
             {transaction.updated && (
               <div className="detail-row">
-                <label>Last Updated:</label>
+                <label>{t('tx.detail.updated')}:</label>
                 <span>{formatDate(transaction.updated)}</span>
               </div>
             )}
             
             {transaction.exchangeRate && (
               <div className="detail-row">
-                <label>Exchange Rate:</label>
+                <label>{t('tx.detail.exchangeRate')}:</label>
                 <span>{transaction.exchangeRate}</span>
               </div>
             )}
             
             {transaction.reference && (
               <div className="detail-row">
-                <label>Reference:</label>
+                <label>{t('tx.detail.reference')}:</label>
                 <span>{transaction.reference}</span>
               </div>
             )}
@@ -322,10 +347,10 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             {/* Documents Section */}
             {getDocumentCount(transaction.documents) > 0 && (
               <div className="detail-row documents-row">
-                <label>Documents:</label>
+                <label>{t('tx.detail.documents')}:</label>
                 <div className="documents-content">
                   {thumbnailsLoading ? (
-                    <div style={{fontSize: '12px', color: '#666'}}>Loading thumbnails...</div>
+                    <div style={{fontSize: '12px', color: '#666'}}>{t('tx.detail.loadingThumbnails')}</div>
                   ) : (
                     <DocumentList
                       transactionId={null}
@@ -341,7 +366,7 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
                     disabled={documentViewer.loading}
                   >
                     <FontAwesomeIcon icon={faEye} />
-                    {documentViewer.loading ? ' Loading...' : ' View Documents'}
+                    {documentViewer.loading ? ` ${t('tx.detail.loading')}` : ` ${t('tx.detail.viewDocuments')}`}
                   </button>
                 </div>
               </div>
@@ -352,7 +377,7 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
         
         <div className="modal-footer">
           <button className="close-modal-button" onClick={onClose}>
-            Close
+            {t('tx.detail.close')}
           </button>
         </div>
       </div>
