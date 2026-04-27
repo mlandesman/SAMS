@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Button, TextField, Typography, Paper, Alert, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { useClient } from '../context/ClientContext';
 import { config } from '../config';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
+import { getMexicoDateTime } from '../utils/timezone';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './HOADuesView.css';
 
@@ -11,8 +12,8 @@ function WaterBillsSimple() {
   const { t, language } = useDesktopStrings();
   
   // MONTH SELECTOR STATE - FIRST PRIORITY
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(getMexicoDateTime().getMonth());
+  const [selectedYear, setSelectedYear] = useState(getMexicoDateTime().getFullYear());
   
   // Readings state
   const [readings, setReadings] = useState({});
@@ -24,11 +25,12 @@ function WaterBillsSimple() {
   const [loadingUnits, setLoadingUnits] = useState(true);
   
   const locale = language === 'ES' ? 'es-MX' : 'en-US';
+  const nowMexico = getMexicoDateTime();
   const monthNames = Array.from({ length: 12 }, (_value, monthIndex) =>
-    new Date(2000, monthIndex, 1).toLocaleString(locale, { month: 'long' })
+    new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(Date.UTC(2000, monthIndex, 1))
   );
   const fiscalMonthLabels = ['JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN']
-    .map((_, index) => new Date(2000, (index + 6) % 12, 1).toLocaleString(locale, { month: 'short' }).replace('.', '').toUpperCase());
+    .map((_, index) => new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(Date.UTC(2000, (index + 6) % 12, 1)).replace('.', '').toUpperCase());
   
   // Get auth token
   const getToken = async () => {
@@ -108,7 +110,7 @@ function WaterBillsSimple() {
   };
   
   // Fetch units from backend
-  const fetchUnits = async () => {
+  const fetchUnits = useCallback(async () => {
     if (!selectedClient) return;
     
     try {
@@ -134,17 +136,17 @@ function WaterBillsSimple() {
     } finally {
       setLoadingUnits(false);
     }
-  };
+  }, [selectedClient]);
   
   // Load history
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!selectedClient) return;
     
     try {
       const token = await getToken();
       // Get fiscal year properly
       const fiscalYearStartMonth = selectedClient?.configuration?.fiscalYearStartMonth || 7; // AVII starts in July
-      const fiscalYear = getFiscalYear(new Date(), fiscalYearStartMonth);
+      const fiscalYear = getFiscalYear(getMexicoDateTime(), fiscalYearStartMonth);
       
       const response = await fetch(
         `${config.api.baseUrl}/clients/${selectedClient.id}/water/readings/${fiscalYear}`,
@@ -172,7 +174,7 @@ function WaterBillsSimple() {
     } catch (err) {
       console.error('Error loading history:', err);
     }
-  };
+  }, [selectedClient]);
   
   // Load units and history on mount
   useEffect(() => {
@@ -180,7 +182,7 @@ function WaterBillsSimple() {
       fetchUnits();
       loadHistory();
     }
-  }, [selectedClient]);
+  }, [selectedClient, fetchUnits, loadHistory]);
   
   if (!selectedClient) {
     return <Alert severity="info">{t('water.selectClient')}</Alert>;
@@ -258,7 +260,7 @@ function WaterBillsSimple() {
         {/* HISTORY TABLE */}
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
-            {t('water.historyTitle', { year: historyData?.year || new Date().getFullYear() })}
+            {t('water.historyTitle', { year: historyData?.year || nowMexico.getFullYear() })}
           </Typography>
           
           {historyData && !loadingUnits ? (
@@ -277,7 +279,7 @@ function WaterBillsSimple() {
                 <tbody>
                   {fiscalMonthLabels.map((month, idx) => {
                     const monthData = historyData?.months?.[idx] || {};
-                    const shortYear = String(historyData?.year || new Date().getFullYear()).slice(-2);
+                    const shortYear = String(historyData?.year || nowMexico.getFullYear()).slice(-2);
                     return (
                       <tr key={idx}>
                         <td className="month-label">{month}-{shortYear}</td>

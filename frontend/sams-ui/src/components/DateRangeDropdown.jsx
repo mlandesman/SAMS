@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendarAlt, faChevronDown, faFilter } from '@fortawesome/free-solid-svg-icons';
 import { useClient } from '../context/ClientContext';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
+import { getMexicoDateTime } from '../utils/timezone';
 import './DateRangeDropdown.css';
 
 const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false, transactionCount = 0, advancedFiltersActive = false }) => {
@@ -16,7 +17,7 @@ const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false,
   const isFiscalYear = fiscalYearStartMonth !== 1;
   
   // Get current year for fiscal year labels
-  const currentDate = new Date();
+  const currentDate = getMexicoDateTime();
   const currentYear = currentDate.getFullYear();
   const currentFiscalYear = isFiscalYear ? 
     (currentDate.getMonth() + 1 >= fiscalYearStartMonth ? currentYear + 1 : currentYear) : 
@@ -72,7 +73,7 @@ const DateRangeDropdown = ({ onDateRangeSelect, currentRange, showLabel = false,
   };
 
   const formatDateRangeDisplay = () => {
-    const now = new Date();
+    const now = getMexicoDateTime();
     const rangeLabel = getCurrentRangeLabel();
     
     // If it's "All Time", just show the current date

@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
+import { getMexicoDateTime } from '../../utils/timezone';
 import './UnitReport.css';
 
 const UnitReport = ({ unitId, onClose }) => {
@@ -166,16 +167,17 @@ const UnitReport = ({ unitId, onClose }) => {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const mexicoNow = getMexicoDateTime();
+    const currentMonth = mexicoNow.getMonth();
+    const currentYear = mexicoNow.getFullYear();
     
     // Parse payment data to determine which months are paid
     const paidMonths = new Set();
     if (transactions) {
       transactions.forEach(transaction => {
         if (transaction.type === 'HOA Dues' && transaction.paymentDate) {
-          const paymentDate = new Date(transaction.paymentDate);
-          if (paymentDate.getFullYear() === currentYear) {
+          const paymentDate = getMexicoDateTime(transaction.paymentDate);
+          if (!Number.isNaN(paymentDate.getTime()) && paymentDate.getFullYear() === currentYear) {
             paidMonths.add(paymentDate.getMonth());
           }
         }
@@ -191,7 +193,7 @@ const UnitReport = ({ unitId, onClose }) => {
         status = 'past-due';
       } else if (index === currentMonth) {
         // Current month - check if due within 15 days
-        const today = new Date().getDate();
+        const today = mexicoNow.getDate();
         if (today >= 15) {
           status = 'due-soon';
         }

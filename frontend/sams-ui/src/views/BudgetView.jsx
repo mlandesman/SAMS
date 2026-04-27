@@ -19,6 +19,7 @@ import BudgetEntryTab from '../components/budget/BudgetEntryTab';
 import BudgetReportTab from '../components/budget/BudgetReportTab';
 import { getPolls, getPoll, createPoll } from '../api/polls';
 import { getFiscalYear } from '../utils/fiscalYearUtils';
+import { getMexicoDateTime } from '../utils/timezone';
 import PollCreationWizard from '../components/polls/PollCreationWizard';
 import reportService from '../services/reportService';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
@@ -64,6 +65,7 @@ function BudgetView() {
   const [pollWizardIntent, setPollWizardIntent] = useState('vote'); // 'vote' | 'poll'
   const [generatedDocuments, setGeneratedDocuments] = useState([]);
   const [generatingDocs, setGeneratingDocs] = useState(false);
+  const nowMexico = getMexicoDateTime();
 
   const handleZoomChange = useCallback((event) => {
     const value = event.target.value;
@@ -153,8 +155,8 @@ function BudgetView() {
   }, [selectedClient?.id, t]);
 
   const currentFiscalYear = selectedClient?.configuration?.fiscalYearStartMonth != null
-    ? getFiscalYear(new Date(), selectedClient.configuration.fiscalYearStartMonth)
-    : new Date().getFullYear();
+    ? getFiscalYear(nowMexico, selectedClient.configuration.fiscalYearStartMonth)
+    : nowMexico.getFullYear();
 
   const handleBudgetPollCreated = useCallback(() => {
     setPollWizardOpen(false);
@@ -190,6 +192,7 @@ function BudgetView() {
     setPollError('');
     
     try {
+      const generatedAtIso = getMexicoDateTime().toISOString();
       // Generate both English and Spanish PDFs
       const [enDoc, esDoc] = await Promise.all([
         reportService.generateBudgetPdfForPoll(selectedClient.id, currentFiscalYear, 'english'),
@@ -202,7 +205,7 @@ function BudgetView() {
           name: `Budget Report FY${enDoc.fiscalYear} (English)`,
           url: enDoc.url,
           type: 'budget_report',
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: generatedAtIso,
           uploadedBy: 'system'
         },
         {
@@ -210,7 +213,7 @@ function BudgetView() {
           name: `Presupuesto FY${esDoc.fiscalYear} (Español)`,
           url: esDoc.url,
           type: 'budget_report',
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: generatedAtIso,
           uploadedBy: 'system'
         }
       ];

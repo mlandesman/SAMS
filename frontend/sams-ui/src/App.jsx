@@ -287,6 +287,12 @@ function AppContent() {
                       <ReconciliationView />
                     </ClientProtectedRoute>
                   } />
+                  {/* Explicit reports alias for route checks; behavior matches dynamic activity routing */}
+                  <Route path="/reports" element={
+                    <ClientProtectedRoute>
+                      <ActivityView />
+                    </ClientProtectedRoute>
+                  } />
                   {/* Dynamic route for activities from the client configuration */}
                   <Route path="/:activity" element={
                     <ClientProtectedRoute>
