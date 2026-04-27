@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "pending",
+      "date": null,
+      "changes": [
+        {
+          "type": "feat",
+          "issues": [
+            "316"
+          ],
+          "text": "Desktop non-admin localization parity across sidebar, read surfaces, transactions, and list CRUD with feature-flag-safe behavior"
+        }
+      ]
+    },
+    {
       "version": "1.22.3",
       "date": "2026-04-26",
       "changes": [
