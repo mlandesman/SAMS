@@ -34,24 +34,10 @@ function getItemValue(item, path) {
  * - Fallback always returns readable source values (never blank-by-design).
  */
 export const LIST_ENTITY_LANGUAGE_CONTRACT = {
-  vendor: {
-    name: { base: ['name'], companions: ['name_es', 'nameLocalized'] },
-    category: { base: ['category'], companions: ['category_es', 'categoryName_es', 'categoryLocalized'] },
-    notes: { base: ['notes'], companions: ['notes_es', 'notesLocalized'] },
-    address: { base: ['address', 'contact.address'], companions: ['address_es'] },
-    contactPerson: { base: ['contactPerson', 'contact.contactPerson'], companions: ['contactPerson_es'] },
-  },
   category: {
     name: { base: ['name'], companions: ['name_es', 'nameLocalized'] },
     description: { base: ['description'], companions: ['description_es', 'descriptionLocalized'] },
     type: { base: ['type'], companions: ['type_es'] },
-  },
-  method: {
-    name: { base: ['name'], companions: ['name_es', 'nameLocalized'] },
-    type: { base: ['type'], companions: ['type_es', 'typeLocalized'] },
-    details: { base: ['details'], companions: ['details_es', 'detailsLocalized'] },
-    description: { base: ['description'], companions: ['description_es', 'descriptionLocalized'] },
-    institution: { base: ['institution'], companions: ['institution_es', 'institutionLocalized'] },
   },
   unit: {
     unitName: { base: ['unitName', 'unitId'], companions: ['unitName_es', 'unitNameLocalized'] },

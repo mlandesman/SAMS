@@ -2,35 +2,17 @@ import React, { useState, useCallback } from 'react';
 import ModernBaseList from './ModernBaseList';
 import ItemDetailModal from '../modals/ItemDetailModal';
 import { useClient } from '../../context/ClientContext';
-import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { getVendors } from '../../api/vendors';
-import { resolveListEntityField } from '../../utils/listLocalization';
 
 const ModernVendorList = ({ selectedItem, onItemSelect, onItemCountChange, searchTerm = '', refreshTrigger = 0 }) => {
   const { selectedClient } = useClient();
-  const { language, localizationEnabled } = useDesktopLanguage();
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailVendor, setDetailVendor] = useState(null);
 
   // Define the columns for the vendor list
   const columns = [
-    {
-      field: 'name',
-      headerName: 'Name',
-      searchable: true,
-      width: '25%',
-      render: (item) =>
-        resolveListEntityField(item, 'vendor', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
-      searchValue: (item) => resolveListEntityField(item, 'vendor', 'name', { language, localizationEnabled }),
-    },
-    {
-      field: 'category',
-      headerName: 'Category',
-      searchable: true,
-      width: '20%',
-      render: (item) => resolveListEntityField(item, 'vendor', 'category', { language, localizationEnabled }),
-      searchValue: (item) => resolveListEntityField(item, 'vendor', 'category', { language, localizationEnabled }),
-    },
+    { field: 'name', headerName: 'Name', searchable: true, width: '25%' },
+    { field: 'category', headerName: 'Category', searchable: true, width: '20%' },
     { field: 'email', headerName: 'Email', searchable: true, width: '25%' },
     { field: 'phone', headerName: 'Phone', searchable: false, width: '15%' },
     { 
@@ -48,32 +30,13 @@ const ModernVendorList = ({ selectedItem, onItemSelect, onItemCountChange, searc
 
   // Define detail modal fields
   const detailFields = [
-    {
-      key: 'name',
-      label: 'Name',
-      render: (value, item) =>
-        resolveListEntityField(item, 'vendor', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
-    },
-    {
-      key: 'category',
-      label: 'Category',
-      render: (value, item) => resolveListEntityField(item, 'vendor', 'category', { language, localizationEnabled }),
-    },
+    { key: 'name', label: 'Name' },
+    { key: 'category', label: 'Category' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'phone', label: 'Phone', type: 'phone' },
     { key: 'website', label: 'Website', type: 'url' },
-    {
-      key: 'address',
-      label: 'Address',
-      type: 'multiline',
-      render: (value, item) => resolveListEntityField(item, 'vendor', 'address', { language, localizationEnabled }),
-    },
-    {
-      key: 'notes',
-      label: 'Notes',
-      type: 'multiline',
-      render: (value, item) => resolveListEntityField(item, 'vendor', 'notes', { language, localizationEnabled }),
-    },
+    { key: 'address', label: 'Address', type: 'multiline' },
+    { key: 'notes', label: 'Notes', type: 'multiline' },
     { key: 'status', label: 'Status', type: 'status' }
   ];
   

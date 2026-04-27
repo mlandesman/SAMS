@@ -33,18 +33,18 @@ describe('resolveListEntityField', () => {
   });
 
   it('uses base value when localization feature flag is disabled', () => {
-    const vendor = {
-      id: 'vendor-1',
-      name: 'Pool Service',
-      name_es: 'Servicio de Alberca',
+    const category = {
+      id: 'category-1',
+      name: 'Security',
+      name_es: 'Seguridad',
     };
 
-    const result = resolveListEntityField(vendor, 'vendor', 'name', {
+    const result = resolveListEntityField(category, 'category', 'name', {
       language: 'ES',
       localizationEnabled: false,
     });
 
-    expect(result).toBe('Pool Service');
+    expect(result).toBe('Security');
   });
 
   it('returns non-empty hard fallback when both companion and base are missing', () => {
@@ -102,17 +102,17 @@ describe('buildListEntityWritePayload', () => {
 
   it('writes both base and companion on ES creates', () => {
     const payload = buildListEntityWritePayload(
-      'method',
-      { name: 'Transferencia', details: 'Cuenta 1234' },
+      'category',
+      { name: 'Maintenance', description: 'Elevator' },
       {},
       { language: 'ES', localizationEnabled: true }
     );
 
     expect(payload).toEqual({
-      name: 'Transferencia',
-      name_es: 'Transferencia',
-      details: 'Cuenta 1234',
-      details_es: 'Cuenta 1234',
+      name: 'Maintenance',
+      name_es: 'Maintenance',
+      description: 'Elevator',
+      description_es: 'Elevator',
     });
   });
 });

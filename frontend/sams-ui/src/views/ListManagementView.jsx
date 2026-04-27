@@ -388,33 +388,14 @@ function ListManagementView() {
       case 'vendor':
         title = 'Vendor Details';
         detailFields = [
-          {
-            key: 'name',
-            label: 'Name',
-            render: (value, item) =>
-              resolveListEntityField(item, 'vendor', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
-          },
+          { key: 'name', label: 'Name' },
           { key: 'contactPerson', label: 'Contact Person' },
           { key: 'email', label: 'Email', type: 'email' },
           { key: 'phone', label: 'Phone', type: 'phone' },
-          {
-            key: 'address',
-            label: 'Address',
-            type: 'multiline',
-            render: (value, item) => resolveListEntityField(item, 'vendor', 'address', { language, localizationEnabled }),
-          },
-          {
-            key: 'category',
-            label: 'Category',
-            render: (value, item) => resolveListEntityField(item, 'vendor', 'category', { language, localizationEnabled }),
-          },
+          { key: 'address', label: 'Address', type: 'multiline' },
+          { key: 'category', label: 'Category' },
           { key: 'status', label: 'Status', type: 'status' },
-          {
-            key: 'notes',
-            label: 'Notes',
-            type: 'multiline',
-            render: (value, item) => resolveListEntityField(item, 'vendor', 'notes', { language, localizationEnabled }),
-          }
+          { key: 'notes', label: 'Notes', type: 'multiline' }
         ];
         break;
       case 'category':
@@ -445,23 +426,9 @@ function ListManagementView() {
       case 'method':
         title = 'Payment Method Details';
         detailFields = [
-          {
-            key: 'name',
-            label: 'Name',
-            render: (value, item) =>
-              resolveListEntityField(item, 'method', 'name', { language, localizationEnabled, hardFallback: item.id || '' }),
-          },
-          {
-            key: 'type',
-            label: 'Type',
-            render: (value, item) => resolveListEntityField(item, 'method', 'type', { language, localizationEnabled }),
-          },
-          {
-            key: 'description',
-            label: 'Description',
-            type: 'multiline',
-            render: (value, item) => resolveListEntityField(item, 'method', 'description', { language, localizationEnabled }),
-          },
+          { key: 'name', label: 'Name' },
+          { key: 'type', label: 'Type' },
+          { key: 'description', label: 'Description', type: 'multiline' },
           { key: 'isActive', label: 'Active', type: 'boolean' }
         ];
         break;
@@ -1141,7 +1108,18 @@ function ListManagementView() {
         } else {
           // Create new category
           console.log(`➕ Creating category: ${categoryData.name}`);
-          await createCategory(selectedClient.id, categoryData);
+          const createResult = await createCategory(selectedClient.id, categoryData);
+
+          // Create route stores name_es but does not persist description_es yet;
+          // follow with update so both EN/ES descriptions entered in one modal are saved.
+          if (categoryData.description_es) {
+            const createdCategoryId = createResult?.data?.id || createResult?.id;
+            if (createdCategoryId) {
+              await updateCategory(selectedClient.id, createdCategoryId, {
+                description_es: categoryData.description_es,
+              });
+            }
+          }
           console.log('✅ Category created successfully');
         }
       };

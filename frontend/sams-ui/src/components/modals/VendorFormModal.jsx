@@ -3,8 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { getCategories } from '../../api/categories';
 import { useClient } from '../../context/ClientContext';
-import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
-import { buildListEntityWritePayload, resolveListEntityField } from '../../utils/listLocalization';
 import { LoadingSpinner, useLoadingSpinner } from '../common';
 import '../../styles/SandylandModalTheme.css';
 
@@ -13,7 +11,6 @@ import '../../styles/SandylandModalTheme.css';
  */
 const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = false }) => {
   const { selectedClient } = useClient();
-  const { language, localizationEnabled } = useDesktopLanguage();
   const { isLoading: isSaving, withLoading } = useLoadingSpinner();
   
   const [formData, setFormData] = useState({
@@ -56,30 +53,14 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
   useEffect(() => {
     if (vendor) {
       setFormData({
-        name: resolveListEntityField(vendor, 'vendor', 'name', {
-          language,
-          localizationEnabled,
-          hardFallback: vendor.name || '',
-        }),
+        name: vendor.name || '',
         category: vendor.category || '',
-        contactPerson: resolveListEntityField(vendor, 'vendor', 'contactPerson', {
-          language,
-          localizationEnabled,
-          hardFallback: vendor.contactPerson || vendor.contactName || '',
-        }),
+        contactPerson: vendor.contactPerson || vendor.contactName || '',
         phone: vendor.phone || '',
         email: vendor.email || '',
         website: vendor.website || '',
-        address: resolveListEntityField(vendor, 'vendor', 'address', {
-          language,
-          localizationEnabled,
-          hardFallback: vendor.address || '',
-        }),
-        notes: resolveListEntityField(vendor, 'vendor', 'notes', {
-          language,
-          localizationEnabled,
-          hardFallback: vendor.notes || '',
-        }),
+        address: vendor.address || '',
+        notes: vendor.notes || '',
         status: vendor.status || 'active'
       });
     } else {
@@ -97,7 +78,7 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
       });
     }
     setErrors({});
-  }, [vendor, isOpen, language, localizationEnabled]);
+  }, [vendor, isOpen]);
 
   // Handle field changes
   const handleChange = (e) => {
@@ -140,11 +121,7 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
     
     if (validateForm()) {
       await withLoading(async () => {
-        const payload = buildListEntityWritePayload('vendor', formData, vendor || {}, {
-          language,
-          localizationEnabled,
-        });
-        await onSave(payload);
+        await onSave(formData);
       });
     }
   };
@@ -214,11 +191,7 @@ const VendorFormModal = ({ vendor = null, isOpen, onClose, onSave, isEdit = fals
                   <option value="">Select a category (optional)</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.name}>
-                      {resolveListEntityField(category, 'category', 'name', {
-                        language,
-                        localizationEnabled,
-                        hardFallback: category.name || category.id || '',
-                      })}
+                      {category.name}
                     </option>
                   ))}
                 </select>
