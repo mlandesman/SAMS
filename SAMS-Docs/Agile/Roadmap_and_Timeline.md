@@ -68,9 +68,10 @@
 | ~~14.5~~ | ~~**PROD-STABILIZATION-1**~~ | ~~Post-Recon Production Confidence~~ | ~~4-6h~~ | ~~#288, #96, #273, #266~~ ✅ COMPLETE (PRs #298, #301, #302) |
 | ~~15~~ | ~~**BUDGET-PROJ-1**~~ | ~~Fiscal Year Projection Baseline (design-first)~~ | ~~4-6h~~ | ~~#165 phase A/B/C (design sign-off, baseline implementation, validation)~~ ✅ COMPLETE (PR #304, Apr 14, 2026) |
 | ~~16~~ | ~~**UPC-CREDIT-FIX**~~ | ~~Credit-balance allocation write-back bug~~ | ~~4-8h (diagnosis-heavy)~~ | ~~#308 — production hotfix, blocker~~ ✅ COMPLETE Apr 22, 2026 — data-only reconciliation, no runtime code changed; follow-ups #310, #311 |
-| **17 (ACTIVE)** | **PROD-BACKUP-STABILIZATION** | Backup reliability follow-up | 3-5h | Async backup trigger/polling follow-up + #303 timezone display correction (resumed after UPC-CREDIT-FIX close) |
+| ~~17~~ | ~~**LOCALIZATION-DESKTOP-NONADMIN**~~ | ~~Desktop non-admin localization parity~~ | ~~4-8h~~ | ~~Carry PR #314/#317 localized backend contract into desktop non-admin views and list-management UX (#316); residual carry-forward tracked in #319~~ ✅ COMPLETE (PR #320, merged Apr 27, 2026; #318 deferred, #319 carry-forward) |
+| **18 (NEXT)** | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; onboard first non-HOA 2-property client path (Epic #54 lite) |
+| --- | **PROD-BACKUP-STABILIZATION** | Backup reliability follow-up | 3-5h | Async backup trigger/polling follow-up + #303 timezone display correction (queued unless promoted by production risk) |
 | --- | **DEBT-1** | Tech Debt Interlude | 4-6h | #220, #223, #166 |
-| 17-18 | **UC-LITE** | Non-HOA Client Support | 3-4h + 8-12h | Investigate + fix HOA assumptions; enable Karyn/Wilfredo (Epic #54 lite) |
 | --- | **DEBT-2** | Bug/Polish Pass | 4-6h | #169, #214, #96, owner feedback bugs |
 | 19 | **REPORTS-V2** | Board & Owner Reports | 10-14h | Formalized PDF reports replacing CSV exports; Sandyland branding |
 | 20 | **PROJECT-VIEWS** | Better Project Presentation | 4-6h | Proposed/Active/Completed tabs; timeline visualization |
@@ -81,7 +82,7 @@
 
 **Deferred**: DOC-LIB (after Sprint 24), WA-FRONTEND (when Meta unblocks), UC Full Refactor (only if UC-LITE reveals structural issues), Credit Auto-Pay #90 (after Bank Recon), iPad #238 (far future), Gmail OAuth #122 (no deprecation date).
 
-**Current Focus**: APM v1.0.1 base setup documentation/coordination workstream is complete (no production-feature deployment in that effort), and backend localization sprint closeout was completed on Apr 24, 2026 with archive + changelog pending entry recorded. Feature sprint queue remains: **PROD-BACKUP-STABILIZATION** next, then **DEBT-1**. WhatsApp remains **paused**.
+**Current Focus**: APM v1.0.1 base setup documentation/coordination workstream is complete (no production-feature deployment in that effort), backend localization sprint closeout was completed on Apr 24, 2026, and **LOCALIZATION-DESKTOP-NONADMIN** is now complete/merged (PR #320). Feature sprint queue now advances to **UC-LITE** (next). **PROD-BACKUP-STABILIZATION** and **DEBT-1** remain queued unless promoted by risk. WhatsApp remains **paused**.
 
 **Budget Sprint Clarification:** `BUDGET-PROJ-1` and `BUDGET-PROJ` were overlapping labels. The roadmap now treats them as a phased sequence for the same problem space: **BUDGET-PROJ-1** = baseline projection engine and runway chart, **BUDGET-PROJ-2** = optional diagnostics/polish after baseline validation.
 
@@ -94,6 +95,12 @@
 **Schedule Note (Apr 24, 2026 — BACKEND-LOCALIZATION sprint closeout):** Backend localization contract + endpoint parity session completed and archived. Scope included additive EN/ES companion behavior across read paths (transactions/reports/polls/projects), persisted category `name_es` strategy + backfill support, transactions list/detail parity closure, and Spanish diacritic polish (`Depósito`, `Crédito`, `Penalización`). Branch `feat/flag-design-and-localized-reads` was pushed and changelog pending entry added.
 
 **Schedule Note (Apr 25, 2026 — #315 merged and rollout-ready):** PR #317 merged to `main` with persisted transaction notes localization finalization, runtime transaction read-path DeepL removal, strict backfill guardrails (no English fallback writes to `notes_es`), and legacy transfer-fee note suffix cleanup in expense/reconciliation paths. Production deployment should occur before running the production backfill script.
+
+**Schedule Note (Apr 25, 2026 — Between-sprint reset):** PO set the next two strategic sprints to (1) **LOCALIZATION-DESKTOP-NONADMIN** first (carry PR #314/#317 value to desktop non-admin UX, including #316) and (2) **UC-LITE** second (first non-HOA onboarding path). **PROD-BACKUP-STABILIZATION** and **DEBT-1** remain queued; `#309` and `#307` are interrupt-class only if reproduced during active sprint execution.
+
+**Schedule Note (Apr 26, 2026 — Localization residual carry-forward):** Stage work progressed through desktop localization residual fix pass; accepted session pause with remaining residual scope explicitly tracked as Tech Debt issue **#319**. `/unit-report` remains deferred under enhancement **#318** because route is currently inaccessible/unfinished.
+
+**Schedule Note (Apr 27, 2026 — Localization sprint merge closeout):** Sprint **LOCALIZATION-DESKTOP-NONADMIN** (`#316`) merged to `main` via PR #320 after quality-gate and BugBot remediation passes. Carry-forward governance remains: residual scope tracked in **#319**, `/unit-report` deferred under **#318**, and one feature-flag/category-form BugBot item accepted as non-blocking for this release. Changelog pending entry for `#316` is in `main` and ready for deployment finalization.
 
 **Schedule Note (Apr 22, 2026 — UPC-CREDIT-FIX ✅ COMPLETE):** Resolution: data-only reconciliation; no runtime code changed. Both initial diagnoses (writer-side cache corruption per Bootstrap; single-class import miss per Addendum) were proved wrong during the diagnostic loop. Final root cause: small import-era miscounts of `credit_added` ledger entries from the December 2025 Google-Sheet→Firestore migration's text-parsing scripts, sitting dormant for months until the Apr 20 unit 202 payment was the first to depend on the credit ledger to fully cover a bill. Fix: PO posted two reconciliation entries via existing Credit Balance UI (AVII 202 +$0.14, AVII 103 +$99.88, both Dev + Prod) using the Edit-modal Source dropdown to set `source` outside the SoA Account Activity whitelist. Audit script written by IA (`auditCreditLedgerVsSoA.js`) flagged 10/20 units divergent but 8 were by-design false positives (SoA visual application of credit against future-window charges); script deleted at sprint close pending #311's enhancement. Branch `fix/308-credit-ledger-soa-reconciliation` deleted (no merge to main). Issue #308 closed. Follow-up GH issues: #310 (UI dropdown enhancement), #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position.
 
@@ -227,7 +234,9 @@
 
 ---
 
-*Last Updated: April 25, 2026 — Added #315 merge closeout (PR #317) with deploy-before-backfill sequencing note, and appended Sprint Completion Log entry for persisted transaction notes localization finalization.*
+*Last Updated: April 27, 2026 — Marked LOCALIZATION-DESKTOP-NONADMIN complete after PR #320 merge, updated current focus to UC-LITE next, and added merge closeout note including #318/#319 governance and deploy-ready changelog status.*
+
+*Previous Update: April 25, 2026 — Added #315 merge closeout (PR #317) with deploy-before-backfill sequencing note, and appended Sprint Completion Log entry for persisted transaction notes localization finalization.*
 
 *Previous Update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. #308 closed; resolution was data-only reconciliation, no runtime code changed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). Advanced PROD-BACKUP-STABILIZATION to active position; DEBT-1 next behind it. Added Apr 22 Schedule Note.*
 

@@ -3,6 +3,23 @@
 
 ## Active Sprint Categories
 
+### ✅ Sprint LOCALIZATION-DESKTOP-NONADMIN: Desktop Non-Admin Localization Parity (Complete)
+*Carry backend localization contract (PR #314 + PR #317) into desktop non-admin experience without expanding backend scope*
+
+| # | Title | Priority | Est |
+|---|-------|----------|-----|
+| **316** | [ENHANCEMENT] Dual-language list management needs CRUD/modal updates to allow for Spanish name pairing | high | 4-8h |
+
+**Theme**: Convert backend localization gains into visible desktop non-admin value (UI parity and consistency)  
+**Risk**: Medium (broad UI touchpoints; avoid runtime translation re-introduction in frontend)  
+**Dependencies**: PR #314 and PR #317 merged (✅ complete)  
+**Status**: ✅ COMPLETE (Apr 27, 2026) — merged to `main` via PR #320 with accepted carry-forward/defer scope  
+**Interrupt Policy**: `#309` and `#307` are interrupt-class only if reproduced during sprint execution.
+**Carry-forward Tech Debt**: #319 tracks residual desktop localization follow-up after Stage 4.2 pause/partial acceptance (water bills interior content and related residuals); #318 remains deferred for inaccessible `/unit-report` enhancement path.  
+**Release Note**: BugBot-driven feature-flag/category-form item was accepted as non-blocking deferment for this release; changelog pending entry for `#316` is present in `main` and ready for deployment finalization.
+
+---
+
 ### ✅ Sprint UPC-CREDIT-FIX: Credit-Balance Allocation Write-Back Bug (Complete)
 *Production hotfix sprint — Issue #308 — resolved as data-only reconciliation, no runtime code changed*
 
@@ -189,11 +206,11 @@
 **Epic**: #54 — Unified Multi-Asset Client Architecture  
 **Theme**: Extend SAMS from HOA-only to support single-unit and portfolio clients  
 **Risk**: MEDIUM (may reveal structural HOA assumptions requiring larger refactor)  
-**Dependencies**: After DEBT-1; `hasActivity()` in `clientFeatures.js` already gates features  
-**Status**: Planned — roadmap position 15-16  
+**Dependencies**: After LOCALIZATION-DESKTOP-NONADMIN sprint; `hasActivity()` in `clientFeatures.js` already gates features  
+**Status**: Planned next strategic sprint after localization parity (Apr 25, 2026 reset)  
 **Escalation**: If investigation reveals structural issues beyond activity gating, escalate to full UC epic (#200-#206)
 
-**Real clients waiting**: Karyn (3 houses + 4 condos, full management), Wilfredo/Monica (2 condos)
+**Real clients waiting**: Karyn (3 houses + 4 condos, full management), Wilfredo/Monica (2 condos); initial near-term target is first non-HOA 2-property onboarding path.
 
 ---
 
@@ -1140,7 +1157,9 @@
 ---
 
 *Created: January 21, 2026*  
-*Updated: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.  
+*Updated: April 27, 2026 — Marked Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) complete after PR #320 merge to `main`; retained carry-forward/defer governance for #319 and #318; changelog pending entry is in place for upcoming deployment.  
+Previous update: April 25, 2026 — Between-sprint reset: added ACTIVE Sprint LOCALIZATION-DESKTOP-NONADMIN (`#316`) as next execution sprint, moved UC-LITE sequencing to immediately follow localization parity, and kept backup/debt work queued unless risk promotes them.  
+Previous update: April 25, 2026 — Added Issue #315 closeout: PR #317 merged with persisted transaction notes localization finalization, runtime transaction DeepL-read removal, strict backfill guardrails, and legacy transfer-fee suffix cleanup.  
 Previous major update: April 22, 2026 (post-retrospective) — Closed #311 as superseded after Sprint UPC-CREDIT-FIX retrospective work created `SAMS-Docs/SAMS Guides/INDEX_Accounting_Payments_Billing.md` (with Pattern Catalog of recurring symptom shapes) and updated `.cursor/commands/newMA.md` + `newIA.md` with prior-art search rules + mandatory architecture-doc reading. Filed new GH #312 (Nightly Data Integrity Validation + Operations Summary Email) and added new Sprint DATA-INTEGRITY-1 (Deferred) capturing the framework + UPC-vs-SoA seed check + consolidated morning ops email rollup.*  
 *Previous Update: April 22, 2026 — Marked Sprint UPC-CREDIT-FIX ✅ COMPLETE. Resolution: data-only reconciliation, no runtime code changed. #308 closed. Filed follow-up GH #310 (UI dropdown enhancement) and #311 (SoA-vs-ledger dual-derivation documentation + invariant check). PROD-BACKUP-STABILIZATION advances to active position; DEBT-1 next behind it.*  
 *Previous Update: April 21, 2026 — Inserted Sprint UPC-CREDIT-FIX (#308) as ACTIVE critical hotfix sprint ahead of DEBT-1 after production blocker discovered in credit-balance write-back path. PROD-BACKUP-STABILIZATION remained deferred. Scrum step-back analysis attached to Manager Bootstrap Prompt for the new sprint.*  
