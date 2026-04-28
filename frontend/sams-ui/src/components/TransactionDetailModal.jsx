@@ -201,6 +201,8 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
       if (dateObj) {
         return dateObj.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
       }
+      // Sparse payloads may only carry unambiguous_long_date; never drop date display in ES mode.
+      return dateValue.unambiguous_long_date;
     }
 
     if (dateValue?.timestamp) {

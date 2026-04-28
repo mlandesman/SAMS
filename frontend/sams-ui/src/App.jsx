@@ -15,6 +15,7 @@ import ExchangeRateModal from './components/ExchangeRateModal';
 import DashboardView from './views/DashboardView';
 import TransactionsView from './views/TransactionsView';
 import ActivityView from './views/ActivityView';
+import ReportsView from './views/ReportsView';
 import ListManagementView from './views/ListManagementView';
 import DigitalReceiptDemo from './views/DigitalReceiptDemo';
 import TestRoute from './components/TestRoute';
@@ -290,7 +291,7 @@ function AppContent() {
                   {/* Explicit reports alias for route checks; behavior matches dynamic activity routing */}
                   <Route path="/reports" element={
                     <ClientProtectedRoute>
-                      <ActivityView />
+                      <ReportsView />
                     </ClientProtectedRoute>
                   } />
                   {/* Dynamic route for activities from the client configuration */}
