@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useClient } from '../../context/ClientContext';
 import { useDesktopLanguage } from '../../context/DesktopLanguageContext';
 import { normalizeOwners, normalizeManagers } from '../../utils/unitContactUtils.js';
+import { pickLocalizedDisplayText } from '../../utils/localizedDisplayText';
 import { getMexicoDateTime } from '../../utils/timezone';
 import './UnitReport.css';
 
@@ -27,33 +28,20 @@ const UnitReport = ({ unitId, onClose }) => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const isSpanish = language === 'ES';
 
-  const readText = (value) => {
-    if (value == null) return '';
-    return String(value).trim();
-  };
-
-  const pickDisplayText = (localizedValue, sourceValue) => {
-    if (isSpanish) {
-      const localized = readText(localizedValue);
-      if (localized) return localized;
-    }
-    return readText(sourceValue);
-  };
-
   const getTransactionDateDisplay = (transaction) =>
-    pickDisplayText(transaction?.dateDisplayLocalized, transaction?.date?.display || transaction?.date || '');
+    pickLocalizedDisplayText(transaction?.dateDisplayLocalized, transaction?.date?.display || transaction?.date || '', isSpanish);
 
   const getTransactionTypeDisplay = (transaction) =>
-    pickDisplayText(transaction?.typeLocalized, transaction?.type || 'Transaction');
+    pickLocalizedDisplayText(transaction?.typeLocalized, transaction?.type || 'Transaction', isSpanish);
 
   const getTransactionDescriptionDisplay = (transaction) =>
-    pickDisplayText(transaction?.descriptionLocalized, transaction?.description);
+    pickLocalizedDisplayText(transaction?.descriptionLocalized, transaction?.description, isSpanish);
 
   const getTransactionCategoryDisplay = (transaction) =>
-    pickDisplayText(transaction?.categoryLocalized, transaction?.category);
+    pickLocalizedDisplayText(transaction?.categoryLocalized, transaction?.category, isSpanish);
 
   const getTransactionVendorDisplay = (transaction) =>
-    pickDisplayText(transaction?.vendorLocalized, transaction?.vendor);
+    pickLocalizedDisplayText(transaction?.vendorLocalized, transaction?.vendor, isSpanish);
 
   const fetchUnitReport = useCallback(async () => {
     try {
@@ -257,11 +245,11 @@ const UnitReport = ({ unitId, onClose }) => {
             <span className="value">
               {currentStatus.amountDue > 0 ? (
                 <span className="status-due">
-                  ❌ Amount Due: {pickDisplayText(currentStatus.amountDueDisplayLocalized, formatCurrency(currentStatus.amountDue))}
+                  ❌ Amount Due: {pickLocalizedDisplayText(currentStatus.amountDueDisplayLocalized, formatCurrency(currentStatus.amountDue), isSpanish)}
                 </span>
               ) : (
                 <span className="status-paid">
-                  ✅ Paid Through {pickDisplayText(currentStatus.paidThroughLocalized, currentStatus.paidThrough || 'Current')}
+                  ✅ Paid Through {pickLocalizedDisplayText(currentStatus.paidThroughLocalized, currentStatus.paidThrough || 'Current', isSpanish)}
                 </span>
               )}
             </span>

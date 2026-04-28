@@ -3,7 +3,7 @@
  * Ensures user has access to the currently selected client before rendering content
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useClient } from '../../context/ClientContext';
 import { useAuth } from '../../context/AuthContext';
@@ -34,8 +34,6 @@ const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
 
     if (!hasClientAccess) {
       console.error('🚫 ClientProtectedRoute: Access denied to client', selectedClient.id);
-      // Clear the unauthorized client from context and storage
-      localStorage.removeItem('selectedClient');
       return { allowed: false, reason: 'client_access_denied' };
     }
 
@@ -73,6 +71,12 @@ const ClientProtectedRoute = ({ children, requiredPermission = null }) => {
     
     return { allowed: true, reason: 'access_granted' };
   }, [loading, samsUser, selectedClient, requiredPermission]);
+
+  useEffect(() => {
+    if (accessCheck.reason === 'client_access_denied') {
+      localStorage.removeItem('selectedClient');
+    }
+  }, [accessCheck.reason]);
 
   if (accessCheck.reason === 'loading') {
     return <div className="loading-spinner">{t('route.loading')}</div>;

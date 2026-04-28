@@ -41,10 +41,10 @@ export const LIST_ENTITY_LANGUAGE_CONTRACT = {
   },
   unit: {
     unitName: { base: ['unitName', 'unitId'], companions: ['unitName_es', 'unitNameLocalized'] },
-    address: { base: ['address', 'unitId'], companions: ['address_es', 'addressLocalized'] },
+    address: { base: ['address'], companions: ['address_es', 'addressLocalized'] },
     propertyType: { base: ['propertyType', 'type'], companions: ['propertyType_es', 'type_es'] },
     status: { base: ['status'], companions: ['status_es', 'statusLocalized'] },
-    notes: { base: ['notes', 'unitId'], companions: ['notes_es', 'notesLocalized'] },
+    notes: { base: ['notes'], companions: ['notes_es', 'notesLocalized'] },
   },
 };
 

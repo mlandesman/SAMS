@@ -4,6 +4,7 @@ import { faPaperclip, faChevronDown, faChevronRight } from '@fortawesome/free-so
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
 import { databaseFieldMappings } from '../utils/databaseFieldMappings';
+import { pickLocalizedDisplayText, readDisplayText } from '../utils/localizedDisplayText';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './TransactionTable.css';
@@ -37,19 +38,6 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
   const { isSpanish } = useDesktopLanguage();
   const { t, language } = useDesktopStrings();
 
-  const readText = (value) => {
-    if (value == null) return '';
-    const normalized = String(value).trim();
-    return normalized;
-  };
-
-  const pickDisplayText = (localizedValue, sourceValue) => {
-    if (isSpanish) {
-      const localized = readText(localizedValue);
-      if (localized) return localized;
-    }
-    return readText(sourceValue);
-  };
   const dateLocale = language === 'ES' ? 'es-MX' : 'en-US';
 
   const coerceDate = (dateValue) => {
@@ -71,13 +59,13 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
   };
 
   const formatRowDate = (tx) => {
-    const localized = readText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
+    const localized = readDisplayText(tx.dateDisplayLocalized || tx.date?.displayLocalized || tx.created?.displayLocalized);
     if (localized) return localized;
     const dateObj = coerceDate(tx.date) || coerceDate(tx.created);
     if (dateObj) {
       return dateObj.toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
     }
-    return readText(tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display);
+    return readDisplayText(tx.date?.unambiguous_long_date || tx.created?.unambiguous_long_date || tx.date?.display || tx.created?.display);
   };
   
   // Helper function to determine display based on amount sign
@@ -236,9 +224,10 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
     }
     
     // Regular single-category transaction
-    return pickDisplayText(
+    return pickLocalizedDisplayText(
       transaction.categoryNameLocalized || transaction.categoryLocalized,
-      transaction.categoryName || transaction.category
+      transaction.categoryName || transaction.category,
+      isSpanish
     );
   };
 
@@ -306,7 +295,7 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                   )}
                 </td>
                 <td className="date-column">{formatRowDate(tx)}</td>
-                <td className="vendor-column">{pickDisplayText(tx.vendorNameLocalized, tx.vendorName || tx.vendor)}</td>
+                <td className="vendor-column">{pickLocalizedDisplayText(tx.vendorNameLocalized, tx.vendorName || tx.vendor, isSpanish)}</td>
                 <td className="category-column">{renderCategoryCell(tx)}</td>
                 <td className="unit-column">{tx.unitId || tx.unit || ''}</td>
                 <td className="amount-column amount-cell" style={{ 
@@ -319,10 +308,10 @@ function TransactionTable({ transactions = [], selectedId = null, onSelectTransa
                     true // Show cents (centavos)
                   )}
                 </td>
-                <td className="account-column">{pickDisplayText(tx.accountNameLocalized, tx.accountName || tx.accountType || tx.account)}</td>
+                <td className="account-column">{pickLocalizedDisplayText(tx.accountNameLocalized, tx.accountName || tx.accountType || tx.account, isSpanish)}</td>
                 <td className="notes-column">
                   <div className="notes-content">
-                    <span className="notes-text">{pickDisplayText(tx.notesLocalized, tx.notes)}</span>
+                    <span className="notes-text">{pickLocalizedDisplayText(tx.notesLocalized, tx.notes, isSpanish)}</span>
                     {getDocumentCount(tx.documents) > 0 && (
                       <span 
                         className="document-indicator"

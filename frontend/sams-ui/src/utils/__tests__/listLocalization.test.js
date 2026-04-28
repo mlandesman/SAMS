@@ -62,6 +62,26 @@ describe('resolveListEntityField', () => {
 
     expect(result).toBe('PH-A1');
   });
+
+  it('does not fall back to unitId for address and notes when fields are missing', () => {
+    const unit = {
+      unitId: 'A-102',
+      address: '',
+      notes: '',
+    };
+
+    const address = resolveListEntityField(unit, 'unit', 'address', {
+      language: 'ES',
+      localizationEnabled: true,
+    });
+    const notes = resolveListEntityField(unit, 'unit', 'notes', {
+      language: 'ES',
+      localizationEnabled: true,
+    });
+
+    expect(address).toBe('');
+    expect(notes).toBe('');
+  });
 });
 
 describe('isSpanishCompanionMode', () => {

@@ -4,6 +4,7 @@ import { faEye } from '@fortawesome/free-solid-svg-icons';
 import { DocumentList } from './documents';
 import DocumentViewer from './documents/DocumentViewer';
 import { getDocument } from '../api/documents';
+import { pickLocalizedDisplayText } from '../utils/localizedDisplayText';
 import { useDesktopLanguage } from '../context/DesktopLanguageContext';
 import { useDesktopStrings } from '../hooks/useDesktopStrings';
 import './TransactionDetailModal.css';
@@ -64,19 +65,6 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
   }, [transaction, isOpen, clientId]);
 
   if (!isOpen || !transaction) return null;
-
-  const readText = (value) => {
-    if (value == null) return '';
-    return String(value).trim();
-  };
-
-  const pickDisplayText = (localizedValue, sourceValue) => {
-    if (isSpanish) {
-      const localized = readText(localizedValue);
-      if (localized) return localized;
-    }
-    return readText(sourceValue);
-  };
 
   // Helper function to check if documents exist and get count
   const getDocumentCount = (docs) => {
@@ -286,17 +274,17 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             
             <div className="detail-row">
               <label>{t('tx.detail.vendor')}:</label>
-              <span>{pickDisplayText(transaction.vendorNameLocalized, transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor) || t('tx.detail.na')}</span>
+              <span>{pickLocalizedDisplayText(transaction.vendorNameLocalized, transaction.vendorName?.stringValue || transaction.vendorName || transaction.vendor, isSpanish) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
               <label>{t('tx.detail.category')}:</label>
-              <span>{pickDisplayText(transaction.categoryNameLocalized || transaction.categoryLocalized, transaction.categoryName?.stringValue || transaction.categoryName || transaction.category) || t('tx.detail.na')}</span>
+              <span>{pickLocalizedDisplayText(transaction.categoryNameLocalized || transaction.categoryLocalized, transaction.categoryName?.stringValue || transaction.categoryName || transaction.category, isSpanish) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
               <label>{t('tx.detail.account')}:</label>
-              <span>{pickDisplayText(transaction.accountNameLocalized, transaction.accountName || transaction.accountType || transaction.account) || t('tx.detail.na')}</span>
+              <span>{pickLocalizedDisplayText(transaction.accountNameLocalized, transaction.accountName || transaction.accountType || transaction.account, isSpanish) || t('tx.detail.na')}</span>
             </div>
             
             <div className="detail-row">
@@ -306,13 +294,13 @@ const TransactionDetailModal = ({ transaction, isOpen, onClose, clientId }) => {
             
             <div className="detail-row">
               <label>{t('tx.detail.paymentMethod')}:</label>
-              <span>{pickDisplayText(transaction.paymentMethodLocalized, transaction.paymentMethod) || t('tx.detail.na')}</span>
+              <span>{pickLocalizedDisplayText(transaction.paymentMethodLocalized, transaction.paymentMethod, isSpanish) || t('tx.detail.na')}</span>
             </div>
             
             {(transaction.notes || transaction.notesLocalized) && (
               <div className="detail-row notes-row">
                 <label>{t('tx.detail.notes')}:</label>
-                <div className="notes-content">{pickDisplayText(transaction.notesLocalized, transaction.notes)}</div>
+                <div className="notes-content">{pickLocalizedDisplayText(transaction.notesLocalized, transaction.notes, isSpanish)}</div>
               </div>
             )}
             

@@ -48,7 +48,7 @@ import { getPaymentMethods } from '../api/paymentMethods';
 import { getUnits } from '../api/units';
 import { fetchAllExchangeRates } from '../api/exchangeRates';
 import { getMexicoDateTime, getMexicoDateString } from '../utils/timezone';
-import { resolveListEntityField } from '../utils/listLocalization';
+import { buildListEntityWritePayload, resolveListEntityField } from '../utils/listLocalization';
 import '../layout/ActionBar.css';
 import './ListManagementView.css';
 
@@ -1100,23 +1100,28 @@ function ListManagementView() {
 
     try {
       const saveOperation = async () => {
+        const payload = buildListEntityWritePayload('category', categoryData, activeModal.itemData || {}, {
+          language,
+          localizationEnabled,
+        });
+
         if (activeModal.action === 'edit') {
           // Update existing category - use the original category's document ID
           console.log(`✏️ Updating category: ${categoryData.name}`);
-          await updateCategory(selectedClient.id, activeModal.itemData.id, categoryData);
+          await updateCategory(selectedClient.id, activeModal.itemData.id, payload);
           console.log('✅ Category updated successfully');
         } else {
           // Create new category
           console.log(`➕ Creating category: ${categoryData.name}`);
-          const createResult = await createCategory(selectedClient.id, categoryData);
+          const createResult = await createCategory(selectedClient.id, payload);
 
           // Create route stores name_es but does not persist description_es yet;
           // follow with update so both EN/ES descriptions entered in one modal are saved.
-          if (categoryData.description_es) {
+          if (payload.description_es) {
             const createdCategoryId = createResult?.data?.id || createResult?.id;
             if (createdCategoryId) {
               await updateCategory(selectedClient.id, createdCategoryId, {
-                description_es: categoryData.description_es,
+                description_es: payload.description_es,
               });
             }
           }
@@ -1173,15 +1178,20 @@ function ListManagementView() {
 
     try {
       const saveOperation = async () => {
+        const payload = buildListEntityWritePayload('unit', unitData, activeModal.itemData || {}, {
+          language,
+          localizationEnabled,
+        });
+
         // For units, we need to use unitId as the document ID (since units don't have an 'id' field)
         // The activeModal.itemData will have unitId from the backend's listUnits function
         if (activeModal.action === 'edit' && activeModal.itemData?.unitId) {
           // Update existing unit - use unitId as the document ID
-          await updateUnit(selectedClient.id, activeModal.itemData.unitId, unitData);
+          await updateUnit(selectedClient.id, activeModal.itemData.unitId, payload);
           console.log('✅ Unit updated successfully');
         } else {
           // Create new unit
-          await createUnit(selectedClient.id, unitData);
+          await createUnit(selectedClient.id, payload);
           console.log('✅ Unit created successfully');
         }
       };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseClient';
 import { useAuth } from './AuthContext';
@@ -30,14 +30,14 @@ export function DesktopLanguageProvider({ children }) {
   const seededForUidRef = useRef(null);
   const fetchedFlagForUidRef = useRef(null);
 
-  const setLanguage = (nextLanguage) => {
+  const setLanguage = useCallback((nextLanguage) => {
     const normalized = nextLanguage === 'ES' ? 'ES' : 'EN';
     setSelectedLanguageState(normalized);
 
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!currentUser) {
@@ -117,7 +117,7 @@ export function DesktopLanguageProvider({ children }) {
       localizationEnabled,
       isSpanish: effectiveLanguage === 'ES',
     }),
-    [effectiveLanguage, selectedLanguage, localizationEnabled]
+    [effectiveLanguage, selectedLanguage, setLanguage, localizationEnabled]
   );
 
   return (

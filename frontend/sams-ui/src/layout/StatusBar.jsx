@@ -39,6 +39,10 @@ const StatusBar = ({ children }) => {
   const isTransactionsPage = location.pathname === '/transactions';
   const isListManagementPage = location.pathname === '/listmanagement' || location.pathname === '/lists';
 
+  const systemErrorCountKey = errorMonitorStatus?.count === 1
+    ? 'status.systemErrorCount.one'
+    : 'status.systemErrorCount.other';
+
   return (
     <div className="status-bar">
       {/* Always show date/time on the left */}
@@ -101,9 +105,8 @@ const StatusBar = ({ children }) => {
                 ? `• ${t('status.errorUnavailable')}`
                 : errorMonitorStatus.count === 0
                   ? `• ${t('status.noSystemErrors')}`
-                  : `• ${t('status.systemErrorCount', {
+                  : `• ${t(systemErrorCountKey, {
                       count: errorMonitorStatus.count,
-                      suffix: errorMonitorStatus.count !== 1 ? 's' : ''
                     })}`}
             </span>
           )}
