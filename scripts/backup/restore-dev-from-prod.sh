@@ -33,6 +33,15 @@ echo "Source: $PROD_PROJECT_ID"
 echo "Target: $DEV_PROJECT_ID"
 echo ""
 
+REMAP_STATE_DIR="$(mktemp -d)"
+DEV_EMAIL_MAP_FILE="$REMAP_STATE_DIR/dev-email-to-uid.json"
+PROD_UID_MAP_FILE="$REMAP_STATE_DIR/prod-uid-to-email.json"
+
+cleanup_remap_state() {
+    rm -rf "$REMAP_STATE_DIR"
+}
+trap cleanup_remap_state EXIT
+
 # Step 1: List available backups
 echo "📋 Step 1: Finding available backups..."
 
@@ -150,6 +159,11 @@ gcloud firestore export "$DEV_USERS_BACKUP" \
 echo "   ✅ Dev users saved"
 echo ""
 
+echo "🗺️  Step 3b: Capturing pre-flight Dev email→UID map..."
+node "$SCRIPT_DIR/remap-dev-user-links.js" export-email-to-uid --out="$DEV_EMAIL_MAP_FILE"
+echo "   ✅ Pre-flight map captured: $DEV_EMAIL_MAP_FILE"
+echo ""
+
 # Step 5: Purge Dev client data and auditLogs before import
 echo "🗑️  Step 4: Purging Dev data before import..."
 echo "   This ensures deleted Prod documents don't persist in Dev"
@@ -251,9 +265,16 @@ if [ $ELAPSED -ge $MAX_WAIT ]; then
     exit 0
 fi
 
-# Step 8: Replace imported Prod users with saved Dev users
+# Step 8: Capture imported Prod UID→email map (before deleting users)
 echo ""
-echo "👥 Step 8: Restoring Dev users..."
+echo "🗺️  Step 8: Capturing imported Prod UID→email map..."
+node "$SCRIPT_DIR/remap-dev-user-links.js" export-uid-to-email --out="$PROD_UID_MAP_FILE"
+echo "   ✅ Prod map captured: $PROD_UID_MAP_FILE"
+echo ""
+
+# Step 9: Replace imported Prod users with saved Dev users
+echo ""
+echo "👥 Step 9: Restoring Dev users..."
 echo "   Deleting Prod users that were imported..."
 firebase firestore:delete "users" -r --project "$DEV_PROJECT_ID" --force 2>/dev/null || true
 
@@ -263,6 +284,15 @@ gcloud firestore import "$DEV_USERS_BACKUP" \
     --collection-ids="users"
 
 echo "   ✅ Dev users restored"
+echo ""
+
+# Step 10: Remap stale user links in unit contacts
+echo "🔗 Step 10: Remapping unit owner/manager user links..."
+node "$SCRIPT_DIR/remap-dev-user-links.js" remap-unit-contacts \
+    --prod-uid-map="$PROD_UID_MAP_FILE" \
+    --dev-email-map="$DEV_EMAIL_MAP_FILE" \
+    --execute
+echo "   ✅ Unit contact links remapped"
 echo ""
 
 echo ""
@@ -277,5 +307,6 @@ echo ""
 echo "💡 Next steps:"
 echo "   1. Test Dev environment to ensure data is correct"
 echo "   2. Verify Dev users can still log in"
+echo "   3. Verify unit owner/manager names load in Water Bills and HOA views"
 echo ""
 
